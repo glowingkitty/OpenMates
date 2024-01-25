@@ -176,5 +176,6 @@ article_image/public/preview-image@2x.png
 test*.m4a
 ignore__*
 profile_details.yaml
+valid_api_tokens.yaml
 
 hidden__*
