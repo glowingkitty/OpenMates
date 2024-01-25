@@ -1,0 +1,95 @@
+.preview-image-icon {
+  position: absolute;
+  top: 0;
+  left: 184px;
+  width: 296px;
+  height: 169px;
+  object-fit: cover;
+}
+.article-image-child {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: #0b0b0b;
+  width: 184px;
+  height: 169px;
+}
+.how-to-get {
+  margin: 0;
+}
+.title-txt {
+  line-break: anywhere;
+  width: 100%;
+}
+.title {
+  position: absolute;
+  top: 169px;
+  left: calc(50% - 217px);
+  display: flex;
+  align-items: center;
+  width: 425px;
+  height: 69px;
+  text-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+.article-image-item {
+  position: absolute;
+  top: 109px;
+  left: 0;
+  background: linear-gradient(180deg, rgba(27, 27, 27, 0), #1b1b1b);
+  width: 480px;
+  height: 60px;
+}
+.source-name {
+  top: 48px;
+  line-height: 30px;
+  display: flex;
+  align-items: center;
+  width: 142px;
+  height: 84px;
+  text-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+.logo-icon,
+.shorturl,
+.source-name {
+  position: absolute;
+  left: 0;
+}
+.shorturl {
+  top: 217px;
+  font-size: 12px;
+  display: inline-block;
+  width: 150px;
+  text-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}
+.logo-icon {
+  top: 0;
+  border-radius: 10px;
+  width: 37px;
+  height: 37px;
+  object-fit: cover;
+}
+.source {
+  position: absolute;
+  top: 21px;
+  left: 23px;
+  width: 150px;
+  height: 232px;
+  font-size: 16px;
+  color: #a0a0a0;
+}
+.article-image {
+  position: relative;
+  background-color: #1b1b1b;
+  width: 100%;
+  height: 270px;
+  overflow: hidden;
+  text-align: left;
+  font-size: 18px;
+  color: #fff;
+  font-family: "Lexend Deca";
+}
+
+body {
+  margin: 0;
+  line-height: normal;
+}

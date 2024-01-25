@@ -1,0 +1,330 @@
+###########################
+######### Basics ##########
+###########################
+
+# This config file contains the details about your profile.
+
+# WHAT IS THIS USED FOR?
+# -> Your AI team members will get these information, to give you better answers.
+# -> Some of these details will also be used when your AI team members interact with websites. (will be marked with WARNINGs)
+
+###########################
+# WARNING:
+# - All data which you enter here will be transmitted to the large language model which you define in config.yaml!
+# - The more details you enter, the more relevant the AI responses should be.
+# - The more details you enter, the more expensive the AI responses will be. So better keep it concise.
+# Make sure you consider this, both in terms of privacy and costs.
+###########################
+
+# INFO:
+# -> Make sure to remmove the "template__" from the filename, when you are done.
+
+# type ->             Options: "individual", "community", "single person business", "non profit organisation", "small business"
+type:                 ""
+
+# legal_identity ->   Examples: "individual", "Inc.", "LLC", "Kleinunternehmer", "GmbH", "Verein"
+legal_identity:       ""
+
+# name ->             Your name or the name of your organisation
+name:                 ""
+
+# description ->      Short description of your profile, in one to two sentences. What do you do? (required)
+description:          ""
+
+# website ->          Your website URL
+website:              ""
+
+# mission ->          What is your mission statement? What do you want to achieve?
+mission:              ""
+
+# location ->         Where are you based? (used for giving you answers related to your location)
+location:
+  city:               ""
+  country:            ""
+
+# email_user_agent -> WARNING: this e-mail address will be visible to websites, when your AI team members interact with them
+email_user_agent:     "" 
+
+# INFO: all following information are also related to your profile
+
+
+###########################
+## Products and services ##
+###########################
+
+# List all your products and services.
+# -> name:           string        required    -> name of the product or service
+# -> description:    string        required    -> short description of your product or service, in one sentence.
+# -> type:           string        required    -> e.g. "physical product", "digital product", "service"
+# -> public:         bool          required    -> Do you want to openly talk about this product or service with the public?
+# -> look:           list          optional    -> how does the product look like? Keep it concise.
+# -> used_tech:      list          optional    -> list of technologies used in your product or service. Keep it concise.
+# -> highlights:     list          optional    -> list of highlights features of your product. Keep it concise.
+# -> website:        string        optional    -> link to product or service website
+# -> stage:          string        optional    -> e.g. "in development", "available in online shop", "crowdfunding campaign running"
+# -> price:          float         optional    -> price of the product or service
+# -> currency:       string        optional    -> currency of the price
+# -> payment_type:   string        optional    -> e.g. "one time purchase", "monthly", "yearly"
+
+products_and_services:
+
+  - name:           ""
+    type:           ""
+    description:    ""
+    public:         True
+    look:
+      -             ""
+    used_tech:
+      -             ""
+    highlights:
+      -             ""
+    website:        ""
+    stage:          ""
+    price:          0
+    currency:       ""
+    payment_type:   ""
+    
+  - name:           ""
+    type:           ""
+    description:    ""
+    public:         True
+    look:
+      -             ""
+    used_tech:
+      -             ""
+    highlights:
+      -             ""
+    website:        ""
+    stage:          ""
+    price:          0
+    currency:       ""
+    payment_type:   ""
+
+
+###########################
+### Project management ####
+###########################
+
+# What are your latest updates? What did you achieve recently?
+latest_updates:
+  - ""
+
+# What are the next milestones for your profile?
+next_milestones:
+  - ""
+  - ""
+  - ""
+
+# What tasks are you currently procrastinating? (what should be done but you are putting it off)
+prograstination:
+  - ""
+  - ""
+  - ""
+
+
+
+###########################
+##### Writing styles ######
+###########################
+
+# What writing styles do you use? Based on that your AI team members will be able to give you better answers.
+# The "default_writing_style" will be used for all other writing styles, which are not defined.
+# Else, the details from the "writing_style_scenarios" will be used.
+
+default_writing_style:
+  language: "english"
+  target_groups:
+    - ""
+  what_to_do:
+    - ""
+  what_to_avoid:
+    - ""
+  positive_text_examples:
+    - ""
+  negative_text_examples:
+    - ""
+
+writing_style_scenarios:
+  apply_for_grant:
+    target_groups:
+      - ""
+    what_to_do:
+      - ""
+    what_to_avoid:
+      - ""
+    positive_text_examples:
+      - ""
+    negative_text_examples:
+      - ""
+  product_manual:
+    target_groups:
+      - ""
+    what_to_do:
+      - ""
+    what_to_avoid:
+      - ""
+    positive_text_examples:
+      - ""
+    negative_text_examples:
+      - ""
+
+
+
+
+###########################
+######### Tools ###########
+###########################
+
+# What tools do you use? Based on that your AI team members will be able to give you better answers.
+# Info: 
+# you can uncommment tool categories you don't need and add custom ones.
+# if you add custom ones, make sure to add them as variables ("{{tools.web_design}}" for example) in the markdown files in the "systemprompts" folder.
+
+tools:
+  software_development:
+    - ""
+  product_design:
+    - ""
+  web_design:
+    - ""
+  marketing:
+    - ""
+  electrical_engineering:
+    - ""
+
+
+
+###########################
+##### Relevant topics #####
+###########################
+
+# What topics are you interested in? Based on that your AI team members will be able to give you better answers.
+# Info: 
+# you can uncommment topic categories you don't need and add custom ones.
+# if you add custom ones, make sure to add them as variables ("{{relevant_topics.marketing}}" for example) in the markdown files in the "systemprompts" folder.
+
+relevant_topics:
+  software_development:
+    - ""
+  product_design:
+    - ""
+  web_design:
+    - ""
+  marketing:
+    - ""
+  electrical_engineering:
+    - ""
+
+
+###########################
+######## Partners #########
+###########################
+
+# What organisations are you working with? Partners, sellers, etc. (which can have an impact on your decision making)
+partners:
+  - ""
+
+
+###########################
+######### Finance #########
+###########################
+
+# You can add your bank accounts here (secrets are stored in the .env file)
+# If you do so (and setup the access token via ...apps/finance/revolut_business/authentification/get_access_token.py)
+# your AI team members will be able to automate your financial management and answer questions related to your finances.
+# -> bank:         name of the bank
+# -> account_name: name of the account (only used for your reference)
+bank_accounts:
+  - bank: "Revolut Business"
+    account_name: "Revolut Business" # or for example "Primary Account" or "Savings Account"
+
+# What is the current financial situation for your profile?
+net_income_summary:
+
+  - month:        10
+    year:         2023
+    income:       0
+    expenses:     0
+    net_income:   0
+    
+  - month:        11
+    year:         2023
+    income:       0
+    expenses:     0
+    net_income:   0
+
+
+# Any expensive investments planned, which can impact your decision making?
+planned_investments:
+  - ""
+
+
+###########################
+########## News ###########
+###########################
+
+# Define all the RSS feeds that will be used for the daily news update video
+# -> feed_url: the url of the RSS feed
+# -> articles: "all" will show all articles, "highlights" will show only the most relevant ones
+rss_feeds:
+
+  events:
+
+    - feed_url: "https://events.ccc.de/en/feed"
+      articles: "all"
+
+
+  diy:
+
+    - feed_url: "https://www.hackster.io/blog/feed/"
+      articles: "highlights"
+
+    - feed_url: "https://hackaday.com/feed/"
+      articles: "highlights"
+
+    - feed_url: "https://blog.adafruit.com/rss"
+      articles: "highlights"
+
+    - feed_url: "https://makezine.com/feed/"
+      articles: "highlights"
+
+
+  business:
+
+    - feed_url: "https://www.businessinsider.de/feed/businessinsider-alle-artikel"
+      articles: "highlights"
+
+    - feed_url: "https://venturebeat.com/rss"
+      articles: "highlights"
+
+
+  tech:
+
+    - feed_url: "https://theverge.com/rss/index.xml"
+      articles: "highlights"
+
+    - feed_url: "https://www.engadget.com/rss.xml"
+      articles: "highlights"
+
+    - feed_url: "https://www.wired.com/feed/rss"
+      articles: "highlights"
+
+    - feed_url: "https://www.techcrunch.com/feed/"
+      articles: "highlights"
+
+    - feed_url: "https://www.cnet.com/rss/news/"
+      articles: "highlights"
+
+    - feed_url: "https://gizmodo.com/rss"
+      articles: "highlights"
+
+    - feed_url: "https://www.uploadvr.com/rss"
+      articles: "highlights"
+
+    - feed_url: "https://9to5mac.com/rss"
+      articles: "highlights"
+
+  tools:
+
+    - feed_url: "https://www.producthunt.com/feed"
+      articles: "highlights"

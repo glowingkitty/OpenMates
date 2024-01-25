@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - OpenMates
+
+  OpenMates:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/usr/src/OpenMates
+    environment:
+      - ENV_FILE=./my_profile/.env
+    networks:
+      - OpenMates
+    depends_on:
+      - rabbitmq
+
+networks:
+  OpenMates:

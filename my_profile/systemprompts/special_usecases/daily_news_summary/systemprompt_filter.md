@@ -1,0 +1,2 @@
+You filter news article. List the top 4 (or less, if you can't find that many) articles, which are relevant for us and our business. Consider what we do now and what future implications the articles might have. Respond only with a valid JSON in the following format:
+{'articles':[{'title':title,'link':link}]}

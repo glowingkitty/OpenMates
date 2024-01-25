@@ -1,0 +1,292 @@
+# For additional debug output and to print to console, set this to "development", else use "production"
+environment:  "development"
+# environment:  "production"
+
+
+# Module selection, comment out the ones you don't want to use.
+# Info: more options will be added in the future
+modules:
+
+  chat_server:           # select only one. If multiple are uncommented, the first one will be used.
+    - source:            "Mattermost"
+  
+  large_language_model:  # select only one model. If multiple are uncommented, the first one will be used.
+    - source:            "OpenAI"
+      best: &llm_best    "gpt-4-1106-preview" # Costs: input = $0.01/1000 tokens, output = $0.03/1000 tokens
+      cheap: &llm_cheap  "gpt-3.5-turbo-1106" # Costs: input = $0.001/1000 tokens, output = $0.002/1000 tokens
+      default_model:     *llm_best
+  
+  text_to_image:         # you can choose multiple. The first one will be used by default. Ask the chatbots to use a different one.
+    - source:            "OpenAI"
+      default_model:     "dall-e-3"
+  
+  text_to_speech:        # you can choose multiple. The first one will be used by default. Ask the chatbots to use a different one.
+    - source:            "OpenAI"
+      default_model:     "tts-1"
+  
+  transcript:            # you can choose multiple. The first one will be used by default. Ask the chatbots to use a different one.
+    - source:            "OpenAI"
+      default_model:     "whisper-1"
+  
+  cloud_storage:         # select only one. If multiple are uncommented, the first one will be used.
+    - source:            "Dropbox"
+      default_target:    "/api_uploads/"
+  
+  bookkeeping:           # select only one. If multiple are uncommented, the first one will be used.
+    - source:            "SevDesk"
+
+
+# These bots will be automatically created in the chat server when the software starts. Comment out the ones you don't need.
+# -> user_name: the username of the bot in the chat server
+# -> description: a short description of the bot
+# -> display_name: the name of the bot that will be displayed in the chat server
+# -> model (large language model): defines if the more powerful and expensive model is chosen (*llm_best), or the model that costs less to use (*llm_cheap)
+# -> creativity (also called "temperature"): the creativity level of the large language model, between 0 and 1.0. 0 creates more factual model, 1.0 is more creative.
+# -> voice: the voice to use for text-to-speech. If not defined, the default voice will be used.
+# -> tools: the tools this bot can use (image generation, web browsing, youtube and so on). If not defined, no tools will be available.
+# -> product_details: the details about your products & services that this bot will know about. If not defined, no product details will be available. Keep in mind: the more details you define, the more expensive it will be to use the bot.
+
+active_bots:          &active_bots
+
+  - user_name:        "burton"
+    description:      "Business development expert"
+    display_name:     "Burton"
+    model:            *llm_best
+    creativity:       0.5
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+      -               "stage"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+    voice:
+      openai:         "echo"
+
+  - user_name:        "elton"
+    description:      "Electrical engineering expert"
+    display_name:     "Elton"
+    model:            *llm_best
+    creativity:       0
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+
+  - user_name:        "finn"
+    description:      "Finance expert"
+    display_name:     "Finn"
+    model:            *llm_best
+    creativity:       0
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "stage"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  - user_name:        "grace"
+    description:      "Graphic designer & photographer"
+    display_name:     "Grace"
+    model:            *llm_best
+    creativity:       1
+    tools:
+      -               "start_generate_image" # use the text_to_image module to generate an image
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+
+  - user_name:        "leon"
+    description:      "Law / Legal expert"
+    display_name:     "Leon"
+    model:            *llm_best
+    creativity:       0.5
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "used_tech"
+      -               "highlights"
+      -               "stage"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  - user_name:        "mark"
+    description:      "Marketing expert"
+    display_name:     "Mark"
+    model:            *llm_best
+    creativity:       1
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+      -               "website"
+      -               "stage"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  - user_name:        "priscilla"
+    description:      "Product design + UI/UX design expert"
+    display_name:     "Priscilla"
+    model:            *llm_best
+    creativity:       0.5
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  - user_name:        "sophia"
+    description:      "Software development expert"
+    display_name:     "Sophia"
+    model:            *llm_best
+    creativity:       0
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "used_tech"
+      -               "highlights"
+      -               "website"
+      -               "stage"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  - user_name:        "selma"
+    description:      "Sewing & clothing design expert"
+    display_name:     "Selma"
+    model:            *llm_best
+    creativity:       0.5
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+
+  - user_name:        "makani"
+    description:      "A maker. Expert in CNC machining, wood working, 3d printing and more."
+    display_name:     "Makani"
+    model:            *llm_best
+    creativity:       1
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  - user_name:        "remi"
+    description:      "Can remind people about taking a look at a chat thread again."
+    display_name:     "Remi"
+    model:            *llm_best
+    creativity:       0
+    tools:
+      -               "set_reminder" # reminds you about a thread in the chat server, at a specific time
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+
+  - user_name:        "summer"
+    description:      "Summarizing expert"
+    display_name:     "Summer"
+    model:            *llm_best
+    creativity:       1
+    product_details:
+      -               "name"
+      -               "type"
+      -               "description"
+      -               "public"
+      -               "look"
+      -               "used_tech"
+      -               "highlights"
+      -               "stage"
+      -               "price"
+      -               "currency"
+      -               "payment_type"
+
+  # - user_name:      "apollo"
+  #   description:    "Can use apps like YouTube, Google Maps and more to give information about a topic."
+  #   display_name:   "Apollo"
+  #   model:          *llm_best
+  #   creativity:     0.5
+  #   # tools:
+  #     # TODO: add tools here
+  
+  # - user_name:      "monika"
+  #   description:    "Movie & TV series expert"
+  #   display_name:   "Monika"
+  #   model:          *llm_best
+  #   creativity:     1
+
+  # - user_name:      "melvin"
+  #   description:    "Medical & health expert"
+  #   display_name:   "Melvin"
+  #   model:          *llm_best
+  #   creativity:     0
+
+  # - user_name:      "lisa"
+  #   description:    "Life coach & psychologist"
+  #   display_name:   "Lisa"
+  #   model:          *llm_best
+  #   creativity:     0.5
+
+
+# These channels will be automatically created in the chat server, when the software
+default_channels:
+  - "daily to do's"
+  - "daily updates"
+  - "watchlist"
+  - "finance & business development"
+  - "marketing"
+  - "software"
+  - "sales"
+  - "server"
+  - "hardware"
+  - "design"
+  - "legal"
+  - "sewing"
+  - "random"
+
+
+# These bots will be invited to the channels defined above
+invite_bots_to_channels: *active_bots
+
+
+# User agent details, will be used when the bots are interacting with websites
+user_agent:
+  incognito:  "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"
+  official:   "TeamOS1.0 ({CONTACT_EMAIL})" # {CONTACT_EMAIL} will be replaced with the email address you define in the .env file

@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        // "*.md": "jinja-md"
+      },
+    "grammarly.selectors": [
+        {
+            "language": "yaml",
+            "scheme": "file"
+        },
+        {
+            "language": "markdown",
+            "scheme": "file"
+        },
+        {
+            "language": "python",
+            "scheme": "file"
+        }
+    ]
+}
