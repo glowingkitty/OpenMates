@@ -19,7 +19,7 @@ import tiktoken
 def count_tokens(
         message: str = None,
         message_history: list = None,
-        model_name: str = "gpt-3.5-turbo-1106") -> int:
+        model_name: str = "gpt-3.5-turbo") -> int:
     try:
         add_to_log(state="start", module_name="LLMs", color="yellow")
         add_to_log(f"Counting the tokens ...")

@@ -69,7 +69,7 @@ def get_news_video_outline(use_existing_file_if_exists: bool = True):
         # send to LLM and get video script as json
         response = asyncio.run(ask_llm(
             message_history=message_history,
-            model="gpt-4-1106-preview",
+            model="gpt-4-turbo-preview",
             response_format="json")
         )
         clips = response["clips"]

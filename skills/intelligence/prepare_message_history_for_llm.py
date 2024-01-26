@@ -259,11 +259,11 @@ def prepare_message_history_for_llm(
                 for position, new_message in sorted(new_messages, key=lambda x: x[0], reverse=True):
                     message_history_chatgpt.insert(position, new_message)
 
-        # if the model is defined as "gpt-3.5", change it to "gpt-3.5-turbo-1106"
+        # if the model is defined as "gpt-3.5", change it to "gpt-3.5-turbo"
         if model == "gpt-3.5":
-            model = "gpt-3.5-turbo-1106" 
+            model = "gpt-3.5-turbo" 
         elif model == "gpt-4":
-            model = "gpt-4-1106-preview"
+            model = "gpt-4-turbo-preview"
 
 
         # remove empty messages, for example:

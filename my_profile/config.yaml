@@ -12,8 +12,8 @@ modules:
   
   large_language_model:  # select only one model. If multiple are uncommented, the first one will be used.
     - source:            "OpenAI"
-      best: &llm_best    "gpt-4-1106-preview" # Costs: input = $0.01/1000 tokens, output = $0.03/1000 tokens
-      cheap: &llm_cheap  "gpt-3.5-turbo-1106" # Costs: input = $0.001/1000 tokens, output = $0.002/1000 tokens
+      best: &llm_best    "gpt-4-turbo-preview" # Costs: input = $0.01/1000 tokens, output = $0.03/1000 tokens
+      cheap: &llm_cheap  "gpt-3.5-turbo" # Costs: input = $0.001/1000 tokens, output = $0.002/1000 tokens
       default_model:     *llm_best
   
   text_to_image:         # you can choose multiple. The first one will be used by default. Ask the chatbots to use a different one.

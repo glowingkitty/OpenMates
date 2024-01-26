@@ -18,7 +18,7 @@ import tiktoken
 
 def count_tokens(
         message: str, 
-        model_name: str = "gpt-3.5-turbo-1106") -> int:
+        model_name: str = "gpt-3.5-turbo") -> int:
     try:
         add_to_log(module_name="OpenAI", color="yellow", state="start")
         add_to_log("Counting the tokens ...")
