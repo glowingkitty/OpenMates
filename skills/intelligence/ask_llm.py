@@ -124,6 +124,10 @@ async def ask_llm(
             "timeout": 60
         }
 
+        # remove all fields which are not role or content
+        filtered_message_history = [{'role': message['role'], 'content': message['content']} for message in params["messages"]]
+        params["messages"] = filtered_message_history
+
         if not includes_images and response_format=="json":
             params["response_format"] = {"type": "json_object"}
 

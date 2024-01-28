@@ -272,10 +272,11 @@ def prepare_message_history_for_llm(
         #     "content": " "
         # }
         message_history_chatgpt = [message for message in message_history_chatgpt if message["content"] != " "]
+        filtered_message_history = [{'role': message['role'], 'content': message['content']} for message in message_history_chatgpt]
 
         response = {
             "model": model,
-            "message_history": message_history_chatgpt,
+            "message_history": filtered_message_history,
             "includes_images": True if added_images else False
         }
 
