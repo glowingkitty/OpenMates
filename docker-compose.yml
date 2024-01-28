@@ -7,9 +7,9 @@ services:
       - "5672:5672"
       - "15672:15672"
     networks:
-      - OpenMates
+      - openmates
 
-  OpenMates:
+  openmates:
     build:
       context: .
       dockerfile: Dockerfile
@@ -18,9 +18,9 @@ services:
     environment:
       - ENV_FILE=./my_profile/.env
     networks:
-      - OpenMates
+      - openmates
     depends_on:
       - rabbitmq
 
 networks:
-  OpenMates:
+  openmates:
