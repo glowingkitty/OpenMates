@@ -11,7 +11,7 @@ import aiohttp
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('skills.intelligence.*', '', full_current_path)
+main_directory = re.sub('skills.*', '', full_current_path)
 sys.path.append(main_directory)
 
 from server import *
@@ -19,10 +19,10 @@ from server import *
 from server.message.get_location_time_date import get_location_time_date
 from chat.mattermost.functions.channel.get_channel_name import get_channel_name
 from skills.intelligence.process_function_calling import process_function_calling
-from skills.intelligence.post_to_api_usage_chat import post_to_api_usage_chat
+from skills.intelligence.costs.post_to_api_usage_chat import post_to_api_usage_chat
 from skills.intelligence.prepare_message_history_for_llm import prepare_message_history_for_llm
-from skills.intelligence.count_tokens import count_tokens
-from skills.intelligence.get_costs_chat import get_costs_chat
+from skills.intelligence.costs.count_tokens import count_tokens
+from skills.intelligence.costs.get_costs_chat import get_costs_chat
 from skills.images.text_to_image.open_ai.start_generate_image import tool__start_generate_image
 from skills.reminder.set_reminder import tool__set_reminder
 import httpx
@@ -41,7 +41,7 @@ async def ask_llm(
         ) -> Union[str, Stream]:
     
     try:
-        add_to_log(state="start", module_name="LLMs", color="yellow")
+        add_to_log(state="start", module_name="Skills | Intelligence | Ask LLM", color="yellow")
 
         
         if not new_message and not message_history:

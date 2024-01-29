@@ -13,8 +13,8 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from skills.intelligence.count_tokens import count_tokens
-from skills.intelligence.get_costs_chat import get_costs_chat
+from skills.intelligence.costs.count_tokens import count_tokens
+from skills.intelligence.costs.get_costs_chat import get_costs_chat
 
 import html2text
 import requests

@@ -14,7 +14,7 @@ from server import *
 ################
 
 from skills.news.rss.get_all_rss_articles_from_feed import get_all_rss_articles_from_feed
-from skills.intelligence.get_costs_chat import get_costs_chat
+from skills.intelligence.costs.get_costs_chat import get_costs_chat
 
 import json
 from datetime import datetime

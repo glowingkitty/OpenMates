@@ -14,7 +14,7 @@ main_directory = re.sub('skills.*', '', full_current_path)
 sys.path.append(main_directory)
 
 from server import *
-from skills.intelligence.count_tokens import count_tokens
+from skills.intelligence.costs.count_tokens import count_tokens
 
 
 def get_all_rss_articles_from_feed(

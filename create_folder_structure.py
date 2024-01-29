@@ -13,7 +13,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from skills.intelligence.count_tokens import count_tokens
+from skills.intelligence.costs.count_tokens import count_tokens
 
 import os
 import ast

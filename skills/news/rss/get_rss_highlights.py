@@ -16,7 +16,7 @@ from server import *
 from skills.news.rss.get_all_rss_articles import get_all_rss_articles
 from skills.news.rss.get_article_full_text import get_article_full_text
 from skills.news.get_systemprompt import get_systemprompt
-from skills.intelligence.count_tokens import count_tokens
+from skills.intelligence.costs.count_tokens import count_tokens
 from skills.intelligence.ask_llm import ask_llm
 
 import asyncio
