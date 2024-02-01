@@ -33,7 +33,7 @@ def get_video_details(url:str) -> dict:
     video_id = url.split('=')[1]
 
     # Create a YouTube service object
-    youtube = build('youtube', 'v3', developerKey=secrets["youtube_api_key"])
+    youtube = build('youtube', 'v3', developerKey=secrets["YOUTUBE_API_KEY"])
 
     # Get the video details
     request = youtube.videos().list(
