@@ -27,8 +27,6 @@ async def chat_complete(
     try:
         add_to_log(state="start", module_name="Skills | Intelligence | OpenAI | Chat complete", color="yellow")
 
-        #TODO always return full response, regardless if stream or not? (together with token count, and costs, after calculating them and sending them to database)
-
         llm_params = {
             "model": model,
             "messages": messages,

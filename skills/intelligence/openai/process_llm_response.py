@@ -30,9 +30,6 @@ async def process_llm_response(response, llm_params: dict):
         tool_calls = []
         llm_response_message = ""
 
-        # if the response is not a stream, check the full response for function calls and process everything accordingly
-        # TODO
-
         # if the response is a stream, check every message part for a function call or a text part and process it accordingly
         if llm_params["stream"]==True:
 
