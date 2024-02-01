@@ -27,27 +27,29 @@ async def process_llm_response(response, llm_params: dict):
 
         # if the response is a stream, check every message part for a function call or a text part and process it accordingly
         if llm_params["stream"]==True:
+
             function_name = None
             function_arguments = None
+
             # check if a function call is present in the response
             async for message in response:
 
-                # if the message is text, forward it to the client via rabbitmq
+                #####################################
+                ##### Send message part to user #####
+                #####################################
                 if message.choices[0].delta.content and len(message.choices[0].delta.content)>0:
-                    # add_to_log(f"Response is a text response: {message.choices[0].delta.content}")
-                    # return response
                     print(message.choices[0].delta.content)
-
                     # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
 
 
-                # if the message is a function call, collect the function name, arguments and then execute the function
+                #####################################
+                ###### Process function call ########
+                #####################################
                 elif message.choices[0].delta.tool_calls != None:
-                    # the response is a function call
 
-                    # get the function name
+                    # Start collecting the next function call
                     if message.choices[0].delta.tool_calls[0].function.name != None:
-                        # add the previous function call
+                        # But before processing the next function, make sure the current function is added to tool_calls
                         if function_name and function_arguments:
                             tool_calls.append({
                                 "id":tool_call_id,
@@ -58,18 +60,19 @@ async def process_llm_response(response, llm_params: dict):
                                 }
                             })
                         
-                        # start collecting the data for that function call
+                        # Then collect the data for that function call
                         tool_call_id = message.choices[0].delta.tool_calls[0].id
                         function_name = message.choices[0].delta.tool_calls[0].function.name
                         add_to_log(f"Function call detected: {function_name} (id: {tool_call_id})")
                         function_arguments = ""
 
+                    # Collect the function arguments
                     elif message.choices[0].delta.tool_calls[0].function.arguments != "":
                         function_arguments_part = message.choices[0].delta.tool_calls[0].function.arguments
                         function_arguments+=function_arguments_part
 
+                # If all function calls are received, add the last function to tool_calls
                 elif (message.choices[0].finish_reason != None and message.choices[0].finish_reason == "tool_calls"):
-                    # add the function to tool_calls
                     tool_calls.append({
                         "id":tool_call_id,
                         "type":"function",
@@ -79,13 +82,17 @@ async def process_llm_response(response, llm_params: dict):
                         }
                     })
 
-            # Add the tool calls to the message history
+            #####################################
+            ##### Add tool calls to history #####
+            #####################################
             llm_params["messages"].append({
                 "role":"assistant",
                 "tool_calls":tool_calls
             })
 
-            # After all function calls are received, process them and add output to message history
+            #####################################
+            ####### Execute all functions #######
+            #####################################
             for tool_call in tool_calls:
                 tool_call_id = tool_call["id"]
                 function_name = tool_call["function"]["name"]
@@ -110,9 +117,15 @@ async def process_llm_response(response, llm_params: dict):
             # Then send the message history including the function response to the OpenAI API
             client = await load_client()
 
+            # But first remove the tools, since we only want to interpret the tool response, not trigger another function call
             llm_params.pop("tools")
             llm_params.pop("tool_choice")
             second_response = await client.chat.completions.create(**llm_params)
+
+            
+            #####################################
+            ##### Send message part to user #####
+            #####################################
             async for message in second_response:
                 print(message.choices[0].delta.content)
                 # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
