@@ -11,15 +11,15 @@ from server import *
 
 import random
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, InternalServerError, BadRequestError
-
+from skills.intelligence.openai.load_available_skill_tool_parameters import load_available_skill_tool_parameters
+from skills.intelligence.openai.process_llm_response import process_llm_response
 
 async def chat_complete(
         client: AsyncOpenAI,
         messages: list,
-        model: str = "gpt-3.5-turbo", # or 'gpt-4-turbo-preview'
+        model: str = "gpt-4-turbo-preview", # or 'gpt-4-turbo-preview'
         temperature: float = 0,
-        max_output_tokens: int = 4096,
-        stream: bool = False,
+        return_full_response: bool = False,
         timeout: int = 60,
         use_function_calling: bool = True,
         response_format: str = None, # can be set to 'json' for json response
@@ -27,31 +27,36 @@ async def chat_complete(
     try:
         add_to_log(state="start", module_name="Skills | Intelligence | OpenAI | Chat complete", color="yellow")
 
-        # if the model is gpt-3.5-turbo, adapt the output max_output_tokens, by subtracting the length of the messages
-        if model.startswith("gpt-3.5-turbo"):
-            for message in messages:
-                max_output_tokens = max_output_tokens - len(message["content"])
+        #TODO always return full response, regardless if stream or not? (together with token count, and costs, after calculating them and sending them to database)
 
-        params = {
+        llm_params = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_output_tokens,
-            "stream": stream,
+            "stream": not return_full_response,
             "timeout": timeout
         }
 
         # if json response is requested, add the parameter
         if response_format == "json":
-            params["response_format"] = { "type": "json_object" }
+            llm_params["response_format"] = { "type": "json_object" }
 
-        # TODO add function calling and check if stream needs to be turned off for that
+        if use_function_calling:
+            # Load the skill tools
+            llm_params["tools"] = load_available_skill_tool_parameters()
+            llm_params["tool_choice"] = "auto"
+
+            
+        # TODO what about vision? vision model doesn't support function calling. maybe manually adding the functions that can be called to the systemprompt?
+
 
         for _ in range(10):
             try:
-                response = await client.chat.completions.create(**params)
-
+                response = await client.chat.completions.create(**llm_params)
                 add_to_log(f"Received response from OpenAI.", state="success")
+
+                # process response
+                response = await process_llm_response(response, llm_params=llm_params)
                 return response
             
             # if the OpenAI API returns an error, try again
@@ -111,10 +116,12 @@ if __name__ == "__main__":
     ## Function calling test
     response = asyncio.run(chat_complete(
         client=client,
+        # model="gpt-4-turbo-preview",
+        # return_full_response=True,
         messages=[
-            {"role": "system", "content":"You are a helpful assistant."},
-            {"role": "user", "content":"Write Python code that print's \"Hello World!\""}
+            {"role": "system", "content":"You are a helpful assistant. Answer the questions and full the requested tasks. Keep your answers concise and to the point."},
+            {"role": "user", "content":"What is interesting about Tokyo and Paris? Also, what is the weather in Tokyo and Paris now?"}
         ]
     ))
     if response:
-        print(response.choices[0].message.content)
+        print(response)
