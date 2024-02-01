@@ -17,7 +17,7 @@ from skills.intelligence.openai.process_llm_response import process_llm_response
 async def chat_complete(
         client: AsyncOpenAI,
         messages: list,
-        model: str = "gpt-4-turbo-preview", # or 'gpt-4-turbo-preview'
+        model: str = "gpt-3.5-turbo-1106", # or 'gpt-4-turbo-preview'
         temperature: float = 0,
         return_full_response: bool = False,
         timeout: int = 60,
@@ -120,7 +120,7 @@ if __name__ == "__main__":
         # return_full_response=True,
         messages=[
             {"role": "system", "content":"You are a helpful assistant. Answer the questions and full the requested tasks. Keep your answers concise and to the point."},
-            {"role": "user", "content":"What is interesting about Tokyo and Paris? Also, what is the weather in Tokyo and Paris now?"}
+            {"role": "user", "content":"Where is it currently the warmest? Tokyo? Paris? San Francisco?"},
         ]
     ))
     if response:

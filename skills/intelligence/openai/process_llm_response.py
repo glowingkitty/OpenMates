@@ -12,15 +12,23 @@ from server import *
 import json
 from skills.intelligence.openai.load_available_skill_functions import load_available_skill_functions
 from skills.intelligence.openai.load_client import load_client
-
+from skills.intelligence.costs.count_tokens import count_tokens
+from skills.intelligence.costs.get_costs_chat import get_costs_chat
 
 async def process_llm_response(response, llm_params: dict):
     try:
         add_to_log(state="start", module_name="Skills | Intelligence | OpenAI | Process LLM response", color="yellow")
 
         available_functions = load_available_skill_functions()
+        
+
+        # calulate the input token count
+        input_token_count = 0
+        for message in llm_params["messages"]:
+            input_token_count+=count_tokens(message=message["content"])
 
         tool_calls = []
+        llm_response_message = ""
 
         # if the response is not a stream, check the full response for function calls and process everything accordingly
         # TODO
@@ -39,6 +47,7 @@ async def process_llm_response(response, llm_params: dict):
                 #####################################
                 if message.choices[0].delta.content and len(message.choices[0].delta.content)>0:
                     print(message.choices[0].delta.content)
+                    llm_response_message+=message.choices[0].delta.content
                     # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
 
 
@@ -130,10 +139,34 @@ async def process_llm_response(response, llm_params: dict):
                 ##### Send message part to user #####
                 #####################################
                 async for message in second_response:
-                    print(message.choices[0].delta.content)
-                    # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
+                    if message.choices[0].delta.content and len(message.choices[0].delta.content)>0:
+                        print(message.choices[0].delta.content)
+                        llm_response_message+=message.choices[0].delta.content
+                        # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
+
+        # calculate the output token count
+        output_function_calling_token_count=count_tokens(message=str(tool_calls)) # NOTE OpenAI does not show the token count for the function calls, so this is a workaround for an estimation, using the tiktoken library from OpenAI
+        output_response_token_count=count_tokens(message=llm_response_message) # NOTE OpenAI does not show the full token count for the response, so this is a workaround for an estimation, using the tiktoken library from OpenAI
+        output_total_token_count = output_function_calling_token_count+output_response_token_count
+
+        # calculate the costs
+        total_costs = get_costs_chat(
+            num_input_tokens=input_token_count,
+            num_output_tokens=output_total_token_count,
+            model_name=llm_params["model"]
+        )
 
         add_to_log(f"Processed response from OpenAI.", state="success")
+        return {
+            "total_costs":total_costs,
+            "total_token_count": input_token_count+output_total_token_count,
+            "total_output_token_count": output_total_token_count,
+            "total_input_token_count": input_token_count,
+            "output_message_token_count": output_response_token_count,
+            "output_function_calling_token_count": output_function_calling_token_count,
+            "output_message": llm_response_message,
+            "output_function_calls": tool_calls,
+        }
 
     except KeyboardInterrupt:
         shutdown()

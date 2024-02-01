@@ -24,16 +24,18 @@ def get_costs_chat(
         add_to_log(state="start", module_name="LLMs", color="yellow")
         add_to_log(f"Calculating the costs using the {model_name} model...")
         prices_per_token = {
-            "gpt-3.5-turbo":{"input": 0.0005/1000, "output": 0.0015/1000},
-            "gpt-4-turbo-preview": {"input": 0.01/1000, "output": 0.03/1000},
-            "gpt-4-vision-preview": {"input": 0.01/1000, "output": 0.03/1000},
-            "mistral-tiny": {"input": 0.14/1000000, "output": 0.42/1000000},
-            "mistral-small": {"input": 0.60/1000000, "output": 1.80/1000000},
-            "mistral-medium": {"input": 2.50/1000000, "output": 7.50/1000000},
+            "gpt-3.5-turbo":{"input": 0.0005/1000, "output": 0.0015/1000}, # openai endpoint
+            "gpt-4-turbo-preview": {"input": 0.01/1000, "output": 0.03/1000}, # openai endpoint
+            "gpt-4-vision-preview": {"input": 0.01/1000, "output": 0.03/1000}, # openai endpoint
+            "mistral-tiny": {"input": 0.14/1000000, "output": 0.42/1000000}, # mistral endpoint
+            "mistral-small": {"input": 0.60/1000000, "output": 1.80/1000000}, # mistral endpoint
+            "mistral-medium": {"input": 2.50/1000000, "output": 7.50/1000000}, # mistral endpoint
+            "Mixtral-8x7B-Instruct-v0.1": {"input": 0.5/1000000, "output": 0.5/1000000}, # anyscale endpoint
+            "CodeLlama-70b-Instruct-hf": {"input": 1/1000000, "output": 1/1000000}, # anyscale endpoint
         }
-        if model_name == "gpt-3.5":
+        if model_name.startswith("gpt-3.5"):
             model_name = "gpt-3.5-turbo"
-        elif model_name == "gpt-4":
+        elif model_name.startswith("gpt-4"):
             model_name = "gpt-4-turbo-preview"
 
         # calculate the costs
@@ -101,6 +103,14 @@ if __name__ == "__main__":
         num_input_tokens=tokens_used,
         model_name="mistral-small"
     )
+    mistral_7b = get_costs_chat(
+        num_input_tokens=tokens_used,
+        model_name="Mixtral-8x7B-Instruct-v0.1"
+    )
+    codellama_70b = get_costs_chat(
+        num_input_tokens=tokens_used,
+        model_name="CodeLlama-70b-Instruct-hf"
+    )
 
     # compare the costs
     add_to_log("Cost comparison (min costs):")
@@ -109,3 +119,5 @@ if __name__ == "__main__":
     add_to_log(f"gpt-4-turbo-preview: {round(gpt_4_turbo['total_costs_min'],4)} {gpt_4_turbo['currency']}")
     add_to_log(f"mistral-medium: {round(mistral_medium['total_costs_min'],4)} {mistral_medium['currency']}")
     add_to_log(f"mistral-mistral_small: {round(mistral_small['total_costs_min'],4)} {mistral_medium['currency']}")
+    add_to_log(f"Mixtral-8x7B-Instruct-v0.1: {round(mistral_7b['total_costs_min'],4)} {mistral_7b['currency']}")
+    add_to_log(f"CodeLlama-70b-Instruct-hf: {round(codellama_70b['total_costs_min'],4)} {codellama_70b['currency']}")
