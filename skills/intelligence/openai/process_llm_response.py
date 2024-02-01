@@ -145,7 +145,7 @@ async def process_llm_response(response, llm_params: dict):
                         # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
 
         # calculate the output token count
-        output_function_calling_token_count=count_tokens(message=str(tool_calls)) # NOTE OpenAI does not show the token count for the function calls, so this is a workaround for an estimation, using the tiktoken library from OpenAI
+        output_function_calling_token_count=count_tokens(message=str(tool_calls)) if tool_calls else 0 # NOTE OpenAI does not show the token count for the function calls, so this is a workaround for an estimation, using the tiktoken library from OpenAI
         output_response_token_count=count_tokens(message=llm_response_message) # NOTE OpenAI does not show the full token count for the response, so this is a workaround for an estimation, using the tiktoken library from OpenAI
         output_total_token_count = output_function_calling_token_count+output_response_token_count
 
