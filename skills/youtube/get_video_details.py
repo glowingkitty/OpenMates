@@ -37,7 +37,7 @@ def get_video_details(url:str) -> dict:
 
     # Get the video details
     request = youtube.videos().list(
-        part="snippet,contentDetails",
+        part="snippet,contentDetails,statistics",
         id=video_id
     )
     response = request.execute()
@@ -48,6 +48,7 @@ def get_video_details(url:str) -> dict:
     channel = details['snippet']['channelTitle']
     description = details['snippet']['description']
     duration = convert_duration(details['contentDetails']['duration'])
+    statistics = details['statistics']
 
     return {
         "url": url,
@@ -55,10 +56,11 @@ def get_video_details(url:str) -> dict:
         "channel": channel,
         "description": description,
         "duration_h_m_s": duration,
+        "statistics":statistics
     }
 
 if __name__ == "__main__":
-    url = "https://www.youtube.com/watch?v=O6d1RKYapFI"
+    url = "https://www.youtube.com/watch?v=L8jqGOgCy5M"
     api_key = ""
     video_details = get_video_details(url)
     print(video_details)
