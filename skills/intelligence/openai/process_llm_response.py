@@ -82,53 +82,56 @@ async def process_llm_response(response, llm_params: dict):
                         }
                     })
 
-            #####################################
-            ##### Add tool calls to history #####
-            #####################################
-            llm_params["messages"].append({
-                "role":"assistant",
-                "tool_calls":tool_calls
-            })
+            # if any tool_calls are present, process them
+            if len(tool_calls)>0:
 
-            #####################################
-            ####### Execute all functions #######
-            #####################################
-            for tool_call in tool_calls:
-                tool_call_id = tool_call["id"]
-                function_name = tool_call["function"]["name"]
-                function_arguments = tool_call["function"]["arguments"]
+                #####################################
+                ##### Add tool calls to history #####
+                #####################################
+                llm_params["messages"].append({
+                    "role":"assistant",
+                    "tool_calls":tool_calls
+                })
 
-                # execute the function
-                function_arguments = json.loads(function_arguments)
-                add_to_log(f"Executing function '{function_name}' with arguments '{function_arguments}'")
+                #####################################
+                ####### Execute all functions #######
+                #####################################
+                for tool_call in tool_calls:
+                    tool_call_id = tool_call["id"]
+                    function_name = tool_call["function"]["name"]
+                    function_arguments = tool_call["function"]["arguments"]
 
-                # NOTE: this function is not called async, which might cause performance issues. Need to test and see if action needs to be taken.
-                function_response = available_functions[function_name](**function_arguments)
+                    # execute the function
+                    function_arguments = json.loads(function_arguments)
+                    add_to_log(f"Executing function '{function_name}' with arguments '{function_arguments}'")
 
-                llm_params["messages"].append(
-                    {
-                        "tool_call_id": tool_call_id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": function_response,
-                    }
-                )
-        
-            # Then send the message history including the function response to the OpenAI API
-            client = await load_client()
+                    # NOTE: this function is not called async, which might cause performance issues. Need to test and see if action needs to be taken.
+                    function_response = available_functions[function_name](**function_arguments)
 
-            # But first remove the tools, since we only want to interpret the tool response, not trigger another function call
-            llm_params.pop("tools")
-            llm_params.pop("tool_choice")
-            second_response = await client.chat.completions.create(**llm_params)
-
+                    llm_params["messages"].append(
+                        {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                        }
+                    )
             
-            #####################################
-            ##### Send message part to user #####
-            #####################################
-            async for message in second_response:
-                print(message.choices[0].delta.content)
-                # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
+                # Then send the message history including the function response to the OpenAI API
+                client = await load_client()
+
+                # But first remove the tools, since we only want to interpret the tool response, not trigger another function call
+                llm_params.pop("tools")
+                llm_params.pop("tool_choice")
+                second_response = await client.chat.completions.create(**llm_params)
+
+                
+                #####################################
+                ##### Send message part to user #####
+                #####################################
+                async for message in second_response:
+                    print(message.choices[0].delta.content)
+                    # TODO if a message part is returned, send that to rabbitmq, which will then collect the parts, build message paragraphs, and send them as a response to the client
 
         add_to_log(f"Processed response from OpenAI.", state="success")
 
