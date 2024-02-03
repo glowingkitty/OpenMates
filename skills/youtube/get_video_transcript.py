@@ -1,4 +1,5 @@
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled
 import os
 import re
 import sys
@@ -54,12 +55,16 @@ def get_video_transcript(url: str, save_as_md: bool=False, block_token_limit:int
         # Return the transcript as a list of blocks
         return transcript_blocks
     
+    except TranscriptsDisabled:
+        add_to_log(f"Currently there is no transcript available for the url '{url}'", state="error")
+        return "Currently no transcript available for this video. Please try again later."
+    
     except KeyboardInterrupt:
         shutdown()
 
     except Exception as e:
         process_error(f"Failed to get the transcript for the video url '{url}'", traceback=traceback.format_exc())
-        return None
+        return "Failed to get the transcript for this video. Please try again later."
 
 
 def format_time(seconds: float) -> str:
