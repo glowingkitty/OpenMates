@@ -29,7 +29,14 @@ def process_message(message: IncomingMessage):
         output_message = "Hello, human! You asked me: " + message.message + ". Your dedicated AI team mate, " + message.mate_username 
 
         # prepare the message object
-        message = OutgoingMessage(message=output_message)
+        message = OutgoingMessage(
+            message=output_message,
+            team_mate_username=message.mate_username,
+            # TODO: replace with actual counting of tokens and costs
+            tokens_used_input=20,
+            tokens_used_output=46,
+            total_costs_eur=0.003
+            )
 
         add_to_log("Successfully processed the message", state="success")
         return message

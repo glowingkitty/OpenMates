@@ -13,7 +13,7 @@ class IncomingMessage(BaseModel):
                     )
     mate_username: str = Field(...,
                     description="Username of the AI team mate who the message is for.",
-                    example="burton"
+                    example="sophia"
                     )
 
 
@@ -21,7 +21,23 @@ class OutgoingMessage(BaseModel):
     """This is the model for outgoing messages"""
     message: str = Field(..., 
                     description="The content of the message", 
-                    example="Hello, AI!"
+                    example="Of course I can help you with that! Here is the python code you requested: print('Hello, AI!')\n\nI hope this helps you out. If you have any more questions, feel free to ask!"
+                    )
+    team_mate_username: str = Field(...,
+                    description="Username of the AI team mate who the response is from.",
+                    example="sophia"
+                    )
+    tokens_used_input: int = Field(...,
+                    description="The number of tokens used to process the input message",
+                    example=20
+                    )
+    tokens_used_output: int = Field(...,
+                    description="The number of tokens used to generate the output message",
+                    example=46
+                    )
+    total_costs_eur: float = Field(...,
+                    description="The total cost of processing the message, in EUR",
+                    example=0.003
                     )
 
 
