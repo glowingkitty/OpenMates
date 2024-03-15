@@ -19,7 +19,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from fastapi import FastAPI
-from server.api.models import OutgoingMessage, IncomingMessage, MatesResponse
+from server.api.models import OutgoingMessage, IncomingMessage, MatesResponse, YouTubeSearch, YouTubeTranscript
 from server.api.endpoints.process_message import process_message
 from server.api.endpoints.get_mates import get_all_mates
 from fastapi import Depends
@@ -28,8 +28,13 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import HTTPException
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi import Request
+from skills.youtube.search import search_youtube
+from skills.youtube.get_video_transcript import get_video_transcript
+from fastapi import APIRouter
 
-
+# Create new routers
+skills_router = APIRouter()
+youtube_router = APIRouter()
 
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
@@ -69,12 +74,40 @@ def get_mates(request: Request, token: str = Depends(verify_token)):
 
 
 # Adding all POST endpoints
+######## /message ########
+# Send a message to an AI team mate and you receive the response
 @app.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
 @limiter.limit("20/minute")
-def send_message(request: Request, message: IncomingMessage, token: str = Depends(verify_token)):
-    return process_message(message)
+def send_message(request: Request, parameters: IncomingMessage, token: str = Depends(verify_token)):
+    return process_message(parameters)
+
+######## /skills/youtube/search ########
+# Search YouTube for videos
+@youtube_router.get("/search", summary="YouTube | Search", description="This endpoint searches YouTube for videos.")
+@limiter.limit("20/minute")
+def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(verify_token)):
+    return search_youtube(
+        parameters.query, 
+        parameters.max_results, 
+        parameters.order, 
+        parameters.type, 
+        parameters.region, 
+        parameters.max_age_days)
+
+######## /skills/youtube/transcript ########
+# Get the transcript for a YouTube video
+@youtube_router.get("/transcript", summary="YouTube | Transcript", description="This endpoint gets the transcript for a YouTube video.")
+@limiter.limit("20/minute")
+def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, token: str = Depends(verify_token)):
+    return get_video_transcript(parameters.url)
 
 
+
+# Include the 'YouTube' router in the 'Skills' router
+skills_router.include_router(youtube_router, prefix="/youtube")
+
+# Include the 'Skills' router in your FastAPI application
+app.include_router(skills_router, prefix="/skills", tags=["Skills"])
 
 if __name__ == "__main__":
     uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")
