@@ -12,7 +12,7 @@ from server import *
 
 from skills.intelligence.costs.count_tokens import count_tokens
 
-def get_video_transcript(url: str, save_as_md: bool=False, block_token_limit:int=None) -> list:
+def get_video_transcript(url: str, save_as_md: bool=False, block_token_limit:int=None) -> dict:
     try:
         add_to_log(module_name="YouTube | Transcript", color="yellow", state="start")
         add_to_log(f"Getting transcript for video at URL: {url}")
@@ -23,26 +23,25 @@ def get_video_transcript(url: str, save_as_md: bool=False, block_token_limit:int
         # Get the transcript for the video ID
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
-        # Concatenate the text values with timestamps
-        transcript_blocks = []
-        block = ""
+        # Create a dictionary with timestamps as keys and text as values
+        transcript_blocks = {}
         token_count = 0
         for entry in transcript:
-            start_time = entry['start']
+            start_time = format_time(entry['start'])
             text = entry['text']
             text_tokens = count_tokens(text)
             if block_token_limit is not None and token_count + text_tokens > block_token_limit:
-                transcript_blocks.append(block)
-                block = f"[{format_time(start_time)}] {text}\n"
+                transcript_blocks[start_time] = text
                 token_count = text_tokens
             else:
-                block += f"[{format_time(start_time)}] {text}\n"
+                if start_time in transcript_blocks:
+                    transcript_blocks[start_time] += text
+                else:
+                    transcript_blocks[start_time] = text
                 token_count += text_tokens
-        if block:
-            transcript_blocks.append(block)
-        
+
         if save_as_md:
-            transcript_text = "\n\n".join(transcript_blocks)
+            transcript_text = "\n\n".join([f"[{time}] {text}" for time, text in transcript_blocks.items()])
 
             # Save the transcript as a markdown file
             text_filename = f"{main_directory}/temp_data/youtube_transcript/{video_id}.md"
@@ -52,7 +51,7 @@ def get_video_transcript(url: str, save_as_md: bool=False, block_token_limit:int
 
         add_to_log(f"Got transcript for video at URL: {url}", state="success")
 
-        # Return the transcript as a list of blocks
+        # Return the transcript as a dictionary
         return transcript_blocks
     
     except TranscriptsDisabled:
@@ -76,15 +75,13 @@ def format_time(seconds: float) -> str:
 if __name__ == "__main__":
     import subprocess
     import json
-    url = "https://www.youtube.com/watch?v=30h5OlV_maw"
+    url = "https://www.youtube.com/watch?v=Dbog8Yw3kEM"
     transcript_blocks = get_video_transcript(url=url, save_as_md=True, block_token_limit=4000)
-    text_filename = f"{main_directory}/temp_data/youtube_transcript/{url.split('v=')[1]}.md"
     json_filename = f"{main_directory}/temp_data/youtube_transcript/{url.split('v=')[1]}.json"
 
     # Save transcript_blocks as a JSON file
     with open(json_filename, 'w') as json_file:
         json.dump(transcript_blocks, json_file)
 
-    # Open the markdown and json files
-    subprocess.run(["code", text_filename])
+    # Open the json file
     subprocess.run(["code", json_filename])

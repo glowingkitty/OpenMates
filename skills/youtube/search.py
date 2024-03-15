@@ -27,6 +27,7 @@ from skills.all_skills import *
     skill=YouTube(),
     function_name="Search videos",
     function_icon="search"
+    # TODO add the structure that OpenAI needs to call functions
 )
 def search_youtube(
         query: str, 
