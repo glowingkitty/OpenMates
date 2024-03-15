@@ -19,7 +19,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from fastapi import FastAPI
-from server.api.models import OutgoingMessage, IncomingMessage
+from server.api.models import OutgoingMessage, IncomingMessage, MatesResponse
 from server.api.endpoints.process_message import process_message
 from server.api.endpoints.get_mates import get_all_mates
 from fastapi import Depends
@@ -60,7 +60,7 @@ async def ratelimit_handler(request, exc):
     )
 
 # Adding all GET endpoints
-@app.get("/mates", summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")
+@app.get("/mates", response_model=MatesResponse, summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")
 @limiter.limit("20/minute")
 def get_mates(request: Request, token: str = Depends(verify_token)):
     return get_all_mates()

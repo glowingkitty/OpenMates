@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import List
 
 ################
 ## Message Models
@@ -18,7 +19,9 @@ class IncomingMessage(BaseModel):
 
 class OutgoingMessage(BaseModel):
     """This is the model for outgoing messages"""
-    message: str = Field(..., description="The content of the message", example="Hello, AI!")
+    message: str = Field(..., 
+                description="The content of the message", 
+                example="Hello, AI!")
 
 
 ################
@@ -28,3 +31,10 @@ class OutgoingMessage(BaseModel):
 class Mate(BaseModel):
     """This is the model for an AI team mate"""
     name: str = Field(..., description="Name of the AI team mate", example="burton")
+
+class MatesResponse(BaseModel):
+    mates: List[Mate] = Field(..., example=[
+        {"name": "burton"}, 
+        {"name": "sophia"},
+        {"name": "mark"}
+        ])

@@ -25,11 +25,13 @@ def get_all_mates() -> List[Mate]:
         add_to_log("Getting a list of all AI team mates on the server ...")
 
         # TODO replace with actual list of mates, based on the database
-        mates = [
-            Mate(name="burton"),
-            Mate(name="sophia"),
-            Mate(name="mark")
-        ]
+        mates = {
+            "mates":[
+                Mate(name="burton"),
+                Mate(name="sophia"),
+                Mate(name="mark")
+            ]
+        }
 
         add_to_log("Successfully created a list of all mates.", state="success")
         return mates
