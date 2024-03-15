@@ -45,15 +45,22 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+
+
 # Adding all GET endpoints
 @app.get("/mates", summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")
 def get_mates(token: str = Depends(verify_token)):
     return get_all_mates()
 
+
+
+
 # Adding all POST endpoints
 @app.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
-def send_message(message: str, token: str = Depends(verify_token)):
+def send_message(message: IncomingMessage, token: str = Depends(verify_token)):
     return process_message(message)
+
+
 
 if __name__ == "__main__":
     uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")
