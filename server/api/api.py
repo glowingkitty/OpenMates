@@ -8,18 +8,25 @@ import re
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('skills.*', '', full_current_path)
+main_directory = re.sub('server.*', '', full_current_path)
 sys.path.append(main_directory)
 
 from server import *
 ################
 
+import uvicorn
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
 from fastapi import FastAPI
-from server.api.models import OutgoingMessage
+from server.api.models import OutgoingMessage, IncomingMessage
 from server.api.endpoints.process_message import process_message
-from server.api.endpoints.get_mates import get_mates
+from server.api.endpoints.get_mates import get_all_mates
+from fastapi import Depends
+from server.api.verify_token import verify_token
 
-# execute with 'uvicorn server.api.api:app' from main directory
+# Create a limiter instance
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="OpenMates API",
@@ -34,27 +41,19 @@ app = FastAPI(
     docs_url="/swagger_docs"
     )
 
+# Add the limiter as middleware
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
-def start_api():
-    try:
-        add_to_log(module_name="OpenMates | API", state="start", color="yellow")
-        add_to_log("Starting the API ...")
+# Adding all GET endpoints
+@app.get("/mates", summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")
+def get_mates(token: str = Depends(verify_token)):
+    return get_all_mates()
 
-        # Adding all GET endpoints
-        app.get("/mates", summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")(get_mates)
+# Adding all POST endpoints
+@app.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
+def send_message(message: str, token: str = Depends(verify_token)):
+    return process_message(message)
 
-        # Adding all POST endpoints
-        app.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")(process_message)
-
-        add_to_log("Successfully started the API", state="success")
-
-
-    except KeyboardInterrupt:
-        shutdown()
-
-    except Exception:
-        process_error("Failed to start the API", traceback=traceback.format_exc())
-        return None
-    
-
-start_api()
+if __name__ == "__main__":
+    uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")

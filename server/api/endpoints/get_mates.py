@@ -13,14 +13,10 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from fastapi import Depends
-from server.api.verify_token import verify_token
 from typing import List
 from server.api.models import Mate
 
-
-
-def get_mates(token: str = Depends(verify_token)) -> List[Mate]:
+def get_all_mates() -> List[Mate]:
     """
     Get a list of all AI team mates on the server
     """

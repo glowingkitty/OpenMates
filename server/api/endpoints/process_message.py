@@ -13,12 +13,10 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from fastapi import Depends
 from server.api.models import IncomingMessage, OutgoingMessage
-from server.api.verify_token import verify_token
 
 
-def process_message(message: IncomingMessage,token: str = Depends(verify_token)):
+def process_message(message: IncomingMessage):
     """
     Process a message
 
@@ -28,7 +26,7 @@ def process_message(message: IncomingMessage,token: str = Depends(verify_token))
         add_to_log(module_name="OpenMates | API | Process message", state="start", color="yellow")
         add_to_log("Processing an incoming message ...")
 
-        output_message = "Hello, human!"
+        output_message = "Hello, human! You asked me: " + message.message + ". Your dedicated AI team mate, " + message.mate_username 
 
         # prepare the message object
         message = OutgoingMessage(message=output_message)

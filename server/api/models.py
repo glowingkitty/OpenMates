@@ -6,8 +6,14 @@ from pydantic import BaseModel, Field
 
 class IncomingMessage(BaseModel):
     """This is the model for incoming messages"""
-    message: str = Field(..., description="Message to send to the AI team mate.", example="Write me some python code that prints 'Hello, AI!'")
-    mate_username: str = Field(..., description="Username of the AI team mate who the message is for.", example="burton")
+    message: str = Field(..., 
+                    description="Message to send to the AI team mate.", 
+                    example="Write me some python code that prints 'Hello, AI!'"
+                    )
+    mate_username: str = Field(...,
+                    description="Username of the AI team mate who the message is for.",
+                    example="burton"
+                    )
 
 
 class OutgoingMessage(BaseModel):
