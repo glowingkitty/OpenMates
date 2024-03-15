@@ -20,8 +20,9 @@ class IncomingMessage(BaseModel):
 class OutgoingMessage(BaseModel):
     """This is the model for outgoing messages"""
     message: str = Field(..., 
-                description="The content of the message", 
-                example="Hello, AI!")
+                    description="The content of the message", 
+                    example="Hello, AI!"
+                    )
 
 
 ################
@@ -30,11 +31,19 @@ class OutgoingMessage(BaseModel):
     
 class Mate(BaseModel):
     """This is the model for an AI team mate"""
-    name: str = Field(..., description="Name of the AI team mate", example="burton")
+    username: str = Field(..., 
+                description="username of the AI team mate", 
+                example="burton"
+                )
+    description: str = Field(..., 
+                description="description of the AI team mate", 
+                example="Business development expert"
+                )
+    
 
 class MatesResponse(BaseModel):
     mates: List[Mate] = Field(..., example=[
-        {"name": "burton"}, 
-        {"name": "sophia"},
-        {"name": "mark"}
+        {"username": "burton", "description": "Business development expert"}, 
+        {"username": "sophia", "description": "Software development expert"},
+        {"username": "mark", "description": "Marketing & sales expert"}
         ])

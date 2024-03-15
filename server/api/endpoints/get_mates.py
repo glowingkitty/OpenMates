@@ -27,9 +27,9 @@ def get_all_mates() -> List[Mate]:
         # TODO replace with actual list of mates, based on the database
         mates = {
             "mates":[
-                Mate(name="burton"),
-                Mate(name="sophia"),
-                Mate(name="mark")
+                Mate(username="burton", description="Business development expert"),
+                Mate(username="sophia", description="Software development expert"),
+                Mate(username="mark", description="Marketing & sales expert")
             ]
         }
 
@@ -44,5 +44,5 @@ def get_all_mates() -> List[Mate]:
         return []
     
 if __name__ == "__main__":
-    response = get_mates()
+    response = get_all_mates()
     print(response)
