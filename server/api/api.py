@@ -24,6 +24,12 @@ from server.api.endpoints.process_message import process_message
 from server.api.endpoints.get_mates import get_all_mates
 from fastapi import Depends
 from server.api.verify_token import verify_token
+from slowapi.errors import RateLimitExceeded
+from fastapi import HTTPException
+from starlette.status import HTTP_429_TOO_MANY_REQUESTS
+from fastapi import Request
+
+
 
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
@@ -46,10 +52,17 @@ app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
 
+@app.exception_handler(RateLimitExceeded)
+async def ratelimit_handler(request, exc):
+    raise HTTPException(
+        status_code=HTTP_429_TOO_MANY_REQUESTS, 
+        detail="Too Many Requests"
+    )
 
 # Adding all GET endpoints
 @app.get("/mates", summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")
-def get_mates(token: str = Depends(verify_token)):
+@limiter.limit("20/minute")
+def get_mates(request: Request, token: str = Depends(verify_token)):
     return get_all_mates()
 
 
@@ -57,7 +70,8 @@ def get_mates(token: str = Depends(verify_token)):
 
 # Adding all POST endpoints
 @app.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
-def send_message(message: IncomingMessage, token: str = Depends(verify_token)):
+@limiter.limit("20/minute")
+def send_message(request: Request, message: IncomingMessage, token: str = Depends(verify_token)):
     return process_message(message)
 
 

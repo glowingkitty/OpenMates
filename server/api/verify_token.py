@@ -21,7 +21,7 @@ from server.api.load_valid_tokens import load_valid_tokens
 
 def verify_token(token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
     try:
-        add_to_log(module_name="OpenMates | API | Verify Token", state="start", color="yellow")
+        add_to_log(module_name="OpenMates | API | Verify Token", state="start", color="yellow",hide_variables=True)
         add_to_log("Verifying the API token ...")
 
         if token in load_valid_tokens():
