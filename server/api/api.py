@@ -33,11 +33,23 @@ from skills.youtube.get_video_transcript import get_video_transcript
 from fastapi import APIRouter
 
 # Create new routers
+mates_router = APIRouter()
 skills_router = APIRouter()
 youtube_router = APIRouter()
 
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
+
+tags_metadata = [
+    {
+        "name": "Mates",
+        "description": "Mates are your AI team members. They can help you with various tasks.",
+    },
+    {
+        "name": "Skills",
+        "description": "Your team mates can perform various skills. But you can also use these skills directly via the API.",
+    },
+]
 
 app = FastAPI(
     title="OpenMates API",
@@ -49,7 +61,8 @@ app = FastAPI(
     ),
     version="1.0.0",
     redoc_url="/docs", 
-    docs_url="/swagger_docs"
+    docs_url="/swagger_docs",
+    openapi_tags=tags_metadata
     )
 
 # Add the limiter as middleware
@@ -65,7 +78,7 @@ async def ratelimit_handler(request, exc):
     )
 
 # Adding all GET endpoints
-@app.get("/mates", response_model=MatesResponse, summary="Mates", description="This endpoint returns a list of all AI team mates on the server.")
+@mates_router.get("/all", response_model=MatesResponse, summary="Get all", description="This endpoint returns a list of all AI team mates on the server.")
 @limiter.limit("20/minute")
 def get_mates(request: Request, token: str = Depends(verify_token)):
     return get_all_mates()
@@ -76,7 +89,7 @@ def get_mates(request: Request, token: str = Depends(verify_token)):
 # Adding all POST endpoints
 ######## /message ########
 # Send a message to an AI team mate and you receive the response
-@app.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
+@mates_router.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
 @limiter.limit("20/minute")
 def send_message(request: Request, parameters: IncomingMessage, token: str = Depends(verify_token)):
     return process_message(parameters)
@@ -106,8 +119,11 @@ def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, to
 # Include the 'YouTube' router in the 'Skills' router
 skills_router.include_router(youtube_router, prefix="/youtube")
 
+# Include the 'Mates' router in your FastAPI application
+app.include_router(mates_router, prefix="/mates", tags=["Mates"])
 # Include the 'Skills' router in your FastAPI application
 app.include_router(skills_router, prefix="/skills", tags=["Skills"])
+
 
 if __name__ == "__main__":
     uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")
