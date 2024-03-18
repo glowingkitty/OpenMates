@@ -95,7 +95,7 @@ def get_mates(request: Request, token: str = Depends(verify_token)):
 # Adding all POST endpoints
 ######## /message ########
 # Send a message to an AI team mate and you receive the response
-@mates_router.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate and returns the response.")
+@mates_router.post("/message",response_model=OutgoingMessage, summary="Message", description="This endpoint sends a message to an AI team mate. The mate will then automatically decide what skill to use to answer the question or to fullfill the request. Returned will be the message response.")
 @limiter.limit("20/minute")
 def send_message(request: Request, parameters: IncomingMessage, token: str = Depends(verify_token)):
     return process_message(parameters)
