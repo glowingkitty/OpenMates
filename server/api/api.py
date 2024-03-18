@@ -31,6 +31,7 @@ from fastapi import Request
 from skills.youtube.search import search_youtube
 from skills.youtube.get_video_transcript import get_video_transcript
 from fastapi import APIRouter
+from starlette.responses import FileResponse
 
 # Create new routers
 mates_router = APIRouter()
@@ -78,6 +79,10 @@ async def ratelimit_handler(request, exc):
     )
 
 # Adding all GET endpoints
+@app.get("/")
+def read_root():
+    return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
+
 @mates_router.get("/all", response_model=MatesResponse, summary="Get all", description="This endpoint returns a list of all AI team mates on the server.")
 @limiter.limit("20/minute")
 def get_mates(request: Request, token: str = Depends(verify_token)):

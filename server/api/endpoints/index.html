@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenMates Landing Page</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca&display=swap');
+
+        body {
+            background: linear-gradient(to right, #ff9a9e, #fad0c4);
+            background-size: 200% 200%;
+            animation: gradientTransition 10s ease infinite;
+            font-family: 'Lexend Deca', sans-serif;
+        }
+
+        @keyframes gradientTransition {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .container {
+            text-align: center;
+            padding-top: 200px;
+        }
+
+        h1 {
+            font-size: 48px;
+            color: black;
+        }
+
+        p {
+            font-size: 24px;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to OpenMates</h1>
+        <p>Your AI team mates</p>
+        <p>Read the <a href="/docs" style="font-weight: 800; color: black; text-decoration: none;">documentation</a> for more details on how to get started.</p>
+    </div>
+</body>
+</html>
