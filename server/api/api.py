@@ -79,7 +79,7 @@ async def ratelimit_handler(request, exc):
     )
 
 # Adding all GET endpoints
-@app.get("/")
+@app.get("/",include_in_schema=False)
 @limiter.limit("20/minute")
 def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
