@@ -80,7 +80,8 @@ async def ratelimit_handler(request, exc):
 
 # Adding all GET endpoints
 @app.get("/")
-def read_root():
+@limiter.limit("20/minute")
+def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
 
 @mates_router.get("/all", response_model=MatesResponse, summary="Get all", description="This endpoint returns a list of all AI team mates on the server.")
