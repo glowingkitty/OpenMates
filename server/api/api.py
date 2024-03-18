@@ -55,16 +55,20 @@ tags_metadata = [
 app = FastAPI(
     title="OpenMates API",
     description=(
-        "Allows your code to interact with OpenMates server.\n"
-        "# How to get started \n"
-        "1. Login to your OpenMates account, go to the settings and find your API token there. \n"
-        "2. Make a request to the endpoint you want to use. Make sure to include your 'token' in the header."
+        "<iframe width='100%' height='315' src='https://www.youtube.com/embed/0RS9W8MtZe4' frameborder='0' allow='picture-in-picture' allowfullscreen></iframe>"
+        "<br><br>"
+        "Allows your code to interact with OpenMates server.<br>"
+        "<h2>How to get started</h1>"
+        "<ol>"
+        "<li>Login to your OpenMates account, go to the settings and find your API token there.</li>"
+        "<li>Make a request to the endpoint you want to use. Make sure to include your 'token' in the header.</li>"
+        "</ol>"
     ),
     version="1.0.0",
     redoc_url="/docs", 
     docs_url="/swagger_docs",
     openapi_tags=tags_metadata
-    )
+)
 
 # Add the limiter as middleware
 app.state.limiter = limiter
