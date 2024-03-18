@@ -18,19 +18,16 @@ import uvicorn
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Request, HTTPException, APIRouter
+from fastapi.staticfiles import StaticFiles
 from server.api.models import OutgoingMessage, IncomingMessage, MatesResponse, YouTubeSearch, YouTubeTranscript
 from server.api.endpoints.process_message import process_message
 from server.api.endpoints.get_mates import get_all_mates
-from fastapi import Depends
 from server.api.verify_token import verify_token
 from slowapi.errors import RateLimitExceeded
-from fastapi import HTTPException
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
-from fastapi import Request
 from skills.youtube.search import search_youtube
 from skills.youtube.get_video_transcript import get_video_transcript
-from fastapi import APIRouter
 from starlette.responses import FileResponse
 
 # Create new routers
@@ -44,19 +41,17 @@ limiter = Limiter(key_func=get_remote_address)
 tags_metadata = [
     {
         "name": "Mates",
-        "description": "Mates are your AI team members. They can help you with various tasks.",
+        "description": "<img src='images/mates.png' alt='Mates are your AI team members. They can help you with various tasks. Each mate is specialized in a different area.'>",
     },
     {
         "name": "Skills",
-        "description": "Your team mates can perform various skills. But you can also use these skills directly via the API.",
+        "description": "<img src='images/skills.png' alt='Your team mates can perform various skills. But you can also use these skills directly via the API.'>",
     },
 ]
 
 app = FastAPI(
     title="OpenMates API",
     description=(
-        "<iframe width='100%' height='315' src='https://www.youtube.com/embed/0RS9W8MtZe4' frameborder='0' allow='picture-in-picture' allowfullscreen></iframe>"
-        "<br><br>"
         "Allows your code to interact with OpenMates server.<br>"
         "<h2>How to get started</h1>"
         "<ol>"
@@ -83,6 +78,7 @@ async def ratelimit_handler(request, exc):
     )
 
 # Adding all GET endpoints
+app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'endpoints/images')), name="images")
 @app.get("/",include_in_schema=False)
 @limiter.limit("20/minute")
 def read_root(request: Request):
