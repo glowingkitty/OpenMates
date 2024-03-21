@@ -25,6 +25,7 @@ def process_message(message: IncomingMessage):
     try:
         add_to_log(module_name="OpenMates | API | Process message", state="start", color="yellow")
         add_to_log("Processing an incoming message ...")
+        # TODO replace with actual processing of the message
 
         output_message = "Hello, human! You asked me: " + message.message + ". Your dedicated AI team mate, " + message.mate_username 
 
