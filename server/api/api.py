@@ -35,9 +35,10 @@ mates_router = APIRouter()
 skills_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
-server_router = APIRouter()
-users_router = APIRouter()
 billing_router = APIRouter()
+server_router = APIRouter()
+teams_router = APIRouter()
+users_router = APIRouter()
 
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
@@ -49,7 +50,7 @@ tags_metadata = [
     },
     {
         "name": "Skills",
-        "description": "<img src='images/skills.png' alt='Your team mates can perform various skills. But you can also use these skills directly via the API.'>"
+        "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of skills. Or, you can call them directly via the API. For example: ChatGPT, StableDiffusion, Notion or Figma.'>"
     },
     {
         "name": "Workflows",
@@ -60,16 +61,20 @@ tags_metadata = [
         "description": "<img src='images/tasks.png' alt='A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.'>"
     },
     {
+        "name": "Billing",
+        "description": "<img src='images/billing.png' alt='Manage your billing settings, download invoices and more.'>"
+    },
+    {
         "name": "Server",
         "description": "<img src='images/server.png' alt='Manage your OpenMates server. Change settings, see how the server is doing and more.'>"
     },
     {
-        "name": "Users",
-        "description": "<img src='images/users.png' alt='Manage user accounts on your OpenMates server. A user can get personalized responses from mates and API access.'>"
+        "name": "Teams",
+        "description": "<img src='images/teams.png' alt='Manage the teams on your OpenMates server.'>"
     },
     {
-        "name": "Billing",
-        "description": "<img src='images/billing.png' alt='Manage your billing settings. See your current plan, change it, see your invoices and more.'>"
+        "name": "Users",
+        "description": "<img src='images/users.png' alt='Manage user accounts of a team. A user can get personalized responses from mates and access to the OpenMates API.'>"
     }
 ]
 
@@ -148,6 +153,9 @@ def update_mate(request: Request, mate_username: str, token: str = Depends(verif
 ######### Skills #################
 ##################################
 
+# Explaination:
+# A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
+
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
 @skills_router.post("/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
 @limiter.limit("20/minute")
@@ -186,8 +194,41 @@ def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, to
 
 
 ##################################
+######### Workflows ##############
+##################################
+
+# Explaination:
+# A workflow is a sequence of skills that are executed in a specific order, to fullfill a task.
+
+
+
+
+##################################
+######### Tasks ##################
+##################################
+
+# Explaination:
+# A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.
+
+
+
+
+##################################
+######### Billing ################
+##################################
+
+# Explaination:
+# The billing endpoints allow users or team owners to manage their billing settings, download invoices and more.
+
+
+
+
+##################################
 ######### Server #################
 ##################################
+
+# Explaination:
+# The server is the core software that runs OpenMates.
 
 # GET /server/status (get server status)
 @server_router.get("/status", summary="Status", description="<img src='images/server/status.png' alt='Get a summary of your current server status.'>")
@@ -206,6 +247,16 @@ def get_settings(request: Request, token: str = Depends(verify_token)):
 @limiter.limit("20/minute")
 def update_settings(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
+
+
+##################################
+######### Teams ##################
+##################################
+
+# Explaination:
+# A server can have multiple teams. Each team can have multiple users and multiple mates. Teams can be used to separate different work environments, departments or companies.
+
+
 
 
 ##################################
@@ -241,18 +292,15 @@ def update_user(request: Request, username: str, token: str = Depends(verify_tok
     return {"info": "endpoint still needs to be implemented"}
 
 
-
-# Include the 'Mates' router in your FastAPI application
-app.include_router(mates_router, prefix="/mates", tags=["Mates"])
-# Include the 'Skills' router in your FastAPI application
-app.include_router(skills_router, prefix="/skills", tags=["Skills"])
-# Include the 'Server' router in your FastAPI application
-app.include_router(server_router, prefix="/server", tags=["Server"])
-# Include the 'Users' router in your FastAPI application
-app.include_router(users_router, prefix="/users", tags=["Users"])
-# Include the 'Billing' router in your FastAPI application
-app.include_router(billing_router, prefix="/billing", tags=["Billing"])
-
+# Include the routers in your FastAPI application
+app.include_router(mates_router,        prefix="/mates",        tags=["Mates"])
+app.include_router(skills_router,       prefix="/skills",       tags=["Skills"])
+app.include_router(workflows_router,    prefix="/workflows",    tags=["Workflows"])
+app.include_router(tasks_router,        prefix="/tasks",        tags=["Tasks"])
+app.include_router(billing_router,      prefix="/billing",      tags=["Billing"])
+app.include_router(server_router,       prefix="/server",       tags=["Server"])
+app.include_router(teams_router,        prefix="/teams",        tags=["Teams"])
+app.include_router(users_router,        prefix="/users",        tags=["Users"])
 
 if __name__ == "__main__":
     uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")
