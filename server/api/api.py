@@ -31,11 +31,13 @@ from skills.youtube.get_video_transcript import get_video_transcript
 from starlette.responses import FileResponse
 
 # Create new routers
-server_router = APIRouter()
-users_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
-youtube_router = APIRouter()
+workflows_router = APIRouter()
+tasks_router = APIRouter()
+server_router = APIRouter()
+users_router = APIRouter()
+billing_router = APIRouter()
 
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
@@ -43,19 +45,31 @@ limiter = Limiter(key_func=get_remote_address)
 tags_metadata = [
     {
         "name": "Mates",
-        "description": "<img src='images/mates.png' alt='Mates are your AI team members. They can help you with various tasks. Each mate is specialized in a different area.'>",
+        "description": "<img src='images/mates.png' alt='Mates are your AI team members. They can help you with various tasks. Each mate is specialized in a different area.'>"
     },
     {
         "name": "Skills",
-        "description": "<img src='images/skills.png' alt='Your team mates can perform various skills. But you can also use these skills directly via the API.'>",
+        "description": "<img src='images/skills.png' alt='Your team mates can perform various skills. But you can also use these skills directly via the API.'>"
+    },
+    {
+        "name": "Workflows",
+        "description": "<img src='images/workflows.png' alt='A skill is powerful. Combining multiple skills in a workflow is magical.'>"
+    },
+    {
+        "name": "Tasks",
+        "description": "<img src='images/tasks.png' alt='A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.'>"
     },
     {
         "name": "Server",
-        "description": "<img src='images/server.png' alt='Manage your OpenMates server. Change settings, see how the server is doing and more.'>",
+        "description": "<img src='images/server.png' alt='Manage your OpenMates server. Change settings, see how the server is doing and more.'>"
     },
     {
         "name": "Users",
-        "description": "<img src='images/users.png' alt='Manage user accounts on your OpenMates server. A user can get personalized responses from mates and API access.'>",
+        "description": "<img src='images/users.png' alt='Manage user accounts on your OpenMates server. A user can get personalized responses from mates and API access.'>"
+    },
+    {
+        "name": "Billing",
+        "description": "<img src='images/billing.png' alt='Manage your billing settings. See your current plan, change it, see your invoices and more.'>"
     }
 ]
 
@@ -93,6 +107,82 @@ app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__
 @limiter.limit("20/minute")
 def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
+
+
+##################################
+######### Mates ##################
+##################################
+
+# POST /mates/ask (Send a message to an AI team mate and you receive the response)
+@mates_router.post("/ask",response_model=OutgoingMessage, summary="Ask", description="<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>")
+@limiter.limit("20/minute")
+def mates_ask(request: Request, parameters: IncomingMessage, token: str = Depends(verify_token)):
+    return process_message(parameters)
+
+# GET /mates (get all mates)
+@mates_router.get("/", response_model=MatesResponse, summary="Get all", description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>")
+@limiter.limit("20/minute")
+def get_mates(request: Request, token: str = Depends(verify_token)):
+    return get_all_mates()
+
+# GET /mates/{mate_username} (get a mate)
+@mates_router.get("/{mate_username}", summary="Get mate", description="<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>")
+@limiter.limit("20/minute")
+def get_mate(request: Request, mate_username: str, token: str = Depends(verify_token)):
+    return {"info": "endpoint still needs to be implemented"}
+
+# POST /mates (create a new mate)
+@mates_router.post("/", summary="Create", description="<img src='images/mates/create.png' alt='Create a new mate on the OpenMates server, with a custom system prompt, accessible skills and other settings.'>")
+@limiter.limit("20/minute")
+def create_mate(request: Request, token: str = Depends(verify_token)):
+    return {"info": "endpoint still needs to be implemented"}
+
+# PATCH /mates/{mate_username} (update a mate)
+@mates_router.patch("/{mate_username}", summary="Update", description="<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>")
+@limiter.limit("20/minute")
+def update_mate(request: Request, mate_username: str, token: str = Depends(verify_token)):
+    return {"info": "endpoint still needs to be implemented"}
+
+
+##################################
+######### Skills #################
+##################################
+
+# POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
+@skills_router.post("/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
+@limiter.limit("20/minute")
+def skill_chatgpt_ask(request: Request, token: str = Depends(verify_token)):
+    return {"info": "endpoint still needs to be implemented"}
+
+# POST /skills/claude/message (ask a question to Claude from Anthropic)
+@skills_router.post("/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
+@limiter.limit("20/minute")
+def skill_claude_ask(request: Request, token: str = Depends(verify_token)):
+    return {"info": "endpoint still needs to be implemented"}
+
+# POST /skills/youtube/ask (ask a question about a video)
+@skills_router.post("/youtube/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
+@limiter.limit("20/minute")
+def skill_youtube_ask(request: Request, token: str = Depends(verify_token)):
+    return {"info": "endpoint still needs to be implemented"}
+
+# GET /skills/youtube/search (search YouTube for videos)
+@skills_router.get("/youtube/search", summary="YouTube | Search", description="<img src='images/skills/youtube/search.png' alt='Search & filter for videos on YouTube.'>")
+@limiter.limit("20/minute")
+def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(verify_token)):
+    return search_youtube(
+        parameters.query, 
+        parameters.max_results, 
+        parameters.order, 
+        parameters.type, 
+        parameters.region, 
+        parameters.max_age_days)
+
+# GET /skills/youtube/transcript (get transcript for a YouTube video)
+@skills_router.get("/youtube/transcript", summary="YouTube | Transcript", description="<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>")
+@limiter.limit("20/minute")
+def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, token: str = Depends(verify_token)):
+    return get_video_transcript(parameters.url)
 
 
 ##################################
@@ -150,85 +240,7 @@ def create_user(request: Request, username: str, token: str = Depends(verify_tok
 def update_user(request: Request, username: str, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
-##################################
-######### Mates ##################
-##################################
 
-# POST /mates/ask (Send a message to an AI team mate and you receive the response)
-@mates_router.post("/ask",response_model=OutgoingMessage, summary="Ask", description="<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>")
-@limiter.limit("20/minute")
-def mates_ask(request: Request, parameters: IncomingMessage, token: str = Depends(verify_token)):
-    return process_message(parameters)
-
-# GET /mates (get all mates)
-@mates_router.get("/", response_model=MatesResponse, summary="Get all", description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>")
-@limiter.limit("20/minute")
-def get_mates(request: Request, token: str = Depends(verify_token)):
-    return get_all_mates()
-
-# GET /mates/{mate_username} (get a mate)
-@mates_router.get("/{mate_username}", summary="Get mate", description="<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>")
-@limiter.limit("20/minute")
-def get_mate(request: Request, mate_username: str, token: str = Depends(verify_token)):
-    return {"info": "endpoint still needs to be implemented"}
-
-# POST /mates (create a new mate)
-@mates_router.post("/", summary="Create", description="<img src='images/mates/create.png' alt='Create a new mate on the OpenMates server, with a custom system prompt, accessible skills and other settings.'>")
-@limiter.limit("20/minute")
-def create_mate(request: Request, token: str = Depends(verify_token)):
-    return {"info": "endpoint still needs to be implemented"}
-
-# PATCH /mates/{mate_username} (update a mate)
-@mates_router.patch("/{mate_username}", summary="Update", description="<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>")
-@limiter.limit("20/minute")
-def update_mate(request: Request, mate_username: str, token: str = Depends(verify_token)):
-    return {"info": "endpoint still needs to be implemented"}
-
-
-##################################
-######### Skills #################
-##################################
-
-# POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
-@skills_router.post("/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
-@limiter.limit("20/minute")
-def skill_chatgpt_ask(request: Request, token: str = Depends(verify_token)):
-    return {"info": "endpoint still needs to be implemented"}
-
-# POST /skills/claude/message (ask a question to Claude from Anthropic)
-@skills_router.post("/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
-@limiter.limit("20/minute")
-def skill_claude_ask(request: Request, token: str = Depends(verify_token)):
-    return {"info": "endpoint still needs to be implemented"}
-
-# POST /skills/youtube/ask (ask a question about a video)
-@youtube_router.post("/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
-@limiter.limit("20/minute")
-def skill_youtube_ask(request: Request, token: str = Depends(verify_token)):
-    return {"info": "endpoint still needs to be implemented"}
-
-# GET /skills/youtube/search (search YouTube for videos)
-@youtube_router.get("/search", summary="YouTube | Search", description="<img src='images/skills/youtube/search.png' alt='Search & filter for videos on YouTube.'>")
-@limiter.limit("20/minute")
-def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(verify_token)):
-    return search_youtube(
-        parameters.query, 
-        parameters.max_results, 
-        parameters.order, 
-        parameters.type, 
-        parameters.region, 
-        parameters.max_age_days)
-
-# GET /skills/youtube/transcript (get transcript for a YouTube video)
-@youtube_router.get("/transcript", summary="YouTube | Transcript", description="<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>")
-@limiter.limit("20/minute")
-def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, token: str = Depends(verify_token)):
-    return get_video_transcript(parameters.url)
-
-
-
-# Include the 'YouTube' router in the 'Skills' router
-skills_router.include_router(youtube_router, prefix="/youtube")
 
 # Include the 'Mates' router in your FastAPI application
 app.include_router(mates_router, prefix="/mates", tags=["Mates"])
@@ -238,6 +250,8 @@ app.include_router(skills_router, prefix="/skills", tags=["Skills"])
 app.include_router(server_router, prefix="/server", tags=["Server"])
 # Include the 'Users' router in your FastAPI application
 app.include_router(users_router, prefix="/users", tags=["Users"])
+# Include the 'Billing' router in your FastAPI application
+app.include_router(billing_router, prefix="/billing", tags=["Billing"])
 
 
 if __name__ == "__main__":
