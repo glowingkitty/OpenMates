@@ -2,15 +2,14 @@
 FROM python:3.11-slim
 
 # Set the working directory in the container
-WORKDIR /usr/src/OpenMates
+WORKDIR /usr/src/OpenMates/server/api
 
 # Install any needed packages specified in requirements.txt
 # Note: You will need to ensure that requirements.txt is available at build time
 COPY requirements.txt ./
-RUN apt-get update && apt-get install -y ffmpeg
 RUN pip install --no-cache-dir -r requirements.txt
 
 # At runtime, the current directory will be mounted, so no need to COPY it
 
 # Run api.py when the container launches
-CMD ["python", "server/api/api.py"]
+CMD ["python", "api.py"]

@@ -28,8 +28,6 @@ from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.verify_token import verify_token
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
-from skills.youtube.search import search_youtube
-from skills.youtube.get_video_transcript import get_video_transcript
 
 
 # Create new routers
