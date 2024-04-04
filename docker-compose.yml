@@ -4,23 +4,72 @@ services:
   rabbitmq:
     image: rabbitmq:3.12-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_PORT_1}:${RABBITMQ_PORT_1}"
+      - "${RABBITMQ_PORT_2}:${RABBITMQ_PORT_2}"
     networks:
       - openmates
 
-  openmates:
-    build:
-      context: .
+  strapi:
+    build: 
+      context: ./server/cms/strapi
       dockerfile: Dockerfile
+    image: strapi:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_CLIENT: ${DATABASE_CLIENT}
+      DATABASE_HOST: strapiDB
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      APP_KEYS: ${APP_KEYS}
+      NODE_ENV: ${NODE_ENV}
+    volumes:
+      - ./server/cms/strapi/config:/opt/app/config
+      - ./server/cms/strapi/src:/opt/app/src
+      - ./server/cms/strapi/package.json:/opt/package.json
+      - ./server/cms/strapi/yarn.lock:/opt/yarn.lock
+      - ./server/cms/strapi/.env:/opt/app/.env
+      - ./server/cms/strapi/public/uploads:/opt/app/public/uploads
+    ports:
+      - "${STRAPI_PORT}:${STRAPI_PORT}"
+    networks:
+      - openmates
+    depends_on:
+      - strapiDB
+
+  strapiDB:
+    restart: unless-stopped
+    env_file: .env
+    image: postgres:12.0-alpine
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - strapi-data:/var/lib/postgresql/data/
+    networks:
+      - openmates
+
+  rest-api:
+    build:
+      context: ./server/api
+      dockerfile: Dockerfile
+    ports:
+      - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
       - .:/usr/src/OpenMates
-    environment:
-      - ENV_FILE=./my_profile/.env
     networks:
       - openmates
     depends_on:
       - rabbitmq
+      - strapi
 
 networks:
   openmates:
+
+volumes:
+  strapi-data:
