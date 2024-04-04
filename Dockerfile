@@ -12,5 +12,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # At runtime, the current directory will be mounted, so no need to COPY it
 
-# Run app.py when the container launches
-CMD ["python", "main.py"]
+# Run api.py when the container launches
+CMD ["python", "server/api/api.py"]

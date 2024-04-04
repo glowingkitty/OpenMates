@@ -14,15 +14,15 @@ from server import *
 ################
 
 from typing import List
-from server.api.models import Mate
+from server.api.models.mates import Mate
 
-def get_all_mates() -> List[Mate]:
+def get_mates_processing(team_id: str) -> List[Mate]:
     """
-    Get a list of all AI team mates on the server
+    Get a list of all AI team mates on a team
     """
     try:
         add_to_log(module_name="OpenMates | API | Get mates", state="start", color="yellow")
-        add_to_log("Getting a list of all AI team mates on the server ...")
+        add_to_log("Getting a list of all AI team mates in a team ...")
 
         # TODO replace with actual list of mates, based on the database
         mates = {
@@ -33,16 +33,16 @@ def get_all_mates() -> List[Mate]:
             ]
         }
 
-        add_to_log("Successfully created a list of all mates.", state="success")
+        add_to_log("Successfully created a list of all mates in the requested team.", state="success")
         return mates
 
     except KeyboardInterrupt:
         shutdown()
 
     except Exception:
-        process_error("Failed to get a list of all mates.", traceback=traceback.format_exc())
+        process_error("Failed to get a list of all mates in the team.", traceback=traceback.format_exc())
         return []
     
 if __name__ == "__main__":
-    response = get_all_mates()
+    response = get_mates_processing()
     print(response)

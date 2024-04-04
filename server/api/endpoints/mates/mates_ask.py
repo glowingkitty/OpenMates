@@ -13,10 +13,10 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models import IncomingMessage, OutgoingMessage
+from server.api.models.mates import MatesAskInput, MatesAskOutput
 
 
-def process_message(message: IncomingMessage):
+def mates_ask_processing(message: MatesAskInput):
     """
     Process a message
 
@@ -30,7 +30,7 @@ def process_message(message: IncomingMessage):
         output_message = "Hello, human! You asked me: " + message.message + ". Your dedicated AI team mate, " + message.mate_username 
 
         # prepare the message object
-        message = OutgoingMessage(
+        message = MatesAskOutput(
             message=output_message,
             team_mate_username=message.mate_username,
             # TODO: replace with actual counting of tokens and costs
@@ -51,5 +51,5 @@ def process_message(message: IncomingMessage):
         return {"status": "failed"}
     
 if __name__ == "__main__":
-    response = process_message(message=IncomingMessage(message="Hello, AI!", team_mate_username="burton"))
+    response = mates_ask_processing(message=MatesAskInput(message="Hello, AI!", team_mate_username="burton"))
     print(response)
