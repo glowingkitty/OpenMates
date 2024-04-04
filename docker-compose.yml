@@ -9,6 +9,19 @@ services:
     networks:
       - openmates
 
+  strapiDB:
+    restart: unless-stopped
+    env_file: .env
+    image: postgres:12.0-alpine
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - strapi-data:/var/lib/postgresql/data/
+    networks:
+      - openmates
+
   strapi:
     build: 
       context: ./server/cms/strapi
@@ -41,18 +54,20 @@ services:
     depends_on:
       - strapiDB
 
-  strapiDB:
-    restart: unless-stopped
-    env_file: .env
-    image: postgres:12.0-alpine
+  strapi-setup:
+    build:
+      context: ./server/cms
+      dockerfile: Dockerfile
     environment:
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
+      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
+      STRAPI_TOKEN: ${STRAPI_TOKEN}
     volumes:
-      - strapi-data:/var/lib/postgresql/data/
+      - ./server/api/models:/usr/src/OpenMates/server/api/models
+      - ./server/cms/setup.py:/usr/src/OpenMates/setup.py
     networks:
       - openmates
+    depends_on:
+      - strapi
 
   rest-api:
     build:
