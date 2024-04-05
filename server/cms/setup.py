@@ -1,30 +1,24 @@
-################
-# Default Imports
-################
 import sys
 import os
 import re
+import requests
+import time
+import logging
+from server.api.models.mates import Mate
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
 main_directory = re.sub('server.*', '', full_current_path)
 sys.path.append(main_directory)
 
-################
-
-import requests
-import time
-import logging
-from server.api.models.mates import Mate
-
-
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-# Define the Strapi URL
 STRAPI_URL = os.getenv('STRAPI_URL')
-
-# Define the Strapi token
 STRAPI_TOKEN = os.getenv('STRAPI_TOKEN')
 
 # Define the content models
@@ -53,7 +47,7 @@ def check_content_models():
     try:
         for model in CONTENT_MODELS:
             model_name = model.__name__
-            response = requests.get(f"{STRAPI_URL}/content-type-builder/content-types/{model_name}")
+            response = requests.get(f"{STRAPI_URL}/api/content-type-builder/content-types/{model_name}")
             if response.status_code != 200:
                 logging.info(f"Content model {model_name} does not exist. Creating...")
                 create_content_model(model)
@@ -74,7 +68,23 @@ def convert_model_to_strapi(model):
     return fields
 
 
-# TODO auto check for admin token and create it if it doesn't exist
+def get_all_content_types():
+    # Get all existing content types
+    try:
+        headers = {"Authorization": f"Bearer {STRAPI_TOKEN}"}
+        response = requests.get(f"{STRAPI_URL}/api/content-type-builder/content-types", headers=headers)
+        if response.status_code == 200:
+            logging.info("Successfully fetched all content types.")
+            return response.json()
+        else:
+            logging.info("Failed to fetch content types.")
+            logging.info(response.json())
+    except Exception as e:
+        logging.info(f"An error occurred: {e}")
+    except KeyboardInterrupt:
+        logging.info("Interrupted by user. Exiting...")
+        exit(0)
+
 
 def create_content_model(model):
     # Here you would use the Strapi Content Type Builder API to create the content model
@@ -82,10 +92,8 @@ def create_content_model(model):
     try:
         model_name = model.__name__
         fields = convert_model_to_strapi(model)
-        logging.info(STRAPI_TOKEN)
         headers = {"Authorization": f"Bearer {STRAPI_TOKEN}"}
-        # TODO why does it fail despite token being correct?
-        response = requests.post(f"{STRAPI_URL}/content-type-builder/content-types", headers=headers, json={"name": model_name, "fields": fields})
+        response = requests.post(f"{STRAPI_URL}/api/content-type-builder/content-types", headers=headers, json={"name": model_name, "fields": fields})
         if response.status_code == 200:
             logging.info(f"Content model {model_name} created successfully.")
         else:
@@ -101,4 +109,5 @@ def create_content_model(model):
 
 if __name__ == "__main__":
     check_strapi_online()
+    get_all_content_types()
     check_content_models()
