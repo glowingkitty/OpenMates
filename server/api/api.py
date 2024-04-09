@@ -15,11 +15,13 @@ from server import *
 ################
 
 import uvicorn
+import httpx
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from server.api.models.mates import MatesAskInput, MatesAskOutput, MatesGetAllInput, MatesGetAllOutput, Mate
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
@@ -28,7 +30,13 @@ from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.verify_token import verify_token
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
+from dotenv import load_dotenv
 
+# Load the .env file
+load_dotenv()
+
+STRAPI_URL = os.getenv('STRAPI_URL')
+STRAPI_API_TOKEN = os.getenv('STRAPI_API_TOKEN')
 
 # Create new routers
 mates_router = APIRouter()
@@ -132,16 +140,34 @@ def mates_ask(request: Request, parameters: MatesAskInput, token: str = Header(N
         ):
         return mates_ask_processing(parameters)
 
+
 # GET /mates (get all mates)
 @mates_router.get("/", response_model=MatesGetAllOutput, summary="Get all", description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>")
 @limiter.limit("20/minute")
-def get_mates(request: Request, parameters:MatesGetAllInput, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
-    if verify_token(
+async def get_mates(request: Request, parameters:MatesGetAllInput, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
+    if not verify_token(
         team_name=parameters.team_name, 
         token=token,
         scope="mates:get_all"
         ):
-        return get_mates_processing()
+        raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
+    
+    # Forward the request to Strapi
+    async with httpx.AsyncClient() as client:
+        try:
+            strapi_url = f"{STRAPI_URL}/api/mates"
+            strapi_headers = {"Authorization": f"Bearer {STRAPI_API_TOKEN}"}
+            strapi_response = await client.get(strapi_url, headers=strapi_headers)
+            strapi_response.raise_for_status()  # Raise an exception if the response contains an HTTP error status code
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
+            else:
+                raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
+
+        # Return the response from Strapi
+        return JSONResponse(status_code=strapi_response.status_code, content=strapi_response.json())
+
 
 # GET /mates/{mate_username} (get a mate)
 @mates_router.get("/{mate_username}", response_model=Mate, summary="Get mate", description="<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>")
@@ -149,17 +175,21 @@ def get_mates(request: Request, parameters:MatesGetAllInput, token: str = Header
 def get_mate(request: Request, mate_username: str, token: str = Depends(verify_token)):
     return get_mate_processing(mate_username)
 
+
 # POST /mates (create a new mate)
 @mates_router.post("/", summary="Create", description="<img src='images/mates/create.png' alt='Create a new mate on the OpenMates server, with a custom system prompt, accessible skills and other settings.'>")
 @limiter.limit("20/minute")
 def create_mate(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
+
 # PATCH /mates/{mate_username} (update a mate)
 @mates_router.patch("/{mate_username}", summary="Update", description="<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>")
 @limiter.limit("20/minute")
 def update_mate(request: Request, mate_username: str, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
+
+
 
 
 ##################################
@@ -175,17 +205,20 @@ def update_mate(request: Request, mate_username: str, token: str = Depends(verif
 def skill_chatgpt_ask(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
+
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
 @skills_router.post("/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
 @limiter.limit("20/minute")
 def skill_claude_ask(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
+
 # POST /skills/youtube/ask (ask a question about a video)
 @skills_router.post("/youtube/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
 @limiter.limit("20/minute")
 def skill_youtube_ask(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
+
 
 # # GET /skills/youtube/search (search YouTube for videos)
 # @skills_router.get("/youtube/search", summary="YouTube | Search", description="<img src='images/skills/youtube/search.png' alt='Search & filter for videos on YouTube.'>")
@@ -249,17 +282,20 @@ def skill_youtube_ask(request: Request, token: str = Depends(verify_token)):
 def get_status(request: Request, token: str = Depends(verify_token)):
     return {"status": "online"}
 
+
 # GET /server/settings (get server settings)
 @server_router.get("/settings", summary="Get settings", description="<img src='images/server/get_settings.png' alt='Get all the current settings of your OpenMates server.'>")
 @limiter.limit("20/minute")
 def get_settings(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
+
 # PATCH /server/settings (update server settings)
 @server_router.patch("/settings", summary="Update settings", description="<img src='images/server/update_settings.png' alt='Update any of the setting on your OpenMates server.'>")
 @limiter.limit("20/minute")
 def update_settings(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
+
 
 
 ##################################
@@ -286,11 +322,13 @@ def update_settings(request: Request, token: str = Depends(verify_token)):
 def get_users(request: Request, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
+
 # GET /users/{username} (get a user)
 @users_router.get("/{username}", summary="Get", description="<img src='images/users/get_user.png' alt='Get all details about a specific user.'>")
 @limiter.limit("20/minute")
 def get_user(request: Request, username: str, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
+
 
 # POST /users (create a new user)
 @users_router.post("/", summary="Create", description="<img src='images/users/create.png' alt='Create a new user on your OpenMates server.'>")
@@ -298,11 +336,14 @@ def get_user(request: Request, username: str, token: str = Depends(verify_token)
 def create_user(request: Request, username: str, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
 
+
 # PATCH /users/{username} (update a user)
 @users_router.patch("/{username}", summary="Update", description="<img src='images/users/update.png' alt='Update a user on your OpenMates server.'>")
 @limiter.limit("20/minute")
 def update_user(request: Request, username: str, token: str = Depends(verify_token)):
     return {"info": "endpoint still needs to be implemented"}
+
+
 
 
 # Include the routers in your FastAPI application

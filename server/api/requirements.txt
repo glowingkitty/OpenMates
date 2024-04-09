@@ -16,3 +16,4 @@ google-auth-oauthlib==1.2.0
 googleapis-common-protos==1.61.0
 youtube-search==2.1.2
 youtube-transcript-api==0.6.1
+httpx==0.25.2

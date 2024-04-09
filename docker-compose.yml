@@ -58,6 +58,7 @@ services:
     build:
       context: ./server/cms
       dockerfile: Dockerfile
+    env_file: .env
     environment:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
@@ -73,6 +74,10 @@ services:
     build:
       context: ./server/api
       dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
+      STRAPI_TOKEN: ${STRAPI_TOKEN}
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
