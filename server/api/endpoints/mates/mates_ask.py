@@ -16,7 +16,7 @@ from server import *
 from server.api.models.mates import MatesAskInput, MatesAskOutput
 
 
-def mates_ask_processing(parameters: MatesAskInput):
+def mates_ask_processing(team_url: str, parameters: MatesAskInput):
     """
     Process a message
 

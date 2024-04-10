@@ -25,16 +25,23 @@ load_dotenv()
 STRAPI_URL = os.getenv('STRAPI_URL')
 STRAPI_API_TOKEN = os.getenv('STRAPI_API_TOKEN')
 
-async def make_strapi_request(method: str, endpoint: str, data: Optional[Dict] = None, fields: Optional[List[str]] = None, populate: Optional[List[str]] = None) -> JSONResponse:
+async def make_strapi_request(
+        method: str, 
+        endpoint: str, 
+        data: Optional[Dict] = None, 
+        fields: Optional[List[str]] = None, 
+        populate: Optional[List[str]] = None,
+        filters: Optional[List[Dict]] = None
+        ) -> JSONResponse:
     async with httpx.AsyncClient() as client:
         try:
             params = "?"
+            # define which fields to return
             if fields:
-                # for every field in fields, add it to the params with the index as key
                 for i, field in enumerate(fields):
                     params += f"fields[{i}]={field}&"
+            # define which relationships to add
             if populate:
-                # add the populate fields to the params
                 populate_dict = {}
                 for item in populate:
                     entity, field = item.split('.')
@@ -45,7 +52,15 @@ async def make_strapi_request(method: str, endpoint: str, data: Optional[Dict] =
                 for entity, fields in populate_dict.items():
                     for i, field in enumerate(fields):
                         params += f"populate[{entity}][fields][{i}]={field}&"
-                
+            # define filters
+            if filters:
+                for filter in filters:
+                    field_path = filter['field'].split('.')
+                    # turn a teams.slug into [teams][slug]
+                    field_path_str = "[" + "][".join(field_path) + "]"
+
+                    # add the filter to the params
+                    params += f"[filters]{field_path_str}[{filter['operator']}]={filter['value']}&"
 
             # remove the last '&' from the params, if it exists
             if params[-1] == '&':

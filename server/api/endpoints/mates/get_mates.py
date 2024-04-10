@@ -27,18 +27,30 @@ async def get_mates_processing(team_url: str) -> List[Mate]:
         add_to_log("Getting a list of all AI team mates in a team ...")
 
         fields = [
-        "username",
-        "description",
-        "default_systemprompt"
+            "name",
+            "slug",
+            "description",
+            "default_systemprompt"
         ]
         populate = [
             "profile_picture.url",
             "skills.name",
         ]
-        # TODO implement filter for relationship to team
-        # TODO add again seperate processing function to keep the api endpoint code short here
+        filters = [
+            {
+                "field": "teams.slug",
+                "operator": "$eq",
+                "value": team_url
+            }
+        ]
         # TODO return custom more condensed JSON output structure based on fastapi models
-        response = await make_strapi_request(method='get', endpoint='mates', fields=fields, populate=populate)
+        response = await make_strapi_request(
+            method='get', 
+            endpoint='mates', 
+            fields=fields, 
+            populate=populate, 
+            filters=filters
+            )
 
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")
         return response

@@ -146,7 +146,7 @@ def mates_ask(request: Request, team_url: str, parameters: MatesAskInput, token:
         token=token,
         scope="mates:ask"
         )
-    return mates_ask_processing(parameters=parameters)
+    return mates_ask_processing(team_url=team_url, parameters=parameters)
 
 
 # GET /mates (get all mates)
