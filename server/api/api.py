@@ -15,52 +15,20 @@ from server import *
 ################
 
 import uvicorn
-import httpx
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from server.api.models.mates import MatesAskInput, MatesAskOutput, MatesGetAllInput, MatesGetAllOutput, Mate
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.verify_token import verify_token
+from server.cms.strapi_requests import make_strapi_request
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
-from dotenv import load_dotenv
-from typing import Optional, Dict
-
-# Load the .env file
-load_dotenv()
-
-STRAPI_URL = os.getenv('STRAPI_URL')
-STRAPI_API_TOKEN = os.getenv('STRAPI_API_TOKEN')
-
-async def make_strapi_request(method: str, endpoint: str, data: Optional[Dict] = None) -> JSONResponse:
-    async with httpx.AsyncClient() as client:
-        try:
-            strapi_url = f"{STRAPI_URL}/api/{endpoint}"
-            strapi_headers = {"Authorization": f"Bearer {STRAPI_API_TOKEN}"}
-            if method.lower() == 'get':
-                strapi_response = await client.get(strapi_url, headers=strapi_headers)
-            elif method.lower() == 'post':
-                strapi_response = await client.post(strapi_url, headers=strapi_headers, json=data)
-            elif method.lower() == 'patch':
-                strapi_response = await client.patch(strapi_url, headers=strapi_headers, json=data)
-            elif method.lower() == 'delete':
-                strapi_response = await client.delete(strapi_url, headers=strapi_headers)
-            else:
-                raise ValueError(f"Invalid method: {method}")
-            strapi_response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 401:
-                raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
-            else:
-                raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
-        return JSONResponse(status_code=strapi_response.status_code, content=strapi_response.json())
 
 
 # Create new routers
@@ -172,7 +140,16 @@ async def get_mates(request: Request, parameters:MatesGetAllInput, token: str = 
         token=token,
         scope="mates:get_all"
         )
-    return await make_strapi_request("get", "mates")
+    fields = [
+        "username",
+        "description",
+        "default_systemprompt"
+    ]
+    populate = [
+        "profile_picture.url",
+        "skills.name",
+    ]
+    return await make_strapi_request(method='get', endpoint='mates', fields=fields, populate=populate)
 
 
 # GET /mates/{mate_username} (get a mate)
