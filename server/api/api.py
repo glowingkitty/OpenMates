@@ -31,12 +31,37 @@ from server.api.verify_token import verify_token
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from dotenv import load_dotenv
+from typing import Optional, Dict
 
 # Load the .env file
 load_dotenv()
 
 STRAPI_URL = os.getenv('STRAPI_URL')
 STRAPI_API_TOKEN = os.getenv('STRAPI_API_TOKEN')
+
+async def make_strapi_request(method: str, endpoint: str, data: Optional[Dict] = None) -> JSONResponse:
+    async with httpx.AsyncClient() as client:
+        try:
+            strapi_url = f"{STRAPI_URL}/api/{endpoint}"
+            strapi_headers = {"Authorization": f"Bearer {STRAPI_API_TOKEN}"}
+            if method.lower() == 'get':
+                strapi_response = await client.get(strapi_url, headers=strapi_headers)
+            elif method.lower() == 'post':
+                strapi_response = await client.post(strapi_url, headers=strapi_headers, json=data)
+            elif method.lower() == 'patch':
+                strapi_response = await client.patch(strapi_url, headers=strapi_headers, json=data)
+            elif method.lower() == 'delete':
+                strapi_response = await client.delete(strapi_url, headers=strapi_headers)
+            else:
+                raise ValueError(f"Invalid method: {method}")
+            strapi_response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
+            else:
+                raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
+        return JSONResponse(status_code=strapi_response.status_code, content=strapi_response.json())
+
 
 # Create new routers
 mates_router = APIRouter()
@@ -130,43 +155,24 @@ def read_root(request: Request):
 @mates_router.post("/ask",response_model=MatesAskOutput, summary="Ask", description="<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>")
 @limiter.limit("20/minute")
 def mates_ask(request: Request, parameters: MatesAskInput, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
-    # TODO: verify that the token is valid, valid for the team and has the necessary scope
-    # TODO: implement strapi to save the users
-    # TODO: also check if the user has still money left (if skill is not free)
-    if verify_token(
+    verify_token(
         team_name=parameters.team_name, 
         token=token,
         scope="mates:ask"
-        ):
-        return mates_ask_processing(parameters)
+        )
+    return mates_ask_processing(parameters)
 
 
 # GET /mates (get all mates)
 @mates_router.get("/", response_model=MatesGetAllOutput, summary="Get all", description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>")
 @limiter.limit("20/minute")
 async def get_mates(request: Request, parameters:MatesGetAllInput, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
-    if not verify_token(
+    verify_token(
         team_name=parameters.team_name, 
         token=token,
         scope="mates:get_all"
-        ):
-        raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
-    
-    # Forward the request to Strapi
-    async with httpx.AsyncClient() as client:
-        try:
-            strapi_url = f"{STRAPI_URL}/api/mates"
-            strapi_headers = {"Authorization": f"Bearer {STRAPI_API_TOKEN}"}
-            strapi_response = await client.get(strapi_url, headers=strapi_headers)
-            strapi_response.raise_for_status()  # Raise an exception if the response contains an HTTP error status code
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 401:
-                raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
-            else:
-                raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
-
-        # Return the response from Strapi
-        return JSONResponse(status_code=strapi_response.status_code, content=strapi_response.json())
+        )
+    return await make_strapi_request("get", "mates")
 
 
 # GET /mates/{mate_username} (get a mate)
