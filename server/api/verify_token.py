@@ -19,14 +19,21 @@ from server.api.load_valid_tokens import load_valid_tokens
 
 
 
-def verify_token(team_id: str, token: str, scope: str):
+def verify_token(team_url: str, token: str, scope: str):
     try:
-        add_to_log(module_name="OpenMates | API | Verify Token", state="start", color="yellow",hide_variables=True)
-        add_to_log("Verifying the API token ...")
+        add_to_log("Verifying the API token ...", module_name="OpenMates | API | Verify Token", color="yellow")
+
+        return True
+
+        # TODO implement the token verification logic
+
+        # TODO: verify that the token is valid, valid for the team and has the necessary scope
+        # TODO: implement strapi to save the users
+        # TODO: also check if the user has still money left (if skill is not free)
 
         valid_tokens = load_valid_tokens()
-        if team_id in valid_tokens and token in valid_tokens[team_id]:
-            if scope in valid_tokens[team_id][token]:
+        if team_name in valid_tokens and token in valid_tokens[team_name]:
+            if scope in valid_tokens[team_name][token]:
                 add_to_log("Success. The API token is valid.",module_name="OpenMates | API | Verify Token", state="success")
                 return True
             else:

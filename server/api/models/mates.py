@@ -27,10 +27,6 @@ class Mate(BaseModel):
 
 class MatesAskInput(BaseModel):
     """This is the model for the incoming parameters for POST /mates/ask"""
-    team_name: str = Field(...,
-                    description="The name of your team.",
-                    example="glowingkitties"
-                    )
     mate_username: str = Field(...,
                     description="Username of the AI team mate who the message is for.",
                     example="sophia"
@@ -62,13 +58,6 @@ class MatesAskOutput(BaseModel):
 
 
 # GET /mates (get all mates)
-
-class MatesGetAllInput(BaseModel):
-    team_name: str = Field(...,
-                    description="The name of your team.",
-                    example="glowingkitties"
-                    )
-
 
 class MatesGetAllOutput(BaseModel):
     mates: List[Mate] = Field(..., example=[

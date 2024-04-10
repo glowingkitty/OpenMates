@@ -16,7 +16,7 @@ from server import *
 from server.api.models.mates import MatesAskInput, MatesAskOutput
 
 
-def mates_ask_processing(message: MatesAskInput):
+def mates_ask_processing(parameters: MatesAskInput):
     """
     Process a message
 
@@ -27,12 +27,12 @@ def mates_ask_processing(message: MatesAskInput):
         add_to_log("Processing an incoming message ...")
         # TODO replace with actual processing of the message
 
-        output_message = "Hello, human! You asked me: " + message.message + ". Your dedicated AI team mate, " + message.mate_username 
+        output_message = "Hello, human! You asked me: " + parameters.message + ". Your dedicated AI team mate, " + parameters.mate_username 
 
         # prepare the message object
         message = MatesAskOutput(
             message=output_message,
-            team_mate_username=message.mate_username,
+            team_mate_username=parameters.mate_username,
             # TODO: replace with actual counting of tokens and costs
             tokens_used_input=20,
             tokens_used_output=46,
