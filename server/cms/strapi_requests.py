@@ -16,8 +16,8 @@ from server import *
 import httpx
 from dotenv import load_dotenv
 from typing import Optional, Dict, List
-from fastapi import HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException, Response
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # Load the .env file
 load_dotenv()
@@ -71,3 +71,17 @@ async def make_strapi_request(method: str, endpoint: str, data: Optional[Dict] =
             else:
                 raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
         return JSONResponse(status_code=strapi_response.status_code, content=strapi_response.json())
+    
+
+async def get_strapi_upload(url: str) -> Response:
+    async with httpx.AsyncClient() as client:
+        try:
+            strapi_response = await client.get(f"{STRAPI_URL}/uploads/{url}")
+            strapi_response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
+            else:
+                raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
+        
+        return StreamingResponse(strapi_response.iter_bytes(), media_type=strapi_response.headers['Content-Type'])

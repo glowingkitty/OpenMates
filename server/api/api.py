@@ -22,11 +22,12 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter
 from fastapi.staticfiles import StaticFiles
 from server.api.models.mates import MatesAskInput, MatesAskOutput, MatesGetAllInput, MatesGetAllOutput, Mate
+from server.api.models.uploads import UploadsGetFileInput
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.verify_token import verify_token
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_strapi_upload
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 
@@ -113,6 +114,18 @@ app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__
 @limiter.limit("20/minute")
 def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
+
+# Forward the /uploads endpoint to the strapi server
+@app.get("/uploads/{file_path:path}", include_in_schema=False)
+@limiter.limit("20/minute")
+async def get_upload(request: Request, parameters: UploadsGetFileInput, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
+    verify_token(
+        team_name=parameters.team_name,
+        token=token,
+        scope="uploads:get"
+        )
+    return await get_strapi_upload(request.path_params['file_path'])
+
 
 
 ##################################
