@@ -146,8 +146,8 @@ async def get_mates(
     request: Request, 
     team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]),
     token: str = Header(None, example="123456789",description=input_parameter_descriptions["token"]),
-    page: Optional[int] = 1,
-    pageSize: Optional[int] = 25
+    page: int = 1,
+    pageSize: int = 25
     ):
     verify_token(
         team_url=team_url,
