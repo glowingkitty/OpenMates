@@ -19,7 +19,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter
+from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter, Path
 from fastapi.staticfiles import StaticFiles
 from server.api.models.mates import MatesAskInput, MatesAskOutput, mates_get_all_output_example, MatesGetAllOutput, Mate
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
@@ -79,6 +79,11 @@ tags_metadata = [
     }
 ]
 
+input_parameter_descriptions = {
+    "team_url": "Your team URL to access the requested team.",
+    "token": "Your API token to authenticate and show you have access to the requested team."
+}
+
 app = FastAPI(
     redoc_url="/docs", 
     docs_url="/swagger_docs",
@@ -134,7 +139,7 @@ def read_root(request: Request):
 # Forward the /uploads endpoint to the strapi server
 @app.get("/{team_url}/uploads/{file_path:path}", include_in_schema=False)
 @limiter.limit("20/minute")
-async def get_upload(request: Request, team_url: str, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
+async def get_upload(request: Request, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
     # TODO: consider what happens if a team is upload a custom image for a mate. How to handle this?
     verify_token(
         team_url=team_url,
@@ -152,7 +157,7 @@ async def get_upload(request: Request, team_url: str, token: str = Header(None,e
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
 @mates_router.post("/{team_url}/mates/ask",response_model=MatesAskOutput, summary="Ask", description="<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>")
 @limiter.limit("20/minute")
-def mates_ask(request: Request, team_url: str, parameters: MatesAskInput, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
+def mates_ask(request: Request, parameters: MatesAskInput, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
     verify_token(
         team_url=team_url,
         token=token,
@@ -164,7 +169,7 @@ def mates_ask(request: Request, team_url: str, parameters: MatesAskInput, token:
 # GET /mates (get all mates)
 @mates_router.get("/{team_url}/mates/", response_model=MatesGetAllOutput, summary="Get all", description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>")
 @limiter.limit("20/minute")
-async def get_mates(request: Request, team_url: str, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
+async def get_mates(request: Request, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
     verify_token(
         team_url=team_url,
         token=token,
