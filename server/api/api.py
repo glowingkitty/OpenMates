@@ -86,8 +86,7 @@ input_parameter_descriptions = {
 
 app = FastAPI(
     redoc_url="/docs", 
-    docs_url="/swagger_docs",
-    openapi_tags=tags_metadata
+    docs_url="/swagger_docs"
 )
 
 def custom_openapi():
@@ -105,6 +104,7 @@ def custom_openapi():
             "</ol>"
         ),
         routes=app.routes,
+        tags=tags_metadata
     )
     # Check if endpoints exist in the schema and add them if they don't
     # GET /{team_url}/mates/
