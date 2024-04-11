@@ -40,5 +40,6 @@ tags_metadata = [
 
 input_parameter_descriptions = {
     "team_url": "Your team URL to access the requested team.",
-    "token": "Your API token to authenticate and show you have access to the requested team."
+    "token": "Your API token to authenticate and show you have access to the requested team.",
+    "mate_username": "Username of the AI team mate.",
 }

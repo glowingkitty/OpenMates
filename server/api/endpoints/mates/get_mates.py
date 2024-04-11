@@ -28,6 +28,7 @@ async def get_mates_processing(team_url: str, page: int = 1, pageSize: int = 25)
 
         fields = [
             "name",
+            "username",
             "description",
             "default_systemprompt"
         ]
@@ -61,7 +62,7 @@ async def get_mates_processing(team_url: str, page: int = 1, pageSize: int = 25)
                 {
                     "id": get_nested(mate, ["id"]),
                     "name": get_nested(mate, ["attributes", "name"]),
-                    "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
+                    "username": get_nested(mate, ["attributes", "username"]),
                     "description": get_nested(mate, ['attributes', 'description']),
                     "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                     "default_systemprompt": get_nested(mate, ['attributes', 'default_systemprompt']),

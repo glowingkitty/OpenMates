@@ -137,10 +137,16 @@ def mates_ask(request: Request, parameters: MatesAskInput, team_url: str = Path(
 
 # GET /mates (get all mates)
 @mates_router.get("/{team_url}/mates/", 
-        response_model=MatesGetAllOutput, 
-        summary="Get all", 
-        description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>"
-        )
+    response_model=MatesGetAllOutput,
+    summary="Get all", 
+    description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>",
+    responses={
+        "200": {"description": "Successful Response"},
+        "422": {"description": "Validation Error", "model": None},
+        "401": {"description": "Unauthorized", "model": None},
+        "500": {"description": "Internal Server Error", "model": None}
+    }
+    )
 @limiter.limit("20/minute")
 async def get_mates(
     request: Request, 
@@ -156,12 +162,34 @@ async def get_mates(
         )
     return await get_mates_processing(team_url=team_url, page=page, pageSize=pageSize)
 
+# TODO continue with next api endpoints
 
 # GET /mates/{mate_username} (get a mate)
-@mates_router.get("/{team_url}/mates/{mate_username}", response_model=Mate, summary="Get mate", description="<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>")
+@mates_router.get("/{team_url}/mates/{mate_username}", 
+    response_model=Mate, 
+    summary="Get mate", 
+    description="<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>",
+    responses={
+        "200": {"description": "Successful Response"},
+        "422": {"description": "Validation Error", "model": None},
+        "401": {"description": "Unauthorized", "model": None},
+        "404": {"description": "Not Found", "model": None},
+        "500": {"description": "Internal Server Error", "model": None}
+    }
+    )
 @limiter.limit("20/minute")
-def get_mate(request: Request, team_url: str, mate_username: str, token: str = Depends(verify_token)):
-    return get_mate_processing(mate_username)
+async def get_mate(
+    request: Request,
+    team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]),
+    token: str = Header(None, example="123456789",description=input_parameter_descriptions["token"]),
+    mate_username: str = Path(..., example="sophia", description=input_parameter_descriptions["mate_username"])
+    ):
+    verify_token(
+        team_url=team_url,
+        token=token,
+        scope="mates:get_one"
+        )
+    return await get_mate_processing(team_url=team_url, mate_username=mate_username)
 
 
 # POST /mates (create a new mate)
