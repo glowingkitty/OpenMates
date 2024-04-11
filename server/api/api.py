@@ -21,7 +21,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter, Path
 from fastapi.staticfiles import StaticFiles
-from server.api.models.mates import MatesAskInput, MatesAskOutput, mates_get_all_output_example, MatesGetAllOutput, Mate
+from server.api.models.mates import Mate, MatesAskInput, MatesAskOutput, MatesGetAllOutput, mates_get_all_output_example
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -31,6 +31,7 @@ from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import tags_metadata, input_parameter_descriptions
+from typing import Optional
 
 
 ##################################
@@ -47,6 +48,7 @@ billing_router = APIRouter()
 server_router = APIRouter()
 teams_router = APIRouter()
 users_router = APIRouter()
+
 
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
@@ -134,15 +136,25 @@ def mates_ask(request: Request, parameters: MatesAskInput, team_url: str = Path(
 
 
 # GET /mates (get all mates)
-@mates_router.get("/{team_url}/mates/", response_model=MatesGetAllOutput, summary="Get all", description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>")
+@mates_router.get("/{team_url}/mates/", 
+        response_model=MatesGetAllOutput, 
+        summary="Get all", 
+        description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>"
+        )
 @limiter.limit("20/minute")
-async def get_mates(request: Request, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
+async def get_mates(
+    request: Request, 
+    team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]),
+    token: str = Header(None, example="123456789",description=input_parameter_descriptions["token"]),
+    page: Optional[int] = 1,
+    pageSize: Optional[int] = 25
+    ):
     verify_token(
         team_url=team_url,
         token=token,
         scope="mates:get_all"
         )
-    return await get_mates_processing(team_url=team_url)
+    return await get_mates_processing(team_url=team_url, page=page, pageSize=pageSize)
 
 
 # GET /mates/{mate_username} (get a mate)

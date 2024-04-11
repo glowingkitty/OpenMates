@@ -76,8 +76,9 @@ class MatesAskOutput(BaseModel):
 # GET /mates (get all mates)
 
 class MatesGetAllOutput(BaseModel):
-    data: List[Mate] = Field(...,description="List of all AI team mates for the team")
+    data: List[Mate] = Field(..., description="List of all AI team mates for the team")
     meta: MetaData = Field(..., description="Metadata for the response")
+
 
 mates_get_all_output_example = {
     "data": [

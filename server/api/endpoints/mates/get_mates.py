@@ -18,7 +18,7 @@ from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 
 
-async def get_mates_processing(team_url: str) -> List[dict]:
+async def get_mates_processing(team_url: str, page: int = 1, pageSize: int = 25) -> List[dict]:
     """
     Get a list of all AI team mates on a team
     """
@@ -46,14 +46,14 @@ async def get_mates_processing(team_url: str) -> List[dict]:
                 "value": team_url
             }
         ]
-        # TODO add pagination and pageSize to the request and return pagination metadata
-        # TODO update fastapi documentation to match the new response format and explain all fields
         status_code, json_response = await make_strapi_request(
             method='get', 
             endpoint='mates', 
             fields=fields, 
             populate=populate, 
-            filters=filters
+            filters=filters,
+            page=page,
+            pageSize=pageSize,
             )
 
         if status_code == 200:

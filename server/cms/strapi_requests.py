@@ -55,7 +55,9 @@ async def make_strapi_request(
         data: Optional[Dict] = None, 
         fields: Optional[List[str]] = None, 
         populate: Optional[List[str]] = None,
-        filters: Optional[List[Dict]] = None
+        filters: Optional[List[Dict]] = None,
+        page: int = 1,
+        pageSize: int = 25,
         ) -> Tuple[int, Dict]:
     async with httpx.AsyncClient() as client:
         try:
@@ -77,6 +79,9 @@ async def make_strapi_request(
 
                     # add the filter to the params
                     params += f"filters{field_path_str}[{filter['operator']}]={filter['value']}&"
+
+            # add num_results and page to params
+            params += f"pagination[page]={page}&pagination[pageSize]={pageSize}"
 
             # remove the last '&' from the params, if it exists
             if params[-1] == '&':
