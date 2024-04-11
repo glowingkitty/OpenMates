@@ -36,8 +36,8 @@ async def get_mates_processing(team_url: str) -> List[dict]:
             "skills.name",
             "skills.description",
             "skills.slug",
-            "skills.service.name",
-            "skills.service.slug"
+            "skills.software.name",
+            "skills.software.slug"
         ]
         filters = [
             {
@@ -69,11 +69,11 @@ async def get_mates_processing(team_url: str) -> List[dict]:
                         "id": get_nested(skill, ['id']),
                         "name": get_nested(skill, ['attributes', 'name']),
                         "description": get_nested(skill, ['attributes', 'description']),
-                        "service":{
-                            "id": get_nested(skill, ['attributes', 'service', 'data', 'id']),
-                            "name": get_nested(skill, ['attributes', 'service', 'data', 'attributes', 'name']),
+                        "software":{
+                            "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
+                            "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
                         },
-                        "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'service', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
+                        "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                         } for skill in get_nested(mate, ['attributes', 'skills', 'data']) or []]
                 } for mate in json_response["data"]
             ]

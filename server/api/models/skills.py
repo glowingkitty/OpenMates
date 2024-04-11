@@ -1,11 +1,38 @@
+
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
 from pydantic import BaseModel, Field
 from typing import List
 from enum import Enum
+from server.api.models.software import Software
 
 ##################################
 ######### Skills #################
 ##################################
-    
+
+## Base models
+
+class Skill(BaseModel):
+    id: int = Field(..., description="ID of the skill")
+    name: str = Field(..., description="Name of the skill")
+    description: str = Field(..., description="Description of the skill")
+    software: Software = Field(..., description="Software related to the skill")
+    api_endpoint: str = Field(..., description="API endpoint for the skill")
+
+
 ################
 ## YouTube Models
 ################

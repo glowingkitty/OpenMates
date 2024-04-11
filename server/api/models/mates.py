@@ -17,6 +17,7 @@ from server import *
 from pydantic import BaseModel, Field
 from typing import List
 from server.api.models.metadata import MetaData
+from server.api.models.skills import Skill
 
 ##################################
 ######### Mates ##################
@@ -26,55 +27,13 @@ from server.api.models.metadata import MetaData
 
 class Mate(BaseModel):
     """This is the model for an AI team mate"""
-    id: int = Field(...,
-                description="ID of the AI team mate",
-                example=1
-                )
-    name: str = Field(..., 
-                description="name of the AI team mate", 
-                example="Burton"
-                )
-    username: str = Field(...,
-                description="username of the AI team mate",
-                example="burton"
-                )
-    description: str = Field(..., 
-                description="Description of the AI team mate", 
-                example="Business development expert"
-                )
-    profile_picture_url: str = Field(...,
-                description="URL of the profile picture of the AI team mate",
-                example="/{team_url}/uploads/profile_picture.jpeg"
-                )
-    default_systemprompt: str = Field(...,
-                description="Default system prompt of the AI team mate",
-                example="You are an expert in software development. Keep your answers concise."
-                )
-    skills: List[dict] = Field(...,
-                description="Skills of the AI team mate",
-                example=[
-                    {
-                        "id":1,
-                        "name": "Create",
-                        "description": "Create a new page in Notion.",
-                        "service": {
-                            "id":1,
-                            "name": "Notion"
-                        },
-                        "api_endpoint": "/{team_url}/skills/notion/create"
-                    }, 
-                    {
-                        "id":2,
-                        "name": "Search",
-                        "description": "Search & filter for videos on YouTube.",
-                        "service": {
-                            "id":2,
-                            "name": "YouTube"
-                        },
-                        "api_endpoint": "/{team_url}/skills/youtube/search"
-                    }
-                ]
-                )
+    id: int = Field(..., description="ID of the AI team mate")
+    name: str = Field(..., description="name of the AI team mate")
+    username: str = Field(..., description="username of the AI team mate")
+    description: str = Field(..., description="Description of the AI team mate")
+    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
+    default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
+    skills: List[Skill] = Field(..., description="Skills of the AI team mate")
 
 
 
@@ -134,7 +93,7 @@ mates_get_all_output_example = {
                     "id": 1,
                     "name": "Create",
                     "description": "Create a new page in Notion.",
-                    "service": {
+                    "software": {
                         "id": 1,
                         "name": "Notion"
                     },
@@ -144,7 +103,7 @@ mates_get_all_output_example = {
                     "id": 2,
                     "name": "Search",
                     "description": "Search & filter for videos on YouTube.",
-                    "service": {
+                    "software": {
                         "id": 2,
                         "name": "YouTube"
                     },

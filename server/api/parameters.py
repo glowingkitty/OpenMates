@@ -5,8 +5,12 @@ tags_metadata = [
         "description": "<img src='images/mates.png' alt='Mates are your AI team members. They can help you with various tasks. Each mate is specialized in a different area.'>"
     },
     {
+        "name": "Software",
+        "description": "<img src='images/software.png' alt='Your team mates can interact with a wide range of software, on your behalf. For example: ChatGPT, Notion, RSS, SevDesk, YouTube, Claude, StableDiffusion, Firefox, Dropbox.'>"
+    },
+    {
         "name": "Skills",
-        "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of skills. Or, you can call them directly via the API. For example: ChatGPT, StableDiffusion, Notion or Figma.'>"
+        "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of software skills. Or, you can call them directly via the API.'>"
     },
     {
         "name": "Workflows",

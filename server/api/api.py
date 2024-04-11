@@ -40,6 +40,7 @@ from server.api.parameters import tags_metadata, input_parameter_descriptions
 # Create new routers
 mates_router = APIRouter()
 skills_router = APIRouter()
+software_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
 billing_router = APIRouter()
@@ -215,6 +216,17 @@ def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(veri
 
 
 ##################################
+######### Software ###############
+##################################
+
+# Explaination:
+# A software can be interacted with using skills. For example, Notion, Figma, YouTube or Google Calendar.
+
+
+
+
+
+##################################
 ######### Workflows ##############
 ##################################
 
@@ -324,6 +336,7 @@ def update_user(request: Request, team_url: str, username: str, token: str = Dep
 # Include the routers in your FastAPI application
 app.include_router(mates_router,        tags=["Mates"])
 app.include_router(skills_router,       tags=["Skills"])
+app.include_router(software_router,     tags=["software"])
 app.include_router(workflows_router,    tags=["Workflows"])
 app.include_router(tasks_router,        tags=["Tasks"])
 app.include_router(billing_router,      tags=["Billing"])
