@@ -1,6 +1,22 @@
+
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
 from pydantic import BaseModel, Field
 from typing import List
-from enum import Enum
+from server.api.models.metadata import MetaData
 
 ##################################
 ######### Mates ##################
@@ -10,13 +26,54 @@ from enum import Enum
 
 class Mate(BaseModel):
     """This is the model for an AI team mate"""
-    username: str = Field(..., 
-                description="username of the AI team mate", 
+    id: int = Field(...,
+                description="ID of the AI team mate",
+                example=1
+                )
+    name: str = Field(..., 
+                description="name of the AI team mate", 
+                example="Burton"
+                )
+    username: str = Field(...,
+                description="username of the AI team mate",
                 example="burton"
                 )
     description: str = Field(..., 
-                description="description of the AI team mate", 
+                description="Description of the AI team mate", 
                 example="Business development expert"
+                )
+    profile_picture_url: str = Field(...,
+                description="URL of the profile picture of the AI team mate",
+                example="/{team_url}/uploads/profile_picture.jpeg"
+                )
+    default_systemprompt: str = Field(...,
+                description="Default system prompt of the AI team mate",
+                example="You are an expert in software development. Keep your answers concise."
+                )
+    skills: List[dict] = Field(...,
+                description="Skills of the AI team mate",
+                example=[
+                    {
+                        "id":1,
+                        "name": "Create",
+                        "description": "Create a new page in Notion.",
+                        "service": {
+                            "id":1,
+                            "name": "Notion"
+                        },
+                        "api_endpoint": "/{team_url}/skills/notion/create"
+                    }, 
+                    {
+                        "id":2,
+                        "name": "Search",
+                        "description": "Search & filter for videos on YouTube.",
+                        "service": {
+                            "id":2,
+                            "name": "YouTube"
+                        },
+                        "api_endpoint": "/{team_url}/skills/youtube/search"
+                    }
+                ]
                 )
 
 
@@ -60,12 +117,51 @@ class MatesAskOutput(BaseModel):
 # GET /mates (get all mates)
 
 class MatesGetAllOutput(BaseModel):
-    mates: List[Mate] = Field(..., example=[
-        {"username": "burton", "description": "Business development expert"}, 
-        {"username": "sophia", "description": "Software development expert"},
-        {"username": "mark", "description": "Marketing & sales expert"}
-        ])
-    
+    data: List[Mate] = Field(...,description="List of all AI team mates for the team")
+    meta: MetaData = Field(..., description="Metadata for the response")
+
+mates_get_all_output_example = {
+    "data": [
+        {
+            "id": 1,
+            "name": "Burton",
+            "username": "burton",
+            "description": "Business development expert",
+            "profile_picture_url": "/{team_url}/uploads/burton_image.jpeg",
+            "default_systemprompt": "You are an expert in business development. Keep your answers concise.",
+            "skills": [
+                {
+                    "id": 1,
+                    "name": "Create",
+                    "description": "Create a new page in Notion.",
+                    "service": {
+                        "id": 1,
+                        "name": "Notion"
+                    },
+                    "api_endpoint": "/{team_url}/skills/notion/create"
+                },
+                {
+                    "id": 2,
+                    "name": "Search",
+                    "description": "Search & filter for videos on YouTube.",
+                    "service": {
+                        "id": 2,
+                        "name": "YouTube"
+                    },
+                    "api_endpoint": "/{team_url}/skills/youtube/search"
+                }
+            ]
+        }
+    ],
+    "meta": {
+        "pagination": {
+            "page": 1,
+            "pageSize": 25,
+            "pageCount": 1,
+            "total": 1
+        }
+    }
+}
 
 # GET /mates/{mate_username} (get a mate)
 

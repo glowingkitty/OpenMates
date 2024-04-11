@@ -21,7 +21,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter
 from fastapi.staticfiles import StaticFiles
-from server.api.models.mates import MatesAskInput, MatesAskOutput, MatesGetAllOutput, Mate
+from server.api.models.mates import MatesAskInput, MatesAskOutput, mates_get_all_output_example, MatesGetAllOutput, Mate
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -29,7 +29,7 @@ from server.api.verify_token import verify_token
 from server.cms.strapi_requests import get_strapi_upload
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
-
+from fastapi.openapi.utils import get_openapi
 
 # Create new routers
 mates_router = APIRouter()
@@ -80,20 +80,37 @@ tags_metadata = [
 ]
 
 app = FastAPI(
-    title="OpenMates API",
-    description=(
-        "Allows your code to interact with OpenMates server.<br>"
-        "<h2>How to get started</h1>"
-        "<ol>"
-        "<li>Login to your OpenMates account, go to the settings and find your API token there.</li>"
-        "<li>Make a request to the endpoint you want to use. Make sure to include your 'token' in the header.</li>"
-        "</ol>"
-    ),
-    version="1.0.0",
     redoc_url="/docs", 
     docs_url="/swagger_docs",
     openapi_tags=tags_metadata
 )
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="OpenMates API",
+        version="1.0.0",
+        description=(
+            "Allows your code to interact with OpenMates server.<br>"
+            "<h2>How to get started</h1>"
+            "<ol>"
+            "<li>Login to your OpenMates account, go to the settings and find your API token there.</li>"
+            "<li>Make a request to the endpoint you want to use. Make sure to include your 'token' in the header.</li>"
+            "</ol>"
+        ),
+        routes=app.routes,
+    )
+    # Check if endpoints exist in the schema and add them if they don't
+    # GET /{team_url}/mates/
+    if "/{team_url}/mates/" not in openapi_schema["paths"]:
+        openapi_schema["paths"]["/{team_url}/mates/"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
+    openapi_schema["paths"]["/{team_url}/mates/"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_all_output_example
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 # Add the limiter as middleware
 app.state.limiter = limiter
@@ -118,12 +135,7 @@ def read_root(request: Request):
 @app.get("/{team_url}/uploads/{file_path:path}", include_in_schema=False)
 @limiter.limit("20/minute")
 async def get_upload(request: Request, team_url: str, token: str = Header(None,example="123456789",description="Your API token to authenticate and show you have access to the requested OpenMates server.")):
-    # TODO: remove the need for the team parameter and properly check the token
     # TODO: consider what happens if a team is upload a custom image for a mate. How to handle this?
-    # TODO: add team_url to the url, so that the team can only access their own files and mates and skills and so on
-    # example: /{team_url}/uploads/{file_path:path}
-    # example: /{team_url}/mates/{mate_username}
-    # example: /{team_url}/skills/{skill_name}
     verify_token(
         team_url=team_url,
         token=token,

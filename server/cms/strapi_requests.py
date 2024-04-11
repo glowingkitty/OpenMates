@@ -15,15 +15,39 @@ from server import *
 
 import httpx
 from dotenv import load_dotenv
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
 from fastapi import HTTPException, Response
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 # Load the .env file
 load_dotenv()
 
 STRAPI_URL = os.getenv('STRAPI_URL')
 STRAPI_API_TOKEN = os.getenv('STRAPI_API_TOKEN')
+
+def add_params(params, populate) -> str:
+    for field in populate:
+        parts = field.split('.')
+        params = build_params(params, parts, "populate", "")
+    return params
+
+
+def build_params(params, parts, prefix, postfix) -> str:
+    if len(parts) == 1:
+        params += f"{prefix}[fields][0]={parts[0]}{postfix}&"
+    else:
+        params = build_params(params, parts[1:], f"{prefix}[{parts[0]}][populate]", postfix)
+    return params
+
+
+def get_nested(dictionary, keys):
+    for key in keys:
+        if isinstance(dictionary, dict):
+            dictionary = dictionary.get(key)
+        else:
+            return None
+    return dictionary
+
 
 async def make_strapi_request(
         method: str, 
@@ -32,7 +56,7 @@ async def make_strapi_request(
         fields: Optional[List[str]] = None, 
         populate: Optional[List[str]] = None,
         filters: Optional[List[Dict]] = None
-        ) -> JSONResponse:
+        ) -> Tuple[int, Dict]:
     async with httpx.AsyncClient() as client:
         try:
             params = "?"
@@ -42,16 +66,8 @@ async def make_strapi_request(
                     params += f"fields[{i}]={field}&"
             # define which relationships to add
             if populate:
-                populate_dict = {}
-                for item in populate:
-                    entity, field = item.split('.')
-                    if entity not in populate_dict:
-                        populate_dict[entity] = []
-                    populate_dict[entity].append(field)
-
-                for entity, fields in populate_dict.items():
-                    for i, field in enumerate(fields):
-                        params += f"populate[{entity}][fields][{i}]={field}&"
+                params = add_params(params, populate)
+            
             # define filters
             if filters:
                 for filter in filters:
@@ -60,7 +76,7 @@ async def make_strapi_request(
                     field_path_str = "[" + "][".join(field_path) + "]"
 
                     # add the filter to the params
-                    params += f"[filters]{field_path_str}[{filter['operator']}]={filter['value']}&"
+                    params += f"filters{field_path_str}[{filter['operator']}]={filter['value']}&"
 
             # remove the last '&' from the params, if it exists
             if params[-1] == '&':
@@ -85,7 +101,7 @@ async def make_strapi_request(
                 raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
             else:
                 raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
-        return JSONResponse(status_code=strapi_response.status_code, content=strapi_response.json())
+        return strapi_response.status_code, strapi_response.json()
     
 
 async def get_strapi_upload(url: str) -> Response:
