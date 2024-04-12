@@ -32,6 +32,7 @@ class Mate(BaseModel):
     username: str = Field(..., description="username of the AI team mate")
     description: str = Field(..., description="Description of the AI team mate")
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
+    systemprompt: str = Field(..., description="Currently used system prompt of the AI team mate for the user who makes the request to the API, in the context of the selected team.")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
     skills: List[Skill] = Field(..., description="Skills of the AI team mate")
 

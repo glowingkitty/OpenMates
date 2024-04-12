@@ -162,8 +162,7 @@ async def get_mates(
         )
     return await get_mates_processing(team_url=team_url, page=page, pageSize=pageSize)
 
-# TODO continue with next api endpoints
-
+# TODO add example code for getting a mate
 # GET /mates/{mate_username} (get a mate)
 @mates_router.get("/{team_url}/mates/{mate_username}", 
     response_model=Mate, 
@@ -189,7 +188,7 @@ async def get_mate(
         token=token,
         scope="mates:get_one"
         )
-    return await get_mate_processing(team_url=team_url, mate_username=mate_username)
+    return await get_mate_processing(team_url=team_url, mate_username=mate_username, user_api_token=token)
 
 
 # POST /mates (create a new mate)
