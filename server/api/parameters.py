@@ -1,4 +1,38 @@
 
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
+from server.api.models.mates import Mate, MatesAskInput, MatesAskOutput, MatesGetAllOutput, mates_get_all_output_example
+
+
+def generate_responses(status_codes):
+    descriptions = {
+        "200": "Successful Response",
+        "422": "Validation Error",
+        "401": "Unauthorized",
+        "404": "Not Found",
+        "500": "Internal Server Error"
+    }
+    
+    responses = {}
+    for code in status_codes:
+        responses[str(code)] = {"description": descriptions.get(str(code), "Unknown Status Code"), "model": None}
+    
+    return responses
+
+
 tags_metadata = [
     {
         "name": "Mates",
@@ -38,8 +72,34 @@ tags_metadata = [
     }
 ]
 
-input_parameter_descriptions = {
-    "team_url": "Your team URL to access the requested team.",
-    "token": "Your API token to authenticate and show you have access to the requested team.",
-    "mate_username": "Username of the AI team mate.",
+endpoint_metadata = {
+    "get_all_mates":{
+        "response_model":MatesGetAllOutput,
+        "summary": "Get all",
+        "description": "<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>",
+        "responses": generate_responses([200, 401, 404, 422, 500]),
+    },
+    "get_mate":{
+        "response_model":Mate,
+        "summary": "Get mate",
+        "description": "<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>",
+        "responses": generate_responses([200, 401, 404, 422, 500])
+    }
+    
 }
+
+input_parameter_descriptions = {
+    "team_url": {
+        "description": "The URL of the team",
+        "example": "openmates_enthusiasts"
+    },
+    "token": {
+        "description": "The authentication token",
+        "example": "123456789"
+    },
+    "mate_username":{
+        "description": "The username of the AI team mate",
+        "example": "sophia"
+    }
+}
+

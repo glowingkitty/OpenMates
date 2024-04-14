@@ -56,18 +56,6 @@ async def get_mate_processing(team_url: str, mate_username: str, user_api_token:
                 "field": "username",
                 "operator": "$eq",
                 "value": mate_username
-            },
-            # The config of the mate must belong to the user who made the request
-            {
-                "field": "configs.user.api_token",
-                "operator": "$eq",
-                "value": user_api_token
-            },
-            # The config of the mate must belong to the team that was used in the request
-            {
-                "field": "configs.team.slug",
-                "operator": "$eq",
-                "value": team_url
             }
             
         ]
@@ -85,39 +73,42 @@ async def get_mate_processing(team_url: str, mate_username: str, user_api_token:
             mates = json_response["data"]
             if len(mates) == 0:
                 status_code = 404
-                json_response = {"detail": "The requested mate does not exist or is not active on the team."}
+                json_response = {"detail": "Could not find the requested mate. Make sure the team URL is correct and the mate is active on the team."}
             elif len(mates) > 1:
                 status_code = 404
                 json_response = {"detail": "There are multiple mates with the requested username. Please contact the team owner."}
             else:
                 mate = mates[0]
 
-            # matching_config = get_nested(mate, ["attributes", "configs"])
-            matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_url and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
-            if len(matching_config) == 1:
-                mate["attributes"]["config"] = matching_config[0]
+                # check if a custom config exists
+                if len(mate["attributes"]["configs"]["data"])>0:
+                    matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_url and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
+                    if len(matching_config) == 1:
+                        mate["attributes"]["config"] = matching_config[0]
+                else:
+                    mate["attributes"]["config"] = None
 
-            mate = {
-                    "id": get_nested(mate, ["id"]),
-                    "name": get_nested(mate, ["attributes", "name"]),
-                    "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
-                    "description": get_nested(mate, ['attributes', 'description']),
-                    "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
-                    "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']),
-                    "default_systemprompt": get_nested(mate, ['attributes', 'default_systemprompt']),
-                    "skills": [{
-                        "id": get_nested(skill, ['id']),
-                        "name": get_nested(skill, ['attributes', 'name']),
-                        "description": get_nested(skill, ['attributes', 'description']),
-                        "software":{
-                            "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
-                            "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
-                        },
-                        "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
-                        } for skill in get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or []]
-                }
+                mate = {
+                        "id": get_nested(mate, ["id"]),
+                        "name": get_nested(mate, ["attributes", "name"]),
+                        "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
+                        "description": get_nested(mate, ['attributes', 'description']),
+                        "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                        "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
+                        "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
+                        "skills": [{
+                            "id": get_nested(skill, ['id']),
+                            "name": get_nested(skill, ['attributes', 'name']),
+                            "description": get_nested(skill, ['attributes', 'description']),
+                            "software":{
+                                "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
+                                "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
+                            },
+                            "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
+                            } for skill in get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or []]
+                    }
 
-            json_response = mate
+                json_response = mate
 
 
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")

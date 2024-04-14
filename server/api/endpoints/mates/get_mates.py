@@ -29,16 +29,10 @@ async def get_mates_processing(team_url: str, page: int = 1, pageSize: int = 25)
         fields = [
             "name",
             "username",
-            "description",
-            "default_systemprompt"
+            "description"
         ]
         populate = [
-            "profile_picture.url",
-            "skills.name",
-            "skills.description",
-            "skills.slug",
-            "skills.software.name",
-            "skills.software.slug"
+            "profile_picture.url"
         ]
         filters = [
             {
@@ -65,21 +59,17 @@ async def get_mates_processing(team_url: str, page: int = 1, pageSize: int = 25)
                     "username": get_nested(mate, ["attributes", "username"]),
                     "description": get_nested(mate, ['attributes', 'description']),
                     "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
-                    "default_systemprompt": get_nested(mate, ['attributes', 'default_systemprompt']),
-                    "skills": [{
-                        "id": get_nested(skill, ['id']),
-                        "name": get_nested(skill, ['attributes', 'name']),
-                        "description": get_nested(skill, ['attributes', 'description']),
-                        "software":{
-                            "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
-                            "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
-                        },
-                        "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
-                        } for skill in get_nested(mate, ['attributes', 'skills', 'data']) or []]
                 } for mate in json_response["data"]
             ]
-            
-            json_response["data"] = mates
+
+            # if no mates, return a 404 error
+            if len(mates) == 0:
+                status_code = 404
+                # Info: technically there are only no mates on the team, and the team might still exist, 
+                # but since its not allowed to have a team with 0 mates, we can make the assumption that the team does not exist
+                json_response = {"detail": "Could not find a team with the requested team URL."}
+            else:
+                json_response["data"] = mates
 
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")
         return JSONResponse(status_code=status_code, content=json_response)

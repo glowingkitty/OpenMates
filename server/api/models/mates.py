@@ -33,9 +33,16 @@ class Mate(BaseModel):
     description: str = Field(..., description="Description of the AI team mate")
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
     systemprompt: str = Field(..., description="Currently used system prompt of the AI team mate for the user who makes the request to the API, in the context of the selected team.")
-    default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
+    systemprompt_is_customized: bool = Field(..., description="Indicates if the system prompt is customized or the default one.")
     skills: List[Skill] = Field(..., description="Skills of the AI team mate")
 
+class MateMultiple(BaseModel):
+    """This is the model for a single AI team mate, for the endpoint GET /mates"""
+    id: int = Field(..., description="ID of the AI team mate")
+    name: str = Field(..., description="name of the AI team mate")
+    username: str = Field(..., description="username of the AI team mate")
+    description: str = Field(..., description="Description of the AI team mate")
+    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
 
 
 ## Endpoint models
@@ -77,7 +84,7 @@ class MatesAskOutput(BaseModel):
 # GET /mates (get all mates)
 
 class MatesGetAllOutput(BaseModel):
-    data: List[Mate] = Field(..., description="List of all AI team mates for the team")
+    data: List[MateMultiple] = Field(..., description="List of all AI team mates for the team")
     meta: MetaData = Field(..., description="Metadata for the response")
 
 
@@ -88,30 +95,14 @@ mates_get_all_output_example = {
             "name": "Burton",
             "username": "burton",
             "description": "Business development expert",
-            "profile_picture_url": "/{team_url}/uploads/burton_image.jpeg",
-            "default_systemprompt": "You are an expert in business development. Keep your answers concise.",
-            "skills": [
-                {
-                    "id": 1,
-                    "name": "Create",
-                    "description": "Create a new page in Notion.",
-                    "software": {
-                        "id": 1,
-                        "name": "Notion"
-                    },
-                    "api_endpoint": "/{team_url}/skills/notion/create"
-                },
-                {
-                    "id": 2,
-                    "name": "Search",
-                    "description": "Search & filter for videos on YouTube.",
-                    "software": {
-                        "id": 2,
-                        "name": "YouTube"
-                    },
-                    "api_endpoint": "/{team_url}/skills/youtube/search"
-                }
-            ]
+            "profile_picture_url": "/{team_url}/uploads/burton_image.jpeg"
+        },
+        {
+            "id": 2,
+            "name": "Sophia",
+            "username": "sophia",
+            "description": "Software development expert",
+            "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg"
         }
     ],
     "meta": {
@@ -131,3 +122,26 @@ class MatesGetOneInput(BaseModel):
                     description="The name of your team.",
                     example="glowingkitties"
                     )
+    
+
+mates_get_one_output_example = {
+    "id": 1,
+    "name": "Sophia",
+    "username": "sophia",
+    "description": "Software development expert",
+    "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg",
+    "systemprompt": "You are a software development expert. Keep your answers clear and concise.",
+    "systemprompt_is_customized": False,
+    "skills": [
+        {
+            "id": 3,
+            "name": "Write & test code",
+            "description": "Writes and tests code based on the given requirements.",
+            "software": {
+                "id": 4,
+                "name": "VS Code"
+            },
+            "api_endpoint": "/{team_url}/skills/vs_code/write_and_test_code"
+        }
+    ]
+}

@@ -21,7 +21,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter, Path
 from fastapi.staticfiles import StaticFiles
-from server.api.models.mates import Mate, MatesAskInput, MatesAskOutput, MatesGetAllOutput, mates_get_all_output_example
+from server.api.models.mates import Mate, MatesAskInput, MatesAskOutput, mates_get_all_output_example, mates_get_one_output_example
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -30,7 +30,7 @@ from server.cms.strapi_requests import get_strapi_upload
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
-from server.api.parameters import tags_metadata, input_parameter_descriptions
+from server.api.parameters import tags_metadata, endpoint_metadata, input_parameter_descriptions
 from typing import Optional
 
 
@@ -79,8 +79,9 @@ def custom_openapi():
     # GET /{team_url}/mates/
     if "/{team_url}/mates/" not in openapi_schema["paths"]:
         openapi_schema["paths"]["/{team_url}/mates/"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
+        openapi_schema["paths"]["/{team_url}/mates/{mate_username}"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
     openapi_schema["paths"]["/{team_url}/mates/"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_all_output_example
-    
+    openapi_schema["paths"]["/{team_url}/mates/{mate_username}"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_one_output_example
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -136,22 +137,12 @@ def mates_ask(request: Request, parameters: MatesAskInput, team_url: str = Path(
 
 
 # GET /mates (get all mates)
-@mates_router.get("/{team_url}/mates/", 
-    response_model=MatesGetAllOutput,
-    summary="Get all", 
-    description="<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>",
-    responses={
-        "200": {"description": "Successful Response"},
-        "422": {"description": "Validation Error", "model": None},
-        "401": {"description": "Unauthorized", "model": None},
-        "500": {"description": "Internal Server Error", "model": None}
-    }
-    )
+@mates_router.get("/{team_url}/mates/", **endpoint_metadata["get_all_mates"])
 @limiter.limit("20/minute")
 async def get_mates(
     request: Request, 
-    team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]),
-    token: str = Header(None, example="123456789",description=input_parameter_descriptions["token"]),
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Header(None, **input_parameter_descriptions["token"]),
     page: int = 1,
     pageSize: int = 25
     ):
@@ -162,26 +153,15 @@ async def get_mates(
         )
     return await get_mates_processing(team_url=team_url, page=page, pageSize=pageSize)
 
-# TODO add example code for getting a mate
+
 # GET /mates/{mate_username} (get a mate)
-@mates_router.get("/{team_url}/mates/{mate_username}", 
-    response_model=Mate, 
-    summary="Get mate", 
-    description="<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>",
-    responses={
-        "200": {"description": "Successful Response"},
-        "422": {"description": "Validation Error", "model": None},
-        "401": {"description": "Unauthorized", "model": None},
-        "404": {"description": "Not Found", "model": None},
-        "500": {"description": "Internal Server Error", "model": None}
-    }
-    )
+@mates_router.get("/{team_url}/mates/{mate_username}", **endpoint_metadata["get_mate"])
 @limiter.limit("20/minute")
 async def get_mate(
     request: Request,
-    team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]),
-    token: str = Header(None, example="123456789",description=input_parameter_descriptions["token"]),
-    mate_username: str = Path(..., example="sophia", description=input_parameter_descriptions["mate_username"])
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Header(None, **input_parameter_descriptions["token"]),
+    mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
     verify_token(
         team_url=team_url,
