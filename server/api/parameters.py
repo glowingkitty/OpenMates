@@ -14,15 +14,19 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.mates import Mate, MatesAskInput, MatesAskOutput, MatesGetAllOutput, mates_get_all_output_example
+from server.api.models.mates import MatesAskOutput, MatesGetAllOutput, Mate, MateUpdateOutput, mates_get_all_output_example
 
 
 def generate_responses(status_codes):
     descriptions = {
         "200": "Successful Response",
-        "422": "Validation Error",
+        "201": "Successful Creation",
+        "400": "Bad Request",
         "401": "Unauthorized",
+        "403": "Forbidden",
         "404": "Not Found",
+        "409": "Conflict",
+        "422": "Validation Error",
         "500": "Internal Server Error"
     }
     
@@ -31,6 +35,41 @@ def generate_responses(status_codes):
         responses[str(code)] = {"description": descriptions.get(str(code), "Unknown Status Code"), "model": None}
     
     return responses
+
+
+endpoint_metadata = {
+    "ask_mate":{
+        "response_model":MatesAskOutput,
+        "summary": "Ask",
+        "description": "<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "get_all_mates":{
+        "response_model":MatesGetAllOutput,
+        "summary": "Get all",
+        "description": "<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500]),
+    },
+    "get_mate":{
+        "response_model":Mate,
+        "summary": "Get mate",
+        "description": "<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
+    },
+    "create_mate":{
+        "response_model":Mate,
+        "summary": "Create",
+        "description": "<img src='images/mates/create.png' alt='Create a new mate on the OpenMates server, with a custom system prompt, accessible skills and other settings.'>",
+        "responses": generate_responses([201, 400, 401, 403, 409, 422, 500]),
+        "status_code": 201
+    },
+    "update_mate":{
+        "response_model":MateUpdateOutput,
+        "summary": "Update",
+        "description": "<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
+    },
+}
 
 
 tags_metadata = [
@@ -72,21 +111,6 @@ tags_metadata = [
     }
 ]
 
-endpoint_metadata = {
-    "get_all_mates":{
-        "response_model":MatesGetAllOutput,
-        "summary": "Get all",
-        "description": "<img src='images/mates/get_all.png' alt='Get an overview list of all AI team mates currently active on the OpenMates server.'>",
-        "responses": generate_responses([200, 401, 404, 422, 500]),
-    },
-    "get_mate":{
-        "response_model":Mate,
-        "summary": "Get mate",
-        "description": "<img src='images/mates/get_mate.png' alt='Get all details about a specific mate. Including system prompt, available skills and more.'>",
-        "responses": generate_responses([200, 401, 404, 422, 500])
-    }
-    
-}
 
 input_parameter_descriptions = {
     "team_url": {

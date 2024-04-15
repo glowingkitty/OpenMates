@@ -35,6 +35,11 @@ async def get_mate_processing(team_url: str, mate_username: str, user_api_token:
         ]
         populate = [
             "profile_picture.url",
+            "default_skills.name",
+            "default_skills.description",
+            "default_skills.slug",
+            "default_skills.software.name",
+            "default_skills.software.slug",
             "configs.systemprompt",
             "configs.user.api_token",
             "configs.team.slug",
@@ -96,16 +101,18 @@ async def get_mate_processing(team_url: str, mate_username: str, user_api_token:
                         "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                         "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
                         "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
-                        "skills": [{
-                            "id": get_nested(skill, ['id']),
-                            "name": get_nested(skill, ['attributes', 'name']),
-                            "description": get_nested(skill, ['attributes', 'description']),
-                            "software":{
-                                "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
-                                "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
-                            },
-                            "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
-                            } for skill in get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or []]
+                        "skills": [
+                            {
+                                "id": get_nested(skill, ['id']),
+                                "name": get_nested(skill, ['attributes', 'name']),
+                                "description": get_nested(skill, ['attributes', 'description']),
+                                "software":{
+                                    "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
+                                    "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
+                                },
+                                "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
+                            } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
+                        ]
                     }
 
                 json_response = mate

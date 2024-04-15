@@ -21,7 +21,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter, Path
 from fastapi.staticfiles import StaticFiles
-from server.api.models.mates import Mate, MatesAskInput, MatesAskOutput, mates_get_all_output_example, mates_get_one_output_example
+from server.api.models.mates import MatesAskInput, mates_ask_input_example, mates_ask_output_example, mates_get_all_output_example, mates_get_one_output_example
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -76,12 +76,22 @@ def custom_openapi():
         tags=tags_metadata
     )
     # Check if endpoints exist in the schema and add them if they don't
+    # POST /{team_url}/mates/ask
+    if "/{team_url}/mates/ask" not in openapi_schema["paths"]:
+        openapi_schema["paths"]["/{team_url}/mates/ask"] = {"post": {"requestBody": {"content": {"application/json": {"example": {}}}}, "responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
+    openapi_schema["paths"]["/{team_url}/mates/ask"]["post"]["requestBody"]["content"]["application/json"]["example"] = mates_ask_input_example
+    openapi_schema["paths"]["/{team_url}/mates/ask"]["post"]["responses"]["200"]["content"]["application/json"]["example"] = mates_ask_output_example
+    
     # GET /{team_url}/mates/
     if "/{team_url}/mates/" not in openapi_schema["paths"]:
         openapi_schema["paths"]["/{team_url}/mates/"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
-        openapi_schema["paths"]["/{team_url}/mates/{mate_username}"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
     openapi_schema["paths"]["/{team_url}/mates/"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_all_output_example
+
+    # GET /{team_url}/mates/{mate_username}
+    if "/{team_url}/mates/{mate_username}" not in openapi_schema["paths"]:
+        openapi_schema["paths"]["/{team_url}/mates/{mate_username}"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
     openapi_schema["paths"]["/{team_url}/mates/{mate_username}"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_one_output_example
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -124,15 +134,22 @@ async def get_upload(request: Request, team_url: str = Path(..., example="openma
 ######### Mates ##################
 ##################################
 
+# TODO Update documentation
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
-@mates_router.post("/{team_url}/mates/ask",response_model=MatesAskOutput, summary="Ask", description="<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>")
+@mates_router.post("/{team_url}/mates/ask",**endpoint_metadata["ask_mate"])
 @limiter.limit("20/minute")
-def mates_ask(request: Request, parameters: MatesAskInput, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
+def mates_ask(
+    request: Request,
+    parameters: MatesAskInput,
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Header(None, **input_parameter_descriptions["token"]),
+    ):
     verify_token(
         team_url=team_url,
         token=token,
         scope="mates:ask"
         )
+    # TODO update processing
     return mates_ask_processing(team_url=team_url, parameters=parameters)
 
 
@@ -171,17 +188,41 @@ async def get_mate(
     return await get_mate_processing(team_url=team_url, mate_username=mate_username, user_api_token=token)
 
 
+# TODO Update documentation
 # POST /mates (create a new mate)
-@mates_router.post("/{team_url}/mates/", summary="Create", description="<img src='images/mates/create.png' alt='Create a new mate on the OpenMates server, with a custom system prompt, accessible skills and other settings.'>")
+@mates_router.post("/{team_url}/mates/", **endpoint_metadata["create_mate"])
 @limiter.limit("20/minute")
-def create_mate(request: Request, team_url: str, token: str = Depends(verify_token)):
+async def create_mate(
+    request: Request,
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Header(None, **input_parameter_descriptions["token"])
+    ):
+    verify_token(
+        team_url=team_url,
+        token=token,
+        scope="mates:create"
+        )
+    # TODO add processing
+    # return await post_mate_processing(team_url=team_url)
     return {"info": "endpoint still needs to be implemented"}
 
 
+# TODO Update documentation
 # PATCH /mates/{mate_username} (update a mate)
-@mates_router.patch("/{team_url}/mates/{mate_username}", summary="Update", description="<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>")
+@mates_router.patch("/{team_url}/mates/{mate_username}", **endpoint_metadata["update_mate"])
 @limiter.limit("20/minute")
-def update_mate(request: Request, team_url: str, mate_username: str, token: str = Depends(verify_token)):
+async def update_mate(
+    request: Request,
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Header(None, **input_parameter_descriptions["token"]),
+    mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
+    ):
+    verify_token(
+        team_url=team_url,
+        token=token,
+        scope="mates:update"
+        )
+    # TODO add processing
     return {"info": "endpoint still needs to be implemented"}
 
 
