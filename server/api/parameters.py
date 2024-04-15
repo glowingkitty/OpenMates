@@ -37,6 +37,47 @@ def generate_responses(status_codes):
     return responses
 
 
+def set_example(openapi_schema, path, method, request_or_response, example, response_code=None):
+    # Ensure the path exists
+    if path not in openapi_schema["paths"]:
+        openapi_schema["paths"][path] = {}
+
+    # Ensure the method exists
+    if method not in openapi_schema["paths"][path]:
+        openapi_schema["paths"][path][method] = {}
+
+    # Ensure the request_or_response exists
+    if request_or_response not in openapi_schema["paths"][path][method]:
+        openapi_schema["paths"][path][method][request_or_response] = {}
+
+    if request_or_response == "responses":
+        # Ensure the response_code exists
+        if response_code not in openapi_schema["paths"][path][method][request_or_response]:
+            openapi_schema["paths"][path][method][request_or_response][response_code] = {}
+
+        # Ensure the 'content' exists
+        if "content" not in openapi_schema["paths"][path][method][request_or_response][response_code]:
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"] = {}
+
+        # Ensure the 'application/json' exists
+        if "application/json" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"] = {}
+
+        # Set the example
+        openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["example"] = example
+    else:
+        # Ensure the 'content' exists
+        if "content" not in openapi_schema["paths"][path][method][request_or_response]:
+            openapi_schema["paths"][path][method][request_or_response]["content"] = {}
+
+        # Ensure the 'application/json' exists
+        if "application/json" not in openapi_schema["paths"][path][method][request_or_response]["content"]:
+            openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"] = {}
+
+        # Set the example
+        openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["example"] = example
+
+
 endpoint_metadata = {
     "ask_mate":{
         "response_model":MatesAskOutput,

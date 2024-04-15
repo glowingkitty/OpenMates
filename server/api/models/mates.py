@@ -153,6 +153,36 @@ class MatesCreateInput(BaseModel):
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
     default_skills: List[int] = Field(..., description="Default list of skill IDs for the AI team mate")
 
+mates_create_input_example = {
+    "name": "Sophia",
+    "username": "sophia",
+    "description": "Software development expert",
+    "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg",
+    "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
+    "default_skills": [3]
+}
+
+mates_create_output_example = {
+    "id": 2,
+    "name": "Sophia",
+    "username": "sophia",
+    "description": "Software development expert",
+    "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg",
+    "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
+    "default_skills": [
+        {
+            "id": 3,
+            "name": "Write & test code",
+            "description": "Writes and tests code based on the given requirements.",
+            "software": {
+                "id": 4,
+                "name": "VS Code"
+            },
+            "api_endpoint": "/{team_url}/skills/vs_code/write_and_test_code"
+        }
+    ]
+}
+
 
 # PATCH /mates/{mate_username} (update a mate)
 
@@ -165,7 +195,19 @@ class MatesUpdateInput(BaseModel):
     default_systemprompt: Optional[str] = Field(None, description="Default system prompt of the AI team mate")
     default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
 
+mates_update_input_example = {
+    "description": "A software development expert, who can help you with all your coding needs."
+}
+
+
 class MateUpdateOutput(BaseModel):
     """This is the model for the outgoing response for POST /mates"""
     id: int = Field(..., description="ID of the AI team mate")
     updated_fields: List[dict] = Field(..., description="Dict with all updated fields")
+
+mates_update_output_example = {
+    "id": 1,
+    "updated_fields": [
+        {"description": "A software development expert, who can help you with all your coding needs."}
+    ]
+}

@@ -21,7 +21,19 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter, Path
 from fastapi.staticfiles import StaticFiles
-from server.api.models.mates import MatesAskInput, mates_ask_input_example, mates_ask_output_example, mates_get_all_output_example, mates_get_one_output_example
+from server.api.models.mates import (
+    MatesAskInput,
+    MatesCreateInput,
+    MatesUpdateInput,
+    mates_ask_input_example, 
+    mates_ask_output_example, 
+    mates_get_all_output_example, 
+    mates_get_one_output_example, 
+    mates_create_input_example, 
+    mates_create_output_example, 
+    mates_update_input_example, 
+    mates_update_output_example
+    )
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -30,8 +42,7 @@ from server.cms.strapi_requests import get_strapi_upload
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
-from server.api.parameters import tags_metadata, endpoint_metadata, input_parameter_descriptions
-from typing import Optional
+from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
 
 
 ##################################
@@ -75,23 +86,16 @@ def custom_openapi():
         routes=app.routes,
         tags=tags_metadata
     )
-    # Check if endpoints exist in the schema and add them if they don't
-    # POST /{team_url}/mates/ask
-    if "/{team_url}/mates/ask" not in openapi_schema["paths"]:
-        openapi_schema["paths"]["/{team_url}/mates/ask"] = {"post": {"requestBody": {"content": {"application/json": {"example": {}}}}, "responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
-    openapi_schema["paths"]["/{team_url}/mates/ask"]["post"]["requestBody"]["content"]["application/json"]["example"] = mates_ask_input_example
-    openapi_schema["paths"]["/{team_url}/mates/ask"]["post"]["responses"]["200"]["content"]["application/json"]["example"] = mates_ask_output_example
+
+    set_example(openapi_schema, "/{team_url}/mates/ask", "post", "requestBody", mates_ask_input_example)
+    set_example(openapi_schema, "/{team_url}/mates/ask", "post", "responses", mates_ask_output_example, "200")
+    set_example(openapi_schema, "/{team_url}/mates/", "get", "responses", mates_get_all_output_example, "200")
+    set_example(openapi_schema, "/{team_url}/mates/", "post", "requestBody", mates_create_input_example)
+    set_example(openapi_schema, "/{team_url}/mates/", "post", "responses", mates_create_output_example, "201")
+    set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
+    set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
+    set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
     
-    # GET /{team_url}/mates/
-    if "/{team_url}/mates/" not in openapi_schema["paths"]:
-        openapi_schema["paths"]["/{team_url}/mates/"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
-    openapi_schema["paths"]["/{team_url}/mates/"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_all_output_example
-
-    # GET /{team_url}/mates/{mate_username}
-    if "/{team_url}/mates/{mate_username}" not in openapi_schema["paths"]:
-        openapi_schema["paths"]["/{team_url}/mates/{mate_username}"] = {"get": {"responses": {"200": {"content": {"application/json": {"example": {}}}}}}}
-    openapi_schema["paths"]["/{team_url}/mates/{mate_username}"]["get"]["responses"]["200"]["content"]["application/json"]["example"] = mates_get_one_output_example
-
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -205,6 +209,7 @@ async def get_mate(
 @limiter.limit("20/minute")
 async def create_mate(
     request: Request,
+    parameters: MatesCreateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
     token: str = Header(None, **input_parameter_descriptions["token"])
     ):
@@ -224,6 +229,7 @@ async def create_mate(
 @limiter.limit("20/minute")
 async def update_mate(
     request: Request,
+    parameters: MatesUpdateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
     token: str = Header(None, **input_parameter_descriptions["token"]),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
