@@ -112,7 +112,8 @@ async def get_mate_processing(team_url: str, mate_username: str, user_api_token:
                                 },
                                 "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                             } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
-                        ]
+                        ],
+                        "skills_are_customized": True if get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) else False
                     }
 
                 json_response = mate

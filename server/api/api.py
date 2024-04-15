@@ -203,7 +203,6 @@ async def get_mate(
         )
 
 
-# TODO Update documentation
 # POST /mates (create a new mate)
 @mates_router.post("/{team_url}/mates/", **endpoint_metadata["create_mate"])
 @limiter.limit("20/minute")
@@ -223,7 +222,6 @@ async def create_mate(
     return {"info": "endpoint still needs to be implemented"}
 
 
-# TODO Update documentation
 # PATCH /mates/{mate_username} (update a mate)
 @mates_router.patch("/{team_url}/mates/{mate_username}", **endpoint_metadata["update_mate"])
 @limiter.limit("20/minute")

@@ -14,7 +14,14 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.mates import MatesAskOutput, MatesGetAllOutput, Mate, MateUpdateOutput, mates_get_all_output_example
+from server.api.models.mates import (
+    MatesAskOutput, 
+    MatesGetAllOutput, 
+    Mate, 
+    MateUpdateOutput,
+    MatesCreateOutput,
+    mates_get_all_output_example
+    )
 
 
 def generate_responses(status_codes):
@@ -98,7 +105,7 @@ endpoint_metadata = {
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
     },
     "create_mate":{
-        "response_model":Mate,
+        "response_model":MatesCreateOutput,
         "summary": "Create",
         "description": "<img src='images/mates/create.png' alt='Create a new mate on the OpenMates server, with a custom system prompt, accessible skills and other settings.'>",
         "responses": generate_responses([201, 400, 401, 403, 409, 422, 500]),
