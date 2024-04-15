@@ -134,11 +134,10 @@ async def get_upload(request: Request, team_url: str = Path(..., example="openma
 ######### Mates ##################
 ##################################
 
-# TODO Update documentation
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
 @mates_router.post("/{team_url}/mates/ask",**endpoint_metadata["ask_mate"])
 @limiter.limit("20/minute")
-def mates_ask(
+async def mates_ask(
     request: Request,
     parameters: MatesAskInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
@@ -150,7 +149,11 @@ def mates_ask(
         scope="mates:ask"
         )
     # TODO update processing
-    return mates_ask_processing(team_url=team_url, parameters=parameters)
+    return await mates_ask_processing(
+        team_url=team_url, 
+        message=parameters.message, 
+        mate_username=parameters.mate_username
+        )
 
 
 # GET /mates (get all mates)
@@ -168,7 +171,11 @@ async def get_mates(
         token=token,
         scope="mates:get_all"
         )
-    return await get_mates_processing(team_url=team_url, page=page, pageSize=pageSize)
+    return await get_mates_processing(
+        team_url=team_url, 
+        page=page, 
+        pageSize=pageSize
+        )
 
 
 # GET /mates/{mate_username} (get a mate)
@@ -185,7 +192,11 @@ async def get_mate(
         token=token,
         scope="mates:get_one"
         )
-    return await get_mate_processing(team_url=team_url, mate_username=mate_username, user_api_token=token)
+    return await get_mate_processing(
+        team_url=team_url, 
+        mate_username=mate_username, 
+        user_api_token=token
+        )
 
 
 # TODO Update documentation

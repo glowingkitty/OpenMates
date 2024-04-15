@@ -13,10 +13,10 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.mates import MatesAskInput, MatesAskOutput
+from server.api.models.mates import MatesAskOutput
 
 
-def mates_ask_processing(team_url: str, parameters: MatesAskInput):
+async def mates_ask_processing(team_url: str, message: str, mate_username: str):
     """
     Process a message
 
@@ -27,12 +27,12 @@ def mates_ask_processing(team_url: str, parameters: MatesAskInput):
         add_to_log("Processing an incoming message ...")
         # TODO replace with actual processing of the message
 
-        output_message = "Hello, human! You asked me: " + parameters.message + ". Your dedicated AI team mate, " + parameters.mate_username 
+        output_message = "Hello, human! You asked me: " + message + ". Your dedicated AI team mate, " + mate_username 
 
         # prepare the message object
         message = MatesAskOutput(
             message=output_message,
-            team_mate_username=parameters.mate_username,
+            team_mate_username=mate_username,
             # TODO: replace with actual counting of tokens and costs
             tokens_used_input=20,
             tokens_used_output=46,
@@ -49,7 +49,3 @@ def mates_ask_processing(team_url: str, parameters: MatesAskInput):
     except Exception:
         process_error("Failed to process the message", traceback=traceback.format_exc())
         return {"status": "failed"}
-    
-if __name__ == "__main__":
-    response = mates_ask_processing(message=MatesAskInput(message="Hello, AI!", team_mate_username="burton"))
-    print(response)
