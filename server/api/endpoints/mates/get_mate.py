@@ -14,12 +14,15 @@ from server import *
 ################
 
 from server.api.models.mates import Mate
-from typing import List
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 
-async def get_mate_processing(team_url: str, mate_username: str, user_api_token: str) -> Mate:
+async def get_mate_processing(
+        team_url: str, 
+        mate_username: str, 
+        user_api_token: str
+    ) -> Mate:
     """
     Get a specific AI team mate on the team
     """
@@ -122,12 +125,9 @@ async def get_mate_processing(team_url: str, mate_username: str, user_api_token:
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")
         return JSONResponse(status_code=status_code, content=json_response)
 
-    except KeyboardInterrupt:
-        shutdown()
-
     except Exception:
         process_error("Failed to get the requested mate.", traceback=traceback.format_exc())
-        return []
+        raise HTTPException(status_code=500, detail="Failed to get the requested mate.")
     
 if __name__ == "__main__":
     response = get_mate_processing()

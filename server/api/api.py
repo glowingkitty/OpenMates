@@ -37,6 +37,8 @@ from server.api.models.mates import (
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
+from server.api.endpoints.mates.create_mate import create_mate_processing
+from server.api.endpoints.mates.update_mate import update_mate_processing
 from server.api.verify_token import verify_token
 from server.cms.strapi_requests import get_strapi_upload
 from starlette.responses import FileResponse
@@ -124,7 +126,6 @@ def read_root(request: Request):
 @app.get("/{team_url}/uploads/{file_path:path}", include_in_schema=False)
 @limiter.limit("20/minute")
 async def get_upload(request: Request, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
-    # TODO: consider what happens if a team is upload a custom image for a mate. How to handle this?
     verify_token(
         team_url=team_url,
         token=token,
@@ -152,7 +153,6 @@ async def mates_ask(
         token=token,
         scope="mates:ask"
         )
-    # TODO update processing
     return await mates_ask_processing(
         team_url=team_url, 
         message=parameters.message, 
@@ -217,9 +217,15 @@ async def create_mate(
         token=token,
         scope="mates:create"
         )
-    # TODO add processing
-    # return await post_mate_processing(team_url=team_url)
-    return {"info": "endpoint still needs to be implemented"}
+    return await create_mate_processing(
+        team_url=team_url,
+        name=parameters.name,
+        username=parameters.username,
+        description=parameters.description,
+        profile_picture_url=parameters.profile_picture_url,
+        default_systemprompt=parameters.default_systemprompt,
+        default_skills=parameters.default_skills
+        )
 
 
 # PATCH /mates/{mate_username} (update a mate)
@@ -237,8 +243,17 @@ async def update_mate(
         token=token,
         scope="mates:update"
         )
-    # TODO add processing
-    return {"info": "endpoint still needs to be implemented"}
+    return await update_mate_processing(
+        team_url=team_url,
+        user_api_token=token,
+        mate_username=mate_username,
+        new_name=parameters.name,
+        new_username=parameters.username,
+        new_description=parameters.description,
+        new_profile_picture_url=parameters.profile_picture_url,
+        new_default_systemprompt=parameters.default_systemprompt,
+        new_default_skills=parameters.default_skills
+        )
 
 
 

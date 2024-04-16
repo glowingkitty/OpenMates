@@ -13,12 +13,16 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from typing import List
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
+from server.api.models.mates import MatesGetAllOutput
 
 
-async def get_mates_processing(team_url: str, page: int = 1, pageSize: int = 25) -> List[dict]:
+async def get_mates_processing(
+        team_url: str,
+        page: int = 1, 
+        pageSize: int = 25
+    ) -> MatesGetAllOutput:
     """
     Get a list of all AI team mates on a team
     """
