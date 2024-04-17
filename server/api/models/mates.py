@@ -14,10 +14,11 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List, Optional
 from server.api.models.metadata import MetaData
 from server.api.models.skills import Skill
+from urllib.parse import quote
 
 ##################################
 ######### Mates ##################
@@ -148,12 +149,33 @@ mates_get_one_output_example = {
 
 class MatesCreateInput(BaseModel):
     """This is the model for the incoming parameters for POST /mates"""
-    name: str = Field(..., description="Name of the AI team mate")
-    username: str = Field(..., description="Username of the AI team mate")
+    name: str = Field(...,
+                    description="Name of the AI team mate",
+                    min_length=1,
+                    max_length=30,
+                )
+    username: str = Field(..., 
+                        description="Username of the AI team mate",
+                        min_length=1,
+                        max_length=30,
+                        unique=True
+                    )
     description: str = Field(..., description="Description of the AI team mate")
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
+    profile_picture_url: str = Field(..., 
+                                    description="URL of the profile picture of the AI team mate",
+                                    pattern=r".*\.(jpg|jpeg|png)$"
+                                )
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
     default_skills: List[int] = Field(..., description="Default list of skill IDs for the AI team mate")
+    
+    # TODO improve validation later using LLMs
+
+    @validator('username')
+    def username_must_be_url_compatible(cls, v):
+        if quote(v) != v:
+            raise ValueError('username must only contain URL-safe characters')
+        return v
+
 
 mates_create_input_example = {
     "name": "Sophia",
@@ -204,8 +226,12 @@ class MatesUpdateInput(BaseModel):
     username: Optional[str] = Field(None, description="Username of the AI team mate")
     description: Optional[str] = Field(None, description="Description of the AI team mate")
     profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the AI team mate")
+    # TODO add validation for the profile picture filename
+    # TODO should I maybe go back to filepath with team url and filename? to prevent issues?
     default_systemprompt: Optional[str] = Field(None, description="Default system prompt of the AI team mate")
     default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
+    systemprompt: Optional[str] = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
+    skills: Optional[List[int]] = Field(None, description="Custom list of skill IDs for the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
 
 mates_update_input_example = {
     "description": "A software development expert, who can help you with all your coding needs."

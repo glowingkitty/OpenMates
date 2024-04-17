@@ -37,7 +37,7 @@ async def get_mate_processing(
             "default_systemprompt"
         ]
         populate = [
-            "profile_picture.url",
+            "profile_picture.file.url",
             "default_skills.name",
             "default_skills.description",
             "default_skills.slug",
@@ -101,7 +101,7 @@ async def get_mate_processing(
                         "name": get_nested(mate, ["attributes", "name"]),
                         "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
                         "description": get_nested(mate, ['attributes', 'description']),
-                        "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                        "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                         "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
                         "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
                         "skills": [

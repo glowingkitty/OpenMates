@@ -39,6 +39,7 @@ from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate_processing
+from server.api.validate_file_access import validate_file_access
 from server.api.verify_token import verify_token
 from server.cms.strapi_requests import get_strapi_upload
 from starlette.responses import FileResponse
@@ -115,23 +116,30 @@ async def ratelimit_handler(request, exc):
         detail="Too Many Requests"
     )
 
-# Adding endpoints
+##################################
+######### Files ##################
+##################################
+
+# GET /images/{file_path} (get an image)
 app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'endpoints/images')), name="images")
+
+# GET / (get the index.html file)
 @app.get("/",include_in_schema=False)
 @limiter.limit("20/minute")
 def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
 
-# Forward the /uploads endpoint to the strapi server
-@app.get("/{team_url}/uploads/{file_path:path}", include_in_schema=False)
+# GET /{team_url}/uploads/{file_name} (get an uploaded file)
+@app.get("/{team_url}/uploads/{file_name}", include_in_schema=False)
 @limiter.limit("20/minute")
 async def get_upload(request: Request, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
     verify_token(
         team_url=team_url,
         token=token,
-        scope="uploads:get"
+        scope="uploads:get",
+        requested_file_name=request.path_params['file_name']
         )
-    return await get_strapi_upload(request.path_params['file_path'])
+    return await get_strapi_upload(request.path_params['file_name'])
 
 
 
@@ -217,12 +225,17 @@ async def create_mate(
         token=token,
         scope="mates:create"
         )
+    await validate_file_access(
+        filename=parameters.profile_picture_filename,
+        team_url=team_url,
+        user_api_token=token
+        )
     return await create_mate_processing(
         team_url=team_url,
         name=parameters.name,
         username=parameters.username,
         description=parameters.description,
-        profile_picture_url=parameters.profile_picture_url,
+        profile_picture_filename=parameters.profile_picture_filename,
         default_systemprompt=parameters.default_systemprompt,
         default_skills=parameters.default_skills
         )
@@ -243,16 +256,23 @@ async def update_mate(
         token=token,
         scope="mates:update"
         )
+    await validate_file_access(
+        filename=parameters.profile_picture_filename,
+        team_url=team_url,
+        user_api_token=token
+        )
     return await update_mate_processing(
         team_url=team_url,
         user_api_token=token,
         mate_username=mate_username,
-        new_name=parameters.name,
-        new_username=parameters.username,
-        new_description=parameters.description,
-        new_profile_picture_url=parameters.profile_picture_url,
-        new_default_systemprompt=parameters.default_systemprompt,
-        new_default_skills=parameters.default_skills
+        new_name=parameters.name,                                   # updates mate, only if user has right to edit original mate
+        new_username=parameters.username,                           # updates mate, only if user has right to edit original mate
+        new_description=parameters.description,                     # updates mate, only if user has right to edit original mate
+        new_profile_picture_url=parameters.profile_picture_url,     # updates mate, only if user has right to edit original mate
+        new_default_systemprompt=parameters.default_systemprompt,   # updates mate, only if user has right to edit original mate
+        new_default_skills=parameters.default_skills,               # updates mate, only if user has right to edit original mate
+        new_custom_systemprompt=parameters.systemprompt,            # updates mate config - specific to user + team
+        new_custom_skills=parameters.skills                         # updates mate config - specific to user + team
         )
 
 

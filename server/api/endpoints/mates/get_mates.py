@@ -16,6 +16,7 @@ from server import *
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from server.api.models.mates import MatesGetAllOutput
+from fastapi import HTTPException
 
 
 async def get_mates_processing(
@@ -78,10 +79,6 @@ async def get_mates_processing(
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")
         return JSONResponse(status_code=status_code, content=json_response)
 
-    except KeyboardInterrupt:
-        shutdown()
-
     except Exception:
-        add_to_log(traceback.format_exc())
-        # process_error("Failed to get a list of all mates in the team.", traceback=traceback.format_exc())
-        return []
+        process_error("Failed to get a list of all AI team mates in the team.", traceback=traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Failed to get a list of all AI team mates in the team.")

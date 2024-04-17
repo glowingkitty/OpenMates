@@ -16,20 +16,40 @@ from server import *
 
 from fastapi import Header, HTTPException
 from server.api.load_valid_tokens import load_valid_tokens
+from typing import Optional
+from server.api.validate_file_access import validate_file_access
 
 
 
-def verify_token(team_url: str, token: str, scope: str):
+def verify_token(
+        team_url: str, 
+        token: str, 
+        scope: str,
+        requested_file_name: Optional[str] = None
+        ):
+    """
+    Verify the API token
+    """
     try:
         add_to_log("Verifying the API token ...", module_name="OpenMates | API | Verify Token", color="yellow")
+    
+        # if requested_file_name, check if user has access to file (including public access without token)
+        if requested_file_name:
+            return validate_file_access(
+                filename = requested_file_name,
+                team_url = team_url,
+                user_api_token = token
+                )
 
         return True
+
 
         # TODO implement the token verification logic
 
         # TODO: verify that the token is valid, valid for the team and has the necessary scope
         # TODO: implement strapi to save the users
         # TODO: also check if the user has still money left (if skill is not free)
+
 
         valid_tokens = load_valid_tokens()
         if team_name in valid_tokens and token in valid_tokens[team_name]:
@@ -42,9 +62,6 @@ def verify_token(team_url: str, token: str, scope: str):
         else:
             add_to_log("The API token is invalid. Make sure you use a valid key and that the key is valid for the requested team and scope.", module_name="OpenMates | API | Verify Token", state="success")
             raise HTTPException(status_code=401, detail="The API token is invalid. Make sure you use a valid key and that the key is valid for the requested team.")
-
-    except KeyboardInterrupt:
-        shutdown()
 
     except HTTPException:
         raise

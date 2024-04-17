@@ -29,7 +29,9 @@ async def update_mate_processing(
         new_description: Optional[str] = None,
         new_profile_picture_url: Optional[str] = None,
         new_default_systemprompt: Optional[str] = None,
-        new_default_skills: Optional[List[int]] = None
+        new_default_skills: Optional[List[int]] = None,
+        new_custom_systemprompt: Optional[str] = None,
+        new_custom_skills: Optional[List[int]] = None
     ) -> MateUpdateOutput:
     """
     Update a specific AI team mate on the team
