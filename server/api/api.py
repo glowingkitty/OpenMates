@@ -47,6 +47,7 @@ from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
 
 
 ##################################
@@ -123,6 +124,12 @@ async def ratelimit_handler(request, exc):
 ######### Files ##################
 ##################################
 
+async def optional_oauth2_token(request: Request):
+    try:
+        return await oauth2_scheme.__call__(request)
+    except HTTPException:
+        return None
+
 # GET /images/{file_path} (get an image)
 app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'endpoints/images')), name="images")
 
@@ -138,7 +145,7 @@ def read_root(request: Request):
 async def get_upload(
     request: Request, 
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(oauth2_scheme)
+    token: Optional[str] = Depends(optional_oauth2_token)
     ):
     await verify_token(
         team_url=team_url,
