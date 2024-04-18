@@ -124,6 +124,7 @@ async def ratelimit_handler(request, exc):
 ######### Files ##################
 ##################################
 
+# Function to make the OAuth2 token optional
 async def optional_oauth2_token(request: Request):
     try:
         return await oauth2_scheme.__call__(request)
@@ -150,7 +151,7 @@ async def get_upload(
     await verify_token(
         team_url=team_url,
         token=token,
-        scope="uploads:get",
+        scope="uploads:read",
         requested_file_name=request.path_params['file_name']
         )
     return await get_strapi_upload(request.path_params['file_name'])

@@ -20,7 +20,8 @@ from server.cms.strapi_requests import make_strapi_request
 async def validate_file_access(
         filename: str,
         team_url: str,
-        user_api_token: str
+        user_api_token: str,
+        scope: str = "uploads:read"
     ) -> bool:
     """
     Validate if the user has access to the file (and if its uploaded)
@@ -31,6 +32,12 @@ async def validate_file_access(
 
         request_refused_response_text = "The file does not exist or you do not have access to it."
 
+        # check for requested access
+        if scope == "uploads:read":
+            requested_access = "read"
+        elif scope == "uploads:write":
+            requested_access = "write"
+
         # try to get the file from strapi
         fields = [
             "access_public",
@@ -38,9 +45,9 @@ async def validate_file_access(
         ]
         populate = [
             "file.url",
-            "access_limited_to_teams.slug",
-            "access_limited_to_users.username",
-            "access_limited_to_users.api_token"
+            f"{requested_access}_access_limited_to_teams.slug",
+            f"{requested_access}_access_limited_to_users.username",
+            f"{requested_access}_access_limited_to_users.api_token"
         ]
         filters = [
             {
@@ -72,17 +79,17 @@ async def validate_file_access(
             return True
 
         # else check if the user is on the list of users with access to the file
-        if len(file_json_response["data"][0]["attributes"]["access_limited_to_users"]["data"]) > 0:
-            for user in file_json_response["data"][0]["attributes"]["access_limited_to_users"]["data"]:
+        if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]) > 0:
+            for user in file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]:
                 if user["attributes"]["api_token"] == user_api_token:
                     add_to_log("The user is on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
                     return True
                 
-        if len(file_json_response["data"][0]["attributes"]["access_limited_to_teams"]["data"]) == 0 and len(file_json_response["data"][0]["attributes"]["access_limited_to_users"]["data"]) == 0:
+        if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_teams"]["data"]) == 0 and len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]) == 0:
             add_to_log("The file is not public and is not limited to any users or teams.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
             
-        if len(file_json_response["data"][0]["attributes"]["access_limited_to_teams"]["data"]) == 0:
+        if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_teams"]["data"]) == 0:
             add_to_log("The file is not public and the user is not on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
         
@@ -126,7 +133,7 @@ async def validate_file_access(
             raise HTTPException(status_code=500, detail="Found more than one user with your token. Please contact the administrator.")
 
         # check if the user team (based on token) is on the list of teams with access to the file
-        for allowed_team in file_json_response["data"][0]["attributes"]["access_limited_to_teams"]["data"]:
+        for allowed_team in file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_teams"]["data"]:
             # then check if the user in user_json_response is actually part of the team
             for user_team in user_json_response[0]["teams"]:
                 if user_team["slug"] == allowed_team["attributes"]["slug"]:

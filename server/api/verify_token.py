@@ -38,7 +38,8 @@ async def verify_token(
             return await validate_file_access(
                 filename = requested_file_name,
                 team_url = team_url,
-                user_api_token = token
+                user_api_token = token,
+                scope = scope
                 )
 
         return True
