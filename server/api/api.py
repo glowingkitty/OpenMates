@@ -46,6 +46,7 @@ from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
+from fastapi.security import OAuth2PasswordBearer
 
 
 ##################################
@@ -71,6 +72,8 @@ app = FastAPI(
     redoc_url="/docs", 
     docs_url="/swagger_docs"
 )
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def custom_openapi():
     if app.openapi_schema:
@@ -132,8 +135,12 @@ def read_root(request: Request):
 # GET /{team_url}/uploads/{file_name} (get an uploaded file)
 @app.get("/{team_url}/uploads/{file_name}", include_in_schema=False)
 @limiter.limit("20/minute")
-async def get_upload(request: Request, team_url: str = Path(..., example="openmates_enthusiasts", description=input_parameter_descriptions["team_url"]), token: str = Header(None,example="123456789",description=input_parameter_descriptions["token"])):
-    verify_token(
+async def get_upload(
+    request: Request, 
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Depends(oauth2_scheme)
+    ):
+    await verify_token(
         team_url=team_url,
         token=token,
         scope="uploads:get",
@@ -154,9 +161,9 @@ async def mates_ask(
     request: Request,
     parameters: MatesAskInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Header(None, **input_parameter_descriptions["token"]),
+    token: str = Depends(oauth2_scheme)
     ):
-    verify_token(
+    await verify_token(
         team_url=team_url,
         token=token,
         scope="mates:ask"
@@ -174,11 +181,11 @@ async def mates_ask(
 async def get_mates(
     request: Request, 
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Header(None, **input_parameter_descriptions["token"]),
+    token: str = Depends(oauth2_scheme),
     page: int = 1,
     pageSize: int = 25
     ):
-    verify_token(
+    await verify_token(
         team_url=team_url,
         token=token,
         scope="mates:get_all"
@@ -196,10 +203,10 @@ async def get_mates(
 async def get_mate(
     request: Request,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Header(None, **input_parameter_descriptions["token"]),
+    token: str = Depends(oauth2_scheme),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
-    verify_token(
+    await verify_token(
         team_url=team_url,
         token=token,
         scope="mates:get_one"
@@ -218,9 +225,9 @@ async def create_mate(
     request: Request,
     parameters: MatesCreateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Header(None, **input_parameter_descriptions["token"])
+    token: str = Depends(oauth2_scheme)
     ):
-    verify_token(
+    await verify_token(
         team_url=team_url,
         token=token,
         scope="mates:create"
@@ -248,10 +255,10 @@ async def update_mate(
     request: Request,
     parameters: MatesUpdateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Header(None, **input_parameter_descriptions["token"]),
+    token: str = Depends(oauth2_scheme),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
-    verify_token(
+    await verify_token(
         team_url=team_url,
         token=token,
         scope="mates:update"

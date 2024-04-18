@@ -21,7 +21,7 @@ from server.api.validate_file_access import validate_file_access
 
 
 
-def verify_token(
+async def verify_token(
         team_url: str, 
         token: str, 
         scope: str,
@@ -35,7 +35,7 @@ def verify_token(
     
         # if requested_file_name, check if user has access to file (including public access without token)
         if requested_file_name:
-            return validate_file_access(
+            return await validate_file_access(
                 filename = requested_file_name,
                 team_url = team_url,
                 user_api_token = token
