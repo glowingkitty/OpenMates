@@ -46,7 +46,7 @@ from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer
 from typing import Optional
 
 
@@ -74,7 +74,22 @@ app = FastAPI(
     docs_url="/swagger_docs"
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+bearer_scheme = HTTPBearer(
+    scheme_name="Bearer Token", 
+    description="""Enter your bearer token. Here's an example of how to use it in a request:
+
+    ```python
+    import requests
+
+    url = "https://{server_url}/{endpoint}"
+    headers = {"Authorization": "Bearer {your_token}"}
+
+    # Make a get request (replace with post, patch, etc. as needed)
+    response = requests.get(url, headers=headers)
+    print(response.json())
+    ```
+    """
+)
 
 def custom_openapi():
     if app.openapi_schema:
@@ -124,10 +139,10 @@ async def ratelimit_handler(request, exc):
 ######### Files ##################
 ##################################
 
-# Function to make the OAuth2 token optional
-async def optional_oauth2_token(request: Request):
+# Function to make the Bearer token optional
+async def optional_bearer_token(request: Request):
     try:
-        return await oauth2_scheme.__call__(request)
+        return await bearer_scheme.__call__(request)
     except HTTPException:
         return None
 
@@ -146,7 +161,7 @@ def read_root(request: Request):
 async def get_upload(
     request: Request, 
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: Optional[str] = Depends(optional_oauth2_token)
+    token: Optional[str] = Depends(optional_bearer_token)
     ):
     await verify_token(
         team_url=team_url,
@@ -169,7 +184,7 @@ async def mates_ask(
     request: Request,
     parameters: MatesAskInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(bearer_scheme)
     ):
     await verify_token(
         team_url=team_url,
@@ -189,7 +204,7 @@ async def mates_ask(
 async def get_mates(
     request: Request, 
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(oauth2_scheme),
+    token: str = Depends(bearer_scheme),
     page: int = 1,
     pageSize: int = 25
     ):
@@ -211,7 +226,7 @@ async def get_mates(
 async def get_mate(
     request: Request,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(oauth2_scheme),
+    token: str = Depends(bearer_scheme),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
     await verify_token(
@@ -233,7 +248,7 @@ async def create_mate(
     request: Request,
     parameters: MatesCreateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(bearer_scheme)
     ):
     await verify_token(
         team_url=team_url,
@@ -263,7 +278,7 @@ async def update_mate(
     request: Request,
     parameters: MatesUpdateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(oauth2_scheme),
+    token: str = Depends(bearer_scheme),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
     await verify_token(
