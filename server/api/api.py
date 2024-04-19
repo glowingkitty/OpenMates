@@ -254,7 +254,7 @@ async def create_mate(
     token: str = Depends(get_credentials)
     ):
     await validate_file_access(
-        filename=parameters.profile_picture_filename,
+        filename=parameters.profile_picture_url.split("/")[-1],
         team_url=team_url,
         user_api_token=token,
         scope="uploads:read"
@@ -264,7 +264,7 @@ async def create_mate(
         name=parameters.name,
         username=parameters.username,
         description=parameters.description,
-        profile_picture_filename=parameters.profile_picture_filename,
+        profile_picture_url=parameters.profile_picture_url,
         default_systemprompt=parameters.default_systemprompt,
         default_skills=parameters.default_skills
         )
@@ -281,7 +281,7 @@ async def update_mate(
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
     await validate_file_access(
-        filename=parameters.profile_picture_filename,
+        filename=parameters.profile_picture_url.split("/")[-1],
         team_url=team_url,
         user_api_token=token,
         scope="uploads:read"

@@ -24,7 +24,7 @@ async def create_mate_processing(
         name: str,
         username: str,
         description: str,
-        profile_picture_filename: str,
+        profile_picture_url: str,
         default_systemprompt: str,
         default_skills: List[int],
         team_url: Optional[str] = None,
@@ -46,7 +46,7 @@ async def create_mate_processing(
                 "name": name,
                 "username": username,
                 "description": description,
-                "profile_picture": profile_picture_filename,
+                "profile_picture_url": profile_picture_url,
                 "default_systemprompt": default_systemprompt,
                 "default_skills": default_skills
             }

@@ -161,10 +161,7 @@ class MatesCreateInput(BaseModel):
                         unique=True
                     )
     description: str = Field(..., description="Description of the AI team mate")
-    profile_picture_url: str = Field(..., 
-                                    description="URL of the profile picture of the AI team mate",
-                                    pattern=r".*\.(jpg|jpeg|png)$"
-                                )
+    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
     default_skills: List[int] = Field(..., description="Default list of skill IDs for the AI team mate")
     
@@ -225,9 +222,7 @@ class MatesUpdateInput(BaseModel):
     name: Optional[str] = Field(None, description="Name of the AI team mate")
     username: Optional[str] = Field(None, description="Username of the AI team mate")
     description: Optional[str] = Field(None, description="Description of the AI team mate")
-    profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the AI team mate")
-    # TODO add validation for the profile picture filename
-    # TODO should I maybe go back to filepath with team url and filename? to prevent issues?
+    profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: Optional[str] = Field(None, description="Default system prompt of the AI team mate")
     default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
     systemprompt: Optional[str] = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
