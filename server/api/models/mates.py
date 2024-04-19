@@ -149,21 +149,12 @@ mates_get_one_output_example = {
 
 class MatesCreateInput(BaseModel):
     """This is the model for the incoming parameters for POST /mates"""
-    name: str = Field(...,
-                    description="Name of the AI team mate",
-                    min_length=1,
-                    max_length=30,
-                )
-    username: str = Field(..., 
-                        description="Username of the AI team mate",
-                        min_length=1,
-                        max_length=30,
-                        unique=True
-                    )
-    description: str = Field(..., description="Description of the AI team mate")
+    name: str = Field(..., description="Name of the AI team mate", min_length=1, max_length=30)
+    username: str = Field(..., description="Username of the AI team mate", min_length=1, max_length=30, unique=True)
+    description: str = Field(..., description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
-    default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
-    default_skills: List[int] = Field(..., description="Default list of skill IDs for the AI team mate")
+    default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate", min_length=1)
+    default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
     
     # TODO improve validation later using LLMs
 
@@ -171,7 +162,16 @@ class MatesCreateInput(BaseModel):
     def username_must_be_url_compatible(cls, v):
         if quote(v) != v:
             raise ValueError('username must only contain URL-safe characters')
+        if not v.islower():
+            raise ValueError('username must be all lowercase')
         return v
+
+    @validator('profile_picture_url')
+    def profile_picture_url_must_in_right_format(cls, v):
+        if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
+            raise ValueError('profile picture URL must be in the right format: /{team_url}/uploads/{filename}')
+        return v
+        
 
 
 mates_create_input_example = {
@@ -220,13 +220,27 @@ mates_create_output_example = {
 class MatesUpdateInput(BaseModel):
     """This is the model for the incoming parameters for PATCH /mates/{mate_username}"""
     name: Optional[str] = Field(None, description="Name of the AI team mate")
-    username: Optional[str] = Field(None, description="Username of the AI team mate")
-    description: Optional[str] = Field(None, description="Description of the AI team mate")
+    username: Optional[str] = Field(None, description="Username of the AI team mate", min_length=1, max_length=30, unique=True)
+    description: Optional[str] = Field(None, description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
-    default_systemprompt: Optional[str] = Field(None, description="Default system prompt of the AI team mate")
+    default_systemprompt: Optional[str] = Field(None, description="Default system prompt of the AI team mate", min_length=1)
     default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
-    systemprompt: Optional[str] = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
+    systemprompt: Optional[str] = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.", min_length=1)
     skills: Optional[List[int]] = Field(None, description="Custom list of skill IDs for the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
+
+    @validator('username')
+    def username_must_be_url_compatible(cls, v):
+        if quote(v) != v:
+            raise ValueError('username must only contain URL-safe characters')
+        if not v.islower():
+            raise ValueError('username must be all lowercase')
+        return v
+
+    @validator('profile_picture_url')
+    def profile_picture_url_must_in_right_format(cls, v):
+        if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
+            raise ValueError('profile picture URL must be in the right format: /{team_url}/uploads/{filename}')
+        return v
 
 mates_update_input_example = {
     "description": "A software development expert, who can help you with all your coding needs."

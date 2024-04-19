@@ -30,7 +30,7 @@ async def validate_file_access(
         add_to_log(module_name="OpenMates | API | Validate file Access", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the user has access to the file ...")
 
-        request_refused_response_text = "The file does not exist or you do not have access to it."
+        request_refused_response_text = f"The file '/{team_url}/uploads/{filename}' does not exist or you do not have access to it."
 
         # check for requested access
         if scope == "uploads:read":
@@ -66,11 +66,11 @@ async def validate_file_access(
         
         # if it fails, return a http response error that says either the file doesn't exist or you don't have access to it
         if status_code != 200:
-            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access", state="error")
+            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
         
         if file_json_response["data"] == []:
-            add_to_log("The file does not exist.", module_name="OpenMates | API | Validate file Access", state="error")
+            add_to_log("The file does not exist.", module_name="OpenMates | API | Validate file Access")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         # if the file exists and is is public, return True

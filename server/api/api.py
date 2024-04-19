@@ -39,8 +39,8 @@ from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate_processing
-from server.api.validate_file_access import validate_file_access
-from server.api.verify_token import verify_token
+from server.api.validation.validate_file_access import validate_file_access
+from server.api.validation.validate_token import validate_token
 from server.cms.strapi_requests import get_strapi_upload
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
@@ -192,7 +192,7 @@ async def mates_ask(
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
     token: str = Depends(get_credentials)
     ):
-    await verify_token(
+    await validate_token(
         team_url=team_url,
         token=token
         )
@@ -213,7 +213,7 @@ async def get_mates(
     page: int = 1,
     pageSize: int = 25
     ):
-    await verify_token(
+    await validate_token(
         team_url=team_url,
         token=token
         )
@@ -233,7 +233,7 @@ async def get_mate(
     token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
-    await verify_token(
+    await validate_token(
         team_url=team_url,
         token=token
         )
@@ -253,20 +253,19 @@ async def create_mate(
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_file_access(
-        filename=parameters.profile_picture_url.split("/")[-1],
+    await validate_token(
         team_url=team_url,
-        user_api_token=token,
-        scope="uploads:read"
+        token=token
         )
     return await create_mate_processing(
-        team_url=team_url,
         name=parameters.name,
         username=parameters.username,
         description=parameters.description,
         profile_picture_url=parameters.profile_picture_url,
         default_systemprompt=parameters.default_systemprompt,
-        default_skills=parameters.default_skills
+        default_skills=parameters.default_skills,
+        team_url=team_url,
+        user_api_token=token
         )
 
 
@@ -280,15 +279,11 @@ async def update_mate(
     token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
-    await validate_file_access(
-        filename=parameters.profile_picture_url.split("/")[-1],
+    await validate_token(
         team_url=team_url,
-        user_api_token=token,
-        scope="uploads:read"
+        token=token
         )
     return await update_mate_processing(
-        team_url=team_url,
-        user_api_token=token,
         mate_username=mate_username,
         new_name=parameters.name,                                   # updates mate, only if user has right to edit original mate
         new_username=parameters.username,                           # updates mate, only if user has right to edit original mate
@@ -297,7 +292,9 @@ async def update_mate(
         new_default_systemprompt=parameters.default_systemprompt,   # updates mate, only if user has right to edit original mate
         new_default_skills=parameters.default_skills,               # updates mate, only if user has right to edit original mate
         new_custom_systemprompt=parameters.systemprompt,            # updates mate config - specific to user + team
-        new_custom_skills=parameters.skills                         # updates mate config - specific to user + team
+        new_custom_skills=parameters.skills,                        # updates mate config - specific to user + team
+        team_url=team_url,
+        user_api_token=token
         )
 
 
@@ -313,28 +310,28 @@ async def update_mate(
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
 @skills_router.post("/{team_url}/skills/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
 @limiter.limit("20/minute")
-def skill_chatgpt_ask(request: Request, team_url: str,token: str = Depends(verify_token)):
+def skill_chatgpt_ask(request: Request, team_url: str,token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
 @skills_router.post("/{team_url}/skills/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
 @limiter.limit("20/minute")
-def skill_claude_ask(request: Request, team_url: str, token: str = Depends(verify_token)):
+def skill_claude_ask(request: Request, team_url: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /skills/youtube/ask (ask a question about a video)
 @skills_router.post("/{team_url}/skills/youtube/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
 @limiter.limit("20/minute")
-def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(verify_token)):
+def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # # GET /skills/youtube/search (search YouTube for videos)
 # @skills_router.get("/youtube/search", summary="YouTube | Search", description="<img src='images/skills/youtube/search.png' alt='Search & filter for videos on YouTube.'>")
 # @limiter.limit("20/minute")
-# def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(verify_token)):
+# def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(validate_token)):
 #     return search_youtube(
 #         parameters.query, 
 #         parameters.max_results, 
@@ -346,7 +343,7 @@ def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(veri
 # # GET /skills/youtube/transcript (get transcript for a YouTube video)
 # @skills_router.get("/youtube/transcript", summary="YouTube | Transcript", description="<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>")
 # @limiter.limit("20/minute")
-# def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, token: str = Depends(verify_token)):
+# def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, token: str = Depends(validate_token)):
 #     return get_video_transcript(parameters.url)
 
 
@@ -401,21 +398,21 @@ def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(veri
 # GET /server/status (get server status)
 @server_router.get("/server/status", summary="Status", description="<img src='images/server/status.png' alt='Get a summary of your current server status.'>")
 @limiter.limit("20/minute")
-def get_status(request: Request, token: str = Depends(verify_token)):
+def get_status(request: Request, token: str = Depends(validate_token)):
     return {"status": "online"}
 
 
 # GET /server/settings (get server settings)
 @server_router.get("/server/settings", summary="Get settings", description="<img src='images/server/get_settings.png' alt='Get all the current settings of your OpenMates server.'>")
 @limiter.limit("20/minute")
-def get_settings(request: Request, token: str = Depends(verify_token)):
+def get_settings(request: Request, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # PATCH /server/settings (update server settings)
 @server_router.patch("/server/settings", summary="Update settings", description="<img src='images/server/update_settings.png' alt='Update any of the setting on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def update_settings(request: Request, token: str = Depends(verify_token)):
+def update_settings(request: Request, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
@@ -441,28 +438,28 @@ def update_settings(request: Request, token: str = Depends(verify_token)):
 # GET /users (get all users)
 @users_router.get("/{team_url}/users/", summary="Get all", description="<img src='images/users/get_all.png' alt='Get an overview list of all users on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def get_users(request: Request, team_url: str, token: str = Depends(verify_token)):
+def get_users(request: Request, team_url: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # GET /users/{username} (get a user)
 @users_router.get("/{team_url}/users/{username}", summary="Get", description="<img src='images/users/get_user.png' alt='Get all details about a specific user.'>")
 @limiter.limit("20/minute")
-def get_user(request: Request, team_url: str, username: str, token: str = Depends(verify_token)):
+def get_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /users (create a new user)
 @users_router.post("/{team_url}/users/", summary="Create", description="<img src='images/users/create.png' alt='Create a new user on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def create_user(request: Request, team_url: str, username: str, token: str = Depends(verify_token)):
+def create_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # PATCH /users/{username} (update a user)
 @users_router.patch("/{team_url}/users/{username}", summary="Update", description="<img src='images/users/update.png' alt='Update a user on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def update_user(request: Request, team_url: str, username: str, token: str = Depends(verify_token)):
+def update_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 

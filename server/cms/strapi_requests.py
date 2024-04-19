@@ -101,13 +101,17 @@ async def make_strapi_request(
             else:
                 raise ValueError(f"Invalid method: {method}")
             strapi_response.raise_for_status()
+
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 401:
                 raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
             else:
+                add_to_log(f"A {exc.response.status_code} error occured.", module_name="OpenMates | API | Strapi Requests", state="error")
+                add_to_log(exc.response.json(), module_name="OpenMates | API | Strapi Requests", state="error")
                 raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
+
         return strapi_response.status_code, strapi_response.json()
-    
+
 
 async def get_strapi_upload(url: str) -> Response:
     async with httpx.AsyncClient() as client:

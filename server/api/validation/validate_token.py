@@ -18,7 +18,7 @@ from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
 
 
-async def verify_token(
+async def validate_token(
         team_url: str, 
         token: str
         ):
