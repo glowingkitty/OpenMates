@@ -27,7 +27,7 @@ async def validate_file_access(
     Validate if the user has access to the file (and if its uploaded)
     """
     try:
-        add_to_log(module_name="OpenMates | API | Validate file Access", state="start", color="yellow")
+        add_to_log(module_name="OpenMates | API | Validate file Access", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the user has access to the file ...")
 
         request_refused_response_text = "The file does not exist or you do not have access to it."
@@ -81,7 +81,7 @@ async def validate_file_access(
         # else check if the user is on the list of users with access to the file
         if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]) > 0:
             for user in file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]:
-                if user["attributes"]["api_token"] == user_api_token:
+                if user_api_token and len(user_api_token)>1 and user["attributes"]["api_token"] == user_api_token:
                     add_to_log("The user is on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
                     return True
                 

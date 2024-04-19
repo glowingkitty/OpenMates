@@ -14,55 +14,68 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from fastapi import Header, HTTPException
-from server.api.load_valid_tokens import load_valid_tokens
-from typing import Optional
-from server.api.validate_file_access import validate_file_access
-
+from fastapi import HTTPException
+from server.cms.strapi_requests import make_strapi_request
 
 
 async def verify_token(
         team_url: str, 
-        token: str, 
-        scope: str,
-        requested_file_name: Optional[str] = None
+        token: str
         ):
     """
-    Verify the API token
+    Verify if the API token is valid for the requested team
     """
     try:
         add_to_log("Verifying the API token ...", module_name="OpenMates | API | Verify Token", color="yellow")
-    
-        # if requested_file_name, check if user has access to file (including public access without token)
-        if requested_file_name:
-            return await validate_file_access(
-                filename = requested_file_name,
-                team_url = team_url,
-                user_api_token = token,
-                scope = scope
-                )
 
-        return True
+        failure_message = "Your token is invalid. Make sure the token and team_url are valid, you are part of the requested team and you have access to the requested API endpoint."
 
+        # find the user with the token and check if the user is inside the team
+        fields = [
+            "api_token"
+        ]
+        populate = [
+            "teams.slug"
+        ]
+        filters = [
+            {
+                "field": "api_token",
+                "operator": "$eq",
+                "value": token
+            },
+            {
+                "field": "teams.slug",
+                "operator": "$eq",
+                "value": team_url
+            }
+        ]
 
-        # TODO implement the token verification logic
+        status_code, user_json_response = await make_strapi_request(
+            method='get', 
+            endpoint='users', 
+            fields=fields, 
+            populate=populate, 
+            filters=filters
+            )
+            
+        if status_code != 200:
+            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access", state="error")
+            raise HTTPException(status_code=403, detail=failure_message)
+        
+        if len(user_json_response) == 0:
+            add_to_log("The user does not exist.", module_name="OpenMates | API | Validate file Access", state="error")
+            raise HTTPException(status_code=403, detail=failure_message)
+        
+        if len(user_json_response) > 1:
+            add_to_log("Found more than one user with the token.", module_name="OpenMates | API | Validate file Access", state="error")
+            raise HTTPException(status_code=500, detail="Found more than one user with your token. Please contact the administrator.")
 
-        # TODO: verify that the token is valid, valid for the team and has the necessary scope
-        # TODO: implement strapi to save the users
-        # TODO: also check if the user has still money left (if skill is not free)
+        if len(user_json_response) == 1:
+            add_to_log("The API token is valid.", module_name="OpenMates | API | Verify Token", state="success")
+            return True
 
-
-        valid_tokens = load_valid_tokens()
-        if team_name in valid_tokens and token in valid_tokens[team_name]:
-            if scope in valid_tokens[team_name][token]:
-                add_to_log("Success. The API token is valid.",module_name="OpenMates | API | Verify Token", state="success")
-                return True
-            else:
-                add_to_log("The API token does not have the necessary scope.", module_name="OpenMates | API | Verify Token", state="success")
-                raise HTTPException(status_code=403, detail="The API token does not have the necessary scope.")
-        else:
-            add_to_log("The API token is invalid. Make sure you use a valid key and that the key is valid for the requested team and scope.", module_name="OpenMates | API | Verify Token", state="success")
-            raise HTTPException(status_code=401, detail="The API token is invalid. Make sure you use a valid key and that the key is valid for the requested team.")
+        # all other checks (if the user is a team admin or not, if the user has access to the requested file, if the user has enough money left, etc.)
+        # will be done in the respective endpoints
 
     except HTTPException:
         raise

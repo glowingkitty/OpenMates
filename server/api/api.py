@@ -54,6 +54,9 @@ from typing import Optional
 ######### Setup FastAPI ##########
 ##################################
 
+# TODO add tests for api endpoints
+
+
 # Create new routers
 mates_router = APIRouter()
 skills_router = APIRouter()
@@ -90,6 +93,9 @@ bearer_scheme = HTTPBearer(
     ```
     """
 )
+
+async def get_credentials(bearer: HTTPBearer = Depends(bearer_scheme)):
+    return bearer.credentials
 
 def custom_openapi():
     if app.openapi_schema:
@@ -139,10 +145,10 @@ async def ratelimit_handler(request, exc):
 ######### Files ##################
 ##################################
 
-# Function to make the Bearer token optional
 async def optional_bearer_token(request: Request):
     try:
-        return await bearer_scheme.__call__(request)
+        credentials = await bearer_scheme.__call__(request)
+        return credentials.credentials
     except HTTPException:
         return None
 
@@ -163,11 +169,11 @@ async def get_upload(
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
     token: Optional[str] = Depends(optional_bearer_token)
     ):
-    await verify_token(
+    await validate_file_access(
+        filename=request.path_params['file_name'],
         team_url=team_url,
-        token=token,
-        scope="uploads:read",
-        requested_file_name=request.path_params['file_name']
+        user_api_token=token,
+        scope="uploads:read"
         )
     return await get_strapi_upload(request.path_params['file_name'])
 
@@ -184,12 +190,11 @@ async def mates_ask(
     request: Request,
     parameters: MatesAskInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(bearer_scheme)
+    token: str = Depends(get_credentials)
     ):
     await verify_token(
         team_url=team_url,
-        token=token,
-        scope="mates:ask"
+        token=token
         )
     return await mates_ask_processing(
         team_url=team_url, 
@@ -204,14 +209,13 @@ async def mates_ask(
 async def get_mates(
     request: Request, 
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(bearer_scheme),
+    token: str = Depends(get_credentials),
     page: int = 1,
     pageSize: int = 25
     ):
     await verify_token(
         team_url=team_url,
-        token=token,
-        scope="mates:get_all"
+        token=token
         )
     return await get_mates_processing(
         team_url=team_url, 
@@ -226,13 +230,12 @@ async def get_mates(
 async def get_mate(
     request: Request,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(bearer_scheme),
+    token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
     await verify_token(
         team_url=team_url,
-        token=token,
-        scope="mates:get_one"
+        token=token
         )
     return await get_mate_processing(
         team_url=team_url, 
@@ -248,17 +251,13 @@ async def create_mate(
     request: Request,
     parameters: MatesCreateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(bearer_scheme)
+    token: str = Depends(get_credentials)
     ):
-    await verify_token(
-        team_url=team_url,
-        token=token,
-        scope="mates:create"
-        )
     await validate_file_access(
         filename=parameters.profile_picture_filename,
         team_url=team_url,
-        user_api_token=token
+        user_api_token=token,
+        scope="uploads:read"
         )
     return await create_mate_processing(
         team_url=team_url,
@@ -278,18 +277,14 @@ async def update_mate(
     request: Request,
     parameters: MatesUpdateInput,
     team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
-    token: str = Depends(bearer_scheme),
+    token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
-    await verify_token(
-        team_url=team_url,
-        token=token,
-        scope="mates:update"
-        )
     await validate_file_access(
         filename=parameters.profile_picture_filename,
         team_url=team_url,
-        user_api_token=token
+        user_api_token=token,
+        scope="uploads:read"
         )
     return await update_mate_processing(
         team_url=team_url,
