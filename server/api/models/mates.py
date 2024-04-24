@@ -48,6 +48,10 @@ class MatesAskInput(BaseModel):
     """This is the model for the incoming parameters for POST /mates/ask"""
     mate_username: str = Field(..., description="Username of the AI team mate who the message is for.")
     message: str = Field(..., description="Message to send to the AI team mate.")
+
+    class Config:
+        extra = "forbid"
+        
     
 mates_ask_input_example = {
     "mate_username": "sophia",
@@ -114,13 +118,6 @@ mates_get_all_output_example = {
 
 # GET /mates/{mate_username} (get a mate)
 
-class MatesGetOneInput(BaseModel):
-    team_name: str = Field(...,
-                    description="The name of your team.",
-                    example="glowingkitties"
-                    )
-    
-
 mates_get_one_output_example = {
     "id": 1,
     "name": "Sophia",
@@ -157,6 +154,9 @@ class MatesCreateInput(BaseModel):
     default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
     
     # TODO improve validation later using LLMs
+
+    class Config:
+        extra = "forbid"
 
     @validator('username')
     def username_must_be_url_compatible(cls, v):
@@ -227,6 +227,9 @@ class MatesUpdateInput(BaseModel):
     default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
     systemprompt: Optional[str] = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.", min_length=1)
     skills: Optional[List[int]] = Field(None, description="Custom list of skill IDs for the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
+
+    class Config:
+        extra = "forbid"
 
     @validator('username')
     def username_must_be_url_compatible(cls, v):

@@ -108,7 +108,6 @@ async def update_mate_processing(
         if new_custom_skills_extended_data:
             updated_mate["custom_skills"] = new_custom_skills
 
-        # TODO make sure that if a field is not supported, it shows an error
         # TODO make sure that if default_skills field is set to empty, it will remove the default skills
         # TODO process updating custom systemprompt and custom skills via config
 
