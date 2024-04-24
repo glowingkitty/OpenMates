@@ -250,10 +250,12 @@ mates_update_input_example = {
 class MateUpdateOutput(BaseModel):
     """This is the model for the outgoing response for POST /mates"""
     id: int = Field(..., description="ID of the AI team mate")
+    username: str = Field(..., description="Username of the AI team mate")
     updated_fields: List[dict] = Field(..., description="Dict with all updated fields")
 
 mates_update_output_example = {
     "id": 1,
+    "username": "sophia",
     "updated_fields": [
         {"description": "A software development expert, who can help you with all your coding needs."}
     ]

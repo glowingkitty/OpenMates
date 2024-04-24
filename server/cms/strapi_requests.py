@@ -61,31 +61,34 @@ async def make_strapi_request(
         ) -> Tuple[int, Dict]:
     async with httpx.AsyncClient() as client:
         try:
-            params = "?"
-            # define which fields to return
-            if fields:
-                for i, field in enumerate(fields):
-                    params += f"fields[{i}]={field}&"
-            # define which relationships to add
-            if populate:
-                params = add_params(params, populate)
-            
-            # define filters
-            if filters:
-                for filter in filters:
-                    field_path = filter['field'].split('.')
-                    # turn a teams.slug into [teams][slug]
-                    field_path_str = "[" + "][".join(field_path) + "]"
+            if method == "get":
+                params = "?"
+                # define which fields to return
+                if fields:
+                    for i, field in enumerate(fields):
+                        params += f"fields[{i}]={field}&"
+                # define which relationships to add
+                if populate:
+                    params = add_params(params, populate)
+                
+                # define filters
+                if filters:
+                    for filter in filters:
+                        field_path = filter['field'].split('.')
+                        # turn a teams.slug into [teams][slug]
+                        field_path_str = "[" + "][".join(field_path) + "]"
 
-                    # add the filter to the params
-                    params += f"filters{field_path_str}[{filter['operator']}]={filter['value']}&"
+                        # add the filter to the params
+                        params += f"filters{field_path_str}[{filter['operator']}]={filter['value']}&"
 
-            # add num_results and page to params
-            params += f"pagination[page]={page}&pagination[pageSize]={pageSize}"
+                # add num_results and page to params
+                params += f"pagination[page]={page}&pagination[pageSize]={pageSize}"
 
-            # remove the last '&' from the params, if it exists
-            if params[-1] == '&':
-                params = params[:-1]
+                # remove the last '&' from the params, if it exists
+                if params[-1] == '&':
+                    params = params[:-1]
+            else:
+                params = ""
                 
             strapi_url = f"{STRAPI_URL}/api/{endpoint}{params}"
 
@@ -94,8 +97,8 @@ async def make_strapi_request(
                 strapi_response = await client.get(strapi_url, headers=strapi_headers)
             elif method.lower() == 'post':
                 strapi_response = await client.post(strapi_url, headers=strapi_headers, json=data)
-            elif method.lower() == 'patch':
-                strapi_response = await client.patch(strapi_url, headers=strapi_headers, json=data)
+            elif method.lower() == 'put':
+                strapi_response = await client.put(strapi_url, headers=strapi_headers, json=data)
             elif method.lower() == 'delete':
                 strapi_response = await client.delete(strapi_url, headers=strapi_headers)
             else:
