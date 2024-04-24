@@ -57,11 +57,11 @@ async def update_mate_processing(
         else:
             raise HTTPException(status_code=404, detail="The AI team mate was not found.")
 
-        if new_username:
+        if new_username != None:
             # check if the username is already taken
             await validate_mate_username(username=new_username)
 
-        if new_profile_picture_url:
+        if new_profile_picture_url != None:
             new_profile_picture = await validate_file_access(
                 filename=new_profile_picture_url.split("/")[-1],
                 team_url=team_url,
@@ -71,7 +71,7 @@ async def update_mate_processing(
         else:
             new_profile_picture = None
 
-        if new_default_skills:
+        if new_default_skills != None:
             new_default_skills_extended_data = await validate_skills(
                 skills=new_default_skills,
                 team_url=team_url
@@ -79,7 +79,7 @@ async def update_mate_processing(
         else:
             new_default_skills_extended_data = None
         
-        if new_custom_skills:
+        if new_custom_skills != None:
             new_custom_skills_extended_data = await validate_skills(
                 skills=new_custom_skills,
                 team_url=team_url
@@ -91,24 +91,23 @@ async def update_mate_processing(
         # prepare to make the patch request to strapi
         updated_mate = {}
 
-        if new_name:
+        if new_name != None:
             updated_mate["name"] = new_name
-        if new_username:
+        if new_username != None:
             updated_mate["username"] = new_username
-        if new_description:
+        if new_description != None:
             updated_mate["description"] = new_description
-        if new_profile_picture:
+        if new_profile_picture != None:
             updated_mate["profile_picture"] = new_profile_picture["id"]
-        if new_default_systemprompt:
+        if new_default_systemprompt != None:
             updated_mate["default_systemprompt"] = new_default_systemprompt
-        if new_default_skills_extended_data:
-            updated_mate["default_skills"] = new_default_skills
-        if new_custom_systemprompt:
+        if new_default_skills_extended_data != None:
+            updated_mate["default_skills"] = new_default_skills_extended_data
+        if new_custom_systemprompt != None:
             updated_mate["custom_systemprompt"] = new_custom_systemprompt
-        if new_custom_skills_extended_data:
-            updated_mate["custom_skills"] = new_custom_skills
+        if new_custom_skills_extended_data != None:
+            updated_mate["custom_skills"] = new_custom_skills_extended_data
 
-        # TODO make sure that if default_skills field is set to empty, it will remove the default skills
         # TODO process updating custom systemprompt and custom skills via config
 
         # make the patch request

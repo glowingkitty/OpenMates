@@ -21,7 +21,7 @@ from typing import List, Optional
 async def validate_skills(
         skills: List[int],
         team_url: Optional[str] = None
-        ):
+        ) -> List[dict]:
     """
     Validate if the skills exist with their ID
     """
