@@ -22,7 +22,7 @@ async def validate_file_access(
         team_url: str,
         user_api_token: str,
         scope: str = "uploads:read"
-    ) -> bool:
+    ) -> dict:
     """
     Validate if the user has access to the file (and if its uploaded)
     """
@@ -76,14 +76,14 @@ async def validate_file_access(
         # if the file exists and is is public, return True
         if file_json_response["data"][0]["attributes"]["access_public"] == True:
             add_to_log("The file is public.", module_name="OpenMates | API | Validate file Access", state="success")
-            return True
+            return file_json_response["data"][0]
 
         # else check if the user is on the list of users with access to the file
         if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]) > 0:
             for user in file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]:
                 if user_api_token and len(user_api_token)>1 and user["attributes"]["api_token"] == user_api_token:
                     add_to_log("The user is on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
-                    return True
+                    return file_json_response["data"][0]
                 
         if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_teams"]["data"]) == 0 and len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]) == 0:
             add_to_log("The file is not public and is not limited to any users or teams.", module_name="OpenMates | API | Validate file Access", state="error")
@@ -138,7 +138,7 @@ async def validate_file_access(
             for user_team in user_json_response[0]["teams"]:
                 if user_team["slug"] == allowed_team["attributes"]["slug"]:
                     add_to_log("The user is part of the team that has access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
-                    return True
+                    return file_json_response["data"][0]
 
         add_to_log("The user is not part of the team that has access to the file.", module_name="OpenMates | API | Validate file Access", state="error")
         raise HTTPException(status_code=404, detail=request_refused_response_text)

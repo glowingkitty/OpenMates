@@ -44,7 +44,6 @@ async def create_mate_processing(
         await validate_mate_username(username=username)
 
         # check if the profile picture exists and the user has access to it
-        # TODO return file id
         profile_picture = await validate_file_access(
             filename=profile_picture_url.split("/")[-1],
             team_url=team_url,
@@ -59,8 +58,25 @@ async def create_mate_processing(
                 team_url=team_url
                 )
 
-        # TODO: implement processing
-        # TODO: profile picture file ID and team ID
+        # get the team and its ID
+        status_code, json_response = await make_strapi_request(
+            method='get', 
+            endpoint='teams', 
+            filters=[{"field": "slug", "operator": "$eq", "value": team_url}]
+        )
+        if status_code == 200 and json_response["data"]:
+            if len(json_response["data"])==1:
+                team = json_response["data"][0]
+            elif len(json_response["data"])>1:
+                add_to_log("More than one team found with the same URL.", state="error")
+                raise HTTPException(status_code=500, detail="More than one team found with the same URL.")
+
+        else:
+            add_to_log("No team found with the given URL.", state="error")
+            raise HTTPException(status_code=404, detail="No team found with the given URL.")
+        
+
+        # create the AI team mate
         status_code, json_response = await make_strapi_request(
             method='post', 
             endpoint='mates', 
@@ -72,18 +88,28 @@ async def create_mate_processing(
                     "profile_picture": profile_picture["id"],
                     "default_systemprompt": default_systemprompt,
                     "default_skills": default_skills,
-                    "teams": [team_id],
+                    "teams": [team["id"]],
                 }
             }
         )
 
-        add_to_log(json_response)
+        # return the created mate and the details
+        created_mate = {
+            "id": json_response["data"]["id"],
+            "name": name,
+            "username": username,
+            "description": description,
+            "profile_picture_url": profile_picture_url,
+            "default_systemprompt": default_systemprompt,
+            "default_skills": default_skills_extended_data,
+        }
 
-        if status_code == 201:
+        if status_code == 200:
             add_to_log("Successfully created the AI team mate", state="success")
-
-
-        return JSONResponse(status_code=201, content={"detail": "All good."})
+            return JSONResponse(status_code=201, content=created_mate)
+        else:
+            add_to_log("Failed to create the AI team mate.", state="error")
+            raise HTTPException(status_code=500, detail="Failed to create the AI team mate.")
 
     except HTTPException:
         raise
