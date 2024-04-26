@@ -39,6 +39,7 @@ from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate_processing
+from server.api.endpoints.users.get_user import get_user_processing
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
 from server.cms.strapi_requests import get_strapi_upload
@@ -438,28 +439,42 @@ def update_settings(request: Request, token: str = Depends(validate_token)):
 # GET /users (get all users)
 @users_router.get("/{team_url}/users/", summary="Get all", description="<img src='images/users/get_all.png' alt='Get an overview list of all users on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def get_users(request: Request, team_url: str, token: str = Depends(validate_token)):
+async def get_users(request: Request, team_url: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # GET /users/{username} (get a user)
-@users_router.get("/{team_url}/users/{username}", summary="Get", description="<img src='images/users/get_user.png' alt='Get all details about a specific user.'>")
+@users_router.get("/{team_url}/users/{username}", **endpoint_metadata["get_user"])
 @limiter.limit("20/minute")
-def get_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
-    return {"info": "endpoint still needs to be implemented"}
+async def get_user(
+    request: Request, 
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    ):
+    await validate_token(
+        team_url=team_url,
+        token=token
+        )
+    return await get_user_processing(
+        request_sender_api_token=token,
+        search_by_user_api_token=token if username == None else None,
+        search_by_username=username
+        )
+
 
 
 # POST /users (create a new user)
 @users_router.post("/{team_url}/users/", summary="Create", description="<img src='images/users/create.png' alt='Create a new user on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def create_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
+async def create_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # PATCH /users/{username} (update a user)
 @users_router.patch("/{team_url}/users/{username}", summary="Update", description="<img src='images/users/update.png' alt='Update a user on your OpenMates server.'>")
 @limiter.limit("20/minute")
-def update_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
+async def update_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 

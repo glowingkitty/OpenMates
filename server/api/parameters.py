@@ -22,6 +22,9 @@ from server.api.models.mates import (
     MatesCreateOutput,
     mates_get_all_output_example
     )
+from server.api.models.users import (
+    User
+)
 
 
 def generate_responses(status_codes):
@@ -117,6 +120,12 @@ endpoint_metadata = {
         "description": "<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
     },
+    "get_user":{
+        "response_model":User,
+        "summary": "Get user",
+        "description": "<img src='images/users/get_user.png' alt='Get all details about a specific user.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
+    },
 }
 
 
@@ -172,6 +181,10 @@ input_parameter_descriptions = {
     "mate_username":{
         "description": "The username of the AI team mate",
         "example": "sophia"
+    },
+    "user_username":{
+        "description": "The username of the user",
+        "example": "kitty"
     }
 }
 

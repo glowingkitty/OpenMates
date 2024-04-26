@@ -15,14 +15,17 @@ from server import *
 
 from server.api.models.mates import Mate
 from server.cms.strapi_requests import make_strapi_request, get_nested
+from typing import Dict, Union, Literal
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 
 async def get_mate_processing(
         team_url: str, 
         mate_username: str, 
-        user_api_token: str
-    ) -> Mate:
+        user_api_token: str,
+        output_raw_data: bool = False,
+        output_format: Literal["JSONResponse", "json"] = "JSONResponse"
+    ) -> Union[JSONResponse, Dict, HTTPException]:
     """
     Get a specific AI team mate on the team
     """
@@ -88,6 +91,13 @@ async def get_mate_processing(
             else:
                 mate = mates[0]
 
+                # return the unprocessed json if requested
+                if output_raw_data:
+                    if output_format == "JSONResponse":
+                        return JSONResponse(status_code=status_code, content=mate)
+                    else:
+                        return mate
+
                 # check if a custom config exists
                 if len(mate["attributes"]["configs"]["data"])>0:
                     matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_url and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
@@ -123,7 +133,13 @@ async def get_mate_processing(
 
 
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")
-        return JSONResponse(status_code=status_code, content=json_response)
+        if output_format == "JSONResponse":
+            return JSONResponse(status_code=status_code, content=json_response)
+        else:
+            return json_response
+        
+    except HTTPException:
+        raise
 
     except Exception:
         process_error("Failed to get the requested mate.", traceback=traceback.format_exc())

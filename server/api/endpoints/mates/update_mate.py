@@ -21,7 +21,8 @@ from fastapi import HTTPException
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
-
+from server.api.endpoints.mates.get_mate import get_mate_processing
+from server.api.endpoints.mates.update_or_create_config import update_or_create_config
 
 async def update_mate_processing(
         mate_username: str,
@@ -43,51 +44,27 @@ async def update_mate_processing(
         add_to_log(module_name="OpenMates | API | Update mate", state="start", color="yellow", hide_variables=True)
         add_to_log("Updating a specific AI team mate on the team ...")
 
-        # get the mate ID
-        status_code, json_response = await make_strapi_request(
-            method='get', 
-            endpoint='mates', 
-            filters=[{"field": "username", "operator": "$eq", "value": mate_username}]
-        )
-        if status_code == 200 and json_response["data"]:
-            if len(json_response["data"]) == 1:
-                mated_id = json_response["data"][0]["id"]
-            elif len(json_response["data"]) > 1:
-                raise HTTPException(status_code=400, detail="There are multiple mates with the same username.")
-        else:
-            raise HTTPException(status_code=404, detail="The AI team mate was not found.")
-
+        # validate the values
         if new_username != None:
-            # check if the username is already taken
             await validate_mate_username(username=new_username)
 
-        if new_profile_picture_url != None:
-            new_profile_picture = await validate_file_access(
-                filename=new_profile_picture_url.split("/")[-1],
-                team_url=team_url,
-                user_api_token=user_api_token,
-                scope="uploads:read"
-                )
-        else:
-            new_profile_picture = None
+        new_profile_picture = await validate_file_access(
+            filename=new_profile_picture_url.split("/")[-1],
+            team_url=team_url,
+            user_api_token=user_api_token,
+            scope="uploads:read"
+            ) if new_profile_picture_url!=None else None
 
-        if new_default_skills != None:
-            new_default_skills_extended_data = await validate_skills(
-                skills=new_default_skills,
-                team_url=team_url
-                )
-        else:
-            new_default_skills_extended_data = None
+        new_default_skills_extended_data = await validate_skills(
+            skills=new_default_skills,
+            team_url=team_url
+            ) if new_default_skills!=None else None
         
-        if new_custom_skills != None:
-            new_custom_skills_extended_data = await validate_skills(
-                skills=new_custom_skills,
-                team_url=team_url
-                )
-        else:
-            new_custom_skills_extended_data = None
-
-
+        new_custom_skills_extended_data = await validate_skills(
+            skills=new_custom_skills,
+            team_url=team_url
+            ) if new_custom_skills!=None else None
+        
         # prepare to make the patch request to strapi
         updated_mate = {}
 
@@ -103,17 +80,41 @@ async def update_mate_processing(
             updated_mate["default_systemprompt"] = new_default_systemprompt
         if new_default_skills_extended_data != None:
             updated_mate["default_skills"] = new_default_skills_extended_data
-        if new_custom_systemprompt != None:
-            updated_mate["custom_systemprompt"] = new_custom_systemprompt
-        if new_custom_skills_extended_data != None:
-            updated_mate["custom_skills"] = new_custom_skills_extended_data
+
+        # get the mate
+        mate = await get_mate_processing(
+            team_url=team_url,
+            mate_username=mate_username,
+            user_api_token=user_api_token,
+            output_raw_data=True,
+            output_format="json"
+        )
 
         # TODO process updating custom systemprompt and custom skills via config
+
+        # if any of the custom fields are updated, find first the matching config database entry
+        # for the combination of the user, team, and mate
+        if new_custom_systemprompt != None or new_custom_skills_extended_data != None:
+            await update_or_create_config(
+                mate=mate,
+                team_url=team_url, 
+                user_api_token=user_api_token, 
+                systemprompt=new_custom_systemprompt,
+                skills=new_custom_skills
+                )
+            
+            if new_custom_systemprompt != None:
+                updated_mate["custom_systemprompt"] = new_custom_systemprompt
+            if new_custom_skills_extended_data != None:
+                updated_mate["custom_skills"] = new_custom_skills_extended_data
+
+        # TODO make sure that config_id is inside the configs field of the mate, else add it and patch the mate
+        # TODO make sure the config_id or configs are not included in the response
 
         # make the patch request
         status_code, json_response = await make_strapi_request(
             method='put', 
-            endpoint='mates/'+str(mated_id), 
+            endpoint='mates/'+str(mate["id"]), 
             data={"data":updated_mate}
         )
 
