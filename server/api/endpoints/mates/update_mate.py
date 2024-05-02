@@ -14,7 +14,7 @@ from server import *
 ################
 
 from typing import List, Optional
-from server.api.models.mates import MateUpdateOutput
+from server.api.models.mates.mates_update import MateUpdateOutput
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException

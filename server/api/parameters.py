@@ -14,14 +14,21 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.mates import (
-    MatesAskOutput, 
-    MatesGetAllOutput, 
-    Mate, 
-    MateUpdateOutput,
-    MatesCreateOutput,
-    mates_get_all_output_example
-    )
+from server.api.models.mates.mates_ask import (
+    MatesAskOutput
+)
+from server.api.models.mates.mates_get_all import (
+    MatesGetAllOutput
+)
+from server.api.models.mates.mates_get_one import (
+    Mate
+)
+from server.api.models.mates.mates_create import (
+    MatesCreateOutput
+)
+from server.api.models.mates.mates_update import (
+    MateUpdateOutput
+)
 from server.api.models.users import (
     User
 )

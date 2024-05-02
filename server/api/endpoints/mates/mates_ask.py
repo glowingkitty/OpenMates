@@ -13,7 +13,9 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.mates import MatesAskOutput
+from server.api.models.mates.mates_ask import (
+    MatesAskOutput
+)
 
 
 async def mates_ask_processing(team_url: str, message: str, mate_username: str):

@@ -15,7 +15,7 @@ from server import *
 
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
-from server.api.models.mates import MatesGetAllOutput
+from server.api.models.mates.mates_get_all import MatesGetAllOutput
 from fastapi import HTTPException
 
 

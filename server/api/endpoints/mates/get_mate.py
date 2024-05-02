@@ -13,7 +13,6 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.mates import Mate
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from typing import Dict, Union, Literal
 from fastapi.responses import JSONResponse

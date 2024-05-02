@@ -19,21 +19,29 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-from fastapi import FastAPI, Depends, Header, Request, HTTPException, APIRouter, Path
+from fastapi import FastAPI, Depends, Request, HTTPException, APIRouter, Path
 from fastapi.staticfiles import StaticFiles
-from server.api.models.mates import (
+from server.api.models.mates.mates_ask import (
     MatesAskInput,
+    mates_ask_input_example,
+    mates_ask_output_example
+)
+from server.api.models.mates.mates_get_all import (
+    mates_get_all_output_example
+)
+from server.api.models.mates.mates_get_one import (
+    mates_get_one_output_example
+)
+from server.api.models.mates.mates_create import (
     MatesCreateInput,
+    mates_create_input_example,
+    mates_create_output_example
+)
+from server.api.models.mates.mates_update import (
     MatesUpdateInput,
-    mates_ask_input_example, 
-    mates_ask_output_example, 
-    mates_get_all_output_example, 
-    mates_get_one_output_example, 
-    mates_create_input_example, 
-    mates_create_output_example, 
-    mates_update_input_example, 
+    mates_update_input_example,
     mates_update_output_example
-    )
+)
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
