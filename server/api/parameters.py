@@ -29,7 +29,7 @@ from server.api.models.mates.mates_create import (
 from server.api.models.mates.mates_update import (
     MateUpdateOutput
 )
-from server.api.models.users import (
+from server.api.models.users.users_get_one import (
     User
 )
 

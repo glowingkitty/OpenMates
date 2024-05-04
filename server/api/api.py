@@ -42,6 +42,9 @@ from server.api.models.mates.mates_update import (
     mates_update_input_example,
     mates_update_output_example
 )
+from server.api.models.users.users_get_one import (
+    users_get_one_output_example
+)
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -132,7 +135,8 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
     set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
     set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
-    
+    set_example(openapi_schema, "/{team_url}/users/{username}", "get", "responses", users_get_one_output_example, "200")
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
