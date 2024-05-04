@@ -15,14 +15,9 @@ from server import *
 ################
 
 from pydantic import BaseModel, Field
-from typing import List
-from enum import Enum
 
-##################################
-######### Teams ##################
-##################################
 
-## Base models
+# GET /teams/{slug} (get a team)
 
 class Team(BaseModel):
     id: int = Field(..., description="ID of the team")

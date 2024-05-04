@@ -17,6 +17,7 @@ from server import *
 from pydantic import BaseModel, Field
 from typing import List
 from server.api.models.projects.projects_get_one import Project
+from server.api.models.teams.teams_get_one import Team
 
 
 # GET /users/{user_username} (get a user)
@@ -26,6 +27,7 @@ class User(BaseModel):
     id: int = Field(..., description="ID of the user")
     username: str = Field(..., description="Username of the user")
     email: str = Field(..., description="Email address of the user")
+    teams: List[Team] = Field(..., description="Teams the user is a member of")
     profile_picture_url: str = Field(..., description="URL of the profile picture of the user")
     balance: float = Field(..., description="Balance of the user. This balance can be used for using paid skills.")
     software_settings: dict = Field(..., description="Software settings, such as privacy settings, which cloud accounts are connected, default settings and more.")
@@ -40,6 +42,13 @@ users_get_one_output_example = {
     "id": 1,
     "username": "johnd",
     "email": "johnd_openmates@gmail.com",
+    "teams": [
+        {
+            "id": 1,
+            "name": "AI Sales Team",
+            "slug": "ai-sales-team"
+        }
+    ],
     "profile_picture_url": "/{team_url}/uploads/johnd_image.jpeg",
     "balance": 100.0,
     "software_settings": {

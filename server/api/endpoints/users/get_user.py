@@ -46,7 +46,13 @@ async def get_user_processing(
             "full_access":[
                 "username",
                 "api_token",
-                "email"
+                "email",
+                "balance",
+                "software_settings",
+                "other_settings",
+                "goals",
+                "todos",
+                "recent_topics"
             ],
             "basic_access":[
                 "username"
@@ -54,9 +60,9 @@ async def get_user_processing(
         }
         populate = {
             "full_access":[
-                "profile_picture.file.url",
-                "invoices.file.url",
-                "teams.slug"
+                "profile_image.file.url",
+                "teams.slug",
+                "projects.name"
             ],
             "basic_access":[]
         }
