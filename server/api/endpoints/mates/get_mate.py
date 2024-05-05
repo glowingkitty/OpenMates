@@ -131,7 +131,7 @@ async def get_mate_processing(
                 json_response = mate
 
 
-        add_to_log("Successfully created a list of all mates in the requested team.", state="success")
+        add_to_log("Successfully got the mate.", state="success")
         if output_format == "JSONResponse":
             return JSONResponse(status_code=status_code, content=json_response)
         else:

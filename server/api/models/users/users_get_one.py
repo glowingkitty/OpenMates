@@ -97,7 +97,7 @@ users_get_one_output_example = {
     "goals": [
         {
             "name": "Release the updated sales software with AI integration",
-            "priority": 1,
+            "priority": 1
         },
         {
             "name": "Get 1000 monthly users for the updated sales software",
@@ -114,7 +114,7 @@ users_get_one_output_example = {
         "TensorFlow",
         "Pandas",
         "NumPy",
-        "sales software"
+        "sales software",
         "FastAPI",
         "Docker"
     ]

@@ -14,13 +14,14 @@ from server import *
 ################
 
 from typing import List, Optional, Union, Dict, Literal
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
 
 
 async def get_user_processing(
+        team_url: str,
         request_sender_api_token: str,
         search_by_username: Optional[str] = None,
         search_by_user_api_token: Optional[str] = None,
@@ -88,16 +89,61 @@ async def get_user_processing(
             populate=populate[user_access]
         )
 
-        if not json_response:
-            add_to_log("User not found ...", color="red")
-            raise HTTPException(status_code=404, detail="User not found. Either the username is wrong, or you don't have the permission to access this user.")
-
-        if output_raw_data:
-            if output_format == "JSONResponse":
-                return JSONResponse(status_code=status_code, content=json_response)
+        if status_code == 200:
+            # make sure there is only one user with the requested username
+            user = {}
+            users = json_response
+            if len(users) == 0:
+                status_code = 404
+                json_response = {"detail": "Could not find the requested user."}
+            elif len(users) > 1:
+                status_code = 404
+                json_response = {"detail": "There are multiple users with the requested username."}
             else:
-                return json_response
-        
+                user = users[0]
+
+                # return the unprocessed json if requested
+                if output_raw_data:
+                    if output_format == "JSONResponse":
+                        return JSONResponse(status_code=status_code, content=user)
+                    else:
+                        return user
+                    
+                user = {
+                    "id": user["id"],
+                    "username": user["username"],
+                    "email": user["email"],
+                    "teams": [
+                        {
+                            "id": team["id"],
+                            "name": team["name"],
+                            "slug": team["slug"]
+                        } for team in user["teams"]
+                    ],
+                    "profile_picture_url":  f"/{team_url}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
+                    "balance_eur": user["balance"],
+                    "software_settings": user["software_settings"],
+                    "other_settings": user["other_settings"],
+                    "projects": [
+                        {
+                            "id": project["id"],
+                            "name": project["name"],
+                            "description": project["description"]
+                        } for project in user["projects"]
+                    ],
+                    "goals": user["goals"],
+                    "todos": user["todos"],
+                    "recent_topics": user["recent_topics"]
+                } if user_access == "full_access" else {
+                    "id": user["id"],
+                    "username": user["username"]
+                }
+
+                json_response = user
+
+            
+        add_to_log("Successfully got the user.", state="success")
+
         if output_format == "JSONResponse":
             return JSONResponse(status_code=status_code, content=json_response)
         else:

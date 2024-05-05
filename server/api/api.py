@@ -469,6 +469,7 @@ async def get_user(
         token=token
         )
     return await get_user_processing(
+        team_url=team_url,
         request_sender_api_token=token,
         search_by_user_api_token=token if username == None else None,
         search_by_username=username
