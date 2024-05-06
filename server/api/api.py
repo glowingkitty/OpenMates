@@ -45,12 +45,16 @@ from server.api.models.mates.mates_update import (
 from server.api.models.users.users_get_one import (
     users_get_one_output_example
 )
+from server.api.models.users.users_get_all import (
+    users_get_all_output_example
+)
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate_processing
 from server.api.endpoints.users.get_user import get_user_processing
+from server.api.endpoints.users.get_users import get_users_processing
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
 from server.cms.strapi_requests import get_strapi_upload
@@ -135,8 +139,9 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
     set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
     set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
+    set_example(openapi_schema, "/{team_url}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/{team_url}/users/{username}", "get", "responses", users_get_one_output_example, "200")
-
+    
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -448,11 +453,26 @@ def update_settings(request: Request, token: str = Depends(validate_token)):
 # User accounts are used to store user data like what projects the user is working on, what they are interested in, what their goals are, etc.
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
 
-# GET /users (get all users)
+# GET /users (get all users on a team)
 @users_router.get("/{team_url}/users/", summary="Get all", description="<img src='images/users/get_all.png' alt='Get an overview list of all users on your OpenMates server.'>")
 @limiter.limit("20/minute")
-async def get_users(request: Request, team_url: str, token: str = Depends(validate_token)):
-    return {"info": "endpoint still needs to be implemented"}
+async def get_users(
+    request: Request,
+    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    token: str = Depends(get_credentials),
+    page: int = 1,
+    pageSize: int = 25
+    ):
+    await validate_token(
+        team_url=team_url,
+        token=token
+        )
+    return await get_users_processing(
+        team_url=team_url,
+        request_sender_api_token=token,
+        page=page,
+        pageSize=pageSize
+        )
 
 
 # GET /users/{username} (get a user)

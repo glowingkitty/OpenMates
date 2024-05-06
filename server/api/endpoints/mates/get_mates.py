@@ -79,6 +79,9 @@ async def get_mates_processing(
         add_to_log("Successfully created a list of all mates in the requested team.", state="success")
         return JSONResponse(status_code=status_code, content=json_response)
 
+    except HTTPException:
+        raise
+
     except Exception:
-        process_error("Failed to get a list of all AI team mates in the team.", traceback=traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Failed to get a list of all AI team mates in the team.")
+        process_error("Failed to get all AI team mates in the team.", traceback=traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Failed to get all AI team mates in the team.")

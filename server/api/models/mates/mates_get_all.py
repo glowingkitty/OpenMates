@@ -56,7 +56,7 @@ mates_get_all_output_example = {
             "page": 1,
             "pageSize": 25,
             "pageCount": 1,
-            "total": 1
+            "total": 2
         }
     }
 }

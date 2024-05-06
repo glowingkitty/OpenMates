@@ -37,10 +37,12 @@ async def get_user_processing(
 
         if not search_by_username and not search_by_user_api_token:
             raise ValueError("Username or user API token must be provided.")
-
+        
         user_access = await validate_user_data_access(
             search_by_username=search_by_username,
-            request_sender_api_token=request_sender_api_token
+            request_team_slug=team_url,
+            request_sender_api_token=request_sender_api_token,
+            request_endpoint="get_one_user"
         )
 
         fields = {
