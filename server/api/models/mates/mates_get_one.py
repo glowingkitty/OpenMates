@@ -39,7 +39,7 @@ mates_get_one_output_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg",
+    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
     "systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "systemprompt_is_customized": False,
     "skills": [
@@ -51,7 +51,7 @@ mates_get_one_output_example = {
                 "id": 4,
                 "name": "VS Code"
             },
-            "api_endpoint": "/{team_url}/skills/vs_code/write_and_test_code"
+            "api_endpoint": "/ai-sales-team/skills/vs_code/write_and_test_code"
         }
     ],
     "skills_are_customized": False

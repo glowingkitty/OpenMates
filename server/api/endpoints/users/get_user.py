@@ -21,7 +21,7 @@ from server.api.validation.validate_user_data_access import validate_user_data_a
 
 
 async def get_user_processing(
-        team_url: str,
+        team_slug: str,
         request_sender_api_token: str,
         search_by_username: Optional[str] = None,
         search_by_user_api_token: Optional[str] = None,
@@ -37,10 +37,10 @@ async def get_user_processing(
 
         if not search_by_username and not search_by_user_api_token:
             raise ValueError("Username or user API token must be provided.")
-        
+
         user_access = await validate_user_data_access(
             search_by_username=search_by_username,
-            request_team_slug=team_url,
+            request_team_slug=team_slug,
             request_sender_api_token=request_sender_api_token,
             request_endpoint="get_one_user"
         )
@@ -110,7 +110,7 @@ async def get_user_processing(
                         return JSONResponse(status_code=status_code, content=user)
                     else:
                         return user
-                    
+
                 user = {
                     "id": user["id"],
                     "username": user["username"],
@@ -122,7 +122,7 @@ async def get_user_processing(
                             "slug": team["slug"]
                         } for team in user["teams"]
                     ],
-                    "profile_picture_url":  f"/{team_url}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
+                    "profile_picture_url":  f"/{team_slug}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
                     "balance_eur": user["balance"],
                     "software_settings": user["software_settings"],
                     "other_settings": user["other_settings"],
@@ -143,14 +143,14 @@ async def get_user_processing(
 
                 json_response = user
 
-            
+
         add_to_log("Successfully got the user.", state="success")
 
         if output_format == "JSONResponse":
             return JSONResponse(status_code=status_code, content=json_response)
         else:
             return json_response
-        
+
     except HTTPException:
         raise
 

@@ -20,7 +20,7 @@ from fastapi import HTTPException
 
 
 async def get_mates_processing(
-        team_url: str,
+        team_slug: str,
         page: int = 1, 
         pageSize: int = 25
     ) -> MatesGetAllOutput:
@@ -43,7 +43,7 @@ async def get_mates_processing(
             {
                 "field": "teams.slug",
                 "operator": "$eq",
-                "value": team_url
+                "value": team_slug
             }
         ]
         status_code, json_response = await make_strapi_request(
@@ -63,7 +63,7 @@ async def get_mates_processing(
                     "name": get_nested(mate, ["attributes", "name"]),
                     "username": get_nested(mate, ["attributes", "username"]),
                     "description": get_nested(mate, ['attributes', 'description']),
-                    "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                    "profile_picture_url": f"/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                 } for mate in json_response["data"]
             ]
 

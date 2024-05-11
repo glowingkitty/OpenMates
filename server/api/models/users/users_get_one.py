@@ -29,7 +29,7 @@ class User(BaseModel):
     email: str = Field(..., description="Email address of the user")
     teams: List[Team] = Field(..., description="Teams the user is a member of")
     profile_picture_url: str = Field(..., description="URL of the profile picture of the user")
-    balance: float = Field(..., description="Balance of the user. This balance can be used for using paid skills.")
+    balance_in_EUR: float = Field(..., description="Balance of the user in EUR. This balance can be used for using paid skills.")
     software_settings: dict = Field(..., description="Software settings, such as privacy settings, which cloud accounts are connected, default settings and more.")
     other_settings: dict = Field(..., description="Other settings, such as notification settings, etc.")
     projects: List[Project] = Field(..., description="Projects of the user")
@@ -49,8 +49,8 @@ users_get_one_output_example = {
             "slug": "ai-sales-team"
         }
     ],
-    "profile_picture_url": "/{team_url}/uploads/johnd_image.jpeg",
-    "balance": 100.0,
+    "profile_picture_url": "/ai-sales-team/uploads/johnd_image.jpeg",
+    "balance_in_EUR": 100.0,
     "software_settings": {
         "dropbox": {
             "accounts": [

@@ -20,7 +20,7 @@ from typing import List, Optional
 
 async def validate_skills(
         skills: List[int],
-        team_url: Optional[str] = None
+        team_slug: Optional[str] = None
         ) -> List[dict]:
     """
     Validate if the skills exist with their ID
@@ -74,7 +74,7 @@ async def validate_skills(
                 skill_data["software"] = {}
                 skill_data["software"]["id"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["id"]
                 skill_data["software"]["name"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["attributes"]["name"]
-                skill_data["api_endpoint"] = f"/{team_url}/skills/{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['slug']}/{skill_json_response['data'][0]['attributes']['slug']}"
+                skill_data["api_endpoint"] = f"/{team_slug}/skills/{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['slug']}/{skill_json_response['data'][0]['attributes']['slug']}"
                 
                 output_skills.append(skill_data)
 

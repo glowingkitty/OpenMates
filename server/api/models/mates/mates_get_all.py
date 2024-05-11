@@ -41,14 +41,14 @@ mates_get_all_output_example = {
             "name": "Burton",
             "username": "burton",
             "description": "Business development expert",
-            "profile_picture_url": "/{team_url}/uploads/burton_image.jpeg"
+            "profile_picture_url": "/ai-sales-team/uploads/burton_image.jpeg"
         },
         {
             "id": 2,
             "name": "Sophia",
             "username": "sophia",
             "description": "Software development expert",
-            "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg"
+            "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg"
         }
     ],
     "meta": {

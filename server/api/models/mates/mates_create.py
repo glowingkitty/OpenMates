@@ -29,10 +29,11 @@ class MatesCreateInput(BaseModel):
     description: str = Field(..., description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate", min_length=1)
-    default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
-    
+    default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
+
     # TODO improve validation later using LLMs
 
+    # prevent extra fields from being passed to API
     class Config:
         extra = "forbid"
 
@@ -47,7 +48,7 @@ class MatesCreateInput(BaseModel):
     @validator('profile_picture_url')
     def profile_picture_url_must_in_right_format(cls, v):
         if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
-            raise ValueError('profile picture URL must be in the right format: /{team_url}/uploads/{filename}')
+            raise ValueError('profile picture URL must be in the right format: /{team_slug}/uploads/{filename}')
         return v
 
 
@@ -55,7 +56,7 @@ mates_create_input_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg",
+    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [3]
 }
@@ -78,7 +79,7 @@ mates_create_output_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/{team_url}/uploads/sophia_image.jpeg",
+    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [
         {
@@ -89,7 +90,7 @@ mates_create_output_example = {
                 "id": 4,
                 "name": "VS Code"
             },
-            "api_endpoint": "/{team_url}/skills/vs_code/write_and_test_code"
+            "api_endpoint": "/ai-sales-team/skills/vs_code/write_and_test_code"
         }
     ]
 }

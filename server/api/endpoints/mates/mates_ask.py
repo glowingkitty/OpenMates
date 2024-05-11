@@ -18,7 +18,7 @@ from server.api.models.mates.mates_ask import (
 )
 
 
-async def mates_ask_processing(team_url: str, message: str, mate_username: str):
+async def mates_ask_processing(team_slug: str, message: str, mate_username: str):
     """
     Process a message
 

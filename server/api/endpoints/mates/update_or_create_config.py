@@ -20,7 +20,7 @@ from fastapi import HTTPException
 
 async def update_or_create_config(
         mate: dict,
-        team_url: str,
+        team_slug: str,
         user_api_token: str,
         systemprompt: Optional[str] = None,
         skills: Optional[List[int]] = None
@@ -34,7 +34,7 @@ async def update_or_create_config(
         # search in the configs field of the mate for the config with the team and user
         if mate["attributes"]["configs"]:
             for config in mate["attributes"]["configs"]["data"]:
-                if config["data"]["attributes"]["team"]["data"]["attributes"]["slug"] == team_url and config["data"]["attributes"]["user"]["data"]["attributes"]["api_token"] == user_api_token:
+                if config["data"]["attributes"]["team"]["data"]["attributes"]["slug"] == team_slug and config["data"]["attributes"]["user"]["data"]["attributes"]["api_token"] == user_api_token:
                     config_id = config["id"]
                     break
     
@@ -44,7 +44,7 @@ async def update_or_create_config(
             status_code, json_response = await make_strapi_request(
                 method='get', 
                 endpoint='teams', 
-                filters=[{"field": "slug", "operator": "$eq", "value": team_url}]
+                filters=[{"field": "slug", "operator": "$eq", "value": team_slug}]
             )
             if status_code == 200 and json_response["data"]:
                 if len(json_response["data"])==1:

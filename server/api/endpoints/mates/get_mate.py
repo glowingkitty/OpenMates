@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 
 async def get_mate_processing(
-        team_url: str, 
+        team_slug: str, 
         mate_username: str, 
         user_api_token: str,
         output_raw_data: bool = False,
@@ -59,7 +59,7 @@ async def get_mate_processing(
             {
                 "field": "teams.slug",
                 "operator": "$eq",
-                "value": team_url
+                "value": team_slug
             },
             # The mate must have the requested mate username
             {
@@ -99,7 +99,7 @@ async def get_mate_processing(
 
                 # check if a custom config exists
                 if len(mate["attributes"]["configs"]["data"])>0:
-                    matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_url and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
+                    matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_slug and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
                     if len(matching_config) == 1:
                         mate["attributes"]["config"] = matching_config[0]
                 else:
@@ -110,7 +110,7 @@ async def get_mate_processing(
                         "name": get_nested(mate, ["attributes", "name"]),
                         "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
                         "description": get_nested(mate, ['attributes', 'description']),
-                        "profile_picture_url": f"/{team_url}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                        "profile_picture_url": f"/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                         "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
                         "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
                         "skills": [
@@ -122,7 +122,7 @@ async def get_mate_processing(
                                     "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
                                     "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
                                 },
-                                "api_endpoint": f"/{team_url}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
+                                "api_endpoint": f"/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                             } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
                         ],
                         "skills_are_customized": True if get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) else False

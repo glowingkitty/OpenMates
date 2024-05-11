@@ -21,7 +21,7 @@ from server.api.validation.validate_user_data_access import validate_user_data_a
 
 
 async def get_users_processing(
-        team_url: str,
+        team_slug: str,
         request_sender_api_token: str,
         page: int = 1,
         pageSize: int = 25
@@ -34,7 +34,7 @@ async def get_users_processing(
         add_to_log("Getting a list of all users in a team ...")
 
         user_access = await validate_user_data_access(
-            request_team_slug=team_url,
+            request_team_slug=team_slug,
             request_sender_api_token=request_sender_api_token,
             request_endpoint="get_all_users"
         )
@@ -46,7 +46,7 @@ async def get_users_processing(
             {
                 "field": "teams.slug",
                 "operator": "$eq",
-                "value": team_url
+                "value": team_slug
             }
         ]
 

@@ -14,6 +14,9 @@ sys.path.append(main_directory)
 from server import *
 ################
 
+from server.api.models.files.files_upload import (
+    FileUploadOutput
+)
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
 )
@@ -29,8 +32,14 @@ from server.api.models.mates.mates_create import (
 from server.api.models.mates.mates_update import (
     MateUpdateOutput
 )
+from server.api.models.users.users_get_all import (
+    UsersGetAllOutput
+)
 from server.api.models.users.users_get_one import (
     User
+)
+from server.api.models.users.users_create import (
+    UsersCreateOutput
 )
 
 
@@ -46,11 +55,11 @@ def generate_responses(status_codes):
         "422": "Validation Error",
         "500": "Internal Server Error"
     }
-    
+
     responses = {}
     for code in status_codes:
         responses[str(code)] = {"description": descriptions.get(str(code), "Unknown Status Code"), "model": None}
-    
+
     return responses
 
 
@@ -96,6 +105,12 @@ def set_example(openapi_schema, path, method, request_or_response, example, resp
 
 
 endpoint_metadata = {
+    "upload_file":{
+        "response_model":FileUploadOutput,
+        "summary": "Upload",
+        "description": "<img src='images/files/upload.png' alt='Upload an image to the OpenMates server, so you can use it as a profile picture.'>",
+        "responses": generate_responses([200, 400, 401, 403, 409, 422, 500]),
+    },
     "ask_mate":{
         "response_model":MatesAskOutput,
         "summary": "Ask",
@@ -127,12 +142,18 @@ endpoint_metadata = {
         "description": "<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
     },
+    "get_all_users":{
+        "response_model":UsersGetAllOutput,
+        "summary": "Get all",
+        "description": "<img src='images/users/get_all.png' alt='Get an overview list of all users in a team.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
+    },
     "get_user":{
         "response_model":User,
         "summary": "Get user",
         "description": "<img src='images/users/get_user.png' alt='Get all details about a specific user.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
-    },
+    }
 }
 
 
@@ -177,8 +198,8 @@ tags_metadata = [
 
 
 input_parameter_descriptions = {
-    "team_url": {
-        "description": "The URL of the team",
+    "team_slug": {
+        "description": "The URL friendly name of the team",
         "example": "openmates_enthusiasts"
     },
     "token": {
@@ -192,6 +213,9 @@ input_parameter_descriptions = {
     "user_username":{
         "description": "The username of the user",
         "example": "kitty"
-    }
+    },
+    "file": {
+        "description": "The bytes of the file to upload"
+    },
 }
 

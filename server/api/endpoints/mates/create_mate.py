@@ -30,7 +30,7 @@ async def create_mate_processing(
         profile_picture_url: str,
         default_systemprompt: str,
         default_skills: List[int],
-        team_url: Optional[str] = None,
+        team_slug: Optional[str] = None,
         user_api_token: Optional[str] = None
     ) -> MatesCreateOutput:
     """
@@ -46,23 +46,23 @@ async def create_mate_processing(
         # check if the profile picture exists and the user has access to it
         profile_picture = await validate_file_access(
             filename=profile_picture_url.split("/")[-1],
-            team_url=team_url,
+            team_slug=team_slug,
             user_api_token=user_api_token,
             scope="uploads:read"
             )
-        
+
         # check if the skills exist with their ID
         if default_skills:
             default_skills_extended_data = await validate_skills(
                 skills=default_skills,
-                team_url=team_url
+                team_slug=team_slug
                 )
 
         # get the team and its ID
         status_code, json_response = await make_strapi_request(
-            method='get', 
-            endpoint='teams', 
-            filters=[{"field": "slug", "operator": "$eq", "value": team_url}]
+            method='get',
+            endpoint='teams',
+            filters=[{"field": "slug", "operator": "$eq", "value": team_slug}]
         )
         if status_code == 200 and json_response["data"]:
             if len(json_response["data"])==1:
@@ -74,12 +74,12 @@ async def create_mate_processing(
         else:
             add_to_log("No team found with the given URL.", state="error")
             raise HTTPException(status_code=404, detail="No team found with the given URL.")
-        
+
 
         # create the AI team mate
         status_code, json_response = await make_strapi_request(
-            method='post', 
-            endpoint='mates', 
+            method='post',
+            endpoint='mates',
             data={
                 "data":{
                     "name": name,

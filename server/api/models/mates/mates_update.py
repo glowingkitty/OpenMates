@@ -22,14 +22,14 @@ from urllib.parse import quote
 
 class MatesUpdateInput(BaseModel):
     """This is the model for the incoming parameters for PATCH /mates/{mate_username}"""
-    name: Optional[str] = Field(None, description="Name of the AI team mate")
-    username: Optional[str] = Field(None, description="Username of the AI team mate", min_length=1, max_length=30, unique=True)
-    description: Optional[str] = Field(None, description="Description of the AI team mate", min_length=1, max_length=150)
-    profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
-    default_systemprompt: Optional[str] = Field(None, description="Default system prompt of the AI team mate", min_length=1)
-    default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
-    systemprompt: Optional[str] = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.", min_length=1)
-    skills: Optional[List[int]] = Field(None, description="Custom list of skill IDs for the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
+    name: str = Field(None, description="Name of the AI team mate")
+    username: str = Field(None, description="Username of the AI team mate", min_length=1, max_length=30, unique=True)
+    description: str = Field(None, description="Description of the AI team mate", min_length=1, max_length=150)
+    profile_picture_url: str = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
+    default_systemprompt: str = Field(None, description="Default system prompt of the AI team mate", min_length=1)
+    default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
+    systemprompt: str = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.", min_length=1)
+    skills: List[int] = Field(None, description="Custom list of skill IDs for the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
 
     class Config:
         extra = "forbid"
@@ -45,7 +45,7 @@ class MatesUpdateInput(BaseModel):
     @validator('profile_picture_url')
     def profile_picture_url_must_in_right_format(cls, v):
         if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
-            raise ValueError('profile picture URL must be in the right format: /{team_url}/uploads/{filename}')
+            raise ValueError('profile picture URL must be in the right format: /{team_slug}/uploads/{filename}')
         return v
 
 mates_update_input_example = {

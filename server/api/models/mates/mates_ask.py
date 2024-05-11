@@ -26,8 +26,8 @@ class MatesAskInput(BaseModel):
 
     class Config:
         extra = "forbid"
-        
-    
+
+
 mates_ask_input_example = {
     "mate_username": "sophia",
     "message": "Write me some python code that prints 'Hello, AI!'"
@@ -40,7 +40,7 @@ class MatesAskOutput(BaseModel):
     tokens_used_input: int = Field(..., description="The number of tokens used to process the input message")
     tokens_used_output: int = Field(..., description="The number of tokens used to generate the output message")
     total_costs_eur: float = Field(..., description="The total cost of processing the message, in EUR")
-    
+
 mates_ask_output_example = {
     "message": "Of course I can help you with that! Here is the python code you requested: print('Hello, AI!')\n\nI hope this helps you out. If you have any more questions, feel free to ask!",
     "tokens_used_input": 20,

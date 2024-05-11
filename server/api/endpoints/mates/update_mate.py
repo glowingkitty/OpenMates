@@ -34,7 +34,7 @@ async def update_mate_processing(
         new_default_skills: Optional[List[int]] = None,
         new_custom_systemprompt: Optional[str] = None,
         new_custom_skills: Optional[List[int]] = None,
-        team_url: Optional[str] = None,
+        team_slug: Optional[str] = None,
         user_api_token: Optional[str] = None
     ) -> MateUpdateOutput:
     """
@@ -50,19 +50,19 @@ async def update_mate_processing(
 
         new_profile_picture = await validate_file_access(
             filename=new_profile_picture_url.split("/")[-1],
-            team_url=team_url,
+            team_slug=team_slug,
             user_api_token=user_api_token,
             scope="uploads:read"
             ) if new_profile_picture_url!=None else None
 
         new_default_skills_extended_data = await validate_skills(
             skills=new_default_skills,
-            team_url=team_url
+            team_slug=team_slug
             ) if new_default_skills!=None else None
         
         new_custom_skills_extended_data = await validate_skills(
             skills=new_custom_skills,
-            team_url=team_url
+            team_slug=team_slug
             ) if new_custom_skills!=None else None
         
         # prepare to make the patch request to strapi
@@ -83,7 +83,7 @@ async def update_mate_processing(
 
         # get the mate
         mate = await get_mate_processing(
-            team_url=team_url,
+            team_slug=team_slug,
             mate_username=mate_username,
             user_api_token=user_api_token,
             output_raw_data=True,
@@ -97,7 +97,7 @@ async def update_mate_processing(
         if new_custom_systemprompt != None or new_custom_skills_extended_data != None:
             await update_or_create_config(
                 mate=mate,
-                team_url=team_url, 
+                team_slug=team_slug, 
                 user_api_token=user_api_token, 
                 systemprompt=new_custom_systemprompt,
                 skills=new_custom_skills

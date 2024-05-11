@@ -19,8 +19,12 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-from fastapi import FastAPI, Depends, Request, HTTPException, APIRouter, Path
+from fastapi import FastAPI, Depends, UploadFile, File, Form, Request, HTTPException, APIRouter, Path
+from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
+from server.api.models.files.files_upload import (
+    file_upload_output_example
+)
 from server.api.models.mates.mates_ask import (
     MatesAskInput,
     mates_ask_input_example,
@@ -48,6 +52,12 @@ from server.api.models.users.users_get_one import (
 from server.api.models.users.users_get_all import (
     users_get_all_output_example
 )
+from server.api.models.users.users_create import (
+    UsersCreateInput,
+    users_create_input_example,
+    users_create_output_example
+)
+from server.api.endpoints.files.upload_file import upload_file_processing
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
@@ -55,6 +65,7 @@ from server.api.endpoints.mates.create_mate import create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate_processing
 from server.api.endpoints.users.get_user import get_user_processing
 from server.api.endpoints.users.get_users import get_users_processing
+from server.api.endpoints.users.create_user import create_user_processing
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
 from server.cms.strapi_requests import get_strapi_upload
@@ -63,7 +74,8 @@ from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
 from fastapi.security import HTTPBearer
-from typing import Optional
+from typing import Optional, List
+from fastapi.responses import JSONResponse
 
 
 ##################################
@@ -74,6 +86,7 @@ from typing import Optional
 
 
 # Create new routers
+files_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
 software_router = APIRouter()
@@ -89,12 +102,12 @@ users_router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
-    redoc_url="/docs", 
+    redoc_url="/docs",
     docs_url="/swagger_docs"
 )
 
 bearer_scheme = HTTPBearer(
-    scheme_name="Bearer Token", 
+    scheme_name="Bearer Token",
     description="""Enter your bearer token. Here's an example of how to use it in a request:
 
     ```python
@@ -131,17 +144,18 @@ def custom_openapi():
         tags=tags_metadata
     )
 
-    set_example(openapi_schema, "/{team_url}/mates/ask", "post", "requestBody", mates_ask_input_example)
-    set_example(openapi_schema, "/{team_url}/mates/ask", "post", "responses", mates_ask_output_example, "200")
-    set_example(openapi_schema, "/{team_url}/mates/", "get", "responses", mates_get_all_output_example, "200")
-    set_example(openapi_schema, "/{team_url}/mates/", "post", "requestBody", mates_create_input_example)
-    set_example(openapi_schema, "/{team_url}/mates/", "post", "responses", mates_create_output_example, "201")
-    set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
-    set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
-    set_example(openapi_schema, "/{team_url}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
-    set_example(openapi_schema, "/{team_url}/users/", "get", "responses", users_get_all_output_example, "200")
-    set_example(openapi_schema, "/{team_url}/users/{username}", "get", "responses", users_get_one_output_example, "200")
-    
+    set_example(openapi_schema, "/{team_slug}/uploads/{file_name}", "post", "responses", file_upload_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/mates/ask", "post", "requestBody", mates_ask_input_example)
+    set_example(openapi_schema, "/{team_slug}/mates/ask", "post", "responses", mates_ask_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/mates/", "get", "responses", mates_get_all_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/mates/", "post", "requestBody", mates_create_input_example)
+    set_example(openapi_schema, "/{team_slug}/mates/", "post", "responses", mates_create_output_example, "201")
+    set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
+    set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -155,7 +169,7 @@ app.add_middleware(SlowAPIMiddleware)
 @app.exception_handler(RateLimitExceeded)
 async def ratelimit_handler(request, exc):
     raise HTTPException(
-        status_code=HTTP_429_TOO_MANY_REQUESTS, 
+        status_code=HTTP_429_TOO_MANY_REQUESTS,
         detail="Too Many Requests"
     )
 
@@ -173,28 +187,64 @@ async def optional_bearer_token(request: Request):
 # GET /images/{file_path} (get an image)
 app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'endpoints/images')), name="images")
 
+
 # GET / (get the index.html file)
 @app.get("/",include_in_schema=False)
 @limiter.limit("20/minute")
 def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
 
-# GET /{team_url}/uploads/{file_name} (get an uploaded file)
-@app.get("/{team_url}/uploads/{file_name}", include_in_schema=False)
+
+# GET /{team_slug}/uploads/{file_name} (get an uploaded file)
+@files_router.get("/{team_slug}/uploads/{file_name}", include_in_schema=False)
 @limiter.limit("20/minute")
 async def get_upload(
-    request: Request, 
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: Optional[str] = Depends(optional_bearer_token)
     ):
     await validate_file_access(
         filename=request.path_params['file_name'],
-        team_url=team_url,
+        team_slug=team_slug,
         user_api_token=token,
         scope="uploads:read"
         )
     return await get_strapi_upload(request.path_params['file_name'])
 
+
+# POST /{team_slug}/uploads/{file_name} (upload a file)
+@files_router.post("/{team_slug}/uploads/", **endpoint_metadata["upload_file"])
+@limiter.limit("20/minute")
+async def upload_file(
+    request: Request,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    access_public: bool = Form(False, description="If set to True, the file can be accessed by anyone on the internet."),
+    read_access_limited_to_team_slugs: List[str] = Form(None, description="List of team slugs with read access"),
+    write_access_limited_to_team_slugs: List[str] = Form(None, description="List of team slugs with write access"),
+    read_access_limited_to_user_usernames: List[str] = Form(None, description="List of user usernames with read access (even if outside of the teams with file access)"),
+    write_access_limited_to_user_usernames: List[str] = Form(None, description="List of user usernames with write access (even if outside of the teams with file access)")
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
+    contents = await file.read()
+    if len(contents) > 2 * 1024 * 1024:  # File size limit: 2MB
+        raise HTTPException(status_code=413, detail="File size exceeds 2MB limit")
+
+    return await upload_file_processing(
+        team_slug=team_slug,
+        user_api_token=token,
+        file_name=file.filename,
+        data=contents,
+        access_public=access_public,
+        list_read_access_limited_to_team_slugs=read_access_limited_to_team_slugs,
+        list_write_access_limited_to_team_slugs=write_access_limited_to_team_slugs,
+        list_read_access_limited_to_user_usernames=read_access_limited_to_user_usernames,
+        list_write_access_limited_to_user_usernames=write_access_limited_to_user_usernames
+        )
 
 
 ##################################
@@ -202,77 +252,77 @@ async def get_upload(
 ##################################
 
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
-@mates_router.post("/{team_url}/mates/ask",**endpoint_metadata["ask_mate"])
+@mates_router.post("/{team_slug}/mates/ask",**endpoint_metadata["ask_mate"])
 @limiter.limit("20/minute")
 async def mates_ask(
     request: Request,
     parameters: MatesAskInput,
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await mates_ask_processing(
-        team_url=team_url, 
-        message=parameters.message, 
+        team_slug=team_slug,
+        message=parameters.message,
         mate_username=parameters.mate_username
         )
 
 
 # GET /mates (get all mates)
-@mates_router.get("/{team_url}/mates/", **endpoint_metadata["get_all_mates"])
+@mates_router.get("/{team_slug}/mates/", **endpoint_metadata["get_all_mates"])
 @limiter.limit("20/minute")
 async def get_mates(
-    request: Request, 
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     page: int = 1,
     pageSize: int = 25
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await get_mates_processing(
-        team_url=team_url, 
-        page=page, 
+        team_slug=team_slug,
+        page=page,
         pageSize=pageSize
         )
 
 
 # GET /mates/{mate_username} (get a mate)
-@mates_router.get("/{team_url}/mates/{mate_username}", **endpoint_metadata["get_mate"])
+@mates_router.get("/{team_slug}/mates/{mate_username}", **endpoint_metadata["get_mate"])
 @limiter.limit("20/minute")
 async def get_mate(
     request: Request,
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await get_mate_processing(
-        team_url=team_url, 
-        mate_username=mate_username, 
+        team_slug=team_slug,
+        mate_username=mate_username,
         user_api_token=token
         )
 
 
 # POST /mates (create a new mate)
-@mates_router.post("/{team_url}/mates/", **endpoint_metadata["create_mate"])
+@mates_router.post("/{team_slug}/mates/", **endpoint_metadata["create_mate"])
 @limiter.limit("20/minute")
 async def create_mate(
     request: Request,
     parameters: MatesCreateInput,
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await create_mate_processing(
@@ -282,23 +332,23 @@ async def create_mate(
         profile_picture_url=parameters.profile_picture_url,
         default_systemprompt=parameters.default_systemprompt,
         default_skills=parameters.default_skills,
-        team_url=team_url,
+        team_slug=team_slug,
         user_api_token=token
         )
 
 
 # PATCH /mates/{mate_username} (update a mate)
-@mates_router.patch("/{team_url}/mates/{mate_username}", **endpoint_metadata["update_mate"])
+@mates_router.patch("/{team_slug}/mates/{mate_username}", **endpoint_metadata["update_mate"])
 @limiter.limit("20/minute")
 async def update_mate(
     request: Request,
     parameters: MatesUpdateInput,
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await update_mate_processing(
@@ -311,7 +361,7 @@ async def update_mate(
         new_default_skills=parameters.default_skills,               # updates mate, only if user has right to edit original mate
         new_custom_systemprompt=parameters.systemprompt,            # updates mate config - specific to user + team
         new_custom_skills=parameters.skills,                        # updates mate config - specific to user + team
-        team_url=team_url,
+        team_slug=team_slug,
         user_api_token=token
         )
 
@@ -326,23 +376,23 @@ async def update_mate(
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
-@skills_router.post("/{team_url}/skills/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
+@skills_router.post("/{team_slug}/skills/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
 @limiter.limit("20/minute")
-def skill_chatgpt_ask(request: Request, team_url: str,token: str = Depends(validate_token)):
+def skill_chatgpt_ask(request: Request, team_slug: str,token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
-@skills_router.post("/{team_url}/skills/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
+@skills_router.post("/{team_slug}/skills/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
 @limiter.limit("20/minute")
-def skill_claude_ask(request: Request, team_url: str, token: str = Depends(validate_token)):
+def skill_claude_ask(request: Request, team_slug: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /skills/youtube/ask (ask a question about a video)
-@skills_router.post("/{team_url}/skills/youtube/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
+@skills_router.post("/{team_slug}/skills/youtube/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
 @limiter.limit("20/minute")
-def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(validate_token)):
+def skill_youtube_ask(request: Request, team_slug: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
@@ -351,11 +401,11 @@ def skill_youtube_ask(request: Request, team_url: str, token: str = Depends(vali
 # @limiter.limit("20/minute")
 # def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(validate_token)):
 #     return search_youtube(
-#         parameters.query, 
-#         parameters.max_results, 
-#         parameters.order, 
-#         parameters.type, 
-#         parameters.region, 
+#         parameters.query,
+#         parameters.max_results,
+#         parameters.order,
+#         parameters.type,
+#         parameters.region,
 #         parameters.max_age_days)
 
 # # GET /skills/youtube/transcript (get transcript for a YouTube video)
@@ -454,21 +504,21 @@ def update_settings(request: Request, token: str = Depends(validate_token)):
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
 
 # GET /users (get all users on a team)
-@users_router.get("/{team_url}/users/", summary="Get all", description="<img src='images/users/get_all.png' alt='Get an overview list of all users on your OpenMates server.'>")
+@users_router.get("/{team_slug}/users/", **endpoint_metadata["get_all_users"])
 @limiter.limit("20/minute")
 async def get_users(
     request: Request,
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     page: int = 1,
     pageSize: int = 25
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await get_users_processing(
-        team_url=team_url,
+        team_slug=team_slug,
         request_sender_api_token=token,
         page=page,
         pageSize=pageSize
@@ -476,44 +526,57 @@ async def get_users(
 
 
 # GET /users/{username} (get a user)
-@users_router.get("/{team_url}/users/{username}", **endpoint_metadata["get_user"])
+@users_router.get("/{team_slug}/users/{username}", **endpoint_metadata["get_user"])
 @limiter.limit("20/minute")
 async def get_user(
-    request: Request, 
-    team_url: str = Path(..., **input_parameter_descriptions["team_url"]),
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
     ):
     await validate_token(
-        team_url=team_url,
+        team_slug=team_slug,
         token=token
         )
     return await get_user_processing(
-        team_url=team_url,
+        team_slug=team_slug,
         request_sender_api_token=token,
         search_by_user_api_token=token if username == None else None,
         search_by_username=username
         )
 
 
-
 # POST /users (create a new user)
-@users_router.post("/{team_url}/users/", summary="Create", description="<img src='images/users/create.png' alt='Create a new user on your OpenMates server.'>")
-@limiter.limit("20/minute")
-async def create_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
-    return {"info": "endpoint still needs to be implemented"}
+@users_router.post("/{team_slug}/users/", include_in_schema=False)
+@limiter.limit("5/minute")
+async def create_user(
+    request: Request,
+    parameters: UsersCreateInput,
+    profile_picture: UploadFile = File(...),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
+    ):
+    return await create_user_processing(
+        name=parameters.name,
+        username=parameters.username,
+        email=parameters.email,
+        password=parameters.password,
+        team_slug=team_slug,
+        profile_picture=profile_picture
+        )
+
 
 
 # PATCH /users/{username} (update a user)
-@users_router.patch("/{team_url}/users/{username}", summary="Update", description="<img src='images/users/update.png' alt='Update a user on your OpenMates server.'>")
+@users_router.patch("/{team_slug}/users/{username}", summary="Update", description="<img src='images/users/update.png' alt='Update a user on your OpenMates server.'>")
 @limiter.limit("20/minute")
-async def update_user(request: Request, team_url: str, username: str, token: str = Depends(validate_token)):
+async def update_user(request: Request, team_slug: str, username: str, token: str = Depends(validate_token)):
     return {"info": "endpoint still needs to be implemented"}
 
 
 
 
 # Include the routers in your FastAPI application
+app.include_router(files_router,        tags=["Files"])
 app.include_router(mates_router,        tags=["Mates"])
 app.include_router(skills_router,       tags=["Skills"])
 app.include_router(software_router,     tags=["software"])

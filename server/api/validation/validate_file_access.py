@@ -19,7 +19,7 @@ from server.cms.strapi_requests import make_strapi_request
 
 async def validate_file_access(
         filename: str,
-        team_url: str,
+        team_slug: str,
         user_api_token: str,
         scope: str = "uploads:read"
     ) -> dict:
@@ -30,7 +30,7 @@ async def validate_file_access(
         add_to_log(module_name="OpenMates | API | Validate file Access", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the user has access to the file ...")
 
-        request_refused_response_text = f"The file '/{team_url}/uploads/{filename}' does not exist or you do not have access to it."
+        request_refused_response_text = f"The file '/{team_slug}/uploads/{filename}' does not exist or you do not have access to it."
 
         # check for requested access
         if scope == "uploads:read":
@@ -109,7 +109,7 @@ async def validate_file_access(
             {
                 "field": "teams.slug",
                 "operator": "$eq",
-                "value": team_url
+                "value": team_slug
             }
         ]
         status_code, user_json_response = await make_strapi_request(
