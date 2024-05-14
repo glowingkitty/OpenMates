@@ -19,7 +19,7 @@ from server.cms.strapi_requests import make_strapi_request
 
 
 async def validate_token(
-        team_slug: str, 
+        team_slug: str,
         token: str
         ):
     """
@@ -45,23 +45,23 @@ async def validate_token(
         ]
 
         status_code, user_json_response = await make_strapi_request(
-            method='get', 
-            endpoint='users', 
-            fields=fields, 
-            populate=populate, 
+            method='get',
+            endpoint='users',
+            fields=fields,
+            populate=populate,
             filters=filters
             )
 
         failure_message = "Your token is invalid. Make sure the token and team_slug are valid, you are part of the requested team and you have access to the requested API endpoint."
-            
+
         if status_code != 200:
             add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
-        
+
         if len(user_json_response) == 0:
             add_to_log("The user does not exist.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
-        
+
         if len(user_json_response) > 1:
             add_to_log("Found more than one user with the token.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=500, detail="Found more than one user with your token. Please contact the administrator.")
@@ -75,7 +75,7 @@ async def validate_token(
             if team_slug in [team["slug"] for team in user["teams"]]:
                 add_to_log("The user is a member of the team.", module_name="OpenMates | API | Verify Token", state="success")
                 return True
-            
+
             add_to_log("The user token is invalid.", module_name="OpenMates | API | Verify Token", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
 

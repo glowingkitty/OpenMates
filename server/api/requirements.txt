@@ -19,3 +19,4 @@ youtube-search==2.1.2
 youtube-transcript-api==0.6.1
 httpx==0.25.2
 slugify==0.0.1
+Pillow==10.0.1

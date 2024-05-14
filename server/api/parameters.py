@@ -153,7 +153,31 @@ endpoint_metadata = {
         "summary": "Get user",
         "description": "<img src='images/users/get_user.png' alt='Get all details about a specific user.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
-    }
+    },
+    "ask_chatgpt":{
+        # "response_model":ChatGPTAskOutput,
+        "summary": "ChatGPT | Ask",
+        "description": "<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "ask_claude":{
+        # "response_model":ClaudeAskOutput,
+        "summary": "Claude | Ask",
+        "description": "<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "ask_youtube":{
+        # "response_model":YouTubeAskOutput,
+        "summary": "YouTube | Ask",
+        "description": "<img src='images/skills/youtube/ask.png' alt='Answers your question about one or multiple videos, using their transcripts and details.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "resize_image":{
+        # "response_model":ImageResizeOutput,
+        "summary": "Image Editor | Resize",
+        "description": "<img src='images/skills/image_editor/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
 }
 
 

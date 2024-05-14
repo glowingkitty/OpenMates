@@ -66,6 +66,7 @@ from server.api.endpoints.mates.update_mate import update_mate_processing
 from server.api.endpoints.users.get_user import get_user_processing
 from server.api.endpoints.users.get_users import get_users_processing
 from server.api.endpoints.users.create_user import create_user_processing
+from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
 from server.cms.strapi_requests import get_strapi_upload
@@ -74,8 +75,9 @@ from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
 from fastapi.security import HTTPBearer
-from typing import Optional, List
-from fastapi.responses import JSONResponse
+from typing import Optional, List, Literal
+from fastapi.responses import StreamingResponse
+from io import BytesIO
 
 
 ##################################
@@ -230,9 +232,13 @@ async def upload_file(
         team_slug=team_slug,
         token=token
         )
+
     contents = await file.read()
-    if len(contents) > 2 * 1024 * 1024:  # File size limit: 2MB
-        raise HTTPException(status_code=413, detail="File size exceeds 2MB limit")
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if len(contents) > 3 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
 
     return await upload_file_processing(
         team_slug=team_slug,
@@ -376,24 +382,91 @@ async def update_mate(
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
-@skills_router.post("/{team_slug}/skills/chatgpt/ask", summary="ChatGPT | Ask", description="<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>")
+@skills_router.post("/{team_slug}/skills/chatgpt/ask", **endpoint_metadata["ask_chatgpt"])
 @limiter.limit("20/minute")
-def skill_chatgpt_ask(request: Request, team_slug: str,token: str = Depends(validate_token)):
+async def skill_chatgpt_ask(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
-@skills_router.post("/{team_slug}/skills/claude/ask", summary="Claude | Ask", description="<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>")
+@skills_router.post("/{team_slug}/skills/claude/ask", **endpoint_metadata["ask_claude"])
 @limiter.limit("20/minute")
-def skill_claude_ask(request: Request, team_slug: str, token: str = Depends(validate_token)):
+async def skill_claude_ask(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
     return {"info": "endpoint still needs to be implemented"}
 
 
 # POST /skills/youtube/ask (ask a question about a video)
-@skills_router.post("/{team_slug}/skills/youtube/ask", summary="YouTube | Ask", description="<img src='images/skills/youtube/ask.png' alt='Ask a question about a video, and Claude will answer it based on the transcript and video details.'>")
+@skills_router.post("/{team_slug}/skills/youtube/ask", **endpoint_metadata["ask_youtube"])
 @limiter.limit("20/minute")
-def skill_youtube_ask(request: Request, team_slug: str, token: str = Depends(validate_token)):
+async def skill_youtube_ask(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
     return {"info": "endpoint still needs to be implemented"}
+
+
+# POST /skills/image_editor/resize (resize an image)
+@skills_router.post("/{team_slug}/skills/image_editor/resize", **endpoint_metadata["resize_image"])
+@limiter.limit("20/minute")
+async def skill_image_editor_resize(
+    request: Request,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    target_resolution_width: int = Form(None, description="The target resolution width"),
+    target_resolution_height: int = Form(None, description="The target resolution height"),
+    max_length: int = Form(None, description="The maximum length of the image"),
+    method: Literal["scale", "crop"] = Form("scale", description="The method to use for resizing."),
+    output_square: bool = Form(False, description="If set to True, the output image will be square"),
+    use_ai_upscaling_if_needed: bool = Form(False, description="If set to True, AI upscaling will be used if needed"),
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
+
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if len(contents) > 3 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
+
+    image_bytes = resize_image_processing(
+        image_data=contents,
+        target_resolution_width=target_resolution_width,
+        target_resolution_height=target_resolution_height,
+        max_length=max_length,
+        method=method,
+        use_ai_upscaling_if_needed=use_ai_upscaling_if_needed,
+        output_square=output_square
+    )
+
+    # Create a StreamingResponse object
+    response = StreamingResponse(BytesIO(image_bytes), media_type="image/jpeg")
+
+    return response
 
 
 # # GET /skills/youtube/search (search YouTube for videos)
