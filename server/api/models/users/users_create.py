@@ -31,6 +31,7 @@ class UsersCreateInput(BaseModel):
     password: str = Field(..., description="Password of the user", min_length=8, max_length=100)
     team_slug: str = Field(..., description="Slug (URL friendly name) of the team the user will join", min_length=1, max_length=30)
     profile_picture: UploadFile = Field(..., description="Profile picture of the user", max_length=1000000)
+    invite_code: str = Field(..., description="Invite code for creating a new user.", min_length=1, max_length=30)
 
     # TODO improve validation later using LLMs
 
@@ -65,7 +66,8 @@ users_create_input_example = {
     "email": "sophiiisthebest93@gmail.com",
     "password": "-Q9U72vax684LxfPH6AoGDZ",
     "team_slug": "ai-sales-team",
-    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg"
+    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
+    "invite_code": "XJDO-DJDJ-B3A3-3JJD"
 }
 
 

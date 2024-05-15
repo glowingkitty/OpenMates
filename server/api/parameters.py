@@ -104,13 +104,16 @@ def set_example(openapi_schema, path, method, request_or_response, example, resp
         openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["example"] = example
 
 
-endpoint_metadata = {
-    "upload_file":{
+files_endpoints = {
+   "upload_file":{
         "response_model":FileUploadOutput,
         "summary": "Upload",
         "description": "<img src='images/files/upload.png' alt='Upload an image to the OpenMates server, so you can use it as a profile picture.'>",
         "responses": generate_responses([200, 400, 401, 403, 409, 422, 500]),
-    },
+    }
+}
+
+mates_endpoints = {
     "ask_mate":{
         "response_model":MatesAskOutput,
         "summary": "Ask",
@@ -141,7 +144,46 @@ endpoint_metadata = {
         "summary": "Update",
         "description": "<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
-    },
+    }
+}
+
+skills_chatgpt_endpoints = {
+    "ask_chatgpt":{
+        # "response_model":ChatGPTAskOutput,
+        "summary": "ChatGPT | Ask",
+        "description": "<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_claude_endpoints = {
+    "ask_claude":{
+        # "response_model":ClaudeAskOutput,
+        "summary": "Claude | Ask",
+        "description": "<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_youtube_endpoints = {
+    "ask_youtube":{
+        # "response_model":YouTubeAskOutput,
+        "summary": "YouTube | Ask",
+        "description": "<img src='images/skills/youtube/ask.png' alt='Answers your question about one or multiple videos, using their transcripts and details.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_image_editor_endpoints = {
+     "resize_image":{
+        # "response_model":ImageResizeOutput,
+        "summary": "Image Editor | Resize",
+        "description": "<img src='images/skills/image_editor/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+users_endpoints = {
     "get_all_users":{
         "response_model":UsersGetAllOutput,
         "summary": "Get all",
@@ -154,30 +196,43 @@ endpoint_metadata = {
         "description": "<img src='images/users/get_user.png' alt='Get all details about a specific user.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
     },
-    "ask_chatgpt":{
-        # "response_model":ChatGPTAskOutput,
-        "summary": "ChatGPT | Ask",
-        "description": "<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    "create_user":{
+        "response_model":UsersCreateOutput,
+        "summary": "Create",
+        "description": "<img src='images/users/create.png' alt='Create a new user in a team.'>",
+        "responses": generate_responses([201, 400, 401, 403, 409, 422, 500]),
+        "status_code": 201
     },
-    "ask_claude":{
-        # "response_model":ClaudeAskOutput,
-        "summary": "Claude | Ask",
-        "description": "<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    "update_user":{
+        "response_model":User,
+        "summary": "Update",
+        "description": "<img src='images/users/update.png' alt='Update your user account details. Change privacy settings, email address and more.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
     },
-    "ask_youtube":{
-        # "response_model":YouTubeAskOutput,
-        "summary": "YouTube | Ask",
-        "description": "<img src='images/skills/youtube/ask.png' alt='Answers your question about one or multiple videos, using their transcripts and details.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    "replace_profile_picture":{
+        "response_model":User,
+        "summary": "Replace profile picture",
+        "description": "<img src='images/users/replace_profile_picture.png' alt='Replace the current profile picture with a new one. The old picture will be deleted.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
+    }
+}
+
+server_endpoints = {
+    "get_status":{
+        "summary": "Get status",
+        "description": "<img src='images/server/status.png' alt='Get a summary of your current server status.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
     },
-    "resize_image":{
-        # "response_model":ImageResizeOutput,
-        "summary": "Image Editor | Resize",
-        "description": "<img src='images/skills/image_editor/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    "get_settings":{
+        "summary": "Get settings",
+        "description": "<img src='images/server/get_settings.png' alt='Get all the current settings of your OpenMates server.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
     },
+    "update_settings":{
+        "summary": "Update settings",
+        "description": "<img src='images/server/update_settings.png' alt='Update any of the setting on your OpenMates server.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
+    }
 }
 
 

@@ -57,6 +57,7 @@ from server.api.models.users.users_create import (
     users_create_input_example,
     users_create_output_example
 )
+
 from server.api.endpoints.files.upload_file import upload_file_processing
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
@@ -69,11 +70,25 @@ from server.api.endpoints.users.create_user import create_user_processing
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
+from server.api.validation.validate_invite_code import validate_invite_code
 from server.cms.strapi_requests import get_strapi_upload
+
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
-from server.api.parameters import set_example, tags_metadata, endpoint_metadata, input_parameter_descriptions
+from server.api.parameters import (
+    files_endpoints,
+    mates_endpoints,
+    skills_chatgpt_endpoints,
+    skills_claude_endpoints,
+    skills_youtube_endpoints,
+    skills_image_editor_endpoints,
+    users_endpoints,
+    server_endpoints,
+    set_example,
+    tags_metadata,
+    input_parameter_descriptions
+)
 from fastapi.security import HTTPBearer
 from typing import Optional, List, Literal
 from fastapi.responses import StreamingResponse
@@ -146,7 +161,6 @@ def custom_openapi():
         tags=tags_metadata
     )
 
-    set_example(openapi_schema, "/{team_slug}/uploads/{file_name}", "post", "responses", file_upload_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/mates/ask", "post", "requestBody", mates_ask_input_example)
     set_example(openapi_schema, "/{team_slug}/mates/ask", "post", "responses", mates_ask_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/mates/", "get", "responses", mates_get_all_output_example, "200")
@@ -214,51 +228,13 @@ async def get_upload(
     return await get_strapi_upload(request.path_params['file_name'])
 
 
-# POST /{team_slug}/uploads/{file_name} (upload a file)
-@files_router.post("/{team_slug}/uploads/", **endpoint_metadata["upload_file"])
-@limiter.limit("20/minute")
-async def upload_file(
-    request: Request,
-    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    access_public: bool = Form(False, description="If set to True, the file can be accessed by anyone on the internet."),
-    read_access_limited_to_team_slugs: List[str] = Form(None, description="List of team slugs with read access"),
-    write_access_limited_to_team_slugs: List[str] = Form(None, description="List of team slugs with write access"),
-    read_access_limited_to_user_usernames: List[str] = Form(None, description="List of user usernames with read access (even if outside of the teams with file access)"),
-    write_access_limited_to_user_usernames: List[str] = Form(None, description="List of user usernames with write access (even if outside of the teams with file access)")
-    ):
-    await validate_token(
-        team_slug=team_slug,
-        token=token
-        )
-
-    contents = await file.read()
-    if len(contents) == 0:
-        raise HTTPException(status_code=400, detail="No file provided")
-
-    if len(contents) > 3 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
-
-    return await upload_file_processing(
-        team_slug=team_slug,
-        user_api_token=token,
-        file_name=file.filename,
-        data=contents,
-        access_public=access_public,
-        list_read_access_limited_to_team_slugs=read_access_limited_to_team_slugs,
-        list_write_access_limited_to_team_slugs=write_access_limited_to_team_slugs,
-        list_read_access_limited_to_user_usernames=read_access_limited_to_user_usernames,
-        list_write_access_limited_to_user_usernames=write_access_limited_to_user_usernames
-        )
-
 
 ##################################
 ######### Mates ##################
 ##################################
 
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
-@mates_router.post("/{team_slug}/mates/ask",**endpoint_metadata["ask_mate"])
+@mates_router.post("/{team_slug}/mates/ask",**mates_endpoints["ask_mate"])
 @limiter.limit("20/minute")
 async def mates_ask(
     request: Request,
@@ -278,7 +254,7 @@ async def mates_ask(
 
 
 # GET /mates (get all mates)
-@mates_router.get("/{team_slug}/mates/", **endpoint_metadata["get_all_mates"])
+@mates_router.get("/{team_slug}/mates/", **mates_endpoints["get_all_mates"])
 @limiter.limit("20/minute")
 async def get_mates(
     request: Request,
@@ -299,7 +275,7 @@ async def get_mates(
 
 
 # GET /mates/{mate_username} (get a mate)
-@mates_router.get("/{team_slug}/mates/{mate_username}", **endpoint_metadata["get_mate"])
+@mates_router.get("/{team_slug}/mates/{mate_username}", **mates_endpoints["get_mate"])
 @limiter.limit("20/minute")
 async def get_mate(
     request: Request,
@@ -319,7 +295,7 @@ async def get_mate(
 
 
 # POST /mates (create a new mate)
-@mates_router.post("/{team_slug}/mates/", **endpoint_metadata["create_mate"])
+@mates_router.post("/{team_slug}/mates/", **mates_endpoints["create_mate"])
 @limiter.limit("20/minute")
 async def create_mate(
     request: Request,
@@ -344,7 +320,7 @@ async def create_mate(
 
 
 # PATCH /mates/{mate_username} (update a mate)
-@mates_router.patch("/{team_slug}/mates/{mate_username}", **endpoint_metadata["update_mate"])
+@mates_router.patch("/{team_slug}/mates/{mate_username}", **mates_endpoints["update_mate"])
 @limiter.limit("20/minute")
 async def update_mate(
     request: Request,
@@ -382,7 +358,7 @@ async def update_mate(
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
-@skills_router.post("/{team_slug}/skills/chatgpt/ask", **endpoint_metadata["ask_chatgpt"])
+@skills_router.post("/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
 @limiter.limit("20/minute")
 async def skill_chatgpt_ask(
     request: Request,
@@ -397,7 +373,7 @@ async def skill_chatgpt_ask(
 
 
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
-@skills_router.post("/{team_slug}/skills/claude/ask", **endpoint_metadata["ask_claude"])
+@skills_router.post("/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
 @limiter.limit("20/minute")
 async def skill_claude_ask(
     request: Request,
@@ -412,7 +388,7 @@ async def skill_claude_ask(
 
 
 # POST /skills/youtube/ask (ask a question about a video)
-@skills_router.post("/{team_slug}/skills/youtube/ask", **endpoint_metadata["ask_youtube"])
+@skills_router.post("/{team_slug}/skills/youtube/ask", **skills_youtube_endpoints["ask_youtube"])
 @limiter.limit("20/minute")
 async def skill_youtube_ask(
     request: Request,
@@ -427,7 +403,7 @@ async def skill_youtube_ask(
 
 
 # POST /skills/image_editor/resize (resize an image)
-@skills_router.post("/{team_slug}/skills/image_editor/resize", **endpoint_metadata["resize_image"])
+@skills_router.post("/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_image_editor_resize(
     request: Request,
@@ -467,25 +443,6 @@ async def skill_image_editor_resize(
     response = StreamingResponse(BytesIO(image_bytes), media_type="image/jpeg")
 
     return response
-
-
-# # GET /skills/youtube/search (search YouTube for videos)
-# @skills_router.get("/youtube/search", summary="YouTube | Search", description="<img src='images/skills/youtube/search.png' alt='Search & filter for videos on YouTube.'>")
-# @limiter.limit("20/minute")
-# def skill_youtube_search(request: Request, parameters: YouTubeSearch, token: str = Depends(validate_token)):
-#     return search_youtube(
-#         parameters.query,
-#         parameters.max_results,
-#         parameters.order,
-#         parameters.type,
-#         parameters.region,
-#         parameters.max_age_days)
-
-# # GET /skills/youtube/transcript (get transcript for a YouTube video)
-# @skills_router.get("/youtube/transcript", summary="YouTube | Transcript", description="<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>")
-# @limiter.limit("20/minute")
-# def skill_youtube_transcript(request: Request, parameters: YouTubeTranscript, token: str = Depends(validate_token)):
-#     return get_video_transcript(parameters.url)
 
 
 ##################################
@@ -537,23 +494,32 @@ async def skill_image_editor_resize(
 # The server is the core software that runs OpenMates.
 
 # GET /server/status (get server status)
-@server_router.get("/server/status", summary="Status", description="<img src='images/server/status.png' alt='Get a summary of your current server status.'>")
+@server_router.get("/server/status", **server_endpoints["get_status"])
 @limiter.limit("20/minute")
-def get_status(request: Request, token: str = Depends(validate_token)):
+async def get_status(
+    request: Request,
+    token: str = Depends(get_credentials)
+    ):
     return {"status": "online"}
 
 
 # GET /server/settings (get server settings)
-@server_router.get("/server/settings", summary="Get settings", description="<img src='images/server/get_settings.png' alt='Get all the current settings of your OpenMates server.'>")
+@server_router.get("/server/settings", **server_endpoints["get_settings"])
 @limiter.limit("20/minute")
-def get_settings(request: Request, token: str = Depends(validate_token)):
+async def get_settings(
+    request: Request,
+    token: str = Depends(get_credentials)
+    ):
     return {"info": "endpoint still needs to be implemented"}
 
 
 # PATCH /server/settings (update server settings)
-@server_router.patch("/server/settings", summary="Update settings", description="<img src='images/server/update_settings.png' alt='Update any of the setting on your OpenMates server.'>")
+@server_router.patch("/server/settings", **server_endpoints["update_settings"])
 @limiter.limit("20/minute")
-def update_settings(request: Request, token: str = Depends(validate_token)):
+async def update_settings(
+    request: Request,
+    token: str = Depends(get_credentials)
+    ):
     return {"info": "endpoint still needs to be implemented"}
 
 
@@ -577,7 +543,7 @@ def update_settings(request: Request, token: str = Depends(validate_token)):
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
 
 # GET /users (get all users on a team)
-@users_router.get("/{team_slug}/users/", **endpoint_metadata["get_all_users"])
+@users_router.get("/{team_slug}/users/", **users_endpoints["get_all_users"])
 @limiter.limit("20/minute")
 async def get_users(
     request: Request,
@@ -599,7 +565,7 @@ async def get_users(
 
 
 # GET /users/{username} (get a user)
-@users_router.get("/{team_slug}/users/{username}", **endpoint_metadata["get_user"])
+@users_router.get("/{team_slug}/users/{username}", **users_endpoints["get_user"])
 @limiter.limit("20/minute")
 async def get_user(
     request: Request,
@@ -620,31 +586,63 @@ async def get_user(
 
 
 # POST /users (create a new user)
-@users_router.post("/{team_slug}/users/", include_in_schema=False)
+@users_router.post("/{team_slug}/users/", **users_endpoints["create_user"])
 @limiter.limit("5/minute")
 async def create_user(
     request: Request,
     parameters: UsersCreateInput,
-    profile_picture: UploadFile = File(...),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
     ):
+    await validate_invite_code(
+        team_slug=team_slug,
+        invite_code=parameters.invite_code
+        )
     return await create_user_processing(
         name=parameters.name,
         username=parameters.username,
         email=parameters.email,
         password=parameters.password,
-        team_slug=team_slug,
-        profile_picture=profile_picture
+        team_slug=team_slug
         )
 
 
-
 # PATCH /users/{username} (update a user)
-@users_router.patch("/{team_slug}/users/{username}", summary="Update", description="<img src='images/users/update.png' alt='Update a user on your OpenMates server.'>")
+@users_router.patch("/{team_slug}/users/{username}", **users_endpoints["update_user"])
 @limiter.limit("20/minute")
-async def update_user(request: Request, team_slug: str, username: str, token: str = Depends(validate_token)):
+async def update_user(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    ):
     return {"info": "endpoint still needs to be implemented"}
 
+
+# PATCH /users/{username}/profile_picture (replace a user's profile picture)
+@users_router.patch("/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
+@limiter.limit("5/minute")
+async def update_user_profile_picture(
+    request: Request,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"]),
+    visibility: Literal["public", "team", "server"] = Form("server", description="Who can see the profile picture? Public means everyone on the internet can see it, team means only team members can see it, server means every user on the server can see it.")
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
+
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if len(contents) > 3 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
+
+    # TODO add function to upload the file, replace profile picture, delete old profile picture and return the new user
+    return {"info": "endpoint still needs to be implemented"}
 
 
 

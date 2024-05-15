@@ -26,8 +26,7 @@ async def create_user_processing(
         username: str,
         email: str,
         password: str,
-        team_slug: str,
-        profile_picture: Optional[bytes] = None
+        team_slug: str
     ) -> UsersCreateOutput:
     """
     Create a new user on the team

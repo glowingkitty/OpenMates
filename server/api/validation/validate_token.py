@@ -19,9 +19,9 @@ from server.cms.strapi_requests import make_strapi_request
 
 
 async def validate_token(
-        team_slug: str,
-        token: str
-        ):
+    team_slug: str,
+    token: str
+    ):
     """
     Verify if the API token is valid for the requested team
     """
