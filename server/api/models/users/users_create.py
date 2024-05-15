@@ -25,13 +25,11 @@ from fastapi import UploadFile
 
 class UsersCreateInput(BaseModel):
     """This is the model for the incoming parameters for POST /users"""
+    invite_code: str = Field(..., description="Invite code for creating a new user.", min_length=19, max_length=19)
     name: str = Field(..., description="Name of the user", min_length=1, max_length=30)
     username: str = Field(..., description="Username of the user", min_length=1, max_length=30, unique=True)
     email: str = Field(..., description="Email of the user", min_length=1, max_length=50)
     password: str = Field(..., description="Password of the user", min_length=8, max_length=100)
-    team_slug: str = Field(..., description="Slug (URL friendly name) of the team the user will join", min_length=1, max_length=30)
-    profile_picture: UploadFile = Field(..., description="Profile picture of the user", max_length=1000000)
-    invite_code: str = Field(..., description="Invite code for creating a new user.", min_length=1, max_length=30)
 
     # TODO improve validation later using LLMs
 
@@ -61,13 +59,11 @@ class UsersCreateInput(BaseModel):
 
 
 users_create_input_example = {
+    "invite_code": "XJDO-DJDJ-B3A3-3JJD",
     "name": "Sophia",
     "username": "sophia93",
     "email": "sophiiisthebest93@gmail.com",
-    "password": "-Q9U72vax684LxfPH6AoGDZ",
-    "team_slug": "ai-sales-team",
-    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
-    "invite_code": "XJDO-DJDJ-B3A3-3JJD"
+    "password": "-Q9U72vax684LxfPH6AoGDZ"
 }
 
 
@@ -79,7 +75,6 @@ class UsersCreateOutput(BaseModel):
     email: str = Field(..., description="Email address of the user")
     api_token: str = Field(..., description="API token of the user. This token is used for authenticating the user in the API. It will only be shown once, so make sure to store it securely.")
     teams: List[Team] = Field(..., description="Teams the user is a member of")
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the user")
     balance_in_EUR: float = Field(..., description="Balance of the user in EUR. This balance can be used for using paid skills.")
     software_settings: dict = Field(..., description="Software settings, such as privacy settings, which cloud accounts are connected, default settings and more.")
     other_settings: dict = Field(..., description="Other settings, such as notification settings, etc.")
@@ -101,7 +96,6 @@ users_create_output_example = {
             "slug": "ai-sales-team"
         }
     ],
-    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
     "balance_in_EUR": 0.0,
     "software_settings": {},
     "other_settings": {},

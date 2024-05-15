@@ -171,6 +171,8 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/users/", "post", "requestBody", users_create_input_example)
+    set_example(openapi_schema, "/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
