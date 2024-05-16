@@ -17,6 +17,7 @@ from server import *
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
 from typing import Optional
+from datetime import datetime
 
 
 async def validate_invite_code(
@@ -27,52 +28,89 @@ async def validate_invite_code(
     Verify if the invite code is valid
     """
     try:
-        # TODO
         add_to_log("Verifying the invite code ...", module_name="OpenMates | API | Validate Invite Code", color="yellow")
 
         # find the invite code and check if it is valid
         fields = [
-            "id",
-            "team_slug",
-            "is_valid"
+            "code",
+            "expire_date",
+            "can_be_used_once",
+            "can_be_used_x_more_times"
+        ]
+        populate = [
+            "valid_to_access_team.slug"
         ]
         filters = [
             {
-                "field": "invite_code",
+                "field": "code",
                 "operator": "$eq",
                 "value": invite_code
             }
         ]
 
-        if team_slug:
-            filters.append({
-                "field": "team_slug",
-                "operator": "$eq",
-                "value": team_slug
-            })
-
         status_code, invite_code_json_response = await make_strapi_request(
             method='get',
-            endpoint='invite-codes',
+            endpoint='invitecodes',
             fields=fields,
+            populate=populate,
             filters=filters
             )
 
-        failure_message = "The invite code is invalid. Make sure the invite code and team_slug are valid."
+        invite_codes = invite_code_json_response["data"]
+
+        if invite_codes:
+            # only leave invite codes which to not have any team resistrictions or have the team_slug in the valid_to_access_team.slug
+            invite_codes = [invite_code for invite_code in invite_codes if not invite_code["attributes"]["valid_to_access_team"]["data"] or invite_code["attributes"]["valid_to_access_team"]["data"]["attributes"]["slug"] == team_slug]
+
+            # filter out invite codes which are expired (if date is set)
+            invite_codes = [invite_code for invite_code in invite_codes if not invite_code["attributes"]["expire_date"] or datetime.strptime(invite_code["attributes"]["expire_date"], '%Y-%m-%dT%H:%M:%S.%fZ') > datetime.now()]
+
+        failure_message = "The invite code is invalid. This can be for various reasons. Maybe the code doesn't exist, or its for a specific team, or it expired."
 
         if status_code != 200:
             add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate Invite Code", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
 
-        if not invite_code_json_response:
-            add_to_log("The invite code is invalid. Make sure the invite code and team_slug are valid.", module_name="OpenMates | API | Validate Invite Code", state="error")
+        if not invite_codes:
+            add_to_log(failure_message, module_name="OpenMates | API | Validate Invite Code", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
 
-        if not invite_code_json_response[0]['is_valid']:
-            add_to_log("The invite code is invalid. Make sure the invite code and team_slug are valid.", module_name="OpenMates | API | Validate Invite Code", state="error")
+        # mark the invite code as used (and if it can only be used once, delete it)
+        add_to_log("The invite code is valid. Now marking it as used.", module_name="OpenMates | API | Validate Invite Code", state="success")
+        invite_code = invite_codes[0]
+        # if the invite code can be used x more times, decrement the counter
+        if invite_code["attributes"]["can_be_used_x_more_times"] != None:
+            if invite_code["attributes"]["can_be_used_x_more_times"] > 0:
+                invite_code["attributes"]["can_be_used_x_more_times"] -= 1
+                status_code, invite_code_json_response = await make_strapi_request(
+                    method='put',
+                    endpoint='invitecodes/' + str(invite_code["id"]),
+                    data={
+                        "data": {
+                            "can_be_used_x_more_times": invite_code["attributes"]["can_be_used_x_more_times"]
+                        }
+                    }
+                )
+
+            # if the counter is 0, delete the invite code
+            if invite_code["attributes"]["can_be_used_x_more_times"] == 0:
+                status_code, invite_code_json_response = await make_strapi_request(
+                    method='delete',
+                    endpoint='invitecodes/' + str(invite_code["id"])
+                )
+
+        # if the invite code can only be used once, delete the invite code
+        if invite_code["attributes"]["can_be_used_once"] == True:
+            status_code, invite_code_json_response = await make_strapi_request(
+                method='delete',
+                endpoint='invitecodes/' + str(invite_code["id"])
+            )
+
+        if status_code != 200:
+            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate Invite Code", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
 
-        return invite_code_json_response
+        return True
 
     except HTTPException:
         raise

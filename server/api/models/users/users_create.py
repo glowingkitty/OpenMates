@@ -53,7 +53,7 @@ class UsersCreateInput(BaseModel):
 
     @validator('password')
     def password_must_be_strong(cls, v):
-        if not re.match(r"^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$", v):
+        if not re.match(r"^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&#^+=()\[\]{}:;,.<>\/\\|~`]).{8,}$", v):
             raise ValueError('password must be at least 8 characters long and contain at least one letter, one number and one special character')
         return v
 

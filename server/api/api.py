@@ -589,7 +589,7 @@ async def get_user(
 
 # POST /users (create a new user)
 @users_router.post("/{team_slug}/users/", **users_endpoints["create_user"])
-@limiter.limit("5/minute")
+@limiter.limit("20/minute")
 async def create_user(
     request: Request,
     parameters: UsersCreateInput,

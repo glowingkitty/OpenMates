@@ -33,3 +33,25 @@ async def create_user_processing(
     """
 
     # TODO how to handle mate configs / default privacy settings?
+
+
+    return {
+        "id": 2,
+        "username": "sophia93",
+        "email": "sophiiisthebest93@gmail.com",
+        "api_token": "0jasdjj2i2ik83hdhD98kd",
+        "teams": [
+            {
+                "id": 1,
+                "name": "AI Sales Team",
+                "slug": "ai-sales-team"
+            }
+        ],
+        "balance_in_EUR": 0.0,
+        "software_settings": {},
+        "other_settings": {},
+        "projects": [],
+        "goals": [],
+        "todos": [],
+        "recent_topics": []
+    }
