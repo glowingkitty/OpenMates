@@ -63,7 +63,6 @@ from server.api.models.users.users_create_new_api_token import (
     users_create_new_api_token_output_example
 )
 
-from server.api.endpoints.files.upload_file import upload_file_processing
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
 from server.api.endpoints.mates.get_mate import get_mate_processing
