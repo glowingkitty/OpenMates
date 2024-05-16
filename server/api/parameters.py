@@ -41,6 +41,9 @@ from server.api.models.users.users_get_one import (
 from server.api.models.users.users_create import (
     UsersCreateOutput
 )
+from server.api.models.users.users_create_new_api_token import (
+    UsersCreateNewApiTokenOutput
+)
 
 
 def generate_responses(status_codes):
@@ -214,6 +217,12 @@ users_endpoints = {
         "summary": "Replace profile picture",
         "description": "<img src='images/users/replace_profile_picture.png' alt='Replace the current profile picture with a new one. The old picture will be deleted.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
+    },
+    "create_new_api_token":{
+        "response_model":UsersCreateNewApiTokenOutput,
+        "summary": "Create new API token",
+        "description": "<img src='images/users/create_new_api_token.png' alt='Creates a new API token for your account. Your previous token will be deleted.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
 

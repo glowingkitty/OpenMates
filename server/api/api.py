@@ -57,6 +57,11 @@ from server.api.models.users.users_create import (
     users_create_input_example,
     users_create_output_example
 )
+from server.api.models.users.users_create_new_api_token import (
+    UsersCreateNewApiTokenInput,
+    users_create_new_api_token_input_example,
+    users_create_new_api_token_output_example
+)
 
 from server.api.endpoints.files.upload_file import upload_file_processing
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
@@ -171,6 +176,8 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
+    set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
 
@@ -644,6 +651,18 @@ async def update_user_profile_picture(
         raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
 
     # TODO add function to upload the file, replace profile picture, delete old profile picture and return the new user
+    return {"info": "endpoint still needs to be implemented"}
+
+
+# PATCH /users/{username}/api_token (generate a new API token for a user)
+@users_router.patch("/{team_slug}/users/{username}/api_token", **users_endpoints["create_new_api_token"])
+@limiter.limit("5/minute")
+async def generate_new_api_token(
+    request: Request,
+    parameters: UsersCreateNewApiTokenInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    ):
     return {"info": "endpoint still needs to be implemented"}
 
 
