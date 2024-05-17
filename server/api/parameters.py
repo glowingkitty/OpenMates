@@ -44,6 +44,9 @@ from server.api.models.users.users_create import (
 from server.api.models.users.users_create_new_api_token import (
     UsersCreateNewApiTokenOutput
 )
+from server.api.models.skills.youtube.skills_youtube_get_transcript import (
+    YouTubeGetTranscriptOutput
+)
 
 
 def generate_responses(status_codes):
@@ -173,6 +176,12 @@ skills_youtube_endpoints = {
         # "response_model":YouTubeAskOutput,
         "summary": "YouTube | Ask",
         "description": "<img src='images/skills/youtube/ask.png' alt='Answers your question about one or multiple videos, using their transcripts and details.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "get_transcript":{
+        "response_model":YouTubeGetTranscriptOutput,
+        "summary": "YouTube | Get transcript",
+        "description": "<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

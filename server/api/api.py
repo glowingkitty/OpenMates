@@ -62,6 +62,12 @@ from server.api.models.users.users_create_new_api_token import (
     users_create_new_api_token_input_example,
     users_create_new_api_token_output_example
 )
+from server.api.models.skills.youtube.skills_youtube_get_transcript import (
+    YouTubeGetTranscriptInput,
+    youtube_get_transcript_input_example,
+    youtube_get_transcript_output_example
+)
+
 
 from server.api.endpoints.mates.mates_ask import mates_ask_processing
 from server.api.endpoints.mates.get_mates import get_mates_processing
@@ -72,6 +78,7 @@ from server.api.endpoints.users.get_user import get_user_processing
 from server.api.endpoints.users.get_users import get_users_processing
 from server.api.endpoints.users.create_user import create_user_processing
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
+from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
 from server.api.validation.validate_invite_code import validate_invite_code
@@ -179,6 +186,8 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
+    set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
+    set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -408,6 +417,24 @@ async def skill_youtube_ask(
         token=token
         )
     return {"info": "endpoint still needs to be implemented"}
+
+
+# POST /skills/youtube/transcript (get the transcript of a video)
+@skills_router.post("/{team_slug}/skills/youtube/transcript", **skills_youtube_endpoints["get_transcript"])
+@limiter.limit("20/minute")
+async def skill_youtube_transcript(
+    request: Request,
+    parameters: YouTubeGetTranscriptInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
+    return await get_transcript_processing(
+        url=parameters.url
+    )
 
 
 # POST /skills/image_editor/resize (resize an image)

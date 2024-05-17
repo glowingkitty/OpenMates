@@ -16,7 +16,7 @@ from server import *
 
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional
-from server.api.models.skills import Skill
+from server.api.models.skills.skills_old import Skill
 from urllib.parse import quote
 
 

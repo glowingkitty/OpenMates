@@ -16,7 +16,7 @@ from server import *
 
 from pydantic import BaseModel, Field
 from typing import List
-from server.api.models.skills import Skill
+from server.api.models.skills.skills_old import Skill
 
 
 # GET /mates/{mate_username} (get a mate)
