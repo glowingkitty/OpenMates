@@ -19,9 +19,9 @@ from server.api.models.mates.mates_get_all import MatesGetAllOutput
 from fastapi import HTTPException
 
 
-async def get_mates_processing(
+async def get_mates(
         team_slug: str,
-        page: int = 1, 
+        page: int = 1,
         pageSize: int = 25
     ) -> MatesGetAllOutput:
     """
@@ -47,10 +47,10 @@ async def get_mates_processing(
             }
         ]
         status_code, json_response = await make_strapi_request(
-            method='get', 
-            endpoint='mates', 
-            fields=fields, 
-            populate=populate, 
+            method='get',
+            endpoint='mates',
+            fields=fields,
+            populate=populate,
             filters=filters,
             page=page,
             pageSize=pageSize,
@@ -70,7 +70,7 @@ async def get_mates_processing(
             # if no mates, return a 404 error
             if len(mates) == 0:
                 status_code = 404
-                # Info: technically there are only no mates on the team, and the team might still exist, 
+                # Info: technically there are only no mates on the team, and the team might still exist,
                 # but since its not allowed to have a team with 0 mates, we can make the assumption that the team does not exist
                 json_response = {"detail": "Could not find a team with the requested team URL."}
             else:

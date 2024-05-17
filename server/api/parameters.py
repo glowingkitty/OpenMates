@@ -44,6 +44,9 @@ from server.api.models.users.users_create import (
 from server.api.models.users.users_create_new_api_token import (
     UsersCreateNewApiTokenOutput
 )
+from server.api.models.users.users_replace_profile_picture import (
+    UsersReplaceProfilePictureOutput
+)
 from server.api.models.skills.youtube.skills_youtube_get_transcript import (
     YouTubeGetTranscriptOutput
 )
@@ -222,7 +225,7 @@ users_endpoints = {
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
     },
     "replace_profile_picture":{
-        "response_model":User,
+        "response_model":UsersReplaceProfilePictureOutput,
         "summary": "Replace profile picture",
         "description": "<img src='images/users/replace_profile_picture.png' alt='Replace the current profile picture with a new one. The old picture will be deleted.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])

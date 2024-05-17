@@ -23,7 +23,7 @@ from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
 
 
-async def create_mate_processing(
+async def create_mate(
         name: str,
         username: str,
         description: str,

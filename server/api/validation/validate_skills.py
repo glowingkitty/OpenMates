@@ -28,7 +28,7 @@ async def validate_skills(
     try:
         add_to_log(module_name="OpenMates | API | Validate skills", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the skills exist with their ID ...")
-            
+
         # check if the skills exist with their ID
         # return the skills from the strapi request, so they can be included with their details later in the API response
         fields = [
@@ -57,11 +57,11 @@ async def validate_skills(
                     "value": skill
                 }
             ]
-            
+
             status_code, skill_json_response = await make_strapi_request(
-                method='get', 
-                endpoint='skills', 
-                fields=fields, 
+                method='get',
+                endpoint='skills',
+                fields=fields,
                 populate=populate,
                 filters=filters
             )
@@ -75,7 +75,7 @@ async def validate_skills(
                 skill_data["software"]["id"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["id"]
                 skill_data["software"]["name"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["attributes"]["name"]
                 skill_data["api_endpoint"] = f"/{team_slug}/skills/{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['slug']}/{skill_json_response['data'][0]['attributes']['slug']}"
-                
+
                 output_skills.append(skill_data)
 
             if status_code != 200 or len(skill_json_response["data"])==0:
@@ -83,7 +83,7 @@ async def validate_skills(
                 raise HTTPException(status_code=400, detail=f"Skill with ID {skill} does not exist.")
 
         return output_skills
-    
+
     except HTTPException:
         raise
 

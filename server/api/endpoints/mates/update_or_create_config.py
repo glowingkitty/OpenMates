@@ -23,27 +23,33 @@ async def update_or_create_config(
         team_slug: str,
         user_api_token: str,
         systemprompt: Optional[str] = None,
-        skills: Optional[List[int]] = None
+        skills: Optional[List[int]] = None,
+        allowed_to_access_user_name: Optional[bool] = None,
+        allowed_to_access_user_username: Optional[bool] = None,
+        allowed_to_access_user_projects: Optional[bool] = None,
+        allowed_to_access_user_goals: Optional[bool] = None,
+        allowed_to_access_user_todos: Optional[bool] = None,
+        allowed_to_access_user_recent_topics: Optional[bool] = None
     ) -> dict:
     """
     Update or create a config for a specific AI team mate on the team
     """
-    
+
     try:
         config_id = None
         # search in the configs field of the mate for the config with the team and user
         if mate["attributes"]["configs"]:
             for config in mate["attributes"]["configs"]["data"]:
-                if config["data"]["attributes"]["team"]["data"]["attributes"]["slug"] == team_slug and config["data"]["attributes"]["user"]["data"]["attributes"]["api_token"] == user_api_token:
+                if config["attributes"]["team"]["data"]["attributes"]["slug"] == team_slug and config["attributes"]["user"]["data"]["attributes"]["api_token"] == user_api_token:
                     config_id = config["id"]
                     break
-    
+
         # if no config is found, create a new one
         if config_id == None:
             # get the team and its ID
             status_code, json_response = await make_strapi_request(
-                method='get', 
-                endpoint='teams', 
+                method='get',
+                endpoint='teams',
                 filters=[{"field": "slug", "operator": "$eq", "value": team_slug}]
             )
             if status_code == 200 and json_response["data"]:
@@ -59,26 +65,39 @@ async def update_or_create_config(
 
             # get the user and its ID
             status_code, json_response = await make_strapi_request(
-                method='get', 
-                endpoint='users', 
+                method='get',
+                endpoint='users',
                 filters=[{"field": "api_token", "operator": "$eq", "value": user_api_token}]
             )
             if status_code == 200 and json_response:
                 user = json_response[0]
-            
+
             # create a new config
             new_fields = {
                 "team": team["id"],
-                "user": user["id"]
+                "user": user["id"],
+                "mate": mate["id"],
             }
             if systemprompt != None:
                 new_fields["systemprompt"] = systemprompt
             if skills != None:
                 new_fields["skills"] = skills
+            if allowed_to_access_user_name != None:
+                new_fields["allowed_to_access_user_name"] = allowed_to_access_user_name
+            if allowed_to_access_user_username != None:
+                new_fields["allowed_to_access_user_username"] = allowed_to_access_user_username
+            if allowed_to_access_user_projects != None:
+                new_fields["allowed_to_access_user_projects"] = allowed_to_access_user_projects
+            if allowed_to_access_user_goals != None:
+                new_fields["allowed_to_access_user_goals"] = allowed_to_access_user_goals
+            if allowed_to_access_user_todos != None:
+                new_fields["allowed_to_access_user_todos"] = allowed_to_access_user_todos
+            if allowed_to_access_user_recent_topics != None:
+                new_fields["allowed_to_access_user_recent_topics"] = allowed_to_access_user_recent_topics
 
             status_code, json_response = await make_strapi_request(
-                method='post', 
-                endpoint='mate-configs', 
+                method='post',
+                endpoint='mate-configs',
                 data={"data":new_fields}
             )
             if status_code == 200 and json_response["data"]:
@@ -93,10 +112,22 @@ async def update_or_create_config(
                 updated_fields["systemprompt"] = systemprompt
             if skills != None:
                 updated_fields["skills"] = skills
+            if allowed_to_access_user_name != None:
+                updated_fields["allowed_to_access_user_name"] = allowed_to_access_user_name
+            if allowed_to_access_user_username != None:
+                updated_fields["allowed_to_access_user_username"] = allowed_to_access_user_username
+            if allowed_to_access_user_projects != None:
+                updated_fields["allowed_to_access_user_projects"] = allowed_to_access_user_projects
+            if allowed_to_access_user_goals != None:
+                updated_fields["allowed_to_access_user_goals"] = allowed_to_access_user_goals
+            if allowed_to_access_user_todos != None:
+                updated_fields["allowed_to_access_user_todos"] = allowed_to_access_user_todos
+            if allowed_to_access_user_recent_topics != None:
+                updated_fields["allowed_to_access_user_recent_topics"] = allowed_to_access_user_recent_topics
 
             status_code, json_response = await make_strapi_request(
-                method='put', 
-                endpoint='mate-configs/'+str(config_id), 
+                method='put',
+                endpoint='mate-configs/'+str(config_id),
                 data={"data":updated_fields}
             )
             if status_code != 200:
@@ -109,4 +140,3 @@ async def update_or_create_config(
         process_error("Failed to update or create a config for the AI team mate.", traceback=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to update or create a config for the AI team mate.")
 
-        

@@ -21,10 +21,11 @@ from fastapi import HTTPException
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
-from server.api.endpoints.mates.get_mate import get_mate_processing
+from server.api.endpoints.mates.get_mate import get_mate
 from server.api.endpoints.mates.update_or_create_config import update_or_create_config
 
-async def update_mate_processing(
+
+async def update_mate(
         mate_username: str,
         new_name: Optional[str] = None,
         new_username: Optional[str] = None,
@@ -35,7 +36,13 @@ async def update_mate_processing(
         new_custom_systemprompt: Optional[str] = None,
         new_custom_skills: Optional[List[int]] = None,
         team_slug: Optional[str] = None,
-        user_api_token: Optional[str] = None
+        user_api_token: Optional[str] = None,
+        allowed_to_access_user_name: Optional[bool] = None,
+        allowed_to_access_user_username: Optional[bool] = None,
+        allowed_to_access_user_projects: Optional[bool] = None,
+        allowed_to_access_user_goals: Optional[bool] = None,
+        allowed_to_access_user_todos: Optional[bool] = None,
+        allowed_to_access_user_recent_topics: Optional[bool] = None
     ) -> MateUpdateOutput:
     """
     Update a specific AI team mate on the team
@@ -59,12 +66,12 @@ async def update_mate_processing(
             skills=new_default_skills,
             team_slug=team_slug
             ) if new_default_skills!=None else None
-        
+
         new_custom_skills_extended_data = await validate_skills(
             skills=new_custom_skills,
             team_slug=team_slug
             ) if new_custom_skills!=None else None
-        
+
         # prepare to make the patch request to strapi
         updated_mate = {}
 
@@ -82,41 +89,60 @@ async def update_mate_processing(
             updated_mate["default_skills"] = new_default_skills_extended_data
 
         # get the mate
-        mate = await get_mate_processing(
+        mate = await get_mate(
             team_slug=team_slug,
             mate_username=mate_username,
             user_api_token=user_api_token,
-            output_raw_data=True,
-            output_format="json"
+            include_populated_data=True
         )
-
-        # TODO process updating custom systemprompt and custom skills via config
 
         # if any of the custom fields are updated, find first the matching config database entry
         # for the combination of the user, team, and mate
-        if new_custom_systemprompt != None or new_custom_skills_extended_data != None:
+        if new_custom_systemprompt != None \
+            or new_custom_skills_extended_data != None \
+            or allowed_to_access_user_name != None \
+            or allowed_to_access_user_username != None \
+            or allowed_to_access_user_projects != None \
+            or allowed_to_access_user_goals != None \
+            or allowed_to_access_user_todos != None \
+            or allowed_to_access_user_recent_topics != None:
             await update_or_create_config(
                 mate=mate,
-                team_slug=team_slug, 
-                user_api_token=user_api_token, 
+                team_slug=team_slug,
+                user_api_token=user_api_token,
                 systemprompt=new_custom_systemprompt,
-                skills=new_custom_skills
+                skills=new_custom_skills,
+                allowed_to_access_user_name=allowed_to_access_user_name,
+                allowed_to_access_user_username=allowed_to_access_user_username,
+                allowed_to_access_user_projects=allowed_to_access_user_projects,
+                allowed_to_access_user_goals=allowed_to_access_user_goals,
+                allowed_to_access_user_todos=allowed_to_access_user_todos,
+                allowed_to_access_user_recent_topics=allowed_to_access_user_recent_topics
                 )
-            
-            if new_custom_systemprompt != None:
-                updated_mate["custom_systemprompt"] = new_custom_systemprompt
-            if new_custom_skills_extended_data != None:
-                updated_mate["custom_skills"] = new_custom_skills_extended_data
-
-        # TODO make sure that config_id is inside the configs field of the mate, else add it and patch the mate
-        # TODO make sure the config_id or configs are not included in the response
 
         # make the patch request
         status_code, json_response = await make_strapi_request(
-            method='put', 
-            endpoint='mates/'+str(mate["id"]), 
+            method='put',
+            endpoint='mates/'+str(mate["id"]),
             data={"data":updated_mate}
         )
+
+        if new_custom_systemprompt != None:
+            updated_mate["custom_systemprompt"] = new_custom_systemprompt
+        if new_custom_skills_extended_data != None:
+            updated_mate["custom_skills"] = new_custom_skills_extended_data
+        if allowed_to_access_user_name != None:
+            updated_mate["allowed_to_access_user_name"] = allowed_to_access_user_name
+        if allowed_to_access_user_username != None:
+            updated_mate["allowed_to_access_user_username"] = allowed_to_access_user_username
+        if allowed_to_access_user_projects != None:
+            updated_mate["allowed_to_access_user_projects"] = allowed_to_access_user_projects
+        if allowed_to_access_user_goals != None:
+            updated_mate["allowed_to_access_user_goals"] = allowed_to_access_user_goals
+        if allowed_to_access_user_todos != None:
+            updated_mate["allowed_to_access_user_todos"] = allowed_to_access_user_todos
+        if allowed_to_access_user_recent_topics != None:
+            updated_mate["allowed_to_access_user_recent_topics"] = allowed_to_access_user_recent_topics
 
         # return updated fields
         if status_code == 200 and json_response["data"]:
@@ -131,7 +157,7 @@ async def update_mate_processing(
 
     except HTTPException:
         raise
-    
+
     except Exception:
         process_error("Failed to update the AI team mate.", traceback=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to update the AI team mate.")

@@ -26,7 +26,7 @@ async def get_user_processing(
         search_by_username: Optional[str] = None,
         search_by_user_api_token: Optional[str] = None,
         output_raw_data: bool = False,
-        output_format: Literal["JSONResponse", "json"] = "JSONResponse"
+        output_format: Literal["JSONResponse", "dict"] = "JSONResponse"
     ) -> Union[JSONResponse, Dict, HTTPException]:
     """
     Get a specific user.

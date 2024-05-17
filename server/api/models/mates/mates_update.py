@@ -28,8 +28,14 @@ class MatesUpdateInput(BaseModel):
     profile_picture_url: str = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(None, description="Default system prompt of the AI team mate", min_length=1)
     default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
-    systemprompt: str = Field(None, description="Custom system prompt of the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.", min_length=1)
-    skills: List[int] = Field(None, description="Custom list of skill IDs for the AI team mate, specific for the user who makes the request to the API, in the context of the selected team.")
+    systemprompt: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom system prompt of the AI team mate.", min_length=1)
+    skills: List[int] = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom list of skills (IDs) AI team mate is allowed to use.")
+    allowed_to_access_user_name: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your name.")
+    allowed_to_access_user_username: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your username.")
+    allowed_to_access_user_projects: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your projects.")
+    allowed_to_access_user_goals: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your goals.")
+    allowed_to_access_user_todos: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your To Do's.")
+    allowed_to_access_user_recent_topics: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access the recent topics you asked AI team mates about.")
 
     class Config:
         extra = "forbid"

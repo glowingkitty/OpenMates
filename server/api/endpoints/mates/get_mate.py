@@ -18,12 +18,13 @@ from typing import Dict, Union, Literal
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 
-async def get_mate_processing(
-        team_slug: str, 
-        mate_username: str, 
-        user_api_token: str,
-        output_raw_data: bool = False,
-        output_format: Literal["JSONResponse", "json"] = "JSONResponse"
+async def get_mate(
+        team_slug: str,
+        mate_username: str,
+        user_api_token: str = None,
+        include_populated_data: bool = False,
+        output_raw_data: bool = True,
+        output_format: Literal["JSONResponse", "dict"] = "dict"
     ) -> Union[JSONResponse, Dict, HTTPException]:
     """
     Get a specific AI team mate on the team
@@ -38,22 +39,26 @@ async def get_mate_processing(
             "description",
             "default_systemprompt"
         ]
-        populate = [
-            "profile_picture.file.url",
-            "default_skills.name",
-            "default_skills.description",
-            "default_skills.slug",
-            "default_skills.software.name",
-            "default_skills.software.slug",
-            "configs.systemprompt",
-            "configs.user.api_token",
-            "configs.team.slug",
-            "configs.skills.name",
-            "configs.skills.description",
-            "configs.skills.slug",
-            "configs.skills.software.name",
-            "configs.skills.software.slug"
-        ]
+        populate = []
+
+        if include_populated_data:
+            populate = [
+                "profile_picture.file.url",
+                "default_skills.name",
+                "default_skills.description",
+                "default_skills.slug",
+                "default_skills.software.name",
+                "default_skills.software.slug",
+                "configs.systemprompt",
+                "configs.user.api_token",
+                "configs.team.slug",
+                "configs.skills.name",
+                "configs.skills.description",
+                "configs.skills.slug",
+                "configs.skills.software.name",
+                "configs.skills.software.slug"
+            ]
+
         filters = [
             # The mate must be active on the team
             {
@@ -67,13 +72,13 @@ async def get_mate_processing(
                 "operator": "$eq",
                 "value": mate_username
             }
-            
+
         ]
         status_code, json_response = await make_strapi_request(
-            method='get', 
-            endpoint='mates', 
-            fields=fields, 
-            populate=populate, 
+            method='get',
+            endpoint='mates',
+            fields=fields,
+            populate=populate,
             filters=filters
             )
 
@@ -98,7 +103,7 @@ async def get_mate_processing(
                         return mate
 
                 # check if a custom config exists
-                if len(mate["attributes"]["configs"]["data"])>0:
+                if user_api_token and len(mate["attributes"]["configs"]["data"])>0:
                     matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_slug and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
                     if len(matching_config) == 1:
                         mate["attributes"]["config"] = matching_config[0]
@@ -136,14 +141,10 @@ async def get_mate_processing(
             return JSONResponse(status_code=status_code, content=json_response)
         else:
             return json_response
-        
+
     except HTTPException:
         raise
 
     except Exception:
         process_error("Failed to get the requested mate.", traceback=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to get the requested mate.")
-    
-if __name__ == "__main__":
-    response = get_mate_processing()
-    print(response)

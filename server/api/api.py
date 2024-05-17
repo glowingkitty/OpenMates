@@ -62,6 +62,9 @@ from server.api.models.users.users_create_new_api_token import (
     users_create_new_api_token_input_example,
     users_create_new_api_token_output_example
 )
+from server.api.models.users.users_replace_profile_picture import (
+    users_replace_profile_picture_output_example
+)
 from server.api.models.skills.youtube.skills_youtube_get_transcript import (
     YouTubeGetTranscriptInput,
     youtube_get_transcript_input_example,
@@ -69,16 +72,19 @@ from server.api.models.skills.youtube.skills_youtube_get_transcript import (
 )
 
 
-from server.api.endpoints.mates.mates_ask import mates_ask_processing
-from server.api.endpoints.mates.get_mates import get_mates_processing
-from server.api.endpoints.mates.get_mate import get_mate_processing
-from server.api.endpoints.mates.create_mate import create_mate_processing
-from server.api.endpoints.mates.update_mate import update_mate_processing
+from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
+from server.api.endpoints.mates.get_mates import get_mates as get_mates_processing
+from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
+from server.api.endpoints.mates.create_mate import create_mate as create_mate_processing
+from server.api.endpoints.mates.update_mate import update_mate as update_mate_processing
 from server.api.endpoints.users.get_user import get_user_processing
 from server.api.endpoints.users.get_users import get_users_processing
 from server.api.endpoints.users.create_user import create_user_processing
+from server.api.endpoints.users.replace_profile_picture import replace_profile_picture_processing
+from server.api.endpoints.users.create_new_api_token import create_new_api_token_processing
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
+
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
 from server.api.validation.validate_invite_code import validate_invite_code
@@ -184,6 +190,7 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
     set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/users/{username}/profile_picture", "patch", "responses", users_replace_profile_picture_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
     set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
@@ -253,7 +260,7 @@ async def get_upload(
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
 @mates_router.post("/{team_slug}/mates/ask",**mates_endpoints["ask_mate"])
 @limiter.limit("20/minute")
-async def mates_ask(
+async def ask_mate(
     request: Request,
     parameters: MatesAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
@@ -263,7 +270,7 @@ async def mates_ask(
         team_slug=team_slug,
         token=token
         )
-    return await mates_ask_processing(
+    return await ask_mate_processing(
         team_slug=team_slug,
         message=parameters.message,
         mate_username=parameters.mate_username
@@ -307,7 +314,10 @@ async def get_mate(
     return await get_mate_processing(
         team_slug=team_slug,
         mate_username=mate_username,
-        user_api_token=token
+        user_api_token=token,
+        include_populated_data=True,
+        output_raw_data=False,
+        output_format="JSONResponse"
         )
 
 
@@ -360,8 +370,14 @@ async def update_mate(
         new_default_skills=parameters.default_skills,               # updates mate, only if user has right to edit original mate
         new_custom_systemprompt=parameters.systemprompt,            # updates mate config - specific to user + team
         new_custom_skills=parameters.skills,                        # updates mate config - specific to user + team
+        allowed_to_access_user_name=parameters.allowed_to_access_user_name,          # updates mate config - specific to user + team
+        allowed_to_access_user_username=parameters.allowed_to_access_user_username,  # updates mate config - specific to user + team
+        allowed_to_access_user_projects=parameters.allowed_to_access_user_projects,  # updates mate config - specific to user + team
+        allowed_to_access_user_goals=parameters.allowed_to_access_user_goals,        # updates mate config - specific to user + team
+        allowed_to_access_user_todos=parameters.allowed_to_access_user_todos,        # updates mate config - specific to user + team
+        allowed_to_access_user_recent_topics=parameters.allowed_to_access_user_recent_topics, # updates mate config - specific to user + team
         team_slug=team_slug,
-        user_api_token=token
+        user_api_token=token,
         )
 
 
@@ -656,7 +672,7 @@ async def update_user(
 # PATCH /users/{username}/profile_picture (replace a user's profile picture)
 @users_router.patch("/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
 @limiter.limit("5/minute")
-async def update_user_profile_picture(
+async def replace_user_profile_picture(
     request: Request,
     file: UploadFile = File(..., **input_parameter_descriptions["file"]),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
@@ -676,20 +692,30 @@ async def update_user_profile_picture(
     if len(contents) > 3 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
 
-    # TODO add function to upload the file, replace profile picture, delete old profile picture and return the new user
-    return {"info": "endpoint still needs to be implemented"}
+    return await replace_profile_picture_processing(
+        team_slug=team_slug,
+        api_token=token,
+        username=username,
+        file=contents,
+        visibility=visibility
+    )
 
 
 # PATCH /users/{username}/api_token (generate a new API token for a user)
 @users_router.patch("/{team_slug}/users/{username}/api_token", **users_endpoints["create_new_api_token"])
 @limiter.limit("5/minute")
-async def generate_new_api_token(
+async def generate_new_user_api_token(
     request: Request,
     parameters: UsersCreateNewApiTokenInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
     ):
-    return {"info": "endpoint still needs to be implemented"}
+    return await create_new_api_token_processing(
+        username=username,
+        email=parameters.email,
+        password=parameters.password,
+        team_slug=team_slug
+    )
 
 
 

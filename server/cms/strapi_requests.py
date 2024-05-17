@@ -50,10 +50,10 @@ def get_nested(dictionary, keys):
 
 
 async def make_strapi_request(
-        method: str, 
-        endpoint: str, 
-        data: Optional[Dict] = None, 
-        fields: Optional[List[str]] = None, 
+        method: str,
+        endpoint: str,
+        data: Optional[Dict] = None,
+        fields: Optional[List[str]] = None,
         populate: Optional[List[str]] = None,
         filters: Optional[List[Dict]] = None,
         page: int = 1,
@@ -70,7 +70,7 @@ async def make_strapi_request(
                 # define which relationships to add
                 if populate:
                     params = add_params(params, populate)
-                
+
                 # define filters
                 if filters:
                     for filter in filters:
@@ -89,7 +89,7 @@ async def make_strapi_request(
                     params = params[:-1]
             else:
                 params = ""
-                
+
             strapi_url = f"{STRAPI_URL}/api/{endpoint}{params}"
 
             strapi_headers = {"Authorization": f"Bearer {STRAPI_API_TOKEN}"}
@@ -126,5 +126,5 @@ async def get_strapi_upload(url: str) -> Response:
                 raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
             else:
                 raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
-        
+
         return StreamingResponse(strapi_response.iter_bytes(), media_type=strapi_response.headers['Content-Type'])
