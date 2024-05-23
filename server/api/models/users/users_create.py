@@ -21,32 +21,6 @@ from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
 
 
-class DefaultPrivacySettings(BaseModel):
-    allowed_to_access_name: bool = Field(..., description="Whether the AI team mates are by default allowed to access the name of the user.")
-    allowed_to_access_username: bool = Field(..., description="Whether the AI team mates are by default allowed to access the username of the user.")
-    allowed_to_access_projects: bool = Field(..., description="Whether the AI team mates are by default allowed to access the projects of the user.")
-    allowed_to_access_goals: bool = Field(..., description="Whether the AI team mates are by default allowed to access the goals of the user.")
-    allowed_to_access_todos: bool = Field(..., description="Whether the AI team mates are by default allowed to access the To Do's of the user.")
-    allowed_to_access_recent_topics: bool = Field(..., description="Whether the AI team mates are by default allowed to access the recent topics the user asked AI team mates about.")
-
-class Skill(BaseModel):
-    id: int = Field(..., description="ID of the skill")
-    name: str = Field(..., description="Name of the skill")
-    software: str = Field(..., description="Software related to the skill")
-    api_endpoint: str = Field(..., description="API endpoint for the skill")
-
-class MateConfig(BaseModel):
-    mate_username: str = Field(..., description="Username of the AI team mate this config is for.")
-    team_slug: str = Field(..., description="Slug of the team this config is for.")
-    systemprompt: str = Field(..., description="Custom system prompt for the AI team mate.")
-    skills: list[Skill] = Field(..., description="Custom selection of skills the AI team mate can use")
-    allowed_to_access_user_name: bool = Field(..., description="Whether the AI team mate is allowed to access the name of the user.")
-    allowed_to_access_user_username: bool = Field(..., description="Whether the AI team mate is allowed to access the username of the user.")
-    allowed_to_access_user_projects: bool = Field(..., description="Whether the AI team mate is allowed to access the projects of the user.")
-    allowed_to_access_user_goals: bool = Field(..., description="Whether the AI team mate is allowed to access the goals of the user.")
-    allowed_to_access_user_todos: bool = Field(..., description="Whether the AI team mate is allowed to access the To Do's of the user.")
-    allowed_to_access_user_recent_topics: bool = Field(..., description="Whether the AI team mate is allowed to access the recent topics the user asked AI team mates about.")
-
 
 # POST /users (create a new user)
 
@@ -57,7 +31,6 @@ class UsersCreateInput(BaseModel):
     username: str = Field(..., description="Username of the user", min_length=1, max_length=30, unique=True)
     email: str = Field(..., description="Email of the user", min_length=1, max_length=50)
     password: str = Field(..., description="Password of the user", min_length=8, max_length=100)
-    mates_default_privacy_settings: DefaultPrivacySettings = Field(None, description="The default privacy settings for the AI team mates, which the user communicates with.")
 
     # TODO improve validation later using LLMs
 
@@ -104,15 +77,6 @@ class UsersCreateOutput(BaseModel):
     email: str = Field(..., description="Email address of the user")
     api_token: str = Field(..., description="API token of the user. This token is used for authenticating the user in the API. It will only be shown once, so make sure to store it securely.")
     teams: List[Team] = Field(..., description="Teams the user is a member of")
-    balance_in_EUR: float = Field(..., description="Balance of the user in EUR. This balance can be used for using paid skills.")
-    mates_default_privacy_settings: DefaultPrivacySettings = Field(..., description="The default privacy settings for the AI team mates, which the user communicates with.")
-    mates_custom_settings: list[MateConfig] = Field(..., description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
-    software_settings: dict = Field(..., description="Software settings, such as privacy settings, which cloud accounts are connected, default settings and more.")
-    other_settings: dict = Field(..., description="Other settings, such as notification settings, etc.")
-    projects: List[Project] = Field(..., description="Projects of the user")
-    goals: List[dict] = Field(..., description="Goals and priorities of the user, related to projects, learning, finances etc.")
-    todos: List[str] = Field(..., description="List of current To Do's of the user")
-    recent_topics: List[str] = Field(..., description="Recent topics the user asked the AI team mates about.")
 
 
 users_create_output_example = {
@@ -127,21 +91,5 @@ users_create_output_example = {
             "name": "AI Sales Team",
             "slug": "ai-sales-team"
         }
-    ],
-    "balance_in_EUR": 0.0,
-    "mates_default_privacy_settings":{
-        "allowed_to_access_name": True,
-        "allowed_to_access_username": True,
-        "allowed_to_access_projects": True,
-        "allowed_to_access_goals": True,
-        "allowed_to_access_todos": True,
-        "allowed_to_access_recent_topics": True
-    },
-    "mates_custom_settings":{},
-    "software_settings": {},
-    "other_settings": {},
-    "projects": [],
-    "goals": [],
-    "todos": [],
-    "recent_topics": []
+    ]
 }

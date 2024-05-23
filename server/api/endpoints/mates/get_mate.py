@@ -56,7 +56,17 @@ async def get_mate(
                 "configs.skills.description",
                 "configs.skills.slug",
                 "configs.skills.software.name",
-                "configs.skills.software.slug"
+                "configs.skills.software.slug",
+                "configs.allowed_to_access_user_name",
+                "configs.allowed_to_access_user_username",
+                "configs.allowed_to_access_user_projects",
+                "configs.allowed_to_access_user_goals",
+                "configs.allowed_to_access_user_todos",
+                "configs.allowed_to_access_user_recent_topics",
+                "configs.allowed_to_access_user_recent_emails",
+                "configs.allowed_to_access_user_calendar",
+                "configs.allowed_to_access_user_likes",
+                "configs.allowed_to_access_user_dislikes"
             ]
 
         filters = [

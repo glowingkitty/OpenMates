@@ -35,6 +35,8 @@ async def create_user_processing(
 
     # TODO how to handle mate configs / default privacy settings?
 
+    # TODO encrypt data before sending to strapi
+
 
     # generate new API token
     api_token = await create_new_api_token_processing(username, email, password, team_slug)

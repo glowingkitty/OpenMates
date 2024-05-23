@@ -33,6 +33,8 @@ class Mate(BaseModel):
     skills: List[Skill] = Field(..., description="Skills of the AI team mate")
     skills_are_customized: bool = Field(..., description="Indicates if the skills are customized or the default ones.")
 
+    # TODO add default systemprompt and default skills
+    # TODO add endpoint to reset systemprompt and skills to default (for the user who makes the request, in the context of the selected team)
 
 mates_get_one_output_example = {
     "id": 1,

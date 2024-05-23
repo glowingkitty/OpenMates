@@ -48,14 +48,28 @@ async def get_user_processing(
         fields = {
             "full_access":[
                 "username",
-                "api_token",
                 "email",
+                "api_token",
                 "balance",
+                "mate_privacy_config_default__allowed_to_access_name",
+                "mate_privacy_config_default__allowed_to_access_username",
+                "mate_privacy_config_default__allowed_to_access_projects",
+                "mate_privacy_config_default__allowed_to_access_goals",
+                "mate_privacy_config_default__allowed_to_access_todos",
+                "mate_privacy_config_default__allowed_to_access_recent_topics",
+                "mate_privacy_config_default__allowed_to_access_recent_emails",
+                "mate_privacy_config_default__allowed_to_access_calendar",
+                "mate_privacy_config_default__allowed_to_access_likes",
+                "mate_privacy_config_default__allowed_to_access_dislikes",
                 "software_settings",
                 "other_settings",
                 "goals",
                 "todos",
-                "recent_topics"
+                "recent_topics",
+                "recent_emails",
+                "calendar",
+                "likes",
+                "dislikes"
             ],
             "basic_access":[
                 "username"
@@ -65,7 +79,25 @@ async def get_user_processing(
             "full_access":[
                 "profile_image.file.url",
                 "teams.slug",
-                "projects.name"
+                "projects.name",
+                "mate_configs.systemprompt",
+                "mate_configs.mate.username",
+                "mate_configs.team.slug",
+                "mate_configs.skills.name",
+                "mate_configs.skills.description",
+                "mate_configs.skills.slug",
+                "mate_configs.skills.software.name",
+                "mate_configs.skills.software.slug",
+                "mate_configs.allowed_to_access_user_name",
+                "mate_configs.allowed_to_access_user_username",
+                "mate_configs.allowed_to_access_user_projects",
+                "mate_configs.allowed_to_access_user_goals",
+                "mate_configs.allowed_to_access_user_todos",
+                "mate_configs.allowed_to_access_user_recent_topics",
+                "mate_configs.allowed_to_access_user_recent_emails",
+                "mate_configs.allowed_to_access_user_calendar",
+                "mate_configs.allowed_to_access_user_likes",
+                "mate_configs.allowed_to_access_user_dislikes"
             ],
             "basic_access":[]
         }
@@ -124,6 +156,43 @@ async def get_user_processing(
                     ],
                     "profile_picture_url":  f"/{team_slug}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
                     "balance_eur": user["balance"],
+                    "mates_default_privacy_settings": {
+                        "allowed_to_access_name": user["mate_privacy_config_default__allowed_to_access_name"],
+                        "allowed_to_access_username": user["mate_privacy_config_default__allowed_to_access_username"],
+                        "allowed_to_access_projects": user["mate_privacy_config_default__allowed_to_access_projects"],
+                        "allowed_to_access_goals": user["mate_privacy_config_default__allowed_to_access_goals"],
+                        "allowed_to_access_todos": user["mate_privacy_config_default__allowed_to_access_todos"],
+                        "allowed_to_access_recent_topics": user["mate_privacy_config_default__allowed_to_access_recent_topics"],
+                        "allowed_to_access_recent_emails": user["mate_privacy_config_default__allowed_to_access_recent_emails"],
+                        "allowed_to_access_calendar": user["mate_privacy_config_default__allowed_to_access_calendar"],
+                        "allowed_to_access_likes": user["mate_privacy_config_default__allowed_to_access_likes"],
+                        "allowed_to_access_dislikes": user["mate_privacy_config_default__allowed_to_access_dislikes"]
+                    },
+                    "mates_custom_settings":[
+                        {
+                            "mate_username": config["mate"]["username"],
+                            "team_slug": config["team"]["slug"],
+                            "systemprompt": config["systemprompt"],
+                            "skills": [
+                                {
+                                    "id": skill["id"],
+                                    "name": skill["name"],
+                                    "software": skill["software"]["name"],
+                                    "api_endpoint": f"/{team_slug}/skills/{skill['software']['slug']}/{skill['slug']}"
+                                } for skill in config["skills"]
+                            ],
+                            "allowed_to_access_user_name": config["allowed_to_access_user_name"],
+                            "allowed_to_access_user_username": config["allowed_to_access_user_username"],
+                            "allowed_to_access_user_projects": config["allowed_to_access_user_projects"],
+                            "allowed_to_access_user_goals": config["allowed_to_access_user_goals"],
+                            "allowed_to_access_user_todos": config["allowed_to_access_user_todos"],
+                            "allowed_to_access_user_recent_topics": config["allowed_to_access_user_recent_topics"],
+                            "allowed_to_access_user_recent_emails": config["allowed_to_access_user_recent_emails"],
+                            "allowed_to_access_user_calendar": config["allowed_to_access_user_calendar"],
+                            "allowed_to_access_user_likes": config["allowed_to_access_user_likes"],
+                            "allowed_to_access_user_dislikes": config["allowed_to_access_user_dislikes"]
+                        } for config in user["mate_configs"]
+                    ],
                     "software_settings": user["software_settings"],
                     "other_settings": user["other_settings"],
                     "projects": [
@@ -133,9 +202,13 @@ async def get_user_processing(
                             "description": project["description"]
                         } for project in user["projects"]
                     ],
+                    "likes": user["likes"],
+                    "dislikes": user["dislikes"],
                     "goals": user["goals"],
                     "todos": user["todos"],
-                    "recent_topics": user["recent_topics"]
+                    "recent_topics": user["recent_topics"],
+                    "recent_emails": user["recent_emails"],
+                    "calendar": user["calendar"]
                 } if user_access == "full_access" else {
                     "id": user["id"],
                     "username": user["username"]

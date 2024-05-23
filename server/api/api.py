@@ -628,6 +628,7 @@ async def get_user(
         team_slug=team_slug,
         token=token
         )
+    # TODO (everywhere where api key is used for finding user) search by hash, not by api token
     return await get_user_processing(
         team_slug=team_slug,
         request_sender_api_token=token,
@@ -648,6 +649,7 @@ async def create_user(
         team_slug=team_slug,
         invite_code=parameters.invite_code
         )
+    # TODO encrypt email address before storing and other sensitive data
     return await create_user_processing(
         name=parameters.name,
         username=parameters.username,
