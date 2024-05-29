@@ -443,10 +443,13 @@ async def skill_atopile_create_pcb_schematic(
         token=token
         )
     return create_pcb_schematic_processing(
+        token=token,
         datasheet_url=parameters.datasheet_url,
-        component_name=parameters.component_name,
-        component_requirements=parameters.component_requirements,
-        additional_requirements=parameters.additional_requirements
+        # component_lcsc_id=parameters.component_lcsc_id, # TODO add later
+        # component_name=parameters.component_name,
+        # component_requirements=parameters.component_requirements,
+        additional_requirements=parameters.additional_requirements,
+        llm=parameters.llm
     )
 
 
