@@ -70,6 +70,11 @@ from server.api.models.skills.youtube.skills_youtube_get_transcript import (
     youtube_get_transcript_input_example,
     youtube_get_transcript_output_example
 )
+from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import (
+    AtopileCreatePcbSchematicInput,
+    atopile_create_pcb_schematic_input_example,
+    atopile_create_pcb_schematic_output_example
+)
 
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
@@ -77,13 +82,14 @@ from server.api.endpoints.mates.get_mates import get_mates as get_mates_processi
 from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate as create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate as update_mate_processing
-from server.api.endpoints.users.get_user import get_user_processing
+from server.api.endpoints.users.get_user import get_user as get_user_processing
 from server.api.endpoints.users.get_users import get_users_processing
-from server.api.endpoints.users.create_user import create_user_processing
+from server.api.endpoints.users.create_user import create_user as create_user_processing
 from server.api.endpoints.users.replace_profile_picture import replace_profile_picture_processing
-from server.api.endpoints.users.create_new_api_token import create_new_api_token_processing
+from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
+from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
 
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
@@ -99,6 +105,7 @@ from server.api.parameters import (
     skills_chatgpt_endpoints,
     skills_claude_endpoints,
     skills_youtube_endpoints,
+    skills_atopile_endpoints,
     skills_image_editor_endpoints,
     users_endpoints,
     server_endpoints,
@@ -195,6 +202,8 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
     set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
     set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
+    set_example(openapi_schema, "/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -420,6 +429,27 @@ async def skill_claude_ask(
     return {"info": "endpoint still needs to be implemented"}
 
 
+# POST /skills/atopile/create_pcb_schematic (create a PCB schematic)
+@skills_router.post("/{team_slug}/skills/atopile/create_pcb_schematic", **skills_atopile_endpoints["create_pcb_schematic"])
+@limiter.limit("20/minute")
+async def skill_atopile_create_pcb_schematic(
+    request: Request,
+    parameters: AtopileCreatePcbSchematicInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
+    return create_pcb_schematic_processing(
+        datasheet_url=parameters.datasheet_url,
+        component_name=parameters.component_name,
+        component_requirements=parameters.component_requirements,
+        additional_requirements=parameters.additional_requirements
+    )
+
+
 # POST /skills/youtube/ask (ask a question about a video)
 @skills_router.post("/{team_slug}/skills/youtube/ask", **skills_youtube_endpoints["ask_youtube"])
 @limiter.limit("20/minute")
@@ -628,12 +658,11 @@ async def get_user(
         team_slug=team_slug,
         token=token
         )
-    # TODO (everywhere where api key is used for finding user) search by hash, not by api token
     return await get_user_processing(
         team_slug=team_slug,
         request_sender_api_token=token,
-        search_by_user_api_token=token if username == None else None,
-        search_by_username=username
+        api_token=token,
+        username=username
         )
 
 
@@ -649,7 +678,6 @@ async def create_user(
         team_slug=team_slug,
         invite_code=parameters.invite_code
         )
-    # TODO encrypt email address before storing and other sensitive data
     return await create_user_processing(
         name=parameters.name,
         username=parameters.username,
@@ -712,9 +740,8 @@ async def generate_new_user_api_token(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
     ):
-    return await create_new_api_token_processing(
+    return await create_new_api_token(
         username=username,
-        email=parameters.email,
         password=parameters.password,
         team_slug=team_slug
     )

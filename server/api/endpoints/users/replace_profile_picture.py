@@ -17,7 +17,7 @@ from typing import List, Optional, Union, Dict, Literal
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.endpoints.users.get_user import get_user_processing
+from server.api.endpoints.users.get_user import get_user
 from server.api.models.users.users_replace_profile_picture import UsersReplaceProfilePictureOutput
 from server.api.validation.validate_user_data_access import validate_user_data_access
 import time
@@ -76,16 +76,16 @@ async def replace_profile_picture_processing(
             #     raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
         # limit the write access to the user (get the user from the strapi request)
+        # user = await get_user(
+        #     team_slug=team_slug,
+        #     username=username,
+        #     api_token=api_token
+        # )
         user = await get_user(
             team_slug=team_slug,
-            username=username,
-            api_token=api_token
-        )
-        user = await get_user_processing(
-            team_slug=team_slug,
             request_sender_api_token=api_token,
-            search_by_username=username,
-            search_by_user_api_token=api_token,
+            username=username,
+            api_token=api_token,
             output_raw_data=True,
             output_format="dict"
         )

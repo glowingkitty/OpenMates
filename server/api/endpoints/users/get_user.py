@@ -18,13 +18,15 @@ from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
+from server.api.security.crypto import hashing_sha256
 
 
-async def get_user_processing(
-        team_slug: str,
-        request_sender_api_token: str,
-        search_by_username: Optional[str] = None,
-        search_by_user_api_token: Optional[str] = None,
+async def get_user(
+        team_slug: Optional[str] = None,
+        request_sender_api_token: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        api_token: Optional[str] = None,
         output_raw_data: bool = False,
         output_format: Literal["JSONResponse", "dict"] = "JSONResponse"
     ) -> Union[JSONResponse, Dict, HTTPException]:
@@ -35,15 +37,21 @@ async def get_user_processing(
         add_to_log(module_name="OpenMates | API | Get user", state="start", color="yellow", hide_variables=True)
         add_to_log("Getting a specific user ...")
 
-        if not search_by_username and not search_by_user_api_token:
-            raise ValueError("Username or user API token must be provided.")
+        # TODO can I simplify the function? for example are all parameters needed?
 
-        user_access = await validate_user_data_access(
-            search_by_username=search_by_username,
-            request_team_slug=team_slug,
-            request_sender_api_token=request_sender_api_token,
-            request_endpoint="get_one_user"
-        )
+        if not api_token and not (username and password):
+            raise ValueError("You need to provide either an api token or username and password.")
+
+        # check if the user is a server or team admin
+        if request_sender_api_token:
+            user_access = await validate_user_data_access(
+                username=username,
+                request_team_slug=team_slug,
+                request_sender_api_token=request_sender_api_token,
+                request_endpoint="get_one_user"
+            )
+        else:
+            user_access = "basic_access"
 
         fields = {
             "full_access":[
@@ -102,18 +110,30 @@ async def get_user_processing(
             "basic_access":[]
         }
         filters = []
-        if search_by_username:
+        if username:
             filters.append({
                 "field": "username",
                 "operator": "$eq",
-                "value": search_by_username
+                "value": username
             })
-        if search_by_user_api_token:
+        if api_token:
             filters.append({
                 "field": "api_token",
                 "operator": "$eq",
-                "value": search_by_user_api_token
+                "value": hashing_sha256(api_token)
             })
+        if username and password:
+            filters.append({
+                "field": "username",
+                "operator": "$eq",
+                "value": username
+            })
+            # filters.append({
+            #     "field": "password",
+            #     "operator": "$eq",
+            #     "value": hashing_argon2(password)
+            # })
+            # TODO this won't work. Instead I need to check for every found user, if the password is correct via ph.verify(password, hashed_password)
 
         status_code, json_response = await make_strapi_request(
             method="get",
@@ -127,6 +147,9 @@ async def get_user_processing(
             # make sure there is only one user with the requested username
             user = {}
             users = json_response
+
+            add_to_log(f"Found {len(users)} users with the requested username.")
+
             if len(users) == 0:
                 status_code = 404
                 json_response = {"detail": "Could not find the requested user."}

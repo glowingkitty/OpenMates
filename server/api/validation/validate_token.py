@@ -16,6 +16,7 @@ from server import *
 
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
+from server.api.security.crypto import hashing_sha256
 
 
 async def validate_token(
@@ -40,7 +41,7 @@ async def validate_token(
             {
                 "field": "api_token",
                 "operator": "$eq",
-                "value": token
+                "value": hashing_sha256(token)
             }
         ]
 

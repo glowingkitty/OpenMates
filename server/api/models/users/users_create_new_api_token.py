@@ -21,14 +21,7 @@ from pydantic import BaseModel, Field, validator
 
 class UsersCreateNewApiTokenInput(BaseModel):
     """This is the model for the incoming parameters for PATCH /{team_slug}/users/{username}/api_token"""
-    email: str = Field(..., description="Email of the user", min_length=1, max_length=50)
     password: str = Field(..., description="Password of the user", min_length=8, max_length=100)
-
-    @validator('email')
-    def email_must_be_valid(cls, v):
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", v):
-            raise ValueError('email must be in the right format')
-        return v
 
     @validator('password')
     def password_must_be_strong(cls, v):
@@ -38,7 +31,6 @@ class UsersCreateNewApiTokenInput(BaseModel):
 
 
 users_create_new_api_token_input_example = {
-    "email": "sophiiisthebest93@gmail.com",
     "password": "-Q9U72vax684LxfPH6AoGDZ"
 }
 
@@ -50,5 +42,5 @@ class UsersCreateNewApiTokenOutput(BaseModel):
 
 
 users_create_new_api_token_output_example = {
-    "api_token": "0jasdjj2i2ik83hdhD98kd"
+    "api_token": "976be9fb2150404e9f7e3105a"
 }

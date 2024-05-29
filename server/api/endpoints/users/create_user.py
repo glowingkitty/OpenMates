@@ -19,10 +19,11 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
 from server.api.models.users.users_create import UsersCreateOutput
-from server.api.endpoints.users.create_new_api_token import create_new_api_token_processing
+from server.api.endpoints.users.create_new_api_token import create_new_api_token
+from server.api.security.crypto import encrypt, hashing_sha256, hashing_argon2
 
 
-async def create_user_processing(
+async def create_user(
         name: str,
         username: str,
         email: str,
@@ -33,20 +34,26 @@ async def create_user_processing(
     Create a new user on the team
     """
 
-    # TODO how to handle mate configs / default privacy settings?
+    # generate new API token
+    create_new_token_output = await create_new_api_token()
+    api_token = create_new_token_output["api_token"]
 
     # TODO encrypt data before sending to strapi
+    name_encrypted = encrypt(name)
+    email_encrypted = encrypt(email)
+    password_hash = hashing_argon2(password)
+    api_token_hash = hashing_sha256(api_token)
 
+    # TODO send data to strapi to create the user
 
-    # generate new API token
-    api_token = await create_new_api_token_processing(username, email, password, team_slug)
+    # TODO return the user data
 
     return {
         "id": 2,
-        "name": "Sophia",
-        "username": "sophia93",
-        "email": "sophiiisthebest93@gmail.com",
-        "api_token": "0jasdjj2i2ik83hdhD98kd",
+        "name": name,
+        "username": username,
+        "email": email,
+        "api_token": api_token,
         "teams": [
             {
                 "id": 1,

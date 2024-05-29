@@ -39,7 +39,7 @@ def add_user_to_channel(user_name: str,channel_name: str):
             raise Exception(f"Failed to create channel {channel_name}: {response.text}")
 
         return True
-        
+
     except Exception:
         error_log = traceback.format_exc()
         print(error_log)

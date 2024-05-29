@@ -50,6 +50,9 @@ from server.api.models.users.users_replace_profile_picture import (
 from server.api.models.skills.youtube.skills_youtube_get_transcript import (
     YouTubeGetTranscriptOutput
 )
+from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import (
+    AtopileCreatePcbSchematicOutput
+)
 
 
 def generate_responses(status_codes):
@@ -185,6 +188,15 @@ skills_youtube_endpoints = {
         "response_model":YouTubeGetTranscriptOutput,
         "summary": "YouTube | Get transcript",
         "description": "<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_atopile_endpoints = {
+    "create_pcb_schematic":{
+        "response_model":AtopileCreatePcbSchematicOutput,
+        "summary": "Atopile | Create PCB schematic",
+        "description": "<img src='images/skills/atopile/create_pcb_schematic.png' alt='Creates a PCB schematic based on a datasheet, component name or component requirements.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

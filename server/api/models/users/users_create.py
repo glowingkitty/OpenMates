@@ -84,7 +84,7 @@ users_create_output_example = {
     "name": "Sophia",
     "username": "sophia93",
     "email": "sophiiisthebest93@gmail.com",
-    "api_token": "0jasdjj2i2ik83hdhD98kd",
+    "api_token": "976be9fb2150404e9f7e3105a",
     "teams": [
         {
             "id": 1,
