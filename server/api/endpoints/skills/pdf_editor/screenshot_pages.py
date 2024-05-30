@@ -20,6 +20,8 @@ from pdf2image import convert_from_bytes
 import io
 from typing import List
 import uuid
+from urllib.parse import unquote
+from PIL import Image
 
 
 def get_pdf_file(pdf_path: str=None, pdf_data: bytes=None):
@@ -27,6 +29,9 @@ def get_pdf_file(pdf_path: str=None, pdf_data: bytes=None):
         if pdf_path.startswith('http') or pdf_path.startswith('https'):
             response = requests.get(pdf_path)
             return io.BytesIO(response.content)
+        elif pdf_path.startswith('file:///'):
+            decoded_path = unquote(pdf_path[7:])
+            return open(decoded_path, 'rb')
         else:
             return open(pdf_path, 'rb')
     elif pdf_data is not None:
@@ -54,7 +59,8 @@ def create_target_dir():
 def screenshot_pages(
         pdf_path: str=None,
         pdf_data: bytes=None,
-        max_length_px: int = 1500,
+        max_longest_px: int = 2048,
+        max_shortest_px: int = 768,
         pages: list=None
     ) -> List[str]:
 
@@ -70,8 +76,21 @@ def screenshot_pages(
         for page_num in pages:
             for i, image in enumerate(images[page_num-1:page_num]):
                 image_path = os.path.join(target_dir, f'page_{page_num}_{i}.png')
-                if max(image.size) > max_length_px:
-                    image.thumbnail((max_length_px, max_length_px))
+
+                # Scale image to fit within a 2048 x 2048 square, maintaining aspect ratio
+                image.thumbnail((max_longest_px, max_longest_px))
+
+                # Scale image such that the shortest side is 768px long
+                width, height = image.size
+                if width < height:
+                    new_width = max_shortest_px
+                    new_height = int((new_width / width) * height)
+                else:
+                    new_height = max_shortest_px
+                    new_width = int((new_height / height) * width)
+
+                image = image.resize((new_width, new_height))
+
                 image.save(image_path, 'PNG')
                 image_paths.append(image_path)
 
@@ -79,6 +98,6 @@ def screenshot_pages(
 
 
 if __name__ == '__main__':
-    pdf_path = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-    images = screenshot_pages(pdf_path=pdf_path,max_length_px=1000)
+    pdf_path = 'file:///Users/kitty/Library/CloudStorage/Dropbox/Documents/Datasheets/power%20management%20ICs/buck%20converter/TPS53319%20Evaluation%20Module.pdf'
+    images = screenshot_pages(pdf_path=pdf_path)
     print(images)
