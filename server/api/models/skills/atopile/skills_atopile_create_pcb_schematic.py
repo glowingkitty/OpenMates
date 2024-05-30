@@ -14,6 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
+from typing import Literal
 from pydantic import BaseModel, Field, validator, root_validator
 
 
@@ -28,7 +29,7 @@ class AtopileCreatePcbSchematicInput(BaseModel):
     # component_name: str = Field(None, title="Component Name", description="If you instead want to generate a schematic based on a component name:  \nThe name of the component for the PCB schematic")
     # component_requirements: str = Field(None, title="Component Requirements", description="If you instead want to generate a schematic based on component requirements:  \nThe requirements for the component for the PCB schematic")
     additional_requirements: str = Field(None, title="Additional Requirements", description="If no requirements are given, it is assumed you want to generate a development board for evaluation purposes. If you have different requirements, please specify them here.")
-    llm: str = Field("openai__gpt-4o", title="Large Language Model", description="The large language model to use for generating the schematic code")
+    ai_model: Literal["openai__gpt-4o","google__gemini-1.5-pro"] = Field("openai__gpt-4o", title="AI Model", description="The large language model to use for generating the schematic code")
 
     # prevent extra fields from being passed to API
     class Config:

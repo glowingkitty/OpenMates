@@ -18,14 +18,14 @@ from server import *
 from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import AtopileCreatePcbSchematicOutput
 
 
-def create_pcb_schematic(
+async def create_pcb_schematic(
         token: str,
         datasheet_url: str = None,
         # component_lcsc_id: str = None,
         # component_name: str = None,
         # component_requirements: str = None,
         additional_requirements: str = None,
-        llm: str = "openai__gpt-4o"
+        ai_model: str = "openai__gpt-4o"
     ) -> AtopileCreatePcbSchematicOutput:
     """
     Create a new PCB schematic

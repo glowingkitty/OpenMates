@@ -53,6 +53,9 @@ from server.api.models.skills.youtube.skills_youtube_get_transcript import (
 from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import (
     AtopileCreatePcbSchematicOutput
 )
+from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
+    ChatGPTAskOutput
+)
 
 
 def generate_responses(status_codes):
@@ -161,7 +164,7 @@ mates_endpoints = {
 
 skills_chatgpt_endpoints = {
     "ask_chatgpt":{
-        # "response_model":ChatGPTAskOutput,
+        "response_model":ChatGPTAskOutput,
         "summary": "ChatGPT | Ask",
         "description": "<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])

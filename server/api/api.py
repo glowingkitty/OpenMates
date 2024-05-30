@@ -75,6 +75,11 @@ from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import
     atopile_create_pcb_schematic_input_example,
     atopile_create_pcb_schematic_output_example
 )
+from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
+    ChatGPTAskInput,
+    chatgpt_ask_input_example,
+    chatgpt_ask_output_example
+)
 
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
@@ -90,6 +95,7 @@ from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
+from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
 
 from server.api.validation.validate_file_access import validate_file_access
 from server.api.validation.validate_token import validate_token
@@ -204,6 +210,8 @@ def custom_openapi():
     set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
     set_example(openapi_schema, "/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
     set_example(openapi_schema, "/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
+    set_example(openapi_schema, "/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
+    set_example(openapi_schema, "/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -404,6 +412,7 @@ async def update_mate(
 @limiter.limit("20/minute")
 async def skill_chatgpt_ask(
     request: Request,
+    parameters: ChatGPTAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
@@ -411,7 +420,13 @@ async def skill_chatgpt_ask(
         team_slug=team_slug,
         token=token
         )
-    return {"info": "endpoint still needs to be implemented"}
+    return await ask_chatgpt_processing(
+        token=token,
+        system_prompt=parameters.system_prompt,
+        message=parameters.message,
+        ai_model=parameters.ai_model,
+        temperature=parameters.temperature
+    )
 
 
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
@@ -442,14 +457,14 @@ async def skill_atopile_create_pcb_schematic(
         team_slug=team_slug,
         token=token
         )
-    return create_pcb_schematic_processing(
+    return await create_pcb_schematic_processing(
         token=token,
         datasheet_url=parameters.datasheet_url,
         # component_lcsc_id=parameters.component_lcsc_id, # TODO add later
         # component_name=parameters.component_name,
         # component_requirements=parameters.component_requirements,
         additional_requirements=parameters.additional_requirements,
-        llm=parameters.llm
+        ai_model=parameters.ai_model
     )
 
 
