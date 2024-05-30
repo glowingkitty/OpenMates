@@ -98,6 +98,6 @@ def screenshot_pages(
 
 
 if __name__ == '__main__':
-    pdf_path = 'file:///Users/kitty/Library/CloudStorage/Dropbox/Documents/Datasheets/power%20management%20ICs/buck%20converter/TPS53319%20Evaluation%20Module.pdf'
+    pdf_path = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
     images = screenshot_pages(pdf_path=pdf_path)
     print(images)
