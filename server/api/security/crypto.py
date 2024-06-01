@@ -117,6 +117,14 @@ def hashing_argon2(text: str) -> str:
     hashed_text = ph.hash(text)
     return hashed_text
 
+def verify_argon2(hashed_text: str, text: str) -> bool:
+    ph = PasswordHasher()
+    try:
+        ph.verify(hashed_text, text)
+        return True
+    except:
+        return False
+
 
 def hashing_sha256(text: str) -> str:
     hashed_text = hashlib.sha256(text.encode()).hexdigest()

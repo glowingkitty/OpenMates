@@ -18,7 +18,7 @@ from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
-from server.api.security.crypto import hashing_sha256
+from server.api.security.crypto import hashing_sha256, verify_argon2
 
 
 async def get_user(
@@ -58,6 +58,7 @@ async def get_user(
                 "username",
                 "email",
                 "api_token",
+                "user_password",
                 "balance",
                 "mate_privacy_config_default__allowed_to_access_name",
                 "mate_privacy_config_default__allowed_to_access_username",
@@ -122,18 +123,7 @@ async def get_user(
                 "operator": "$eq",
                 "value": hashing_sha256(api_token)
             })
-        if username and password:
-            filters.append({
-                "field": "username",
-                "operator": "$eq",
-                "value": username
-            })
-            # filters.append({
-            #     "field": "password",
-            #     "operator": "$eq",
-            #     "value": hashing_argon2(password)
-            # })
-            # TODO this won't work. Instead I need to check for every found user, if the password is correct via ph.verify(password, hashed_password)
+
 
         status_code, json_response = await make_strapi_request(
             method="get",
@@ -158,6 +148,12 @@ async def get_user(
                 json_response = {"detail": "There are multiple users with the requested username."}
             else:
                 user = users[0]
+
+                # if password is given, check if the found user has the correct password
+                if password:
+                    if not verify_argon2(hashed_text=user["user_password"], text=password):
+                        status_code = 401
+                        raise HTTPException(status_code=status_code, detail="Login data are incorrect.")
 
                 # return the unprocessed json if requested
                 if output_raw_data:

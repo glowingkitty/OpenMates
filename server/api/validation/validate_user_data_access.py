@@ -16,6 +16,7 @@ from server import *
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
 from typing import Union, Literal
+from server.api.security.crypto import hashing_sha256
 
 
 async def validate_user_data_access(
@@ -40,7 +41,7 @@ async def validate_user_data_access(
             filters=[{
                 "field": "api_token",
                 "operator": "$eq",
-                "value": request_sender_api_token
+                "value": hashing_sha256(request_sender_api_token)
             }]
         )
         if status_code != 200 or not json_response:
