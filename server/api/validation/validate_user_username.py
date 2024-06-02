@@ -37,9 +37,9 @@ async def validate_user_username(username:str) -> bool:
             }
         ]
         status_code, user_json_response = await make_strapi_request(
-            method='get', 
-            endpoint='users', 
-            fields=fields, 
+            method='get',
+            endpoint='user-accounts',
+            fields=fields,
             filters=filters
         )
 
@@ -53,7 +53,7 @@ async def validate_user_username(username:str) -> bool:
 
     except HTTPException:
         raise
-    
+
     except Exception:
         process_error("Failed to validate the username.", traceback=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to validate the username.")

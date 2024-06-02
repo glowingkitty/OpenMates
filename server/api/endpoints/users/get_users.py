@@ -59,7 +59,7 @@ async def get_users_processing(
 
         status_code, json_response = await make_strapi_request(
             method='get',
-            endpoint='users',
+            endpoint='user-accounts',
             fields=fields,
             filters=filters,
             page=page,
@@ -69,10 +69,10 @@ async def get_users_processing(
         if status_code == 200:
             users = [
                 {
-                    "id": user.get("id"),
-                    "username": user.get("username")
+                    "id": user["id"],
+                    "username": user["attributes"]["username"]
                 }
-                for user in json_response
+                for user in json_response["data"]
             ]
             meta = {
                 "pagination": {

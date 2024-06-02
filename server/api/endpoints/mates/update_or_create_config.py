@@ -66,7 +66,7 @@ async def update_or_create_config(
             # get the user and its ID
             status_code, json_response = await make_strapi_request(
                 method='get',
-                endpoint='users',
+                endpoint='user-accounts',
                 filters=[{"field": "api_token", "operator": "$eq", "value": user_api_token}]
             )
             if status_code == 200 and json_response:

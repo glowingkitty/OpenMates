@@ -18,7 +18,7 @@ from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
-from server.api.security.crypto import verify_hash
+from server.api.security.crypto import verify_hash, decrypt
 
 
 async def get_user(
@@ -58,7 +58,7 @@ async def get_user(
                 "username",
                 "email",
                 "api_token",
-                "user_password",
+                "password",
                 "balance",
                 "mate_privacy_config_default__allowed_to_access_name",
                 "mate_privacy_config_default__allowed_to_access_username",
@@ -120,7 +120,7 @@ async def get_user(
 
         status_code, json_response = await make_strapi_request(
             method="get",
-            endpoint="users",
+            endpoint="user-accounts",
             filters=filters,
             fields=fields[user_access],
             populate=populate[user_access]
@@ -129,7 +129,7 @@ async def get_user(
         if status_code == 200:
             # make sure there is only one user with the requested username
             user = {}
-            users = json_response
+            users = json_response["data"]
 
             add_to_log(f"Found {len(users)} users with the requested username.")
 
@@ -143,13 +143,13 @@ async def get_user(
                 user = users[0]
 
                 if api_token:
-                    if not verify_hash(hashed_text=user["api_token"], text=api_token[32:]):
+                    if not verify_hash(hashed_text=user["attributes"]["api_token"], text=api_token[32:]):
                         status_code = 404
                         raise HTTPException(status_code=status_code, detail="Could not find the requested user.")
 
                 # if password is given, check if the found user has the correct password
                 if password:
-                    if not verify_hash(hashed_text=user["user_password"], text=password):
+                    if not verify_hash(hashed_text=user["attributes"]["password"], text=password):
                         status_code = 404
                         raise HTTPException(status_code=status_code, detail="Could not find the requested user.")
 
@@ -162,28 +162,28 @@ async def get_user(
 
                 user = {
                     "id": user["id"],
-                    "username": user["username"],
-                    "email": user["email"],
+                    "username": user["attributes"]["username"],
+                    "email": decrypt(user["attributes"]["email"]),
                     "teams": [
                         {
                             "id": team["id"],
-                            "name": team["name"],
-                            "slug": team["slug"]
-                        } for team in user["teams"]
+                            "name": team["attributes"]["name"],
+                            "slug": team["attributes"]["slug"]
+                        } for team in user["attributes"]["teams"]["data"]
                     ],
                     "profile_picture_url":  f"/{team_slug}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
-                    "balance_eur": user["balance"],
+                    "balance_eur": user["attributes"]["balance"],
                     "mates_default_privacy_settings": {
-                        "allowed_to_access_name": user["mate_privacy_config_default__allowed_to_access_name"],
-                        "allowed_to_access_username": user["mate_privacy_config_default__allowed_to_access_username"],
-                        "allowed_to_access_projects": user["mate_privacy_config_default__allowed_to_access_projects"],
-                        "allowed_to_access_goals": user["mate_privacy_config_default__allowed_to_access_goals"],
-                        "allowed_to_access_todos": user["mate_privacy_config_default__allowed_to_access_todos"],
-                        "allowed_to_access_recent_topics": user["mate_privacy_config_default__allowed_to_access_recent_topics"],
-                        "allowed_to_access_recent_emails": user["mate_privacy_config_default__allowed_to_access_recent_emails"],
-                        "allowed_to_access_calendar": user["mate_privacy_config_default__allowed_to_access_calendar"],
-                        "allowed_to_access_likes": user["mate_privacy_config_default__allowed_to_access_likes"],
-                        "allowed_to_access_dislikes": user["mate_privacy_config_default__allowed_to_access_dislikes"]
+                        "allowed_to_access_name": user["attributes"]["mate_privacy_config_default__allowed_to_access_name"],
+                        "allowed_to_access_username": user["attributes"]["mate_privacy_config_default__allowed_to_access_username"],
+                        "allowed_to_access_projects": user["attributes"]["mate_privacy_config_default__allowed_to_access_projects"],
+                        "allowed_to_access_goals": user["attributes"]["mate_privacy_config_default__allowed_to_access_goals"],
+                        "allowed_to_access_todos": user["attributes"]["mate_privacy_config_default__allowed_to_access_todos"],
+                        "allowed_to_access_recent_topics": user["attributes"]["mate_privacy_config_default__allowed_to_access_recent_topics"],
+                        "allowed_to_access_recent_emails": user["attributes"]["mate_privacy_config_default__allowed_to_access_recent_emails"],
+                        "allowed_to_access_calendar": user["attributes"]["mate_privacy_config_default__allowed_to_access_calendar"],
+                        "allowed_to_access_likes": user["attributes"]["mate_privacy_config_default__allowed_to_access_likes"],
+                        "allowed_to_access_dislikes": user["attributes"]["mate_privacy_config_default__allowed_to_access_dislikes"]
                     },
                     "mates_custom_settings":[
                         {
@@ -208,27 +208,27 @@ async def get_user(
                             "allowed_to_access_user_calendar": config["allowed_to_access_user_calendar"],
                             "allowed_to_access_user_likes": config["allowed_to_access_user_likes"],
                             "allowed_to_access_user_dislikes": config["allowed_to_access_user_dislikes"]
-                        } for config in user["mate_configs"]
+                        } for config in user["attributes"]["mate_configs"]["data"]
                     ],
-                    "software_settings": user["software_settings"],
-                    "other_settings": user["other_settings"],
+                    "software_settings": decrypt(user["attributes"]["software_settings"],"dict"),
+                    "other_settings": decrypt(user["attributes"]["other_settings"],"dict"),
                     "projects": [
                         {
                             "id": project["id"],
                             "name": project["name"],
                             "description": project["description"]
-                        } for project in user["projects"]
+                        } for project in user["attributes"]["projects"]["data"]
                     ],
-                    "likes": user["likes"],
-                    "dislikes": user["dislikes"],
-                    "goals": user["goals"],
-                    "todos": user["todos"],
-                    "recent_topics": user["recent_topics"],
-                    "recent_emails": user["recent_emails"],
-                    "calendar": user["calendar"]
+                    "likes": decrypt(user["attributes"]["likes"],"dict"),
+                    "dislikes": decrypt(user["attributes"]["dislikes"],"dict"),
+                    "goals": decrypt(user["attributes"]["goals"],"dict"),
+                    "todos": decrypt(user["attributes"]["todos"],"dict"),
+                    "recent_topics": decrypt(user["attributes"]["recent_topics"],"dict"),
+                    "recent_emails": decrypt(user["attributes"]["recent_emails"],"dict"),
+                    "calendar": decrypt(user["attributes"]["calendar"],"dict")
                 } if user_access == "full_access" else {
                     "id": user["id"],
-                    "username": user["username"]
+                    "username": user["attributes"]["username"]
                 }
 
                 json_response = user

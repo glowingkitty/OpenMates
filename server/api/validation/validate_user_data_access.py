@@ -38,7 +38,7 @@ async def validate_user_data_access(
         # get the userdata for the user who makes the request, based on the request_sender_api_token
         status_code, json_response = await make_strapi_request(
             method='get',
-            endpoint='users',
+            endpoint='user-accounts',
             fields=["is_server_admin","username","api_token","user_id"],
             populate=["teams_where_user_is_admin.slug"],
             filters=[{
@@ -51,9 +51,9 @@ async def validate_user_data_access(
             add_to_log("User not found.", state="error")
             raise HTTPException(status_code=404, detail="User not found.")
 
-        user = json_response[0]
+        user = json_response["data"][0]
 
-        if not verify_hash(user["api_token"], api_token):
+        if not verify_hash(user["attributes"]["api_token"], api_token):
             add_to_log("The user token is invalid.", module_name="OpenMates | API | Validate user data Access", state="error")
             raise HTTPException(status_code=403, detail="The user token is invalid")
 
@@ -62,19 +62,19 @@ async def validate_user_data_access(
             add_to_log("Checking if the user has the permission to access a specific user ...")
 
             # check if the found user has the same username as in username
-            if username and user["username"] == username:
+            if username and user["attributes"]["username"] == username:
                 # if so that means a user tries to get its own data and we can proceed with 'full data' access
                 add_to_log("User is trying to access its own data.")
                 return "full_access"
 
             # else we check if the user is marked as a server admin, if so, we can proceed 'basic data' access
-            if user["is_server_admin"]:
+            if user["attributes"]["is_server_admin"]:
                 add_to_log("User is a server admin and has the permission to access all basic user data.")
                 return "basic_access"
 
             # else we check if the user is a team admin, if so, we can proceed with 'basic data' access
-            for team in user["teams_where_user_is_admin"]:
-                if team["slug"] == request_team_slug:
+            for team in user["attributes"]["teams_where_user_is_admin"]["data"]:
+                if team["attributes"]["slug"] == request_team_slug:
                     # user is team admin and therefore is allowed to access the 'basic data' of all users on the team
                     add_to_log("User is a team admin and has the permission to access all basic user data on the team.")
                     return "basic_access"
@@ -87,13 +87,13 @@ async def validate_user_data_access(
         if request_endpoint == "get_all_users":
             add_to_log("Checking if the user has the permission to access all users ...")
             # check if the found user is a server admin, if so, we can proceed with 'basic data' access
-            if user["is_server_admin"]:
+            if user["attributes"]["is_server_admin"]:
                 add_to_log("User is a server admin and has the permission to access all basic user data.")
                 return "basic_access_for_all_users_on_server"
 
             # check if user is a team admin, if so, we can proceed with 'basic data' access
-            for team in user["teams_where_user_is_admin"]:
-                if team["slug"] == request_team_slug:
+            for team in user["attributes"]["teams_where_user_is_admin"]["data"]:
+                if team["attributes"]["slug"] == request_team_slug:
                     # user is team admin and therefore is allowed to access the 'basic data' of all users on the team
                     add_to_log("User is a team admin and has the permission to access all basic user data on the team.")
                     return "basic_access_for_all_users_on_team"

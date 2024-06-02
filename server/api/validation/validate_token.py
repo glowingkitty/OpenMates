@@ -52,7 +52,7 @@ async def validate_token(
 
         status_code, user_json_response = await make_strapi_request(
             method='get',
-            endpoint='users',
+            endpoint='user-accounts',
             fields=fields,
             populate=populate,
             filters=filters
@@ -60,30 +60,31 @@ async def validate_token(
 
         failure_message = "Your token is invalid. Make sure the token and team_slug are valid, you are part of the requested team and you have access to the requested API endpoint."
 
+        users = user_json_response["data"]
         if status_code != 200:
             add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
 
-        if len(user_json_response) == 0:
+        if len(users) == 0:
             add_to_log("The user does not exist.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=403, detail=failure_message)
 
-        if len(user_json_response) > 1:
+        if len(users) > 1:
             add_to_log("Found more than one user with the token.", module_name="OpenMates | API | Validate file Access", state="error")
             raise HTTPException(status_code=500, detail="Found more than one user with your token. Please contact the administrator.")
 
-        if len(user_json_response) == 1:
-            user = user_json_response[0]
+        if len(users) == 1:
+            user = users[0]
             # check if the api token is valid
-            if not verify_hash(user["api_token"], api_token):
+            if not verify_hash(user["attributes"]["api_token"], api_token):
                 add_to_log("The user token is invalid.", module_name="OpenMates | API | Verify Token", state="error")
                 raise HTTPException(status_code=403, detail=failure_message)
 
             # check if the user is either a team admin or a member of the team
-            if user["is_server_admin"]:
+            if user["attributes"]["is_server_admin"]:
                 add_to_log("The user is a server admin.", module_name="OpenMates | API | Verify Token", state="success")
                 return True
-            if team_slug in [team["slug"] for team in user["teams"]]:
+            if team_slug in [team["attributes"]["slug"] for team in user["attributes"]["teams"]["data"]]:
                 add_to_log("The user is a member of the team.", module_name="OpenMates | API | Verify Token", state="success")
                 return True
 

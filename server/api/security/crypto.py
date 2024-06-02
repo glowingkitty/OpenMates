@@ -59,7 +59,7 @@ def load_salt():
     return base64.urlsafe_b64decode(salt)
 
 
-def encrypt(message:str, type:str=None) -> str:
+def encrypt(message:str) -> str:
     """
     Encrypts a message
     """
@@ -74,7 +74,7 @@ def encrypt(message:str, type:str=None) -> str:
     )
     encryption_key = base64.urlsafe_b64encode(kdf.derive(key))
     f = Fernet(encryption_key)
-    if type == 'json' or type == 'dict':
+    if type(message) == list or type(message) == dict:
         message = json.dumps(message)
     encoded_message = message.encode()
     encrypted_message = f.encrypt(encoded_message)
@@ -88,6 +88,9 @@ def decrypt(message:str, type:str=None) -> str:
     """
     Decrypts an encrypted message
     """
+    if message==None:
+        return None
+
     key = load_key()
     salt = load_salt()
     kdf = PBKDF2HMAC(
@@ -134,3 +137,17 @@ if __name__ == "__main__":
     if not os.getenv("CRYPTO_KEY") or not os.getenv("CRYPTO_SALT"):
         add_to_log("Generating key and salt ...")
         generate_key_salt()
+
+
+    input = [
+    "AI",
+    "Python",
+    "TensorFlow",
+    "Pandas",
+    "NumPy",
+    "sales software",
+    "FastAPI",
+    "Docker"
+    ]
+    
+    print(encrypt(input))
