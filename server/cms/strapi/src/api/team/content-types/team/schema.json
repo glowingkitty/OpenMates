@@ -1,0 +1,75 @@
+{
+  "kind": "collectionType",
+  "collectionName": "teams",
+  "info": {
+    "singularName": "team",
+    "pluralName": "teams",
+    "displayName": "Team",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "unique": true,
+      "required": true
+    },
+    "mates": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::mate.mate",
+      "inversedBy": "teams"
+    },
+    "settings": {
+      "type": "json"
+    },
+    "invoices": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::invoice.invoice"
+    },
+    "forbidden_skills": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::skill.skill"
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "profile_image": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::uploaded-file.uploaded-file"
+    },
+    "balance": {
+      "type": "decimal",
+      "default": 0,
+      "required": true
+    },
+    "users_allowed_to_use_team_balance": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-account.user-account"
+    },
+    "monthly_usage_limit_per_user": {
+      "type": "decimal"
+    },
+    "users": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::user-account.user-account",
+      "inversedBy": "teams"
+    },
+    "admins": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::user-account.user-account",
+      "mappedBy": "teams_where_user_is_admin"
+    }
+  }
+}

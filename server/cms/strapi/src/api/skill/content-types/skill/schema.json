@@ -1,0 +1,51 @@
+{
+  "kind": "collectionType",
+  "collectionName": "skills",
+  "info": {
+    "singularName": "skill",
+    "pluralName": "skills",
+    "displayName": "Skill",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text",
+      "required": true
+    },
+    "requires_cloud_to_run": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "workflows": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::workflow.workflow",
+      "mappedBy": "skills"
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "software": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::software.software",
+      "inversedBy": "skills"
+    },
+    "icon": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::uploaded-file.uploaded-file"
+    }
+  }
+}

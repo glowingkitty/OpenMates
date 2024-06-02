@@ -1,0 +1,160 @@
+{
+  "kind": "collectionType",
+  "collectionName": "user_accounts",
+  "info": {
+    "singularName": "user-account",
+    "pluralName": "user-accounts",
+    "displayName": "UserAccount",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "username": {
+      "type": "string",
+      "unique": true,
+      "required": true
+    },
+    "email": {
+      "type": "text",
+      "required": true
+    },
+    "password": {
+      "type": "text",
+      "required": true,
+      "regex": "^\\$argon2id\\$v=\\d+\\$m=\\d+,t=\\d+,p=\\d+\\$[A-Za-z0-9+/]+\\$[A-Za-z0-9+/]+$"
+    },
+    "api_token": {
+      "type": "text",
+      "required": true,
+      "regex": "^\\$argon2id\\$v=\\d+\\$m=\\d+,t=\\d+,p=\\d+\\$[A-Za-z0-9+/]+\\$[A-Za-z0-9+/]+$"
+    },
+    "is_server_admin": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "profile_image": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::uploaded-file.uploaded-file"
+    },
+    "projects": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::project.project"
+    },
+    "balance": {
+      "type": "decimal",
+      "required": true,
+      "default": 0
+    },
+    "other_settings": {
+      "type": "text"
+    },
+    "goals": {
+      "type": "text"
+    },
+    "todos": {
+      "type": "text"
+    },
+    "recent_topics": {
+      "type": "text"
+    },
+    "mate_privacy_config_default__allowed_to_access_name": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_username": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_projects": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_goals": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_todos": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_recent_topics": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "recent_emails": {
+      "type": "text"
+    },
+    "calendar": {
+      "type": "text"
+    },
+    "mate_privacy_config_default__allowed_to_access_recent_emails": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_calendar": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "likes": {
+      "type": "text"
+    },
+    "dislikes": {
+      "type": "text"
+    },
+    "mate_privacy_config_default__allowed_to_access_likes": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "mate_privacy_config_default__allowed_to_access_dislikes": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "user_id": {
+      "type": "uid",
+      "required": true
+    },
+    "software_settings": {
+      "type": "text"
+    },
+    "invoices": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::invoice.invoice",
+      "mappedBy": "user"
+    },
+    "mate_configs": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::mate-config.mate-config",
+      "mappedBy": "user"
+    },
+    "teams": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::team.team",
+      "mappedBy": "users"
+    },
+    "teams_where_user_is_admin": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::team.team",
+      "inversedBy": "admins"
+    }
+  }
+}

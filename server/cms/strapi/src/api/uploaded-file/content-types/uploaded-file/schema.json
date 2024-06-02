@@ -1,0 +1,57 @@
+{
+  "kind": "collectionType",
+  "collectionName": "uploaded_files",
+  "info": {
+    "singularName": "uploaded-file",
+    "pluralName": "uploaded-files",
+    "displayName": "UploadedFile",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "file": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "access_public": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "read_access_limited_to_teams": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::team.team"
+    },
+    "read_access_limited_to_users": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-account.user-account"
+    },
+    "filename": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "write_access_limited_to_teams": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::team.team"
+    },
+    "write_access_limited_to_users": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-account.user-account"
+    }
+  }
+}

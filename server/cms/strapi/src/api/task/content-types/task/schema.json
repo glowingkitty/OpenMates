@@ -1,0 +1,40 @@
+{
+  "kind": "collectionType",
+  "collectionName": "tasks",
+  "info": {
+    "singularName": "task",
+    "pluralName": "tasks",
+    "displayName": "Task"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "currently_running": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "scheduled": {
+      "type": "datetime"
+    },
+    "skill": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::skill.skill"
+    },
+    "workflow": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::workflow.workflow"
+    },
+    "parameters": {
+      "type": "json"
+    }
+  }
+}

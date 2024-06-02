@@ -1,0 +1,36 @@
+{
+  "kind": "collectionType",
+  "collectionName": "softwares",
+  "info": {
+    "singularName": "software",
+    "pluralName": "softwares",
+    "displayName": "Software",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "skills": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::skill.skill",
+      "mappedBy": "software"
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "icon": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::uploaded-file.uploaded-file"
+    }
+  }
+}
