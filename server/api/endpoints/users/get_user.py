@@ -38,7 +38,7 @@ async def get_user(
         add_to_log(module_name="OpenMates | API | Get user", state="start", color="yellow", hide_variables=True)
         add_to_log("Getting a specific user ...")
 
-        # TODO can I simplify the function? for example are all parameters needed?
+        # TODO clean up function, make it simpler and easier to read
 
         if not api_token and not (username and password):
             raise ValueError("You need to provide either an api token or username and password.")
@@ -190,27 +190,28 @@ async def get_user(
                     },
                     "mates_custom_settings":[
                         {
-                            "mate_username": config["mate"]["username"],
-                            "team_slug": config["team"]["slug"],
-                            "systemprompt": config["systemprompt"],
+                            "id": config["id"],
+                            "mate_username": config["attributes"]["mate"]["data"]["attributes"]["username"],
+                            "team_slug": config["attributes"]["team"]["data"]["attributes"]["slug"],
+                            "systemprompt": config["attributes"]["systemprompt"],
                             "skills": [
                                 {
                                     "id": skill["id"],
-                                    "name": skill["name"],
-                                    "software": skill["software"]["name"],
-                                    "api_endpoint": f"/{team_slug}/skills/{skill['software']['slug']}/{skill['slug']}"
-                                } for skill in config["skills"]
+                                    "name": skill["attributes"]["name"],
+                                    "software": skill["attributes"]["software"]["data"]["attributes"]["name"],
+                                    "api_endpoint": f"/{team_slug}/skills/{skill['attributes']['software']['data']['attributes']['slug']}/{skill['attributes']['slug']}"
+                                } for skill in config["attributes"]["skills"]["data"]
                             ],
-                            "allowed_to_access_user_name": config["allowed_to_access_user_name"],
-                            "allowed_to_access_user_username": config["allowed_to_access_user_username"],
-                            "allowed_to_access_user_projects": config["allowed_to_access_user_projects"],
-                            "allowed_to_access_user_goals": config["allowed_to_access_user_goals"],
-                            "allowed_to_access_user_todos": config["allowed_to_access_user_todos"],
-                            "allowed_to_access_user_recent_topics": config["allowed_to_access_user_recent_topics"],
-                            "allowed_to_access_user_recent_emails": config["allowed_to_access_user_recent_emails"],
-                            "allowed_to_access_user_calendar": config["allowed_to_access_user_calendar"],
-                            "allowed_to_access_user_likes": config["allowed_to_access_user_likes"],
-                            "allowed_to_access_user_dislikes": config["allowed_to_access_user_dislikes"]
+                            "allowed_to_access_user_name": config["attributes"]["allowed_to_access_user_name"],
+                            "allowed_to_access_user_username": config["attributes"]["allowed_to_access_user_username"],
+                            "allowed_to_access_user_projects": config["attributes"]["allowed_to_access_user_projects"],
+                            "allowed_to_access_user_goals": config["attributes"]["allowed_to_access_user_goals"],
+                            "allowed_to_access_user_todos": config["attributes"]["allowed_to_access_user_todos"],
+                            "allowed_to_access_user_recent_topics": config["attributes"]["allowed_to_access_user_recent_topics"],
+                            "allowed_to_access_user_recent_emails": config["attributes"]["allowed_to_access_user_recent_emails"],
+                            "allowed_to_access_user_calendar": config["attributes"]["allowed_to_access_user_calendar"],
+                            "allowed_to_access_user_likes": config["attributes"]["allowed_to_access_user_likes"],
+                            "allowed_to_access_user_dislikes": config["attributes"]["allowed_to_access_user_dislikes"]
                         } for config in user["attributes"]["mate_configs"]["data"]
                     ],
                     "software_settings": decrypt(user["attributes"]["software_settings"],"dict") if decrypt_data else user["attributes"]["software_settings"],

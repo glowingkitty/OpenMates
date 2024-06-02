@@ -37,7 +37,7 @@ async def create_user(
     # generate new API token
     create_new_token_output = await create_new_api_token()
     full_token = create_new_token_output["api_token"]
-    user_id = create_new_token_output["api_token"][:32]
+    uid = create_new_token_output["api_token"][:32]
     api_token = create_new_token_output["api_token"][32:]
 
     # TODO encrypt data before sending to strapi

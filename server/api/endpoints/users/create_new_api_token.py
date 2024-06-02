@@ -25,23 +25,22 @@ import secrets
 
 async def create_new_api_token(
         username: Optional[str] = None,
-        password: Optional[str] = None,
-        team_slug: Optional[str] = None
+        password: Optional[str] = None
     ) -> UsersCreateNewApiTokenOutput:
     """
     Create a new API token for the user
     """
     add_to_log("Creating a new API token ...", module_name="OpenMates | API | Create New API Token", color="yellow")
-    # create a new user_id
-    user_id = secrets.token_hex(16)
+    # create a new uid
+    uid = secrets.token_hex(16)
 
     # create a new API token
     api_token = secrets.token_hex(16)
 
-    # make sure the new user_id and API token don't already exist
+    # make sure the new uid and API token don't already exist
     try:
-        while await validate_token(team_slug=team_slug, token=user_id+api_token):
-            user_id = secrets.token_hex(16)
+        while await validate_token(token=uid+api_token):
+            uid = secrets.token_hex(16)
             api_token = secrets.token_hex(16)
     except HTTPException as e:
         if e.status_code == 403:
@@ -53,21 +52,21 @@ async def create_new_api_token(
     # else, only create a new API token (but don't update any user data)
     if username and password:
         user = await get_user(
-            team_slug=team_slug,
             username=username,
             password=password,
-            output_format="dict"
+            output_format="dict",
+            output_raw_data=True
         )
 
         if user and "id" in user:
-            add_to_log("User found. Replacing the existing API token ...", module_name="OpenMates | API | Create New API Token", color="green")
-            add_to_log(user)
-            # TODO replace the existing API token
+            add_to_log("User found. Replacing the existing uid and api_token ...", module_name="OpenMates | API | Create New API Token", color="green")
+            # TODO create update_user function
+            update_user(id=user["id"], uid=uid, api_token=api_token)
 
         else:
             raise HTTPException(status_code=404, detail="Could not find the requested user.")
 
 
     return {
-        "api_token": user_id+api_token
+        "api_token": uid+api_token
     }

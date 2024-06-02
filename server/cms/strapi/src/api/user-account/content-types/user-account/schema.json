@@ -125,7 +125,7 @@
       "default": true,
       "required": true
     },
-    "user_id": {
+    "uid": {
       "type": "uid",
       "required": true
     },

@@ -29,14 +29,14 @@ async def validate_token(
     try:
         add_to_log("Verifying the API token ...", module_name="OpenMates | API | Verify Token", color="yellow")
 
-        # seperate user_id (first 32 characters) from api token (following 32 characters)
-        user_id = token[:32]
+        # seperate uid (first 32 characters) from api token (following 32 characters)
+        uid = token[:32]
         api_token = token[32:]
 
         # find the user with the token and check if the user is inside the team
         fields = [
             "api_token",
-            "user_id",
+            "uid",
             "is_server_admin"
         ]
         populate = [
@@ -44,9 +44,9 @@ async def validate_token(
         ]
         filters = [
             {
-                "field": "user_id",
+                "field": "uid",
                 "operator": "$eq",
-                "value": user_id
+                "value": uid
             }
         ]
 

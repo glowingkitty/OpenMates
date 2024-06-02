@@ -35,15 +35,15 @@ async def validate_user_data_access(
 
         filters = []
 
-        # if user api_token is given, get user_id and api_token and filter based on user_id and check for api_token later
+        # if user api_token is given, get uid and api_token and filter based on uid and check for api_token later
         if token:
-            user_id = token[:32]
+            uid = token[:32]
             api_token = token[32:]
 
             filters.append({
-                "field": "user_id",
+                "field": "uid",
                 "operator": "$eq",
-                "value": user_id
+                "value": uid
             })
         elif username:
             filters.append({
@@ -56,7 +56,7 @@ async def validate_user_data_access(
         status_code, json_response = await make_strapi_request(
             method='get',
             endpoint='user-accounts',
-            fields=["is_server_admin","username","api_token","user_id","password"],
+            fields=["is_server_admin","username","api_token","uid","password"],
             populate=["teams_where_user_is_admin.slug"],
             filters=filters
         )

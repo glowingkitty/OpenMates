@@ -13,8 +13,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.cms.strapi_requests import make_strapi_request, get_nested
-from fastapi.responses import JSONResponse
+from server.cms.strapi_requests import make_strapi_request
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
@@ -52,7 +51,7 @@ async def get_users_processing(
 
         if user_access == "basic_access_for_own_user_only":
             filters.append({
-                "field": "user_id",
+                "field": "uid",
                 "operator": "$eq",
                 "value": request_sender_api_token[:32]
             })
