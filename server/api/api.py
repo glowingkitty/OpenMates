@@ -197,8 +197,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
+    set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
+    set_example(openapi_schema, "/v1/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", users_replace_profile_picture_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
@@ -697,7 +697,8 @@ async def get_user(
         team_slug=team_slug,
         request_sender_api_token=token,
         api_token=token,
-        username=username
+        username=username,
+        decrypt_data=True
         )
 
 
@@ -745,19 +746,16 @@ async def replace_user_profile_picture(
     )
 
 
-# PATCH /users/{username}/api_token (generate a new API token for a user)
-@users_router.patch("/v1/{team_slug}/users/{username}/api_token", **users_endpoints["create_new_api_token"])
+# PATCH /api_token (generate a new API token for a user)
+@users_router.patch("/v1/api_token", **users_endpoints["create_new_api_token"])
 @limiter.limit("5/minute")
 async def generate_new_user_api_token(
     request: Request,
-    parameters: UsersCreateNewApiTokenInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    parameters: UsersCreateNewApiTokenInput
     ):
     return await create_new_api_token(
-        username=username,
-        password=parameters.password,
-        team_slug=team_slug
+        username=parameters.username,
+        password=parameters.password
     )
 
 

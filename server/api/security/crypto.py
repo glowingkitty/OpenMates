@@ -137,17 +137,3 @@ if __name__ == "__main__":
     if not os.getenv("CRYPTO_KEY") or not os.getenv("CRYPTO_SALT"):
         add_to_log("Generating key and salt ...")
         generate_key_salt()
-
-
-    input = [
-    "AI",
-    "Python",
-    "TensorFlow",
-    "Pandas",
-    "NumPy",
-    "sales software",
-    "FastAPI",
-    "Docker"
-    ]
-    
-    print(encrypt(input))

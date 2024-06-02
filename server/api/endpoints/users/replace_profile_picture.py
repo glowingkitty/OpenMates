@@ -40,7 +40,7 @@ async def replace_profile_picture_processing(
     # search for user and check if the user is in the team and if the api token is from that user
     access = await validate_user_data_access(
         request_team_slug=team_slug,
-        request_sender_api_token=api_token,
+        token=api_token,
         search_by_username=username,
         request_endpoint="get_one_user"
     )

@@ -35,7 +35,7 @@ async def get_users_processing(
 
         user_access = await validate_user_data_access(
             request_team_slug=team_slug,
-            request_sender_api_token=request_sender_api_token,
+            token=request_sender_api_token,
             request_endpoint="get_all_users"
         )
 

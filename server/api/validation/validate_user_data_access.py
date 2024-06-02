@@ -21,8 +21,9 @@ from server.api.security.crypto import verify_hash
 
 async def validate_user_data_access(
         request_team_slug: str,
-        request_sender_api_token: str,
+        token: str = None,
         username: str = None,
+        password: str = None,
         request_endpoint: Literal["get_one_user", "get_all_users"] = "get_one_user"
     ) -> Union[dict, str, HTTPException]:
     """
@@ -32,30 +33,48 @@ async def validate_user_data_access(
         add_to_log(module_name="OpenMates | API | Validate user data Access", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the user has access to the user data ...")
 
-        user_id = request_sender_api_token[:32]
-        api_token = request_sender_api_token[32:]
+        filters = []
 
-        # get the userdata for the user who makes the request, based on the request_sender_api_token
-        status_code, json_response = await make_strapi_request(
-            method='get',
-            endpoint='user-accounts',
-            fields=["is_server_admin","username","api_token","user_id"],
-            populate=["teams_where_user_is_admin.slug"],
-            filters=[{
+        # if user api_token is given, get user_id and api_token and filter based on user_id and check for api_token later
+        if token:
+            user_id = token[:32]
+            api_token = token[32:]
+
+            filters.append({
                 "field": "user_id",
                 "operator": "$eq",
                 "value": user_id
-            }]
+            })
+        elif username:
+            filters.append({
+                "field": "username",
+                "operator": "$eq",
+                "value": username
+            })
+
+        # get the userdata for the user who makes the request, based on the token
+        status_code, json_response = await make_strapi_request(
+            method='get',
+            endpoint='user-accounts',
+            fields=["is_server_admin","username","api_token","user_id","password"],
+            populate=["teams_where_user_is_admin.slug"],
+            filters=filters
         )
-        if status_code != 200 or not json_response:
+        if status_code != 200 or not json_response or len(json_response["data"]) == 0:
             add_to_log("User not found.", state="error")
             raise HTTPException(status_code=404, detail="User not found.")
 
         user = json_response["data"][0]
 
-        if not verify_hash(user["attributes"]["api_token"], api_token):
+        # if the api_token is given, check if it matches the users api_token
+        if token and not verify_hash(user["attributes"]["api_token"], api_token):
             add_to_log("The user token is invalid.", module_name="OpenMates | API | Validate user data Access", state="error")
             raise HTTPException(status_code=403, detail="The user token is invalid")
+
+        # if the password is given, check if it matches the users passwor
+        if password and not verify_hash(user["attributes"]["password"], password):
+            add_to_log("The password invalid.", module_name="OpenMates | API | Validate user data Access", state="error")
+            raise HTTPException(status_code=403, detail="The password is invalid")
 
         # check if the user has the righ to acces the
         if request_endpoint == "get_one_user":

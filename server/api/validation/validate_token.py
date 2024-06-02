@@ -20,8 +20,8 @@ from server.api.security.crypto import verify_hash
 
 
 async def validate_token(
-    team_slug: str,
-    token: str
+    token: str,
+    team_slug: str = None
     ):
     """
     Verify if the API token is valid for the requested team
@@ -83,6 +83,8 @@ async def validate_token(
             # check if the user is either a team admin or a member of the team
             if user["attributes"]["is_server_admin"]:
                 add_to_log("The user is a server admin.", module_name="OpenMates | API | Verify Token", state="success")
+                return True
+            if team_slug == None:
                 return True
             if team_slug in [team["attributes"]["slug"] for team in user["attributes"]["teams"]["data"]]:
                 add_to_log("The user is a member of the team.", module_name="OpenMates | API | Verify Token", state="success")

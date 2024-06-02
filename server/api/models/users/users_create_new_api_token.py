@@ -17,11 +17,12 @@ from server import *
 from pydantic import BaseModel, Field, validator
 
 
-# PATCH /{team_slug}/users/{username}/api_token (Create a new API token)
+# PATCH /api_token (Create a new API token)
 
 class UsersCreateNewApiTokenInput(BaseModel):
     """This is the model for the incoming parameters for PATCH /{team_slug}/users/{username}/api_token"""
-    password: str = Field(..., description="Password of the user", min_length=8, max_length=100)
+    username: str = Field(..., description="Your username")
+    password: str = Field(..., description="Your password", min_length=8, max_length=100)
 
     @validator('password')
     def password_must_be_strong(cls, v):
@@ -31,6 +32,7 @@ class UsersCreateNewApiTokenInput(BaseModel):
 
 
 users_create_new_api_token_input_example = {
+    "username": "sophiarocks21",
     "password": "-Q9U72vax684LxfPH6AoGDZ"
 }
 

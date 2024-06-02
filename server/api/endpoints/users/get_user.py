@@ -28,7 +28,8 @@ async def get_user(
         password: Optional[str] = None,
         api_token: Optional[str] = None,
         output_raw_data: bool = False,
-        output_format: Literal["JSONResponse", "dict"] = "JSONResponse"
+        output_format: Literal["JSONResponse", "dict"] = "JSONResponse",
+        decrypt_data: bool = False
     ) -> Union[JSONResponse, Dict, HTTPException]:
     """
     Get a specific user.
@@ -43,11 +44,13 @@ async def get_user(
             raise ValueError("You need to provide either an api token or username and password.")
 
         # check if the user is a server or team admin
-        if request_sender_api_token:
+        if request_sender_api_token or (username and password):
+            # TODO this means the database is asked twice for the user data, inefficient...
             user_access = await validate_user_data_access(
-                username=username,
                 request_team_slug=team_slug,
-                request_sender_api_token=request_sender_api_token,
+                token=request_sender_api_token,
+                username=username,
+                password=password,
                 request_endpoint="get_one_user"
             )
         else:
@@ -163,7 +166,7 @@ async def get_user(
                 user = {
                     "id": user["id"],
                     "username": user["attributes"]["username"],
-                    "email": decrypt(user["attributes"]["email"]),
+                    "email": decrypt(user["attributes"]["email"]) if decrypt_data else user["attributes"]["email"],
                     "teams": [
                         {
                             "id": team["id"],
@@ -210,8 +213,8 @@ async def get_user(
                             "allowed_to_access_user_dislikes": config["allowed_to_access_user_dislikes"]
                         } for config in user["attributes"]["mate_configs"]["data"]
                     ],
-                    "software_settings": decrypt(user["attributes"]["software_settings"],"dict"),
-                    "other_settings": decrypt(user["attributes"]["other_settings"],"dict"),
+                    "software_settings": decrypt(user["attributes"]["software_settings"],"dict") if decrypt_data else user["attributes"]["software_settings"],
+                    "other_settings": decrypt(user["attributes"]["other_settings"],"dict") if decrypt_data else user["attributes"]["other_settings"],
                     "projects": [
                         {
                             "id": project["id"],
@@ -219,13 +222,13 @@ async def get_user(
                             "description": project["description"]
                         } for project in user["attributes"]["projects"]["data"]
                     ],
-                    "likes": decrypt(user["attributes"]["likes"],"dict"),
-                    "dislikes": decrypt(user["attributes"]["dislikes"],"dict"),
-                    "goals": decrypt(user["attributes"]["goals"],"dict"),
-                    "todos": decrypt(user["attributes"]["todos"],"dict"),
-                    "recent_topics": decrypt(user["attributes"]["recent_topics"],"dict"),
-                    "recent_emails": decrypt(user["attributes"]["recent_emails"],"dict"),
-                    "calendar": decrypt(user["attributes"]["calendar"],"dict")
+                    "likes": decrypt(user["attributes"]["likes"],"dict") if decrypt_data else user["attributes"]["likes"],
+                    "dislikes": decrypt(user["attributes"]["dislikes"],"dict") if decrypt_data else user["attributes"]["dislikes"],
+                    "goals": decrypt(user["attributes"]["goals"],"dict") if decrypt_data else user["attributes"]["goals"],
+                    "todos": decrypt(user["attributes"]["todos"],"dict") if decrypt_data else user["attributes"]["todos"],
+                    "recent_topics": decrypt(user["attributes"]["recent_topics"],"dict") if decrypt_data else user["attributes"]["recent_topics"],
+                    "recent_emails": decrypt(user["attributes"]["recent_emails"],"dict") if decrypt_data else user["attributes"]["recent_emails"],
+                    "calendar": decrypt(user["attributes"]["calendar"],"dict") if decrypt_data else user["attributes"]["calendar"]
                 } if user_access == "full_access" else {
                     "id": user["id"],
                     "username": user["attributes"]["username"]
