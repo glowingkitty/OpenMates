@@ -52,15 +52,15 @@ async def get_users_processing(
 
         if user_access == "basic_access_for_own_user_only":
             filters.append({
-                "field": "api_token",
+                "field": "user_id",
                 "operator": "$eq",
-                "value": request_sender_api_token
+                "value": request_sender_api_token[:32]
             })
 
         status_code, json_response = await make_strapi_request(
-            method='get', 
-            endpoint='users', 
-            fields=fields, 
+            method='get',
+            endpoint='users',
+            fields=fields,
             filters=filters,
             page=page,
             pageSize=pageSize,
@@ -91,7 +91,7 @@ async def get_users_processing(
         else:
             add_to_log(module_name="OpenMates | API | Get users", state="end", color="red")
             raise HTTPException(status_code=status_code, detail=json_response)
-        
+
     except HTTPException:
         raise
 

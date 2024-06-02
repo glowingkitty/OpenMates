@@ -18,7 +18,7 @@ from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
-from server.api.security.crypto import hashing_sha256, verify_argon2
+from server.api.security.crypto import verify_hash
 
 
 async def get_user(
@@ -117,13 +117,6 @@ async def get_user(
                 "operator": "$eq",
                 "value": username
             })
-        if api_token:
-            filters.append({
-                "field": "api_token",
-                "operator": "$eq",
-                "value": hashing_sha256(api_token)
-            })
-
 
         status_code, json_response = await make_strapi_request(
             method="get",
@@ -149,11 +142,16 @@ async def get_user(
             else:
                 user = users[0]
 
+                if api_token:
+                    if not verify_hash(hashed_text=user["api_token"], text=api_token[32:]):
+                        status_code = 404
+                        raise HTTPException(status_code=status_code, detail="Could not find the requested user.")
+
                 # if password is given, check if the found user has the correct password
                 if password:
-                    if not verify_argon2(hashed_text=user["user_password"], text=password):
-                        status_code = 401
-                        raise HTTPException(status_code=status_code, detail="Login data are incorrect.")
+                    if not verify_hash(hashed_text=user["user_password"], text=password):
+                        status_code = 404
+                        raise HTTPException(status_code=status_code, detail="Could not find the requested user.")
 
                 # return the unprocessed json if requested
                 if output_raw_data:

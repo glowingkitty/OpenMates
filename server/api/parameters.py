@@ -314,11 +314,15 @@ tags_metadata = [
 
 input_parameter_descriptions = {
     "team_slug": {
-        "description": "The URL friendly name of the team",
+        "description": "The URL friendly name of your team",
         "example": "openmates_enthusiasts"
     },
+    "username": {
+        "description": "Your username",
+        "example": "sophiarocks212"
+    },
     "token": {
-        "description": "The authentication token",
+        "description": "Your API token",
         "example": "123456789"
     },
     "mate_username":{

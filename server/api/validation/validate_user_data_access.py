@@ -16,7 +16,7 @@ from server import *
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
 from typing import Union, Literal
-from server.api.security.crypto import hashing_sha256
+from server.api.security.crypto import verify_hash
 
 
 async def validate_user_data_access(
@@ -32,39 +32,48 @@ async def validate_user_data_access(
         add_to_log(module_name="OpenMates | API | Validate user data Access", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the user has access to the user data ...")
 
+        user_id = request_sender_api_token[:32]
+        api_token = request_sender_api_token[32:]
+
         # get the userdata for the user who makes the request, based on the request_sender_api_token
         status_code, json_response = await make_strapi_request(
             method='get',
             endpoint='users',
-            fields=["is_server_admin","username"],
+            fields=["is_server_admin","username","api_token","user_id"],
             populate=["teams_where_user_is_admin.slug"],
             filters=[{
-                "field": "api_token",
+                "field": "user_id",
                 "operator": "$eq",
-                "value": hashing_sha256(request_sender_api_token)
+                "value": user_id
             }]
         )
         if status_code != 200 or not json_response:
             add_to_log("User not found.", state="error")
             raise HTTPException(status_code=404, detail="User not found.")
 
+        user = json_response[0]
+
+        if not verify_hash(user["api_token"], api_token):
+            add_to_log("The user token is invalid.", module_name="OpenMates | API | Validate user data Access", state="error")
+            raise HTTPException(status_code=403, detail="The user token is invalid")
+
         # check if the user has the righ to acces the
         if request_endpoint == "get_one_user":
             add_to_log("Checking if the user has the permission to access a specific user ...")
 
             # check if the found user has the same username as in username
-            if username and json_response[0]["username"] == username:
+            if username and user["username"] == username:
                 # if so that means a user tries to get its own data and we can proceed with 'full data' access
                 add_to_log("User is trying to access its own data.")
                 return "full_access"
 
             # else we check if the user is marked as a server admin, if so, we can proceed 'basic data' access
-            if json_response[0]["is_server_admin"]:
+            if user["is_server_admin"]:
                 add_to_log("User is a server admin and has the permission to access all basic user data.")
                 return "basic_access"
 
             # else we check if the user is a team admin, if so, we can proceed with 'basic data' access
-            for team in json_response[0]["teams_where_user_is_admin"]:
+            for team in user["teams_where_user_is_admin"]:
                 if team["slug"] == request_team_slug:
                     # user is team admin and therefore is allowed to access the 'basic data' of all users on the team
                     add_to_log("User is a team admin and has the permission to access all basic user data on the team.")
@@ -78,12 +87,12 @@ async def validate_user_data_access(
         if request_endpoint == "get_all_users":
             add_to_log("Checking if the user has the permission to access all users ...")
             # check if the found user is a server admin, if so, we can proceed with 'basic data' access
-            if json_response[0]["is_server_admin"]:
+            if user["is_server_admin"]:
                 add_to_log("User is a server admin and has the permission to access all basic user data.")
                 return "basic_access_for_all_users_on_server"
 
             # check if user is a team admin, if so, we can proceed with 'basic data' access
-            for team in json_response[0]["teams_where_user_is_admin"]:
+            for team in user["teams_where_user_is_admin"]:
                 if team["slug"] == request_team_slug:
                     # user is team admin and therefore is allowed to access the 'basic data' of all users on the team
                     add_to_log("User is a team admin and has the permission to access all basic user data on the team.")

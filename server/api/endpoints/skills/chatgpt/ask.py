@@ -34,7 +34,27 @@ async def ask(
 
     add_to_log("Asking ChatGPT ...", module_name="OpenMates | Skills | ChatGPT | Ask", color="yellow")
 
-    # TODO find the user with the token and check if the user has enough money to use the skill
+
+    # # TODO implement check for user key / balance
+    # user = get_user(token=token)
+
+    # # Get the estimated minimum cost of the skill
+    # estimated_minimum_cost = get_skill_costs(
+    #     software="chatgpt",
+    #     skill="ask",
+    #     token_count=count_tokens(system_prompt+message)+200 # assumming 200 tokens for the response
+    # )
+
+    # # Get the api credentials for ChatGPT
+    # api_credentials = get_api_credentials(
+    #     user=user,
+    #     software="chatgpt",
+    #     api_credentials="default",
+    #     costs_eur=estimated_minimum_cost
+    # )
+
+    # # Send request to ChatGPT to get a response
+    # client = OpenAI(api_key=api_credentials["api_key"])
 
     # Send request to ChatGPT to get a response
     load_dotenv()

@@ -32,12 +32,16 @@ async def create_new_api_token(
     Create a new API token for the user
     """
     add_to_log("Creating a new API token ...", module_name="OpenMates | API | Create New API Token", color="yellow")
-    # generate new API token and make sure (based on the hash) that the token doesn't already exist in the database
+    # create a new user_id
+    user_id = secrets.token_hex(16)
+
+    # create a new API token
     api_token = secrets.token_hex(16)
 
-    # catch the exception if the token already exists in the database
+    # make sure the new user_id and API token don't already exist
     try:
-        while await validate_token(team_slug=team_slug, token=api_token):
+        while await validate_token(team_slug=team_slug, token=user_id+api_token):
+            user_id = secrets.token_hex(16)
             api_token = secrets.token_hex(16)
     except HTTPException as e:
         if e.status_code == 403:
@@ -49,8 +53,8 @@ async def create_new_api_token(
     # else, only create a new API token (but don't update any user data)
     if username and password:
         user = await get_user(
-            username=username,
             team_slug=team_slug,
+            username=username,
             password=password,
             output_format="dict"
         )
@@ -65,5 +69,5 @@ async def create_new_api_token(
 
 
     return {
-        "api_token": api_token
+        "api_token": user_id+api_token
     }

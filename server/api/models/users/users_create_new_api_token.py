@@ -42,5 +42,5 @@ class UsersCreateNewApiTokenOutput(BaseModel):
 
 
 users_create_new_api_token_output_example = {
-    "api_token": "976be9fb2150404e9f7e3105a"
+    "api_token": "226af3d154b9eff1acb658fa3ba3973e856b06ac59b1"
 }

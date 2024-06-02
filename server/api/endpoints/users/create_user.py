@@ -20,7 +20,7 @@ from fastapi import HTTPException
 from server.api.validation.validate_user_data_access import validate_user_data_access
 from server.api.models.users.users_create import UsersCreateOutput
 from server.api.endpoints.users.create_new_api_token import create_new_api_token
-from server.api.security.crypto import encrypt, hashing_sha256, hashing_argon2
+from server.api.security.crypto import encrypt, hashing
 
 
 async def create_user(
@@ -36,13 +36,15 @@ async def create_user(
 
     # generate new API token
     create_new_token_output = await create_new_api_token()
-    api_token = create_new_token_output["api_token"]
+    full_token = create_new_token_output["api_token"]
+    user_id = create_new_token_output["api_token"][:32]
+    api_token = create_new_token_output["api_token"][32:]
 
     # TODO encrypt data before sending to strapi
     name_encrypted = encrypt(name)
     email_encrypted = encrypt(email)
-    password_hash = hashing_argon2(password)
-    api_token_hash = hashing_sha256(api_token)
+    password_hash = hashing(password)
+    api_token_hash = hashing(api_token)
 
     # TODO send data to strapi to create the user
 
@@ -53,7 +55,7 @@ async def create_user(
         "name": name,
         "username": username,
         "email": email,
-        "api_token": api_token,
+        "api_token": full_token,
         "teams": [
             {
                 "id": 1,

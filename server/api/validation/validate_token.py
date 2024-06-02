@@ -16,7 +16,7 @@ from server import *
 
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
-from server.api.security.crypto import hashing_sha256
+from server.api.security.crypto import verify_hash
 
 
 async def validate_token(
@@ -29,9 +29,14 @@ async def validate_token(
     try:
         add_to_log("Verifying the API token ...", module_name="OpenMates | API | Verify Token", color="yellow")
 
+        # seperate user_id (first 32 characters) from api token (following 32 characters)
+        user_id = token[:32]
+        api_token = token[32:]
+
         # find the user with the token and check if the user is inside the team
         fields = [
             "api_token",
+            "user_id",
             "is_server_admin"
         ]
         populate = [
@@ -39,9 +44,9 @@ async def validate_token(
         ]
         filters = [
             {
-                "field": "api_token",
+                "field": "user_id",
                 "operator": "$eq",
-                "value": hashing_sha256(token)
+                "value": user_id
             }
         ]
 
@@ -68,8 +73,13 @@ async def validate_token(
             raise HTTPException(status_code=500, detail="Found more than one user with your token. Please contact the administrator.")
 
         if len(user_json_response) == 1:
-            # check if the user is either a team admin or a member of the team
             user = user_json_response[0]
+            # check if the api token is valid
+            if not verify_hash(user["api_token"], api_token):
+                add_to_log("The user token is invalid.", module_name="OpenMates | API | Verify Token", state="error")
+                raise HTTPException(status_code=403, detail=failure_message)
+
+            # check if the user is either a team admin or a member of the team
             if user["is_server_admin"]:
                 add_to_log("The user is a server admin.", module_name="OpenMates | API | Verify Token", state="success")
                 return True

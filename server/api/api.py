@@ -20,11 +20,7 @@ from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI, Depends, UploadFile, File, Form, Request, HTTPException, APIRouter, Path
-from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
-from server.api.models.files.files_upload import (
-    file_upload_output_example
-)
 from server.api.models.mates.mates_ask import (
     MatesAskInput,
     mates_ask_input_example,
@@ -191,27 +187,27 @@ def custom_openapi():
         tags=tags_metadata
     )
 
-    set_example(openapi_schema, "/{team_slug}/mates/ask", "post", "requestBody", mates_ask_input_example)
-    set_example(openapi_schema, "/{team_slug}/mates/ask", "post", "responses", mates_ask_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/mates/", "get", "responses", mates_get_all_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/mates/", "post", "requestBody", mates_create_input_example)
-    set_example(openapi_schema, "/{team_slug}/mates/", "post", "responses", mates_create_output_example, "201")
-    set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
-    set_example(openapi_schema, "/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
-    set_example(openapi_schema, "/{team_slug}/users/{username}/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/users/{username}/profile_picture", "patch", "responses", users_replace_profile_picture_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/users/", "post", "requestBody", users_create_input_example)
-    set_example(openapi_schema, "/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
-    set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
-    set_example(openapi_schema, "/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
-    set_example(openapi_schema, "/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
-    set_example(openapi_schema, "/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
-    set_example(openapi_schema, "/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "requestBody", mates_ask_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "responses", mates_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/", "get", "responses", mates_get_all_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/", "post", "requestBody", mates_create_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/mates/", "post", "responses", mates_create_output_example, "201")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", users_replace_profile_picture_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", users_create_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -252,8 +248,8 @@ def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
 
 
-# GET /{team_slug}/uploads/{file_name} (get an uploaded file)
-@files_router.get("/{team_slug}/uploads/{file_name}", include_in_schema=False)
+# GET /v1/{team_slug}/uploads/{file_name} (get an uploaded file)
+@files_router.get("/v1/{team_slug}/uploads/{file_name}", include_in_schema=False)
 @limiter.limit("20/minute")
 async def get_upload(
     request: Request,
@@ -275,7 +271,7 @@ async def get_upload(
 ##################################
 
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
-@mates_router.post("/{team_slug}/mates/ask",**mates_endpoints["ask_mate"])
+@mates_router.post("/v1/{team_slug}/mates/ask",**mates_endpoints["ask_mate"])
 @limiter.limit("20/minute")
 async def ask_mate(
     request: Request,
@@ -295,7 +291,7 @@ async def ask_mate(
 
 
 # GET /mates (get all mates)
-@mates_router.get("/{team_slug}/mates/", **mates_endpoints["get_all_mates"])
+@mates_router.get("/v1/{team_slug}/mates/", **mates_endpoints["get_all_mates"])
 @limiter.limit("20/minute")
 async def get_mates(
     request: Request,
@@ -316,7 +312,7 @@ async def get_mates(
 
 
 # GET /mates/{mate_username} (get a mate)
-@mates_router.get("/{team_slug}/mates/{mate_username}", **mates_endpoints["get_mate"])
+@mates_router.get("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["get_mate"])
 @limiter.limit("20/minute")
 async def get_mate(
     request: Request,
@@ -339,7 +335,7 @@ async def get_mate(
 
 
 # POST /mates (create a new mate)
-@mates_router.post("/{team_slug}/mates/", **mates_endpoints["create_mate"])
+@mates_router.post("/v1/{team_slug}/mates/", **mates_endpoints["create_mate"])
 @limiter.limit("20/minute")
 async def create_mate(
     request: Request,
@@ -364,7 +360,7 @@ async def create_mate(
 
 
 # PATCH /mates/{mate_username} (update a mate)
-@mates_router.patch("/{team_slug}/mates/{mate_username}", **mates_endpoints["update_mate"])
+@mates_router.patch("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["update_mate"])
 @limiter.limit("20/minute")
 async def update_mate(
     request: Request,
@@ -408,7 +404,7 @@ async def update_mate(
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
-@skills_router.post("/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
+@skills_router.post("/v1/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
 @limiter.limit("20/minute")
 async def skill_chatgpt_ask(
     request: Request,
@@ -430,7 +426,7 @@ async def skill_chatgpt_ask(
 
 
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
-@skills_router.post("/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
+@skills_router.post("/v1/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
 @limiter.limit("20/minute")
 async def skill_claude_ask(
     request: Request,
@@ -445,7 +441,7 @@ async def skill_claude_ask(
 
 
 # POST /skills/atopile/create_pcb_schematic (create a PCB schematic)
-@skills_router.post("/{team_slug}/skills/atopile/create_pcb_schematic", **skills_atopile_endpoints["create_pcb_schematic"])
+@skills_router.post("/v1/{team_slug}/skills/atopile/create_pcb_schematic", **skills_atopile_endpoints["create_pcb_schematic"])
 @limiter.limit("20/minute")
 async def skill_atopile_create_pcb_schematic(
     request: Request,
@@ -469,7 +465,7 @@ async def skill_atopile_create_pcb_schematic(
 
 
 # POST /skills/youtube/ask (ask a question about a video)
-@skills_router.post("/{team_slug}/skills/youtube/ask", **skills_youtube_endpoints["ask_youtube"])
+@skills_router.post("/v1/{team_slug}/skills/youtube/ask", **skills_youtube_endpoints["ask_youtube"])
 @limiter.limit("20/minute")
 async def skill_youtube_ask(
     request: Request,
@@ -484,7 +480,7 @@ async def skill_youtube_ask(
 
 
 # POST /skills/youtube/transcript (get the transcript of a video)
-@skills_router.post("/{team_slug}/skills/youtube/transcript", **skills_youtube_endpoints["get_transcript"])
+@skills_router.post("/v1/{team_slug}/skills/youtube/transcript", **skills_youtube_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_youtube_transcript(
     request: Request,
@@ -502,7 +498,7 @@ async def skill_youtube_transcript(
 
 
 # POST /skills/image_editor/resize (resize an image)
-@skills_router.post("/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
+@skills_router.post("/v1/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_image_editor_resize(
     request: Request,
@@ -642,7 +638,7 @@ async def update_settings(
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
 
 # GET /users (get all users on a team)
-@users_router.get("/{team_slug}/users/", **users_endpoints["get_all_users"])
+@users_router.get("/v1/{team_slug}/users/", **users_endpoints["get_all_users"])
 @limiter.limit("20/minute")
 async def get_users(
     request: Request,
@@ -663,29 +659,8 @@ async def get_users(
         )
 
 
-# GET /users/{username} (get a user)
-@users_router.get("/{team_slug}/users/{username}", **users_endpoints["get_user"])
-@limiter.limit("20/minute")
-async def get_user(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    username: str = Path(..., **input_parameter_descriptions["user_username"])
-    ):
-    await validate_token(
-        team_slug=team_slug,
-        token=token
-        )
-    return await get_user_processing(
-        team_slug=team_slug,
-        request_sender_api_token=token,
-        api_token=token,
-        username=username
-        )
-
-
 # POST /users (create a new user)
-@users_router.post("/{team_slug}/users/", **users_endpoints["create_user"])
+@users_router.post("/v1/{team_slug}/users/", **users_endpoints["create_user"])
 @limiter.limit("20/minute")
 async def create_user(
     request: Request,
@@ -705,8 +680,29 @@ async def create_user(
         )
 
 
+# GET /users/{username} (get a user)
+@users_router.get("/v1/{team_slug}/users/{username}", **users_endpoints["get_user"])
+@limiter.limit("20/minute")
+async def get_user(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    ):
+    await validate_token(
+        team_slug=team_slug,
+        token=token
+        )
+    return await get_user_processing(
+        team_slug=team_slug,
+        request_sender_api_token=token,
+        api_token=token,
+        username=username
+        )
+
+
 # PATCH /users/{username} (update a user)
-@users_router.patch("/{team_slug}/users/{username}", **users_endpoints["update_user"])
+@users_router.patch("/v1/{team_slug}/users/{username}", **users_endpoints["update_user"])
 @limiter.limit("20/minute")
 async def update_user(
     request: Request,
@@ -718,7 +714,7 @@ async def update_user(
 
 
 # PATCH /users/{username}/profile_picture (replace a user's profile picture)
-@users_router.patch("/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
+@users_router.patch("/v1/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
 @limiter.limit("5/minute")
 async def replace_user_profile_picture(
     request: Request,
@@ -750,7 +746,7 @@ async def replace_user_profile_picture(
 
 
 # PATCH /users/{username}/api_token (generate a new API token for a user)
-@users_router.patch("/{team_slug}/users/{username}/api_token", **users_endpoints["create_new_api_token"])
+@users_router.patch("/v1/{team_slug}/users/{username}/api_token", **users_endpoints["create_new_api_token"])
 @limiter.limit("5/minute")
 async def generate_new_user_api_token(
     request: Request,
