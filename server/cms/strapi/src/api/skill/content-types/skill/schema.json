@@ -31,11 +31,6 @@
       "target": "api::workflow.workflow",
       "mappedBy": "skills"
     },
-    "slug": {
-      "type": "uid",
-      "targetField": "name",
-      "required": true
-    },
     "software": {
       "type": "relation",
       "relation": "manyToOne",
@@ -46,6 +41,10 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "api::uploaded-file.uploaded-file"
+    },
+    "slug": {
+      "type": "string",
+      "required": true
     }
   }
 }

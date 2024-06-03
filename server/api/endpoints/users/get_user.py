@@ -63,6 +63,7 @@ async def get_user(
                 "api_token",
                 "password",
                 "balance",
+                "mate_default_llm_endpoint",
                 "mate_privacy_config_default__allowed_to_access_name",
                 "mate_privacy_config_default__allowed_to_access_username",
                 "mate_privacy_config_default__allowed_to_access_projects",
@@ -95,6 +96,8 @@ async def get_user(
                 "mate_configs.systemprompt",
                 "mate_configs.mate.username",
                 "mate_configs.team.slug",
+                "mate_configs.ai_endpoint",
+                "mate_configs.ai_model",
                 "mate_configs.skills.name",
                 "mate_configs.skills.description",
                 "mate_configs.skills.slug",
@@ -174,7 +177,7 @@ async def get_user(
                             "slug": team["attributes"]["slug"]
                         } for team in user["attributes"]["teams"]["data"]
                     ],
-                    "profile_picture_url":  f"/{team_slug}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
+                    "profile_picture_url":  f"/v1/{team_slug}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
                     "balance_eur": user["attributes"]["balance"],
                     "mates_default_privacy_settings": {
                         "allowed_to_access_name": user["attributes"]["mate_privacy_config_default__allowed_to_access_name"],
@@ -194,12 +197,14 @@ async def get_user(
                             "mate_username": config["attributes"]["mate"]["data"]["attributes"]["username"],
                             "team_slug": config["attributes"]["team"]["data"]["attributes"]["slug"],
                             "systemprompt": config["attributes"]["systemprompt"],
+                            "llm_endpoint": "/v1/"+config["attributes"]["team"]["data"]["attributes"]["slug"]+config["attributes"]["llm_endpoint"] if config["attributes"]["llm_endpoint"] else None,
+                            "llm_model":config["attributes"]["llm_model"],
                             "skills": [
                                 {
                                     "id": skill["id"],
                                     "name": skill["attributes"]["name"],
                                     "software": skill["attributes"]["software"]["data"]["attributes"]["name"],
-                                    "api_endpoint": f"/{team_slug}/skills/{skill['attributes']['software']['data']['attributes']['slug']}/{skill['attributes']['slug']}"
+                                    "api_endpoint": "/v1/"+config["attributes"]["team"]["data"]["attributes"]["slug"]+"/skills/"+skill['attributes']['software']['data']['attributes']['slug']+"/"+skill['attributes']['slug']
                                 } for skill in config["attributes"]["skills"]["data"]
                             ],
                             "allowed_to_access_user_name": config["attributes"]["allowed_to_access_user_name"],
@@ -219,8 +224,8 @@ async def get_user(
                     "projects": [
                         {
                             "id": project["id"],
-                            "name": project["name"],
-                            "description": project["description"]
+                            "name": project["attributes"]["name"],
+                            "description": project["attributes"]["description"]
                         } for project in user["attributes"]["projects"]["data"]
                     ],
                     "likes": decrypt(user["attributes"]["likes"],"dict") if decrypt_data else user["attributes"]["likes"],

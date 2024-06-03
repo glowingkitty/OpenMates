@@ -113,7 +113,7 @@ async def replace_profile_picture_processing(
         # TODO delete old profile picture
 
         return {
-            "profile_picture_url": "/ai-sales-team/uploads/johnd_new_image.jpeg"
+            "profile_picture_url": "/v1/ai-sales-team/uploads/johnd_new_image.jpeg"
         }
 
     else:

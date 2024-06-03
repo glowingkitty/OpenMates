@@ -51,6 +51,14 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "api::uploaded-file.uploaded-file"
+    },
+    "default_llm_endpoint": {
+      "type": "string",
+      "required": true
+    },
+    "default_llm_model": {
+      "type": "string",
+      "required": true
     }
   }
 }

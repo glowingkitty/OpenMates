@@ -155,6 +155,9 @@
       "relation": "manyToMany",
       "target": "api::team.team",
       "inversedBy": "admins"
+    },
+    "mate_default_llm_endpoint": {
+      "type": "string"
     }
   }
 }

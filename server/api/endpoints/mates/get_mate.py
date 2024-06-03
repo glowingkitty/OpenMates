@@ -17,6 +17,7 @@ from server.cms.strapi_requests import make_strapi_request, get_nested
 from typing import Dict, Union, Literal
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
+from server.api.security.crypto import verify_hash
 
 async def get_mate(
         team_slug: str,
@@ -30,14 +31,16 @@ async def get_mate(
     Get a specific AI team mate on the team
     """
     try:
-        add_to_log(module_name="OpenMates | API | Get mate", state="start", color="yellow")
+        add_to_log(module_name="OpenMates | API | Get mate", state="start", color="yellow", hide_variables=True)
         add_to_log("Getting a specific AI team mate on the team ...")
 
         fields = [
             "name",
             "username",
             "description",
-            "default_systemprompt"
+            "default_systemprompt",
+            "default_llm_endpoint",
+            "default_llm_model"
         ]
         populate = []
 
@@ -50,6 +53,8 @@ async def get_mate(
                 "default_skills.software.name",
                 "default_skills.software.slug",
                 "configs.systemprompt",
+                "configs.llm_endpoint",
+                "configs.llm_model",
                 "configs.user.api_token",
                 "configs.team.slug",
                 "configs.skills.name",
@@ -114,7 +119,7 @@ async def get_mate(
 
                 # check if a custom config exists
                 if user_api_token and len(mate["attributes"]["configs"]["data"])>0:
-                    matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_slug and get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]) == user_api_token]
+                    matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_slug and verify_hash(get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]),user_api_token[32:])]
                     if len(matching_config) == 1:
                         mate["attributes"]["config"] = matching_config[0]
                 else:
@@ -125,7 +130,11 @@ async def get_mate(
                         "name": get_nested(mate, ["attributes", "name"]),
                         "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
                         "description": get_nested(mate, ['attributes', 'description']),
-                        "profile_picture_url": f"/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                        "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                        "llm_endpoint": "/v1/"+team_slug+(get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) or get_nested(mate, ['attributes', 'default_llm_endpoint'])),
+                        "llm_endpoint_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) else False,
+                        "llm_model": get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) or get_nested(mate, ['attributes', 'default_llm_model']),
+                        "llm_model_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) else False,
                         "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
                         "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
                         "skills": [
@@ -137,7 +146,7 @@ async def get_mate(
                                     "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
                                     "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
                                 },
-                                "api_endpoint": f"/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
+                                "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                             } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
                         ],
                         "skills_are_customized": True if get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) else False

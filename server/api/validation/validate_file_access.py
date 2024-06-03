@@ -30,7 +30,7 @@ async def validate_file_access(
         add_to_log(module_name="OpenMates | API | Validate file Access", state="start", color="yellow", hide_variables=True)
         add_to_log("Validating if the user has access to the file ...")
 
-        request_refused_response_text = f"The file '/{team_slug}/uploads/{filename}' does not exist or you do not have access to it."
+        request_refused_response_text = f"The file '/v1/{team_slug}/uploads/{filename}' does not exist or you do not have access to it."
 
         # check for requested access
         if scope == "uploads:read":

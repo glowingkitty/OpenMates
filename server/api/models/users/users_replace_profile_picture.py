@@ -25,5 +25,5 @@ class UsersReplaceProfilePictureOutput(BaseModel):
 
 
 users_replace_profile_picture_output_example = {
-    "profile_picture_url": "/ai-sales-team/uploads/johnd_new_image.jpeg"
+    "profile_picture_url": "/v1/ai-sales-team/uploads/johnd_new_image.jpeg"
 }

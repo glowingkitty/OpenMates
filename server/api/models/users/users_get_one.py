@@ -39,9 +39,12 @@ class Skill(BaseModel):
     api_endpoint: str = Field(..., description="API endpoint for the skill")
 
 class MateConfig(BaseModel):
+    id: int = Field(..., description="ID of the Mate config")
     mate_username: str = Field(..., description="Username of the AI team mate this config is for.")
     team_slug: str = Field(..., description="Slug of the team this config is for.")
     systemprompt: str = Field(..., description="Custom system prompt for the AI team mate.")
+    llm_endpoint: str = Field(..., description="The API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
+    llm_model: str = Field(..., description="The LLM model which is used by the AI team mate.")
     skills: list[Skill] = Field(..., description="Custom selection of skills the AI team mate can use")
     allowed_to_access_user_name: bool = Field(..., description="Whether the AI team mate is allowed to access the name of the user.")
     allowed_to_access_user_username: bool = Field(..., description="Whether the AI team mate is allowed to access the username of the user.")
@@ -90,7 +93,7 @@ users_get_one_output_example = {
             "slug": "ai-sales-team"
         }
     ],
-    "profile_picture_url": "/ai-sales-team/uploads/johnd_image.jpeg",
+    "profile_picture_url": "/v1/ai-sales-team/uploads/johnd_image.jpeg",
     "balance_in_EUR": 100.0,
     "mates_default_privacy_settings": {
         "allowed_to_access_name": True,

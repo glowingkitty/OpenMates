@@ -63,7 +63,7 @@ async def get_mates(
                     "name": get_nested(mate, ["attributes", "name"]),
                     "username": get_nested(mate, ["attributes", "username"]),
                     "description": get_nested(mate, ['attributes', 'description']),
-                    "profile_picture_url": f"/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
+                    "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                 } for mate in json_response["data"]
             ]
 
