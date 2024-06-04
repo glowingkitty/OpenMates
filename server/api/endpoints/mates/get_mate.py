@@ -132,11 +132,8 @@ async def get_mate(
                         "description": get_nested(mate, ['attributes', 'description']),
                         "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
                         "llm_endpoint": "/v1/"+team_slug+(get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) or get_nested(mate, ['attributes', 'default_llm_endpoint'])),
-                        "llm_endpoint_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) else False,
                         "llm_model": get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) or get_nested(mate, ['attributes', 'default_llm_model']),
-                        "llm_model_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) else False,
                         "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
-                        "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
                         "skills": [
                             {
                                 "id": get_nested(skill, ['id']),
@@ -149,6 +146,10 @@ async def get_mate(
                                 "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                             } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
                         ],
+                        "custom_config_id": get_nested(mate, ['attributes', 'config', 'id']) if get_nested(mate, ['attributes', 'config']) else None,
+                        "llm_endpoint_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) else False,
+                        "llm_model_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) else False,
+                        "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
                         "skills_are_customized": True if get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) else False
                     }
 

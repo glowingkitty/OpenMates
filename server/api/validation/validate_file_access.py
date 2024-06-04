@@ -15,6 +15,7 @@ from server import *
 
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request
+from server.api.security.crypto import verify_hash
 
 
 async def validate_file_access(
@@ -81,7 +82,7 @@ async def validate_file_access(
         # else check if the user is on the list of users with access to the file
         if len(file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]) > 0:
             for user in file_json_response["data"][0]["attributes"][f"{requested_access}_access_limited_to_users"]["data"]:
-                if user_api_token and len(user_api_token)>1 and user["attributes"]["api_token"] == user_api_token:
+                if user_api_token and len(user_api_token)>1 and verify_hash(user["attributes"]["api_token"], user_api_token[32:]):
                     add_to_log("The user is on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
                     return file_json_response["data"][0]
 
