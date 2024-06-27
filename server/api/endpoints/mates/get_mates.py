@@ -57,15 +57,18 @@ async def get_mates(
             )
 
         if status_code == 200:
-            mates = [
-                {
+            mates = []
+            for mate in json_response["data"]:
+                profile_picture_url = get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'filename'])
+
+                mate_data = {
                     "id": get_nested(mate, ["id"]),
                     "name": get_nested(mate, ["attributes", "name"]),
                     "username": get_nested(mate, ["attributes", "username"]),
                     "description": get_nested(mate, ['attributes', 'description']),
-                    "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
-                } for mate in json_response["data"]
-            ]
+                    "profile_picture_url": f"/v1/{team_slug}/uploads/{profile_picture_url}" if profile_picture_url else None,
+                }
+                mates.append(mate_data)
 
             # if no mates, return a 404 error
             if len(mates) == 0:

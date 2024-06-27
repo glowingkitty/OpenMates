@@ -48,7 +48,7 @@ class MatesCreateInput(BaseModel):
     @validator('profile_picture_url')
     def profile_picture_url_must_in_right_format(cls, v):
         if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
-            raise ValueError('profile picture URL must be in the right format: /{team_slug}/uploads/{filename}')
+            raise ValueError('profile picture URL must be in the right format: /v1/{team_slug}/uploads/{filename}')
         return v
 
 
@@ -56,7 +56,7 @@ mates_create_input_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
+    "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [3]
 }
@@ -79,7 +79,7 @@ mates_create_output_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/ai-sales-team/uploads/sophia_image.jpeg",
+    "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [
         {

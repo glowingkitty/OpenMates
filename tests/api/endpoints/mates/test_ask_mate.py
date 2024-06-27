@@ -10,7 +10,9 @@ load_dotenv()
 def test_ask_mate():
     # Get the API token from environment variable
     api_token = os.getenv('TEST_API_TOKEN')
+    team_slug = os.getenv('TEST_TEAM_SLUG')
     assert api_token, "TEST_API_TOKEN not found in .env file"
+    assert team_slug, "TEST_TEAM_SLUG not found in .env file"
 
     headers = {
         "Authorization": f"Bearer {api_token}"
@@ -20,7 +22,7 @@ def test_ask_mate():
         "message": "hello world"
     }
 
-    response = requests.post("http://0.0.0.0:8000/v1/glowingkitties/mates/ask", json=payload, headers=headers)
+    response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/mates/ask", json=payload, headers=headers)
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
 

@@ -1,6 +1,7 @@
 import pytest
 import requests
 import os
+import re
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -10,13 +11,15 @@ load_dotenv()
 def test_get_mates():
     # Get the API token from environment variable
     api_token = os.getenv('TEST_API_TOKEN')
+    team_slug = os.getenv('TEST_TEAM_SLUG')
     assert api_token, "TEST_API_TOKEN not found in .env file"
+    assert team_slug, "TEST_TEAM_SLUG not found in .env file"
 
     headers = {
         "Authorization": f"Bearer {api_token}"
     }
 
-    response = requests.get("http://0.0.0.0:8000/v1/glowingkitties/mates", headers=headers)
+    response = requests.get(f"http://0.0.0.0:8000/v1/{team_slug}/mates", headers=headers)
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
 
@@ -38,8 +41,9 @@ def test_get_mates():
         assert isinstance(mate["profile_picture_url"], str), f"Expected 'profile_picture_url' to be a string, got: {type(mate['profile_picture_url'])}"
 
         # Check profile_picture_url format
-        assert mate["profile_picture_url"].startswith("/v1/"), f"profile_picture_url should start with '/v1/': {mate['profile_picture_url']}"
-        assert "uploads/" in mate["profile_picture_url"], f"profile_picture_url should include 'uploads/': {mate['profile_picture_url']}"
+        assert mate["profile_picture_url"].startswith(f"/v1/{team_slug}/"), f"profile_picture_url should start with '/v1/{team_slug}/': {mate['profile_picture_url']}"
+        profile_pic_pattern = rf"^/v1/{re.escape(team_slug)}/uploads/[a-zA-Z0-9_]+\.[a-zA-Z]+$"
+        assert re.match(profile_pic_pattern, mate["profile_picture_url"]), f"profile_picture_url does not match expected pattern: {mate['profile_picture_url']}"
 
     # Check meta structure
     assert "pagination" in json_response["meta"], f"'pagination' field not found in meta: {json_response['meta']}"
