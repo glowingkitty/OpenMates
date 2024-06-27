@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+@pytest.mark.api_dependent
 def test_ask_mate():
     # Get the API token from environment variable
     api_token = os.getenv('TEST_API_TOKEN')

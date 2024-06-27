@@ -1,14 +1,10 @@
 import pytest
-from fastapi.testclient import TestClient
-from server.api.api import app
+import requests
 
-@pytest.fixture
-def client():
-    return TestClient(app)
 
-def test_read_root(client):
-    response = client.get("/")
-    print(response.text)
+@pytest.mark.api_dependent
+def test_read_root():
+    response = requests.get("http://localhost:8000/")
 
     # Check if the status code is 200
     assert response.status_code == 200
