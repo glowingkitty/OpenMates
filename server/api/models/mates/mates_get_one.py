@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List
 from server.api.models.skills.skills_old import Skill
 
@@ -37,6 +37,27 @@ class Mate(BaseModel):
     llm_model_is_customized: bool = Field(..., description="Indicates if the specific Large Language Model is customized or the default one.")
     systemprompt_is_customized: bool = Field(..., description="Indicates if the system prompt is customized or the default one.")
     skills_are_customized: bool = Field(..., description="Indicates if the skills are customized or the default ones.")
+
+    @validator('profile_picture_url')
+    def validate_profile_picture_url(cls, v):
+        pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid profile picture URL format: {v}")
+        return v
+
+    @validator('llm_endpoint')
+    def validate_llm_endpoint(cls, v):
+        pattern = r'^/v1/[a-z0-9-]+/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM endpoint format: {v}")
+        return v
+
+    @validator('llm_model')
+    def validate_llm_model(cls, v):
+        pattern = r'^[a-z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM model format: {v}")
+        return v
 
     # TODO add endpoint to reset systemprompt and skills to default (for the user who makes the request, in the context of the selected team)
 
