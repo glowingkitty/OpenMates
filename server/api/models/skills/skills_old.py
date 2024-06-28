@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List
 from enum import Enum
 from server.api.models.software import Software
@@ -31,6 +31,13 @@ class Skill(BaseModel):
     description: str = Field(..., description="Description of the skill")
     software: Software = Field(..., description="Software related to the skill")
     api_endpoint: str = Field(..., description="API endpoint for the skill")
+
+    @validator('api_endpoint')
+    def validate_api_endpoint(cls, v):
+        pattern = r'^/v1/[a-z0-9-]+/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid API endpoint format: {v}")
+        return v
 
 
 ################
