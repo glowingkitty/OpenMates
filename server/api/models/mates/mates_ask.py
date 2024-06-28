@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
@@ -26,6 +26,13 @@ class MatesAskInput(BaseModel):
 
     class Config:
         extra = "forbid"
+
+    # validate that username is small letters
+    @validator('mate_username')
+    def validate_mate_username(cls, v):
+        if not v.islower():
+            raise ValueError(f"Username must be in lower case: {v}")
+        return v
 
 
 mates_ask_input_example = {

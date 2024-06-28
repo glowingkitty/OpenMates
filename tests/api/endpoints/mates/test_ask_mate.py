@@ -2,6 +2,8 @@ import pytest
 import requests
 import os
 from dotenv import load_dotenv
+from pydantic import ValidationError
+from server.api.models.mates.mates_ask import MatesAskOutput
 
 # Load environment variables from .env file
 load_dotenv()
@@ -27,11 +29,9 @@ def test_ask_mate():
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
 
     json_response = response.json()
-    expected_fields = ["message", "tokens_used_input", "tokens_used_output", "total_costs_eur"]
-    for field in expected_fields:
-        assert field in json_response, f"Field '{field}' not found in response: {json_response}"
 
-    assert isinstance(json_response["message"], str), f"Expected 'message' to be a string, got: {type(json_response['message'])}"
-    assert isinstance(json_response["tokens_used_input"], int), f"Expected 'tokens_used_input' to be an integer, got: {type(json_response['tokens_used_input'])}"
-    assert isinstance(json_response["tokens_used_output"], int), f"Expected 'tokens_used_output' to be an integer, got: {type(json_response['tokens_used_output'])}"
-    assert isinstance(json_response["total_costs_eur"], float), f"Expected 'total_costs_eur' to be a float, got: {type(json_response['total_costs_eur'])}"
+    try:
+        # validate the response against the model
+        ask_mate_response = MatesAskOutput.model_validate(json_response)
+    except ValidationError as e:
+        pytest.fail(f"Response does not match the MatesAskOutput model: {e}")

@@ -38,6 +38,9 @@ class Mate(BaseModel):
     systemprompt_is_customized: bool = Field(..., description="Indicates if the system prompt is customized or the default one.")
     skills_are_customized: bool = Field(..., description="Indicates if the skills are customized or the default ones.")
 
+    class Config:
+        extra = "forbid"
+
     @validator('profile_picture_url')
     def validate_profile_picture_url(cls, v):
         pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
