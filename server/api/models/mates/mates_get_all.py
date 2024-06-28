@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List
 from server.api.models.metadata import MetaData
 
@@ -29,9 +29,29 @@ class MateForGetAll(BaseModel):
     description: str = Field(..., description="Description of the AI team mate")
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
 
+    class Config:
+        extra = "forbid"
+
+    @validator('profile_picture_url')
+    def validate_profile_picture_url(cls, v):
+        pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid profile picture URL format: {v}")
+        return v
+
+    @validator('username')
+    def validate_username(cls, v):
+        if not v.islower():
+            raise ValueError(f"Username must be in lower case: {v}")
+        return v
+
+
 class MatesGetAllOutput(BaseModel):
     data: List[MateForGetAll] = Field(..., description="List of all AI team mates for the team")
     meta: MetaData = Field(..., description="Metadata for the response")
+
+    class Config:
+        extra = "forbid"
 
 
 mates_get_all_output_example = {

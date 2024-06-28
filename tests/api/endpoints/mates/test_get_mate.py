@@ -3,8 +3,6 @@ import requests
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
-
-# Import your Pydantic model
 from server.api.models.mates.mates_get_one import Mate
 
 # Load environment variables from .env file
