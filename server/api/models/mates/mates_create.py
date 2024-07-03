@@ -38,7 +38,7 @@ class MatesCreateInput(BaseModel):
         extra = "forbid"
 
     @validator('username')
-    def username_must_be_url_compatible(cls, v):
+    def validate_username(cls, v):
         if quote(v) != v:
             raise ValueError('username must only contain URL-safe characters')
         if not v.islower():
@@ -46,9 +46,10 @@ class MatesCreateInput(BaseModel):
         return v
 
     @validator('profile_picture_url')
-    def profile_picture_url_must_in_right_format(cls, v):
-        if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
-            raise ValueError('profile picture URL must be in the right format: /v1/{team_slug}/uploads/{filename}')
+    def validate_profile_picture_url(cls, v):
+        pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid profile picture URL format: {v}")
         return v
 
 
