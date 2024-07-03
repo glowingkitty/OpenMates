@@ -159,6 +159,11 @@ mates_endpoints = {
         "summary": "Update",
         "description": "<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
+    },
+    "delete_mate":{
+        "summary": "Delete",
+        "description": "<img src='images/mates/delete.png' alt='Delete an existing mate on the server.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
     }
 }
 

@@ -75,6 +75,8 @@ class User(BaseModel):
     projects: List[Project] = Field(..., description="Projects of the user")
     likes: List[str] = Field(..., description="List of topics the user is interested in")
     dislikes: List[str] = Field(..., description="List of topics the user is not interested in")
+    # TODO
+    topics_outside_my_bubble_that_i_should_consider: List[str] = Field(..., description="List of topics the user is not interested in, but should consider")
     goals: List[dict] = Field(..., description="Goals and priorities of the user, related to projects, learning, finances etc.")
     todos: List[str] = Field(..., description="List of current To Do's of the user")
     recent_topics: List[str] = Field(..., description="Recent topics the user asked the AI team mates about.")

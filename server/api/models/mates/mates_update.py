@@ -29,6 +29,8 @@ class MatesUpdateInput(BaseModel):
     default_systemprompt: str = Field(None, description="Default system prompt of the AI team mate", min_length=1)
     default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
     systemprompt: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom system prompt of the AI team mate.", min_length=1)
+    llm_endpoint: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
+    llm_model: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom LLM model which is used by the AI team mate.")
     skills: List[int] = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom list of skills (IDs) AI team mate is allowed to use.")
     allowed_to_access_user_name: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your name.")
     allowed_to_access_user_username: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your username.")
@@ -48,10 +50,19 @@ class MatesUpdateInput(BaseModel):
             raise ValueError('username must be all lowercase')
         return v
 
+    @validator('llm_endpoint')
+    def llm_endpoint_must_be_url_compatible(cls, v):
+        if quote(v) != v:
+            raise ValueError('LLM endpoint must only contain URL-safe characters')
+        pattern = r'^/v1/[a-z0-9-]+/skills/[a-z0-9-]+/ask'
+        if not re.match(pattern, v):
+            raise ValueError('LLM endpoint must be in the format /v1/{team_slug}/skills/{llm_provider}/ask')
+        return v
+
     @validator('profile_picture_url')
     def profile_picture_url_must_in_right_format(cls, v):
-        if not re.match(r"/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
-            raise ValueError('profile picture URL must be in the right format: /{team_slug}/uploads/{filename}')
+        if not re.match(r"/v1/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
+            raise ValueError('profile picture URL must be in the right format: /v1/{team_slug}/uploads/{filename}')
         return v
 
 mates_update_input_example = {

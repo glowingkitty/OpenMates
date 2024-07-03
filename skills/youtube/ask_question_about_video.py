@@ -11,7 +11,7 @@ from server import *
 from skills.all_skills import *
 from skills.intelligence.openai.chat_complete import chat_complete
 from skills.youtube.get_video_details import get_video_details
-from skills.youtube.get_video_transcript import get_video_transcript
+from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 
 
 @skill_function(
@@ -25,7 +25,7 @@ def ask_question_about_video(question: str, video_url: str) -> str:
     details = get_video_details(video_url)
 
     # then get the transcript (and make sure the transcript is split into blocks of 4000 tokens max)
-    transcript = get_video_transcript(video_url, block_token_limit=4000)
+    transcript = get_transcript(video_url, block_token_limit=4000)
 
     # then ask the LLM to answer the question based on the details
     answer_based_on_details = chat_complete() #TODO

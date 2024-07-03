@@ -34,7 +34,11 @@ async def update_user(
         mates_default_privacy_settings__allowed_to_access_calendar: bool = None,
         mates_default_privacy_settings__allowed_to_access_likes: bool = None,
         mates_default_privacy_settings__allowed_to_access_dislikes: bool = None,
-        mates_custom_settings: list[int] = None
+        mates_custom_settings: list[int] = None,
+        software_settings: dict = None,
+        other_settings: dict = None,
+        projects: list[int] = None
+
         # TODO add missing fields and processing
     ):
     pass

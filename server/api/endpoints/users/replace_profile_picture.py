@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.endpoints.users.get_user import get_user
 from server.api.models.users.users_replace_profile_picture import UsersReplaceProfilePictureOutput
-from server.api.validation.validate_user_data_access import validate_user_data_access
+from server.api.validation.validate_permissions import validate_permissions
 import time
 import base64
 
@@ -28,6 +28,7 @@ async def replace_profile_picture_processing(
         team_slug: str,
         api_token: str,
         username: str,
+        user_access: str,
         file:bytes,
         visibility: Literal["public", "team", "server"]
     ) -> UsersReplaceProfilePictureOutput:
@@ -35,17 +36,12 @@ async def replace_profile_picture_processing(
     Replace the profile picture of a user
     """
 
+    # TODO this function is confusing and incomplete.
+    # REWRITE
+
     error_message = "User not found. Either the username is wrong, the team slug is wrong or the user is not part of the team or you don't have the permission to access this user."
 
-    # search for user and check if the user is in the team and if the api token is from that user
-    access = await validate_user_data_access(
-        request_team_slug=team_slug,
-        token=api_token,
-        search_by_username=username,
-        request_endpoint="get_one_user"
-    )
-
-    if access == "full_access":
+    if user_access == "full_access":
         add_to_log("User has full access to the user data.")
 
         # give file a name based on team_slug, username and unix timestamp

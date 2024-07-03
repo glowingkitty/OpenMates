@@ -16,6 +16,7 @@ from server import *
 from typing import List, Optional
 from server.cms.strapi_requests import make_strapi_request
 from fastapi import HTTPException
+from server.api.security.crypto import verify_hash
 
 
 async def update_or_create_config(
@@ -23,6 +24,8 @@ async def update_or_create_config(
         team_slug: str,
         user_api_token: str,
         systemprompt: Optional[str] = None,
+        llm_endpoint: Optional[str] = None,
+        llm_model: Optional[str] = None,
         skills: Optional[List[int]] = None,
         allowed_to_access_user_name: Optional[bool] = None,
         allowed_to_access_user_username: Optional[bool] = None,
@@ -40,7 +43,7 @@ async def update_or_create_config(
         # search in the configs field of the mate for the config with the team and user
         if mate["attributes"]["configs"]:
             for config in mate["attributes"]["configs"]["data"]:
-                if config["attributes"]["team"]["data"]["attributes"]["slug"] == team_slug and config["attributes"]["user"]["data"]["attributes"]["api_token"] == user_api_token:
+                if config["attributes"]["team"]["data"]["attributes"]["slug"] == team_slug and verify_hash(config["attributes"]["user"]["data"]["attributes"]["api_token"], user_api_token[32:]):
                     config_id = config["id"]
                     break
 
@@ -110,6 +113,10 @@ async def update_or_create_config(
             updated_fields = {}
             if systemprompt != None:
                 updated_fields["systemprompt"] = systemprompt
+            if llm_endpoint != None:
+                updated_fields["llm_endpoint"] = llm_endpoint
+            if llm_model != None:
+                updated_fields["llm_model"] = llm_model
             if skills != None:
                 updated_fields["skills"] = skills
             if allowed_to_access_user_name != None:

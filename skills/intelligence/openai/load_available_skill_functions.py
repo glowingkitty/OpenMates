@@ -11,7 +11,7 @@ from server import *
 
 from skills.intelligence.openai.test import get_current_weather
 
-def load_available_skill_functions() -> list:
+def load_available_skill_functions(asked_mate_username: str) -> list:
     try:
         add_to_log(state="start", module_name="Skills | Intelligence | OpenAI | Load skill functions", color="yellow")
 

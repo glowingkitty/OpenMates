@@ -18,7 +18,7 @@ from server.api.models.mates.mates_update import MateUpdateOutput
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.validation.validate_file_access import validate_file_access
+from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
 from server.api.endpoints.mates.get_mate import get_mate
@@ -32,8 +32,12 @@ async def update_mate(
         new_description: Optional[str] = None,
         new_profile_picture_url: Optional[str] = None,
         new_default_systemprompt: Optional[str] = None,
+        new_default_llm_endpoint: Optional[str] = None,
+        new_default_llm_model: Optional[str] = None,
         new_default_skills: Optional[List[int]] = None,
         new_custom_systemprompt: Optional[str] = None,
+        new_custom_llm_endpoint: Optional[str] = None,
+        new_custom_llm_model: Optional[str] = None,
         new_custom_skills: Optional[List[int]] = None,
         team_slug: Optional[str] = None,
         user_api_token: Optional[str] = None,
@@ -47,6 +51,8 @@ async def update_mate(
     """
     Update a specific AI team mate on the team
     """
+    # TODO add llm endpoint and model
+    # TODO update docs
     try:
         add_to_log(module_name="OpenMates | API | Update mate", state="start", color="yellow", hide_variables=True)
         add_to_log("Updating a specific AI team mate on the team ...")
@@ -55,12 +61,12 @@ async def update_mate(
         if new_username != None:
             await validate_mate_username(username=new_username)
 
-        new_profile_picture = await validate_file_access(
-            filename=new_profile_picture_url.split("/")[-1],
-            team_slug=team_slug,
+        new_profile_picture = await validate_permissions(
+            endpoint=f"/uploads/{new_profile_picture_url.split('/')[-1]}",
             user_api_token=user_api_token,
-            scope="uploads:read"
-            ) if new_profile_picture_url!=None else None
+            user_api_token_already_checked=True,
+            team_slug=team_slug
+        ) if new_profile_picture_url!=None else None
 
         new_default_skills_extended_data = await validate_skills(
             skills=new_default_skills,
@@ -71,6 +77,15 @@ async def update_mate(
             skills=new_custom_skills,
             team_slug=team_slug
             ) if new_custom_skills!=None else None
+
+        # if the LLM model is changed, validate first the new LLM model data
+        if new_default_llm_endpoint or new_default_llm_model:
+            # TODO check if the llm skill exists
+            # TODO throw an error if not both the endpoint and model are provided for checking
+            await validate_llm(team_slug=team_slug, llm_endpoint=new_default_llm_endpoint, llm_model=new_default_llm_model)
+
+        if new_custom_llm_endpoint or new_custom_llm_model:
+            await validate_llm(team_slug=team_slug, llm_endpoint=new_custom_llm_endpoint, llm_model=new_custom_llm_model)
 
         # prepare to make the patch request to strapi
         updated_mate = {}
@@ -87,6 +102,10 @@ async def update_mate(
             updated_mate["default_systemprompt"] = new_default_systemprompt
         if new_default_skills_extended_data != None:
             updated_mate["default_skills"] = new_default_skills_extended_data
+        if new_default_llm_endpoint != None:
+            updated_mate["default_llm_endpoint"] = new_default_llm_endpoint
+        if new_default_llm_model != None:
+            updated_mate["default_llm_model"] = new_default_llm_model
 
         # get the mate
         mate = await get_mate(
@@ -99,6 +118,8 @@ async def update_mate(
         # if any of the custom fields are updated, find first the matching config database entry
         # for the combination of the user, team, and mate
         if new_custom_systemprompt != None \
+            or new_custom_llm_endpoint != None \
+            or new_custom_llm_model != None \
             or new_custom_skills_extended_data != None \
             or allowed_to_access_user_name != None \
             or allowed_to_access_user_username != None \
@@ -111,6 +132,8 @@ async def update_mate(
                 team_slug=team_slug,
                 user_api_token=user_api_token,
                 systemprompt=new_custom_systemprompt,
+                llm_endpoint=new_custom_llm_endpoint,
+                llm_model=new_custom_llm_model,
                 skills=new_custom_skills,
                 allowed_to_access_user_name=allowed_to_access_user_name,
                 allowed_to_access_user_username=allowed_to_access_user_username,
@@ -129,6 +152,10 @@ async def update_mate(
 
         if new_custom_systemprompt != None:
             updated_mate["custom_systemprompt"] = new_custom_systemprompt
+        if new_custom_llm_endpoint != None:
+            updated_mate["custom_llm_endpoint"] = new_custom_llm_endpoint
+        if new_custom_llm_model != None:
+            updated_mate["custom_llm_model"] = new_custom_llm_model
         if new_custom_skills_extended_data != None:
             updated_mate["custom_skills"] = new_custom_skills_extended_data
         if allowed_to_access_user_name != None:

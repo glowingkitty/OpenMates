@@ -15,11 +15,11 @@ from skills.intelligence.openai.load_client import load_client
 from skills.intelligence.costs.count_tokens import count_tokens
 from skills.intelligence.costs.get_costs_chat import get_costs_chat
 
-async def process_llm_response(response, llm_params: dict):
+async def process_llm_response(response, asked_mate_username: str, llm_params: dict):
     try:
         add_to_log(state="start", module_name="Skills | Intelligence | OpenAI | Process LLM response", color="yellow")
 
-        available_functions = load_available_skill_functions()
+        available_functions = load_available_skill_functions(asked_mate_username)
         
 
         # calulate the input token count

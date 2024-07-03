@@ -10,7 +10,7 @@ sys.path.append(main_directory)
 
 from skills.web_browsing.convert_website_and_pdf_to_text import convert_website_and_pdf_to_text
 from skills.pdf.pdf_to_text import pdf_to_text
-from skills.youtube.get_video_transcript import get_video_transcript
+from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from skills.youtube.get_video_details import get_video_details
 from chat.mattermost.functions.file.get_file import get_file
 from skills.vision.open_ai.prepare_image import prepare_image
@@ -211,7 +211,7 @@ def prepare_message_history_for_llm(
 
                     elif bot["user_name"] == "summer" and "youtube.com/watch?v=" in website_url:
                         video_details = get_video_details(website_url)
-                        video_transcript = get_video_transcript(website_url)
+                        video_transcript = get_transcript(website_url)
 
                         # replace the website url with the website content
                         new_text = f'{website_url} (YouTube video details:\n'

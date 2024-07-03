@@ -17,7 +17,7 @@ from typing import List, Optional, Union, Dict, Literal
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.validation.validate_user_data_access import validate_user_data_access
+from server.api.validation.validate_permissions import validate_permissions
 from server.api.security.crypto import verify_hash, decrypt
 
 
@@ -46,12 +46,12 @@ async def get_user(
         # check if the user is a server or team admin
         if request_sender_api_token or (username and password):
             # TODO this means the database is asked twice for the user data, inefficient...
-            user_access = await validate_user_data_access(
-                request_team_slug=team_slug,
-                token=request_sender_api_token,
-                username=username,
-                password=password,
-                request_endpoint="get_one_user"
+            user_access = await validate_permissions(
+                endpoint=f"/users/{username}",
+                team_slug=team_slug,
+                user_api_token=request_sender_api_token,
+                user_username=username,
+                user_password=password
             )
         else:
             user_access = "basic_access"

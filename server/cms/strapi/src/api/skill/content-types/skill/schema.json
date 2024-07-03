@@ -45,6 +45,16 @@
     "slug": {
       "type": "string",
       "required": true
+    },
+    "is_llm_endpoint": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "is_llm_endpoint_and_supports_tool_selection": {
+      "type": "boolean",
+      "default": false,
+      "required": true
     }
   }
 }

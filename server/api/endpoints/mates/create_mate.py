@@ -18,7 +18,7 @@ from server.api.models.mates.mates_create import MatesCreateOutput
 from server.cms.strapi_requests import make_strapi_request
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.validation.validate_file_access import validate_file_access
+from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
 
@@ -36,6 +36,8 @@ async def create_mate(
     """
     Create a new AI team mate on the team
     """
+    # TODO add llm endpoint and model
+    # TODO add docs
     try:
         add_to_log(module_name="OpenMates | API | Create mate", state="start", color="yellow", hide_variables=True)
         add_to_log("Creating a new AI team mate on the server and adding it to the team ...")
@@ -44,12 +46,13 @@ async def create_mate(
         await validate_mate_username(username=username)
 
         # check if the profile picture exists and the user has access to it
-        profile_picture = await validate_file_access(
-            filename=profile_picture_url.split("/")[-1],
-            team_slug=team_slug,
+        # TODO add processing from validate_file_access
+        profile_picture = await validate_permissions(
+            endpoint=f"/uploads/{profile_picture_url.split('/')[-1]}",
             user_api_token=user_api_token,
-            scope="uploads:read"
-            )
+            user_api_token_already_checked=True,
+            team_slug=team_slug
+        )
 
         # check if the skills exist with their ID
         if default_skills:

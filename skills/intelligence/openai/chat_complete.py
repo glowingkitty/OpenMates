@@ -17,6 +17,7 @@ from skills.intelligence.openai.process_llm_response import process_llm_response
 async def chat_complete(
         client: AsyncOpenAI,
         messages: list,
+        asked_mate_username: str,
         model: str = "gpt-3.5-turbo-1106", # or 'gpt-4-turbo-preview'
         temperature: float = 0,
         return_full_response: bool = False,
@@ -54,7 +55,7 @@ async def chat_complete(
                 add_to_log(f"Received response from OpenAI.", state="success")
 
                 # process response
-                response = await process_llm_response(response, llm_params=llm_params)
+                response = await process_llm_response(response, asked_mate_username=asked_mate_username, llm_params=llm_params)
                 return response
             
             # if the OpenAI API returns an error, try again
@@ -114,6 +115,7 @@ if __name__ == "__main__":
     ## Function calling test
     response = asyncio.run(chat_complete(
         client=client,
+        asked_mate_username="burton",
         # model="gpt-4-turbo-preview",
         # return_full_response=True,
         messages=[

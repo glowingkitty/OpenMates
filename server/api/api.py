@@ -83,6 +83,7 @@ from server.api.endpoints.mates.get_mates import get_mates as get_mates_processi
 from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate as create_mate_processing
 from server.api.endpoints.mates.update_mate import update_mate as update_mate_processing
+from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_processing
 from server.api.endpoints.users.get_user import get_user as get_user_processing
 from server.api.endpoints.users.get_users import get_users_processing
 from server.api.endpoints.users.create_user import create_user as create_user_processing
@@ -93,7 +94,7 @@ from server.api.endpoints.skills.youtube.get_transcript import get_transcript_pr
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
 from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
 
-from server.api.validation.validate_file_access import validate_file_access
+from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_token import validate_token
 from server.api.validation.validate_invite_code import validate_invite_code
 from server.cms.strapi_requests import get_strapi_upload
@@ -124,8 +125,6 @@ from io import BytesIO
 ##################################
 ######### Setup FastAPI ##########
 ##################################
-
-# TODO add tests for api endpoints
 
 
 # Create new routers
@@ -256,12 +255,11 @@ async def get_upload(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: Optional[str] = Depends(optional_bearer_token)
     ):
-    await validate_file_access(
-        filename=request.path_params['file_name'],
-        team_slug=team_slug,
+    await validate_permissions(
+        endpoint=f"/uploads/{request.path_params['file_name']}",
         user_api_token=token,
-        scope="uploads:read"
-        )
+        team_slug=team_slug
+    )
     return await get_strapi_upload(request.path_params['file_name'])
 
 
@@ -279,10 +277,11 @@ async def ask_mate(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/mates/ask",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await ask_mate_processing(
         team_slug=team_slug,
         message=parameters.message,
@@ -300,10 +299,11 @@ async def get_mates(
     page: int = 1,
     pageSize: int = 25
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/mates",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await get_mates_processing(
         team_slug=team_slug,
         page=page,
@@ -320,10 +320,11 @@ async def get_mate(
     token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"]),
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint=f"/mates/{mate_username}",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await get_mate_processing(
         team_slug=team_slug,
         mate_username=mate_username,
@@ -333,7 +334,7 @@ async def get_mate(
         output_format="JSONResponse"
         )
 
-
+# TODO add test
 # POST /mates (create a new mate)
 @mates_router.post("/v1/{team_slug}/mates/", **mates_endpoints["create_mate"])
 @limiter.limit("20/minute")
@@ -343,10 +344,12 @@ async def create_mate(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/mates",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token,
+        required_permissions=["mates:create"]
+    )
     return await create_mate_processing(
         name=parameters.name,
         username=parameters.username,
@@ -359,6 +362,31 @@ async def create_mate(
         )
 
 
+# TODO add endpoint processing
+# TODO add test
+# DELETE /mates/{mate_username} (delete a mate)
+@mates_router.delete("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["delete_mate"])
+@limiter.limit("20/minute")
+async def delete_mate(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
+    ):
+    await validate_permissions(
+        endpoint=f"/mates/{mate_username}",
+        team_slug=team_slug,
+        user_api_token=token,
+        required_permissions=["mates:delete"]
+    )
+    return await delete_mate_processing(
+        team_slug=team_slug,
+        mate_username=mate_username,
+        user_api_token=token
+        )
+
+
+# TODO add test
 # PATCH /mates/{mate_username} (update a mate)
 @mates_router.patch("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["update_mate"])
 @limiter.limit("20/minute")
@@ -369,10 +397,12 @@ async def update_mate(
     token: str = Depends(get_credentials),
     mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint=f"/mates/{mate_username}",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token,
+        required_permissions=["mates:update"]
+    )
     return await update_mate_processing(
         mate_username=mate_username,
         new_name=parameters.name,                                   # updates mate, only if user has right to edit original mate
@@ -403,6 +433,7 @@ async def update_mate(
 # Explaination:
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
+# TODO add test
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
 @skills_router.post("/v1/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
 @limiter.limit("20/minute")
@@ -412,10 +443,11 @@ async def skill_chatgpt_ask(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/skills/chatgpt/ask",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await ask_chatgpt_processing(
         token=token,
         system_prompt=parameters.system_prompt,
@@ -425,6 +457,7 @@ async def skill_chatgpt_ask(
     )
 
 
+# TODO add test
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
 @skills_router.post("/v1/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
 @limiter.limit("20/minute")
@@ -433,13 +466,15 @@ async def skill_claude_ask(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/skills/claude/ask",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return {"info": "endpoint still needs to be implemented"}
 
 
+# TODO add test
 # POST /skills/atopile/create_pcb_schematic (create a PCB schematic)
 @skills_router.post("/v1/{team_slug}/skills/atopile/create_pcb_schematic", **skills_atopile_endpoints["create_pcb_schematic"])
 @limiter.limit("20/minute")
@@ -449,10 +484,11 @@ async def skill_atopile_create_pcb_schematic(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/skills/atopile/create_pcb_schematic",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await create_pcb_schematic_processing(
         token=token,
         datasheet_url=parameters.datasheet_url,
@@ -464,6 +500,7 @@ async def skill_atopile_create_pcb_schematic(
     )
 
 
+# TODO add test
 # POST /skills/youtube/ask (ask a question about a video)
 @skills_router.post("/v1/{team_slug}/skills/youtube/ask", **skills_youtube_endpoints["ask_youtube"])
 @limiter.limit("20/minute")
@@ -472,13 +509,15 @@ async def skill_youtube_ask(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/skills/youtube/ask",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return {"info": "endpoint still needs to be implemented"}
 
 
+# TODO add test
 # POST /skills/youtube/transcript (get the transcript of a video)
 @skills_router.post("/v1/{team_slug}/skills/youtube/transcript", **skills_youtube_endpoints["get_transcript"])
 @limiter.limit("20/minute")
@@ -488,15 +527,17 @@ async def skill_youtube_transcript(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/skills/youtube/transcript",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await get_transcript_processing(
         url=parameters.url
     )
 
 
+# TODO add test
 # POST /skills/image_editor/resize (resize an image)
 @skills_router.post("/v1/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
 @limiter.limit("20/minute")
@@ -512,10 +553,11 @@ async def skill_image_editor_resize(
     output_square: bool = Form(False, description="If set to True, the output image will be square"),
     use_ai_upscaling_if_needed: bool = Form(False, description="If set to True, AI upscaling will be used if needed"),
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/skills/image_editor/resize",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
 
     contents = await file.read()
     if len(contents) == 0:
@@ -588,6 +630,7 @@ async def skill_image_editor_resize(
 # Explaination:
 # The server is the core software that runs OpenMates.
 
+# TODO add test
 # GET /server/status (get server status)
 @server_router.get("/server/status", **server_endpoints["get_status"])
 @limiter.limit("20/minute")
@@ -598,6 +641,7 @@ async def get_status(
     return {"status": "online"}
 
 
+# TODO add test
 # GET /server/settings (get server settings)
 @server_router.get("/server/settings", **server_endpoints["get_settings"])
 @limiter.limit("20/minute")
@@ -608,6 +652,7 @@ async def get_settings(
     return {"info": "endpoint still needs to be implemented"}
 
 
+# TODO add test
 # PATCH /server/settings (update server settings)
 @server_router.patch("/server/settings", **server_endpoints["update_settings"])
 @limiter.limit("20/minute")
@@ -637,6 +682,7 @@ async def update_settings(
 # User accounts are used to store user data like what projects the user is working on, what they are interested in, what their goals are, etc.
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
 
+# TODO add test
 # GET /users (get all users on a team)
 @users_router.get("/v1/{team_slug}/users/", **users_endpoints["get_all_users"])
 @limiter.limit("20/minute")
@@ -647,10 +693,11 @@ async def get_users(
     page: int = 1,
     pageSize: int = 25
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint="/users",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await get_users_processing(
         team_slug=team_slug,
         request_sender_api_token=token,
@@ -659,6 +706,7 @@ async def get_users(
         )
 
 
+# TODO add test
 # POST /users (create a new user)
 @users_router.post("/v1/{team_slug}/users/", **users_endpoints["create_user"])
 @limiter.limit("20/minute")
@@ -680,6 +728,7 @@ async def create_user(
         )
 
 
+# TODO add test
 # GET /users/{username} (get a user)
 @users_router.get("/v1/{team_slug}/users/{username}", **users_endpoints["get_user"])
 @limiter.limit("20/minute")
@@ -689,10 +738,11 @@ async def get_user(
     token: str = Depends(get_credentials),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
     ):
-    await validate_token(
+    await validate_permissions(
+        endpoint=f"/users/{username}",
         team_slug=team_slug,
-        token=token
-        )
+        user_api_token=token
+    )
     return await get_user_processing(
         team_slug=team_slug,
         request_sender_api_token=token,
@@ -702,6 +752,7 @@ async def get_user(
         )
 
 
+# TODO add test
 # PATCH /users/{username} (update a user)
 @users_router.patch("/v1/{team_slug}/users/{username}", **users_endpoints["update_user"])
 @limiter.limit("20/minute")
@@ -711,9 +762,16 @@ async def update_user(
     token: str = Depends(get_credentials),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
     ):
+    await validate_permissions(
+        endpoint=f"/users/{username}",
+        team_slug=team_slug,
+        user_api_token=token,
+        required_permissions=["users:update"]
+    )
     return {"info": "endpoint still needs to be implemented"}
 
 
+# TODO add test
 # PATCH /users/{username}/profile_picture (replace a user's profile picture)
 @users_router.patch("/v1/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
 @limiter.limit("5/minute")
@@ -725,10 +783,12 @@ async def replace_user_profile_picture(
     username: str = Path(..., **input_parameter_descriptions["user_username"]),
     visibility: Literal["public", "team", "server"] = Form("server", description="Who can see the profile picture? Public means everyone on the internet can see it, team means only team members can see it, server means every user on the server can see it.")
     ):
-    await validate_token(
+    access = await validate_permissions(
+        endpoint=f"/users/{username}/profile_picture",
+        user_api_token=token,
         team_slug=team_slug,
-        token=token
-        )
+        required_permissions=["users:replace_profile_picture"]
+    )
 
     contents = await file.read()
     if len(contents) == 0:
@@ -741,11 +801,13 @@ async def replace_user_profile_picture(
         team_slug=team_slug,
         api_token=token,
         username=username,
+        user_access=access,
         file=contents,
         visibility=visibility
     )
 
 
+# TODO add test
 # PATCH /api_token (generate a new API token for a user)
 @users_router.patch("/v1/api_token", **users_endpoints["create_new_api_token"])
 @limiter.limit("5/minute")
@@ -753,6 +815,12 @@ async def generate_new_user_api_token(
     request: Request,
     parameters: UsersCreateNewApiTokenInput
     ):
+    await validate_permissions(
+        endpoint="/api_token",
+        user_username=parameters.username,
+        user_password=parameters.password,
+        required_permissions=["api_token:create"]
+    )
     return await create_new_api_token(
         username=parameters.username,
         password=parameters.password
