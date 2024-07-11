@@ -16,8 +16,9 @@ from server import *
 
 from pydantic import BaseModel, Field, validator
 from typing import List
+from urllib.parse import quote
+from typing import Optional
 from server.api.models.skills.skills_old import Skill
-
 
 # GET /mates/{mate_username} (get a mate)
 
@@ -32,7 +33,7 @@ class Mate(BaseModel):
     llm_model: str = Field(..., description="The LLM model which is used by the AI team mate.")
     systemprompt: str = Field(..., description="Currently used system prompt of the AI team mate for the user who makes the request to the API, in the context of the selected team.")
     skills: List[Skill] = Field(..., description="Skills of the AI team mate")
-    custom_config_id: int = Field(..., description="If you customized your AI team mate for the requested team: ID of the config.")
+    custom_config_id: Optional[int] = Field(..., description="If you customized your AI team mate for the requested team: ID of the config.")
     llm_endpoint_is_customized: bool = Field(..., description="Indicates if the Large Language Model provider is customized or the default one.")
     llm_model_is_customized: bool = Field(..., description="Indicates if the specific Large Language Model is customized or the default one.")
     systemprompt_is_customized: bool = Field(..., description="Indicates if the system prompt is customized or the default one.")
@@ -40,6 +41,14 @@ class Mate(BaseModel):
 
     class Config:
         extra = "forbid"
+
+    @validator('username')
+    def validate_username(cls, v):
+        if quote(v) != v:
+            raise ValueError('username must only contain URL-safe characters')
+        if not v.islower():
+            raise ValueError('username must be all lowercase')
+        return v
 
     @validator('profile_picture_url')
     def validate_profile_picture_url(cls, v):

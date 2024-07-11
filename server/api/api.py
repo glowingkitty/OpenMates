@@ -357,6 +357,8 @@ async def create_mate(
         profile_picture_url=parameters.profile_picture_url,
         default_systemprompt=parameters.default_systemprompt,
         default_skills=parameters.default_skills,
+        default_llm_endpoint=parameters.default_llm_endpoint,
+        default_llm_model=parameters.default_llm_model,
         team_slug=team_slug,
         user_api_token=token
         )

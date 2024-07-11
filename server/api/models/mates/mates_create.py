@@ -30,6 +30,8 @@ class MatesCreateInput(BaseModel):
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate", min_length=1)
     default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
+    default_llm_endpoint: str = Field(..., description="Default LLM endpoint of the AI team mate")
+    default_llm_model: str = Field(..., description="Default LLM model of the AI team mate")
 
     # TODO improve validation later using LLMs
 
@@ -52,6 +54,20 @@ class MatesCreateInput(BaseModel):
             raise ValueError(f"Invalid profile picture URL format: {v}")
         return v
 
+    @validator('default_llm_endpoint')
+    def validate_llm_endpoint(cls, v):
+        pattern = r'^/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM endpoint format: {v}")
+        return v
+
+    @validator('default_llm_model')
+    def validate_llm_model(cls, v):
+        pattern = r'^[a-z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM model format: {v}")
+        return v
+
 
 mates_create_input_example = {
     "name": "Sophia",
@@ -59,7 +75,9 @@ mates_create_input_example = {
     "description": "Software development expert",
     "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
-    "default_skills": [3]
+    "default_skills": [3],
+    "default_llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
+    "default_llm_model": "gpt-3.5-turbo"
 }
 
 
@@ -73,6 +91,8 @@ class MatesCreateOutput(BaseModel):
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
     default_skills: List[Skill] = Field(..., description="Default list of skills for the AI team mate")
+    default_llm_endpoint: str = Field(..., description="Default LLM endpoint of the AI team mate")
+    default_llm_model: str = Field(..., description="Default LLM model of the AI team mate")
 
 
 mates_create_output_example = {
@@ -91,7 +111,9 @@ mates_create_output_example = {
                 "id": 4,
                 "name": "VS Code"
             },
-            "api_endpoint": "/ai-sales-team/skills/vs_code/write_and_test_code"
+            "api_endpoint": "/v1/ai-sales-team/skills/vs_code/write_and_test_code"
         }
-    ]
+    ],
+    "default_llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
+    "default_llm_model": "gpt-3.5-turbo"
 }

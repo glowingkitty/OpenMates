@@ -29,6 +29,8 @@ async def create_mate(
         description: str,
         profile_picture_url: str,
         default_systemprompt: str,
+        default_llm_endpoint: str,
+        default_llm_model: str,
         default_skills: List[int],
         team_slug: Optional[str] = None,
         user_api_token: Optional[str] = None
@@ -91,6 +93,8 @@ async def create_mate(
                     "profile_picture": profile_picture["id"],
                     "default_systemprompt": default_systemprompt,
                     "default_skills": default_skills,
+                    "default_llm_endpoint": default_llm_endpoint,
+                    "default_llm_model": default_llm_model,
                     "teams": [team["id"]],
                 }
             }
@@ -105,6 +109,8 @@ async def create_mate(
             "profile_picture_url": profile_picture_url,
             "default_systemprompt": default_systemprompt,
             "default_skills": default_skills_extended_data,
+            "default_llm_endpoint": default_llm_endpoint,
+            "default_llm_model": default_llm_model,
         }
 
         if status_code == 200:

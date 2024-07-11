@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from server.api.models.mates.mates_get_one import Mate
+from server.api.models.mates.mates_create import MatesCreateInput, MatesCreateOutput
 
 load_dotenv()
 
@@ -17,60 +18,78 @@ def test_create_get_update_delete_mate():
     headers = {"Authorization": f"Bearer {api_token}"}
     base_url = f"http://0.0.0.0:8000/v1/{team_slug}/mates"
 
+    # Prepare mate creation data
+    mate_data = {
+        "name": "Test Mate",
+        "username": "test_mate",
+        "description": "Test mate description",
+        "profile_picture_url": f"/v1/{team_slug}/uploads/burton_03ba7afff9.jpeg",
+        "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
+        "default_skills": [1],
+        "default_llm_endpoint": f"/skills/chatgpt/ask",
+        "default_llm_model": "gpt-3.5-turbo"
+    }
+
+    # Validate input data
+    try:
+        validated_mate_data = MatesCreateInput(**mate_data)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesCreateInput model: {e}")
+
     # Create a mate
     create_response = requests.post(
         base_url,
         headers=headers,
-        json={
-            "name": "Test Mate",
-            "username": "test_mate",
-            "description": "Test mate description",
-            "profile_picture_url": f"/v1/{team_slug}/uploads/burton_03ba7afff9.jpeg",
-            "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
-            "default_skills": [1]
-        }
+        json=validated_mate_data.model_dump()
     )
     assert create_response.status_code == 201, f"Failed to create mate: {create_response.status_code}\nResponse content: {create_response.text}"
-    created_mate = create_response.json()
+
+    # Validate the response
+    try:
+        created_mate = MatesCreateOutput.model_validate(create_response.json())
+        assert created_mate.username == mate_data["username"], f"Created mate name does not match. Expected '{mate_data['username']}', got '{created_mate.username}'"
+    except ValidationError as e:
+        pytest.fail(f"Created mate does not match the MatesCreateOutput model: {e}\nResponse content: {create_response.text}")
 
     # Get and verify the created mate
     get_response = requests.get(
-        f"{base_url}/{created_mate['id']}",
+        f"{base_url}/{created_mate.username}",
         headers=headers
     )
-    assert get_response.status_code == 200, f"Failed to get created mate: {get_response.status_code}\nResponse content: {get_response.text}"
+    assert get_response.status_code == 200, f"Failed to get created mate from {base_url}/{created_mate.username}: {get_response.status_code}\nResponse content: {get_response.text}"
     try:
         mate = Mate.model_validate(get_response.json())
-        assert mate.name == "test_mate", f"Created mate name does not match. Expected 'test_mate', got '{mate.name}'"
+        assert mate.username == mate_data["username"], f"Created mate name does not match. Expected '{mate_data['username']}', got '{mate.username}'"
     except ValidationError as e:
         pytest.fail(f"Created mate does not match the Mate model: {e}\nResponse content: {get_response.text}")
 
     # Update the mate
+    updated_mate_data = {
+        "name": "Updated Test Mate"
+    }
     update_response = requests.put(
-        f"{base_url}/{created_mate['id']}",
+        f"{base_url}/{created_mate.username}",
         headers=headers,
-        json={
-            "name": "Updated Test Mate"
-        }
+        json=updated_mate_data
     )
     assert update_response.status_code == 200, f"Failed to update mate: {update_response.status_code}\nResponse content: {update_response.text}"
     updated_mate = update_response.json()
     try:
         mate = Mate.model_validate(updated_mate)
-        assert mate.name == "updated_test_mate", f"Mate name was not updated. Expected 'updated_test_mate', got '{mate.name}'"
+        assert mate.name == updated_mate_data["name"], f"Mate name was not updated. Expected '{updated_mate_data['name']}', got '{mate.name}'"
     except ValidationError as e:
         pytest.fail(f"Updated mate does not match the Mate model: {e}\nResponse content: {update_response.text}")
 
     # Delete the mate
     delete_response = requests.delete(
-        f"{base_url}/{created_mate['id']}",
+        f"{base_url}/{created_mate.username}",
         headers=headers
     )
     assert delete_response.status_code == 204, f"Failed to delete mate: {delete_response.status_code}\nResponse content: {delete_response.text}"
 
     # Verify the mate is deleted
     get_response = requests.get(
-        f"{base_url}/{created_mate['id']}",
+        f"{base_url}/{created_mate.username}",
         headers=headers
     )
     assert get_response.status_code == 404, f"Mate was not deleted: {get_response.status_code}\nResponse content: {get_response.text}"
