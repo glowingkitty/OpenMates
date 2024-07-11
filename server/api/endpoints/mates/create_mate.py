@@ -18,6 +18,7 @@ from server.api.models.mates.mates_create import MatesCreateOutput
 from server.cms.strapi_requests import make_strapi_request
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
+from server.api.endpoints.skills.get_skill import get_skill
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
@@ -77,6 +78,12 @@ async def create_mate(
             add_to_log("No team found with the given URL.", state="error")
             raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
+        # TODO add default_llm_endpoint as linked skill
+        # find default_llm_endpoint in the skills
+        default_llm_endpoint_skill = await get_skill(endpoint=default_llm_endpoint)
+
+        # add default_llm_endpoint skill to default_llm_endpoint
+        default_llm_endpoint = default_llm_endpoint_skill["data"][0]["id"]
 
         # create the AI team mate
         status_code, json_response = await make_strapi_request(

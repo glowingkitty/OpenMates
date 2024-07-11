@@ -26,7 +26,7 @@ async def get_mate(
         include_populated_data: bool = False,
         output_raw_data: bool = True,
         output_format: Literal["JSONResponse", "dict"] = "dict"
-    ) -> Union[JSONResponse, Dict, HTTPException]:
+    ) -> Union[JSONResponse, dict, HTTPException]:
     """
     Get a specific AI team mate on the team
     """
@@ -87,8 +87,8 @@ async def get_mate(
                 "operator": "$eq",
                 "value": mate_username
             }
-
         ]
+
         status_code, json_response = await make_strapi_request(
             method='get',
             endpoint='mates',

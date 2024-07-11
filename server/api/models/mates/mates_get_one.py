@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List
 from urllib.parse import quote
 from typing import Optional
-from server.api.models.skills.skills_old import Skill
+from server.api.models.skills.skills_get_one import Skill
 
 # GET /mates/{mate_username} (get a mate)
 

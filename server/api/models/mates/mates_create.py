@@ -16,7 +16,7 @@ from server import *
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
-from server.api.models.skills.skills_old import Skill
+from server.api.models.skills.skills_get_one import Skill
 from urllib.parse import quote
 
 
@@ -29,7 +29,7 @@ class MatesCreateInput(BaseModel):
     description: str = Field(..., description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate", min_length=1)
-    default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
+    default_skills: Optional[List[int]] = Field(None, description="Default list of skill IDs for the AI team mate")
     default_llm_endpoint: str = Field(..., description="Default LLM endpoint of the AI team mate")
     default_llm_model: str = Field(..., description="Default LLM model of the AI team mate")
 
