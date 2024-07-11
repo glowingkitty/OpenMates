@@ -80,10 +80,14 @@ async def create_mate(
 
         # TODO add default_llm_endpoint as linked skill
         # find default_llm_endpoint in the skills
-        default_llm_endpoint_skill = await get_skill(endpoint=default_llm_endpoint)
+        default_llm_endpoint_skill = await get_skill(
+            software_slug=default_llm_endpoint.split('/')[2],
+            skill_slug=default_llm_endpoint.split('/')[3],
+            output_raw_data=True
+        )
 
         # add default_llm_endpoint skill to default_llm_endpoint
-        default_llm_endpoint = default_llm_endpoint_skill["data"][0]["id"]
+        default_llm_endpoint_id = default_llm_endpoint_skill["id"]
 
         # create the AI team mate
         status_code, json_response = await make_strapi_request(
@@ -97,7 +101,7 @@ async def create_mate(
                     "profile_picture": profile_picture["id"],
                     "default_systemprompt": default_systemprompt,
                     "default_skills": default_skills,
-                    "default_llm_endpoint": default_llm_endpoint,
+                    "default_llm_endpoint": default_llm_endpoint_id,
                     "default_llm_model": default_llm_model,
                     "teams": [team["id"]],
                 }

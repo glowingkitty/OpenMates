@@ -35,12 +35,17 @@ async def validate_skills(
             "id",
             "name",
             "description",
-            "slug"
+            "slug",
+            "requires_cloud_to_run",
+            "is_llm_endpoint",
+            "is_llm_endpoint_and_supports_tool_selection"
         ]
         populate = [
+            "icon.file.url",
             "software.id",
             "software.name",
-            "software.slug"
+            "software.slug",
+            "software.icon.file.url",
         ]
 
         output_skills = []
@@ -71,9 +76,16 @@ async def validate_skills(
 
                 skill_data["name"] = skill_json_response["data"][0]["attributes"]["name"]
                 skill_data["description"] = skill_json_response["data"][0]["attributes"]["description"]
+                skill_data["slug"] = skill_json_response["data"][0]["attributes"]["slug"]
+                skill_data["requires_cloud_to_run"] = skill_json_response["data"][0]["attributes"]["requires_cloud_to_run"]
+                skill_data["is_llm_endpoint"] = skill_json_response["data"][0]["attributes"]["is_llm_endpoint"]
+                skill_data["is_llm_endpoint_and_supports_tool_selection"] = skill_json_response["data"][0]["attributes"]["is_llm_endpoint_and_supports_tool_selection"]
+                skill_data["icon_url"] = f"/v1/{team_slug}{skill_json_response['data'][0]['attributes']['icon']['data']['attributes']['file']['data']['attributes']['url']}"
                 skill_data["software"] = {}
                 skill_data["software"]["id"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["id"]
                 skill_data["software"]["name"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["attributes"]["name"]
+                skill_data["software"]["icon_url"] = f"/v1/{team_slug}{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['icon']['data']['attributes']['file']['data']['attributes']['url']}"
+                skill_data["software"]["slug"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["attributes"]["slug"]
                 skill_data["api_endpoint"] = f"/v1/{team_slug}/skills/{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['slug']}/{skill_json_response['data'][0]['attributes']['slug']}"
 
                 output_skills.append(skill_data)
