@@ -38,8 +38,6 @@ async def create_mate(
     """
     Create a new AI team mate on the team
     """
-    # TODO add llm endpoint and model
-    # TODO add docs
     try:
         add_to_log(module_name="OpenMates | API | Create mate", state="start", color="yellow", hide_variables=True)
         add_to_log("Creating a new AI team mate on the server and adding it to the team ...")
@@ -48,7 +46,6 @@ async def create_mate(
         await validate_mate_username(username=username)
 
         # check if the profile picture exists and the user has access to it
-        # TODO add processing from validate_file_access
         profile_picture = await validate_permissions(
             endpoint=f"/uploads/{profile_picture_url.split('/')[-1]}",
             user_api_token=user_api_token,
