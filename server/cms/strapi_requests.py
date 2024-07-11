@@ -40,14 +40,24 @@ def build_params(params, parts, prefix, postfix) -> str:
     return params
 
 
-def get_nested(dictionary, keys):
+def get_nested(dictionary, key_path):
+    keys = key_path.split('.')
     for key in keys:
+        while isinstance(dictionary, dict) and key not in dictionary:
+            if "attributes" in dictionary:
+                dictionary = dictionary["attributes"]
+            elif "data" in dictionary:
+                if isinstance(dictionary["data"], list) and dictionary["data"]:
+                    dictionary = dictionary["data"][0]
+                else:
+                    return None
+            else:
+                return None
         if isinstance(dictionary, dict):
             dictionary = dictionary.get(key)
         else:
             return None
     return dictionary
-
 
 async def make_strapi_request(
         method: str,

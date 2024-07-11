@@ -14,7 +14,7 @@ from server import *
 ################
 
 from typing import List, Optional
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_nested
 from fastapi import HTTPException
 from server.api.security.crypto import verify_hash
 
@@ -41,9 +41,9 @@ async def update_or_create_config(
     try:
         config_id = None
         # search in the configs field of the mate for the config with the team and user
-        if mate["attributes"]["configs"]:
-            for config in mate["attributes"]["configs"]["data"]:
-                if config["attributes"]["team"]["data"]["attributes"]["slug"] == team_slug and verify_hash(config["attributes"]["user"]["data"]["attributes"]["api_token"], user_api_token[32:]):
+        if get_nested(mate, "configs"):
+            for config in get_nested(mate, "configs"):
+                if get_nested(config, "team.slug") == team_slug and verify_hash(get_nested(config, "user.api_token"), user_api_token[32:]):
                     config_id = config["id"]
                     break
 
@@ -104,7 +104,7 @@ async def update_or_create_config(
                 data={"data":new_fields}
             )
             if status_code == 200 and json_response["data"]:
-                config_id = json_response["data"]["id"]
+                config_id = get_nested(json_response, "id")
             else:
                 raise HTTPException(status_code=500, detail="Failed to create a new config for the AI team mate.")
 

@@ -39,13 +39,14 @@ async def get_mate(
             "username",
             "description",
             "default_systemprompt",
-            "default_llm_endpoint",
             "default_llm_model"
         ]
         populate = []
 
         if include_populated_data:
             populate = [
+                "default_llm_endpoint.slug",
+                "default_llm_endpoint.software.slug",
                 "profile_picture.file.url",
                 "default_skills.name",
                 "default_skills.description",
@@ -53,7 +54,8 @@ async def get_mate(
                 "default_skills.software.name",
                 "default_skills.software.slug",
                 "configs.systemprompt",
-                "configs.llm_endpoint",
+                "configs.llm_endpoint.slug",
+                "configs.llm_endpoint.software.slug",
                 "configs.llm_model",
                 "configs.user.api_token",
                 "configs.team.slug",
@@ -118,51 +120,54 @@ async def get_mate(
                         return mate
 
                 # check if a custom config exists
-                if user_api_token and len(mate["attributes"]["configs"]["data"])>0:
-                    matching_config = [config for config in get_nested(mate, ["attributes", "configs"])["data"] if get_nested(config, ["attributes", "team", "data", "attributes", "slug"]) == team_slug and verify_hash(get_nested(config, ["attributes", "user", "data", "attributes", "api_token"]),user_api_token[32:])]
+                if user_api_token and len(get_nested(mate, "configs"))>0:
+                    matching_config = [config for config in get_nested(mate, "configs") if get_nested(config, "team.slug") == team_slug and verify_hash(get_nested(config, "user.api_token"),user_api_token[32:])]
                     if len(matching_config) == 1:
                         mate["attributes"]["config"] = matching_config[0]
                 else:
                     mate["attributes"]["config"] = None
 
+                llm_skill_slug = get_nested(mate, "config.llm_endpoint.slug") or get_nested(mate, "default_llm_endpoint.slug")
+                llm_skill_software_slug = get_nested(mate, "config.llm_endpoint.software.slug") or get_nested(mate, "default_llm_endpoint.software.slug")
+
                 mate = {
-                        "id": get_nested(mate, ["id"]),
-                        "name": get_nested(mate, ["attributes", "name"]),
-                        "username": get_nested(mate, ["attributes", "name"]).lower().replace(" ", "_"),
-                        "description": get_nested(mate, ['attributes', 'description']),
-                        "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, ['attributes', 'profile_picture', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(mate, ['attributes', 'profile_picture']) else None,
-                        "llm_endpoint": "/v1/"+team_slug+(get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) or get_nested(mate, ['attributes', 'default_llm_endpoint'])),
-                        "llm_model": get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) or get_nested(mate, ['attributes', 'default_llm_model']),
-                        "systemprompt": get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) or get_nested(mate, ['attributes', 'default_systemprompt']),
+                        "id": get_nested(mate, "id"),
+                        "name": get_nested(mate, "name"),
+                        "username": get_nested(mate, "name").lower().replace(" ", "_"),
+                        "description": get_nested(mate, "description"),
+                        "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
+                        "llm_endpoint": f"/v1/{team_slug}/skills/{llm_skill_software_slug}/{llm_skill_slug}",
+                        "llm_model": get_nested(mate, "config.llm_model") or get_nested(mate, "default_llm_model"),
+                        "systemprompt": get_nested(mate, "config.systemprompt") or get_nested(mate, "default_systemprompt"),
                         "skills": [
                             {
-                                "id": get_nested(skill, ['id']),
-                                "name": get_nested(skill, ['attributes', 'name']),
-                                "description": get_nested(skill, ['attributes', 'description']),
+                                "id": get_nested(skill, "id"),
+                                "name": get_nested(skill, "name"),
+                                "description": get_nested(skill, "description"),
                                 "software":{
-                                    "id": get_nested(skill, ['attributes', 'software', 'data', 'id']),
-                                    "name": get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'name']),
+                                    "id": get_nested(skill, "software.id"),
+                                    "name": get_nested(skill, "software.name"),
                                 },
-                                "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
-                            } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
+                                "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}",
+                            } for skill in (get_nested(mate, "config.skills") or get_nested(mate, "default_skills"))
                         ],
                         "allowed_to_access_user_data":{
-                            "name": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_name']) else False,
-                            "username": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_username']) else False,
-                            "projects": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_projects']) else False,
-                            "goals": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_goals']) else False,
-                            "todos": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_todos']) else False,
-                            "recent_topics": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_recent_topics']) else False,
-                            "recent_emails": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_recent_emails']) else False,
-                            "calendar": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_calendar']) else False,
-                            "likes": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_likes']) else False,
-                            "dislikes": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_dislikes']) else False,
+                            "name": True if get_nested(mate, "config.allowed_to_access_user_name") else False,
+                            "username": True if get_nested(mate, "config.allowed_to_access_user_username") else False,
+                            "projects": True if get_nested(mate, "config.allowed_to_access_user_projects") else False,
+                            "goals": True if get_nested(mate, "config.allowed_to_access_user_goals") else False,
+                            "todos": True if get_nested(mate, "config.allowed_to_access_user_todos") else False,
+                            "recent_topics": True if get_nested(mate, "config.allowed_to_access_user_recent_topics") else False,
+                            "recent_emails": True if get_nested(mate, "config.allowed_to_access_user_recent_emails") else False,
+                            "calendar": True if get_nested(mate, "config.allowed_to_access_user_calendar") else False,
+                            "likes": True if get_nested(mate, "config.allowed_to_access_user_likes") else False,
+                            "dislikes": True if get_nested(mate, "config.allowed_to_access_user_dislikes") else False,
                         },
-                        "custom_config_id": get_nested(mate, ['attributes', 'config', 'id']) if get_nested(mate, ['attributes', 'config']) else None,
-                        "llm_endpoint_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) else False,
-                        "llm_model_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) else False,
-                        "systemprompt_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'systemprompt']) else False,
-                        "skills_are_customized": True if get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) else False
+                        "custom_config_id": get_nested(mate, "config.id") if get_nested(mate, "config") else None,
+                        "llm_endpoint_is_customized": True if get_nested(mate, "config.llm_endpoint") else False,
+                        "llm_model_is_customized": True if get_nested(mate, "config.llm_model") else False,
+                        "systemprompt_is_customized": True if get_nested(mate, "config.systemprompt") else False,
+                        "skills_are_customized": True if get_nested(mate, "config.skills") else False
                     }
 
                 json_response = mate

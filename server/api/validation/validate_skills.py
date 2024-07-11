@@ -14,7 +14,7 @@ from server import *
 ################
 
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_nested
 from typing import List, Optional
 
 
@@ -74,19 +74,19 @@ async def validate_skills(
             if status_code == 200 and len(skill_json_response["data"])>0:
                 add_to_log(f"Skill with ID {skill} exists.")
 
-                skill_data["name"] = skill_json_response["data"][0]["attributes"]["name"]
-                skill_data["description"] = skill_json_response["data"][0]["attributes"]["description"]
-                skill_data["slug"] = skill_json_response["data"][0]["attributes"]["slug"]
-                skill_data["requires_cloud_to_run"] = skill_json_response["data"][0]["attributes"]["requires_cloud_to_run"]
-                skill_data["is_llm_endpoint"] = skill_json_response["data"][0]["attributes"]["is_llm_endpoint"]
-                skill_data["is_llm_endpoint_and_supports_tool_selection"] = skill_json_response["data"][0]["attributes"]["is_llm_endpoint_and_supports_tool_selection"]
-                skill_data["icon_url"] = f"/v1/{team_slug}{skill_json_response['data'][0]['attributes']['icon']['data']['attributes']['file']['data']['attributes']['url']}"
+                skill_data["name"] = get_nested(skill_json_response, "name")
+                skill_data["description"] = get_nested(skill_json_response, "description")
+                skill_data["slug"] = get_nested(skill_json_response, "slug")
+                skill_data["requires_cloud_to_run"] = get_nested(skill_json_response, "requires_cloud_to_run")
+                skill_data["is_llm_endpoint"] = get_nested(skill_json_response, "is_llm_endpoint")
+                skill_data["is_llm_endpoint_and_supports_tool_selection"] = get_nested(skill_json_response, "is_llm_endpoint_and_supports_tool_selection")
+                skill_data["icon_url"] = f"/v1/{team_slug}{get_nested(skill_json_response, 'icon.file.url')}"
                 skill_data["software"] = {}
-                skill_data["software"]["id"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["id"]
-                skill_data["software"]["name"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["attributes"]["name"]
-                skill_data["software"]["icon_url"] = f"/v1/{team_slug}{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['icon']['data']['attributes']['file']['data']['attributes']['url']}"
-                skill_data["software"]["slug"] = skill_json_response["data"][0]["attributes"]["software"]["data"]["attributes"]["slug"]
-                skill_data["api_endpoint"] = f"/v1/{team_slug}/skills/{skill_json_response['data'][0]['attributes']['software']['data']['attributes']['slug']}/{skill_json_response['data'][0]['attributes']['slug']}"
+                skill_data["software"]["id"] = get_nested(skill_json_response, "software.id")
+                skill_data["software"]["name"] = get_nested(skill_json_response, "software.name")
+                skill_data["software"]["icon_url"] = f"/v1/{team_slug}{get_nested(skill_json_response, 'software.icon.file.url')}"
+                skill_data["software"]["slug"] = get_nested(skill_json_response, "software.slug")
+                skill_data["api_endpoint"] = f"/v1/{team_slug}/skills/{get_nested(skill_json_response, 'software.slug')}/{get_nested(skill_json_response, 'slug')}"
 
                 output_skills.append(skill_data)
 

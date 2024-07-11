@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -15,7 +14,7 @@ from server import *
 ################
 
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_nested
 from typing import Optional
 from datetime import datetime
 
@@ -60,10 +59,10 @@ async def validate_invite_code(
 
         if invite_codes:
             # only leave invite codes which to not have any team resistrictions or have the team_slug in the valid_to_access_team.slug
-            invite_codes = [invite_code for invite_code in invite_codes if not invite_code["attributes"]["valid_to_access_team"]["data"] or invite_code["attributes"]["valid_to_access_team"]["data"]["attributes"]["slug"] == team_slug]
+            invite_codes = [invite_code for invite_code in invite_codes if not get_nested(invite_code, "valid_to_access_team") or get_nested(invite_code, "valid_to_access_team.slug") == team_slug]
 
             # filter out invite codes which are expired (if date is set)
-            invite_codes = [invite_code for invite_code in invite_codes if not invite_code["attributes"]["expire_date"] or datetime.strptime(invite_code["attributes"]["expire_date"], '%Y-%m-%dT%H:%M:%S.%fZ') > datetime.now()]
+            invite_codes = [invite_code for invite_code in invite_codes if not get_nested(invite_code, "expire_date") or datetime.strptime(get_nested(invite_code, "expire_date"), '%Y-%m-%dT%H:%M:%S.%fZ') > datetime.now()]
 
         failure_message = "The invite code is invalid. This can be for various reasons. Maybe the code doesn't exist, or its for a specific team, or it expired."
 
@@ -79,28 +78,28 @@ async def validate_invite_code(
         add_to_log("The invite code is valid. Now marking it as used.", module_name="OpenMates | API | Validate Invite Code", state="success")
         invite_code = invite_codes[0]
         # if the invite code can be used x more times, decrement the counter
-        if invite_code["attributes"]["can_be_used_x_more_times"] != None:
-            if invite_code["attributes"]["can_be_used_x_more_times"] > 0:
+        if get_nested(invite_code, "can_be_used_x_more_times") != None:
+            if get_nested(invite_code, "can_be_used_x_more_times") > 0:
                 invite_code["attributes"]["can_be_used_x_more_times"] -= 1
                 status_code, invite_code_json_response = await make_strapi_request(
                     method='put',
                     endpoint='invitecodes/' + str(invite_code["id"]),
                     data={
                         "data": {
-                            "can_be_used_x_more_times": invite_code["attributes"]["can_be_used_x_more_times"]
+                            "can_be_used_x_more_times": get_nested(invite_code, "can_be_used_x_more_times")
                         }
                     }
                 )
 
             # if the counter is 0, delete the invite code
-            if invite_code["attributes"]["can_be_used_x_more_times"] == 0:
+            if get_nested(invite_code, "can_be_used_x_more_times") == 0:
                 status_code, invite_code_json_response = await make_strapi_request(
                     method='delete',
                     endpoint='invitecodes/' + str(invite_code["id"])
                 )
 
         # if the invite code can only be used once, delete the invite code
-        if invite_code["attributes"]["can_be_used_once"] == True:
+        if get_nested(invite_code, "can_be_used_once") == True:
             status_code, invite_code_json_response = await make_strapi_request(
                 method='delete',
                 endpoint='invitecodes/' + str(invite_code["id"])

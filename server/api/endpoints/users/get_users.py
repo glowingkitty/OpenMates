@@ -13,7 +13,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_nested
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
 from server.api.validation.validate_permissions import validate_permissions
@@ -69,8 +69,8 @@ async def get_users_processing(
         if status_code == 200:
             users = [
                 {
-                    "id": user["id"],
-                    "username": user["attributes"]["username"]
+                    "id": get_nested(user, "id"),
+                    "username": get_nested(user, "username")
                 }
                 for user in json_response["data"]
             ]

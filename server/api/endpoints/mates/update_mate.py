@@ -174,8 +174,8 @@ async def update_mate(
         # return updated fields
         if status_code == 200 and json_response["data"]:
             updated_response = {
-                "id": json_response["data"]["id"],
-                "username": json_response["data"]["attributes"]["username"],
+                "id": get_nested(json_response, "id"),
+                "username": get_nested(json_response, "username"),
                 "updated_fields": updated_mate
             }
             return JSONResponse(status_code=200, content=updated_response)

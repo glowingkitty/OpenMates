@@ -149,13 +149,13 @@ async def get_user(
                 user = users[0]
 
                 if api_token:
-                    if not verify_hash(hashed_text=user["attributes"]["api_token"], text=api_token[32:]):
+                    if not verify_hash(hashed_text=get_nested(user, "api_token"), text=api_token[32:]):
                         status_code = 404
                         raise HTTPException(status_code=status_code, detail="Could not find the requested user.")
 
                 # if password is given, check if the found user has the correct password
                 if password:
-                    if not verify_hash(hashed_text=user["attributes"]["password"], text=password):
+                    if not verify_hash(hashed_text=get_nested(user, "password"), text=password):
                         status_code = 404
                         raise HTTPException(status_code=status_code, detail="Could not find the requested user.")
 
@@ -168,76 +168,76 @@ async def get_user(
 
                 user = {
                     "id": user["id"],
-                    "username": user["attributes"]["username"],
-                    "email": decrypt(user["attributes"]["email"]) if decrypt_data else user["attributes"]["email"],
+                    "username": get_nested(user, "username"),
+                    "email": decrypt(get_nested(user, "email")) if decrypt_data else get_nested(user, "email"),
                     "teams": [
                         {
-                            "id": team["id"],
-                            "name": team["attributes"]["name"],
-                            "slug": team["attributes"]["slug"]
-                        } for team in user["attributes"]["teams"]["data"]
+                            "id": get_nested(team, "id"),
+                            "name": get_nested(team, "name"),
+                            "slug": get_nested(team, "slug")
+                        } for team in get_nested(user, "teams")
                     ],
-                    "profile_picture_url":  f"/v1/{team_slug}{get_nested(user, ['profile_image', 'file','url'])}" if get_nested(user, ['profile_image']) else None,
-                    "balance_eur": user["attributes"]["balance"],
+                    "profile_picture_url":  f"/v1/{team_slug}{get_nested(user, 'profile_image.file.url')}" if get_nested(user, 'profile_image') else None,
+                    "balance_eur": get_nested(user, "balance"),
                     "mates_default_privacy_settings": {
-                        "allowed_to_access_name": user["attributes"]["mate_privacy_config_default__allowed_to_access_name"],
-                        "allowed_to_access_username": user["attributes"]["mate_privacy_config_default__allowed_to_access_username"],
-                        "allowed_to_access_projects": user["attributes"]["mate_privacy_config_default__allowed_to_access_projects"],
-                        "allowed_to_access_goals": user["attributes"]["mate_privacy_config_default__allowed_to_access_goals"],
-                        "allowed_to_access_todos": user["attributes"]["mate_privacy_config_default__allowed_to_access_todos"],
-                        "allowed_to_access_recent_topics": user["attributes"]["mate_privacy_config_default__allowed_to_access_recent_topics"],
-                        "allowed_to_access_recent_emails": user["attributes"]["mate_privacy_config_default__allowed_to_access_recent_emails"],
-                        "allowed_to_access_calendar": user["attributes"]["mate_privacy_config_default__allowed_to_access_calendar"],
-                        "allowed_to_access_likes": user["attributes"]["mate_privacy_config_default__allowed_to_access_likes"],
-                        "allowed_to_access_dislikes": user["attributes"]["mate_privacy_config_default__allowed_to_access_dislikes"]
+                        "allowed_to_access_name": get_nested(user, "mate_privacy_config_default__allowed_to_access_name"),
+                        "allowed_to_access_username": get_nested(user, "mate_privacy_config_default__allowed_to_access_username"),
+                        "allowed_to_access_projects": get_nested(user, "mate_privacy_config_default__allowed_to_access_projects"),
+                        "allowed_to_access_goals": get_nested(user, "mate_privacy_config_default__allowed_to_access_goals"),
+                        "allowed_to_access_todos": get_nested(user, "mate_privacy_config_default__allowed_to_access_todos"),
+                        "allowed_to_access_recent_topics": get_nested(user, "mate_privacy_config_default__allowed_to_access_recent_topics"),
+                        "allowed_to_access_recent_emails": get_nested(user, "mate_privacy_config_default__allowed_to_access_recent_emails"),
+                        "allowed_to_access_calendar": get_nested(user, "mate_privacy_config_default__allowed_to_access_calendar"),
+                        "allowed_to_access_likes": get_nested(user, "mate_privacy_config_default__allowed_to_access_likes"),
+                        "allowed_to_access_dislikes": get_nested(user, "mate_privacy_config_default__allowed_to_access_dislikes")
                     },
                     "mates_custom_settings":[
                         {
-                            "id": config["id"],
-                            "mate_username": config["attributes"]["mate"]["data"]["attributes"]["username"],
-                            "team_slug": config["attributes"]["team"]["data"]["attributes"]["slug"],
-                            "systemprompt": config["attributes"]["systemprompt"],
-                            "llm_endpoint": "/v1/"+config["attributes"]["team"]["data"]["attributes"]["slug"]+config["attributes"]["llm_endpoint"] if config["attributes"]["llm_endpoint"] else None,
-                            "llm_model":config["attributes"]["llm_model"],
+                            "id": get_nested(config, "id"),
+                            "mate_username": get_nested(config, "mate.username"),
+                            "team_slug": get_nested(config, "team.slug"),
+                            "systemprompt": get_nested(config, "systemprompt"),
+                            "llm_endpoint": "/v1/"+get_nested(config, "team.slug")+get_nested(config, "llm_endpoint") if get_nested(config, "llm_endpoint") else None,
+                            "llm_model":get_nested(config, "llm_model"),
                             "skills": [
                                 {
-                                    "id": skill["id"],
-                                    "name": skill["attributes"]["name"],
-                                    "software": skill["attributes"]["software"]["data"]["attributes"]["name"],
-                                    "api_endpoint": "/v1/"+config["attributes"]["team"]["data"]["attributes"]["slug"]+"/skills/"+skill['attributes']['software']['data']['attributes']['slug']+"/"+skill['attributes']['slug']
-                                } for skill in config["attributes"]["skills"]["data"]
+                                    "id": get_nested(skill, "id"),
+                                    "name": get_nested(skill, "name"),
+                                    "software": get_nested(skill, "software.name"),
+                                    "api_endpoint": "/v1/"+get_nested(config, "team.slug")+"/skills/"+get_nested(skill, "software.slug")+"/"+get_nested(skill, "slug")
+                                } for skill in get_nested(config, "skills")
                             ],
-                            "allowed_to_access_user_name": config["attributes"]["allowed_to_access_user_name"],
-                            "allowed_to_access_user_username": config["attributes"]["allowed_to_access_user_username"],
-                            "allowed_to_access_user_projects": config["attributes"]["allowed_to_access_user_projects"],
-                            "allowed_to_access_user_goals": config["attributes"]["allowed_to_access_user_goals"],
-                            "allowed_to_access_user_todos": config["attributes"]["allowed_to_access_user_todos"],
-                            "allowed_to_access_user_recent_topics": config["attributes"]["allowed_to_access_user_recent_topics"],
-                            "allowed_to_access_user_recent_emails": config["attributes"]["allowed_to_access_user_recent_emails"],
-                            "allowed_to_access_user_calendar": config["attributes"]["allowed_to_access_user_calendar"],
-                            "allowed_to_access_user_likes": config["attributes"]["allowed_to_access_user_likes"],
-                            "allowed_to_access_user_dislikes": config["attributes"]["allowed_to_access_user_dislikes"]
-                        } for config in user["attributes"]["mate_configs"]["data"]
+                            "allowed_to_access_user_name": get_nested(config, "allowed_to_access_user_name"),
+                            "allowed_to_access_user_username": get_nested(config, "allowed_to_access_user_username"),
+                            "allowed_to_access_user_projects": get_nested(config, "allowed_to_access_user_projects"),
+                            "allowed_to_access_user_goals": get_nested(config, "allowed_to_access_user_goals"),
+                            "allowed_to_access_user_todos": get_nested(config, "allowed_to_access_user_todos"),
+                            "allowed_to_access_user_recent_topics": get_nested(config, "allowed_to_access_user_recent_topics"),
+                            "allowed_to_access_user_recent_emails": get_nested(config, "allowed_to_access_user_recent_emails"),
+                            "allowed_to_access_user_calendar": get_nested(config, "allowed_to_access_user_calendar"),
+                            "allowed_to_access_user_likes": get_nested(config, "allowed_to_access_user_likes"),
+                            "allowed_to_access_user_dislikes": get_nested(config, "allowed_to_access_user_dislikes")
+                        } for config in get_nested(user, "mate_configs")["data"]
                     ],
-                    "software_settings": decrypt(user["attributes"]["software_settings"],"dict") if decrypt_data else user["attributes"]["software_settings"],
-                    "other_settings": decrypt(user["attributes"]["other_settings"],"dict") if decrypt_data else user["attributes"]["other_settings"],
+                    "software_settings": decrypt(get_nested(user, "software_settings"),"dict") if decrypt_data else get_nested(user, "software_settings"),
+                    "other_settings": decrypt(get_nested(user, "other_settings"),"dict") if decrypt_data else get_nested(user, "other_settings"),
                     "projects": [
                         {
-                            "id": project["id"],
-                            "name": project["attributes"]["name"],
-                            "description": project["attributes"]["description"]
-                        } for project in user["attributes"]["projects"]["data"]
+                            "id": get_nested(project, "id"),
+                            "name": get_nested(project, "name"),
+                            "description": get_nested(project, "description")
+                        } for project in get_nested(user, "projects")["data"]
                     ],
-                    "likes": decrypt(user["attributes"]["likes"],"dict") if decrypt_data else user["attributes"]["likes"],
-                    "dislikes": decrypt(user["attributes"]["dislikes"],"dict") if decrypt_data else user["attributes"]["dislikes"],
-                    "goals": decrypt(user["attributes"]["goals"],"dict") if decrypt_data else user["attributes"]["goals"],
-                    "todos": decrypt(user["attributes"]["todos"],"dict") if decrypt_data else user["attributes"]["todos"],
-                    "recent_topics": decrypt(user["attributes"]["recent_topics"],"dict") if decrypt_data else user["attributes"]["recent_topics"],
-                    "recent_emails": decrypt(user["attributes"]["recent_emails"],"dict") if decrypt_data else user["attributes"]["recent_emails"],
-                    "calendar": decrypt(user["attributes"]["calendar"],"dict") if decrypt_data else user["attributes"]["calendar"]
+                    "likes": decrypt(get_nested(user, "likes"),"dict") if decrypt_data else get_nested(user, "likes"),
+                    "dislikes": decrypt(get_nested(user, "dislikes"),"dict") if decrypt_data else get_nested(user, "dislikes"),
+                    "goals": decrypt(get_nested(user, "goals"),"dict") if decrypt_data else get_nested(user, "goals"),
+                    "todos": decrypt(get_nested(user, "todos"),"dict") if decrypt_data else get_nested(user, "todos"),
+                    "recent_topics": decrypt(get_nested(user, "recent_topics"),"dict") if decrypt_data else get_nested(user, "recent_topics"),
+                    "recent_emails": decrypt(get_nested(user, "recent_emails"),"dict") if decrypt_data else get_nested(user, "recent_emails"),
+                    "calendar": decrypt(get_nested(user, "calendar"),"dict") if decrypt_data else get_nested(user, "calendar")
                 } if user_access == "full_access" else {
                     "id": user["id"],
-                    "username": user["attributes"]["username"]
+                    "username": get_nested(user, "username")
                 }
 
                 json_response = user

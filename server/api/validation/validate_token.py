@@ -15,7 +15,7 @@ from server import *
 ################
 
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.strapi_requests import make_strapi_request, get_nested
 from server.api.security.crypto import verify_hash
 
 
@@ -76,17 +76,17 @@ async def validate_token(
         if len(users) == 1:
             user = users[0]
             # check if the api token is valid
-            if not verify_hash(user["attributes"]["api_token"], api_token):
+            if not verify_hash(get_nested(user, "api_token"), api_token):
                 add_to_log("The user token is invalid.", module_name="OpenMates | API | Verify Token", state="error")
                 raise HTTPException(status_code=403, detail=failure_message)
 
             # check if the user is either a team admin or a member of the team
-            if user["attributes"]["is_server_admin"]:
+            if get_nested(user, "is_server_admin"):
                 add_to_log("The user is a server admin.", module_name="OpenMates | API | Verify Token", state="success")
                 return True
             if team_slug == None:
                 return True
-            if team_slug in [team["attributes"]["slug"] for team in user["attributes"]["teams"]["data"]]:
+            if team_slug in [get_nested(team, "slug") for team in get_nested(user, "teams")["data"]]:
                 add_to_log("The user is a member of the team.", module_name="OpenMates | API | Verify Token", state="success")
                 return True
 

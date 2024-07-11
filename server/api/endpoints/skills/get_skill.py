@@ -114,22 +114,25 @@ async def get_skill(
                             return JSONResponse(status_code=status_code, content=skill)
                         else:
                             return skill
+                        
+                    icon_url = get_nested(skill, 'icon.file.url')
+                    software_icon_url = get_nested(skill, 'software.icon.file.url')
 
                     skill = {
-                        "id": get_nested(skill, ["id"]),
-                        "name": get_nested(skill, ["attributes", "name"]),
-                        "description": get_nested(skill, ["attributes", "description"]),
-                        "slug": get_nested(skill, ["attributes", "slug"]),
-                        "requires_cloud_to_run": get_nested(skill, ["attributes", "requires_cloud_to_run"]),
-                        "is_llm_endpoint": get_nested(skill, ["attributes", "is_llm_endpoint"]),
-                        "is_llm_endpoint_and_supports_tool_selection": get_nested(skill, ["attributes", "is_llm_endpoint_and_supports_tool_selection"]),
-                        "icon_url": f"/v1/{team_slug}{get_nested(skill, ['attributes', 'icon', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(skill, ['attributes', 'icon', 'data', 'attributes', 'file','data','attributes','url']) else None,
-                        "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
+                        "id": get_nested(skill, "id"),
+                        "name": get_nested(skill, "name"),
+                        "description": get_nested(skill, "description"),
+                        "slug": get_nested(skill, "slug"),
+                        "requires_cloud_to_run": get_nested(skill, "requires_cloud_to_run"),
+                        "is_llm_endpoint": get_nested(skill, "is_llm_endpoint"),
+                        "is_llm_endpoint_and_supports_tool_selection": get_nested(skill, "is_llm_endpoint_and_supports_tool_selection"),
+                        "icon_url": f"/v1/{team_slug}{icon_url}" if icon_url else None,
+                        "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}",
                         "software": {
-                            "id": get_nested(skill, ["attributes", "software", "data", "id"]),
-                            "name": get_nested(skill, ["attributes", "software", "data", "attributes", "name"]),
-                            "slug": get_nested(skill, ["attributes", "software", "data", "attributes", "slug"]),
-                            "icon_url": f"/v1/{team_slug}{get_nested(skill, ['attributes', 'software','data', 'attributes', 'icon', 'data', 'attributes', 'file', 'data', 'attributes', 'url'])}" if get_nested(skill, ['attributes', 'software','data', 'attributes', 'icon', 'data', 'attributes', 'file', 'data', 'attributes', 'url']) else None,
+                            "id": get_nested(skill, "software.id"),
+                            "name": get_nested(skill, "software.name"),
+                            "slug": get_nested(skill, "software.slug"),
+                            "icon_url": f"/v1/{team_slug}{software_icon_url}" if software_icon_url else None,
                         }
                     }
 
