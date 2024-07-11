@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
 from server.api.models.skills.skills_old import Skill
 from urllib.parse import quote
@@ -25,7 +25,7 @@ from urllib.parse import quote
 class MatesCreateInput(BaseModel):
     """This is the model for the incoming parameters for POST /mates"""
     name: str = Field(..., description="Name of the AI team mate", min_length=1, max_length=30)
-    username: str = Field(..., description="Username of the AI team mate", min_length=1, max_length=30, unique=True)
+    username: str = Field(..., description="Username of the AI team mate", min_length=1, max_length=30, json_schema_extra={"unique": True})
     description: str = Field(..., description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate", min_length=1)
@@ -36,10 +36,10 @@ class MatesCreateInput(BaseModel):
     # TODO improve validation later using LLMs
 
     # prevent extra fields from being passed to API
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         if quote(v) != v:
             raise ValueError('username must only contain URL-safe characters')
@@ -47,21 +47,24 @@ class MatesCreateInput(BaseModel):
             raise ValueError('username must be all lowercase')
         return v
 
-    @validator('profile_picture_url')
+    @field_validator('profile_picture_url')
+    @classmethod
     def validate_profile_picture_url(cls, v):
         pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid profile picture URL format: {v}")
         return v
 
-    @validator('default_llm_endpoint')
+    @field_validator('default_llm_endpoint')
+    @classmethod
     def validate_llm_endpoint(cls, v):
         pattern = r'^/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid LLM endpoint format: {v}")
         return v
 
-    @validator('default_llm_model')
+    @field_validator('default_llm_model')
+    @classmethod
     def validate_llm_model(cls, v):
         pattern = r'^[a-z0-9_.-]+$'
         if not re.match(pattern, v):

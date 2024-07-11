@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 # POST /{team_slug}/skills/youtube/transcript (get transcript of a YouTube video)
@@ -24,10 +24,10 @@ class YouTubeGetTranscriptInput(BaseModel):
     url: str = Field(..., description="URL of the YouTube video", min_length=26, max_length=60)
 
     # prevent extra fields from being passed to API
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
-    @validator('url')
+    @field_validator('url')
+    @classmethod
     def url_must_be_youtube_url(cls, v):
         if not re.search(r"youtube\.com/watch\?v=[a-zA-Z0-9_-]+$", v):
             raise ValueError('URL must be a valid YouTube video URL')

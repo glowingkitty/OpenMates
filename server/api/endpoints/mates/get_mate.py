@@ -146,6 +146,18 @@ async def get_mate(
                                 "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                             } for skill in (get_nested(mate, ['attributes','config', 'attributes','skills', 'data']) or get_nested(mate, ['attributes', 'default_skills', 'data']))
                         ],
+                        "allowed_to_access_user_data":{
+                            "name": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_name']) else False,
+                            "username": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_username']) else False,
+                            "projects": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_projects']) else False,
+                            "goals": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_goals']) else False,
+                            "todos": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_todos']) else False,
+                            "recent_topics": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_recent_topics']) else False,
+                            "recent_emails": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_recent_emails']) else False,
+                            "calendar": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_calendar']) else False,
+                            "likes": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_likes']) else False,
+                            "dislikes": True if get_nested(mate, ['attributes', 'config', 'attributes', 'allowed_to_access_user_dislikes']) else False,
+                        },
                         "custom_config_id": get_nested(mate, ['attributes', 'config', 'id']) if get_nested(mate, ['attributes', 'config']) else None,
                         "llm_endpoint_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_endpoint']) else False,
                         "llm_model_is_customized": True if get_nested(mate, ['attributes', 'config','attributes', 'llm_model']) else False,

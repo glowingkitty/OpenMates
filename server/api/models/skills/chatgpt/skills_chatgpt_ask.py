@@ -15,7 +15,7 @@ from server import *
 ################
 
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # POST /{team_slug}/skills/chatgpt/ask (ask a question to ChatGPT)
@@ -28,8 +28,7 @@ class ChatGPTAskInput(BaseModel):
     temperature: float = Field(0.5, title="Temperature", description="The randomness of the response", min=0.0, max=2.0)
 
     # prevent extra fields from being passed to API
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 chatgpt_ask_input_example = {

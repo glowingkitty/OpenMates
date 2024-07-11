@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 # PATCH /api_token (Create a new API token)
@@ -24,7 +24,8 @@ class UsersCreateNewApiTokenInput(BaseModel):
     username: str = Field(..., description="Your username")
     password: str = Field(..., description="Your password", min_length=8, max_length=100)
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_must_be_strong(cls, v):
         if not re.match(r"^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&#^+=()\[\]{}:;,.<>\/\\|~`]).{8,}$", v):
             raise ValueError('password must be at least 8 characters long and contain at least one letter, one number and one special character')

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class Pagination(BaseModel):
@@ -7,12 +7,10 @@ class Pagination(BaseModel):
     pageCount: int = Field(..., description="Total number of pages")
     total: int = Field(..., description="Total number of results")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class MetaData(BaseModel):
     pagination: Pagination = Field(..., description="Pagination metadata")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")

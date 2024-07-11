@@ -13,7 +13,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
 from urllib.parse import quote
 
@@ -23,15 +23,17 @@ from urllib.parse import quote
 class MatesUpdateInput(BaseModel):
     """This is the model for the incoming parameters for PATCH /mates/{mate_username}"""
     name: str = Field(None, description="Name of the AI team mate")
-    username: str = Field(None, description="Username of the AI team mate", min_length=1, max_length=30, unique=True)
+    username: str = Field(None, description="Username of the AI team mate", min_length=1, max_length=30, json_schema_extra={"unique": True})
     description: str = Field(None, description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: str = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(None, description="Default system prompt of the AI team mate", min_length=1)
     default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
+    default_llm_endpoint: str = Field(None, description="Default API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
+    default_llm_model: str = Field(None, description="Default LLM model which is used by the AI team mate.")
     systemprompt: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom system prompt of the AI team mate.", min_length=1)
+    skills: List[int] = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom list of skills (IDs) AI team mate is allowed to use.")
     llm_endpoint: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
     llm_model: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom LLM model which is used by the AI team mate.")
-    skills: List[int] = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom list of skills (IDs) AI team mate is allowed to use.")
     allowed_to_access_user_name: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your name.")
     allowed_to_access_user_username: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your username.")
     allowed_to_access_user_projects: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your projects.")
@@ -39,10 +41,10 @@ class MatesUpdateInput(BaseModel):
     allowed_to_access_user_todos: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access your To Do's.")
     allowed_to_access_user_recent_topics: bool = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nWhether the AI team mate is allowed to access the recent topics you asked AI team mates about.")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_must_be_url_compatible(cls, v):
         if quote(v) != v:
             raise ValueError('username must only contain URL-safe characters')
@@ -50,19 +52,44 @@ class MatesUpdateInput(BaseModel):
             raise ValueError('username must be all lowercase')
         return v
 
-    @validator('llm_endpoint')
-    def llm_endpoint_must_be_url_compatible(cls, v):
-        if quote(v) != v:
-            raise ValueError('LLM endpoint must only contain URL-safe characters')
-        pattern = r'^/v1/[a-z0-9-]+/skills/[a-z0-9-]+/ask'
+    @field_validator('profile_picture_url')
+    @classmethod
+    def validate_profile_picture_url(cls, v):
+        pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
         if not re.match(pattern, v):
-            raise ValueError('LLM endpoint must be in the format /v1/{team_slug}/skills/{llm_provider}/ask')
+            raise ValueError(f"Invalid profile picture URL format: {v}")
         return v
 
-    @validator('profile_picture_url')
-    def profile_picture_url_must_in_right_format(cls, v):
-        if not re.match(r"/v1/[a-z0-9_]+/uploads/.+\.(jpg|jpeg|png)$", v):
-            raise ValueError('profile picture URL must be in the right format: /v1/{team_slug}/uploads/{filename}')
+    @field_validator('default_llm_endpoint')
+    @classmethod
+    def validate_llm_endpoint(cls, v):
+        pattern = r'^/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM endpoint format: {v}")
+        return v
+
+    @field_validator('default_llm_model')
+    @classmethod
+    def validate_llm_model(cls, v):
+        pattern = r'^[a-z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM model format: {v}")
+        return v
+
+    @field_validator('llm_endpoint')
+    @classmethod
+    def validate_llm_endpoint(cls, v):
+        pattern = r'^/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM endpoint format: {v}")
+        return v
+
+    @field_validator('llm_model')
+    @classmethod
+    def validate_llm_model(cls, v):
+        pattern = r'^[a-z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid LLM model format: {v}")
         return v
 
 mates_update_input_example = {

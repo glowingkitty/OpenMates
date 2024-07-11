@@ -15,7 +15,7 @@ from server import *
 ################
 
 from typing import Literal
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 # POST /api/skills/atopile/create_pcb_schematic (create a new PCB schematic)
@@ -32,8 +32,7 @@ class AtopileCreatePcbSchematicInput(BaseModel):
     ai_model: Literal["openai__gpt-4o","google__gemini-1.5-pro"] = Field("openai__gpt-4o", title="AI Model", description="The large language model to use for generating the schematic code")
 
     # prevent extra fields from being passed to API
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     # @root_validator(pre=True, skip_on_failure=True)
     # def check_at_least_one_field(cls, values):
@@ -56,13 +55,15 @@ class AtopileCreatePcbSchematicInput(BaseModel):
     #             raise ValueError('If component_name is provided, datasheet_url, and component_lcsc_id must not be provided')
     #     return values
 
-    # @validator('component_lcsc_id')
+    # @field_validator('component_lcsc_id')
+    # @classmethod
     # def validate_component_lcsc_id(cls, v):
     #     # make sure it starts with C
     #     if not v.startswith('C'):
     #         raise ValueError('Component LCSC ID must start with C')
 
-    @validator('datasheet_url')
+    @field_validator('datasheet_url')
+    @classmethod
     def validate_datasheet_url(cls, v):
         # make sure its a pdf file
         if not v.endswith('.pdf'):

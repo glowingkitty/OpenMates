@@ -334,7 +334,7 @@ async def get_mate(
         output_format="JSONResponse"
         )
 
-# TODO add test
+
 # POST /mates (create a new mate)
 @mates_router.post("/v1/{team_slug}/mates/", **mates_endpoints["create_mate"])
 @limiter.limit("20/minute")
@@ -360,30 +360,6 @@ async def create_mate(
         default_llm_endpoint=parameters.default_llm_endpoint,
         default_llm_model=parameters.default_llm_model,
         team_slug=team_slug,
-        user_api_token=token
-        )
-
-
-# TODO add endpoint processing
-# TODO add test
-# DELETE /mates/{mate_username} (delete a mate)
-@mates_router.delete("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["delete_mate"])
-@limiter.limit("20/minute")
-async def delete_mate(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
-    ):
-    await validate_permissions(
-        endpoint=f"/mates/{mate_username}",
-        team_slug=team_slug,
-        user_api_token=token,
-        required_permissions=["mates:delete"]
-    )
-    return await delete_mate_processing(
-        team_slug=team_slug,
-        mate_username=mate_username,
         user_api_token=token
         )
 
@@ -425,6 +401,29 @@ async def update_mate(
         user_api_token=token,
         )
 
+
+# TODO add endpoint processing
+# TODO add test
+# DELETE /mates/{mate_username} (delete a mate)
+@mates_router.delete("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["delete_mate"])
+@limiter.limit("20/minute")
+async def delete_mate(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    mate_username: str = Path(..., **input_parameter_descriptions["mate_username"])
+    ):
+    await validate_permissions(
+        endpoint=f"/mates/{mate_username}",
+        team_slug=team_slug,
+        user_api_token=token,
+        required_permissions=["mates:delete"]
+    )
+    return await delete_mate_processing(
+        team_slug=team_slug,
+        mate_username=mate_username,
+        user_api_token=token
+        )
 
 
 
