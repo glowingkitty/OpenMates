@@ -62,7 +62,7 @@ class Skill(BaseModel):
         return v
 
 
-skill_get_one_output_example = {
+skills_get_one_output_example = {
     "id": 1,
     "name": "Ask",
     "description": "Ask a question to Claude from Anthropic.",

@@ -61,6 +61,9 @@ from server.api.models.users.users_create_new_api_token import (
 from server.api.models.users.users_replace_profile_picture import (
     users_replace_profile_picture_output_example
 )
+from server.api.models.skills.skills_get_one import (
+    skills_get_one_output_example
+)
 from server.api.models.skills.youtube.skills_youtube_get_transcript import (
     YouTubeGetTranscriptInput,
     youtube_get_transcript_input_example,
@@ -93,6 +96,7 @@ from server.api.endpoints.skills.image_editor.resize_image import resize_image_p
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
 from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
+from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
 
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_token import validate_token
@@ -105,6 +109,7 @@ from fastapi.openapi.utils import get_openapi
 from server.api.parameters import (
     files_endpoints,
     mates_endpoints,
+    skills_endpoints,
     skills_chatgpt_endpoints,
     skills_claude_endpoints,
     skills_youtube_endpoints,
@@ -201,6 +206,7 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", users_replace_profile_picture_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", skills_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
@@ -434,6 +440,32 @@ async def delete_mate(
 # Explaination:
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
+
+# GET /skills/{software_slug}/{skill_slug} (get a skill)
+@skills_router.get("/v1/{team_slug}/skills/{software_slug}/{skill_slug}", **skills_endpoints["get_skill"])
+@limiter.limit("20/minute")
+async def get_skill(
+    request: Request,
+    software_slug: str = Path(..., **input_parameter_descriptions["software_slug"]),
+    skill_slug: str = Path(..., **input_parameter_descriptions["skill_slug"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint=f"/skills/{software_slug}/{skill_slug}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await get_skill_processing(
+        team_slug=team_slug,
+        software_slug=software_slug,
+        skill_slug=skill_slug,
+        include_populated_data=True,
+        output_raw_data=False,
+        output_format="JSONResponse"
+    )
+
+
 # TODO add test
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
 @skills_router.post("/v1/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
@@ -581,6 +613,9 @@ async def skill_image_editor_resize(
     response = StreamingResponse(BytesIO(image_bytes), media_type="image/jpeg")
 
     return response
+
+
+
 
 
 ##################################

@@ -20,11 +20,10 @@ from fastapi import HTTPException
 from typing import Literal
 
 
-# TODO write test
-
 async def get_skill(
         id: Optional[int] = None,
-        endpoint: Optional[str] = None,
+        software_slug: Optional[str] = None,
+        skill_slug: Optional[str] = None,
         team_slug: Optional[str] = None,
         include_populated_data: bool = False,
         output_raw_data: bool = False,
@@ -37,8 +36,8 @@ async def get_skill(
             add_to_log(module_name="OpenMates | API | Get skill", state="start", color="yellow", hide_variables=True)
             add_to_log("Getting a specific skill ...")
 
-            if id is None and endpoint is None:
-                raise HTTPException(status_code=400, detail="Either id or endpoint must be provided")
+            if id is None and (software_slug is None or skill_slug is None):
+                raise HTTPException(status_code=400, detail="Either id or software_slug and skill_slug must be provided")
 
             fields = [
                 "name",
@@ -64,23 +63,29 @@ async def get_skill(
             if id is not None:
                 filters.append({
                     "field": "id",
-                    "operator": "eq",
+                    "operator": "$eq",
                     "value": id
                 })
 
-            if endpoint is not None:
+            if software_slug is not None and skill_slug is not None:
                 filters.append({
-                    "field": "endpoint",
-                    "operator": "eq",
-                    "value": endpoint
+                    "field": "software.slug",
+                    "operator": "$eq",
+                    "value": software_slug
+                })
+                filters.append({
+                    "field": "slug",
+                    "operator": "$eq",
+                    "value": skill_slug
                 })
 
-            if team_slug is not None:
-                filters.append({
-                    "field": "team.slug",
-                    "operator": "eq",
-                    "value": team_slug
-                })
+            # TODO can't get this to work
+            # if team_slug is not None:
+            #     filters.append({
+            #         "field": "not_allowed_in_teams.slug",
+            #         "operator": "$notContains",
+            #         "value": team_slug
+            #     })
 
             status_code, response = await make_strapi_request(
                 method='get',
@@ -118,18 +123,24 @@ async def get_skill(
                         "requires_cloud_to_run": get_nested(skill, ["attributes", "requires_cloud_to_run"]),
                         "is_llm_endpoint": get_nested(skill, ["attributes", "is_llm_endpoint"]),
                         "is_llm_endpoint_and_supports_tool_selection": get_nested(skill, ["attributes", "is_llm_endpoint_and_supports_tool_selection"]),
-                        "icon_url": get_nested(skill, ["attributes", "icon", "data", "attributes", "url"]),
+                        "icon_url": f"/v1/{team_slug}{get_nested(skill, ['attributes', 'icon', 'data', 'attributes', 'file','data','attributes','url'])}" if get_nested(skill, ['attributes', 'icon', 'data', 'attributes', 'file','data','attributes','url']) else None,
+                        "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, ['attributes', 'software', 'data', 'attributes', 'slug'])}/{get_nested(skill, ['attributes', 'slug'])}",
                         "software": {
-                            "name": get_nested(skill, ["attributes", "software", "name"]),
-                            "slug": get_nested(skill, ["attributes", "software", "slug"]),
-                            "icon_url": get_nested(skill, ["attributes", "software", "icon", "data", "attributes", "url"]),
+                            "id": get_nested(skill, ["attributes", "software", "data", "id"]),
+                            "name": get_nested(skill, ["attributes", "software", "data", "attributes", "name"]),
+                            "slug": get_nested(skill, ["attributes", "software", "data", "attributes", "slug"]),
+                            "icon_url": f"/v1/{team_slug}{get_nested(skill, ['attributes', 'software','data', 'attributes', 'icon', 'data', 'attributes', 'file', 'data', 'attributes', 'url'])}" if get_nested(skill, ['attributes', 'software','data', 'attributes', 'icon', 'data', 'attributes', 'file', 'data', 'attributes', 'url']) else None,
                         }
                     }
 
                     json_response = skill
 
 
-            add_to_log("Successfully got the skill.", state="success")
+                    add_to_log("Successfully got the skill.", state="success")
+
+            if status_code == 404:
+                add_to_log("Could not find the requested skill.", state="error")
+
             if output_format == "JSONResponse":
                 return JSONResponse(status_code=status_code, content=json_response)
             else:

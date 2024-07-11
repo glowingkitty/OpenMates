@@ -38,6 +38,9 @@ from server.api.models.users.users_get_all import (
 from server.api.models.users.users_get_one import (
     User
 )
+from server.api.models.skills.skills_get_one import (
+    Skill
+)
 from server.api.models.users.users_create import (
     UsersCreateOutput
 )
@@ -163,6 +166,15 @@ mates_endpoints = {
     "delete_mate":{
         "summary": "Delete",
         "description": "<img src='images/mates/delete.png' alt='Delete an existing mate on the server.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_endpoints = {
+    "get_skill":{
+        "response_model":Skill,
+        "summary": "Get skill",
+        "description": "<img src='images/skills/get_skill.png' alt='Get all details about a specific skill.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
     }
 }
@@ -341,5 +353,13 @@ input_parameter_descriptions = {
     "file": {
         "description": "The bytes of the file to upload"
     },
+    "software_slug": {
+        "description": "The slug of the software",
+        "example": "claude"
+    },
+    "skill_slug": {
+        "description": "The slug of the skill",
+        "example": "ask"
+    }
 }
 

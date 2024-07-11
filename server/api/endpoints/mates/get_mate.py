@@ -168,7 +168,11 @@ async def get_mate(
                 json_response = mate
 
 
-        add_to_log("Successfully got the mate.", state="success")
+                add_to_log("Successfully got the mate.", state="success")
+
+        if status_code == 404:
+            add_to_log("Could not find the requested mate.", state="error")
+
         if output_format == "JSONResponse":
             return JSONResponse(status_code=status_code, content=json_response)
         else:

@@ -31,4 +31,4 @@ def test_get_skill():
         # Validate the response against your Pydantic model
         skill = Skill.model_validate(json_response)
     except ValidationError as e:
-        pytest.fail(f"Response does not match the Skill model: {e}")
+        pytest.fail(f"Response does not match the Skill model: {e}, with response: {json_response}")
