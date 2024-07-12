@@ -40,24 +40,54 @@ def build_params(params, parts, prefix, postfix) -> str:
     return params
 
 
-def get_nested(dictionary, key_path):
+def get_nested(dictionary, key_path, stop_at_last_key=False):
+    if dictionary is None:
+        return None
+
+    if not isinstance(dictionary, dict):
+        raise ValueError(f"dictionary must be a dictionary, but got: {type(dictionary)}")
+
+    if not key_path:
+        return dictionary
+
     keys = key_path.split('.')
-    for key in keys:
+    for i, key in enumerate(keys):
         while isinstance(dictionary, dict) and key not in dictionary:
             if "attributes" in dictionary:
                 dictionary = dictionary["attributes"]
             elif "data" in dictionary:
                 if isinstance(dictionary["data"], list) and dictionary["data"]:
                     dictionary = dictionary["data"][0]
+                elif isinstance(dictionary["data"], dict) and dictionary["data"]:
+                    dictionary = dictionary["data"]
                 else:
                     return None
             else:
                 return None
+
         if isinstance(dictionary, dict):
+            if stop_at_last_key and i == len(keys) - 1:
+                return dictionary.get(key)
             dictionary = dictionary.get(key)
+        elif isinstance(dictionary, list):
+            try:
+                index = int(key)
+                if 0 <= index < len(dictionary):
+                    dictionary = dictionary[index]
+                else:
+                    return None
+            except ValueError:
+                return None
         else:
             return None
+
+    # Automatically return the "data" if it's present in the final result
+    if isinstance(dictionary, dict) and "data" in dictionary and isinstance(dictionary["data"], list):
+        return dictionary["data"]
+
     return dictionary
+
+
 
 async def make_strapi_request(
         method: str,

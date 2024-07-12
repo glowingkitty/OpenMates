@@ -217,7 +217,7 @@ async def get_user(
                             "allowed_to_access_user_calendar": get_nested(config, "allowed_to_access_user_calendar"),
                             "allowed_to_access_user_likes": get_nested(config, "allowed_to_access_user_likes"),
                             "allowed_to_access_user_dislikes": get_nested(config, "allowed_to_access_user_dislikes")
-                        } for config in get_nested(user, "mate_configs")["data"]
+                        } for config in get_nested(user, "mate_configs")
                     ],
                     "software_settings": decrypt(get_nested(user, "software_settings"),"dict") if decrypt_data else get_nested(user, "software_settings"),
                     "other_settings": decrypt(get_nested(user, "other_settings"),"dict") if decrypt_data else get_nested(user, "other_settings"),
@@ -226,7 +226,7 @@ async def get_user(
                             "id": get_nested(project, "id"),
                             "name": get_nested(project, "name"),
                             "description": get_nested(project, "description")
-                        } for project in get_nested(user, "projects")["data"]
+                        } for project in get_nested(user, "projects")
                     ],
                     "likes": decrypt(get_nested(user, "likes"),"dict") if decrypt_data else get_nested(user, "likes"),
                     "dislikes": decrypt(get_nested(user, "dislikes"),"dict") if decrypt_data else get_nested(user, "dislikes"),

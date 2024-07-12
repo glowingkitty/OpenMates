@@ -92,7 +92,7 @@ async def validate_user_data_access(
                 return "basic_access"
 
             # else we check if the user is a team admin, if so, we can proceed with 'basic data' access
-            for team in get_nested(user, "teams_where_user_is_admin")["data"]:
+            for team in get_nested(user, "teams_where_user_is_admin"):
                 if get_nested(team, "slug") == request_team_slug:
                     # user is team admin and therefore is allowed to access the 'basic data' of all users on the team
                     add_to_log("User is a team admin and has the permission to access all basic user data on the team.")
@@ -111,7 +111,7 @@ async def validate_user_data_access(
                 return "basic_access_for_all_users_on_server"
 
             # check if user is a team admin, if so, we can proceed with 'basic data' access
-            for team in get_nested(user, "teams_where_user_is_admin")["data"]:
+            for team in get_nested(user, "teams_where_user_is_admin"):
                 if get_nested(team, "slug") == request_team_slug:
                     # user is team admin and therefore is allowed to access the 'basic data' of all users on the team
                     add_to_log("User is a team admin and has the permission to access all basic user data on the team.")

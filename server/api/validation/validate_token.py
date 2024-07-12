@@ -86,7 +86,7 @@ async def validate_token(
                 return True
             if team_slug == None:
                 return True
-            if team_slug in [get_nested(team, "slug") for team in get_nested(user, "teams")["data"]]:
+            if team_slug in [get_nested(team, "slug") for team in get_nested(user, "teams")]:
                 add_to_log("The user is a member of the team.", module_name="OpenMates | API | Verify Token", state="success")
                 return True
 

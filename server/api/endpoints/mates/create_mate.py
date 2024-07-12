@@ -78,8 +78,7 @@ async def create_mate(
             add_to_log("No team found with the given URL.", state="error")
             raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
-        # TODO add default_llm_endpoint as linked skill
-        # find default_llm_endpoint in the skills
+        # add default_llm_endpoint as linked skill
         default_llm_endpoint_skill = await get_skill(
             software_slug=default_llm_endpoint.split('/')[2],
             skill_slug=default_llm_endpoint.split('/')[3],
