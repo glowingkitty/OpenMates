@@ -37,7 +37,7 @@ async def get_mates(
             "description"
         ]
         populate = [
-            "profile_picture.url"
+            "profile_picture.file.url"
         ]
         filters = [
             {
@@ -59,14 +59,12 @@ async def get_mates(
         if status_code == 200:
             mates = []
             for mate in json_response["data"]:
-                profile_picture_url = get_nested(mate, "profile_picture.file.url")
-
                 mate_data = {
                     "id": get_nested(mate, "id"),
                     "name": get_nested(mate, "name"),
                     "username": get_nested(mate, "username"),
                     "description": get_nested(mate, "description"),
-                    "profile_picture_url": f"/v1/{team_slug}/uploads/{profile_picture_url}" if profile_picture_url else None,
+                    "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
                 }
                 mates.append(mate_data)
 
