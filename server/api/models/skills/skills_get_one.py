@@ -27,6 +27,7 @@ class Skill(BaseModel):
     name: str = Field(..., description="name of the skill")
     description: str = Field(..., description="Description of the skill")
     slug: str = Field(..., description="Slug of the skill")
+    pricing: dict = Field(..., description="If not free to use: Pricing details of the skill")
     requires_cloud_to_run: bool = Field(..., description="Indicates if the skill requires the cloud to run")
     is_llm_endpoint: bool = Field(..., description="Indicates if the skill is an LLM endpoint")
     is_llm_endpoint_and_supports_tool_selection: bool = Field(..., description="Indicates if the skill is an LLM endpoint and supports tool selection")
@@ -67,6 +68,20 @@ skills_get_one_output_example = {
     "name": "Ask",
     "description": "Ask a question to Claude from Anthropic.",
     "slug": "ask",
+    "pricing": {
+        "claude-3.5-sonnet": {
+            "price": 15.00,
+            "currency": "USD",
+            "per": "1 Million tokens input+output",
+            "description": "1000 tokens equals arround 800-900 words. Example: 300 tokens input + 100 tokens output = 400 tokens = 0.006 USD."
+        },
+        "claude-3-haiku": {
+            "price": 1.25,
+            "currency": "USD",
+            "per": "1 Million tokens input+output",
+            "description": "1000 tokens equals arround 800-900 words. Example: 300 tokens input + 100 tokens output = 400 tokens = 0.0005 USD"
+        }
+    },
     "requires_cloud_to_run": False,
     "is_llm_endpoint": True,
     "is_llm_endpoint_and_supports_tool_selection": True,

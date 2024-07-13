@@ -61,6 +61,9 @@
       "relation": "oneToMany",
       "target": "api::team.team",
       "mappedBy": "not_allowed_skills"
+    },
+    "pricing": {
+      "type": "json"
     }
   }
 }
