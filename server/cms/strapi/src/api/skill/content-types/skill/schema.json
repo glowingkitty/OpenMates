@@ -64,6 +64,23 @@
     },
     "pricing": {
       "type": "json"
+    },
+    "processing": {
+      "type": "enumeration",
+      "enum": [
+        "local",
+        "cloud",
+        "localORcloud"
+      ],
+      "required": true
+    },
+    "free": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "default_skill_settings": {
+      "type": "json"
     }
   }
 }
