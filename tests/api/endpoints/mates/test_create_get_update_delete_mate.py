@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 from server.api.models.mates.mates_get_one import Mate
 from server.api.models.mates.mates_create import MatesCreateInput, MatesCreateOutput
+from server.api.models.mates.mates_update import MateUpdateOutput
 
 load_dotenv()
 
@@ -67,7 +68,7 @@ def test_create_get_update_delete_mate():
     updated_mate_data = {
         "name": "Updated Test Mate"
     }
-    update_response = requests.put(
+    update_response = requests.patch(
         f"{base_url}/{created_mate.username}",
         headers=headers,
         json=updated_mate_data
@@ -75,8 +76,8 @@ def test_create_get_update_delete_mate():
     assert update_response.status_code == 200, f"Failed to update mate: {update_response.status_code}\nResponse content: {update_response.text}"
     updated_mate = update_response.json()
     try:
-        mate = Mate.model_validate(updated_mate)
-        assert mate.name == updated_mate_data["name"], f"Mate name was not updated. Expected '{updated_mate_data['name']}', got '{mate.name}'"
+        updated_response = MateUpdateOutput.model_validate(updated_mate)
+        assert updated_response.updated_fields["name"] == updated_mate_data["name"], f"Mate name was not updated, got response: '{updated_response}'"
     except ValidationError as e:
         pytest.fail(f"Updated mate does not match the Mate model: {e}\nResponse content: {update_response.text}")
 
@@ -85,7 +86,7 @@ def test_create_get_update_delete_mate():
         f"{base_url}/{created_mate.username}",
         headers=headers
     )
-    assert delete_response.status_code == 204, f"Failed to delete mate: {delete_response.status_code}\nResponse content: {delete_response.text}"
+    assert delete_response.status_code == 200, f"Failed to delete mate: {delete_response.status_code}\nResponse content: {delete_response.text}"
 
     # Verify the mate is deleted
     get_response = requests.get(
