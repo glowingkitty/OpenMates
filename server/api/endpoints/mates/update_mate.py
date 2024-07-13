@@ -78,14 +78,7 @@ async def update_mate(
             team_slug=team_slug
             ) if new_custom_skills!=None else None
 
-        # if the LLM model is changed, validate first the new LLM model data
-        if new_default_llm_endpoint or new_default_llm_model:
-            # TODO check if the llm skill exists
-            # TODO throw an error if not both the endpoint and model are provided for checking
-            await validate_llm(team_slug=team_slug, llm_endpoint=new_default_llm_endpoint, llm_model=new_default_llm_model)
-
-        if new_custom_llm_endpoint or new_custom_llm_model:
-            await validate_llm(team_slug=team_slug, llm_endpoint=new_custom_llm_endpoint, llm_model=new_custom_llm_model)
+        # TODO: later on, implement that server and team admins can prohibit certain LLM endpoints and models
 
         # prepare to make the patch request to strapi
         updated_mate = {}

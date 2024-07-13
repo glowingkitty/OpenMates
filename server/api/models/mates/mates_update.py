@@ -60,37 +60,32 @@ class MatesUpdateInput(BaseModel):
             raise ValueError(f"Invalid profile picture URL format: {v}")
         return v
 
-    @field_validator('default_llm_endpoint')
+    @field_validator('default_llm_endpoint', 'llm_endpoint')
     @classmethod
     def validate_llm_endpoint(cls, v):
-        pattern = r'^/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid LLM endpoint format: {v}")
+        valid_endpoints = [
+            '/skills/chatgpt/ask',
+            '/skills/claude/ask',
+            '/skills/gemini/ask'
+        ]
+        if v not in valid_endpoints:
+            raise ValueError(f"Invalid LLM endpoint. Must be one of: {', '.join(valid_endpoints)}")
         return v
 
-    @field_validator('default_llm_model')
+    @field_validator('default_llm_model', 'llm_model')
     @classmethod
-    def validate_llm_model(cls, v):
-        pattern = r'^[a-z0-9_.-]+$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid LLM model format: {v}")
+    def validate_llm_model(cls, v, info):
+        valid_models = {
+            '/skills/chatgpt/ask': ['gpt-4', 'gpt-3.5-turbo'],
+            '/skills/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],
+            '/skills/gemini/ask': ['gemini-1.5-pro', 'gemini-1.5-flash']
+        }
+        endpoint_field = 'default_llm_endpoint' if info.field_name == 'default_llm_model' else 'llm_endpoint'
+        endpoint = info.data.get(endpoint_field)
+        if endpoint not in valid_models or v not in valid_models[endpoint]:
+            raise ValueError(f"Invalid LLM model for endpoint {endpoint}. Must be one of: {', '.join(valid_models[endpoint])}")
         return v
 
-    @field_validator('llm_endpoint')
-    @classmethod
-    def validate_llm_endpoint(cls, v):
-        pattern = r'^/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid LLM endpoint format: {v}")
-        return v
-
-    @field_validator('llm_model')
-    @classmethod
-    def validate_llm_model(cls, v):
-        pattern = r'^[a-z0-9_.-]+$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid LLM model format: {v}")
-        return v
 
 mates_update_input_example = {
     "description": "A software development expert, who can help you with all your coding needs."
