@@ -92,8 +92,8 @@ mates_update_input_example = {
 }
 
 
-class MateUpdateOutput(BaseModel):
-    """This is the model for the outgoing response for POST /mates"""
+class MatesUpdateOutput(BaseModel):
+    """This is the model for the outgoing response for PATCH /mates/{mate_username}"""
     id: int = Field(..., description="ID of the AI team mate")
     username: str = Field(..., description="Username of the AI team mate")
     updated_fields: dict = Field(..., description="Dict with all updated fields")

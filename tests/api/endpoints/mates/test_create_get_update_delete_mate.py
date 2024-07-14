@@ -3,12 +3,57 @@ import requests
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from server.api.models.mates.mates_get_one import Mate
-from server.api.models.mates.mates_create import MatesCreateInput, MatesCreateOutput
-from server.api.models.mates.mates_update import MateUpdateOutput
+from server.api.models.mates.mates_get_one import Mate, mates_get_one_output_example
+from server.api.models.mates.mates_create import MatesCreateInput, MatesCreateOutput, mates_create_input_example, mates_create_output_example
+from server.api.models.mates.mates_update import MatesUpdateInput, MatesUpdateOutput, mates_update_input_example, mates_update_output_example
+from server.api.models.mates.mates_delete import MatesDeleteOutput, mates_delete_output_example
 
 load_dotenv()
 
+# test the examples from the docs
+@pytest.mark.api_dependent
+def test_docs_mates_create():
+    try:
+        validated_mate_data = MatesCreateInput(**mates_create_input_example)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesCreateInput model: {e}")
+
+    try:
+        validated_mate_data = MatesCreateOutput(**mates_create_output_example)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesCreateOutput model: {e}")
+
+
+@pytest.mark.api_dependent
+def test_docs_mates_get_one():
+    try:
+        validated_mate_data = Mate(**mates_get_one_output_example)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesGetOneOutput model: {e}")
+
+
+@pytest.mark.api_dependent
+def test_docs_mates_update():
+    try:
+        validated_mate_data = MatesUpdateInput(**mates_update_input_example)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesUpdateInput model: {e}")
+
+    try:
+        validated_mate_data = MatesUpdateOutput(**mates_update_output_example)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesUpdateOutput model: {e}")
+
+
+@pytest.mark.api_dependent
+def test_docs_mates_delete():
+    try:
+        validated_mate_data = MatesDeleteOutput(**mates_delete_output_example)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesDeleteOutput model: {e}")
+
+
+# then test the actual API endpoints
 @pytest.mark.api_dependent
 def test_create_get_update_delete_mate():
     api_token = os.getenv('TEST_API_TOKEN')
@@ -18,6 +63,12 @@ def test_create_get_update_delete_mate():
 
     headers = {"Authorization": f"Bearer {api_token}"}
     base_url = f"http://0.0.0.0:8000/v1/{team_slug}/mates"
+
+    # TODO also update doc testing and check if all API endpoints have the full documentation correctly included
+
+    # TODO add more testing scenarios, also test for error responses correctly triggered
+
+    # TODO measure how long processing of responses takes
 
     # Prepare mate creation data
     mate_data = {
@@ -76,7 +127,7 @@ def test_create_get_update_delete_mate():
     assert update_response.status_code == 200, f"Failed to update mate: {update_response.status_code}\nResponse content: {update_response.text}"
     updated_mate = update_response.json()
     try:
-        updated_response = MateUpdateOutput.model_validate(updated_mate)
+        updated_response = MatesUpdateOutput.model_validate(updated_mate)
         assert updated_response.updated_fields["name"] == updated_mate_data["name"], f"Mate name was not updated, got response: '{updated_response}'"
     except ValidationError as e:
         pytest.fail(f"Updated mate does not match the Mate model: {e}\nResponse content: {update_response.text}")
@@ -87,6 +138,12 @@ def test_create_get_update_delete_mate():
         headers=headers
     )
     assert delete_response.status_code == 200, f"Failed to delete mate: {delete_response.status_code}\nResponse content: {delete_response.text}"
+    deleted_mate = delete_response.json()
+    try:
+        deleted_mate = MatesDeleteOutput.model_validate(deleted_mate)
+        assert deleted_mate.deleted_user == created_mate.username, f"Deleted mate username does not match. Expected '{created_mate.username}', got '{deleted_mate.deleted_user}'"
+    except ValidationError as e:
+        pytest.fail(f"Deleted mate does not match the MatesDeleteOutput model: {e}\nResponse content: {delete_response.text}")
 
     # Verify the mate is deleted
     get_response = requests.get(

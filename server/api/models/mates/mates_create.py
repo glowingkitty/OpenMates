@@ -15,7 +15,7 @@ from server import *
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
-from server.api.models.skills.skills_get_one import Skill
+from server.api.models.skills.skills_get_one import SkillMini
 from urllib.parse import quote
 
 
@@ -87,7 +87,7 @@ mates_create_input_example = {
     "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [3],
-    "default_llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
+    "default_llm_endpoint": "/skills/chatgpt/ask",
     "default_llm_model": "gpt-3.5-turbo"
 }
 
@@ -101,7 +101,7 @@ class MatesCreateOutput(BaseModel):
     description: str = Field(..., description="Description of the AI team mate")
     profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
-    default_skills: List[Skill] = Field(..., description="Default list of skills for the AI team mate")
+    default_skills: List[SkillMini] = Field(..., description="Default list of skills for the AI team mate")
     default_llm_endpoint: str = Field(..., description="Default LLM endpoint of the AI team mate")
     default_llm_model: str = Field(..., description="Default LLM model of the AI team mate")
 
@@ -116,13 +116,8 @@ mates_create_output_example = {
     "default_skills": [
         {
             "id": 3,
-            "name": "Write & test code",
-            "description": "Writes and tests code based on the given requirements.",
-            "software": {
-                "id": 4,
-                "name": "VS Code"
-            },
-            "api_endpoint": "/v1/ai-sales-team/skills/vs_code/write_and_test_code"
+            "api_endpoint": "/v1/ai-sales-team/skills/vs_code/write_and_test_code",
+            "description": "Writes and tests code based on the given requirements."
         }
     ],
     "default_llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",

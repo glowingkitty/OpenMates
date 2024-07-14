@@ -42,6 +42,9 @@ from server.api.models.mates.mates_update import (
     mates_update_input_example,
     mates_update_output_example
 )
+from server.api.models.mates.mates_delete import (
+    mates_delete_output_example
+)
 from server.api.models.users.users_get_one import (
     users_get_one_output_example
 )
@@ -199,6 +202,7 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "delete", "responses", mates_delete_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", users_create_new_api_token_input_example)

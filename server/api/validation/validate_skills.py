@@ -33,19 +33,11 @@ async def validate_skills(
         # return the skills from the strapi request, so they can be included with their details later in the API response
         fields = [
             "id",
-            "name",
             "description",
-            "slug",
-            "requires_cloud_to_run",
-            "is_llm_endpoint",
-            "is_llm_endpoint_and_supports_tool_selection"
+            "slug"
         ]
         populate = [
-            "icon.file.url",
-            "software.id",
-            "software.name",
-            "software.slug",
-            "software.icon.file.url",
+            "software.slug"
         ]
 
         output_skills = []
@@ -74,18 +66,7 @@ async def validate_skills(
             if status_code == 200 and len(skill_json_response["data"])>0:
                 add_to_log(f"Skill with ID {skill} exists.")
 
-                skill_data["name"] = get_nested(skill_json_response, "name")
                 skill_data["description"] = get_nested(skill_json_response, "description")
-                skill_data["slug"] = get_nested(skill_json_response, "slug")
-                skill_data["requires_cloud_to_run"] = get_nested(skill_json_response, "requires_cloud_to_run")
-                skill_data["is_llm_endpoint"] = get_nested(skill_json_response, "is_llm_endpoint")
-                skill_data["is_llm_endpoint_and_supports_tool_selection"] = get_nested(skill_json_response, "is_llm_endpoint_and_supports_tool_selection")
-                skill_data["icon_url"] = f"/v1/{team_slug}{get_nested(skill_json_response, 'icon.file.url')}"
-                skill_data["software"] = {}
-                skill_data["software"]["id"] = get_nested(skill_json_response, "software.id")
-                skill_data["software"]["name"] = get_nested(skill_json_response, "software.name")
-                skill_data["software"]["icon_url"] = f"/v1/{team_slug}{get_nested(skill_json_response, 'software.icon.file.url')}"
-                skill_data["software"]["slug"] = get_nested(skill_json_response, "software.slug")
                 skill_data["api_endpoint"] = f"/v1/{team_slug}/skills/{get_nested(skill_json_response, 'software.slug')}/{get_nested(skill_json_response, 'slug')}"
 
                 output_skills.append(skill_data)

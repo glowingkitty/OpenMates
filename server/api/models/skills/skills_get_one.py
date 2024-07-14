@@ -17,10 +17,25 @@ from server import *
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from urllib.parse import quote
 from server.api.models.software.software_get_one import Software
-from typing import List
+from typing import List, Optional
 
 
 # GET /skill/{endpoint} (get a skill)
+
+class SkillMini(BaseModel):
+    """This is the minified model for a skill"""
+    id: int = Field(..., description="ID of the skill")
+    api_endpoint: str = Field(..., description="API endpoint of the skill")
+    description: str = Field(..., description="Description of the skill")
+
+    @field_validator('api_endpoint')
+    @classmethod
+    def validate_api_endpoint(cls, v: str) -> str:
+        pattern = r'^/v1/[a-z0-9-]+/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+        if not re.match(pattern, v):
+            raise ValueError(f"Invalid API endpoint format: {v}")
+        return v
+
 
 class Skill(BaseModel):
     """This is the model for a skill"""
@@ -36,7 +51,7 @@ class Skill(BaseModel):
     pricing: dict = Field(..., description="If not free to use: Pricing details of the skill")
     is_llm_endpoint: bool = Field(..., description="Indicates if the skill is an LLM endpoint")
     is_llm_endpoint_and_supports_tool_selection: bool = Field(..., description="Indicates if the skill is an LLM endpoint and supports tool selection")
-    default_skill_settings: dict = Field(..., description="Default settings for the skill")
+    default_skill_settings: Optional[dict] = Field(..., description="Default settings for the skill")
 
     model_config = ConfigDict(extra="forbid")
 

@@ -30,7 +30,7 @@ from server.api.models.mates.mates_create import (
     MatesCreateOutput
 )
 from server.api.models.mates.mates_update import (
-    MateUpdateOutput
+    MatesUpdateOutput
 )
 from server.api.models.users.users_get_all import (
     UsersGetAllOutput
@@ -158,7 +158,7 @@ mates_endpoints = {
         "status_code": 201
     },
     "update_mate":{
-        "response_model":MateUpdateOutput,
+        "response_model":MatesUpdateOutput,
         "summary": "Update",
         "description": "<img src='images/mates/update.png' alt='Update an existing mate on the server. For example change the system prompt, the available skills and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])

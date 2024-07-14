@@ -44,9 +44,13 @@ async def delete_mate(
             endpoint=f'mates/{mate["id"]}'
         )
 
+        delete_mate = {
+            "deleted_user": mate_username
+        }
+
         if status_code == 200:
             add_to_log("Successfully deleted the AI team mate", state="success")
-            return JSONResponse(status_code=200, content={"message": f"AI team mate '{mate_username}' has been deleted successfully."})
+            return JSONResponse(status_code=200, content=delete_mate)
         else:
             add_to_log("Failed to delete the AI team mate.", state="error")
             raise HTTPException(status_code=500, detail="Failed to delete the AI team mate.")

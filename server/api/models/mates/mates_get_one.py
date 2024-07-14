@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List
 from urllib.parse import quote
 from typing import Optional
-from server.api.models.skills.skills_get_one import Skill
+from server.api.models.skills.skills_get_one import SkillMini
 
 # GET /mates/{mate_username} (get a mate)
 
@@ -32,7 +32,7 @@ class Mate(BaseModel):
     llm_endpoint: str = Field(..., description="The API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
     llm_model: str = Field(..., description="The LLM model which is used by the AI team mate.")
     systemprompt: str = Field(..., description="Currently used system prompt of the AI team mate for the user who makes the request to the API, in the context of the selected team.")
-    skills: List[Skill] = Field(..., description="Skills of the AI team mate")
+    skills: List[SkillMini] = Field(..., description="Skills of the AI team mate")
     allowed_to_access_user_data: dict = Field(..., description="Overview of which user data the AI team mate is allowed to access for the user who makes the request to the API, in the context of the selected team.")
     custom_config_id: Optional[int] = Field(..., description="If you customized your AI team mate for the requested team: ID of the config.")
     llm_endpoint_is_customized: bool = Field(..., description="Indicates if the Large Language Model provider is customized or the default one.")
@@ -98,13 +98,8 @@ mates_get_one_output_example = {
     "skills": [
         {
             "id": 3,
-            "name": "Write & test code",
-            "description": "Writes and tests code based on the given requirements.",
-            "software": {
-                "id": 4,
-                "name": "VS Code"
-            },
-            "api_endpoint": "/ai-sales-team/skills/vs_code/write_and_test_code"
+            "api_endpoint": "/v1/ai-sales-team/skills/vs_code/write_and_test_code",
+            "description": "Writes and tests code based on the given requirements."
         }
     ],
     "allowed_to_access_user_data": {

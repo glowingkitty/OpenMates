@@ -43,9 +43,12 @@ async def get_skill(
                 "name",
                 "description",
                 "slug",
-                "requires_cloud_to_run",
+                "processing",
+                "free",
+                "pricing",
                 "is_llm_endpoint",
-                "is_llm_endpoint_and_supports_tool_selection"
+                "is_llm_endpoint_and_supports_tool_selection",
+                "default_skill_settings"
             ]
 
             populate = []
@@ -114,26 +117,29 @@ async def get_skill(
                             return JSONResponse(status_code=status_code, content=skill)
                         else:
                             return skill
-                        
+
                     icon_url = get_nested(skill, 'icon.file.url')
                     software_icon_url = get_nested(skill, 'software.icon.file.url')
 
                     skill = {
                         "id": get_nested(skill, "id"),
+                        "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}",
                         "name": get_nested(skill, "name"),
                         "description": get_nested(skill, "description"),
                         "slug": get_nested(skill, "slug"),
-                        "requires_cloud_to_run": get_nested(skill, "requires_cloud_to_run"),
-                        "is_llm_endpoint": get_nested(skill, "is_llm_endpoint"),
-                        "is_llm_endpoint_and_supports_tool_selection": get_nested(skill, "is_llm_endpoint_and_supports_tool_selection"),
                         "icon_url": f"/v1/{team_slug}{icon_url}" if icon_url else None,
-                        "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}",
                         "software": {
                             "id": get_nested(skill, "software.id"),
                             "name": get_nested(skill, "software.name"),
                             "slug": get_nested(skill, "software.slug"),
                             "icon_url": f"/v1/{team_slug}{software_icon_url}" if software_icon_url else None,
-                        }
+                        },
+                        "processing": ["cloud", "local"] if get_nested(skill, "processing") == "localORcloud" else [get_nested(skill, "processing")],
+                        "free": get_nested(skill, "free"),
+                        "pricing": get_nested(skill, "pricing"),
+                        "is_llm_endpoint": get_nested(skill, "is_llm_endpoint"),
+                        "is_llm_endpoint_and_supports_tool_selection": get_nested(skill, "is_llm_endpoint_and_supports_tool_selection"),
+                        "default_skill_settings": get_nested(skill, "default_skill_settings")
                     }
 
                     json_response = skill
