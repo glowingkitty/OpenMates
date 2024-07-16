@@ -70,6 +70,8 @@ def test_create_get_update_delete_mate():
 
     # TODO measure how long processing of responses takes
 
+    # TODO add testing of examples also for other api endpoints
+
     # Prepare mate creation data
     mate_data = {
         "name": "Test Mate",
