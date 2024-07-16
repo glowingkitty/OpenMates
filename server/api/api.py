@@ -85,6 +85,11 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
 from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
     image_editor_resize_output_example
 )
+from server.api.models.skills.akaunting.skills_akaunting_get_report import (
+    AkauntingGetReportInput,
+    akaunting_get_report_input_example,
+    akaunting_get_report_output_example
+)
 
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
@@ -102,10 +107,10 @@ from server.api.endpoints.skills.image_editor.resize_image import resize_image_p
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
 from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
+from server.api.endpoints.skills.akaunting.get_report import get_report as get_report_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
 
 from server.api.validation.validate_permissions import validate_permissions
-from server.api.validation.validate_token import validate_token
 from server.api.validation.validate_invite_code import validate_invite_code
 from server.cms.strapi_requests import get_strapi_upload
 
@@ -121,6 +126,7 @@ from server.api.parameters import (
     skills_youtube_endpoints,
     skills_atopile_endpoints,
     skills_image_editor_endpoints,
+    skills_akaunting_endpoints,
     users_endpoints,
     server_endpoints,
     set_example,
@@ -222,6 +228,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
 
 
     app.openapi_schema = openapi_schema
@@ -515,6 +523,27 @@ async def skill_claude_ask(
         user_api_token=token
     )
     return {"info": "endpoint still needs to be implemented"}
+
+
+# TODO implement endpoint
+# TODO add test
+# POST /skills/akaunting/get_report (get a report from Akaunting)
+@skills_router.post("/v1/{team_slug}/skills/akaunting/get_report", **skills_akaunting_endpoints["get_report"])
+@limiter.limit("20/minute")
+async def skill_akaunting_get_report(
+    request: Request,
+    parameters: AkauntingGetReportInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/skills/akaunting/get_report",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await get_report_processing(
+        report_type=parameters.report_type
+    )
 
 
 # TODO add test
