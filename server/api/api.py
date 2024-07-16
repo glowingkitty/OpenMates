@@ -82,6 +82,9 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
     chatgpt_ask_input_example,
     chatgpt_ask_output_example
 )
+from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
+    image_editor_resize_output_example
+)
 
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
@@ -176,6 +179,7 @@ bearer_scheme = HTTPBearer(
 async def get_credentials(bearer: HTTPBearer = Depends(bearer_scheme)):
     return bearer.credentials
 
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -217,6 +221,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
+
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

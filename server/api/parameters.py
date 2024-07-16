@@ -14,6 +14,9 @@ sys.path.append(main_directory)
 from server import *
 ################
 
+import base64
+
+
 from server.api.models.files.files_upload import (
     FileUploadOutput
 )
@@ -103,12 +106,24 @@ def set_example(openapi_schema, path, method, request_or_response, example, resp
         if "content" not in openapi_schema["paths"][path][method][request_or_response][response_code]:
             openapi_schema["paths"][path][method][request_or_response][response_code]["content"] = {}
 
-        # Ensure the 'application/json' exists
-        if "application/json" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
-            openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"] = {}
+        # Check if the example is an image
+        if isinstance(example, dict) and "image/jpeg" in example:
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"] = {
+                "image/jpeg": {
+                    "schema": {
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "example": example["image/jpeg"]
+                }
+            }
+        else:
+            # Ensure the 'application/json' exists
+            if "application/json" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
+                openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"] = {}
 
-        # Set the example
-        openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["example"] = example
+            # Set the example
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["example"] = example
     else:
         # Ensure the 'content' exists
         if "content" not in openapi_schema["paths"][path][method][request_or_response]:
@@ -121,6 +136,9 @@ def set_example(openapi_schema, path, method, request_or_response, example, resp
         # Set the example
         openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["example"] = example
 
+
+# Example base64 encoded small JPEG image (1x1 pixel, red color)
+example_image_base64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q=="
 
 files_endpoints = {
    "upload_file":{
@@ -223,10 +241,28 @@ skills_atopile_endpoints = {
 
 skills_image_editor_endpoints = {
      "resize_image":{
-        # "response_model":ImageResizeOutput,
         "summary": "Image Editor | Resize",
         "description": "<img src='images/skills/image_editor/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+        "responses": {
+            "200": {
+                "description": "Successful Response",
+                "content": {
+                    "image/jpeg": {
+                        "schema": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "example": example_image_base64
+                    }
+                }
+            },
+            "400": {"description": "Bad Request"},
+            "401": {"description": "Unauthorized"},
+            "403": {"description": "Forbidden"},
+            "404": {"description": "Not Found"},
+            "422": {"description": "Validation Error"},
+            "500": {"description": "Internal Server Error"}
+        }
     }
 }
 
