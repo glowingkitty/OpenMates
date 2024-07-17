@@ -30,7 +30,7 @@ async def get_report(
         add_to_log(module_name="OpenMates | API | Akaunting | Get report", state="start", color="yellow", hide_variables=True)
         add_to_log("Getting a report from Akaunting ...")
 
-        # TODO processing
+        # TODO processing - what kind of reports? how to get them?
 
         return JSONResponse(status_code=200, content={"report_data": {"report_type": "sales", "report_data": {"date": "2024-01-01", "amount": 1000}}})
 
