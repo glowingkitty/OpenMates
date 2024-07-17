@@ -2,9 +2,24 @@ import os
 from dotenv import load_dotenv
 import anthropic
 from typing import Dict
+import json
 
 # Load environment variables from .env file
 load_dotenv()
+
+
+def extract_json(text):
+    """
+    Extracts the outermost JSON object from a string.
+    """
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and start < end:
+        try:
+            return json.loads(text[start:end+1])
+        except json.JSONDecodeError:
+            return None
+    return None
 
 
 def send_request_to_llm(prompt: str) -> Dict:
@@ -52,6 +67,22 @@ def send_request_to_llm(prompt: str) -> Dict:
                 }
             ]
         )
-        return {"content": message.content}
+
+        content = message.content[0].text
+
+        # Try to extract JSON content
+        json_content = extract_json(content)
+
+        if json_content:
+            # Save as JSON file
+            with open('llm_response.json', 'w') as json_file:
+                json.dump(json_content, json_file, indent=2)
+        else:
+            # If no valid JSON found, save as markdown
+            with open('llm_response.md', 'w') as md_file:
+                md_file.write(content)
+
+        return json_content
+
     except Exception as e:
         raise Exception(f"Error in LLM API call: {str(e)}")

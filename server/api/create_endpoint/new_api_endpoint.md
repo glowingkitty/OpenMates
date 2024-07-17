@@ -32,6 +32,7 @@
 
 **3. Update parameters.py - [`server/api/parameters.py`](../parameters.py):**
    - Add in `endpoint_metadata` the new endpoint
+   - Add missing imports
 
 **4. Create endpoint python file - [`server/api/endpoints/{router}/`](../endpoints/):**
    - Add `.py` file for new endpoint, which does the actual processing of the request and which returns the response.
