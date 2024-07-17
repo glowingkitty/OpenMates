@@ -259,8 +259,7 @@ skills_image_editor_endpoints = {
                         "schema": {
                             "type": "string",
                             "format": "binary"
-                        },
-                        "example": example_image_base64
+                        }
                     }
                 }
             },
