@@ -9,6 +9,7 @@ import json
 
 def main():
     try:
+        print('Starting up process to create a new API endpoint...')
         # 1. Load new_api_endpoint.md file
         new_api_endpoint_content = load_markdown_file("new_api_endpoint.md")
 
