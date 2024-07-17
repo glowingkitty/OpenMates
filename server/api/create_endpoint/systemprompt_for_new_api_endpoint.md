@@ -37,6 +37,12 @@ You are a software development expert. Always only output a valid json in the fo
   - 'position': "before" or "after" the reference_snippet
 
 Important rules:
+- make sure you follow all 5 steps very precisely and don't forget any of them! (except for those that are already completed successfully)
+  - 1. Update api.py
+  - 2. Update parameters.py
+  - 3. Create models python file
+  - 4. Create endpoint python file
+  - 5. Add pytest file for the new endpoint
 - for 'reference_snippet':
   - When defining a reference snippet for a Python function, include the entire function definition from the decorator(s) at the top to the last line of the function body. This means starting from the line with the first '@' symbol (if present) and continuing until after the 'return' statement or the last line inside the function, whichever comes last. Do not exclude any part of the function, including decorators, function signature, or function body.
   - Make sure its unique in the file, to prevent wrong insertions.

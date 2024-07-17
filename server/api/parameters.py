@@ -66,6 +66,10 @@ from server.api.models.skills.akaunting.skills_akaunting_get_report import (
     AkauntingGetReportOutput
 )
 
+from server.api.models.skills.akaunting.skills_akaunting_create_purchase import (
+    AkauntingCreatePurchaseOutput
+)
+
 
 def generate_responses(status_codes):
     descriptions = {
@@ -245,8 +249,15 @@ skills_akaunting_endpoints = {
         "summary": "Akaunting | Get report",
         "description": "<img src='images/skills/akaunting/get_report.png' alt='Get a report from Akaunting.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "create_purchase":{
+        "response_model":AkauntingCreatePurchaseOutput,
+        "summary": "Akaunting | Create Purchase",
+        "description": "<img src='images/skills/akaunting/create_purchase.png' alt='Create a new purchase in Akaunting. Including the vendor, bill and bank transaction.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
+
 skills_image_editor_endpoints = {
      "resize_image":{
         "summary": "Image Editor | Resize",

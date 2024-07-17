@@ -56,7 +56,7 @@
      - [`server/api/endpoints/skills/chatgpt/ask.py`](../endpoints/skills/chatgpt/ask.py)
 
 
-**5. Add a pytest file for the new endpoint - [`tests/api/endpoints/{router}/`](../../../tests/api/endpoints/):**
+**5. Add pytest file for the new endpoint - [`tests/api/endpoints/{router}/`](../../../tests/api/endpoints/):**
    - Add `.py` file for testing the new endpoint.
    - Example for **GET** `/skills/{software_slug}/{skill_slug}`:
      - [`tests/api/endpoints/skills/test_get_skill.py`](../../../tests/api/endpoints/skills/test_get_skill.py)
