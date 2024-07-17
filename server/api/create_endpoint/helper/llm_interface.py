@@ -1,6 +1,11 @@
 import os
+from dotenv import load_dotenv
 import anthropic
 from typing import Dict
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 def send_request_to_llm(prompt: str) -> Dict:
     """
