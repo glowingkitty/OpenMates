@@ -7,6 +7,12 @@ import json
 # Load environment variables from .env file
 load_dotenv()
 
+# Get the current file's directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Calculate the path to the logs directory
+logs_dir = os.path.join(current_dir, '..', '..', 'logs')
+
 
 def extract_json(text):
     """
@@ -40,15 +46,6 @@ def send_request_to_llm(prompt: str) -> Dict:
         api_key=os.environ.get("ANTHROPIC_API_KEY")
     )
 
-    # Save prompt as markdown file
-    save_dir = "saved_prompts"
-    os.makedirs(save_dir, exist_ok=True)
-    file_name = f"prompt_{len(os.listdir(save_dir)) + 1}.md"
-    file_path = os.path.join(save_dir, file_name)
-
-    with open(file_path, "w") as f:
-        f.write(prompt)
-
     try:
         message = client.messages.create(
             model="claude-3-5-sonnet-20240620",
@@ -73,13 +70,16 @@ def send_request_to_llm(prompt: str) -> Dict:
         # Try to extract JSON content
         json_content = extract_json(content)
 
+        # Create logs directory if it doesn't exist
+        os.makedirs(logs_dir, exist_ok=True)
+
         if json_content:
             # Save as JSON file
-            with open('llm_response.json', 'w') as json_file:
+            with open(os.path.join(logs_dir, 'llm_response.json'), 'w') as json_file:
                 json.dump(json_content, json_file, indent=2)
         else:
             # If no valid JSON found, save as markdown
-            with open('llm_response.md', 'w') as md_file:
+            with open(os.path.join(logs_dir, 'llm_response.md'), 'w') as md_file:
                 md_file.write(content)
 
         return json_content
