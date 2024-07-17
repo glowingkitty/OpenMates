@@ -22,19 +22,35 @@
        - `set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)`
        - `set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")`
 
-**2. Create models python file - [`server/api/models/{router}/`](../models/):**
+
+**2. Update parameters.py - [`server/api/parameters.py`](../parameters.py):**
+   - Add in `endpoint_metadata` the new endpoint
+     - Example for **POST** `/skills/chatgpt/ask`:
+       - `skills_chatgpt_endpoints = {
+    "ask_chatgpt":{
+        "response_model":ChatGPTAskOutput,
+        "summary": "ChatGPT | Ask",
+        "description": "<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}`
+   - Add missing imports
+     - Example for **POST** `/skills/chatgpt/ask`:
+       - `from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
+      ChatGPTAskOutput
+  )`
+
+
+**3. Create models python file - [`server/api/models/{router}/`](../models/):**
    - Add `.py` file for new endpoint. This `.py` file is named similar to the endpoint function and contains the FastAPI models for this endpoint and doc examples:
      - Input
      - Output
      - examples for FastAPI docs
-   - Example:
+   - Example for **POST** `/skills/chatgpt/ask`:
      - [`server/api/models/skills/chatgpt/skills_chatgpt_ask.py`](../models/skills/chatgpt/skills_chatgpt_ask.py)
 
-**3. Update parameters.py - [`server/api/parameters.py`](../parameters.py):**
-   - Add in `endpoint_metadata` the new endpoint
-   - Add missing imports
 
 **4. Create endpoint python file - [`server/api/endpoints/{router}/`](../endpoints/):**
    - Add `.py` file for new endpoint, which does the actual processing of the request and which returns the response.
-   - Example:
+   - Example for **POST** `/skills/chatgpt/ask`:
      - [`server/api/endpoints/skills/chatgpt/ask.py`](../endpoints/skills/chatgpt/ask.py)

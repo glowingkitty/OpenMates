@@ -9,38 +9,38 @@ import json
 
 def main():
     try:
-        # # 1. Load new_api_endpoint.md file
-        # new_api_endpoint_content = load_markdown_file("new_api_endpoint.md")
+        # 1. Load new_api_endpoint.md file
+        new_api_endpoint_content = load_markdown_file("new_api_endpoint.md")
 
-        # # 2. Extract and load linked files
-        # linked_filepaths = extract_linked_filepaths(new_api_endpoint_content)
-        # linked_files_content = load_linked_files(linked_filepaths)
+        # 2. Extract and load linked files
+        linked_filepaths = extract_linked_filepaths(new_api_endpoint_content)
+        linked_files_content = load_linked_files(linked_filepaths)
 
-        # # 3. Load system prompt
-        # systemprompt_content = load_markdown_file("systemprompt_for_new_api_endpoint.md")
+        # 3. Load system prompt
+        systemprompt_content = load_markdown_file("systemprompt_for_new_api_endpoint.md")
 
-        # # 4. Load and extract questions, then ask user
-        # requirements_content = load_markdown_file("requirements_questions.md")
-        # questions = extract_numbered_list_items(requirements_content)
-        # user_answers = ask_user_questions(questions)
+        # 4. Load and extract questions, then ask user
+        requirements_content = load_markdown_file("requirements_questions.md")
+        questions = extract_numbered_list_items(requirements_content)
+        user_answers = ask_user_questions(questions)
 
-        # # 5. Create prompt for LLM
-        # llm_prompt = build_llm_prompt(
-        #     new_api_endpoint_content,
-        #     "\n".join([f"Q: {q}\nA: {user_answers[q]}" for q in questions]),
-        #     systemprompt_content,
-        #     linked_files_content
-        # )
+        # 5. Create prompt for LLM
+        llm_prompt = build_llm_prompt(
+            new_api_endpoint_content,
+            "\n".join([f"Q: {q}\nA: {user_answers[q]}" for q in questions]),
+            systemprompt_content,
+            linked_files_content
+        )
 
-        # # 6. Send request to LLM
-        # llm_response = send_request_to_llm(llm_prompt)
+        # Show progress
+        print(f"\n🖊 Let me write the new API endpoint for you now...")
 
-        # # Save LLM response as JSON file
-        # with open('llm_response.json', 'w') as json_file:
-        #     json.dump(llm_response, json_file, indent=2)
+        # 6. Send request to LLM
+        llm_response = send_request_to_llm(llm_prompt)
 
-        with open('llm_response.json', 'r') as json_file:
-            llm_response = json.load(json_file)
+        # Save LLM response as JSON file
+        with open('llm_response.json', 'w') as json_file:
+            json.dump(llm_response, json_file, indent=2)
 
         # 7. Process the LLM response
         file_processor = FileProcessor()
@@ -52,11 +52,11 @@ def main():
 
         print("\n📝 Updated files:")
         for file_path in updated_files:
-            print(f"  ✏️ {file_path}")
+            print(f"  📁 {file_path}")
 
         print("\n🆕 Newly created files:")
         for file_path in created_files:
-            print(f"  ➕ {file_path}")
+            print(f"  📁 {file_path}")
 
     except NoQuestionsError as e:
         print(f"Error: {e}")
