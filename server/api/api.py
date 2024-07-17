@@ -91,6 +91,12 @@ from server.api.models.skills.akaunting.skills_akaunting_get_report import (
     akaunting_get_report_output_example
 )
 
+from server.api.models.skills.akaunting.skills_akaunting_create_purchase import (
+    AkauntingCreatePurchaseInput,
+    akaunting_create_purchase_input_example,
+    akaunting_create_purchase_output_example
+)
+
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.endpoints.mates.get_mates import get_mates as get_mates_processing
@@ -108,6 +114,7 @@ from server.api.endpoints.skills.youtube.get_transcript import get_transcript_pr
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
 from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
 from server.api.endpoints.skills.akaunting.get_report import get_report as get_report_processing
+from server.api.endpoints.skills.akaunting.create_purchase import create_purchase as create_purchase_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
 
 from server.api.validation.validate_permissions import validate_permissions
@@ -230,6 +237,9 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
+
+    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_purchase", "post", "requestBody", akaunting_create_purchase_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_purchase", "post", "responses", akaunting_create_purchase_output_example, "200")
 
 
     app.openapi_schema = openapi_schema
@@ -543,6 +553,28 @@ async def skill_akaunting_get_report(
     )
     return await get_report_processing(
         report_type=parameters.report_type
+    )
+
+
+# TODO add test
+# POST /skills/akaunting/create_purchase (create a new purchase in Akaunting)
+@skills_router.post("/v1/{team_slug}/skills/akaunting/create_purchase", **skills_akaunting_endpoints["create_purchase"])
+@limiter.limit("20/minute")
+async def skill_akaunting_create_purchase(
+    request: Request,
+    parameters: AkauntingCreatePurchaseInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/skills/akaunting/create_purchase",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await create_purchase_processing(
+        token=token,
+        vendor=parameters.vendor.dict(),
+        items=[item.dict() for item in parameters.items]
     )
 
 
