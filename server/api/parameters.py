@@ -65,9 +65,11 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
 from server.api.models.skills.akaunting.skills_akaunting_get_report import (
     AkauntingGetReportOutput
 )
-
 from server.api.models.skills.akaunting.skills_akaunting_create_purchase import (
     AkauntingCreatePurchaseOutput
+)
+from server.api.models.skills.akaunting.skills_akaunting_create_sales import (
+    AkauntingCreateSalesOutput
 )
 
 
@@ -254,6 +256,12 @@ skills_akaunting_endpoints = {
         "response_model":AkauntingCreatePurchaseOutput,
         "summary": "Akaunting | Create Purchase",
         "description": "<img src='images/skills/akaunting/create_purchase.png' alt='Create a new purchase in Akaunting. Including the vendor, bill and bank transaction.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "create_sales":{
+        "response_model":AkauntingCreateSalesOutput,
+        "summary": "Akaunting | Create Sales",
+        "description": "<img src='images/skills/akaunting/create_sales.png' alt='Create a new sales in Akaunting. Including the customer, invoice and bank transaction.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

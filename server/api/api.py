@@ -97,6 +97,12 @@ from server.api.models.skills.akaunting.skills_akaunting_create_purchase import 
     akaunting_create_purchase_output_example
 )
 
+from server.api.models.skills.akaunting.skills_akaunting_create_sales import (
+    AkauntingCreateSalesInput,
+    akaunting_create_sales_input_example,
+    akaunting_create_sales_output_example
+)
+
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.endpoints.mates.get_mates import get_mates as get_mates_processing
@@ -115,6 +121,7 @@ from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_
 from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
 from server.api.endpoints.skills.akaunting.get_report import get_report as get_report_processing
 from server.api.endpoints.skills.akaunting.create_purchase import create_purchase as create_purchase_processing
+from server.api.endpoints.skills.akaunting.create_sales import create_sales as create_sales_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
 
 from server.api.validation.validate_permissions import validate_permissions
@@ -240,6 +247,9 @@ def custom_openapi():
 
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_purchase", "post", "requestBody", akaunting_create_purchase_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_purchase", "post", "responses", akaunting_create_purchase_output_example, "200")
+
+    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_sales", "post", "requestBody", akaunting_create_sales_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_sales", "post", "responses", akaunting_create_sales_output_example, "200")
 
 
     app.openapi_schema = openapi_schema
@@ -518,6 +528,9 @@ async def skill_chatgpt_ask(
     )
 
 
+
+
+
 # TODO add test
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
 @skills_router.post("/v1/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
@@ -575,6 +588,28 @@ async def skill_akaunting_create_purchase(
         token=token,
         vendor=parameters.vendor.dict(),
         items=[item.dict() for item in parameters.items]
+    )
+
+
+# POST /skills/akaunting/create_sales (create a new sales in Akaunting)
+@skills_router.post("/v1/{team_slug}/skills/akaunting/create_sales", **skills_akaunting_endpoints["create_sales"])
+@limiter.limit("20/minute")
+async def skill_akaunting_create_sales(
+    request: Request,
+    parameters: AkauntingCreateSalesInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/skills/akaunting/create_sales",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await create_sales_processing(
+        token=token,
+        customer=parameters.customer,
+        invoice=parameters.invoice,
+        bank_transaction=parameters.bank_transaction
     )
 
 
