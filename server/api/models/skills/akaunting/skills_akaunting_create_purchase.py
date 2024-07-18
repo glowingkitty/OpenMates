@@ -1,10 +1,10 @@
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import List, Optional
 import re
 from datetime import datetime
 
 class VendorInfo(BaseModel):
-    id: Optional[int] = Field(None, description="The ID of an existing vendor")
+    id: Optional[int] = Field(None, description="The ID of the vendor")
     name: str = Field(..., description="The name of the vendor")
     email: Optional[str] = Field(None, description="The email of the vendor")
     phone: Optional[str] = Field(None, description="The phone number of the vendor")
@@ -46,6 +46,7 @@ class VendorInfo(BaseModel):
         return v
 
 class TaxInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the tax")
     name: str = Field(..., description="The name of the tax")
     rate: float = Field(..., description="The rate of the tax")
 
@@ -57,10 +58,11 @@ class TaxInfo(BaseModel):
         return v
 
 class ItemInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the item")
     name: str = Field(..., description="The name of the item")
     description: Optional[str] = Field(None, description="The description of the item")
     quantity: int = Field(..., description="The quantity of the item")
-    price: float = Field(..., description="The price of the item")
+    net_price: float = Field(..., description="The net price of the item (before taxes)")
     tax: Optional[TaxInfo] = Field(None, description="The tax information for the item")
 
     @field_validator('quantity')
@@ -70,11 +72,11 @@ class ItemInfo(BaseModel):
             raise ValueError(f"Quantity must be greater than 0: {v}")
         return v
 
-    @field_validator('price')
+    @field_validator('net_price')
     @classmethod
-    def validate_price(cls, v):
+    def validate_net_price(cls, v):
         if v < 0:
-            raise ValueError(f"Price cannot be negative: {v}")
+            raise ValueError(f"Net price cannot be negative: {v}")
         return v
 
 class DiscountInfo(BaseModel):
@@ -96,10 +98,12 @@ class DiscountInfo(BaseModel):
         return v
 
 class CategoryInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the category")
     name: str = Field(..., description="The name of the category")
     parent_category: Optional[str] = Field(None, description="The parent category, if any")
 
 class BillInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the bill")
     date: str = Field(..., description="The date of the bill (ISO 8601 format: YYYY-MM-DD)")
     due_date: str = Field(..., description="The due date of the bill (ISO 8601 format: YYYY-MM-DD)")
     order_number: Optional[str] = Field(None, description="The order number, if any")
@@ -128,8 +132,9 @@ class BillInfo(BaseModel):
         return v.upper()
 
 class BankTransactionInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the bank transaction")
     date: str = Field(..., description="The date of the bank transaction (ISO 8601 format: YYYY-MM-DD)")
-    value: float = Field(..., description="The value of the bank transaction")
+    value: float = Field(..., description="The value of the bank transaction (can be positive or negative)")
     account: str = Field(..., description="The bank account for the transaction")
 
     @field_validator('date')
@@ -141,21 +146,20 @@ class BankTransactionInfo(BaseModel):
             raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {v}")
         return v
 
-    @field_validator('value')
-    @classmethod
-    def validate_value(cls, v):
-        if v <= 0:
-            raise ValueError(f"Transaction value must be greater than 0: {v}")
-        return v
-
 class AkauntingCreatePurchaseInput(BaseModel):
     vendor: VendorInfo = Field(..., description="Information about the vendor")
-    bill: BillInfo = Field(..., description="Information about the bill")
-    bank_transaction: BankTransactionInfo = Field(..., description="Information about the bank transaction")
+    bill: Optional[BillInfo] = Field(None, description="Information about the bill, if available")
+    bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Information about the bank transaction, if available")
 
     model_config = ConfigDict(extra="forbid")
 
-# Update the example to match the new structure
+    @model_validator(mode='after')
+    def check_bill_or_transaction(self):
+        if self.bill is None and self.bank_transaction is None:
+            raise ValueError("At least one of 'bill' or 'bank_transaction' must be provided")
+        return self
+
+# Update the example to reflect the new structure
 akaunting_create_purchase_input_example = {
     "vendor": {
         "name": "Acme Corp",
@@ -170,7 +174,7 @@ akaunting_create_purchase_input_example = {
             {
                 "name": "Widget",
                 "quantity": 1,
-                "price": 10.00,
+                "net_price": 10.00,
                 "tax": {
                     "name": "Sales Tax",
                     "rate": 20
@@ -184,7 +188,7 @@ akaunting_create_purchase_input_example = {
     },
     "bank_transaction": {
         "date": "2023-04-15",
-        "value": 12.00,
+        "value": -12.00,
         "account": "Main Checking Account"
     }
 }
@@ -192,28 +196,30 @@ akaunting_create_purchase_input_example = {
 class AkauntingCreatePurchaseOutput(BaseModel):
     id: int = Field(..., description="The ID of the created purchase")
     vendor: VendorInfo = Field(..., description="Vendor information")
-    bill: BillInfo = Field(..., description="Bill information")
-    bank_transaction: BankTransactionInfo = Field(..., description="Bank transaction information")
-
+    bill: Optional[BillInfo] = Field(None, description="Bill information, if provided")
+    bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Bank transaction information, if provided")
 
 akaunting_create_purchase_output_example = {
     "id": 1,
     "vendor": {
-        "id": 1,
+        "id": 101,
         "name": "Acme Corp",
         "currency": "USD",
         "address": "123 Main St, Anytown, AN 12345",
         "country": "United States"
     },
     "bill": {
+        "id": 201,
         "date": "2023-04-15",
         "due_date": "2023-05-15",
         "items": [
             {
+                "id": 301,
                 "name": "Widget",
                 "quantity": 1,
-                "price": 10.00,
+                "net_price": 10.00,
                 "tax": {
+                    "id": 401,
                     "name": "Sales Tax",
                     "rate": 20
                 }
@@ -221,10 +227,12 @@ akaunting_create_purchase_output_example = {
         ],
         "currency": "USD",
         "category": {
+            "id": 501,
             "name": "Supplies"
         }
     },
     "bank_transaction": {
+        "id": 601,
         "date": "2023-04-15",
         "value": 12.00,
         "account": "Main Checking Account"
