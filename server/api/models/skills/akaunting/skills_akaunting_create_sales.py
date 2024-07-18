@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import List, Optional
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
@@ -164,7 +164,7 @@ class InvoiceInfo(BaseModel):
 
 class BankTransactionInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the bank transaction")
-    date: str = Field(..., description="The date of the bank transaction (ISO 8601 format: YYYY-MM-DD)")
+    datetime: str = Field(..., description="The date, time, and timezone of the bank transaction (ISO 8601 format: YYYY-MM-DDTHH:MM:SS±HH:MM)")
     value: float = Field(..., description="The value of the bank transaction (can be positive or negative)")
     account: str = Field(..., description="The bank account for the transaction")
     currency_rate: Optional[float] = Field(None, description="The currency rate for the transaction")
@@ -173,13 +173,13 @@ class BankTransactionInfo(BaseModel):
     number: Optional[str] = Field(None, description="The transaction number (auto-generated)")
     reference: Optional[str] = Field(None, description="Reference for the transaction")
 
-    @field_validator('date')
+    @field_validator('datetime')
     @classmethod
-    def validate_date(cls, v):
+    def validate_datetime(cls, v):
         try:
-            datetime.strptime(v, '%Y-%m-%d')
+            datetime.strptime(v, '%Y-%m-%dT%H:%M:%S%z')
         except ValueError:
-            raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {v}")
+            raise ValueError(f"Invalid datetime format. Use YYYY-MM-DDTHH:MM:SS±HH:MM: {v}")
         return v
 
     @field_validator('value')
@@ -206,7 +206,7 @@ class BankTransactionInfo(BaseModel):
 class AkauntingCreateSalesInput(BaseModel):
     customer: CustomerInfo = Field(..., description="Information about the customer (at least ID or name must be provided)")
     invoice: InvoiceInfo = Field(..., description="Information about the invoice")
-    bank_transactions: List[BankTransactionInfo] = Field(..., description="Information about the bank transaction(s)")
+    bank_transactions: Optional[List[BankTransactionInfo]] = Field(None, description="Information about the bank transaction(s), if any")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -216,7 +216,7 @@ class AkauntingCreateSalesOutput(BaseModel):
     invoice: InvoiceInfo = Field(..., description="Invoice information")
     bank_transactions: List[BankTransactionInfo] = Field(..., description="Bank transaction information")
 
-# Update the examples to reflect the new structure
+
 akaunting_create_sales_input_example = {
     "customer": {
         "name": "John Doe",
@@ -239,15 +239,7 @@ akaunting_create_sales_input_example = {
             }
         ],
         "currency": "USD"
-    },
-    "bank_transactions": [
-        {
-            "date": "2023-06-01",
-            "value": 120.00,
-            "account": "Main Checking Account",
-            "payment_method": "bank transfer"
-        }
-    ]
+    }
 }
 
 akaunting_create_sales_output_example = {
@@ -282,7 +274,7 @@ akaunting_create_sales_output_example = {
     "bank_transactions": [
         {
             "id": 1,
-            "date": "2023-06-01",
+            "datetime": "2023-06-01T10:15:00+00:00",
             "amount": 120.00,
             "account": "Main Checking Account",
             "payment_method": "bank transfer"

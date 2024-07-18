@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import List, Optional
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
@@ -159,7 +159,7 @@ class BillInfo(BaseModel):
 
 class BankTransactionInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the bank transaction")
-    date: str = Field(..., description="The date of the bank transaction (ISO 8601 format: YYYY-MM-DD)")
+    datetime: str = Field(..., description="The date, time, and timezone of the bank transaction (ISO 8601 format: YYYY-MM-DDTHH:MM:SS±HH:MM)")
     value: float = Field(..., description="The value of the bank transaction (can be positive or negative)")
     account: str = Field(..., description="The bank account for the transaction")
     currency_rate: Optional[float] = Field(None, description="The currency rate for the transaction")
@@ -168,13 +168,13 @@ class BankTransactionInfo(BaseModel):
     number: Optional[str] = Field(None, description="The transaction number (auto-generated)")
     reference: Optional[str] = Field(None, description="Reference for the transaction")
 
-    @field_validator('date')
+    @field_validator('datetime')
     @classmethod
-    def validate_date(cls, v):
+    def validate_datetime(cls, v):
         try:
-            datetime.strptime(v, '%Y-%m-%d')
+            datetime.strptime(v, '%Y-%m-%dT%H:%M:%S%z')
         except ValueError:
-            raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {v}")
+            raise ValueError(f"Invalid datetime format. Use YYYY-MM-DDTHH:MM:SS±HH:MM: {v}")
         return v
 
     @field_validator('value')
@@ -239,7 +239,7 @@ akaunting_create_purchase_input_example = {
         }
     },
     "bank_transaction": {
-        "date": "2023-04-15",
+        "datetime": "2023-04-15T14:30:00+00:00",
         "value": -12.00,
         "account": "Main Checking Account",
         "payment_method": "bank transfer"
@@ -284,7 +284,7 @@ akaunting_create_purchase_output_example = {
     },
     "bank_transaction": {
         "id": 601,
-        "date": "2023-04-15",
+        "datetime": "2023-04-15T14:30:00+00:00",
         "value": -12.00,
         "account": "Main Checking Account"
     }
