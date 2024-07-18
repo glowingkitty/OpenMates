@@ -3,13 +3,16 @@ from typing import List, Optional
 import re
 from datetime import datetime
 
+# Define a set of valid currency codes (you can expand this list as needed)
+VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
+
 class VendorInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the vendor")
-    name: str = Field(..., description="The name of the vendor")
+    name: Optional[str] = Field(None, description="The name of the vendor")
     email: Optional[str] = Field(None, description="The email of the vendor")
     phone: Optional[str] = Field(None, description="The phone number of the vendor")
     tax_number: Optional[str] = Field(None, description="The tax number of the vendor")
-    currency: str = Field(..., description="The currency used by the vendor")
+    currency: Optional[str] = Field(None, description="The currency used by the vendor")
     address: Optional[str] = Field(None, description="The address of the vendor")
     city: Optional[str] = Field(None, description="The city of the vendor")
     zip_code: Optional[str] = Field(None, description="The ZIP code of the vendor")
@@ -17,6 +20,12 @@ class VendorInfo(BaseModel):
     country: Optional[str] = Field(None, description="The country of the vendor")
     website: Optional[str] = Field(None, description="The website of the vendor")
     reference: Optional[str] = Field(None, description="The reference for the vendor")
+
+    @model_validator(mode='after')
+    def check_id_or_name(self):
+        if self.id is None and self.name is None:
+            raise ValueError("Either 'id' or 'name' must be provided for the vendor")
+        return self
 
     @field_validator('email')
     @classmethod
@@ -43,6 +52,15 @@ class VendorInfo(BaseModel):
             pattern = r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$'
             if not re.match(pattern, v):
                 raise ValueError(f"Invalid website URL format: {v}")
+        return v
+
+    @field_validator('currency')
+    @classmethod
+    def validate_currency(cls, v):
+        if v is not None:
+            if v.upper() not in VALID_CURRENCIES:
+                raise ValueError(f"Invalid currency code: {v}")
+            return v.upper()
         return v
 
 class TaxInfo(BaseModel):
@@ -127,9 +145,17 @@ class BillInfo(BaseModel):
     @field_validator('currency')
     @classmethod
     def validate_currency(cls, v):
-        if len(v) != 3:
-            raise ValueError(f"Currency code must be 3 characters long: {v}")
+        if v.upper() not in VALID_CURRENCIES:
+            raise ValueError(f"Invalid currency code: {v}")
         return v.upper()
+
+    @field_validator('currency_convert_rate_to_default_currency')
+    @classmethod
+    def validate_currency_convert_rate(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError(f"Currency conversion rate must be positive: {v}")
+        return v
+
 
 class BankTransactionInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the bank transaction")
@@ -147,7 +173,7 @@ class BankTransactionInfo(BaseModel):
         return v
 
 class AkauntingCreatePurchaseInput(BaseModel):
-    vendor: VendorInfo = Field(..., description="Information about the vendor")
+    vendor: VendorInfo = Field(..., description="Information about the vendor (at least ID or name must be provided)")
     bill: Optional[BillInfo] = Field(None, description="Information about the bill, if available")
     bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Information about the bank transaction, if available")
 
@@ -194,13 +220,11 @@ akaunting_create_purchase_input_example = {
 }
 
 class AkauntingCreatePurchaseOutput(BaseModel):
-    id: int = Field(..., description="The ID of the created purchase")
     vendor: VendorInfo = Field(..., description="Vendor information")
     bill: Optional[BillInfo] = Field(None, description="Bill information, if provided")
     bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Bank transaction information, if provided")
 
 akaunting_create_purchase_output_example = {
-    "id": 1,
     "vendor": {
         "id": 101,
         "name": "Acme Corp",
@@ -234,7 +258,7 @@ akaunting_create_purchase_output_example = {
     "bank_transaction": {
         "id": 601,
         "date": "2023-04-15",
-        "value": 12.00,
+        "value": -12.00,
         "account": "Main Checking Account"
     }
 }
