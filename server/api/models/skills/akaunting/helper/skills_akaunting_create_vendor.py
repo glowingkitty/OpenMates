@@ -67,7 +67,7 @@ class VendorInfo(BaseModel):
                 raise ValueError(f"Invalid currency code: {v}")
             return v.upper()
         return v
-    
+
     @field_validator('country')
     @classmethod
     def validate_country(cls, v):
@@ -88,30 +88,3 @@ class VendorInfo(BaseModel):
 
 class AkauntingCreateVendorOutput(VendorInfo):
     id: int = Field(..., description="The ID of the created vendor")
-
-
-# Example input
-akaunting_create_vendor_input_example = {
-    "name": "Acme Supplies",
-    "email": "contact@acmesupplies.com",
-    "tax_number": "123456789",
-    "currency_code": "USD",
-    "phone": "+1234567890",
-    "website": "https://www.acmesupplies.com",
-    "address": "123 Supply St, Vendor City, VC 12345",
-    "reference": "ACME001"
-}
-
-# Example output
-akaunting_create_vendor_output_example = {
-    "id": 1001,
-    "name": "Acme Supplies",
-    "email": "contact@acmesupplies.com",
-    "tax_number": "123456789",
-    "currency_code": "USD",
-    "phone": "+1234567890",
-    "website": "https://www.acmesupplies.com",
-    "address": "123 Supply St, Vendor City, VC 12345",
-    "enabled": 1,
-    "reference": "ACME001"
-}

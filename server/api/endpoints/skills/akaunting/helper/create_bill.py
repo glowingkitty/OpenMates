@@ -14,26 +14,25 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-
 import os
 from dotenv import load_dotenv
 import requests
-from server.api.models.skills.akaunting.helper.skills_akaunting_create_vendor import VendorInfo, AkauntingCreateVendorOutput
+from server.api.models.skills.akaunting.skills_akaunting_create_expense import BillInfo
 from server.api.endpoints.skills.akaunting.helper.get_or_create_currency import get_or_create_currency
 import base64
 
 load_dotenv()
 
-async def create_vendor(vendor_data: VendorInfo) -> AkauntingCreateVendorOutput:
-    """Create a new vendor in Akaunting"""
+async def create_bill(bill_data: BillInfo) -> BillInfo:
+    """Create a new bill in Akaunting"""
     base_url = os.getenv('AKAUNTING_API_URL')
     username = os.getenv('AKAUNTING_USERNAME')
     password = os.getenv('AKAUNTING_PASSWORD')
 
-    endpoint = f"{base_url}/api/contacts"
+    endpoint = f"{base_url}/api/documents"
 
     # Check and create currency if needed
-    get_or_create_currency(vendor_data.currency_code)
+    get_or_create_currency(bill_data.currency)
 
     # Create Basic Auth header
     credentials = f"{username}:{password}"
@@ -43,14 +42,19 @@ async def create_vendor(vendor_data: VendorInfo) -> AkauntingCreateVendorOutput:
         'X-Company': os.getenv('AKAUNTING_COMPANY_ID'),
     }
 
-    # Convert vendor_data to a dictionary and remove the 'id' field
-    vendor_dict = vendor_data.model_dump(exclude={'id'})
-    vendor_dict['type'] = 'vendor'
-    vendor_dict['enabled'] = vendor_dict.get('enabled')
+    # Convert bill_data to a dictionary
+    bill_dict = bill_data.model_dump(exclude_none=True)
+    bill_dict['type'] = 'bill'
+
+    # TODO:
+    # - category_id instead of category (name)
+    # - include search=type:bill
+    # - include status=draft
+    # - include account_id
 
     # Construct the URL with query parameters
-    query_string = urlencode(vendor_dict)
-    url = f"{endpoint}?search=type:vendor&{query_string}"
+    query_string = urlencode(bill_dict, doseq=True)
+    url = f"{endpoint}?{query_string}"
 
     try:
         response = requests.post(url, headers=headers)
@@ -60,29 +64,30 @@ async def create_vendor(vendor_data: VendorInfo) -> AkauntingCreateVendorOutput:
         response_data = response.json()['data']
 
         # Create the output object
-        output_data = {
-            'id': response_data['id'],
-            'name': vendor_dict['name'],
-            'email': vendor_dict['email'],
-            'tax_number': vendor_dict['tax_number'],
-            'currency_code': vendor_dict['currency_code'],
-            'phone': vendor_dict['phone'],
-            'website': vendor_dict['website'],
-            'address': vendor_dict['address'],
-            'city': vendor_dict['city'],
-            'zip_code': vendor_dict['zip_code'],
-            'state': vendor_dict['state'],
-            'country': vendor_dict['country'],
-            'reference': vendor_dict['reference'],
-            'enabled': vendor_dict['enabled']
-        }
+        created_bill = BillInfo(**response_data)
 
-        return AkauntingCreateVendorOutput(**output_data)
+        return created_bill
 
     except requests.RequestException as e:
-        error_message = f"Error creating vendor in Akaunting: {str(e)}"
+        error_message = f"Error creating bill in Akaunting: {str(e)}"
         if hasattr(e, 'response') and e.response is not None:
             error_message += f"\nStatus code: {e.response.status_code}"
             error_message += f"\nResponse content: {e.response.text}"
         print(error_message)
         raise Exception(error_message)
+    
+
+if __name__ == "__main__":
+    import asyncio
+    from server.api.models.skills.akaunting.helper.skills_akaunting_create_bill import ItemInfo
+
+    result = asyncio.run(create_bill(BillInfo(
+        date="2023-04-15",
+        due_date="2023-05-15",
+        category={"name": "Purchase"},
+        items=[
+            ItemInfo(name="Widget", quantity=1, net_price=10.00)
+        ],
+        currency="USD",
+    )))
+    print(f"Created bill: {result}")
