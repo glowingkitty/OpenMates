@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 import requests
 from server.api.models.skills.akaunting.skills_akaunting_create_expense import BillInfo
 from server.api.endpoints.skills.akaunting.helper.get_or_create_currency import get_or_create_currency
+from server.api.endpoints.skills.akaunting.helper.get_or_create_bank_account import get_or_create_bank_account
 import base64
 
 load_dotenv()
@@ -33,6 +34,13 @@ async def create_bill(bill_data: BillInfo) -> BillInfo:
 
     # Check and create currency if needed
     get_or_create_currency(currency_data={'code':bill_data.currency})
+
+    # get the category_id
+    # TODO
+    category_id = get_or_create_category(category_data={'name':bill_data.category.name})
+
+    # get the account_id
+    account_id = get_or_create_bank_account(bank_account_data={'name':bill_data.bank_account.name})
 
     # Create Basic Auth header
     credentials = f"{username}:{password}"
@@ -49,8 +57,6 @@ async def create_bill(bill_data: BillInfo) -> BillInfo:
     # TODO:
     # - category_id instead of category (name)
     # - include search=type:bill
-    # - include status=draft
-    # - include account_id
 
     # Construct the URL with query parameters
     query_string = urlencode(bill_dict, doseq=True)

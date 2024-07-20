@@ -21,12 +21,18 @@ import base64
 from urllib.parse import urlencode
 from server.api.models.skills.akaunting.helper.skills_akaunting_create_bank_account import BankAccountInfo, AkauntingBankAccountOutput
 from server.api.endpoints.skills.akaunting.helper.get_or_create_currency import get_or_create_currency
+from typing import Union, Dict
 
 load_dotenv()
 
 
-def get_or_create_bank_account(bank_account: BankAccountInfo) -> AkauntingBankAccountOutput:
+def get_or_create_bank_account(bank_account_data: Union[BankAccountInfo, Dict]) -> AkauntingBankAccountOutput:
     """Get or create a bank account in Akaunting"""
+    if isinstance(bank_account_data, dict):
+        bank_account_data = BankAccountInfo(**bank_account_data)
+    elif not isinstance(bank_account_data, BankAccountInfo):
+        raise ValueError("bank_account_data must be an instance of BankAccountInfo or a dictionary")
+
     base_url = os.getenv('AKAUNTING_API_URL')
     username = os.getenv('AKAUNTING_USERNAME')
     password = os.getenv('AKAUNTING_PASSWORD')
@@ -44,7 +50,7 @@ def get_or_create_bank_account(bank_account: BankAccountInfo) -> AkauntingBankAc
     }
 
     # Check and create currency if needed
-    get_or_create_currency(currency_data={'code':bank_account.currency_code})
+    get_or_create_currency(currency_data={'code':bank_account_data.currency_code})
 
     # Check if account exists
     get_url = f"{base_url}/api/accounts"
@@ -52,21 +58,21 @@ def get_or_create_bank_account(bank_account: BankAccountInfo) -> AkauntingBankAc
     if response.status_code == 200:
         accounts = response.json().get('data', [])
         for account in accounts:
-            if account['name'] == bank_account.account_name:
+            if account['name'] == bank_account_data.account_name:
                 return AkauntingBankAccountOutput(**account)
 
     # If account doesn't exist, create it
     create_endpoint = f"{base_url}/api/accounts"
     account_data = {
         'type': 'bank',
-        'name': bank_account.account_name,
-        'number': bank_account.account_number,
-        'currency_code': bank_account.currency_code,
-        'opening_balance': bank_account.opening_balance,
-        'bank_name': bank_account.bank_name,
-        'bank_phone': bank_account.bank_phone,
-        'bank_address': bank_account.bank_address,
-        'enabled': bank_account.enabled
+        'name': bank_account_data.account_name,
+        'number': bank_account_data.account_number,
+        'currency_code': bank_account_data.currency_code,
+        'opening_balance': bank_account_data.opening_balance,
+        'bank_name': bank_account_data.bank_name,
+        'bank_phone': bank_account_data.bank_phone,
+        'bank_address': bank_account_data.bank_address,
+        'enabled': bank_account_data.enabled
     }
 
     # Construct the URL with query parameters
@@ -84,14 +90,14 @@ def get_or_create_bank_account(bank_account: BankAccountInfo) -> AkauntingBankAc
 
         output_data = {
             'id': created_account['id'],
-            'account_name': bank_account.account_name,
-            'account_number': bank_account.account_number,
-            'currency_code': bank_account.currency_code,
-            'opening_balance': bank_account.opening_balance,
-            'bank_name': bank_account.bank_name,
-            'bank_phone': bank_account.bank_phone,
-            'bank_address': bank_account.bank_address,
-            'enabled': bank_account.enabled
+            'account_name': bank_account_data.account_name,
+            'account_number': bank_account_data.account_number,
+            'currency_code': bank_account_data.currency_code,
+            'opening_balance': bank_account_data.opening_balance,
+            'bank_name': bank_account_data.bank_name,
+            'bank_phone': bank_account_data.bank_phone,
+            'bank_address': bank_account_data.bank_address,
+            'enabled': bank_account_data.enabled
         }
 
         return AkauntingBankAccountOutput(**output_data)
