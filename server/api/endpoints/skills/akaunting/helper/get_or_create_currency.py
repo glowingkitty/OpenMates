@@ -1,11 +1,40 @@
+################
+# Default Imports
+################
+import sys
+import os
+import re
+from typing import Union, Dict
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
 import os
 import requests
 from dotenv import load_dotenv
 import base64
+from server.api.models.skills.akaunting.helper.skills_akaunting_create_currency import CurrencyInfo, AkauntingCurrencyOutput
 
 load_dotenv()
 
-def get_or_create_currency(currency_code: str):
+def get_or_create_currency(currency_data: Union[CurrencyInfo, Dict]) -> AkauntingCurrencyOutput:
+    if isinstance(currency_data, dict):
+        # if no name and / or no symbol is provided, use the code as the name and symbol
+        if not currency_data.get('name'):
+            currency_data['name'] = currency_data['code']
+        if not currency_data.get('symbol'):
+            currency_data['symbol'] = currency_data['code']
+        currency_info = CurrencyInfo(**currency_data)
+    elif isinstance(currency_data, CurrencyInfo):
+        currency_info = currency_data
+    else:
+        raise ValueError("Input must be either a CurrencyInfo object or a dictionary")
+
     base_url = os.getenv('AKAUNTING_API_URL')
     username = os.getenv('AKAUNTING_USERNAME')
     password = os.getenv('AKAUNTING_PASSWORD')
@@ -25,46 +54,45 @@ def get_or_create_currency(currency_code: str):
 
     if response.status_code == 200:
         currencies = response.json().get('data', [])
-        for currency in currencies:
-            if currency['code'] == currency_code:
-                return currency
+        for existing_currency in currencies:
+            if existing_currency['code'] == currency_info.code:
+                found_currency = {
+                    'id': existing_currency['id'],
+                    'name': existing_currency['name'],
+                    'code': existing_currency['code'],
+                    'rate': existing_currency['rate'],
+                    'precision': existing_currency['precision'],
+                    'symbol': existing_currency['symbol'],
+                    'symbol_first': existing_currency['symbol_first'],
+                    'decimal_mark': existing_currency['decimal_mark'],
+                    'thousands_separator': existing_currency['thousands_separator'],
+                    'enabled': existing_currency['enabled']
+                }
+                return AkauntingCurrencyOutput(**found_currency)
 
     # If currency doesn't exist, create it
     create_url = f"{base_url}/api/currencies"
-    currency_data = {
-        'name': currency_code,
-        'code': currency_code,
-        'rate': 1,
-        'precision': 2,
-        'symbol': currency_code,
-        'symbol_first': 0,
-        'decimal_mark': '.',
-        'thousands_separator': ',',
-        'enabled': 1
-    }
+    currency_data = currency_info.model_dump()
 
     response = requests.post(create_url, headers=headers, json=currency_data)
 
     if response.status_code != 201:
-        print(f"Error creating currency: {response.text}")
-        return None
+        raise ValueError(f"Error creating currency: {response.text}")
 
     created_currency = response.json().get('data')
     if not created_currency:
-        print(f"Currency creation response doesn't contain 'data': {response.json()}")
-        return None
+        raise ValueError(f"Currency creation response doesn't contain 'data': {response.json()}")
 
-    return created_currency
-
-# Test function
-def test_get_or_create_currency():
-    currencies_to_test = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY']
-
-    for currency_code in currencies_to_test:
-        print(f"\nTesting with {currency_code}:")
-        currency = get_or_create_currency(currency_code)
-        print(f"{currency_code} Currency:", currency)
-
-
-if __name__ == "__main__":
-    test_get_or_create_currency()
+    formate_currency = {
+        'id': created_currency['id'],
+        'name': created_currency['name'],
+        'code': created_currency['code'],
+        'rate': created_currency['rate'],
+        'precision': created_currency['precision'],
+        'symbol': created_currency['symbol'],
+        'symbol_first': created_currency['symbol_first'],
+        'decimal_mark': created_currency['decimal_mark'],
+        'thousands_separator': created_currency['thousands_separator'],
+        'enabled': created_currency['enabled']
+    }
+    return AkauntingCurrencyOutput(**formate_currency)

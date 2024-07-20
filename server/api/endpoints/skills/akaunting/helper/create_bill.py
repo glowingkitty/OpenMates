@@ -32,7 +32,7 @@ async def create_bill(bill_data: BillInfo) -> BillInfo:
     endpoint = f"{base_url}/api/documents"
 
     # Check and create currency if needed
-    get_or_create_currency(bill_data.currency)
+    get_or_create_currency(currency_data={'code':bill_data.currency})
 
     # Create Basic Auth header
     credentials = f"{username}:{password}"

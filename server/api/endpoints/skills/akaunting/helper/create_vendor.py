@@ -33,7 +33,7 @@ async def create_vendor(vendor_data: VendorInfo) -> AkauntingCreateVendorOutput:
     endpoint = f"{base_url}/api/contacts"
 
     # Check and create currency if needed
-    get_or_create_currency(vendor_data.currency_code)
+    get_or_create_currency(currency_data={'code': vendor_data.currency_code})
 
     # Create Basic Auth header
     credentials = f"{username}:{password}"

@@ -20,6 +20,7 @@ import requests
 import base64
 from urllib.parse import urlencode
 from server.api.models.skills.akaunting.helper.skills_akaunting_create_bank_account import BankAccountInfo, AkauntingBankAccountOutput
+from server.api.endpoints.skills.akaunting.helper.get_or_create_currency import get_or_create_currency
 
 load_dotenv()
 
@@ -41,6 +42,9 @@ def get_or_create_bank_account(bank_account: BankAccountInfo) -> AkauntingBankAc
         'Authorization': f'Basic {encoded_credentials}',
         'X-Company': company_id,
     }
+
+    # Check and create currency if needed
+    get_or_create_currency(currency_data={'code':bank_account.currency_code})
 
     # Check if account exists
     get_url = f"{base_url}/api/accounts"
