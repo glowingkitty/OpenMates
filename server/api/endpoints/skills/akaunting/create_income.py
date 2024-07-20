@@ -1,17 +1,17 @@
 import os
 from dotenv import load_dotenv
 import requests
-from server.api.models.skills.akaunting.skills_akaunting_create_sales import AkauntingCreateSalesOutput
+from server.api.models.skills.akaunting.skills_akaunting_create_income import AkauntingCreateIncomeOutput
 
 load_dotenv()
 
-async def create_sales(
+async def create_income(
     token: str,
     customer: dict,
     invoice: dict,
     bank_transaction: dict
-) -> AkauntingCreateSalesOutput:
-    """Create a new sales in Akaunting"""
+) -> AkauntingCreateIncomeOutput:
+    """Create a new income in Akaunting"""
     
     # Load Akaunting API credentials
     akaunting_api_url = os.getenv("AKAUNTING_API_URL")
@@ -43,6 +43,6 @@ async def create_sales(
     )
     
     if customer_response.status_code == 201 and invoice_response.status_code == 201 and bank_transaction_response.status_code == 201:
-        return AkauntingCreateSalesOutput(success=True, message="Sales created successfully")
+        return AkauntingCreateIncomeOutput(success=True, message="Sales created successfully")
     else:
-        return AkauntingCreateSalesOutput(success=False, message="Failed to create sales")
+        return AkauntingCreateIncomeOutput(success=False, message="Failed to create sales")

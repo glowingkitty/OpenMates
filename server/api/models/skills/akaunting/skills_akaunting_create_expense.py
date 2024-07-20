@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
 
+# Define valid expense categories
+VALID_EXPENSE_CATEGORIES = {'Purchase', 'Refund', 'Other'}
+
 class VendorInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the vendor")
     name: Optional[str] = Field(None, description="The name of the vendor")
@@ -117,8 +120,25 @@ class DiscountInfo(BaseModel):
 
 class CategoryInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the category")
-    name: str = Field(..., description="The name of the category")
-    parent_category: Optional[str] = Field(None, description="The parent category, if any")
+    name: Optional[str] = Field(None, description="The name of the category")
+
+    @model_validator(mode='after')
+    def check_id_or_name(self):
+        if self.id is None and self.name is None:
+            raise ValueError("Either 'id' or 'name' must be provided for the category")
+        if self.name and self.name not in VALID_EXPENSE_CATEGORIES:
+            raise ValueError(f"Invalid expense category. Must be one of: {', '.join(VALID_EXPENSE_CATEGORIES)}")
+        return self
+
+class SubCategoryInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the sub-category")
+    name: Optional[str] = Field(None, description="The name of the sub-category")
+
+    @model_validator(mode='after')
+    def check_id_or_name(self):
+        if self.id is None and self.name is None:
+            raise ValueError("Either 'id' or 'name' must be provided for the sub-category")
+        return self
 
 class BillInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the bill")
@@ -130,7 +150,8 @@ class BillInfo(BaseModel):
     currency: str = Field(..., description="The currency of the bill")
     currency_convert_rate_to_default_currency: Optional[float] = Field(None, description="Conversion rate to default currency, if different")
     notes: Optional[str] = Field(None, description="Additional notes for the bill")
-    category: CategoryInfo = Field(..., description="The category of the bill")
+    category: CategoryInfo = Field(..., description="The main category of the expense")
+    sub_category: Optional[SubCategoryInfo] = Field(None, description="Custom sub-category for the expense")
     attachment: Optional[List[str]] = Field(None, description="List of attachment file paths or URLs")
 
     @field_validator('date', 'due_date')
@@ -155,7 +176,6 @@ class BillInfo(BaseModel):
         if v is not None and v <= 0:
             raise ValueError(f"Currency conversion rate must be positive: {v}")
         return v
-
 
 class BankTransactionInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the bank transaction")
@@ -198,7 +218,7 @@ class BankTransactionInfo(BaseModel):
             raise ValueError(f"Currency rate must be positive: {v}")
         return v
 
-class AkauntingCreatePurchaseInput(BaseModel):
+class AkauntingCreateExpenseInput(BaseModel):
     vendor: VendorInfo = Field(..., description="Information about the vendor (at least ID or name must be provided)")
     bill: Optional[BillInfo] = Field(None, description="Information about the bill, if available")
     bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Information about the bank transaction, if available")
@@ -211,8 +231,13 @@ class AkauntingCreatePurchaseInput(BaseModel):
             raise ValueError("At least one of 'bill' or 'bank_transaction' must be provided")
         return self
 
-# Update the example to reflect the new structure
-akaunting_create_purchase_input_example = {
+class AkauntingCreateExpenseOutput(BaseModel):
+    vendor: VendorInfo = Field(..., description="Vendor information")
+    bill: Optional[BillInfo] = Field(None, description="Bill information, if provided")
+    bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Bank transaction information, if provided")
+
+# Update the examples
+akaunting_create_expense_input_example = {
     "vendor": {
         "name": "Acme Corp",
         "currency": "USD",
@@ -235,23 +260,21 @@ akaunting_create_purchase_input_example = {
         ],
         "currency": "USD",
         "category": {
-            "name": "Supplies"
+            "name": "Purchase"
+        },
+        "sub_category": {
+            "name": "Raw Materials"
         }
     },
     "bank_transaction": {
         "datetime": "2023-04-15T14:30:00+00:00",
-        "value": -12.00,
+        "value": 12.00,
         "account": "Main Checking Account",
         "payment_method": "bank transfer"
     }
 }
 
-class AkauntingCreatePurchaseOutput(BaseModel):
-    vendor: VendorInfo = Field(..., description="Vendor information")
-    bill: Optional[BillInfo] = Field(None, description="Bill information, if provided")
-    bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Bank transaction information, if provided")
-
-akaunting_create_purchase_output_example = {
+akaunting_create_expense_output_example = {
     "vendor": {
         "id": 101,
         "name": "Acme Corp",
@@ -278,15 +301,20 @@ akaunting_create_purchase_output_example = {
         ],
         "currency": "USD",
         "category": {
-            "id": 501,
-            "name": "Supplies"
+            "id": 1,
+            "name": "Purchase"
+        },
+        "sub_category": {
+            "id": 101,
+            "name": "Raw Materials"
         }
     },
     "bank_transaction": {
         "id": 601,
         "datetime": "2023-04-15T14:30:00+00:00",
-        "value": -12.00,
-        "account": "Main Checking Account"
+        "value": 12.00,
+        "account": "Main Checking Account",
+        "payment_method": "bank transfer"
     }
 }
 

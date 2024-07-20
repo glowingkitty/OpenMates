@@ -65,11 +65,11 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
 from server.api.models.skills.akaunting.skills_akaunting_get_report import (
     AkauntingGetReportOutput
 )
-from server.api.models.skills.akaunting.skills_akaunting_create_purchase import (
-    AkauntingCreatePurchaseOutput
+from server.api.models.skills.akaunting.skills_akaunting_create_expense import (
+    AkauntingCreateExpenseOutput
 )
-from server.api.models.skills.akaunting.skills_akaunting_create_sales import (
-    AkauntingCreateSalesOutput
+from server.api.models.skills.akaunting.skills_akaunting_create_income import (
+    AkauntingCreateIncomeOutput
 )
 
 
@@ -252,16 +252,16 @@ skills_akaunting_endpoints = {
         "description": "<img src='images/skills/akaunting/get_report.png' alt='Get a report from Akaunting.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
-    "create_purchase":{
-        "response_model":AkauntingCreatePurchaseOutput,
-        "summary": "Akaunting | Create Purchase",
-        "description": "<img src='images/skills/akaunting/create_purchase.png' alt='Create a new purchase in Akaunting. Including the vendor, bill and bank transaction.'>",
+    "create_expense":{
+        "response_model":AkauntingCreateExpenseOutput,
+        "summary": "Akaunting | Create Expense",
+        "description": "<img src='images/skills/akaunting/create_expense.png' alt='Create a new purchase, refund or other expense in Akaunting. Including the vendor, bill and bank transaction.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
-    "create_sales":{
-        "response_model":AkauntingCreateSalesOutput,
-        "summary": "Akaunting | Create Sales",
-        "description": "<img src='images/skills/akaunting/create_sales.png' alt='Create a new sales in Akaunting. Including the customer, invoice and bank transaction.'>",
+    "create_income":{
+        "response_model":AkauntingCreateIncomeOutput,
+        "summary": "Akaunting | Create Income",
+        "description": "<img src='images/skills/akaunting/create_income.png' alt='Create a new sale, refund or other income in Akaunting. Including the customer, invoice and bank transaction.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -394,34 +394,34 @@ tags_metadata = [
 input_parameter_descriptions = {
     "team_slug": {
         "description": "The URL friendly name of your team",
-        "example": "openmates_enthusiasts"
+        "examples": ["openmates_enthusiasts"]
     },
     "username": {
         "description": "Your username",
-        "example": "sophiarocks212"
+        "examples": ["sophiarocks212"]
     },
     "token": {
         "description": "Your API token",
-        "example": "123456789"
+        "examples": ["123456789"]
     },
     "mate_username":{
         "description": "The username of the AI team mate",
-        "example": "sophia"
+        "examples": ["sophia"]
     },
     "user_username":{
         "description": "The username of the user",
-        "example": "kitty"
+        "examples": ["kitty"]
     },
     "file": {
         "description": "The bytes of the file to upload"
     },
     "software_slug": {
         "description": "The slug of the software",
-        "example": "claude"
+        "examples": ["claude"]
     },
     "skill_slug": {
         "description": "The slug of the skill",
-        "example": "ask"
+        "examples": ["ask"]
     }
 }
 

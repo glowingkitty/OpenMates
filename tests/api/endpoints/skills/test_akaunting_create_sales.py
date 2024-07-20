@@ -3,13 +3,13 @@ import requests
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from server.api.models.skills.akaunting.skills_akaunting_create_sales import AkauntingCreateSalesOutput
+from server.api.models.skills.akaunting.skills_akaunting_create_income import AkauntingCreateIncomeOutput
 
 # Load environment variables from .env file
 load_dotenv()
 
 @pytest.mark.api_dependent
-def test_create_sales():
+def test_create_income():
     # Get the API token from environment variable
     api_token = os.getenv('TEST_API_TOKEN')
     team_slug = os.getenv('TEST_TEAM_SLUG')
@@ -44,7 +44,7 @@ def test_create_sales():
         }
     }
 
-    response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/akaunting/create_sales", headers=headers, json=data)
+    response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/akaunting/create_income", headers=headers, json=data)
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
 
@@ -52,8 +52,8 @@ def test_create_sales():
 
     try:
         # Validate the response against your Pydantic model
-        result = AkauntingCreateSalesOutput.model_validate(json_response)
+        result = AkauntingCreateIncomeOutput.model_validate(json_response)
     except ValidationError as e:
-        pytest.fail(f"Response does not match the AkauntingCreateSalesOutput model: {e}")
+        pytest.fail(f"Response does not match the AkauntingCreateIncomeOutput model: {e}")
 
     assert result.success, f"Failed to create sales: {result.message}"

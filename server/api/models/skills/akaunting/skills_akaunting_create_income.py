@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
 
+# Define valid income categories
+VALID_INCOME_CATEGORIES = {'Sales', 'Refund', 'Other'}
+
 class CustomerInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the customer")
     name: Optional[str] = Field(None, description="The name of the customer")
@@ -115,6 +118,27 @@ class DiscountInfo(BaseModel):
             raise ValueError(f"Discount value cannot be negative: {v}")
         return v
 
+class CategoryInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the category")
+    name: Optional[str] = Field(None, description="The name of the category")
+
+    @model_validator(mode='after')
+    def check_id_or_name(self):
+        if self.id is None and self.name is None:
+            raise ValueError("Either 'id' or 'name' must be provided for the category")
+        if self.name and self.name not in VALID_INCOME_CATEGORIES:
+            raise ValueError(f"Invalid income category. Must be one of: {', '.join(VALID_INCOME_CATEGORIES)}")
+        return self
+
+class SubCategoryInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the sub-category")
+    name: Optional[str] = Field(None, description="The name of the sub-category")
+
+    @model_validator(mode='after')
+    def check_id_or_name(self):
+        if self.id is None and self.name is None:
+            raise ValueError("Either 'id' or 'name' must be provided for the sub-category")
+        return self
 
 class InvoiceInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the invoice")
@@ -129,6 +153,8 @@ class InvoiceInfo(BaseModel):
     currency_convert_rate_to_default_currency: Optional[float] = Field(None, description="Conversion rate to default currency, if different")
     notes: Optional[str] = Field(None, description="Additional notes for the invoice")
     attachment: Optional[List[str]] = Field(None, description="List of attachment file paths or URLs")
+    category: CategoryInfo = Field(..., description="The main category of the income")
+    sub_category: Optional[SubCategoryInfo] = Field(None, description="Custom sub-category for the income")
 
     @field_validator('date', 'due_date')
     @classmethod
@@ -203,21 +229,21 @@ class BankTransactionInfo(BaseModel):
             raise ValueError(f"Currency rate must be positive: {v}")
         return v
 
-class AkauntingCreateSalesInput(BaseModel):
+class AkauntingCreateIncomeInput(BaseModel):
     customer: CustomerInfo = Field(..., description="Information about the customer (at least ID or name must be provided)")
     invoice: InvoiceInfo = Field(..., description="Information about the invoice")
     bank_transactions: Optional[List[BankTransactionInfo]] = Field(None, description="Information about the bank transaction(s), if any")
 
     model_config = ConfigDict(extra="forbid")
 
-class AkauntingCreateSalesOutput(BaseModel):
-    id: int = Field(..., description="The ID of the created sale")
+class AkauntingCreateIncomeOutput(BaseModel):
+    id: int = Field(..., description="The ID of the created income")
     customer: CustomerInfo = Field(..., description="Customer information")
     invoice: InvoiceInfo = Field(..., description="Invoice information")
-    bank_transactions: List[BankTransactionInfo] = Field(..., description="Bank transaction information")
+    bank_transactions: Optional[List[BankTransactionInfo]] = Field(None, description="Bank transaction information, if any")
 
 
-akaunting_create_sales_input_example = {
+akaunting_create_income_input_example = {
     "customer": {
         "name": "John Doe",
         "currency": "USD",
@@ -238,11 +264,17 @@ akaunting_create_sales_input_example = {
                 }
             }
         ],
-        "currency": "USD"
+        "currency": "USD",
+        "category": {
+            "name": "Sales"
+        },
+        "sub_category": {
+            "name": "Online Sales"
+        }
     }
 }
 
-akaunting_create_sales_output_example = {
+akaunting_create_income_output_example = {
     "id": 1,
     "customer": {
         "id": 1,
@@ -269,7 +301,15 @@ akaunting_create_sales_output_example = {
                 }
             }
         ],
-        "currency": "USD"
+        "currency": "USD",
+        "category": {
+            "id": 1,
+            "name": "Sales"
+        },
+        "sub_category": {
+            "id": 101,
+            "name": "Online Sales"
+        }
     },
     "bank_transactions": [
         {
