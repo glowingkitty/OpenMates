@@ -62,22 +62,20 @@ async def create_vendor(vendor_data: VendorInfo) -> AkauntingCreateVendorOutput:
         # Create the output object
         output_data = {
             'id': response_data['id'],
-            'name': response_data['name'],
-            'email': response_data.get('email'),
-            'tax_number': response_data.get('tax_number'),
-            'currency_code': response_data.get('currency_code'),
-            'phone': response_data.get('phone'),
-            'website': response_data.get('website'),
-            'address': response_data.get('address'),
-            'city': response_data.get('city'),
-            'zip_code': response_data.get('zip_code'),
-            'state': response_data.get('state'),
-            'country': response_data.get('country'),
-            'reference': response_data.get('reference'),
-            'enabled': response_data.get('enabled')
+            'name': vendor_dict['name'],
+            'email': vendor_dict['email'],
+            'tax_number': vendor_dict['tax_number'],
+            'currency_code': vendor_dict['currency_code'],
+            'phone': vendor_dict['phone'],
+            'website': vendor_dict['website'],
+            'address': vendor_dict['address'],
+            'city': vendor_dict['city'],
+            'zip_code': vendor_dict['zip_code'],
+            'state': vendor_dict['state'],
+            'country': vendor_dict['country'],
+            'reference': vendor_dict['reference'],
+            'enabled': vendor_dict['enabled']
         }
-
-        output_data = {k: v for k, v in output_data.items() if v is not None and v != 'None'}
 
         return AkauntingCreateVendorOutput(**output_data)
     except requests.RequestException as e:
