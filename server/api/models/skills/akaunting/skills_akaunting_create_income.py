@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -20,6 +19,8 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator, model_valida
 from typing import List, Optional
 import re
 from datetime import datetime
+from server.api.models.skills.akaunting.helper.skills_akaunting_create_item import ItemInfo
+from server.api.models.skills.akaunting.helper.skills_akaunting_create_bill import DiscountInfo
 
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
@@ -84,57 +85,6 @@ class CustomerInfo(BaseModel):
             return v.upper()
         return v
 
-class TaxInfo(BaseModel):
-    id: Optional[int] = Field(None, description="The ID of the tax")
-    name: str = Field(..., description="The name of the tax")
-    rate: float = Field(..., description="The rate of the tax")
-
-    @field_validator('rate')
-    @classmethod
-    def validate_rate(cls, v):
-        if v < 0 or v > 100:
-            raise ValueError(f"Tax rate must be between 0 and 100: {v}")
-        return v
-
-class ItemInfo(BaseModel):
-    id: Optional[int] = Field(None, description="The ID of the item")
-    name: str = Field(..., description="The name of the item")
-    description: Optional[str] = Field(None, description="The description of the item")
-    quantity: int = Field(..., description="The quantity of the item")
-    net_price: float = Field(..., description="The net price of the item")
-    tax: Optional[TaxInfo] = Field(None, description="The tax information for the item")
-
-    @field_validator('quantity')
-    @classmethod
-    def validate_quantity(cls, v):
-        if v <= 0:
-            raise ValueError(f"Quantity must be greater than 0: {v}")
-        return v
-
-    @field_validator('net_price')
-    @classmethod
-    def validate_net_price(cls, v):
-        if v < 0:
-            raise ValueError(f"Net price cannot be negative: {v}")
-        return v
-
-class DiscountInfo(BaseModel):
-    type: str = Field(..., description="The type of discount (percent or amount)")
-    value: float = Field(..., description="The value of the discount")
-
-    @field_validator('type')
-    @classmethod
-    def validate_type(cls, v):
-        if v not in ['percent', 'amount']:
-            raise ValueError(f"Discount type must be 'percent' or 'amount': {v}")
-        return v
-
-    @field_validator('value')
-    @classmethod
-    def validate_value(cls, v):
-        if v < 0:
-            raise ValueError(f"Discount value cannot be negative: {v}")
-        return v
 
 class CategoryInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the category")
@@ -147,6 +97,7 @@ class CategoryInfo(BaseModel):
         if self.name and self.name not in VALID_INCOME_CATEGORIES:
             raise ValueError(f"Invalid income category. Must be one of: {', '.join(VALID_INCOME_CATEGORIES)}")
         return self
+
 
 class SubCategoryInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the sub-category")

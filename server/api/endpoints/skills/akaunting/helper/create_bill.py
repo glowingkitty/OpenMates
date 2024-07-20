@@ -75,11 +75,11 @@ async def create_bill(bill_data: BillInfo) -> BillInfo:
             error_message += f"\nResponse content: {e.response.text}"
         print(error_message)
         raise Exception(error_message)
-    
+
 
 if __name__ == "__main__":
     import asyncio
-    from server.api.models.skills.akaunting.helper.skills_akaunting_create_bill import ItemInfo
+    from server.api.models.skills.akaunting.helper.skills_akaunting_create_item import ItemInfo
 
     result = asyncio.run(create_bill(BillInfo(
         date="2023-04-15",

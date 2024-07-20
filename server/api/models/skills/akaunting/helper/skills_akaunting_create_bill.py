@@ -3,48 +3,14 @@ from typing import Optional, List
 import pycountry
 from datetime import datetime
 
+from server.api.models.skills.akaunting.helper.skills_akaunting_create_item import ItemInfo
+
 # Generate sets of valid currency and country codes
 VALID_CURRENCIES = {currency.alpha_3 for currency in pycountry.currencies}
 VALID_COUNTRIES = {country.alpha_2 for country in pycountry.countries}
 
 # Define valid expense categories
 VALID_EXPENSE_CATEGORIES = {'Purchase', 'Refund', 'Other'}
-
-
-class TaxInfo(BaseModel):
-    id: Optional[int] = Field(None, description="The ID of the tax")
-    name: str = Field(..., description="The name of the tax")
-    rate: float = Field(..., description="The rate of the tax")
-
-    @field_validator('rate')
-    @classmethod
-    def validate_rate(cls, v):
-        if v < 0 or v > 100:
-            raise ValueError(f"Tax rate must be between 0 and 100: {v}")
-        return v
-
-
-class ItemInfo(BaseModel):
-    id: Optional[int] = Field(None, description="The ID of the item")
-    name: str = Field(..., description="The name of the item")
-    description: Optional[str] = Field(None, description="The description of the item")
-    quantity: int = Field(..., description="The quantity of the item")
-    net_price: float = Field(..., description="The net price of the item (before taxes)")
-    tax: Optional[TaxInfo] = Field(None, description="The tax information for the item")
-
-    @field_validator('quantity')
-    @classmethod
-    def validate_quantity(cls, v):
-        if v <= 0:
-            raise ValueError(f"Quantity must be greater than 0: {v}")
-        return v
-
-    @field_validator('net_price')
-    @classmethod
-    def validate_net_price(cls, v):
-        if v < 0:
-            raise ValueError(f"Net price cannot be negative: {v}")
-        return v
 
 
 class DiscountInfo(BaseModel):
