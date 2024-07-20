@@ -48,22 +48,34 @@ async def create_vendor(vendor_data: AkauntingCreateVendorInput) -> AkauntingCre
 
     # Print the full URL with parameters for debugging
     full_url = requests.Request('POST', endpoint, params=params).prepare().url
-    print(f"Sending request to: {full_url}")
+    # print(f"Sending request to: {full_url}")
 
     try:
         response = requests.post(endpoint, headers=headers, params=params)
-        print(f"Response status code: {response.status_code}")
-        print(f"Response content: {response.content}")
         response.raise_for_status()
-        vendor_data = response.json()['data']
 
-        # Create the output object with all input data plus the new ID
-        output_data = {**vendor_data.model_dump(), 'id': vendor_data['id']}
+        # Parse the response JSON
+        response_data = response.json()['data']
+
+        # Create the output object
+        output_data = {
+            'id': response_data['id'],
+            'name': response_data['name'],
+            'email': response_data['email'],
+            'tax_number': response_data['tax_number'],
+            'currency_code': response_data['currency_code'],
+            'phone': response_data['phone'],
+            'website': response_data['website'],
+            'address': response_data['address'],
+            'enabled': 1 if response_data['enabled'] else 0,
+            'reference': response_data['reference']
+        }
+
         return AkauntingCreateVendorOutput(**output_data)
     except requests.RequestException as e:
         print(f"Error response content: {e.response.content if hasattr(e, 'response') else 'No response content'}")
         raise Exception(f"Error creating vendor in Akaunting: {str(e)}")
-    
+
 
 if __name__ == "__main__":
     import asyncio
