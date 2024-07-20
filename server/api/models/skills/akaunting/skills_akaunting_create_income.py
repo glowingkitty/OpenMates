@@ -1,7 +1,25 @@
+
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
+
+
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import List, Optional
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}

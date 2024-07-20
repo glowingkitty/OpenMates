@@ -31,7 +31,7 @@ async def get_companies() -> Dict[str, Any]:
         return response.json()
     except requests.RequestException as e:
         raise Exception(f"Error fetching companies from Akaunting: {str(e)}")
-    
+
 
 if __name__ == "__main__":
     import asyncio

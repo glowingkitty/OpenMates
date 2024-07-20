@@ -1,42 +1,47 @@
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import Optional
 import re
 
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
 
-class AkauntingCreateVendorInput(BaseModel):
-    name: str = Field(..., description="The name of the vendor")
-    currency_code: str = Field(..., description="The currency code for the vendor")
+class VendorInfo(BaseModel):
+    id: Optional[int] = Field(None, description="The ID of the vendor")
+    name: Optional[str] = Field(None, description="The name of the vendor")
     email: Optional[str] = Field(None, description="The email of the vendor")
-    tax_number: Optional[str] = Field(None, description="The tax number of the vendor")
     phone: Optional[str] = Field(None, description="The phone number of the vendor")
-    website: Optional[str] = Field(None, description="The website of the vendor")
+    tax_number: Optional[str] = Field(None, description="The tax number of the vendor")
+    currency: Optional[str] = Field(None, description="The currency used by the vendor")
     address: Optional[str] = Field(None, description="The address of the vendor")
-    enabled: int = Field(1, description="Whether the vendor is enabled (1) or disabled (0)")
-    reference: Optional[str] = Field(None, description="A reference for the vendor")
+    city: Optional[str] = Field(None, description="The city of the vendor")
+    zip_code: Optional[str] = Field(None, description="The ZIP code of the vendor")
+    state: Optional[str] = Field(None, description="The state of the vendor")
+    country: Optional[str] = Field(None, description="The country of the vendor")
+    website: Optional[str] = Field(None, description="The website of the vendor")
+    reference: Optional[str] = Field(None, description="The reference for the vendor")
 
-    model_config = ConfigDict(extra="forbid")
+    @model_validator(mode='after')
+    def check_id_or_name(self):
+        if self.id is None and self.name is None:
+            raise ValueError("Either 'id' or 'name' must be provided for the vendor")
+        return self
 
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid email format: {v}")
+        if v is not None:
+            pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(pattern, v):
+                raise ValueError(f"Invalid email format: {v}")
         return v
 
     @field_validator('phone')
     @classmethod
     def validate_phone(cls, v):
         if v is not None:
-            # This pattern allows for more flexible phone number formats
             pattern = r'^\+?[1-9]\d{1,14}$'
-            # Remove any non-digit characters except the leading +
-            cleaned_number = '+' + ''.join(filter(str.isdigit, v)) if v.startswith('+') else ''.join(filter(str.isdigit, v))
-            if not re.match(pattern, cleaned_number):
+            if not re.match(pattern, v):
                 raise ValueError(f"Invalid phone number format: {v}")
-            return cleaned_number
         return v
 
     @field_validator('website')
@@ -48,22 +53,19 @@ class AkauntingCreateVendorInput(BaseModel):
                 raise ValueError(f"Invalid website URL format: {v}")
         return v
 
-    @field_validator('currency_code')
+    @field_validator('currency')
     @classmethod
     def validate_currency(cls, v):
-        if v.upper() not in VALID_CURRENCIES:
-            raise ValueError(f"Invalid currency code: {v}")
-        return v.upper()
-
-    @field_validator('enabled')
-    @classmethod
-    def validate_enabled(cls, v):
-        if v not in [0, 1]:
-            raise ValueError(f"Enabled must be 0 or 1: {v}")
+        if v is not None:
+            if v.upper() not in VALID_CURRENCIES:
+                raise ValueError(f"Invalid currency code: {v}")
+            return v.upper()
         return v
 
-class AkauntingCreateVendorOutput(AkauntingCreateVendorInput):
+
+class AkauntingCreateVendorOutput(VendorInfo):
     id: int = Field(..., description="The ID of the created vendor")
+
 
 # Example input
 akaunting_create_vendor_input_example = {

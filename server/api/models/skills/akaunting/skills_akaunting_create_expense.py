@@ -1,7 +1,26 @@
+
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
+
+
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import List, Optional
 import re
-from datetime import datetime, timezone
+from datetime import datetime
+from server.api.models.skills.akaunting.helper.skills_akaunting_create_vendor import VendorInfo
 
 # Define a set of valid currency codes (you can expand this list as needed)
 VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
@@ -9,62 +28,6 @@ VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR
 # Define valid expense categories
 VALID_EXPENSE_CATEGORIES = {'Purchase', 'Refund', 'Other'}
 
-class VendorInfo(BaseModel):
-    id: Optional[int] = Field(None, description="The ID of the vendor")
-    name: Optional[str] = Field(None, description="The name of the vendor")
-    email: Optional[str] = Field(None, description="The email of the vendor")
-    phone: Optional[str] = Field(None, description="The phone number of the vendor")
-    tax_number: Optional[str] = Field(None, description="The tax number of the vendor")
-    currency: Optional[str] = Field(None, description="The currency used by the vendor")
-    address: Optional[str] = Field(None, description="The address of the vendor")
-    city: Optional[str] = Field(None, description="The city of the vendor")
-    zip_code: Optional[str] = Field(None, description="The ZIP code of the vendor")
-    state: Optional[str] = Field(None, description="The state of the vendor")
-    country: Optional[str] = Field(None, description="The country of the vendor")
-    website: Optional[str] = Field(None, description="The website of the vendor")
-    reference: Optional[str] = Field(None, description="The reference for the vendor")
-
-    @model_validator(mode='after')
-    def check_id_or_name(self):
-        if self.id is None and self.name is None:
-            raise ValueError("Either 'id' or 'name' must be provided for the vendor")
-        return self
-
-    @field_validator('email')
-    @classmethod
-    def validate_email(cls, v):
-        if v is not None:
-            pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            if not re.match(pattern, v):
-                raise ValueError(f"Invalid email format: {v}")
-        return v
-
-    @field_validator('phone')
-    @classmethod
-    def validate_phone(cls, v):
-        if v is not None:
-            pattern = r'^\+?[1-9]\d{1,14}$'
-            if not re.match(pattern, v):
-                raise ValueError(f"Invalid phone number format: {v}")
-        return v
-
-    @field_validator('website')
-    @classmethod
-    def validate_website(cls, v):
-        if v is not None:
-            pattern = r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$'
-            if not re.match(pattern, v):
-                raise ValueError(f"Invalid website URL format: {v}")
-        return v
-
-    @field_validator('currency')
-    @classmethod
-    def validate_currency(cls, v):
-        if v is not None:
-            if v.upper() not in VALID_CURRENCIES:
-                raise ValueError(f"Invalid currency code: {v}")
-            return v.upper()
-        return v
 
 class TaxInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the tax")
@@ -231,10 +194,9 @@ class AkauntingCreateExpenseInput(BaseModel):
             raise ValueError("At least one of 'bill' or 'bank_transaction' must be provided")
         return self
 
-class AkauntingCreateExpenseOutput(BaseModel):
-    vendor: VendorInfo = Field(..., description="Vendor information")
-    bill: Optional[BillInfo] = Field(None, description="Bill information, if provided")
-    bank_transaction: Optional[BankTransactionInfo] = Field(None, description="Bank transaction information, if provided")
+class AkauntingCreateExpenseOutput(AkauntingCreateExpenseInput):
+    pass
+
 
 # Update the examples
 akaunting_create_expense_input_example = {
