@@ -1,9 +1,12 @@
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import Optional
 import re
+import pycountry
 
-# Define a set of valid currency codes (you can expand this list as needed)
-VALID_CURRENCIES = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'}
+# Generate sets of valid currency and country codes
+VALID_CURRENCIES = {currency.alpha_3 for currency in pycountry.currencies}
+VALID_COUNTRIES = {country.alpha_2 for country in pycountry.countries}
+
 
 class VendorInfo(BaseModel):
     id: Optional[int] = Field(None, description="The ID of the vendor")
@@ -11,7 +14,7 @@ class VendorInfo(BaseModel):
     email: Optional[str] = Field(None, description="The email of the vendor")
     phone: Optional[str] = Field(None, description="The phone number of the vendor")
     tax_number: Optional[str] = Field(None, description="The tax number of the vendor")
-    currency: Optional[str] = Field(None, description="The currency used by the vendor")
+    currency_code: Optional[str] = Field(None, description="The currency used by the vendor")
     address: Optional[str] = Field(None, description="The address of the vendor")
     city: Optional[str] = Field(None, description="The city of the vendor")
     zip_code: Optional[str] = Field(None, description="The ZIP code of the vendor")
@@ -19,6 +22,9 @@ class VendorInfo(BaseModel):
     country: Optional[str] = Field(None, description="The country of the vendor")
     website: Optional[str] = Field(None, description="The website of the vendor")
     reference: Optional[str] = Field(None, description="The reference for the vendor")
+    enabled: Optional[int] = Field(1, description="Whether the vendor is enabled")
+
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode='after')
     def check_id_or_name(self):
@@ -53,13 +59,30 @@ class VendorInfo(BaseModel):
                 raise ValueError(f"Invalid website URL format: {v}")
         return v
 
-    @field_validator('currency')
+    @field_validator('currency_code')
     @classmethod
     def validate_currency(cls, v):
         if v is not None:
             if v.upper() not in VALID_CURRENCIES:
                 raise ValueError(f"Invalid currency code: {v}")
             return v.upper()
+        return v
+    
+    @field_validator('country')
+    @classmethod
+    def validate_country(cls, v):
+        if v is not None:
+            if v.upper() not in VALID_COUNTRIES:
+                raise ValueError(f"Invalid country code: {v}")
+            return v.upper()
+        return v
+
+    @field_validator('enabled')
+    @classmethod
+    def validate_enabled(cls, v):
+        if v is not None:
+            if v not in {0, 1}:
+                raise ValueError(f"Invalid enabled value: {v}")
         return v
 
 
