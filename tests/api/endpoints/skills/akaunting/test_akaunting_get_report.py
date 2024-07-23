@@ -25,7 +25,7 @@ def test_akaunting_get_report_DE_jobcenter_EKS():
         "report": "DE_jobcenter_EKS",
         "date_from": "2023-01-01",
         "date_to": "2023-12-31",
-        "format": "pdf"
+        "format": "json"
     }
 
     response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/{endpoint}", headers=headers, json=payload)

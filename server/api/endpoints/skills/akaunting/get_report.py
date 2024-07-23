@@ -24,7 +24,8 @@ async def get_report(
         report: Literal["profit_and_loss", "DE_jobcenter_EKS"],
         date_from: str,
         date_to: str,
-        format: Literal["pdf", "xlsx","json"]
+        format: Literal["pdf", "xlsx","json"] = "pdf",
+        include_attachments: bool = False
     ) -> AkauntingGetReportOutput:
     """
     Get a report from Akaunting
@@ -36,14 +37,29 @@ async def get_report(
         # TODO processing - what kind of reports? how to get them?
 
 
+
         report_response = {
             "report": report,
             "date_from": date_from,
             "date_to": date_to,
-            "format": format,
-            "report_download_url": "/downloads/reports/a1b2c3d4e5/profit_and_loss_2023.pdf",
-            "report_download_expiration_datetime": "2023-06-15T14:30:00+00:00"
+            "format": format
         }
+
+        if include_attachments:
+            report_response["include_attachments"] = include_attachments
+            report_response["report_attachments_download_url"] = "/downloads/reports/a1b2c3d4e5/profit_and_loss_2023_attachments.zip"
+
+
+        if format=="json":
+            report_response["report_data"] = {
+                "date": "2024-01-01",
+                "amount": 1000
+            }
+        else:
+            report_response["report_download_url"] = "/downloads/reports/a1b2c3d4e5/profit_and_loss_2023.pdf"
+
+        if include_attachments or format!="json":
+            report_response["downloads_expiration_datetime"] = "2023-06-15T14:30:00+00:00"
 
         return JSONResponse(status_code=200, content=report_response)
 
