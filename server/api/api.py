@@ -565,7 +565,10 @@ async def skill_akaunting_get_report(
         user_api_token=token
     )
     return await get_report_processing(
-        report_type=parameters.report_type
+        report=parameters.report,
+        date_from=parameters.date_from,
+        date_to=parameters.date_to,
+        format=parameters.format
     )
 
 

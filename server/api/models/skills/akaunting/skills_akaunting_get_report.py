@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 
 class AkauntingGetReportInput(BaseModel):
     """This is the model for the incoming parameters for POST /{team_slug}/skills/akaunting/get_report"""
-    report: Literal["profit_and_loss", "DE_tax_office_report", "DE_jobcenter_report"] = Field(..., title="Report Type", description="The type of report to get")
+    report: Literal["profit_and_loss", "DE_jobcenter_EKS"] = Field(..., title="Report Type", description="The type of report to get")
     date_from: str = Field(..., title="Date From", description="The start date of the report (ISO 8601 format: YYYY-MM-DD)")
     date_to: str = Field(..., title="Date To", description="The end date of the report (ISO 8601 format: YYYY-MM-DD)")
     format: Literal["pdf", "xlsx", "json"] = Field("pdf", title="Format", description="The format of the report")
@@ -46,7 +46,7 @@ akaunting_get_report_input_example = {
     "format": "pdf"
 }
 
-class AkauntingGetReportOutput(BaseModel):
+class AkauntingGetReportOutput(AkauntingGetReportInput):
     """This is the model for the output of POST /{team_slug}/skills/akaunting/get_report"""
     report_data: Optional[dict] = Field(None, description="The data from the report (only for JSON format).")
     report_download_url: Optional[str] = Field(None, description="The URL to download the report (for PDF and XLSX formats).")

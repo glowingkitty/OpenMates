@@ -14,14 +14,17 @@ from server import *
 ################
 
 from typing import List, Optional, Literal
-from server.api.models.skills.akaunting.skills_akaunting_get_report import AkauntingGetReportOutput
+from server.api.models.skills.akaunting.skills_akaunting_get_report import AkauntingGetReportOutput, AkauntingGetReportInput
 from server.cms.strapi_requests import get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 
 
 async def get_report(
-        report_type: Literal["sales", "purchases", "custom"]
+        report: Literal["profit_and_loss", "DE_jobcenter_EKS"],
+        date_from: str,
+        date_to: str,
+        format: Literal["pdf", "xlsx","json"]
     ) -> AkauntingGetReportOutput:
     """
     Get a report from Akaunting
@@ -32,18 +35,17 @@ async def get_report(
 
         # TODO processing - what kind of reports? how to get them?
 
-        return JSONResponse(status_code=200, content={"report_data": {"report_type": "sales", "report_data": {"date": "2024-01-01", "amount": 1000}}})
 
-        # # return updated fields
-        # if status_code == 200 and json_response["data"]:
-        #     updated_response = {
-        #         "id": get_nested(json_response, "id"),
-        #         "username": get_nested(json_response, "username"),
-        #         "updated_fields": updated_mate
-        #     }
-        #     return JSONResponse(status_code=200, content=updated_response)
-        # else:
-        #     raise HTTPException(status_code=500, detail="Failed to update the AI team mate.")
+        report_response = {
+            "report": report,
+            "date_from": date_from,
+            "date_to": date_to,
+            "format": format,
+            "report_download_url": "/downloads/reports/a1b2c3d4e5/profit_and_loss_2023.pdf",
+            "report_download_expiration_datetime": "2023-06-15T14:30:00+00:00"
+        }
+
+        return JSONResponse(status_code=200, content=report_response)
 
     except HTTPException:
         raise

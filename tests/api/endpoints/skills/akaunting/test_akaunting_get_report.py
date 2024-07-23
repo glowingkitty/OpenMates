@@ -9,7 +9,7 @@ from server.api.models.skills.akaunting.skills_akaunting_get_report import Akaun
 load_dotenv()
 
 @pytest.mark.api_dependent
-def test_akaunting_get_report():
+def test_akaunting_get_report_DE_jobcenter_EKS():
     # Get the API token from environment variable
     api_token = os.getenv('TEST_API_TOKEN')
     team_slug = os.getenv('TEST_TEAM_SLUG')
@@ -22,7 +22,10 @@ def test_akaunting_get_report():
     }
 
     payload = {
-        "report_type": "sales"
+        "report": "DE_jobcenter_EKS",
+        "date_from": "2023-01-01",
+        "date_to": "2023-12-31",
+        "format": "pdf"
     }
 
     response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/{endpoint}", headers=headers, json=payload)
