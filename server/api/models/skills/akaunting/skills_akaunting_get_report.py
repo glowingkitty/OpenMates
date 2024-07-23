@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -14,36 +13,60 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from typing import Literal
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+from datetime import datetime, timedelta
 
 
 # POST /{team_slug}/skills/akaunting/get_report (get a report from Akaunting)
 
 class AkauntingGetReportInput(BaseModel):
     """This is the model for the incoming parameters for POST /{team_slug}/skills/akaunting/get_report"""
-    report_type: Literal["sales", "purchases", "custom"] = Field("sales", title="Report Type", description="The type of report to get")
+    report: Literal["profit_and_loss", "DE_tax_office_report", "DE_jobcenter_report"] = Field(..., title="Report Type", description="The type of report to get")
+    date_from: str = Field(..., title="Date From", description="The start date of the report (ISO 8601 format: YYYY-MM-DD)")
+    date_to: str = Field(..., title="Date To", description="The end date of the report (ISO 8601 format: YYYY-MM-DD)")
+    format: Literal["pdf", "xlsx", "json"] = Field("pdf", title="Format", description="The format of the report")
 
     # prevent extra fields from being passed to API
     model_config = ConfigDict(extra="forbid")
 
-# TODO update models and examples
+    @field_validator('date_from', 'date_to')
+    @classmethod
+    def validate_date(cls, v):
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+        except ValueError:
+            raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {v}")
+        return v
 
 akaunting_get_report_input_example = {
-    "report_type": "sales",
+    "report": "profit_and_loss",
+    "date_from": "2023-01-01",
+    "date_to": "2023-12-31",
+    "format": "pdf"
 }
-
 
 class AkauntingGetReportOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/akaunting/get_report"""
-    report_data: dict = Field(..., description="The data from the report.")
+    report_data: Optional[dict] = Field(None, description="The data from the report (only for JSON format).")
+    report_download_url: Optional[str] = Field(None, description="The URL to download the report (for PDF and XLSX formats).")
+    report_download_expiration_datetime: Optional[str] = Field(None, description="The expiration datetime of the download URL (for PDF and XLSX formats).")
+
+    @field_validator('report_download_url')
+    @classmethod
+    def validate_download_url(cls, v):
+        if v is not None:
+            if not v.startswith('/downloads/'):
+                raise ValueError("Download URL must start with /downloads/")
+            if not re.match(r'^/downloads/[a-zA-Z0-9_/-]+\.[a-zA-Z]+$', v):
+                raise ValueError("Invalid download URL format")
+        return v
 
 akaunting_get_report_output_example = {
-    "report_data": {
-        "report_type": "sales",
-        "report_data": {
-            "date": "2024-01-01",
-            "amount": 1000
-        }
-    }
+    "report": "profit_and_loss",
+    "date_from": "2023-01-01",
+    "date_to": "2023-12-31",
+    "format": "pdf",
+    "report_download_url": "/downloads/reports/a1b2c3d4e5/profit_and_loss_2023.pdf",
+    "report_download_expiration_datetime": "2024-01-15T14:30:00+00:00"
 }
