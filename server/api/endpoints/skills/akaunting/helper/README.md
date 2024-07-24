@@ -60,9 +60,12 @@
     - create a bill with the rounded up value, add a bank transaction for the same value, mark bill as fully paid, but then change the value of the bank transaction to the actual booked bank transaction value (and make sure bill still shows up as fully paid)
 22. An invoice has a total value of 0 euro, for whatever reason
     - don't add the invoice and just ignore it
-23. An invoice (JLCPCB as example) is in EUR, but the bank transaction is in USD, with a exchange rate that is different and therefore the total of the transaction and the total of the invoice don't match
-    - add discount or extra item to the invoice/bill to make the total match the bank transaction value
-    - add a note in bill that explains the correction reason
+23. A bank transaction charges a fee for a transaction
+    - make a seperate bank transaction for the fee, and mention the original bill number in the description or link them in other ways
+
+24. When exporting a report with attachments that includes a paypal payment, there might also be a transfer happening from business bank account to PayPal, to then pay the bill via paypal (automatically initiated by PayPal).
+    - include the PDF files of that transfer also in the report
+
 
 
 # Additional ideas:
