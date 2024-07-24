@@ -88,7 +88,7 @@ mates_create_input_example = {
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [3],
     "default_llm_endpoint": "/skills/chatgpt/ask",
-    "default_llm_model": "gpt-3.5-turbo"
+    "default_llm_model": "claude-3.5-sonnet"
 }
 
 
@@ -121,5 +121,5 @@ mates_create_output_example = {
         }
     ],
     "default_llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
-    "default_llm_model": "gpt-3.5-turbo"
+    "default_llm_model": "claude-3.5-sonnet"
 }
