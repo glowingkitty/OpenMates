@@ -23,14 +23,14 @@ async def ask(
         token: str,
         message: str,
         system_prompt: str = "You are a helpful assistant. Keep your answers concise.",
-        ai_model: Literal["openai__gpt-4o","openai__gpt-3.5-turbo"] = "openai__gpt-4o",
+        ai_model: Literal["gpt-4o","gpt-4o-mini"] = "gpt-4o",
         temperature: float = 0.5
     ) -> ChatGPTAskOutput:
     """
     Ask a question to ChatGPT
     """
-    if ai_model != "openai__gpt-4o" and ai_model != "openai__gpt-3.5-turbo":
-        raise ValueError("Invalid AI model. Please select 'openai__gpt-4o' or 'openai__gpt-3.5-turbo'.")
+    if ai_model != "gpt-4o" and ai_model != "gpt-4o-mini":
+        raise ValueError("Invalid AI model. Please select 'gpt-4o' or 'gpt-4o-mini'.")
 
     add_to_log("Asking ChatGPT ...", module_name="OpenMates | Skills | ChatGPT | Ask", color="yellow")
 
@@ -61,7 +61,7 @@ async def ask(
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     response = client.chat.completions.create(
-        model="gpt-4o" if ai_model == "openai__gpt-4o" else "gpt-3.5-turbo",
+        model=ai_model,
         messages=[
             {
             "role": "system",

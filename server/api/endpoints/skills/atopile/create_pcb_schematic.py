@@ -25,7 +25,7 @@ async def create_pcb_schematic(
         # component_name: str = None,
         # component_requirements: str = None,
         additional_requirements: str = None,
-        ai_model: str = "openai__gpt-4o"
+        ai_model: str = "claude-3.5-sonnet"
     ) -> AtopileCreatePcbSchematicOutput:
     """
     Create a new PCB schematic

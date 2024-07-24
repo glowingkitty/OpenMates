@@ -76,7 +76,7 @@ class MatesUpdateInput(BaseModel):
     @classmethod
     def validate_llm_model(cls, v, info):
         valid_models = {
-            '/skills/chatgpt/ask': ['gpt-4', 'gpt-3.5-turbo'],
+            '/skills/chatgpt/ask': ['gpt-4o', 'gpt-4o-mini'],
             '/skills/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],
             '/skills/gemini/ask': ['gemini-1.5-pro', 'gemini-1.5-flash']
         }
