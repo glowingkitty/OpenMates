@@ -62,9 +62,18 @@ class MatesCreateInput(BaseModel):
             '/skills/claude/ask',
             '/skills/gemini/ask'
         ]
-        if v not in valid_endpoints:
-            raise ValueError(f"Invalid LLM endpoint. Must be one of: {', '.join(valid_endpoints)}")
-        return v
+        # Check if the input is a full relative path
+        if v.startswith('/v1/'):
+            # Extract the relevant part of the path
+            path_parts = v.split('/')
+            if len(path_parts) >= 5:
+                short_path = '/'.join(path_parts[-3:])
+                if short_path in valid_endpoints:
+                    return v
+        # Check if the input is a short path
+        elif v in valid_endpoints:
+            return v
+        raise ValueError(f"Invalid LLM endpoint. Must be one of: {', '.join(valid_endpoints)} or their full relative paths")
 
     @field_validator('default_llm_model')
     @classmethod
@@ -87,23 +96,15 @@ mates_create_input_example = {
     "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [3],
-    "default_llm_endpoint": "/skills/chatgpt/ask",
+    "default_llm_endpoint": "/v1/ai-sales-team/skills/claude/ask",
     "default_llm_model": "claude-3.5-sonnet"
 }
 
 
 
-class MatesCreateOutput(BaseModel):
+class MatesCreateOutput(MatesCreateInput):
     """This is the model for the outgoing response for POST /mates"""
     id: int = Field(..., description="ID of the AI team mate")
-    name: str = Field(..., description="Name of the AI team mate")
-    username: str = Field(..., description="Username of the AI team mate")
-    description: str = Field(..., description="Description of the AI team mate")
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
-    default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate")
-    default_skills: List[SkillMini] = Field(..., description="Default list of skills for the AI team mate")
-    default_llm_endpoint: str = Field(..., description="Default LLM endpoint of the AI team mate")
-    default_llm_model: str = Field(..., description="Default LLM model of the AI team mate")
 
 
 mates_create_output_example = {
@@ -120,6 +121,6 @@ mates_create_output_example = {
             "description": "Writes and tests code based on the given requirements."
         }
     ],
-    "default_llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
+    "default_llm_endpoint": "/v1/ai-sales-team/skills/claude/ask",
     "default_llm_model": "claude-3.5-sonnet"
 }
