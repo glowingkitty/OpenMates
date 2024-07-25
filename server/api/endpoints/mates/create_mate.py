@@ -79,11 +79,28 @@ async def create_mate(
             raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
         # add default_llm_endpoint as linked skill
+        # Split the endpoint to handle both formats
+        endpoint_parts = default_llm_endpoint.split('/')
+
+        # Determine the software_slug and skill_slug based on the format
+        if len(endpoint_parts) == 4:  # Format: /skills/{software_slug}/ask
+            software_slug = endpoint_parts[2]
+            skill_slug = endpoint_parts[3]
+        elif len(endpoint_parts) >= 5 and endpoint_parts[1] == 'v1':  # Format: /v1/{team_slug}/skills/{software_slug}/ask
+            software_slug = endpoint_parts[-2]  # second last part
+            skill_slug = endpoint_parts[-1]      # last part
+        else:
+            raise ValueError("Invalid default_llm_endpoint format")
+
         default_llm_endpoint_skill = await get_skill(
-            software_slug=default_llm_endpoint.split('/')[2],
-            skill_slug=default_llm_endpoint.split('/')[3],
+            software_slug=software_slug,
+            skill_slug=skill_slug,
             output_raw_data=True
         )
+
+        if not isinstance(default_llm_endpoint_skill, dict) or 'id' not in default_llm_endpoint_skill:
+            add_to_log(f"Unexpected response from get_skill: {default_llm_endpoint_skill}", state="error")
+            raise HTTPException(status_code=500, detail="Failed to retrieve LLM endpoint skill")
 
         # add default_llm_endpoint skill to default_llm_endpoint
         default_llm_endpoint_id = default_llm_endpoint_skill["id"]

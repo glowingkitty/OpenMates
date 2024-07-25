@@ -83,6 +83,7 @@ mates_create_input_example = {
 class MatesCreateOutput(MatesCreateInput):
     """This is the model for the outgoing response for POST /mates"""
     id: int = Field(..., description="ID of the AI team mate")
+    default_skills: List[SkillMini] = Field(..., description="Default list of skills for the AI team mate")
 
 
 mates_create_output_example = {
