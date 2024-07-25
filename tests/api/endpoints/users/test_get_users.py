@@ -32,6 +32,7 @@ def test_get_users():
     except ValidationError as e:
         pytest.fail(f"Response does not match the UsersGetAllOutput model: {e}")
 
+# TODO also test page and pageCount url parameters (create a combined test for creating users, get them all, get one, update one, delete one after each test)
 # TODO also test permissions
 # - a server admin should be able to see all users from all teams
 # - a team admin should be able to see all users from their team
