@@ -71,6 +71,9 @@ from server.api.models.skills.akaunting.skills_akaunting_create_expense import (
 from server.api.models.skills.akaunting.skills_akaunting_create_income import (
     AkauntingCreateIncomeOutput
 )
+from server.api.models.teams.teams_get_all import (
+    TeamsGetAllOutput
+)
 
 
 def generate_responses(status_codes):
@@ -329,6 +332,15 @@ users_endpoints = {
         "summary": "Create new API token",
         "description": "<img src='images/users/create_new_api_token.png' alt='Creates a new API token for your account. Your previous token will be deleted.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+teams_endpoints = {
+    "get_all_teams":{
+        "response_model":TeamsGetAllOutput,
+        "summary": "Get all",
+        "description": "<img src='images/teams/get_all.png' alt='Get an overview list of all teams on your OpenMates server.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
     }
 }
 

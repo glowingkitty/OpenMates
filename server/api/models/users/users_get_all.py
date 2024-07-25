@@ -21,13 +21,13 @@ from server.api.models.metadata import MetaData
 
 # GET /users (get all users for a team)
 
-class UserForGetAll(BaseModel):
+class UserMini(BaseModel):
     """This is the model for a single user, for the endpoint GET /users"""
     id: int = Field(..., description="ID of the user")
     username: str = Field(..., description="Username of the user")
 
 class UsersGetAllOutput(BaseModel):
-    data: List[UserForGetAll] = Field(..., description="List of all users")
+    data: List[UserMini] = Field(..., description="List of all users")
     meta: MetaData = Field(..., description="Metadata for the response")
 
 

@@ -51,6 +51,9 @@ from server.api.models.users.users_get_one import (
 from server.api.models.users.users_get_all import (
     users_get_all_output_example
 )
+from server.api.models.teams.teams_get_all import (
+    teams_get_all_output_example
+)
 from server.api.models.users.users_create import (
     UsersCreateInput,
     users_create_input_example,
@@ -115,6 +118,7 @@ from server.api.endpoints.users.get_users import get_users as get_users_processi
 from server.api.endpoints.users.create_user import create_user as create_user_processing
 from server.api.endpoints.users.replace_profile_picture import replace_profile_picture_processing
 from server.api.endpoints.users.create_new_api_token import create_new_api_token
+from server.api.endpoints.teams.get_teams import get_teams as get_teams_processing
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
@@ -142,6 +146,7 @@ from server.api.parameters import (
     skills_image_editor_endpoints,
     skills_akaunting_endpoints,
     users_endpoints,
+    teams_endpoints,
     server_endpoints,
     set_example,
     tags_metadata,
@@ -227,6 +232,7 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "delete", "responses", mates_delete_output_example, "200")
+    set_example(openapi_schema, "/v1/teams", "get", "responses", teams_get_all_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
@@ -815,6 +821,26 @@ async def update_settings(
 # Explaination:
 # A server can have multiple teams. Each team can have multiple users and multiple mates. Teams can be used to separate different work environments, departments or companies.
 
+# TODO implement
+# TODO add test
+# GET /teams (get all teams)
+@teams_router.get("/v1/teams", **teams_endpoints["get_all_teams"])
+@limiter.limit("20/minute")
+async def get_teams(
+    request: Request,
+    token: str = Depends(get_credentials),
+    page: int = 1,
+    pageSize: int = 25
+    ):
+    await validate_permissions(
+        endpoint="/teams",
+        user_api_token=token,
+        required_permissions=["teams:get_all"]
+    )
+    return await get_teams_processing(
+        page=page,
+        pageSize=pageSize
+    )
 
 
 
