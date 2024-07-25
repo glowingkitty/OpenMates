@@ -1,29 +1,21 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server import *
-################
-
-from server.cms.strapi_requests import make_strapi_request, get_nested
-from typing import Dict, Union, Literal
-from fastapi.responses import JSONResponse
-from fastapi import HTTPException
+from server.api.models.teams.teams_get_one import Team
 
 async def get_team(
-    team_slug: str,
-    output_raw_data: bool = False,
-    output_format: Literal["JSONResponse", "dict"] = "JSONResponse"
-) -> Union[JSONResponse, Dict, HTTPException]:
-    """
-    Get a specific team.
-    """
-    
+        team_slug: str,
+        user_api_token: str
+    ) -> Team:
+    """Get all details about a specific team"""
+    # TODO: Implement the actual logic to fetch team details
+    # This is a placeholder implementation
+    return Team(
+        mates=["sophia", "alex"],
+        settings={"privacy_level": "high", "default_language": "en"},
+        invoices=["INV-001", "INV-002"],
+        forbidden_skills=["delete_data", "send_email"],
+        slug=team_slug,
+        profile_image_url="https://example.com/team_image.jpg",
+        balance=1000.50,
+        users_allowed_to_use_team_balance=["john", "jane"],
+        user_count=10,
+        admin_count=2
+    )

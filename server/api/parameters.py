@@ -74,6 +74,9 @@ from server.api.models.skills.akaunting.skills_akaunting_create_income import (
 from server.api.models.teams.teams_get_all import (
     TeamsGetAllOutput
 )
+from server.api.models.teams.teams_get_one import (
+    Team
+)
 
 
 def generate_responses(status_codes):
@@ -340,6 +343,12 @@ teams_endpoints = {
         "response_model":TeamsGetAllOutput,
         "summary": "Get all",
         "description": "<img src='images/teams/get_all.png' alt='Get an overview list of all teams on your OpenMates server.'>",
+        "responses": generate_responses([200, 401, 403, 404, 422, 500])
+    },
+    "get_team":{
+        "response_model":Team,
+        "summary": "Get team",
+        "description": "<img src='images/teams/get_team.png' alt='Get all details about a specific team. Including the skill settings, privacy and more.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
     }
 }

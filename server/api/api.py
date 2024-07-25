@@ -54,6 +54,9 @@ from server.api.models.users.users_get_all import (
 from server.api.models.teams.teams_get_all import (
     teams_get_all_output_example
 )
+from server.api.models.teams.teams_get_one import (
+    teams_get_one_output_example
+)
 from server.api.models.users.users_create import (
     UsersCreateInput,
     users_create_input_example,
@@ -119,6 +122,7 @@ from server.api.endpoints.users.create_user import create_user as create_user_pr
 from server.api.endpoints.users.replace_profile_picture import replace_profile_picture_processing
 from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.endpoints.teams.get_teams import get_teams as get_teams_processing
+from server.api.endpoints.teams.get_team import get_team as get_team_processing
 from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
@@ -233,6 +237,7 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "delete", "responses", mates_delete_output_example, "200")
     set_example(openapi_schema, "/v1/teams", "get", "responses", teams_get_all_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}", "get", "responses", teams_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
@@ -536,6 +541,7 @@ async def skill_chatgpt_ask(
 
 
 
+
 # TODO add test
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
 @skills_router.post("/v1/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
@@ -833,13 +839,34 @@ async def get_teams(
     pageSize: int = 25
     ):
     await validate_permissions(
-        endpoint="/teams",
+        endpoint="/teams",# TODO need to make function compatible with this endpoint
         user_api_token=token,
         required_permissions=["teams:get_all"]
     )
     return await get_teams_processing(
         page=page,
         pageSize=pageSize
+    )
+
+
+# TODO implement
+# TODO add test
+# GET /teams/{team_slug} (get a team)
+@teams_router.get("/v1/{team_slug}", **teams_endpoints["get_team"])
+@limiter.limit("20/minute")
+async def get_team(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/team/{team_slug}", # TODO need to make function compatible with this endpoint
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await get_team_processing(
+        team_slug=team_slug,
+        user_api_token=token
     )
 
 

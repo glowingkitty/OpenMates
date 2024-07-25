@@ -70,12 +70,6 @@
       "relation": "manyToMany",
       "target": "api::user-account.user-account",
       "mappedBy": "teams_where_user_is_admin"
-    },
-    "not_allowed_skills": {
-      "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::skill.skill",
-      "inversedBy": "not_allowed_in_teams"
     }
   }
 }

@@ -56,12 +56,6 @@
       "default": false,
       "required": true
     },
-    "not_allowed_in_teams": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::team.team",
-      "mappedBy": "not_allowed_skills"
-    },
     "pricing": {
       "type": "json"
     },
