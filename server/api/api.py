@@ -563,6 +563,7 @@ async def skill_claude_ask(
         token=token,
         system_prompt=parameters.system_prompt,
         message=parameters.message,
+        message_history=parameters.message_history,
         ai_model=parameters.ai_model,
         temperature=parameters.temperature,
         stream=parameters.stream
