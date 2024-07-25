@@ -163,8 +163,8 @@ from server.api.parameters import (
     input_parameter_descriptions
 )
 from fastapi.security import HTTPBearer
-from typing import Optional, List, Literal
-from fastapi.responses import StreamingResponse
+from typing import Optional, List, Literal, Union
+from fastapi.responses import StreamingResponse, JSONResponse
 from io import BytesIO
 
 
@@ -553,19 +553,23 @@ async def skill_claude_ask(
     parameters: ClaudeAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+    ) -> Union[StreamingResponse, JSONResponse]:
     await validate_permissions(
         endpoint="/skills/claude/ask",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await ask_claude_processing(
+    result = await ask_claude_processing(
         token=token,
         system_prompt=parameters.system_prompt,
         message=parameters.message,
         ai_model=parameters.ai_model,
-        temperature=parameters.temperature
+        temperature=parameters.temperature,
+        stream=parameters.stream
     )
+    if isinstance(result, StreamingResponse):
+        return result
+    return JSONResponse(content=result)
 
 
 # TODO implement endpoint

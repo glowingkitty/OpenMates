@@ -16,7 +16,8 @@ from server import *
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from server.api.models.skills.claude.skills_claude_ask import ClaudeAskOutput
-from typing import Literal
+from typing import Literal, Union
+from fastapi.responses import StreamingResponse
 
 
 async def ask(
@@ -24,8 +25,9 @@ async def ask(
         message: str,
         system_prompt: str = "You are a helpful assistant. Keep your answers concise.",
         ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = "claude-3.5-sonnet",
-        temperature: float = 0.5
-    ) -> ClaudeAskOutput:
+        temperature: float = 0.5,
+        stream: bool = False
+    ) -> Union[ClaudeAskOutput, StreamingResponse]:
     """
     Ask a question to Claude
     """
@@ -65,19 +67,26 @@ async def ask(
     load_dotenv()
     client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-    response = client.messages.create(
-        model=ai_model,
-        max_tokens=1000,
-        system=system_prompt,  # Changed: system prompt is now a top-level parameter
-        messages=[
-            {
-                "role": "user",
-                "content": message
-            }
-        ],
-        temperature=temperature
-    )
+    if stream:
+        async def event_stream():
+            with client.messages.stream(
+                model=ai_model,
+                max_tokens=1000,
+                system=system_prompt,
+                messages=[{"role": "user", "content": message}],
+                temperature=temperature
+            ) as stream:
+                for text in stream.text_stream:
+                    yield f"data: {text}\n\n"
+                yield "event: stream_end\ndata: Stream ended\n\n"
 
-    return {
-        "response": response.content[0].text
-    }
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    else:
+        response = client.messages.create(
+            model=ai_model,
+            max_tokens=1000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": message}],
+            temperature=temperature
+        )
+        return {"response": response.content[0].text}

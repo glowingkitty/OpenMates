@@ -26,6 +26,7 @@ class ClaudeAskInput(BaseModel):
     message: str = Field(..., title="Message", description="How can Claude assist you?") # TODO in future replace with message history
     ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = Field("claude-3.5-sonnet", title="AI Model", description="The model to use for Claude")
     temperature: float = Field(0.5, title="Temperature", description="The randomness of the response", json_schema_extra={"min": 0.0, "max": 1.0})
+    stream: bool = Field(False, title="Stream", description="Whether to stream the response")
 
     # prevent extra fields from being passed to API
     model_config = ConfigDict(extra="forbid")
@@ -35,7 +36,8 @@ claude_ask_input_example = {
     "system_prompt": "You are a helpful assistant. Keep your answers concise.",
     "message": "What is the capital of France?",
     "ai_model": "claude-3.5-sonnet",
-    "temperature": 0.5
+    "temperature": 0.5,
+    "stream": False
 }
 
 
