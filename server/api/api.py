@@ -111,7 +111,7 @@ from server.api.endpoints.mates.create_mate import create_mate as create_mate_pr
 from server.api.endpoints.mates.update_mate import update_mate as update_mate_processing
 from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_processing
 from server.api.endpoints.users.get_user import get_user as get_user_processing
-from server.api.endpoints.users.get_users import get_users_processing
+from server.api.endpoints.users.get_users import get_users as get_users_processing
 from server.api.endpoints.users.create_user import create_user as create_user_processing
 from server.api.endpoints.users.replace_profile_picture import replace_profile_picture_processing
 from server.api.endpoints.users.create_new_api_token import create_new_api_token
@@ -826,7 +826,6 @@ async def update_settings(
 # User accounts are used to store user data like what projects the user is working on, what they are interested in, what their goals are, etc.
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
 
-# TODO add test
 # GET /users (get all users on a team)
 @users_router.get("/v1/{team_slug}/users/", **users_endpoints["get_all_users"])
 @limiter.limit("20/minute")

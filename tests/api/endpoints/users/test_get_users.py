@@ -36,3 +36,4 @@ def test_get_users():
 # - a server admin should be able to see all users from all teams
 # - a team admin should be able to see all users from their team
 # - a team member should be able to see only their own user
+# TODO for that to work, create api endpoint for making a user a team admin (either via seperate API endpoint or via update user)

@@ -4,6 +4,7 @@
 import sys
 import os
 import re
+import math
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -19,7 +20,7 @@ from fastapi import HTTPException
 from server.api.validation.validate_permissions import validate_permissions
 
 
-async def get_users_processing(
+async def get_users(
         team_slug: str,
         request_sender_api_token: str,
         page: int = 1,
@@ -39,7 +40,8 @@ async def get_users_processing(
         )
 
         fields = [
-            "username"
+            "username",
+            "id"
         ]
         filters = [
             {
@@ -56,14 +58,15 @@ async def get_users_processing(
                 "value": request_sender_api_token[:32]
             })
 
+        # Get the users with pagination info
         status_code, json_response = await make_strapi_request(
             method='get',
             endpoint='user-accounts',
             fields=fields,
             filters=filters,
             page=page,
-            pageSize=pageSize,
-            )
+            pageSize=pageSize
+        )
 
         if status_code == 200:
             users = [
@@ -71,14 +74,20 @@ async def get_users_processing(
                     "id": get_nested(user, "id"),
                     "username": get_nested(user, "username")
                 }
-                for user in json_response["data"]
+                for user in json_response.get("data", [])
             ]
+
+            # Extract pagination info from the response
+            pagination = json_response.get("meta", {}).get("pagination", {})
+            total = pagination.get("total", 0)
+            page_count = pagination.get("pageCount", 0)
+
             meta = {
                 "pagination": {
                     "page": page,
                     "pageSize": pageSize,
-                    "pageCount": 1,
-                    "total": len(users)
+                    "pageCount": page_count,
+                    "total": total
                 }
             }
             users_get_all_output = {
