@@ -1,4 +1,7 @@
 def validate_llm_endpoint(v: str) -> str:
+    if v == None:
+        raise ValueError("LLM endpoint cannot be None")
+
     valid_endpoints = [
         '/skills/chatgpt/ask',
         '/skills/claude/ask',
@@ -12,6 +15,11 @@ def validate_llm_endpoint(v: str) -> str:
     raise ValueError(f"Invalid LLM endpoint. Must end with one of: {', '.join(valid_endpoints)}")
 
 def validate_llm_model(v: str, endpoint: str) -> str:
+    if v == None:
+        raise ValueError("LLM model cannot be None")
+    if endpoint == None:
+        raise ValueError("LLM endpoint cannot be None")
+
     valid_models = {
         '/skills/chatgpt/ask': ['gpt-4o', 'gpt-4o-mini'],
         '/skills/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],

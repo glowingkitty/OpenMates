@@ -151,13 +151,21 @@ def test_create_mate_validation_error(api_config):
         "description": "This mate should fail validation",
         "profile_picture_url": "invalid_url",
         "default_systemprompt": "",
-        "default_skills": ["invalid_skill"],
+        "default_skills": [1],
         "default_llm_endpoint": "invalid_endpoint",
         "default_llm_model": "invalid_model"
     }
 
-    with pytest.raises(ValidationError):
-        MatesCreateInput(**invalid_mate_data)
+    with pytest.raises(AssertionError) as excinfo:
+        create_mate(api_config, invalid_mate_data)
+
+    error_message = str(excinfo.value)
+    assert "Failed to create mate: 422" in error_message
+    assert "username must be all lowercase" in error_message
+    assert "String should match pattern " in error_message
+    assert "String should have at least 1 character" in error_message
+    assert "Invalid LLM endpoint" in error_message
+    assert "LLM endpoint cannot be None" in error_message
 
 @pytest.mark.api_dependent
 def test_update_mate_validation_error(api_config):

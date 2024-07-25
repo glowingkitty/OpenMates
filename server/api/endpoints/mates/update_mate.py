@@ -142,6 +142,26 @@ async def update_mate(
                 "api_endpoint": new_default_llm_endpoint,
                 "description": default_llm_endpoint_skill["attributes"]["description"]
             }
+        if new_custom_systemprompt != None:
+            updated_mate["custom_systemprompt"] = new_custom_systemprompt
+        if new_custom_llm_endpoint != None:
+            updated_mate["custom_llm_endpoint"] = new_custom_llm_endpoint
+        if new_custom_llm_model != None:
+            updated_mate["custom_llm_model"] = new_custom_llm_model
+        if new_custom_skills_extended_data != None:
+            updated_mate["custom_skills"] = new_custom_skills_extended_data
+        if allowed_to_access_user_name != None:
+            updated_mate["allowed_to_access_user_name"] = allowed_to_access_user_name
+        if allowed_to_access_user_username != None:
+            updated_mate["allowed_to_access_user_username"] = allowed_to_access_user_username
+        if allowed_to_access_user_projects != None:
+            updated_mate["allowed_to_access_user_projects"] = allowed_to_access_user_projects
+        if allowed_to_access_user_goals != None:
+            updated_mate["allowed_to_access_user_goals"] = allowed_to_access_user_goals
+        if allowed_to_access_user_todos != None:
+            updated_mate["allowed_to_access_user_todos"] = allowed_to_access_user_todos
+        if allowed_to_access_user_recent_topics != None:
+            updated_mate["allowed_to_access_user_recent_topics"] = allowed_to_access_user_recent_topics
 
 
         # get the mate
@@ -189,27 +209,6 @@ async def update_mate(
             endpoint='mates/'+str(mate["id"]),
             data={"data":updated_mate}
         )
-
-        if new_custom_systemprompt != None:
-            updated_mate["custom_systemprompt"] = new_custom_systemprompt
-        if new_custom_llm_endpoint != None:
-            updated_mate["custom_llm_endpoint"] = new_custom_llm_endpoint
-        if new_custom_llm_model != None:
-            updated_mate["custom_llm_model"] = new_custom_llm_model
-        if new_custom_skills_extended_data != None:
-            updated_mate["custom_skills"] = new_custom_skills_extended_data
-        if allowed_to_access_user_name != None:
-            updated_mate["allowed_to_access_user_name"] = allowed_to_access_user_name
-        if allowed_to_access_user_username != None:
-            updated_mate["allowed_to_access_user_username"] = allowed_to_access_user_username
-        if allowed_to_access_user_projects != None:
-            updated_mate["allowed_to_access_user_projects"] = allowed_to_access_user_projects
-        if allowed_to_access_user_goals != None:
-            updated_mate["allowed_to_access_user_goals"] = allowed_to_access_user_goals
-        if allowed_to_access_user_todos != None:
-            updated_mate["allowed_to_access_user_todos"] = allowed_to_access_user_todos
-        if allowed_to_access_user_recent_topics != None:
-            updated_mate["allowed_to_access_user_recent_topics"] = allowed_to_access_user_recent_topics
 
         # return updated fields
         if status_code == 200 and json_response["data"]:
