@@ -198,5 +198,3 @@ def test_update_mate_validation_error(api_config):
     assert "endpoint" in error_message
 
     delete_mate(api_config, created_mate.username)
-
-# Add more test scenarios as needed
