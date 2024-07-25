@@ -21,7 +21,7 @@ from server.api.models.metadata import MetaData
 
 # GET /mates (get all mates)
 
-class MateForGetAll(BaseModel):
+class MateMini(BaseModel):
     """This is the model for a single AI team mate, for the endpoint GET /mates"""
     id: int = Field(..., description="ID of the AI team mate")
     name: str = Field(..., description="name of the AI team mate")
@@ -48,7 +48,7 @@ class MateForGetAll(BaseModel):
 
 
 class MatesGetAllOutput(BaseModel):
-    data: List[MateForGetAll] = Field(..., description="List of all AI team mates for the team")
+    data: List[MateMini] = Field(..., description="List of all AI team mates for the team")
     meta: MetaData = Field(..., description="Metadata for the response")
 
     model_config = ConfigDict(extra="forbid")

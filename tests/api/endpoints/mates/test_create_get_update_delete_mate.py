@@ -81,7 +81,7 @@ def test_create_get_update_delete_mate():
         "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
         "default_skills": [1],
         "default_llm_endpoint": f"/skills/chatgpt/ask",
-        "default_llm_model": "gpt-3.5-turbo"
+        "default_llm_model": "gpt-4o-mini"
     }
 
     # Validate input data

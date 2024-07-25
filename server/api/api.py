@@ -408,7 +408,6 @@ async def create_mate(
         )
 
 
-# TODO add test
 # PATCH /mates/{mate_username} (update a mate)
 @mates_router.patch("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["update_mate"])
 @limiter.limit("20/minute")
@@ -446,8 +445,6 @@ async def update_mate(
         )
 
 
-# TODO add endpoint processing
-# TODO add test
 # DELETE /mates/{mate_username} (delete a mate)
 @mates_router.delete("/v1/{team_slug}/mates/{mate_username}", **mates_endpoints["delete_mate"])
 @limiter.limit("20/minute")
