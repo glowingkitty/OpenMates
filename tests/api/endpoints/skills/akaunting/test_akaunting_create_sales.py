@@ -46,7 +46,7 @@ def test_create_income():
 
     response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/akaunting/create_income", headers=headers, json=data)
 
-    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code} for API endpoint 'http://0.0.0.0:8000/v1/{team_slug}/skills/{endpoint}' with response: {response.text}"
 
     json_response = response.json()
 

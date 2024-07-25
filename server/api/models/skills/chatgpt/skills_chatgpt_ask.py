@@ -25,7 +25,7 @@ class ChatGPTAskInput(BaseModel):
     system_prompt: str = Field("You are a helpful assistant. Keep your answers concise.", title="System prompt", description="The system prompt to use for ChatGPT")
     message: str = Field(..., title="Message", description="How can ChatGPT assist you?") # TODO in future replace with message history
     ai_model: Literal["gpt-4o", "gpt-4o-mini"] = Field("gpt-4o", title="AI Model", description="The model to use for ChatGPT")
-    temperature: float = Field(0.5, title="Temperature", description="The randomness of the response", min=0.0, max=2.0)
+    temperature: float = Field(0.5, title="Temperature", description="The randomness of the response", json_schema_extra={"min": 0.0, "max": 2.0})
 
     # prevent extra fields from being passed to API
     model_config = ConfigDict(extra="forbid")

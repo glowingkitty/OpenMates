@@ -88,6 +88,11 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
     chatgpt_ask_input_example,
     chatgpt_ask_output_example
 )
+from server.api.models.skills.claude.skills_claude_ask import (
+    ClaudeAskInput,
+    claude_ask_input_example,
+    claude_ask_output_example
+)
 from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
     image_editor_resize_output_example
 )
@@ -127,6 +132,7 @@ from server.api.endpoints.skills.image_editor.resize_image import resize_image_p
 from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
 from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
 from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
+from server.api.endpoints.skills.claude.ask import ask as ask_claude_processing
 from server.api.endpoints.skills.akaunting.get_report import get_report as get_report_processing
 from server.api.endpoints.skills.akaunting.create_expense import create_expense as create_expense_processing
 from server.api.endpoints.skills.akaunting.create_income import create_income as create_income_processing
@@ -252,6 +258,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
@@ -514,7 +522,6 @@ async def get_skill(
     )
 
 
-# TODO add test
 # POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
 @skills_router.post("/v1/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
 @limiter.limit("20/minute")
@@ -538,16 +545,12 @@ async def skill_chatgpt_ask(
     )
 
 
-
-
-
-
-# TODO add test
 # POST /skills/claude/message (ask a question to Claude from Anthropic)
 @skills_router.post("/v1/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
 @limiter.limit("20/minute")
 async def skill_claude_ask(
     request: Request,
+    parameters: ClaudeAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
@@ -556,7 +559,13 @@ async def skill_claude_ask(
         team_slug=team_slug,
         user_api_token=token
     )
-    return {"info": "endpoint still needs to be implemented"}
+    return await ask_claude_processing(
+        token=token,
+        system_prompt=parameters.system_prompt,
+        message=parameters.message,
+        ai_model=parameters.ai_model,
+        temperature=parameters.temperature
+    )
 
 
 # TODO implement endpoint

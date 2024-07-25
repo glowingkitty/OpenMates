@@ -62,6 +62,9 @@ from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import
 from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
     ChatGPTAskOutput
 )
+from server.api.models.skills.claude.skills_claude_ask import (
+    ClaudeAskOutput
+)
 from server.api.models.skills.akaunting.skills_akaunting_get_report import (
     AkauntingGetReportOutput
 )
@@ -220,7 +223,7 @@ skills_chatgpt_endpoints = {
 
 skills_claude_endpoints = {
     "ask_claude":{
-        # "response_model":ClaudeAskOutput,
+        "response_model":ClaudeAskOutput,
         "summary": "Claude | Ask",
         "description": "<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
