@@ -110,3 +110,46 @@ def test_create_get_update_delete_mate():
         headers=headers
     )
     assert get_response.status_code == 404, f"Mate was not deleted: {get_response.status_code}\nResponse content: {get_response.text}"
+
+@pytest.mark.api_dependent
+def test_create_mate_with_youtube_skill():
+    api_token = os.getenv('TEST_API_TOKEN')
+    team_slug = os.getenv('TEST_TEAM_SLUG')
+    assert api_token, "TEST_API_TOKEN not found in .env file"
+    assert team_slug, "TEST_TEAM_SLUG not found in .env file"
+
+    headers = {"Authorization": f"Bearer {api_token}"}
+    base_url = f"http://0.0.0.0:8000/v1/{team_slug}/mates"
+
+    # Prepare mate creation data with YouTube skill
+    mate_data = {
+        "name": "YouTube Skill Mate",
+        "username": "youtube_skill_mate",
+        "description": "Mate with YouTube skill",
+        "profile_picture_url": f"/v1/{team_slug}/uploads/burton_03ba7afff9.jpeg",
+        "default_systemprompt": "You are a YouTube content expert.",
+        "default_skills": ['/v1/{team_slug}/skills/youtube/transcript'],
+        "default_llm_endpoint": f"/v1/{team_slug}/skills/chatgpt/ask",
+        "default_llm_model": "gpt-4o-mini"
+    }
+
+    # Validate input data
+    try:
+        validated_mate_data = MatesCreateInput(**mate_data)
+    except ValidationError as e:
+        pytest.fail(f"Input data does not match the MatesCreateInput model: {e}")
+
+    # Create a mate
+    create_response = requests.post(
+        base_url,
+        headers=headers,
+        json=validated_mate_data.model_dump()
+    )
+    assert create_response.status_code == 201, f"Failed to create mate: {create_response.status_code}\nResponse content: {create_response.text}"
+
+    # Validate the response
+    try:
+        created_mate = MatesCreateOutput.model_validate(create_response.json())
+        assert created_mate.username == mate_data["username"], f"Created mate name does not match. Expected '{mate_data['username']}', got '{created_mate.username}'"
+    except ValidationError as e:
+        pytest.fail(f"Created mate does not match the MatesCreateOutput model: {e}\nResponse content: {create_response.text}")

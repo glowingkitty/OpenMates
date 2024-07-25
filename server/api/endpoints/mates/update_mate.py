@@ -23,7 +23,7 @@ from server.api.validation.validate_mate_username import validate_mate_username
 from server.api.validation.validate_skills import validate_skills
 from server.api.endpoints.mates.get_mate import get_mate
 from server.api.endpoints.mates.update_or_create_config import update_or_create_config
-
+from server.api.endpoints.skills.get_skill import get_skill
 
 async def update_mate(
         mate_username: str,
@@ -68,10 +68,25 @@ async def update_mate(
             team_slug=team_slug
         ) if new_profile_picture_url!=None else None
 
+        # Process new_default_skills to ensure they are all integers
+        if new_default_skills is not None:
+            new_default_skills_ids = []
+            for skill in new_default_skills:
+                if isinstance(skill, int):
+                    new_default_skills_ids.append(skill)
+                elif isinstance(skill, str):
+                    # Fetch skill ID based on the API endpoint
+                    skill_data = await get_skill(skill_slug=skill.split('/')[-1], software_slug=skill.split('/')[-2])
+                    if isinstance(skill_data, dict) and 'id' in skill_data:
+                        new_default_skills_ids.append(skill_data['id'])
+                    else:
+                        raise HTTPException(status_code=400, detail=f"Skill not found for endpoint: {skill}")
+            new_default_skills = new_default_skills_ids
+
         new_default_skills_extended_data = await validate_skills(
             skills=new_default_skills,
             team_slug=team_slug
-            ) if new_default_skills!=None else None
+        ) if new_default_skills!=None else None
 
         new_custom_skills_extended_data = await validate_skills(
             skills=new_custom_skills,

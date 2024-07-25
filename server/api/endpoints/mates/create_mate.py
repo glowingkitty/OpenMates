@@ -13,7 +13,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from typing import List, Optional
+from typing import List, Optional, Union
 from server.api.models.mates.mates_create import MatesCreateOutput
 from server.cms.strapi_requests import make_strapi_request
 from fastapi.responses import JSONResponse
@@ -32,7 +32,7 @@ async def create_mate(
         default_systemprompt: str,
         default_llm_endpoint: str,
         default_llm_model: str,
-        default_skills: List[int],
+        default_skills: List[Union[int, str]],
         team_slug: Optional[str] = None,
         user_api_token: Optional[str] = None
     ) -> MatesCreateOutput:
@@ -56,6 +56,19 @@ async def create_mate(
 
         # check if the skills exist with their ID
         if default_skills:
+            # Process default_skills to ensure they are all integers
+            default_skills_ids = []
+            for skill in default_skills:
+                if isinstance(skill, int):
+                    default_skills_ids.append(skill)
+                elif isinstance(skill, str):
+                    # Fetch skill ID based on the API endpoint
+                    skill_data = await get_skill(skill_slug=skill.split('/')[-1], software_slug=skill.split('/')[-2])
+                    if isinstance(skill_data, dict) and 'id' in skill_data:
+                        default_skills_ids.append(skill_data['id'])
+                    else:
+                        raise HTTPException(status_code=400, detail=f"Skill not found for endpoint: {skill}")
+            default_skills = default_skills_ids
             default_skills_extended_data = await validate_skills(
                 skills=default_skills,
                 team_slug=team_slug

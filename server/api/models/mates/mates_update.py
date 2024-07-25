@@ -14,7 +14,7 @@ from server import *
 ################
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Union
 from urllib.parse import quote
 from server.api.models.mates.validators import validate_llm_model, validate_llm_endpoint
 
@@ -28,7 +28,7 @@ class MatesUpdateInput(BaseModel):
     description: str = Field(None, description="Description of the AI team mate", min_length=1, max_length=150)
     profile_picture_url: str = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(None, description="Default system prompt of the AI team mate", min_length=1)
-    default_skills: List[int] = Field(None, description="Default list of skill IDs for the AI team mate")
+    default_skills: Optional[List[Union[int, str]]] = Field(None, description="Default list of skill IDs or skill API endpoints for the AI team mate")
     default_llm_endpoint: str = Field(None, description="Default API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
     default_llm_model: str = Field(None, description="Default LLM model which is used by the AI team mate.")
     systemprompt: str = Field(None, description="**Only for your user, in the selected team. Does not apply to other teams or users.**  \nCustom system prompt of the AI team mate.", min_length=1)
