@@ -32,7 +32,6 @@ async def get_users_processing(
         add_to_log(module_name="OpenMates | API | Get users", state="start", color="yellow")
         add_to_log("Getting a list of all users in a team ...")
 
-        # TODO apply processing from validate_user_data_access
         user_access = await validate_permissions(
             endpoint="/users",
             user_api_token=request_sender_api_token,
