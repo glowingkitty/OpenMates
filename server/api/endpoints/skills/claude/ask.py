@@ -73,4 +73,10 @@ async def ask(
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
         response = client.messages.create(**message_config)
-        return {"response": response.content[0].text}
+        return {
+            "response": response.content[0].text,
+            "token_usage": {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens
+            }
+        }

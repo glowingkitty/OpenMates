@@ -14,7 +14,7 @@ from server import *
 ################
 
 from typing import Literal, List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field, ConfigDict, validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 # POST /{team_slug}/skills/claude/ask (ask a question to Claude)
@@ -40,18 +40,30 @@ class ClaudeAskInput(BaseModel):
     # prevent extra fields from being passed to API
     model_config = ConfigDict(extra="forbid")
 
-    @validator('message', 'message_history')
-    def check_message_or_history(cls, v, values, **kwargs):
-        if 'message' in values and 'message_history' in values:
-            if values['message'] is not None and values['message_history'] is not None:
-                raise ValueError("Only one of 'message' or 'message_history' should be provided.")
-        if v is None and ('message' not in values or values['message'] is None) and ('message_history' not in values or values['message_history'] is None):
+    @model_validator(mode='after')
+    def check_message_or_history(self):
+        if self.message != None and self.message_history != None:
+            raise ValueError("Only one of 'message' or 'message_history' should be provided.")
+        if self.message == None and self.message_history == None:
             raise ValueError("Either 'message' or 'message_history' must be provided.")
-        return v
+        return self
+
 
 claude_ask_input_example = {
-    "system_prompt": "You are a helpful assistant. Keep your answers concise.",
-    "message": "What is the capital of France?",
+    "message_history": [
+        {
+            "role":"user",
+            "content":"Whats the capital city of France?"
+        },
+        {
+            "role":"assistant",
+            "content":"The capital city of France is Paris."
+        },
+        {
+            "role":"user",
+            "content":"And Germany?"
+        }
+    ],
     "ai_model": "claude-3.5-sonnet",
     "temperature": 0.5,
     "stream": False
@@ -61,7 +73,12 @@ claude_ask_input_example = {
 class ClaudeAskOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/claude/ask"""
     response: str = Field(..., description="The response from Claude to the question.")
+    token_usage: Dict[str, Any] = Field(..., description="The token usage for the request")
 
 claude_ask_output_example = {
-    "response": "The capital of France is Paris."
+    "response": "The capital city of Germany is Berlin.",
+    "token_usage": {
+        "input_tokens": 45,
+        "output_tokens": 11
+    }
 }
