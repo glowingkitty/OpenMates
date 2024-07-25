@@ -2,10 +2,8 @@ import pytest
 import requests
 import os
 from dotenv import load_dotenv
-from pydantic import ValidationError
-from server.api.models.mates.mates_get_one import Mate
-from server.api.models.mates.mates_create import MatesCreateInput, MatesCreateOutput
-from server.api.models.mates.mates_update import MatesUpdateInput, MatesUpdateOutput
+from server.api.models.mates.mates_create import MatesCreateOutput
+from server.api.models.mates.mates_update import MatesUpdateOutput
 from server.api.models.mates.mates_delete import MatesDeleteOutput
 
 load_dotenv()
@@ -189,8 +187,15 @@ def test_update_mate_validation_error(api_config):
         "default_llm_model": "invalid_model"
     }
 
-    with pytest.raises(ValidationError):
-        MatesUpdateInput(**invalid_update_data)
+    with pytest.raises(AssertionError) as excinfo:
+        update_mate(api_config, created_mate.username, invalid_update_data)
+
+    error_message = str(excinfo.value)
+    assert "Failed to update mate: 422" in error_message
+    assert "username must be all lowercase" in error_message
+    assert "String should match pattern " in error_message
+    assert "Invalid LLM endpoint" in error_message
+    assert "endpoint" in error_message
 
     delete_mate(api_config, created_mate.username)
 
