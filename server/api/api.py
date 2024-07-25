@@ -432,6 +432,8 @@ async def update_mate(
         new_profile_picture_url=parameters.profile_picture_url,     # updates mate, only if user has right to edit original mate
         new_default_systemprompt=parameters.default_systemprompt,   # updates mate, only if user has right to edit original mate
         new_default_skills=parameters.default_skills,               # updates mate, only if user has right to edit original mate
+        new_default_llm_endpoint=parameters.default_llm_endpoint,   # updates mate, only if user has right to edit original mate
+        new_default_llm_model=parameters.default_llm_model,         # updates mate, only if user has right to edit original mate
         new_custom_systemprompt=parameters.systemprompt,            # updates mate config - specific to user + team
         new_custom_skills=parameters.skills,                        # updates mate config - specific to user + team
         allowed_to_access_user_name=parameters.allowed_to_access_user_name,          # updates mate config - specific to user + team

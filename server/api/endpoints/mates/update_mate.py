@@ -25,6 +25,7 @@ from server.api.endpoints.mates.get_mate import get_mate
 from server.api.endpoints.mates.update_or_create_config import update_or_create_config
 from server.api.endpoints.skills.get_skill import get_skill
 
+
 async def update_mate(
         mate_username: str,
         new_name: Optional[str] = None,
@@ -69,7 +70,7 @@ async def update_mate(
         ) if new_profile_picture_url!=None else None
 
         # Process new_default_skills to ensure they are all integers
-        if new_default_skills is not None:
+        if new_default_skills != None:
             new_default_skills_ids = []
             for skill in new_default_skills:
                 if isinstance(skill, int):
@@ -83,6 +84,7 @@ async def update_mate(
                         raise HTTPException(status_code=400, detail=f"Skill not found for endpoint: {skill}")
             new_default_skills = new_default_skills_ids
 
+
         new_default_skills_extended_data = await validate_skills(
             skills=new_default_skills,
             team_slug=team_slug
@@ -91,8 +93,9 @@ async def update_mate(
         new_custom_skills_extended_data = await validate_skills(
             skills=new_custom_skills,
             team_slug=team_slug
-            ) if new_custom_skills!=None else None
+        ) if new_custom_skills!=None else None
 
+        
         # TODO: later on, implement that server and team admins can prohibit certain LLM endpoints and models
 
         # prepare to make the patch request to strapi
@@ -110,10 +113,32 @@ async def update_mate(
             updated_mate["default_systemprompt"] = new_default_systemprompt
         if new_default_skills_extended_data != None:
             updated_mate["default_skills"] = new_default_skills_extended_data
-        if new_default_llm_endpoint != None:
-            updated_mate["default_llm_endpoint"] = new_default_llm_endpoint
         if new_default_llm_model != None:
             updated_mate["default_llm_model"] = new_default_llm_model
+        if new_default_llm_endpoint is not None:
+            endpoint_parts = new_default_llm_endpoint.split('/')
+
+            if len(endpoint_parts) == 4:  # Format: /skills/{software_slug}/ask
+                software_slug = endpoint_parts[2]
+                skill_slug = endpoint_parts[3]
+            elif len(endpoint_parts) >= 5 and endpoint_parts[1] == 'v1':  # Format: /v1/{team_slug}/skills/{software_slug}/ask
+                software_slug = endpoint_parts[-2]
+                skill_slug = endpoint_parts[-1]
+            else:
+                raise ValueError("Invalid default_llm_endpoint format")
+
+            default_llm_endpoint_skill = await get_skill(
+                software_slug=software_slug,
+                skill_slug=skill_slug,
+                output_raw_data=True
+            )
+
+            if not isinstance(default_llm_endpoint_skill, dict) or 'id' not in default_llm_endpoint_skill:
+                add_to_log(f"Unexpected response from get_skill: {default_llm_endpoint_skill}", state="error")
+                raise HTTPException(status_code=500, detail="Failed to retrieve LLM endpoint skill")
+
+            updated_mate["default_llm_endpoint"] = default_llm_endpoint_skill["id"]
+
 
         # get the mate
         mate = await get_mate(
@@ -152,6 +177,9 @@ async def update_mate(
                 )
 
         # make the patch request
+        if updated_mate=={}:
+            raise HTTPException(status_code=400, detail="There are no fields to update.")
+
         status_code, json_response = await make_strapi_request(
             method='put',
             endpoint='mates/'+str(mate["id"]),

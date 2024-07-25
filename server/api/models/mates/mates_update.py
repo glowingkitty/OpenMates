@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Union
 from urllib.parse import quote
 from server.api.models.mates.validators import validate_llm_model, validate_llm_endpoint
+from pydantic import model_validator
 
 
 # PATCH /mates/{mate_username} (update a mate)
@@ -44,6 +45,12 @@ class MatesUpdateInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode='after')
+    def check_if_no_fields_to_update(self):
+        if self.model_dump() == {}:
+            raise ValueError("No fields to update.")
+        return self
+
     @field_validator('username')
     @classmethod
     def username_must_be_url_compatible(cls, v):
@@ -56,7 +63,7 @@ class MatesUpdateInput(BaseModel):
     @field_validator('profile_picture_url')
     @classmethod
     def validate_profile_picture_url(cls, v):
-        pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
+        pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png)$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid profile picture URL format: {v}")
         return v
@@ -64,14 +71,20 @@ class MatesUpdateInput(BaseModel):
     @field_validator('default_llm_endpoint', 'llm_endpoint')
     @classmethod
     def validate_llm_endpoint(cls, v):
-        return validate_llm_endpoint(v)
+        if v is not None:  # Check if the value is provided
+            return validate_llm_endpoint(v)
+        return v  # Return as is if None
 
     @field_validator('default_llm_model', 'llm_model')
     @classmethod
     def validate_llm_model(cls, v, info):
-        endpoint_field = 'default_llm_endpoint' if info.field_name == 'default_llm_model' else 'llm_endpoint'
-        endpoint = info.data.get(endpoint_field)
-        return validate_llm_model(v, endpoint)
+        if v is not None:  # Check if the value is provided
+            endpoint_field = 'default_llm_endpoint' if info.field_name == 'default_llm_model' else 'llm_endpoint'
+            endpoint = info.data.get(endpoint_field)
+            if endpoint is None:
+                raise ValueError(f"{endpoint_field} must be provided when specifying a model")
+            return validate_llm_model(v, endpoint)
+        return v  # Return as is if None
 
 
 mates_update_input_example = {
