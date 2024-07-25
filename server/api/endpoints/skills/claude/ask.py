@@ -36,7 +36,7 @@ async def ask(
 
     # Select a more specific model
     if ai_model == "claude-3.5-sonnet":
-        ai_model = "claude-3.5-sonnet-20240229"
+        ai_model = "claude-3-5-sonnet-20240620"
     elif ai_model == "claude-3-haiku":
         ai_model = "claude-3-haiku-20240307"
 

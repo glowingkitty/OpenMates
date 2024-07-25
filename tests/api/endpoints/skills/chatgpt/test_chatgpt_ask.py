@@ -43,4 +43,5 @@ def test_chatgpt_ask():
     assert "Paris" in result.response, "Expected 'Paris' to be in the response"
 
 
+# TODO: add test for all ai_models
 # TODO: add check for if user has setup their own token, or else has enough money in account
