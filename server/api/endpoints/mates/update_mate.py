@@ -95,7 +95,7 @@ async def update_mate(
             team_slug=team_slug
         ) if new_custom_skills!=None else None
 
-        
+
         # TODO: later on, implement that server and team admins can prohibit certain LLM endpoints and models
 
         # prepare to make the patch request to strapi
@@ -137,7 +137,11 @@ async def update_mate(
                 add_to_log(f"Unexpected response from get_skill: {default_llm_endpoint_skill}", state="error")
                 raise HTTPException(status_code=500, detail="Failed to retrieve LLM endpoint skill")
 
-            updated_mate["default_llm_endpoint"] = default_llm_endpoint_skill["id"]
+            updated_mate["default_llm_endpoint"] = {
+                "id": default_llm_endpoint_skill["id"],
+                "api_endpoint": new_default_llm_endpoint,
+                "description": default_llm_endpoint_skill["attributes"]["description"]
+            }
 
 
         # get the mate

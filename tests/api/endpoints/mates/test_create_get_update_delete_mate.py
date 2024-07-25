@@ -122,7 +122,7 @@ def test_create_update_delete_mate_multiple_updates(api_config):
         {"description": "Updated description"},
         {"default_systemprompt": "You are an expert in multiple domains."},
         {"default_skills": [1, 2, 3]},
-        {"default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask", "default_llm_model": "gpt-4o"},
+        {"default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/claude/ask", "default_llm_model": "claude-3.5-sonnet"},
         {"allowed_to_access_user_name": True, "allowed_to_access_user_projects": True}
     ]
 
@@ -132,6 +132,8 @@ def test_create_update_delete_mate_multiple_updates(api_config):
             if key == "default_skills":
                 # Check if the updated skills match the expected IDs
                 assert [skill['id'] for skill in updated_mate.updated_fields[key]] == value
+            elif key == "default_llm_endpoint":
+                assert updated_mate.updated_fields[key]["api_endpoint"] == value
             else:
                 if key in updated_mate.updated_fields:
                     assert updated_mate.updated_fields[key] == value

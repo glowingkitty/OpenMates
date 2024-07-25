@@ -39,11 +39,15 @@ async def update_or_create_config(
     """
 
     try:
+        # Separate UUID and API token
+        uid = user_api_token[:32]
+        api_token = user_api_token[32:]
+
         config_id = None
         # search in the configs field of the mate for the config with the team and user
         if get_nested(mate, "configs"):
             for config in get_nested(mate, "configs"):
-                if get_nested(config, "team.slug") == team_slug and verify_hash(get_nested(config, "user.api_token"), user_api_token[32:]):
+                if get_nested(config, "team.slug") == team_slug and verify_hash(get_nested(config, "user.api_token"), api_token):
                     config_id = config["id"]
                     break
 
@@ -70,10 +74,16 @@ async def update_or_create_config(
             status_code, json_response = await make_strapi_request(
                 method='get',
                 endpoint='user-accounts',
-                filters=[{"field": "api_token", "operator": "$eq", "value": user_api_token}]
+                filters=[{"field": "uid", "operator": "$eq", "value": uid}]
             )
-            if status_code == 200 and json_response:
-                user = json_response[0]
+            if status_code == 200 and json_response.get("data") and len(json_response["data"])==1:
+                user = json_response["data"][0]
+                if not verify_hash(get_nested(user, "api_token"), api_token):
+                    raise HTTPException(status_code=403, detail="Invalid API token.")
+            else:
+                add_to_log("No user found with the given UID.", state="error")
+                add_to_log(f"UID: {uid}", state="error")
+                raise HTTPException(status_code=404, detail="No user found with the given UID.")
 
             # create a new config
             new_fields = {
@@ -146,4 +156,3 @@ async def update_or_create_config(
     except Exception:
         process_error("Failed to update or create a config for the AI team mate.", traceback=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to update or create a config for the AI team mate.")
-
