@@ -16,6 +16,7 @@ from server import *
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
 from urllib.parse import quote
+from server.api.models.mates.validators import validate_llm_model, validate_llm_endpoint
 
 
 # PATCH /mates/{mate_username} (update a mate)
@@ -63,28 +64,14 @@ class MatesUpdateInput(BaseModel):
     @field_validator('default_llm_endpoint', 'llm_endpoint')
     @classmethod
     def validate_llm_endpoint(cls, v):
-        valid_endpoints = [
-            '/skills/chatgpt/ask',
-            '/skills/claude/ask',
-            '/skills/gemini/ask'
-        ]
-        if v not in valid_endpoints:
-            raise ValueError(f"Invalid LLM endpoint. Must be one of: {', '.join(valid_endpoints)}")
-        return v
+        return validate_llm_endpoint(v)
 
     @field_validator('default_llm_model', 'llm_model')
     @classmethod
     def validate_llm_model(cls, v, info):
-        valid_models = {
-            '/skills/chatgpt/ask': ['gpt-4o', 'gpt-4o-mini'],
-            '/skills/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],
-            '/skills/gemini/ask': ['gemini-1.5-pro', 'gemini-1.5-flash']
-        }
         endpoint_field = 'default_llm_endpoint' if info.field_name == 'default_llm_model' else 'llm_endpoint'
         endpoint = info.data.get(endpoint_field)
-        if endpoint not in valid_models or v not in valid_models[endpoint]:
-            raise ValueError(f"Invalid LLM model for endpoint {endpoint}. Must be one of: {', '.join(valid_models[endpoint])}")
-        return v
+        return validate_llm_model(v, endpoint)
 
 
 mates_update_input_example = {

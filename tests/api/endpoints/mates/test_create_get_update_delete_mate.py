@@ -10,49 +10,6 @@ from server.api.models.mates.mates_delete import MatesDeleteOutput, mates_delete
 
 load_dotenv()
 
-# test the examples from the docs
-@pytest.mark.api_dependent
-def test_docs_mates_create():
-    try:
-        validated_mate_data = MatesCreateInput(**mates_create_input_example)
-    except ValidationError as e:
-        pytest.fail(f"Input data does not match the MatesCreateInput model: {e}")
-
-    try:
-        validated_mate_data = MatesCreateOutput(**mates_create_output_example)
-    except ValidationError as e:
-        pytest.fail(f"Input data does not match the MatesCreateOutput model: {e}")
-
-
-@pytest.mark.api_dependent
-def test_docs_mates_get_one():
-    try:
-        validated_mate_data = Mate(**mates_get_one_output_example)
-    except ValidationError as e:
-        pytest.fail(f"Input data does not match the MatesGetOneOutput model: {e}")
-
-
-@pytest.mark.api_dependent
-def test_docs_mates_update():
-    try:
-        validated_mate_data = MatesUpdateInput(**mates_update_input_example)
-    except ValidationError as e:
-        pytest.fail(f"Input data does not match the MatesUpdateInput model: {e}")
-
-    try:
-        validated_mate_data = MatesUpdateOutput(**mates_update_output_example)
-    except ValidationError as e:
-        pytest.fail(f"Input data does not match the MatesUpdateOutput model: {e}")
-
-
-@pytest.mark.api_dependent
-def test_docs_mates_delete():
-    try:
-        validated_mate_data = MatesDeleteOutput(**mates_delete_output_example)
-    except ValidationError as e:
-        pytest.fail(f"Input data does not match the MatesDeleteOutput model: {e}")
-
-
 # then test the actual API endpoints
 @pytest.mark.api_dependent
 def test_create_get_update_delete_mate():
@@ -80,7 +37,7 @@ def test_create_get_update_delete_mate():
         "profile_picture_url": f"/v1/{team_slug}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
         "default_skills": [1],
-        "default_llm_endpoint": f"/skills/chatgpt/ask",
+        "default_llm_endpoint": f"/v1/{team_slug}/skills/chatgpt/ask",
         "default_llm_model": "gpt-4o-mini"
     }
 

@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
 from server.api.models.skills.skills_get_one import SkillMini
 from urllib.parse import quote
+from server.api.models.mates.validators import validate_llm_endpoint, validate_llm_model
 
 
 # POST /mates (create a new mate)
@@ -57,36 +58,13 @@ class MatesCreateInput(BaseModel):
     @field_validator('default_llm_endpoint')
     @classmethod
     def validate_llm_endpoint(cls, v):
-        valid_endpoints = [
-            '/skills/chatgpt/ask',
-            '/skills/claude/ask',
-            '/skills/gemini/ask'
-        ]
-        # Check if the input is a full relative path
-        if v.startswith('/v1/'):
-            # Extract the relevant part of the path
-            path_parts = v.split('/')
-            if len(path_parts) >= 5:
-                short_path = '/'.join(path_parts[-3:])
-                if short_path in valid_endpoints:
-                    return v
-        # Check if the input is a short path
-        elif v in valid_endpoints:
-            return v
-        raise ValueError(f"Invalid LLM endpoint. Must be one of: {', '.join(valid_endpoints)} or their full relative paths")
+        return validate_llm_endpoint(v)
 
     @field_validator('default_llm_model')
     @classmethod
     def validate_llm_model(cls, v, values):
-        valid_models = {
-            '/skills/chatgpt/ask': ['gpt-4o', 'gpt-4o-mini'],
-            '/skills/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],
-            '/skills/gemini/ask': ['gemini-1.5-pro', 'gemini-1.5-flash']
-        }
         endpoint = values.data.get('default_llm_endpoint')
-        if endpoint not in valid_models or v not in valid_models[endpoint]:
-            raise ValueError(f"Invalid LLM model for endpoint {endpoint}. Must be one of: {', '.join(valid_models[endpoint])}")
-        return v
+        return validate_llm_model(v, endpoint)
 
 
 mates_create_input_example = {
@@ -105,7 +83,6 @@ mates_create_input_example = {
 class MatesCreateOutput(MatesCreateInput):
     """This is the model for the outgoing response for POST /mates"""
     id: int = Field(..., description="ID of the AI team mate")
-    default_skills: List[SkillMini] = Field(..., description="Default list of skills for the AI team mate")
 
 
 mates_create_output_example = {

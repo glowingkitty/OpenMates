@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -19,6 +18,7 @@ from typing import List
 from urllib.parse import quote
 from typing import Optional
 from server.api.models.skills.skills_get_one import SkillMini
+from server.api.models.mates.validators import validate_llm_model, validate_llm_endpoint
 
 # GET /mates/{mate_username} (get a mate)
 
@@ -62,18 +62,13 @@ class Mate(BaseModel):
     @field_validator('llm_endpoint')
     @classmethod
     def validate_llm_endpoint(cls, v: str) -> str:
-        pattern = r'^/v1/[a-z0-9-]+/skills/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid LLM endpoint format: {v}")
-        return v
+        return validate_llm_endpoint(v)
 
     @field_validator('llm_model')
     @classmethod
-    def validate_llm_model(cls, v: str) -> str:
-        pattern = r'^[a-z0-9_.-]+$'
-        if not re.match(pattern, v):
-            raise ValueError(f"Invalid LLM model format: {v}")
-        return v
+    def validate_llm_model(cls, v: str, values) -> str:
+        endpoint = values.data.get('llm_endpoint')
+        return validate_llm_model(v, endpoint)
 
     @field_validator('allowed_to_access_user_data')
     @classmethod
