@@ -91,7 +91,13 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
 from server.api.models.skills.claude.skills_claude_ask import (
     ClaudeAskInput,
     claude_ask_input_example,
-    claude_ask_output_example
+    claude_ask_output_example,
+    claude_ask_input_example_2,
+    claude_ask_output_example_2,
+    claude_ask_input_example_3,
+    claude_ask_output_example_3,
+    claude_ask_input_example_4,
+    claude_ask_output_example_4
 )
 from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
     image_editor_resize_output_example
@@ -260,8 +266,14 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example, None, "Simple question")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example_2, None, "Ask to use tool")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example_3, None, "Interpret tool result")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example_4, None, "Interpret image")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example, "200", "Simple question")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_2, "200", "Ask to use tool")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_3, "200", "Interpret tool result")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_4, "200", "Interpret image")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
@@ -540,7 +552,7 @@ async def skill_chatgpt_ask(
     )
     return await ask_chatgpt_processing(
         token=token,
-        system_prompt=parameters.system_prompt,
+        system=parameters.system,
         message=parameters.message,
         ai_model=parameters.ai_model,
         temperature=parameters.temperature
@@ -563,8 +575,9 @@ async def skill_claude_ask(
     )
     result = await ask_claude_processing(
         token=token,
-        system_prompt=parameters.system_prompt,
+        system=parameters.system,
         message=parameters.message,
+        tools=parameters.tools,
         message_history=parameters.message_history,
         ai_model=parameters.ai_model,
         temperature=parameters.temperature,

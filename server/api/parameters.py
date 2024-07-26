@@ -102,7 +102,7 @@ def generate_responses(status_codes):
     return responses
 
 
-def set_example(openapi_schema, path, method, request_or_response, example, response_code=None):
+def set_example(openapi_schema, path, method, request_or_response, example, response_code=None, example_name="Example 1"):
     # Ensure the path exists
     if path not in openapi_schema["paths"]:
         openapi_schema["paths"][path] = {}
@@ -140,8 +140,12 @@ def set_example(openapi_schema, path, method, request_or_response, example, resp
             if "application/json" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
                 openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"] = {}
 
+            # Ensure the 'examples' exists
+            if "examples" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]:
+                openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["examples"] = {}
+
             # Set the example
-            openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["example"] = example
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["examples"][example_name] = {"value": example}
     else:
         # Ensure the 'content' exists
         if "content" not in openapi_schema["paths"][path][method][request_or_response]:
@@ -151,8 +155,12 @@ def set_example(openapi_schema, path, method, request_or_response, example, resp
         if "application/json" not in openapi_schema["paths"][path][method][request_or_response]["content"]:
             openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"] = {}
 
+        # Ensure the 'examples' exists
+        if "examples" not in openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]:
+            openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["examples"] = {}
+
         # Set the example
-        openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["example"] = example
+        openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["examples"][example_name] = {"value": example}
 
 
 files_endpoints = {

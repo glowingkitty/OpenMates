@@ -22,7 +22,7 @@ from typing import Literal
 async def ask(
         token: str,
         message: str,
-        system_prompt: str = "You are a helpful assistant. Keep your answers concise.",
+        system: str = "You are a helpful assistant. Keep your answers concise.",
         ai_model: Literal["gpt-4o","gpt-4o-mini"] = "gpt-4o",
         temperature: float = 0.5
     ) -> ChatGPTAskOutput:
@@ -42,7 +42,7 @@ async def ask(
     # estimated_minimum_cost = get_skill_costs(
     #     software="chatgpt",
     #     skill="ask",
-    #     token_count=count_tokens(system_prompt+message)+200 # assumming 200 tokens for the response
+    #     token_count=count_tokens(system+message)+200 # assumming 200 tokens for the response
     # )
 
     # # Get the api credentials for ChatGPT
@@ -68,7 +68,7 @@ async def ask(
             "content": [
                 {
                 "type": "text",
-                "text": system_prompt
+                "text": system
                 }
             ]
             },

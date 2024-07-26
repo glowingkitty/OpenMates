@@ -19,13 +19,27 @@ from server.api.models.skills.claude.skills_claude_ask import ClaudeAskOutput
 from typing import Literal, Union, List, Dict, Any
 from pydantic import Field, validator
 from fastapi.responses import StreamingResponse
+from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
+from server.api.models.skills.claude.skills_claude_ask import Tool
 
+def serialize_content_block(block: ContentBlock) -> Dict[str, Any]:
+    result = {"type": block.type}
+    if isinstance(block, TextBlock):
+        result["text"] = block.text
+    elif isinstance(block, ToolUseBlock):
+        result["tool_use"] = {
+            "id": block.id,
+            "name": block.name,
+            "input": block.input
+        }
+    return result
 
 async def ask(
         token: str,
         message: str = None,
         message_history: List[Dict[str, Any]] = None,
-        system_prompt: str = "You are a helpful assistant. Keep your answers concise.",
+        tools: List[Tool] = None,
+        system: str = "You are a helpful assistant. Keep your answers concise.",
         ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = "claude-3.5-sonnet",
         temperature: float = 0.5,
         stream: bool = False
@@ -57,10 +71,14 @@ async def ask(
     message_config = {
         "model": ai_model,
         "max_tokens": 1000,
-        "system": system_prompt,
+        "system": system,
         "messages": message_history if message_history else [{"role": "user", "content": message}],
         "temperature": temperature
     }
+
+    if tools:
+        message_config["tools"] = tools
+        message_config["tool_choice"] = {"type": "auto"}
 
     # TODO implement other missing parameters, including tools, from https://docs.anthropic.com/en/api/messages
 
@@ -79,8 +97,8 @@ async def ask(
     else:
         response = client.messages.create(**message_config)
         return {
-            "response": response.content[0].text,
-            "token_usage": {
+            "content": [serialize_content_block(block) for block in response.content],
+            "usage": {
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens
             }
