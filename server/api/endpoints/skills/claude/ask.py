@@ -80,8 +80,6 @@ async def ask(
         message_config["tools"] = tools
         message_config["tool_choice"] = {"type": "auto"}
 
-    # TODO implement other missing parameters, including tools, from https://docs.anthropic.com/en/api/messages
-
     # Send request to Claude to get a response
     load_dotenv()
     client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
