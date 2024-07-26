@@ -33,6 +33,9 @@ async def ask(
     """
     Ask a question to Claude
     """
+
+    # TODO check for user api key or billing / enough credits
+
     if ai_model not in ["claude-3.5-sonnet", "claude-3-haiku"]:
         raise ValueError("Invalid AI model. Please select 'claude-3.5-sonnet' or 'claude-3-haiku'.")
 
@@ -58,6 +61,8 @@ async def ask(
         "messages": message_history if message_history else [{"role": "user", "content": message}],
         "temperature": temperature
     }
+
+    # TODO implement other missing parameters, including tools, from https://docs.anthropic.com/en/api/messages
 
     # Send request to Claude to get a response
     load_dotenv()

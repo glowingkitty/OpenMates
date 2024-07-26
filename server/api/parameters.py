@@ -164,6 +164,8 @@ files_endpoints = {
     }
 }
 
+# TODO add complex designs from figma as html/css, including data like prices, loaded from strapi database
+
 mates_endpoints = {
     "ask_mate":{
         "response_model":MatesAskOutput,

@@ -172,6 +172,8 @@ from io import BytesIO
 ######### Setup FastAPI ##########
 ##################################
 
+# TODO dynamically load skill API endpoints, depending on which are in strapi database
+
 
 # Create new routers
 files_router = APIRouter()

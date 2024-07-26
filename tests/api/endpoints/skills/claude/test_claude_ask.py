@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from server.api.models.skills.claude.skills_claude_ask import ClaudeAskOutput
+import base64
 
 # Load environment variables from .env file
 load_dotenv()
@@ -90,5 +91,46 @@ def test_claude_ask_streaming(claude_model):
 
     assert full_response, f"No response received from {claude_model}"
     assert "1" in full_response and "5" in full_response, f"Expected numbers from 1 to 5 in the response from {claude_model}"
+
+@pytest.mark.api_dependent
+def test_claude_ask_with_image(claude_model):
+    # Load the image file
+    image_path = os.path.join(os.path.dirname(__file__), "test_claude_ask_example_image.jpg")
+    with open(image_path, "rb") as image_file:
+        image_data = base64.b64encode(image_file.read()).decode('utf-8')
+
+    message_history = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": image_data
+                    }
+                },
+                {
+                    "type": "text",
+                    "text": "What's in this image?"
+                }
+            ]
+        }
+    ]
+
+    response = make_request(message_history=message_history, ai_model=claude_model)
+
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
+
+    json_response = response.json()
+
+    try:
+        result = ClaudeAskOutput.model_validate(json_response)
+    except ValidationError as e:
+        pytest.fail(f"Response does not match the ClaudeAskOutput model: {e}")
+
+    assert result.response, "No response received from Claude"
+    assert any(word in result.response.lower() for word in ["boat", "ship"]), "Expected 'boat' or 'ship' to be mentioned in the response"
 
 # TODO: add check for if user has setup their own token, or else has enough money in account
