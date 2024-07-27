@@ -243,10 +243,14 @@ class ContentItem(BaseModel):
     tool_use: Optional[Dict[str, Any]] = None
     tool_result: Optional[Dict[str, Any]] = None
 
+class Usage(BaseModel):
+    input_tokens: int
+    output_tokens: int
+
 class ClaudeAskOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/claude/ask"""
     content: List[ContentItem] = Field(..., description="The response content from Claude to the question.")
-    usage: Dict[str, Any] = Field(..., description="The token usage for the request")
+    usage: Usage
 
 claude_ask_output_example = {
     "content": [

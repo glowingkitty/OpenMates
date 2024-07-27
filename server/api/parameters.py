@@ -65,6 +65,9 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
 from server.api.models.skills.claude.skills_claude_ask import (
     ClaudeAskOutput
 )
+from server.api.models.skills.claude.skills_claude_estimate_cost import (
+    ClaudeEstimateCostOutput
+)
 from server.api.models.skills.akaunting.skills_akaunting_get_report import (
     AkauntingGetReportOutput
 )
@@ -236,6 +239,12 @@ skills_claude_endpoints = {
         "response_model":ClaudeAskOutput,
         "summary": "Claude | Ask",
         "description": "<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "estimate_cost":{
+        "response_model":ClaudeEstimateCostOutput,
+        "summary": "Claude | Estimate Cost",
+        "description": "<img src='images/skills/claude/estimate_cost.png' alt='Get the estimated cost of a request to Claude.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

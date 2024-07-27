@@ -99,6 +99,13 @@ from server.api.models.skills.claude.skills_claude_ask import (
     claude_ask_input_example_4,
     claude_ask_output_example_4
 )
+from server.api.models.skills.claude.skills_claude_estimate_cost import (
+    ClaudeEstimateCostInput,
+    ClaudeEstimateCostOutput,
+    claude_estimate_cost_input_example,
+    claude_estimate_cost_output_example
+)
+from server.api.endpoints.skills.claude.estimate_cost import estimate_cost as estimate_cost_processing
 from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
     image_editor_resize_output_example
 )
@@ -274,6 +281,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_2, "200", "Ask to use tool")
     set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_3, "200", "Interpret tool result")
     set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_4, "200", "Interpret image")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/estimate_cost", "post", "requestBody", claude_estimate_cost_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/estimate_cost", "post", "responses", claude_estimate_cost_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
@@ -586,6 +595,27 @@ async def skill_claude_ask(
     if isinstance(result, StreamingResponse):
         return result
     return JSONResponse(content=result)
+
+
+@skills_router.post("/v1/{team_slug}/skills/claude/estimate_cost", **skills_claude_endpoints["estimate_cost"])
+@limiter.limit("20/minute")
+async def skill_claude_estimate_cost(
+    request: Request,
+    parameters: ClaudeEstimateCostInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ) -> JSONResponse:
+    await validate_permissions(
+        endpoint="/skills/claude/estimate_cost",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await estimate_cost_processing(
+        system=parameters.system,
+        message=parameters.message,
+        message_history=parameters.message_history,
+        tools=parameters.tools
+    )
 
 
 # TODO implement endpoint
