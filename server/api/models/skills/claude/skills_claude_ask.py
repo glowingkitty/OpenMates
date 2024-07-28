@@ -20,23 +20,23 @@ from pydantic import BaseModel, Field, ConfigDict, model_validator
 # POST /{team_slug}/skills/claude/ask (ask a question to Claude)
 
 class ToolUse(BaseModel):
-    id: str = Field(..., description="Unique identifier for the tool use")
-    name: str = Field(..., description="Name of the tool being used")
-    input: Dict[str, Any] = Field(..., description="Input parameters for the tool")
+    id: str = Field(..., title="ID", description="Unique identifier for the tool use")
+    name: str = Field(..., title="Name", description="Name of the tool being used")
+    input: Dict[str, Any] = Field(..., title="Input", description="Input parameters for the tool")
 
 class ToolResult(BaseModel):
-    tool_use_id: str = Field(..., description="ID of the corresponding tool use")
-    content: str = Field(..., description="Result content from the tool")
+    tool_use_id: str = Field(..., title="Tool Use ID", description="ID of the corresponding tool use")
+    content: str = Field(..., title="Content", description="Result content from the tool")
 
 class MessageContent(BaseModel):
-    type: Literal["text", "image", "tool_use", "tool_result"] = Field(..., description="Type of the message content")
-    text: Optional[str] = Field(None, description="Text content of the message")
-    source: Optional[Dict[str, str]] = Field(None, description="Source information for image content")
-    id: Optional[str] = Field(None, description="ID for tool use content")
-    name: Optional[str] = Field(None, description="Name for tool use content")
-    input: Optional[Dict[str, Any]] = Field(None, description="Input for tool use content")
-    tool_use_id: Optional[str] = Field(None, description="ID of the corresponding tool use for tool result content")
-    content: Optional[str] = Field(None, description="Content for tool result")
+    type: Literal["text", "image", "tool_use", "tool_result"] = Field(..., title="Type", description="Type of the message content")
+    text: Optional[str] = Field(None, title="Text", description="Text content of the message")
+    source: Optional[Dict[str, str]] = Field(None, title="Source", description="Source information for image content")
+    id: Optional[str] = Field(None, title="ID", description="ID for tool use content")
+    name: Optional[str] = Field(None, title="Name", description="Name for tool use content")
+    input: Optional[Dict[str, Any]] = Field(None, title="Input", description="Input for tool use content")
+    tool_use_id: Optional[str] = Field(None, title="Tool Use ID", description="ID of the corresponding tool use for tool result content")
+    content: Optional[str] = Field(None, title="Content", description="Content for tool result")
 
     @model_validator(mode='after')
     def validate_content(self):
@@ -51,8 +51,8 @@ class MessageContent(BaseModel):
         return self
 
 class MessageItem(BaseModel):
-    role: Literal["user", "assistant"] = Field(..., description="Role of the message sender")
-    content: Union[str, List[MessageContent]] = Field(..., description="Content of the message")
+    role: Literal["user", "assistant"] = Field(..., title="Role", description="Role of the message sender")
+    content: Union[str, List[MessageContent]] = Field(..., title="Content", description="Content of the message")
 
     @model_validator(mode='after')
     def validate_content(self):
@@ -61,14 +61,14 @@ class MessageItem(BaseModel):
         return self
 
 class ToolInputSchema(BaseModel):
-    type: Literal["object"] = Field("object", description="Type of the input schema")
-    properties: Dict[str, Any] = Field(..., description="Properties of the input schema")
-    required: Optional[List[str]] = Field(None, description="List of required properties")
+    type: Literal["object"] = Field("object", title="Type", description="Type of the input schema")
+    properties: Dict[str, Any] = Field(..., title="Properties", description="Properties of the input schema")
+    required: Optional[List[str]] = Field(None, title="Required", description="List of required properties")
 
 class Tool(BaseModel):
-    name: str = Field(..., description="Name of the tool")
-    description: Optional[str] = Field(None, description="Description of the tool")
-    input_schema: ToolInputSchema = Field(..., description="Input schema for the tool")
+    name: str = Field(..., title="Name", description="Name of the tool")
+    description: Optional[str] = Field(None, title="Description", description="Description of the tool")
+    input_schema: ToolInputSchema = Field(..., title="Input Schema", description="Input schema for the tool")
 
 class ClaudeAskInput(BaseModel):
     """This is the model for the incoming parameters for POST /{team_slug}/skills/claude/ask"""
@@ -138,6 +138,31 @@ class ClaudeAskInput(BaseModel):
             if last_message.role == "assistant" and not last_message.content:
                 raise ValueError("The last assistant message in the history must not be empty")
         return self
+
+
+class ContentItem(BaseModel):
+    type: Literal["text", "tool_use", "tool_result"] = Field(..., title="Type", description="Type of the content item")
+    text: Optional[str] = Field(None, title="Text", description="Text content")
+    tool_use: Optional[Dict[str, Any]] = Field(None, title="Tool Use", description="Tool use information")
+    tool_result: Optional[Dict[str, Any]] = Field(None, title="Tool Result", description="Tool result information")
+
+    @model_validator(mode='after')
+    def remove_none_fields(cls, values):
+        return {k: v for k, v in values.model_dump().items() if v is not None}
+
+class Usage(BaseModel):
+    input_tokens: int = Field(..., title="Input Tokens", description="Number of input tokens")
+    output_tokens: int = Field(..., title="Output Tokens", description="Number of output tokens")
+
+class Cost(BaseModel):
+    total: float = Field(..., title="Total", description="Total cost of the request.")
+    currency: Literal["USD","EUR"] = Field("USD", title="Currency", description="Currency of the cost")
+
+class ClaudeAskOutput(BaseModel):
+    """This is the model for the output of POST /{team_slug}/skills/claude/ask"""
+    content: List[ContentItem] = Field(..., title="Content", description="The response content from Claude to the question.")
+    usage: Usage = Field(..., title="Usage", description="Token usage information")
+    cost: Cost = Field(..., title="Cost", description="Total cost of the request")
 
 
 claude_ask_input_example = {
@@ -273,20 +298,7 @@ claude_ask_input_example_4 = {
 }
 
 
-class ContentItem(BaseModel):
-    type: Literal["text", "tool_use", "tool_result"] = Field(..., description="Type of the content item")
-    text: Optional[str] = Field(None, description="Text content")
-    tool_use: Optional[Dict[str, Any]] = Field(None, description="Tool use information")
-    tool_result: Optional[Dict[str, Any]] = Field(None, description="Tool result information")
 
-class Usage(BaseModel):
-    input_tokens: int = Field(..., description="Number of input tokens")
-    output_tokens: int = Field(..., description="Number of output tokens")
-
-class ClaudeAskOutput(BaseModel):
-    """This is the model for the output of POST /{team_slug}/skills/claude/ask"""
-    content: List[ContentItem] = Field(..., description="The response content from Claude to the question.")
-    usage: Usage = Field(..., description="Token usage information")
 
 claude_ask_output_example = {
     "content": [
@@ -298,6 +310,10 @@ claude_ask_output_example = {
     "usage": {
         "input_tokens": 26,
         "output_tokens": 11
+    },
+    "cost": {
+        "total": 0.0001,
+        "currency": "USD"
     }
 }
 
@@ -330,6 +346,10 @@ claude_ask_output_example_3 = {
     "usage": {
         "input_tokens": 548,
         "output_tokens": 24
+    },
+    "cost": {
+        "total": 0.0001,
+        "currency": "USD"
     }
 }
 
@@ -343,5 +363,9 @@ claude_ask_output_example_4 = {
     "usage": {
         "input_tokens": 230,
         "output_tokens": 17
+    },
+    "cost": {
+        "total": 0.0001,
+        "currency": "USD"
     }
 }

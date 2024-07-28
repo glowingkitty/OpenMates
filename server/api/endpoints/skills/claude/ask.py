@@ -94,10 +94,18 @@ async def ask(
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
         response = client.messages.create(**message_config)
+
+        # TODO calculate cost, based on token usage
+        cost = 0.0001
+        currency = "USD"
         return ClaudeAskOutput(
             content=[serialize_content_block(block) for block in response.content],
             usage={
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens
+            },
+            cost={
+                "total": cost,
+                "currency": currency
             }
         )
