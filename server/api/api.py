@@ -90,6 +90,7 @@ from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
 )
 from server.api.models.skills.claude.skills_claude_ask import (
     ClaudeAskInput,
+    ClaudeAskOutput,
     claude_ask_input_example,
     claude_ask_output_example,
     claude_ask_input_example_2,
@@ -576,13 +577,13 @@ async def skill_claude_ask(
     parameters: ClaudeAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ) -> Union[StreamingResponse, JSONResponse]:
+    ) -> Union[ClaudeAskOutput, StreamingResponse]:
     await validate_permissions(
         endpoint="/skills/claude/ask",
         team_slug=team_slug,
         user_api_token=token
     )
-    result = await ask_claude_processing(
+    return await ask_claude_processing(
         token=token,
         system=parameters.system,
         message=parameters.message,
@@ -592,9 +593,6 @@ async def skill_claude_ask(
         temperature=parameters.temperature,
         stream=parameters.stream
     )
-    if isinstance(result, StreamingResponse):
-        return result
-    return JSONResponse(content=result)
 
 
 @skills_router.post("/v1/{team_slug}/skills/claude/estimate_cost", **skills_claude_endpoints["estimate_cost"])

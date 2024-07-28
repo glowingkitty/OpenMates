@@ -94,10 +94,10 @@ async def ask(
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
         response = client.messages.create(**message_config)
-        return {
-            "content": [serialize_content_block(block) for block in response.content],
-            "usage": {
+        return ClaudeAskOutput(
+            content=[serialize_content_block(block) for block in response.content],
+            usage={
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens
             }
-        }
+        )

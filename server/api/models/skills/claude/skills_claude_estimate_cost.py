@@ -1,6 +1,21 @@
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('server.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server import *
+################
+
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Literal, Optional, Any, Callable
-from models.skills.claude.skills_claude_ask import Usage, ClaudeAskInput, MessageItem, Tool
+from server.api.models.skills.claude.skills_claude_ask import Usage, ClaudeAskInput, MessageItem, Tool
 from pydantic import model_validator
 
 class ClaudeEstimateCostInput(ClaudeAskInput):
@@ -26,7 +41,7 @@ class EstimatedCost(BaseModel):
     output_2000tokens_USD: Optional[float] = Field(None, title="Output 2000 tokens USD", description="Estimated cost for 2000 output tokens")
 
 class ClaudeEstimateCostOutput(BaseModel):
-    usage: Usage
+    usage: UsageCostEstimate
     estimated_cost: EstimatedCost
 
 claude_estimate_cost_input_example = {

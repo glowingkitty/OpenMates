@@ -1,7 +1,9 @@
 import pytest
 from server.api.endpoints.skills.akaunting.helper.create_bill import create_bill
 from server.api.endpoints.skills.akaunting.helper.delete_bill import delete_bill
-from server.api.models.skills.akaunting.skills_akaunting_create_expense import BillInfo, ItemInfo, CategoryInfo, SubCategoryInfo
+from server.api.models.skills.akaunting.skills_akaunting_create_expense import BillInfo
+from server.api.models.skills.akaunting.helper.skills_akaunting_create_item import ItemInfo
+from server.api.models.skills.akaunting.skills_akaunting_create_income import CategoryInfo, SubCategoryInfo
 
 @pytest.mark.asyncio
 async def test_create_and_delete_bills():
