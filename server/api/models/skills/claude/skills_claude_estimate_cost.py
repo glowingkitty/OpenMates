@@ -36,12 +36,15 @@ claude_estimate_cost_input_example = {
 }
 
 claude_estimate_cost_output_example = {
-    "usage": {"input_tokens": 50},
+    "usage": {
+        "input_tokens": 24,
+        "output_tokens": None
+    },
     "estimated_cost": {
-        "input_USD": 0.0001,
+        "input_USD": 0.000006,
         "output_USD": None,
-        "output_100tokens_USD": 0.0002,
-        "output_500tokens_USD": 0.001,
-        "output_2000tokens_USD": 0.004
+        "output_100tokens_USD": 0.000125,
+        "output_500tokens_USD": 0.000625,
+        "output_2000tokens_USD": 0.002500
     }
 }
