@@ -169,4 +169,34 @@ def test_claude_ask_with_tool_interpretation(claude_model):
     assert "$150.25" in result.content[0].text, "Expected the stock price to be mentioned in the response"
     assert "Apple" in result.content[0].text, "Expected 'Apple' to be mentioned in the response"
 
+@pytest.mark.api_dependent
+def test_claude_estimate_cost(claude_model):
+    input_data = {
+        "message": "What is the capital of France?",
+        "ai_model": claude_model,
+        "system": "You are a helpful assistant.",
+    }
+
+    response = requests.post(f"{BASE_URL}/v1/{TEAM_SLUG}/skills/claude/estimate_cost", headers=HEADERS, json=input_data)
+
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
+
+    json_response = response.json()
+
+    assert "usage" in json_response, "Expected 'usage' in the response"
+    assert "estimated_cost" in json_response, "Expected 'estimated_cost' in the response"
+
+    usage = json_response["usage"]
+    estimated_cost = json_response["estimated_cost"]
+
+    # Check if all non-null values in usage are greater than 0
+    for key, value in usage.items():
+        if value is not None:
+            assert value > 0, f"Expected positive value for {key} in usage"
+
+    # Check if all non-null values in estimated_cost are greater than 0
+    for key, value in estimated_cost.items():
+        if value is not None:
+            assert value > 0, f"Expected positive value for {key} in estimated_cost"
+
 # TODO: add check for if user has setup their own token, or else has enough money in account

@@ -604,17 +604,20 @@ async def skill_claude_estimate_cost(
     parameters: ClaudeEstimateCostInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ) -> JSONResponse:
+    ) -> ClaudeEstimateCostOutput:
     await validate_permissions(
         endpoint="/skills/claude/estimate_cost",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await estimate_cost_processing(
+    return estimate_cost_processing(
+        input_tokens=parameters.input_tokens,
+        output_tokens=parameters.output_tokens,
         system=parameters.system,
         message=parameters.message,
         message_history=parameters.message_history,
-        tools=parameters.tools
+        tools=parameters.tools,
+        ai_model=parameters.ai_model
     )
 
 

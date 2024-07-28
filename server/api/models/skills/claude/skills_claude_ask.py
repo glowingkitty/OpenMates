@@ -20,23 +20,23 @@ from pydantic import BaseModel, Field, ConfigDict, model_validator
 # POST /{team_slug}/skills/claude/ask (ask a question to Claude)
 
 class ToolUse(BaseModel):
-    id: str
-    name: str
-    input: Dict[str, Any]
+    id: str = Field(..., description="Unique identifier for the tool use")
+    name: str = Field(..., description="Name of the tool being used")
+    input: Dict[str, Any] = Field(..., description="Input parameters for the tool")
 
 class ToolResult(BaseModel):
-    tool_use_id: str
-    content: str
+    tool_use_id: str = Field(..., description="ID of the corresponding tool use")
+    content: str = Field(..., description="Result content from the tool")
 
 class MessageContent(BaseModel):
-    type: Literal["text", "image", "tool_use", "tool_result"]
-    text: Optional[str] = None
-    source: Optional[Dict[str, str]] = None
-    id: Optional[str] = None
-    name: Optional[str] = None
-    input: Optional[Dict[str, Any]] = None
-    tool_use_id: Optional[str] = None
-    content: Optional[str] = None
+    type: Literal["text", "image", "tool_use", "tool_result"] = Field(..., description="Type of the message content")
+    text: Optional[str] = Field(None, description="Text content of the message")
+    source: Optional[Dict[str, str]] = Field(None, description="Source information for image content")
+    id: Optional[str] = Field(None, description="ID for tool use content")
+    name: Optional[str] = Field(None, description="Name for tool use content")
+    input: Optional[Dict[str, Any]] = Field(None, description="Input for tool use content")
+    tool_use_id: Optional[str] = Field(None, description="ID of the corresponding tool use for tool result content")
+    content: Optional[str] = Field(None, description="Content for tool result")
 
     @model_validator(mode='after')
     def validate_content(self):
@@ -51,8 +51,8 @@ class MessageContent(BaseModel):
         return self
 
 class MessageItem(BaseModel):
-    role: Literal["user", "assistant"]
-    content: Union[str, List[MessageContent]]
+    role: Literal["user", "assistant"] = Field(..., description="Role of the message sender")
+    content: Union[str, List[MessageContent]] = Field(..., description="Content of the message")
 
     @model_validator(mode='after')
     def validate_content(self):
@@ -61,28 +61,64 @@ class MessageItem(BaseModel):
         return self
 
 class ToolInputSchema(BaseModel):
-    type: Literal["object"] = "object"
-    properties: Dict[str, Any]
-    required: Optional[List[str]] = None
+    type: Literal["object"] = Field("object", description="Type of the input schema")
+    properties: Dict[str, Any] = Field(..., description="Properties of the input schema")
+    required: Optional[List[str]] = Field(None, description="List of required properties")
 
 class Tool(BaseModel):
-    name: str
-    description: Optional[str] = None
-    input_schema: ToolInputSchema
+    name: str = Field(..., description="Name of the tool")
+    description: Optional[str] = Field(None, description="Description of the tool")
+    input_schema: ToolInputSchema = Field(..., description="Input schema for the tool")
 
 class ClaudeAskInput(BaseModel):
     """This is the model for the incoming parameters for POST /{team_slug}/skills/claude/ask"""
-    system: str = Field("You are a helpful assistant. Keep your answers concise.", title="System prompt", description="The system prompt to use for Claude")
-    message: Optional[str] = Field(None, title="Message", description="How can Claude assist you?")
-    message_history: Optional[List[MessageItem]] = Field(None, title="Message History", description="A list of previous messages in the conversation")
-    ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = Field("claude-3.5-sonnet", title="AI Model", description="The model to use for Claude")
-    temperature: float = Field(0.5, title="Temperature", description="The randomness of the response", json_schema_extra={"min": 0.0, "max": 1.0})
-    stream: bool = Field(False, title="Stream", description="If true, the response will be streamed, otherwise it will be returned as a JSON response.")
-    max_tokens: Optional[int] = Field(None, title="Max Tokens", description="The maximum number of tokens to generate in the response")
-    stop_sequence: Optional[List[str]] = Field(None, title="Stop Sequence", description="A list of sequences where the API will stop generating further tokens")
-    tools: Optional[List[Tool]] = Field(None, title="Tools", description="Definitions of tools that the model may use")
+    system: str = Field(
+        "You are a helpful assistant. Keep your answers concise.",
+        title="System prompt",
+        description="The system prompt to use for Claude"
+    )
+    message: Optional[str] = Field(
+        None,
+        title="Message",
+        description="How can Claude assist you?"
+    )
+    message_history: Optional[List[MessageItem]] = Field(
+        None,
+        title="Message History",
+        description="A list of previous messages in the conversation"
+    )
+    ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = Field(
+        "claude-3.5-sonnet",
+        title="AI Model",
+        description="The model to use for Claude"
+    )
+    temperature: float = Field(
+        0.5,
+        title="Temperature",
+        description="The randomness of the response",
+        json_schema_extra={"min": 0.0, "max": 1.0}
+    )
+    stream: bool = Field(
+        False,
+        title="Stream",
+        description="If true, the response will be streamed, otherwise it will be returned as a JSON response."
+    )
+    max_tokens: Optional[int] = Field(
+        None,
+        title="Max Tokens",
+        description="The maximum number of tokens to generate in the response"
+    )
+    stop_sequence: Optional[List[str]] = Field(
+        None,
+        title="Stop Sequence",
+        description="A list of sequences where the API will stop generating further tokens"
+    )
+    tools: Optional[List[Tool]] = Field(
+        None,
+        title="Tools",
+        description="Definitions of tools that the model may use"
+    )
 
-    # prevent extra fields from being passed to API
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode='after')
@@ -238,19 +274,19 @@ claude_ask_input_example_4 = {
 
 
 class ContentItem(BaseModel):
-    type: Literal["text", "tool_use", "tool_result"]
-    text: Optional[str] = None
-    tool_use: Optional[Dict[str, Any]] = None
-    tool_result: Optional[Dict[str, Any]] = None
+    type: Literal["text", "tool_use", "tool_result"] = Field(..., description="Type of the content item")
+    text: Optional[str] = Field(None, description="Text content")
+    tool_use: Optional[Dict[str, Any]] = Field(None, description="Tool use information")
+    tool_result: Optional[Dict[str, Any]] = Field(None, description="Tool result information")
 
 class Usage(BaseModel):
-    input_tokens: int
-    output_tokens: int
+    input_tokens: int = Field(..., description="Number of input tokens")
+    output_tokens: int = Field(..., description="Number of output tokens")
 
 class ClaudeAskOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/claude/ask"""
     content: List[ContentItem] = Field(..., description="The response content from Claude to the question.")
-    usage: Usage
+    usage: Usage = Field(..., description="Token usage information")
 
 claude_ask_output_example = {
     "content": [
