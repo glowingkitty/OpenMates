@@ -77,6 +77,9 @@ from server.api.models.skills.akaunting.skills_akaunting_create_expense import (
 from server.api.models.skills.akaunting.skills_akaunting_create_income import (
     AkauntingCreateIncomeOutput
 )
+from server.api.models.skills.revolut_business.skills_revolut_business_get_transactions import (
+    RevolutBusinessGetTransactionsOutput
+)
 from server.api.models.teams.teams_get_all import (
     TeamsGetAllOutput
 )
@@ -272,6 +275,16 @@ skills_atopile_endpoints = {
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
+
+skills_revolut_business_endpoints = {
+    "get_transactions":{
+        "response_model":RevolutBusinessGetTransactionsOutput,
+        "summary": "Revolut Business | Get Transactions",
+        "description": "<img src='images/skills/revolut_business/get_transactions.png' alt='Get all bank transactions from your Revolut Business account.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 
 skills_akaunting_endpoints = {
     "get_report":{

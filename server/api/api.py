@@ -128,6 +128,12 @@ from server.api.models.skills.akaunting.skills_akaunting_create_income import (
     akaunting_create_income_output_example
 )
 
+from server.api.models.skills.revolut_business.skills_revolut_business_get_transactions import (
+    RevolutBusinessGetTransactionsInput,
+    revolut_business_get_transactions_input_example,
+    revolut_business_get_transactions_output_example
+)
+
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.endpoints.mates.get_mates import get_mates as get_mates_processing
@@ -150,6 +156,7 @@ from server.api.endpoints.skills.claude.ask import ask as ask_claude_processing
 from server.api.endpoints.skills.akaunting.get_report import get_report as get_report_processing
 from server.api.endpoints.skills.akaunting.create_expense import create_expense as create_expense_processing
 from server.api.endpoints.skills.akaunting.create_income import create_income as create_income_processing
+from server.api.endpoints.skills.revolut_business.get_transactions import get_transactions as get_transactions_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
 
 from server.api.validation.validate_permissions import validate_permissions
@@ -169,6 +176,7 @@ from server.api.parameters import (
     skills_atopile_endpoints,
     skills_image_editor_endpoints,
     skills_akaunting_endpoints,
+    skills_revolut_business_endpoints,
     users_endpoints,
     teams_endpoints,
     server_endpoints,
@@ -287,6 +295,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/revolut_business/get_transactions", "post", "requestBody", revolut_business_get_transactions_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/revolut_business/get_transactions", "post", "responses", revolut_business_get_transactions_output_example, "200")
 
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_expense", "post", "requestBody", akaunting_create_expense_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_expense", "post", "responses", akaunting_create_expense_output_example, "200")
@@ -684,6 +694,29 @@ async def skill_akaunting_create_income(
         customer=parameters.customer,
         invoice=parameters.invoice,
         bank_transaction=parameters.bank_transaction
+    )
+
+
+@skills_router.post("/v1/{team_slug}/skills/revolut_business/get_transactions", **skills_revolut_business_endpoints["get_transactions"])
+@limiter.limit("20/minute")
+async def skill_revolut_business_get_transactions(
+    request: Request,
+    parameters: RevolutBusinessGetTransactionsInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/skills/revolut_business/get_transactions",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await get_transactions_processing(
+        token=token,
+        from_date=parameters.from_date,
+        to_date=parameters.to_date,
+        account=parameters.account,
+        count=parameters.count,
+        type=parameters.type
     )
 
 

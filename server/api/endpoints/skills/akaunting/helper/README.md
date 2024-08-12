@@ -39,31 +39,61 @@
 14. Items from amazon invoices often have super long names
     - ask llm to seperate into short name and longer description
 15. amazon invoices often mention some unknown chinese company name as the seller, but also mention Amazon Services Europe S.a.r.L. as the company responsible for taxes (or amazon url for contact details)
-    - if Amazon is on the invoice, use Amazon as the vendor, not the merchant name from amazon
+    - if Amazon is clearly mentioned as the company responsible for taxes on the invoice (including their VAT number), use amazon as vendor
+    - else use the third party seller as the vendor (including their VAT) and write in the vendor 'Reference' field 'Amazon Seller', to fullfill both the german tax Authorities requirements but also make it easier to understand
+    - for every vendor, search for address on google maps. If address can not be found, remove street name and only add city, country and zip code (if it exists)
 16. Money between a private bank account and a business account is moved
     - use a seperate private bank account in akaunting and treat them as regular transfers, to not inflate income/expense values
 17. Aliexpress invoices are a confusing mess and the numbers don't make sense because of rounding differences
     - if aliexpress/alibaba, then use the value of the bank transaction as the value of the bill and ask LLM to summarize the items in the invoice in one position instead of having seperate ones (and calculate NET value based on bank transaction value)
-18. Some sellers like HUG Technik shop don't sent invoice PDFs but invoice emails
+18. Aliexpress invoices currencies are a bit confusing
+    - use total value in EUR, keep in mind that is including taxes, then calculate value before taxes based on that (x/119*100)
+19. Some sellers like HUG Technik shop don't sent invoice PDFs but invoice emails
     - save those emails as PDF and process them as normal
-19. In my work email inbox there is an invoice for something I paid with using my personal bank account, not business. Therefore there will never be a match with any bank transaction from my business bank account.
+20. In my work email inbox there is an invoice for something I paid with using my personal bank account, not business. Therefore there will never be a match with any bank transaction from my business bank account.
     - always save bills first as draft
     - if after a few days there is still no bank transaction found, ask via chat if it should be kept or if it was paid with a different bank account?
     - if after 2 weeks there is still no bank transaction match, delete the draft (run a script to delete all drafts after 2 weeks, but after informing the user via chat two days before)
-20. Invoice shows shipping costs, sometimes as extra item, sometimes after the items. We want to be able to track shipping costs.
+21. Invoice shows shipping costs, sometimes as extra item, sometimes after the items. We want to be able to track shipping costs.
     - make sure that for every item there is a category
     - make sure that if the shipping costs are mentioned anywhere, to always add them as a seperate item with the category 'Shipping'
     - if 'Customs & import fees' are mentioned, also add them as seperate item / category
-20. Some invoices (example: TeleportHQ/Evo Forge) don't clearly mention the discount value, but instead just adapt the total value of the invoice
+22. Some invoices (example: TeleportHQ/Evo Forge) don't clearly mention the discount value, but instead just adapt the total value of the invoice
     - if the total value of the invoice doesn't match the total of all items combined, add a discount of the difference, up to the point that total matches (consider also how VAT impacts that calculation)
-21. Even after calculating the discount in 20., there still might be a rounding error of a few cents, causing the invoice total to not match with the bank transaction value.
+23. Even after calculating the discount in 20., there still might be a rounding error of a few cents, causing the invoice total to not match with the bank transaction value.
     - create a bill with the rounded up value, add a bank transaction for the same value, mark bill as fully paid, but then change the value of the bank transaction to the actual booked bank transaction value (and make sure bill still shows up as fully paid)
-22. An invoice has a total value of 0 euro, for whatever reason
+24. An invoice has a total value of 0 euro, for whatever reason
     - don't add the invoice and just ignore it
-23. A bank transaction charges a fee for a transaction
+25. A bank transaction charges a fee for a transaction
     - make a seperate bank transaction for the fee, and mention the original bill number in the description or link them in other ways
+26. Sometime the bank transaction value and bill value is slightly off, for example JLCPCBs W202301030143573 (despite both being USD)
+    - sometimes the value only matches once one starts to calculate the values in akaunting and consider discounts, in that case - all good
+    - else, if the value doesn't match, don't match with bank transaction
+    - after x days without a matching invoice pdf, let AI team mate ask in chat user for invoice PDF
+    - one could then also ask AI team mate to draft an email to JLCPCB to ask for correcting the mistake/explain it
+27. Sometimes the VAT of a vendor is not mentioned
+    - AI team mate can auto draft an email to vendor, if an email address is mentioned on invoice - and ask user in chat if the email should be sent
+28. For refunds (from Amazon for example), make sure 'Credit note' PDF is included (on amazon it can be found in purchase details)
+29. Sometimes companies change the legal identity on the invoice (for example JLCPCB from JLCPCB GmbH to their hong kong based identity)
+    - when searching for existing vendors, make sure the legal identity is the same, else create a new one
+30. JLCPCBs 'total' doesn't match with calculated total by adding all items value together
+    - use each item for calculating its total (also make sure the item is described in an understandable way)
+31. Finom is showing a payment processing fee in the UI for transactions, but doesn't show it in the bank transaction proof, but only in the invoice at the end of the month (and also there only as a total, not split up by transaction)
+    - create bill only for the final bill that charges all the fees at the end of the month
+32. Sometimes the calculated total in Akauting (product price + VAT) is a cent off of the actually booked value or the invoice (probably because of decimal point issues)
+    - adapt the bank transaction value and use the value that was actually booked from the bank account
+33. Aliexpress invoices mention the third party as a seller, but mention that Alibaba is raising the invoice according to dutch tax laws, but no VAT number is mentioned anywhere
+    - use Alibaba as contact, not third party
+33. For payments via SumUp, Stripe and so on, where they first receive the money and then make a payout (either initiated by user or by them automatically, after subtracting the fees):
+    - create a seperate bank account for the providier
+    - add income in full to the account
+    - add expense with the value of the fee
+    - make transfer to actual bank account in the height of the paid out value
+34. Address might change from seller over time, make sure to not create always a new one just because address changes (pay attention to name and VAT)
+35. Not every PayPal income transaction has a matching invoice
+    - its required, so ask user to add one and create one first if it has been forgotten
 
-24. When exporting a report with attachments that includes a paypal payment, there might also be a transfer happening from business bank account to PayPal, to then pay the bill via paypal (automatically initiated by PayPal).
+36. When exporting a report with attachments that includes a paypal payment, there might also be a transfer happening from business bank account to PayPal, to then pay the bill via paypal (automatically initiated by PayPal).
     - include the PDF files of that transfer also in the report
 
 
