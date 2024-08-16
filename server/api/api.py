@@ -73,6 +73,18 @@ from server.api.models.users.users_replace_profile_picture import (
 from server.api.models.skills.skills_get_one import (
     skills_get_one_output_example
 )
+from server.api.models.skills.ai.skills_ai_ask import (
+    AiAskInput,
+    AiAskOutput,
+    ai_ask_input_example,
+    ai_ask_output_example
+)
+from server.api.models.skills.ai.skills_ai_estimate_cost import (
+    AiEstimateCostInput,
+    AiEstimateCostOutput,
+    ai_estimate_cost_input_example,
+    ai_estimate_cost_output_example
+)
 from server.api.models.skills.code.skills_code_plan import (
     CodePlanInput,
     CodePlanOutput,
@@ -87,66 +99,32 @@ from server.api.models.skills.code.skills_code_write import (
     code_write_input_example,
     code_write_output_example
 )
-
-from server.api.models.skills.youtube.skills_youtube_get_transcript import (
-    YouTubeGetTranscriptInput,
-    youtube_get_transcript_input_example,
-    youtube_get_transcript_output_example
+from server.api.models.skills.finance.skills_finance_get_report import (
+    FinanceGetReportInput,
+    FinanceGetReportOutput,
+    finance_get_report_input_example,
+    finance_get_report_output_example
 )
-from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import (
-    AtopileCreatePcbSchematicInput,
-    atopile_create_pcb_schematic_input_example,
-    atopile_create_pcb_schematic_output_example
+from server.api.models.skills.finance.skills_finance_get_transactions import (
+    FinanceGetTransactionsInput,
+    FinanceGetTransactionsOutput,
+    finance_get_transactions_input_example,
+    finance_get_transactions_output_example
 )
-from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
-    ChatGPTAskInput,
-    chatgpt_ask_input_example,
-    chatgpt_ask_output_example
+from server.api.models.skills.pcb_design.skills_pcb_design_create_schematic import (
+    PcbDesignCreateSchematicInput,
+    PcbDesignCreateSchematicOutput,
+    pcb_design_create_schematic_input_example,
+    pcb_design_create_schematic_output_example
 )
-from server.api.models.skills.claude.skills_claude_ask import (
-    ClaudeAskInput,
-    ClaudeAskOutput,
-    claude_ask_input_example,
-    claude_ask_output_example,
-    claude_ask_input_example_2,
-    claude_ask_output_example_2,
-    claude_ask_input_example_3,
-    claude_ask_output_example_3,
-    claude_ask_input_example_4,
-    claude_ask_output_example_4
+from server.api.models.skills.videos.skills_videos_get_transcript import (
+    VideosGetTranscriptInput,
+    VideosGetTranscriptOutput,
+    videos_get_transcript_input_example,
+    videos_get_transcript_output_example
 )
-from server.api.models.skills.claude.skills_claude_estimate_cost import (
-    ClaudeEstimateCostInput,
-    ClaudeEstimateCostOutput,
-    claude_estimate_cost_input_example,
-    claude_estimate_cost_output_example
-)
-from server.api.endpoints.skills.claude.estimate_cost import estimate_cost as estimate_cost_processing
 from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
     image_editor_resize_output_example
-)
-from server.api.models.skills.akaunting.skills_akaunting_get_report import (
-    AkauntingGetReportInput,
-    akaunting_get_report_input_example,
-    akaunting_get_report_output_example
-)
-
-from server.api.models.skills.akaunting.skills_akaunting_create_expense import (
-    AkauntingCreateExpenseInput,
-    akaunting_create_expense_input_example,
-    akaunting_create_expense_output_example
-)
-
-from server.api.models.skills.akaunting.skills_akaunting_create_income import (
-    AkauntingCreateIncomeInput,
-    akaunting_create_income_input_example,
-    akaunting_create_income_output_example
-)
-
-from server.api.models.skills.revolut_business.skills_revolut_business_get_transactions import (
-    RevolutBusinessGetTransactionsInput,
-    revolut_business_get_transactions_input_example,
-    revolut_business_get_transactions_output_example
 )
 
 
@@ -159,22 +137,21 @@ from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_pr
 from server.api.endpoints.users.get_user import get_user as get_user_processing
 from server.api.endpoints.users.get_users import get_users as get_users_processing
 from server.api.endpoints.users.create_user import create_user as create_user_processing
-from server.api.endpoints.users.replace_profile_picture import replace_profile_picture_processing
-from server.api.endpoints.users.create_new_api_token import create_new_api_token
+from server.api.endpoints.users.replace_profile_picture import replace_profile_picture as replace_profile_picture_processing
+from server.api.endpoints.users.create_new_api_token import create_new_api_token as create_new_api_token_processing
 from server.api.endpoints.teams.get_teams import get_teams as get_teams_processing
 from server.api.endpoints.teams.get_team import get_team as get_team_processing
-from server.api.endpoints.skills.image_editor.resize_image import resize_image_processing
-from server.api.endpoints.skills.youtube.get_transcript import get_transcript_processing
-from server.api.endpoints.skills.atopile.create_pcb_schematic import create_pcb_schematic as create_pcb_schematic_processing
-from server.api.endpoints.skills.chatgpt.ask import ask as ask_chatgpt_processing
-from server.api.endpoints.skills.claude.ask import ask as ask_claude_processing
-from server.api.endpoints.skills.akaunting.get_report import get_report as get_report_processing
-from server.api.endpoints.skills.akaunting.create_expense import create_expense as create_expense_processing
-from server.api.endpoints.skills.akaunting.create_income import create_income as create_income_processing
-from server.api.endpoints.skills.revolut_business.get_transactions import get_transactions as get_transactions_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
-from server.api.endpoints.skills.code.plan import plan as plan_processing
-from server.api.endpoints.skills.code.write import write as write_processing
+from server.api.endpoints.skills.code.plan import plan as skill_code_plan_processing
+from server.api.endpoints.skills.code.write import write as skill_code_write_processing
+from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
+from server.api.endpoints.skills.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
+from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
+from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
+from server.api.endpoints.skills.pcb_design.create_schematic import create_schematic as skill_pcb_design_create_schematic_processing
+from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
+from server.api.endpoints.skills.image_editor.resize_image import resize_image as skill_image_editor_resize_image_processing
+
 
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_invite_code import validate_invite_code
@@ -188,13 +165,11 @@ from server.api.parameters import (
     mates_endpoints,
     skills_endpoints,
     skills_code_endpoints,
-    skills_chatgpt_endpoints,
-    skills_claude_endpoints,
-    skills_youtube_endpoints,
-    skills_atopile_endpoints,
+    skills_ai_endpoints,
+    skills_finance_endpoints,
+    skills_pcb_design_endpoints,
+    skills_videos_endpoints,
     skills_image_editor_endpoints,
-    skills_akaunting_endpoints,
-    skills_revolut_business_endpoints,
     users_endpoints,
     teams_endpoints,
     server_endpoints,
@@ -294,39 +269,25 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
     set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", skills_get_one_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", ai_estimate_cost_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "responses", ai_estimate_cost_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example, None, "Q&A Round 1")
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example_2, None, "Q&A Round 2")
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", code_plan_output_example, "200", "Q&A Round 1")
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", code_plan_output_example_2, "200", "Q&A Round 2")
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "requestBody", code_write_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "responses", code_write_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "responses", atopile_create_pcb_schematic_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "requestBody", chatgpt_ask_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/chatgpt/ask", "post", "responses", chatgpt_ask_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example, None, "Simple question")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example_2, None, "Ask to use tool")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example_3, None, "Interpret tool result")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "requestBody", claude_ask_input_example_4, None, "Interpret image")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example, "200", "Simple question")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_2, "200", "Ask to use tool")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_3, "200", "Interpret tool result")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/ask", "post", "responses", claude_ask_output_example_4, "200", "Interpret image")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/estimate_cost", "post", "requestBody", claude_estimate_cost_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/claude/estimate_cost", "post", "responses", claude_estimate_cost_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "requestBody", finance_get_report_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "responses", finance_get_report_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "requestBody", finance_get_transactions_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "responses", finance_get_transactions_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/pcb_design/create_schematic", "post", "requestBody", pcb_design_create_schematic_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/pcb_design/create_schematic", "post", "responses", pcb_design_create_schematic_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", videos_get_transcript_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "responses", videos_get_transcript_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "requestBody", akaunting_get_report_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/get_report", "post", "responses", akaunting_get_report_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/revolut_business/get_transactions", "post", "requestBody", revolut_business_get_transactions_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/revolut_business/get_transactions", "post", "responses", revolut_business_get_transactions_output_example, "200")
-
-    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_expense", "post", "requestBody", akaunting_create_expense_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_expense", "post", "responses", akaunting_create_expense_output_example, "200")
-
-    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_income", "post", "requestBody", akaunting_create_income_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/akaunting/create_income", "post", "responses", akaunting_create_income_output_example, "200")
 
 
     app.openapi_schema = openapi_schema
@@ -594,7 +555,7 @@ async def skill_code_plan(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await plan_processing(
+    return await skill_code_plan_processing(
         token=token,
         team_slug=team_slug,
         q_and_a_basics=parameters.q_and_a_basics,
@@ -620,7 +581,7 @@ async def skill_code_write(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await write_processing(
+    return await skill_code_write_processing(
         token=token,
         team_slug=team_slug,
         requirements=parameters.requirements,
@@ -630,44 +591,20 @@ async def skill_code_write(
     )
 
 
-# POST /skills/chatgpt/ask (ask a question to ChatGPT from OpenAI)
-@skills_router.post("/v1/{team_slug}/skills/chatgpt/ask", **skills_chatgpt_endpoints["ask_chatgpt"])
+skills_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
 @limiter.limit("20/minute")
-async def skill_chatgpt_ask(
+async def skill_ai_ask(
     request: Request,
-    parameters: ChatGPTAskInput,
+    parameters: AiAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> Union[AiAskOutput, StreamingResponse]:
     await validate_permissions(
-        endpoint="/skills/chatgpt/ask",
+        endpoint="/skills/ai/ask",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await ask_chatgpt_processing(
-        token=token,
-        system=parameters.system,
-        message=parameters.message,
-        ai_model=parameters.ai_model,
-        temperature=parameters.temperature
-    )
-
-
-# POST /skills/claude/message (ask a question to Claude from Anthropic)
-@skills_router.post("/v1/{team_slug}/skills/claude/ask", **skills_claude_endpoints["ask_claude"])
-@limiter.limit("20/minute")
-async def skill_claude_ask(
-    request: Request,
-    parameters: ClaudeAskInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-    ) -> Union[ClaudeAskOutput, StreamingResponse]:
-    await validate_permissions(
-        endpoint="/skills/claude/ask",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await ask_claude_processing(
+    return await skill_ai_ask_processing(
         token=token,
         system=parameters.system,
         message=parameters.message,
@@ -678,21 +615,20 @@ async def skill_claude_ask(
         stream=parameters.stream
     )
 
-
-@skills_router.post("/v1/{team_slug}/skills/claude/estimate_cost", **skills_claude_endpoints["estimate_cost"])
+@skills_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
 @limiter.limit("20/minute")
-async def skill_claude_estimate_cost(
+async def skill_ai_estimate_cost(
     request: Request,
-    parameters: ClaudeEstimateCostInput,
+    parameters: AiEstimateCostInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ) -> ClaudeEstimateCostOutput:
+) -> AiEstimateCostOutput:
     await validate_permissions(
-        endpoint="/skills/claude/estimate_cost",
+        endpoint="/skills/ai/estimate_cost",
         team_slug=team_slug,
         user_api_token=token
     )
-    return estimate_cost_processing(
+    return skill_ai_estimate_cost_processing(
         input_tokens=parameters.input_tokens,
         output_tokens=parameters.output_tokens,
         system=parameters.system,
@@ -702,89 +638,40 @@ async def skill_claude_estimate_cost(
         ai_model=parameters.ai_model
     )
 
-
-# TODO implement endpoint
-# TODO add test
-# POST /skills/akaunting/get_report (get a report from Akaunting)
-@skills_router.post("/v1/{team_slug}/skills/akaunting/get_report", **skills_akaunting_endpoints["get_report"])
+@skills_router.post("/v1/{team_slug}/skills/finance/get_report", **skills_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
-async def skill_akaunting_get_report(
+async def skill_finance_get_report(
     request: Request,
-    parameters: AkauntingGetReportInput,
+    parameters: FinanceGetReportInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> FinanceGetReportOutput:
     await validate_permissions(
-        endpoint="/skills/akaunting/get_report",
+        endpoint="/skills/finance/get_report",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await get_report_processing(
+    return await skill_finance_get_report_processing(
         report=parameters.report,
         date_from=parameters.date_from,
         date_to=parameters.date_to,
         format=parameters.format
     )
 
-
-# TODO add test
-# POST /skills/akaunting/create_expense (create a new purchase in Akaunting)
-@skills_router.post("/v1/{team_slug}/skills/akaunting/create_expense", **skills_akaunting_endpoints["create_expense"])
+@skills_router.post("/v1/{team_slug}/skills/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
-async def skill_akaunting_create_expense(
+async def skill_finance_get_transactions(
     request: Request,
-    parameters: AkauntingCreateExpenseInput,
+    parameters: FinanceGetTransactionsInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> FinanceGetTransactionsOutput:
     await validate_permissions(
-        endpoint="/skills/akaunting/create_expense",
+        endpoint="/skills/finance/get_transactions",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await create_expense_processing(
-        token=token,
-        vendor=parameters.vendor.dict(),
-        items=[item.dict() for item in parameters.items]
-    )
-
-
-# POST /skills/akaunting/create_income (create a new sales in Akaunting)
-@skills_router.post("/v1/{team_slug}/skills/akaunting/create_income", **skills_akaunting_endpoints["create_income"])
-@limiter.limit("20/minute")
-async def skill_akaunting_create_income(
-    request: Request,
-    parameters: AkauntingCreateIncomeInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-    ):
-    await validate_permissions(
-        endpoint="/skills/akaunting/create_income",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await create_income_processing(
-        token=token,
-        customer=parameters.customer,
-        invoice=parameters.invoice,
-        bank_transaction=parameters.bank_transaction
-    )
-
-
-@skills_router.post("/v1/{team_slug}/skills/revolut_business/get_transactions", **skills_revolut_business_endpoints["get_transactions"])
-@limiter.limit("20/minute")
-async def skill_revolut_business_get_transactions(
-    request: Request,
-    parameters: RevolutBusinessGetTransactionsInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-    ):
-    await validate_permissions(
-        endpoint="/skills/revolut_business/get_transactions",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await get_transactions_processing(
+    return await skill_finance_get_transactions_processing(
         token=token,
         from_date=parameters.from_date,
         to_date=parameters.to_date,
@@ -793,66 +680,40 @@ async def skill_revolut_business_get_transactions(
         type=parameters.type
     )
 
-
-# TODO add test
-# POST /skills/atopile/create_pcb_schematic (create a PCB schematic)
-@skills_router.post("/v1/{team_slug}/skills/atopile/create_pcb_schematic", **skills_atopile_endpoints["create_pcb_schematic"])
+@skills_router.post("/v1/{team_slug}/skills/pcb_design/create_schematic", **skills_pcb_design_endpoints["create_schematic"])
 @limiter.limit("20/minute")
-async def skill_atopile_create_pcb_schematic(
+async def skill_pcb_design_create_schematic(
     request: Request,
-    parameters: AtopileCreatePcbSchematicInput,
+    parameters: PcbDesignCreateSchematicInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> PcbDesignCreateSchematicOutput:
     await validate_permissions(
-        endpoint="/skills/atopile/create_pcb_schematic",
+        endpoint="/skills/pcb_design/create_schematic",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await create_pcb_schematic_processing(
+    return await skill_pcb_design_create_schematic_processing(
         token=token,
         datasheet_url=parameters.datasheet_url,
-        # component_lcsc_id=parameters.component_lcsc_id, # TODO add later
-        # component_name=parameters.component_name,
-        # component_requirements=parameters.component_requirements,
         additional_requirements=parameters.additional_requirements,
         ai_model=parameters.ai_model
     )
 
-
-# TODO add test
-# POST /skills/youtube/ask (ask a question about a video)
-@skills_router.post("/v1/{team_slug}/skills/youtube/ask", **skills_youtube_endpoints["ask_youtube"])
+@skills_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
-async def skill_youtube_ask(
+async def skill_videos_get_transcript(
     request: Request,
+    parameters: VideosGetTranscriptInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> VideosGetTranscriptOutput:
     await validate_permissions(
-        endpoint="/skills/youtube/ask",
+        endpoint="/skills/videos/transcript",
         team_slug=team_slug,
         user_api_token=token
     )
-    return {"info": "endpoint still needs to be implemented"}
-
-
-# TODO add test
-# POST /skills/youtube/transcript (get the transcript of a video)
-@skills_router.post("/v1/{team_slug}/skills/youtube/transcript", **skills_youtube_endpoints["get_transcript"])
-@limiter.limit("20/minute")
-async def skill_youtube_transcript(
-    request: Request,
-    parameters: YouTubeGetTranscriptInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-    ):
-    await validate_permissions(
-        endpoint="/skills/youtube/transcript",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await get_transcript_processing(
+    return await skill_videos_get_transcript_processing(
         url=parameters.url
     )
 
@@ -872,7 +733,7 @@ async def skill_image_editor_resize(
     method: Literal["scale", "crop"] = Form("scale", description="The method to use for resizing."),
     output_square: bool = Form(False, description="If set to True, the output image will be square"),
     use_ai_upscaling_if_needed: bool = Form(False, description="If set to True, AI upscaling will be used if needed"),
-    ):
+    ) -> StreamingResponse:
     await validate_permissions(
         endpoint="/skills/image_editor/resize",
         team_slug=team_slug,
@@ -886,7 +747,7 @@ async def skill_image_editor_resize(
     if len(contents) > 3 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
 
-    image_bytes = resize_image_processing(
+    image_bytes = skill_image_editor_resize_image_processing(
         image_data=contents,
         target_resolution_width=target_resolution_width,
         target_resolution_height=target_resolution_height,

@@ -44,11 +44,29 @@ from server.api.models.users.users_get_one import (
 from server.api.models.skills.skills_get_one import (
     Skill
 )
+from server.api.models.skills.ai.skills_ai_ask import (
+    AIAskOutput
+)
+from server.api.models.skills.ai.skills_ai_estimate_cost import (
+    AIEstimateCostOutput
+)
 from server.api.models.skills.code.skills_code_plan import (
     CodePlanOutput
 )
 from server.api.models.skills.code.skills_code_write import (
     CodeWriteOutput
+)
+from server.api.models.skills.finance.skills_finance_get_report import (
+    FinanceGetReportOutput
+)
+from server.api.models.skills.finance.skills_finance_get_transactions import (
+    FinanceGetTransactionsOutput
+)
+from server.api.models.skills.pcb_design.skills_pcb_design_create_schematic import (
+    PCBDesignCreateSchematicOutput
+)
+from server.api.models.skills.videos.skills_videos_get_transcript import (
+    VideosGetTranscriptOutput
 )
 from server.api.models.users.users_create import (
     UsersCreateOutput
@@ -58,33 +76,6 @@ from server.api.models.users.users_create_new_api_token import (
 )
 from server.api.models.users.users_replace_profile_picture import (
     UsersReplaceProfilePictureOutput
-)
-from server.api.models.skills.youtube.skills_youtube_get_transcript import (
-    YouTubeGetTranscriptOutput
-)
-from server.api.models.skills.atopile.skills_atopile_create_pcb_schematic import (
-    AtopileCreatePcbSchematicOutput
-)
-from server.api.models.skills.chatgpt.skills_chatgpt_ask import (
-    ChatGPTAskOutput
-)
-from server.api.models.skills.claude.skills_claude_ask import (
-    ClaudeAskOutput
-)
-from server.api.models.skills.claude.skills_claude_estimate_cost import (
-    ClaudeEstimateCostOutput
-)
-from server.api.models.skills.akaunting.skills_akaunting_get_report import (
-    AkauntingGetReportOutput
-)
-from server.api.models.skills.akaunting.skills_akaunting_create_expense import (
-    AkauntingCreateExpenseOutput
-)
-from server.api.models.skills.akaunting.skills_akaunting_create_income import (
-    AkauntingCreateIncomeOutput
-)
-from server.api.models.skills.revolut_business.skills_revolut_business_get_transactions import (
-    RevolutBusinessGetTransactionsOutput
 )
 from server.api.models.teams.teams_get_all import (
     TeamsGetAllOutput
@@ -234,6 +225,21 @@ skills_endpoints = {
     }
 }
 
+skills_ai_endpoints = {
+    "ask":{
+        "response_model":AIAskOutput,
+        "summary": "AI | Ask",
+        "description": "<img src='images/skills/ai/ask.png' alt='Ask your AI a question using text & images, and it will answer it based on its knowledge.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "estimate_cost":{
+        "response_model":AIEstimateCostOutput,
+        "summary": "AI | Estimate Cost",
+        "description": "<img src='images/skills/ai/estimate_cost.png' alt='Get the estimated cost of a request to your AI.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 skills_code_endpoints = {
     "plan":{
         "response_model":CodePlanOutput,
@@ -249,81 +255,35 @@ skills_code_endpoints = {
     }
 }
 
-skills_chatgpt_endpoints = {
-    "ask_chatgpt":{
-        "response_model":ChatGPTAskOutput,
-        "summary": "ChatGPT | Ask",
-        "description": "<img src='images/skills/chatgpt/ask.png' alt='Ask ChatGPT from OpenAI a question, and it will answer it based on its knowledge.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    }
-}
-
-skills_claude_endpoints = {
-    "ask_claude":{
-        "response_model":ClaudeAskOutput,
-        "summary": "Claude | Ask",
-        "description": "<img src='images/skills/claude/ask.png' alt='Ask Claude from Anthropic a question, and it will answer it based on its knowledge.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    },
-    "estimate_cost":{
-        "response_model":ClaudeEstimateCostOutput,
-        "summary": "Claude | Estimate Cost",
-        "description": "<img src='images/skills/claude/estimate_cost.png' alt='Get the estimated cost of a request to Claude.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    }
-}
-
-skills_youtube_endpoints = {
-    "ask_youtube":{
-        # "response_model":YouTubeAskOutput,
-        "summary": "YouTube | Ask",
-        "description": "<img src='images/skills/youtube/ask.png' alt='Answers your question about one or multiple videos, using their transcripts and details.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    },
-    "get_transcript":{
-        "response_model":YouTubeGetTranscriptOutput,
-        "summary": "YouTube | Get transcript",
-        "description": "<img src='images/skills/youtube/transcript.png' alt='Get the full transcript of a YouTube video.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    }
-}
-
-skills_atopile_endpoints = {
-    "create_pcb_schematic":{
-        "response_model":AtopileCreatePcbSchematicOutput,
-        "summary": "Atopile | Create PCB schematic",
-        "description": "<img src='images/skills/atopile/create_pcb_schematic.png' alt='Creates a PCB schematic based on a datasheet, component name or component requirements.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    }
-}
-
-skills_revolut_business_endpoints = {
-    "get_transactions":{
-        "response_model":RevolutBusinessGetTransactionsOutput,
-        "summary": "Revolut Business | Get Transactions",
-        "description": "<img src='images/skills/revolut_business/get_transactions.png' alt='Get all bank transactions from your Revolut Business account.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    }
-}
-
-
-skills_akaunting_endpoints = {
+skills_finance_endpoints = {
     "get_report":{
-        "response_model":AkauntingGetReportOutput,
-        "summary": "Akaunting | Get report",
-        "description": "<img src='images/skills/akaunting/get_report.png' alt='Get a report from Akaunting.'>",
+        "response_model":FinanceGetReportOutput,
+        "summary": "Finance | Get report",
+        "description": "<img src='images/skills/finance/get_report.png' alt='Get a report about your transactions. You can choose from various kinds of reports.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
-    "create_expense":{
-        "response_model":AkauntingCreateExpenseOutput,
-        "summary": "Akaunting | Create Expense",
-        "description": "<img src='images/skills/akaunting/create_expense.png' alt='Create a new purchase, refund or other expense in Akaunting. Including the vendor, bill and bank transaction.'>",
+    "get_transactions":{
+        "response_model":FinanceGetTransactionsOutput,
+        "summary": "Finance | Get Transactions",
+        "description": "<img src='images/skills/finance/get_transactions.png' alt='Get all or specific bank transactions from any of your bank accounts in your accounting software.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    },
-    "create_income":{
-        "response_model":AkauntingCreateIncomeOutput,
-        "summary": "Akaunting | Create Income",
-        "description": "<img src='images/skills/akaunting/create_income.png' alt='Create a new sale, refund or other income in Akaunting. Including the customer, invoice and bank transaction.'>",
+    }
+}
+
+skills_pcb_design_endpoints = {
+    "create_schematic":{
+        "response_model":PCBDesignCreateSchematicOutput,
+        "summary": "PCB Design | Create schematic",
+        "description": "<img src='images/skills/pcb_design/create_schematic.png' alt='Creates a PCB schematic based on your requirements.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_videos_endpoints = {
+    "get_transcript":{
+        "response_model":VideosGetTranscriptOutput,
+        "summary": "Videos | Get transcript",
+        "description": "<img src='images/skills/videos/transcript.png' alt='Get the full transcript of a video.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
