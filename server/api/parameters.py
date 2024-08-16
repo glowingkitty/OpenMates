@@ -44,6 +44,12 @@ from server.api.models.users.users_get_one import (
 from server.api.models.skills.skills_get_one import (
     Skill
 )
+from server.api.models.skills.code.skills_code_plan import (
+    CodePlanOutput
+)
+from server.api.models.skills.code.skills_code_write import (
+    CodeWriteOutput
+)
 from server.api.models.users.users_create import (
     UsersCreateOutput
 )
@@ -225,6 +231,21 @@ skills_endpoints = {
         "summary": "Get skill",
         "description": "<img src='images/skills/get_skill.png' alt='Get all details about a specific skill.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_code_endpoints = {
+    "plan":{
+        "response_model":CodePlanOutput,
+        "summary": "Code | Plan",
+        "description": "<img src='images/skills/code/plan.png' alt='Plan coding requirements based on two rounds of questions.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "write":{
+        "response_model":CodeWriteOutput,
+        "summary": "Code | Write",
+        "description": "<img src='images/skills/code/write.png' alt='Write code based on your requirements, for an existing project or a new one.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
 

@@ -73,6 +73,21 @@ from server.api.models.users.users_replace_profile_picture import (
 from server.api.models.skills.skills_get_one import (
     skills_get_one_output_example
 )
+from server.api.models.skills.code.skills_code_plan import (
+    CodePlanInput,
+    CodePlanOutput,
+    code_plan_input_example,
+    code_plan_input_example_2,
+    code_plan_output_example,
+    code_plan_output_example_2
+)
+from server.api.models.skills.code.skills_code_write import (
+    CodeWriteInput,
+    CodeWriteOutput,
+    code_write_input_example,
+    code_write_output_example
+)
+
 from server.api.models.skills.youtube.skills_youtube_get_transcript import (
     YouTubeGetTranscriptInput,
     youtube_get_transcript_input_example,
@@ -158,6 +173,8 @@ from server.api.endpoints.skills.akaunting.create_expense import create_expense 
 from server.api.endpoints.skills.akaunting.create_income import create_income as create_income_processing
 from server.api.endpoints.skills.revolut_business.get_transactions import get_transactions as get_transactions_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
+from server.api.endpoints.skills.code.plan import plan as plan_processing
+from server.api.endpoints.skills.code.write import write as write_processing
 
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_invite_code import validate_invite_code
@@ -170,6 +187,7 @@ from server.api.parameters import (
     files_endpoints,
     mates_endpoints,
     skills_endpoints,
+    skills_code_endpoints,
     skills_chatgpt_endpoints,
     skills_claude_endpoints,
     skills_youtube_endpoints,
@@ -276,6 +294,12 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", users_create_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
     set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", skills_get_one_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example, None, "Q&A Round 1")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example_2, None, "Q&A Round 2")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", code_plan_output_example, "200", "Q&A Round 1")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", code_plan_output_example_2, "200", "Q&A Round 2")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "requestBody", code_write_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "responses", code_write_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "requestBody", youtube_get_transcript_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/youtube/transcript", "post", "responses", youtube_get_transcript_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/atopile/create_pcb_schematic", "post", "requestBody", atopile_create_pcb_schematic_input_example)
@@ -553,6 +577,56 @@ async def get_skill(
         include_populated_data=True,
         output_raw_data=False,
         output_format="JSONResponse"
+    )
+
+
+# POST /skills/code/plan (plan code requirements and logic)
+@skills_router.post("/v1/{team_slug}/skills/code/plan", **skills_code_endpoints["plan"])
+@limiter.limit("10/minute")
+async def skill_code_plan(
+    request: Request,
+    parameters: CodePlanInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> CodePlanOutput:
+    await validate_permissions(
+        endpoint="/skills/code/plan",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await plan_processing(
+        token=token,
+        team_slug=team_slug,
+        q_and_a_basics=parameters.q_and_a_basics,
+        q_and_a_followup=parameters.q_and_a_followup,
+        code_git_url=parameters.code_git_url,
+        code_zip=parameters.code_zip,
+        code_file=parameters.code_file,
+        other_context_files=parameters.other_context_files
+    )
+
+
+# POST /skills/code/write (generate or update code based on requirements)
+@skills_router.post("/v1/{team_slug}/skills/code/write", **skills_code_endpoints["write"])
+@limiter.limit("5/minute")
+async def skill_code_write(
+    request: Request,
+    parameters: CodeWriteInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> CodeWriteOutput:
+    await validate_permissions(
+        endpoint="/skills/code/write",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await write_processing(
+        token=token,
+        team_slug=team_slug,
+        requirements=parameters.requirements,
+        coding_guidelines=parameters.coding_guidelines,
+        files_for_context=parameters.files_for_context,
+        file_tree_for_context=parameters.file_tree_for_context
     )
 
 

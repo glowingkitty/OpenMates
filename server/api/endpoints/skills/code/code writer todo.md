@@ -73,6 +73,7 @@
           - code logic draft
           - files for context
           - file tree for context
+          - costs in credits
 
 - /skills/code/write
     - input:
@@ -81,9 +82,18 @@
       - files for context (dict)
       - file tree for context (dict)
     - processing:
-      - ...
-    - output:
-      - new_files (dict(filepath, content))
-      - updates (dict(filepath, target_lines, content))
-      - changelog
-      - costs
+      - asks the LLM to generate a dict with all new files and changes to existing files
+        - example structure:
+          - {"new":[{"path":"/newfile.py","content":"..."}],"updated":[{"path":"/existingfile.py","target}]}
+    - - output:
+      - changes: [
+          {
+            "file_path": "/path/to/file.py",
+            "type": "new" | "update" | "delete",
+            "content": "...", (if "new" or "update")
+            "insert_after": "function_name() {" | null, (if "update")
+            "insert_before": "}" | null (if "update")
+          }
+        ]
+      - changelog (str)
+      - costs in credits (int)
