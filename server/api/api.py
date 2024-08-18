@@ -77,7 +77,13 @@ from server.api.models.skills.ai.skills_ai_ask import (
     AiAskInput,
     AiAskOutput,
     ai_ask_input_example,
-    ai_ask_output_example
+    ai_ask_input_example_2,
+    ai_ask_input_example_3,
+    ai_ask_input_example_4,
+    ai_ask_output_example,
+    ai_ask_output_example_2,
+    ai_ask_output_example_3,
+    ai_ask_output_example_4
 )
 from server.api.models.skills.ai.skills_ai_estimate_cost import (
     AiEstimateCostInput,
@@ -270,7 +276,13 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
     set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", skills_get_one_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example_2)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example_3)
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example_4)
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example_2, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example_3, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example_4, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", ai_estimate_cost_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "responses", ai_estimate_cost_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example, None, "Q&A Round 1")
@@ -541,6 +553,59 @@ async def get_skill(
     )
 
 
+@skills_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
+@limiter.limit("20/minute")
+async def skill_ai_ask(
+    request: Request,
+    parameters: AiAskInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> Union[AiAskOutput, StreamingResponse]:
+    await validate_permissions(
+        endpoint="/skills/ai/ask",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_ai_ask_processing(
+        token=token,
+        system=parameters.system,
+        message=parameters.message,
+        tools=parameters.tools,
+        message_history=parameters.message_history,
+        ai_model=parameters.ai_model,
+        temperature=parameters.temperature,
+        stream=parameters.stream
+    )
+
+
+@skills_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
+@limiter.limit("20/minute")
+async def skill_ai_estimate_cost(
+    request: Request,
+    parameters: AiEstimateCostInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> AiEstimateCostOutput:
+    await validate_permissions(
+        endpoint="/skills/ai/estimate_cost",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return skill_ai_estimate_cost_processing(
+        token_count=parameters.token_count,
+        system=parameters.system,
+        message=parameters.message,
+        message_history=parameters.message_history,
+        provider=parameters.provider,
+        temperature=parameters.temperature,
+        stream=parameters.stream,
+        cache=parameters.cache,
+        max_tokens=parameters.max_tokens,
+        stop_sequence=parameters.stop_sequence,
+        tools=parameters.tools
+    )
+
+
 # POST /skills/code/plan (plan code requirements and logic)
 @skills_router.post("/v1/{team_slug}/skills/code/plan", **skills_code_endpoints["plan"])
 @limiter.limit("10/minute")
@@ -590,53 +655,6 @@ async def skill_code_write(
         file_tree_for_context=parameters.file_tree_for_context
     )
 
-
-skills_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
-@limiter.limit("20/minute")
-async def skill_ai_ask(
-    request: Request,
-    parameters: AiAskInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> Union[AiAskOutput, StreamingResponse]:
-    await validate_permissions(
-        endpoint="/skills/ai/ask",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_ai_ask_processing(
-        token=token,
-        system=parameters.system,
-        message=parameters.message,
-        tools=parameters.tools,
-        message_history=parameters.message_history,
-        ai_model=parameters.ai_model,
-        temperature=parameters.temperature,
-        stream=parameters.stream
-    )
-
-@skills_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
-@limiter.limit("20/minute")
-async def skill_ai_estimate_cost(
-    request: Request,
-    parameters: AiEstimateCostInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> AiEstimateCostOutput:
-    await validate_permissions(
-        endpoint="/skills/ai/estimate_cost",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return skill_ai_estimate_cost_processing(
-        input_tokens=parameters.input_tokens,
-        output_tokens=parameters.output_tokens,
-        system=parameters.system,
-        message=parameters.message,
-        message_history=parameters.message_history,
-        tools=parameters.tools,
-        ai_model=parameters.ai_model
-    )
 
 @skills_router.post("/v1/{team_slug}/skills/finance/get_report", **skills_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
@@ -1045,7 +1063,7 @@ async def generate_new_user_api_token(
         user_password=parameters.password,
         required_permissions=["api_token:create"]
     )
-    return await create_new_api_token(
+    return await create_new_api_token_processing(
         username=parameters.username,
         password=parameters.password
     )

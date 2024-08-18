@@ -16,9 +16,6 @@ from server import *
 from typing import Literal, List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
-
-# POST /{team_slug}/skills/claude/ask (ask a question to Claude)
-
 class ToolUse(BaseModel):
     id: str = Field(..., title="ID", description="Unique identifier for the tool use")
     name: str = Field(..., title="Name", description="Name of the tool being used")
@@ -70,27 +67,53 @@ class Tool(BaseModel):
     description: Optional[str] = Field(None, title="Description", description="Description of the tool")
     input_schema: ToolInputSchema = Field(..., title="Input Schema", description="Input schema for the tool")
 
-class ClaudeAskInput(BaseModel):
-    """This is the model for the incoming parameters for POST /{team_slug}/skills/claude/ask"""
+class ContentItem(BaseModel):
+    type: Literal["text", "tool_use", "tool_result"] = Field(..., title="Type", description="Type of the content item")
+    text: Optional[str] = Field(None, title="Text", description="Text content")
+    tool_use: Optional[Dict[str, Any]] = Field(None, title="Tool Use", description="Tool use information")
+    tool_result: Optional[Dict[str, Any]] = Field(None, title="Tool Result", description="Tool result information")
+
+    @model_validator(mode='after')
+    def remove_none_fields(cls, values):
+        return {k: v for k, v in values.model_dump().items() if v is not None}
+
+class AiProvider(BaseModel):
+    name: Literal["claude", "chatgpt"] = Field(..., title="Provider Name", description="Name of the AI provider")
+    model: str = Field(..., title="Model", description="Specific model of the AI provider")
+
+    @model_validator(mode='after')
+    def validate_model(self):
+        valid_models = {
+            "claude": ["claude-3.5-sonnet", "claude-3-opus", "claude-3-haiku"],
+            "chatgpt": ["gpt-4o", "gpt-4o-mini"]
+        }
+        if self.name not in valid_models:
+            raise ValueError(f"Invalid provider: {self.name}")
+        if self.model not in valid_models[self.name]:
+            raise ValueError(f"Invalid model '{self.model}' for provider '{self.name}'. Valid models are: {', '.join(valid_models[self.name])}")
+        return self
+
+class AiAskInput(BaseModel):
+    """This is the model for the incoming parameters for POST /{team_slug}/skills/ai/ask"""
     system: str = Field(
         "You are a helpful assistant. Keep your answers concise.",
         title="System prompt",
-        description="The system prompt to use for Claude"
+        description="The system prompt to use for the AI"
     )
     message: Optional[str] = Field(
         None,
         title="Message",
-        description="How can Claude assist you?"
+        description="How can the AI assist you?"
     )
     message_history: Optional[List[MessageItem]] = Field(
         None,
         title="Message History",
         description="A list of previous messages in the conversation"
     )
-    ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = Field(
-        "claude-3.5-sonnet",
-        title="AI Model",
-        description="The model to use for Claude"
+    provider: AiProvider = Field(
+        ...,
+        title="AI Provider",
+        description="The AI provider and model to use"
     )
     temperature: float = Field(
         0.5,
@@ -102,6 +125,11 @@ class ClaudeAskInput(BaseModel):
         False,
         title="Stream",
         description="If true, the response will be streamed, otherwise it will be returned as a JSON response."
+    )
+    cache: bool = Field(
+        False,
+        title="Cache",
+        description="If true, prompt caching will be used. Available currently for 'Claude' only."
     )
     max_tokens: Optional[int] = Field(
         None,
@@ -122,10 +150,16 @@ class ClaudeAskInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode='after')
+    def check_cache_available(self):
+        if self.cache and self.provider.name != "claude":
+            raise ValueError("Cache is only available for 'Claude'.")
+        return self
+
+    @model_validator(mode='after')
     def check_message_or_history(self):
-        if self.message != None and self.message_history != None:
+        if self.message is not None and self.message_history is not None:
             raise ValueError("Only one of 'message' or 'message_history' should be provided.")
-        if self.message == None and self.message_history == None:
+        if self.message is None and self.message_history is None:
             raise ValueError("Either 'message' or 'message_history' must be provided.")
         return self
 
@@ -139,42 +173,37 @@ class ClaudeAskInput(BaseModel):
                 raise ValueError("The last assistant message in the history must not be empty")
         return self
 
-
-class ContentItem(BaseModel):
-    type: Literal["text", "tool_use", "tool_result"] = Field(..., title="Type", description="Type of the content item")
-    text: Optional[str] = Field(None, title="Text", description="Text content")
-    tool_use: Optional[Dict[str, Any]] = Field(None, title="Tool Use", description="Tool use information")
-    tool_result: Optional[Dict[str, Any]] = Field(None, title="Tool Result", description="Tool result information")
-
     @model_validator(mode='after')
-    def remove_none_fields(cls, values):
-        return {k: v for k, v in values.model_dump().items() if v is not None}
+    def validate_provider_specific_fields(self):
+        if self.provider.name == "chatgpt":
+            if self.tools:
+                raise ValueError("Tools are not supported for ChatGPT provider")
+            if self.stream:
+                raise ValueError("Streaming is not supported for ChatGPT provider")
+        return self
 
-class Usage(BaseModel):
-    input_tokens: int = Field(..., title="Input Tokens", description="Number of input tokens")
-    output_tokens: int = Field(..., title="Output Tokens", description="Number of output tokens")
+class AiAskOutput(BaseModel):
+    """This is the model for the output of POST /{team_slug}/skills/ai/ask"""
+    content: Union[str, List[ContentItem]] = Field(..., title="Content", description="The response content from the AI to the question.")
+    cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
 
-class Cost(BaseModel):
-    total: float = Field(..., title="Total", description="Total cost of the request.")
-    currency: Literal["USD","EUR"] = Field("USD", title="Currency", description="Currency of the cost")
-
-class ClaudeAskOutput(BaseModel):
-    """This is the model for the output of POST /{team_slug}/skills/claude/ask"""
-    content: List[ContentItem] = Field(..., title="Content", description="The response content from Claude to the question.")
-    usage: Usage = Field(..., title="Usage", description="Token usage information")
-    cost: Cost = Field(..., title="Cost", description="Total cost of the request")
-
-
-claude_ask_input_example = {
+ai_ask_input_example = {
     "system": "You are a helpful assistant. Keep your answers short.",
-    "message": "Whats the capital of Germany?",
-    "ai_model": "claude-3-haiku"
+    "message": "What's the capital of Germany?",
+    "provider": {
+        "name": "claude",
+        "model": "claude-3-haiku"
+    },
+    "temperature": 0.5
 }
 
-claude_ask_input_example_2 = {
+ai_ask_input_example_2 = {
     "system": "You are a helpful assistant. Keep your answers short.",
     "message": "What's the current stock price of Apple?",
-    "ai_model": "claude-3-haiku",
+    "provider": {
+        "name": "claude",
+        "model": "claude-3-haiku"
+    },
     "temperature": 0.5,
     "max_tokens": 150,
     "tools": [
@@ -209,7 +238,7 @@ claude_ask_input_example_2 = {
     ]
 }
 
-claude_ask_input_example_3 = {
+ai_ask_input_example_3 = {
     "system": "You are a helpful assistant. Keep your answers short. Use tools only when clearly asked. Else, answer with your knowledge.",
     "message_history": [
         {
@@ -240,7 +269,10 @@ claude_ask_input_example_3 = {
             ]
         }
     ],
-    "ai_model": "claude-3-haiku",
+    "provider": {
+        "name": "claude",
+        "model": "claude-3-haiku"
+    },
     "temperature": 0.5,
     "tools": [
         {
@@ -274,7 +306,7 @@ claude_ask_input_example_3 = {
     ]
 }
 
-claude_ask_input_example_4 = {
+ai_ask_input_example_4 = {
     "system": "You are a helpful assistant. Analyze images and answer questions about them.",
     "message_history": [
         {
@@ -294,30 +326,24 @@ claude_ask_input_example_4 = {
                 }
             ]
         }
-    ]
+    ],
+    "provider": {
+        "name": "claude",
+        "model": "claude-3-opus"
+    }
 }
 
-
-
-
-claude_ask_output_example = {
+ai_ask_output_example = {
     "content": [
         {
             "type": "text",
             "text": "The capital city of Germany is Berlin."
         }
     ],
-    "usage": {
-        "input_tokens": 26,
-        "output_tokens": 11
-    },
-    "cost": {
-        "total": 0.0001,
-        "currency": "USD"
-    }
+    "cost_credits": 90
 }
 
-claude_ask_output_example_2 = {
+ai_ask_output_example_2 = {
     "content": [
         {
             "type": "tool_use",
@@ -330,42 +356,25 @@ claude_ask_output_example_2 = {
             }
         }
     ],
-    "usage": {
-        "input_tokens": 459,
-        "output_tokens": 58
-    }
+    "cost_credits": 140
 }
 
-claude_ask_output_example_3 = {
+ai_ask_output_example_3 = {
     "content": [
         {
             "type": "text",
             "text": "The current stock price for Apple (ticker symbol AAPL) is $150.25."
         }
     ],
-    "usage": {
-        "input_tokens": 548,
-        "output_tokens": 24
-    },
-    "cost": {
-        "total": 0.0001,
-        "currency": "USD"
-    }
+    "cost_credits": 220
 }
 
-claude_ask_output_example_4 = {
+ai_ask_output_example_4 = {
     "content": [
         {
             "type": "text",
             "text": "The image shows a small yellow boat on the open ocean, from the top view."
         }
     ],
-    "usage": {
-        "input_tokens": 230,
-        "output_tokens": 17
-    },
-    "cost": {
-        "total": 0.0001,
-        "currency": "USD"
-    }
+    "cost_credits": 300
 }
