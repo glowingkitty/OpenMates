@@ -15,7 +15,7 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.chatgpt.skills_chatgpt_ask import ChatGPTAskOutput
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput
 from typing import Literal
 
 
@@ -25,7 +25,7 @@ async def ask(
         system: str = "You are a helpful assistant. Keep your answers concise.",
         ai_model: Literal["gpt-4o","gpt-4o-mini"] = "gpt-4o",
         temperature: float = 0.5
-    ) -> ChatGPTAskOutput:
+    ) -> AiAskOutput:
     """
     Ask a question to ChatGPT
     """
@@ -85,6 +85,6 @@ async def ask(
         temperature=temperature
     )
 
-    return {
-        "response": response.choices[0].message.content
-    }
+    return AiAskOutput(
+        content=response.choices[0].message.content
+    )
