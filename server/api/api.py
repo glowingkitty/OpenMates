@@ -709,7 +709,8 @@ async def skill_videos_get_transcript(
         user_api_token=token
     )
     return await skill_videos_get_transcript_processing(
-        url=parameters.url
+        url=parameters.url,
+        block_token_limit=parameters.block_token_limit
     )
 
 
