@@ -666,8 +666,10 @@ async def skill_finance_get_report(
         report=parameters.report,
         date_from=parameters.date_from,
         date_to=parameters.date_to,
-        format=parameters.format
+        format=parameters.format,
+        include_attachments=parameters.include_attachments
     )
+
 
 @skills_router.post("/v1/{team_slug}/skills/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
