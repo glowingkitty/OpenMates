@@ -117,12 +117,6 @@ from server.api.models.skills.finance.skills_finance_get_transactions import (
     finance_get_transactions_input_example,
     finance_get_transactions_output_example
 )
-from server.api.models.skills.pcb_design.skills_pcb_design_create_schematic import (
-    PcbDesignCreateSchematicInput,
-    PcbDesignCreateSchematicOutput,
-    pcb_design_create_schematic_input_example,
-    pcb_design_create_schematic_output_example
-)
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput,
     VideosGetTranscriptOutput,
@@ -154,7 +148,6 @@ from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
 from server.api.endpoints.skills.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
-from server.api.endpoints.skills.pcb_design.create_schematic import create_schematic as skill_pcb_design_create_schematic_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
 from server.api.endpoints.skills.image_editor.resize_image import resize_image as skill_image_editor_resize_image_processing
 
@@ -173,7 +166,6 @@ from server.api.parameters import (
     skills_code_endpoints,
     skills_ai_endpoints,
     skills_finance_endpoints,
-    skills_pcb_design_endpoints,
     skills_videos_endpoints,
     skills_image_editor_endpoints,
     users_endpoints,
@@ -295,8 +287,6 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "responses", finance_get_report_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "requestBody", finance_get_transactions_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "responses", finance_get_transactions_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/pcb_design/create_schematic", "post", "requestBody", pcb_design_create_schematic_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/pcb_design/create_schematic", "post", "responses", pcb_design_create_schematic_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", videos_get_transcript_input_example)
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "responses", videos_get_transcript_output_example, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
@@ -701,25 +691,6 @@ async def skill_finance_get_transactions(
         type=parameters.type
     )
 
-@skills_router.post("/v1/{team_slug}/skills/pcb_design/create_schematic", **skills_pcb_design_endpoints["create_schematic"])
-@limiter.limit("20/minute")
-async def skill_pcb_design_create_schematic(
-    request: Request,
-    parameters: PcbDesignCreateSchematicInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> PcbDesignCreateSchematicOutput:
-    await validate_permissions(
-        endpoint="/skills/pcb_design/create_schematic",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_pcb_design_create_schematic_processing(
-        token=token,
-        datasheet_url=parameters.datasheet_url,
-        additional_requirements=parameters.additional_requirements,
-        ai_model=parameters.ai_model
-    )
 
 @skills_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")

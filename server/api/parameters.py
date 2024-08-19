@@ -62,9 +62,6 @@ from server.api.models.skills.finance.skills_finance_get_report import (
 from server.api.models.skills.finance.skills_finance_get_transactions import (
     FinanceGetTransactionsOutput
 )
-from server.api.models.skills.pcb_design.skills_pcb_design_create_schematic import (
-    PCBDesignCreateSchematicOutput
-)
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptOutput
 )
@@ -266,15 +263,6 @@ skills_finance_endpoints = {
         "response_model":FinanceGetTransactionsOutput,
         "summary": "Finance | Get Transactions",
         "description": "<img src='images/skills/finance/get_transactions.png' alt='Get all or specific bank transactions from any of your bank accounts in your accounting software.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
-    }
-}
-
-skills_pcb_design_endpoints = {
-    "create_schematic":{
-        "response_model":PCBDesignCreateSchematicOutput,
-        "summary": "PCB Design | Create schematic",
-        "description": "<img src='images/skills/pcb_design/create_schematic.png' alt='Creates a PCB schematic based on your requirements.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
