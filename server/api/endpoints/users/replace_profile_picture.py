@@ -24,7 +24,7 @@ import time
 import base64
 
 
-async def replace_profile_picture_processing(
+async def replace_profile_picture(
         team_slug: str,
         api_token: str,
         username: str,

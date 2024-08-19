@@ -14,9 +14,6 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-import base64
-
-
 from server.api.models.files.files_upload import (
     FileUploadOutput
 )
@@ -45,10 +42,10 @@ from server.api.models.skills.skills_get_one import (
     Skill
 )
 from server.api.models.skills.ai.skills_ai_ask import (
-    AIAskOutput
+    AiAskOutput
 )
 from server.api.models.skills.ai.skills_ai_estimate_cost import (
-    AIEstimateCostOutput
+    AiEstimateCostOutput
 )
 from server.api.models.skills.code.skills_code_plan import (
     CodePlanOutput
@@ -102,65 +99,35 @@ def generate_responses(status_codes):
     return responses
 
 
-def set_example(openapi_schema, path, method, request_or_response, example, response_code=None, example_name="Example 1"):
-    # Ensure the path exists
+def set_example(openapi_schema, path, method, request_or_response, examples, response_code=None):
     if path not in openapi_schema["paths"]:
         openapi_schema["paths"][path] = {}
-
-    # Ensure the method exists
     if method not in openapi_schema["paths"][path]:
         openapi_schema["paths"][path][method] = {}
-
-    # Ensure the request_or_response exists
     if request_or_response not in openapi_schema["paths"][path][method]:
         openapi_schema["paths"][path][method][request_or_response] = {}
 
+    content_type = "application/json"
     if request_or_response == "responses":
-        # Ensure the response_code exists
         if response_code not in openapi_schema["paths"][path][method][request_or_response]:
             openapi_schema["paths"][path][method][request_or_response][response_code] = {}
-
-        # Ensure the 'content' exists
         if "content" not in openapi_schema["paths"][path][method][request_or_response][response_code]:
             openapi_schema["paths"][path][method][request_or_response][response_code]["content"] = {}
-
-        # Check if the example is an image
-        if isinstance(example, dict) and "image/jpeg" in example:
-            openapi_schema["paths"][path][method][request_or_response][response_code]["content"] = {
-                "image/jpeg": {
-                    "schema": {
-                        "type": "string",
-                        "format": "binary"
-                    },
-                    "example": example["image/jpeg"]
-                }
-            }
-        else:
-            # Ensure the 'application/json' exists
-            if "application/json" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
-                openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"] = {}
-
-            # Ensure the 'examples' exists
-            if "examples" not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]:
-                openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["examples"] = {}
-
-            # Set the example
-            openapi_schema["paths"][path][method][request_or_response][response_code]["content"]["application/json"]["examples"][example_name] = {"value": example}
+        if content_type not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"][content_type] = {}
+        target = openapi_schema["paths"][path][method][request_or_response][response_code]["content"][content_type]
     else:
-        # Ensure the 'content' exists
         if "content" not in openapi_schema["paths"][path][method][request_or_response]:
             openapi_schema["paths"][path][method][request_or_response]["content"] = {}
+        if content_type not in openapi_schema["paths"][path][method][request_or_response]["content"]:
+            openapi_schema["paths"][path][method][request_or_response]["content"][content_type] = {}
+        target = openapi_schema["paths"][path][method][request_or_response]["content"][content_type]
 
-        # Ensure the 'application/json' exists
-        if "application/json" not in openapi_schema["paths"][path][method][request_or_response]["content"]:
-            openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"] = {}
+    if "examples" not in target:
+        target["examples"] = {}
 
-        # Ensure the 'examples' exists
-        if "examples" not in openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]:
-            openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["examples"] = {}
-
-        # Set the example
-        openapi_schema["paths"][path][method][request_or_response]["content"]["application/json"]["examples"][example_name] = {"value": example}
+    for example_name, example_value in examples.items():
+        target["examples"][example_name] = {"value": example_value}
 
 
 files_endpoints = {
@@ -224,14 +191,14 @@ skills_endpoints = {
 
 skills_ai_endpoints = {
     "ask":{
-        "response_model":AIAskOutput,
-        "summary": "AI | Ask",
+        "response_model":AiAskOutput,
+        "summary": "Ask",
         "description": "<img src='images/skills/ai/ask.png' alt='Ask your AI a question using text & images, and it will answer it based on its knowledge.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "estimate_cost":{
-        "response_model":AIEstimateCostOutput,
-        "summary": "AI | Estimate Cost",
+        "response_model":AiEstimateCostOutput,
+        "summary": "Estimate Cost",
         "description": "<img src='images/skills/ai/estimate_cost.png' alt='Get the estimated cost of a request to your AI.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
@@ -240,13 +207,13 @@ skills_ai_endpoints = {
 skills_code_endpoints = {
     "plan":{
         "response_model":CodePlanOutput,
-        "summary": "Code | Plan",
+        "summary": "Plan",
         "description": "<img src='images/skills/code/plan.png' alt='Plan coding requirements based on two rounds of questions.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "write":{
         "response_model":CodeWriteOutput,
-        "summary": "Code | Write",
+        "summary": "Write",
         "description": "<img src='images/skills/code/write.png' alt='Write code based on your requirements, for an existing project or a new one.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
@@ -255,13 +222,13 @@ skills_code_endpoints = {
 skills_finance_endpoints = {
     "get_report":{
         "response_model":FinanceGetReportOutput,
-        "summary": "Finance | Get report",
+        "summary": "Get report",
         "description": "<img src='images/skills/finance/get_report.png' alt='Get a report about your transactions. You can choose from various kinds of reports.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "get_transactions":{
         "response_model":FinanceGetTransactionsOutput,
-        "summary": "Finance | Get Transactions",
+        "summary": "Get Transactions",
         "description": "<img src='images/skills/finance/get_transactions.png' alt='Get all or specific bank transactions from any of your bank accounts in your accounting software.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
@@ -270,7 +237,7 @@ skills_finance_endpoints = {
 skills_videos_endpoints = {
     "get_transcript":{
         "response_model":VideosGetTranscriptOutput,
-        "summary": "Videos | Get transcript",
+        "summary": "Get transcript",
         "description": "<img src='images/skills/videos/transcript.png' alt='Get the full transcript of a video.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
@@ -278,7 +245,7 @@ skills_videos_endpoints = {
 
 skills_image_editor_endpoints = {
      "resize_image":{
-        "summary": "Image Editor | Resize",
+        "summary": "Resize",
         "description": "<img src='images/skills/image_editor/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
         "responses": {
             "200": {
@@ -388,6 +355,28 @@ tags_metadata = [
     {
         "name": "Skills",
         "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of software skills. Or, you can call them directly via the API.'>"
+    },
+    {
+        "name": "Skills | AI",
+        "description": "<img src='images/skills/ai.png' alt='Use generative AI to answer questions, brainstorm ideas, create images and more. \
+            Providers: Claude, ChatGPT\
+            Models: claude-3.5-sonnet, claude-3-haiku, gpt-4o, gpt-4o-mini'>"
+    },
+    {
+        "name": "Skills | Code",
+        "description": "<img src='images/skills/code.png' alt='Write, test, improve and execute code.'>"
+    },
+    {
+        "name": "Skills | Finance",
+        "description": "<img src='images/skills/finance.png' alt='Keep track of your finances and build a stable income. Providers: Akaunting, Revolut Business'>"
+    },
+    {
+        "name": "Skills | Videos",
+        "description": "<img src='images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
+    },
+    {
+        "name": "Skills | Image Editor",
+        "description": "<img src='images/skills/image_editor.png' alt='Modify images, resize them and more.'>"
     },
     {
         "name": "Workflows",

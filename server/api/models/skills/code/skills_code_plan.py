@@ -205,7 +205,7 @@ code_plan_output_example = {
         "data_model": {"question": "What data model should be used for tasks and users?"},
         "offline_functionality": {"question": "How should the application handle offline functionality?"}
     },
-    "costs_in_credits": 700
+    "costs_in_credits": 10
 }
 
 code_plan_output_example_2 = {
@@ -268,5 +268,5 @@ code_plan_output_example_2 = {
             "README.md": None
         }
     },
-    "costs_in_credits": 1200
+    "costs_in_credits": 18
 }

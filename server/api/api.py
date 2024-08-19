@@ -192,6 +192,11 @@ from io import BytesIO
 files_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
+skills_ai_router = APIRouter()
+skills_code_router = APIRouter()
+skills_finance_router = APIRouter()
+skills_videos_router = APIRouter()
+skills_image_editor_router = APIRouter()
 software_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
@@ -248,48 +253,116 @@ def custom_openapi():
         tags=tags_metadata
     )
 
-    set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "requestBody", mates_ask_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "responses", mates_ask_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/mates/", "get", "responses", mates_get_all_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/mates/", "post", "requestBody", mates_create_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/mates/", "post", "responses", mates_create_output_example, "201")
-    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "get", "responses", mates_get_one_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "requestBody", mates_update_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", mates_update_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "delete", "responses", mates_delete_output_example, "200")
-    set_example(openapi_schema, "/v1/teams", "get", "responses", teams_get_all_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}", "get", "responses", teams_get_one_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", users_get_all_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", users_get_one_output_example, "200")
-    set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", users_create_new_api_token_input_example)
-    set_example(openapi_schema, "/v1/api_token", "patch", "responses", users_create_new_api_token_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", users_replace_profile_picture_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", users_create_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", users_create_output_example, "201")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", skills_get_one_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example_2)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example_3)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", ai_ask_input_example_4)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example_2, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example_3, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", ai_ask_output_example_4, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", ai_estimate_cost_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "responses", ai_estimate_cost_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example, None, "Q&A Round 1")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", code_plan_input_example_2, None, "Q&A Round 2")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", code_plan_output_example, "200", "Q&A Round 1")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", code_plan_output_example_2, "200", "Q&A Round 2")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "requestBody", code_write_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "responses", code_write_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "requestBody", finance_get_report_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "responses", finance_get_report_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "requestBody", finance_get_transactions_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "responses", finance_get_transactions_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", videos_get_transcript_input_example)
-    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "responses", videos_get_transcript_output_example, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", image_editor_resize_output_example, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "requestBody", {
+        "Example 1": mates_ask_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "responses", {
+        "Example 1": mates_ask_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/", "get", "responses", {
+        "Example 1": mates_get_all_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/", "post", "requestBody", {
+        "Example 1": mates_create_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/mates/", "post", "responses", {
+        "Example 1": mates_create_output_example
+    }, "201")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "get", "responses", {
+        "Example 1": mates_get_one_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "requestBody", {
+        "Example 1": mates_update_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "patch", "responses", {
+        "Example 1": mates_update_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/mates/{mate_username}", "delete", "responses", {
+        "Example 1": mates_delete_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/teams", "get", "responses", {
+        "Example 1": teams_get_all_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}", "get", "responses", {
+        "Example 1": teams_get_one_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/", "get", "responses", {
+        "Example 1": users_get_all_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", {
+        "Example 1": users_get_one_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", {
+        "Example 1": users_create_new_api_token_input_example
+    })
+    set_example(openapi_schema, "/v1/api_token", "patch", "responses", {
+        "Example 1": users_create_new_api_token_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", {
+        "Example 1": users_replace_profile_picture_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "requestBody", {
+        "Example 1": users_create_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", {
+        "Example 1": users_create_output_example
+    }, "201")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", {
+        "Example 1": skills_get_one_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", {
+        "Ask question": ai_ask_input_example,
+        "Select a tool": ai_ask_input_example_2,
+        "Process tool response": ai_ask_input_example_3,
+        "Process image": ai_ask_input_example_4
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
+        "Ask question": ai_ask_output_example,
+        "Select a tool": ai_ask_output_example_2,
+        "Process tool response": ai_ask_output_example_3,
+        "Process image": ai_ask_output_example_4
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", {
+        "Example 1": ai_estimate_cost_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "responses", {
+        "Example 1": ai_estimate_cost_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", {
+        "Q&A Round 1": code_plan_input_example,
+        "Q&A Round 2": code_plan_input_example_2
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", {
+        "Q&A Round 1": code_plan_output_example,
+        "Q&A Round 2": code_plan_output_example_2
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "requestBody", {
+        "Example 1": code_write_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "responses", {
+        "Example 1": code_write_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "requestBody", {
+        "Example 1": finance_get_report_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "responses", {
+        "Example 1": finance_get_report_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "requestBody", {
+        "Example 1": finance_get_transactions_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "responses", {
+        "Example 1": finance_get_transactions_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
+        "Example 1": videos_get_transcript_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "responses", {
+        "Example 1": videos_get_transcript_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", {
+        "Example 1": image_editor_resize_output_example
+    }, "200")
 
 
     app.openapi_schema = openapi_schema
@@ -543,7 +616,7 @@ async def get_skill(
     )
 
 
-@skills_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
+@skills_ai_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
 @limiter.limit("20/minute")
 async def skill_ai_ask(
     request: Request,
@@ -571,7 +644,7 @@ async def skill_ai_ask(
     )
 
 
-@skills_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
+@skills_ai_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
 @limiter.limit("20/minute")
 async def skill_ai_estimate_cost(
     request: Request,
@@ -600,7 +673,7 @@ async def skill_ai_estimate_cost(
 
 
 # POST /skills/code/plan (plan code requirements and logic)
-@skills_router.post("/v1/{team_slug}/skills/code/plan", **skills_code_endpoints["plan"])
+@skills_code_router.post("/v1/{team_slug}/skills/code/plan", **skills_code_endpoints["plan"])
 @limiter.limit("10/minute")
 async def skill_code_plan(
     request: Request,
@@ -626,7 +699,7 @@ async def skill_code_plan(
 
 
 # POST /skills/code/write (generate or update code based on requirements)
-@skills_router.post("/v1/{team_slug}/skills/code/write", **skills_code_endpoints["write"])
+@skills_code_router.post("/v1/{team_slug}/skills/code/write", **skills_code_endpoints["write"])
 @limiter.limit("5/minute")
 async def skill_code_write(
     request: Request,
@@ -649,7 +722,7 @@ async def skill_code_write(
     )
 
 
-@skills_router.post("/v1/{team_slug}/skills/finance/get_report", **skills_finance_endpoints["get_report"])
+@skills_finance_router.post("/v1/{team_slug}/skills/finance/get_report", **skills_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
 async def skill_finance_get_report(
     request: Request,
@@ -671,7 +744,7 @@ async def skill_finance_get_report(
     )
 
 
-@skills_router.post("/v1/{team_slug}/skills/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
+@skills_finance_router.post("/v1/{team_slug}/skills/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
 async def skill_finance_get_transactions(
     request: Request,
@@ -695,7 +768,7 @@ async def skill_finance_get_transactions(
     )
 
 
-@skills_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
+@skills_videos_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_videos_get_transcript(
     request: Request,
@@ -716,7 +789,7 @@ async def skill_videos_get_transcript(
 
 # TODO add test
 # POST /skills/image_editor/resize (resize an image)
-@skills_router.post("/v1/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
+@skills_image_editor_router.post("/v1/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_image_editor_resize(
     request: Request,
@@ -1036,16 +1109,21 @@ async def generate_new_user_api_token(
 
 
 # Include the routers in your FastAPI application
-app.include_router(files_router,        tags=["Files"])
-app.include_router(mates_router,        tags=["Mates"])
-app.include_router(skills_router,       tags=["Skills"])
-app.include_router(software_router,     tags=["software"])
-app.include_router(workflows_router,    tags=["Workflows"])
-app.include_router(tasks_router,        tags=["Tasks"])
-app.include_router(billing_router,      tags=["Billing"])
-app.include_router(server_router,       tags=["Server"])
-app.include_router(teams_router,        tags=["Teams"])
-app.include_router(users_router,        tags=["Users"])
+app.include_router(files_router,                    tags=["Files"])
+app.include_router(mates_router,                    tags=["Mates"])
+app.include_router(skills_router,                   tags=["Skills"])
+app.include_router(skills_ai_router,                tags=["Skills | AI"])
+app.include_router(skills_code_router,              tags=["Skills | Code"])
+app.include_router(skills_finance_router,           tags=["Skills | Finance"])
+app.include_router(skills_videos_router,            tags=["Skills | Videos"])
+app.include_router(skills_image_editor_router,      tags=["Skills | Image Editor"])
+app.include_router(software_router,                 tags=["software"])
+app.include_router(workflows_router,                tags=["Workflows"])
+app.include_router(tasks_router,                    tags=["Tasks"])
+app.include_router(billing_router,                  tags=["Billing"])
+app.include_router(server_router,                   tags=["Server"])
+app.include_router(teams_router,                    tags=["Teams"])
+app.include_router(users_router,                    tags=["Users"])
 
 if __name__ == "__main__":
     uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")

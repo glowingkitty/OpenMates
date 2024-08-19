@@ -79,12 +79,12 @@ class ContentItem(BaseModel):
 
 class AiProvider(BaseModel):
     name: Literal["claude", "chatgpt"] = Field(..., title="Provider Name", description="Name of the AI provider")
-    model: str = Field(..., title="Model", description="Specific model of the AI provider")
+    model: Literal["claude-3.5-sonnet","claude-3-haiku","gpt-4o","gpt-4o-mini"] = Field(..., title="Model", description="Specific model of the AI provider")
 
     @model_validator(mode='after')
     def validate_model(self):
         valid_models = {
-            "claude": ["claude-3.5-sonnet", "claude-3-opus", "claude-3-haiku"],
+            "claude": ["claude-3.5-sonnet", "claude-3-haiku"],
             "chatgpt": ["gpt-4o", "gpt-4o-mini"]
         }
         if self.name not in valid_models:
@@ -329,7 +329,7 @@ ai_ask_input_example_4 = {
     ],
     "provider": {
         "name": "claude",
-        "model": "claude-3-opus"
+        "model": "claude-3-haiku"
     }
 }
 
@@ -340,7 +340,7 @@ ai_ask_output_example = {
             "text": "The capital city of Germany is Berlin."
         }
     ],
-    "cost_credits": 90
+    "cost_credits": 1
 }
 
 ai_ask_output_example_2 = {
@@ -356,7 +356,7 @@ ai_ask_output_example_2 = {
             }
         }
     ],
-    "cost_credits": 140
+    "cost_credits": 2
 }
 
 ai_ask_output_example_3 = {
@@ -366,7 +366,7 @@ ai_ask_output_example_3 = {
             "text": "The current stock price for Apple (ticker symbol AAPL) is $150.25."
         }
     ],
-    "cost_credits": 220
+    "cost_credits": 3
 }
 
 ai_ask_output_example_4 = {
@@ -376,5 +376,5 @@ ai_ask_output_example_4 = {
             "text": "The image shows a small yellow boat on the open ocean, from the top view."
         }
     ],
-    "cost_credits": 300
+    "cost_credits": 3
 }
