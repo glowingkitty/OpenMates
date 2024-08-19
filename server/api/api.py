@@ -727,8 +727,8 @@ async def skill_image_editor_resize(
     target_resolution_height: int = Form(None, description="The target resolution height"),
     max_length: int = Form(None, description="The maximum length of the image"),
     method: Literal["scale", "crop"] = Form("scale", description="The method to use for resizing."),
-    output_square: bool = Form(False, description="If set to True, the output image will be square"),
     use_ai_upscaling_if_needed: bool = Form(False, description="If set to True, AI upscaling will be used if needed"),
+    output_square: bool = Form(False, description="If set to True, the output image will be square")
     ) -> StreamingResponse:
     await validate_permissions(
         endpoint="/skills/image_editor/resize",
@@ -736,15 +736,9 @@ async def skill_image_editor_resize(
         user_api_token=token
     )
 
-    contents = await file.read()
-    if len(contents) == 0:
-        raise HTTPException(status_code=400, detail="No file provided")
-
-    if len(contents) > 3 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
-
-    image_bytes = skill_image_editor_resize_image_processing(
-        image_data=contents,
+    image_data = await file.read()
+    return await skill_image_editor_resize_image_processing(
+        image_data=image_data,
         target_resolution_width=target_resolution_width,
         target_resolution_height=target_resolution_height,
         max_length=max_length,
@@ -752,13 +746,6 @@ async def skill_image_editor_resize(
         use_ai_upscaling_if_needed=use_ai_upscaling_if_needed,
         output_square=output_square
     )
-
-    # Create a StreamingResponse object
-    response = StreamingResponse(BytesIO(image_bytes), media_type="image/jpeg")
-
-    return response
-
-
 
 
 
