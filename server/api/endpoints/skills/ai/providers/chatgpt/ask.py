@@ -15,22 +15,39 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput
-from typing import Literal
-
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
+from typing import Literal, Union, List, Dict, Any
+from fastapi.responses import StreamingResponse
 
 async def ask(
         token: str,
-        message: str,
         system: str = "You are a helpful assistant. Keep your answers concise.",
-        ai_model: Literal["gpt-4o","gpt-4o-mini"] = "gpt-4o",
-        temperature: float = 0.5
-    ) -> AiAskOutput:
+        message: str = None,
+        message_history: List[Dict[str, Any]] = None,
+        provider: dict = {"name":"chatgpt", "model":"gpt-4o"},
+        temperature: float = 0.5,
+        stream: bool = False,
+        cache: bool = False,
+        max_tokens: int = 1000,
+        stop_sequence: str = None,
+        tools: List[dict] = None
+    ) -> Union[AiAskOutput, StreamingResponse]:
     """
     Ask a question to ChatGPT
     """
-    if ai_model != "gpt-4o" and ai_model != "gpt-4o-mini":
-        raise ValueError("Invalid AI model. Please select 'gpt-4o' or 'gpt-4o-mini'.")
+
+    ai_ask_input = AiAskInput(
+        system=system,
+        message=message,
+        message_history=message_history,
+        provider=provider,
+        temperature=temperature,
+        stream=stream,
+        cache=cache,
+        max_tokens=max_tokens,
+        stop_sequence=stop_sequence,
+        tools=tools
+    )
 
     add_to_log("Asking ChatGPT ...", module_name="OpenMates | Skills | ChatGPT | Ask", color="yellow")
 
@@ -61,14 +78,14 @@ async def ask(
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     response = client.chat.completions.create(
-        model=ai_model,
+        model=ai_ask_input.provider.model,
         messages=[
             {
             "role": "system",
             "content": [
                 {
                 "type": "text",
-                "text": system
+                "text": ai_ask_input.system
                 }
             ]
             },
@@ -77,12 +94,12 @@ async def ask(
             "content": [
                 {
                 "type": "text",
-                "text": message
+                "text": ai_ask_input.message
                 }
             ]
             }
         ],
-        temperature=temperature
+        temperature=ai_ask_input.temperature
     )
 
     return AiAskOutput(

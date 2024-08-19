@@ -570,11 +570,14 @@ async def skill_ai_ask(
         token=token,
         system=parameters.system,
         message=parameters.message,
-        tools=parameters.tools,
         message_history=parameters.message_history,
-        ai_model=parameters.ai_model,
+        provider=parameters.provider,
         temperature=parameters.temperature,
-        stream=parameters.stream
+        stream=parameters.stream,
+        cache=parameters.cache,
+        max_tokens=parameters.max_tokens,
+        stop_sequence=parameters.stop_sequence,
+        tools=parameters.tools
     )
 
 

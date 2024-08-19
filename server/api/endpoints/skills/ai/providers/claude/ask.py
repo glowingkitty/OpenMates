@@ -34,16 +34,16 @@ def serialize_content_block(block: ContentBlock) -> Dict[str, Any]:
 
 async def ask(
         token: str,
+        system: str = "You are a helpful assistant. Keep your answers concise.",
         message: str = None,
         message_history: List[Dict[str, Any]] = None,
-        tools: List[dict] = None,
-        system: str = "You are a helpful assistant. Keep your answers concise.",
-        ai_model: Literal["claude-3.5-sonnet", "claude-3-haiku"] = "claude-3.5-sonnet",
+        provider: dict = {"name":"claude", "model":"claude-3.5-sonnet"},
         temperature: float = 0.5,
         stream: bool = False,
         cache: bool = False,
         max_tokens: int = 1000,
-        stop_sequence: str = None
+        stop_sequence: str = None,
+        tools: List[dict] = None
     ) -> Union[AiAskOutput, StreamingResponse]:
     """
     Ask a question to Claude
@@ -53,10 +53,7 @@ async def ask(
         system=system,
         message=message,
         message_history=message_history,
-        provider={
-            "name": "claude",
-            "model": ai_model
-        },
+        provider=provider,
         temperature=temperature,
         stream=stream,
         cache=cache,
