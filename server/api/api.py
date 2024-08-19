@@ -688,6 +688,7 @@ async def skill_finance_get_transactions(
         token=token,
         from_date=parameters.from_date,
         to_date=parameters.to_date,
+        bank=parameters.bank,
         account=parameters.account,
         count=parameters.count,
         type=parameters.type
