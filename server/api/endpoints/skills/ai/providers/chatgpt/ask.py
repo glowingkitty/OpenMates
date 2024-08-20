@@ -86,9 +86,26 @@ async def ask(
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     messages = [{"role": "system", "content": input.system}]
+
     if input.message_history:
-        messages.extend(input.message_history)
-    else:
+        for msg in input.message_history:
+            msg = msg.to_dict()
+            if isinstance(msg['content'], list):
+                content = []
+                for item in msg['content']:
+                    if item['type'] == 'text':
+                        content.append({"type": "text", "text": item['text']})
+                    elif item['type'] == 'image':
+                        content.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{item['source']['media_type']};base64,{item['source']['data']}"
+                            }
+                        })
+                messages.append({"role": msg['role'], "content": content})
+            else:
+                messages.append(msg)
+    elif input.message:
         messages.append({"role": "user", "content": input.message})
 
     # Define common configuration
