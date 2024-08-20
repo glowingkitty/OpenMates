@@ -18,6 +18,14 @@ from dotenv import load_dotenv
 from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
+import json
+
+def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "type": block["type"],
+        "text": block.get("text", ""),
+        "tool_calls": block.get("tool_calls", [])
+    }
 
 async def ask(
         token: str,
@@ -77,31 +85,51 @@ async def ask(
     load_dotenv()
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    response = client.chat.completions.create(
-        model=ai_ask_input.provider.model,
-        messages=[
-            {
-            "role": "system",
-            "content": [
-                {
-                "type": "text",
-                "text": ai_ask_input.system
-                }
-            ]
-            },
-            {
-            "role": "user",
-            "content": [
-                {
-                "type": "text",
-                "text": ai_ask_input.message
-                }
-            ]
-            }
-        ],
-        temperature=ai_ask_input.temperature
-    )
+    messages = [{"role": "system", "content": ai_ask_input.system}]
+    if ai_ask_input.message_history:
+        messages.extend(ai_ask_input.message_history)
+    else:
+        messages.append({"role": "user", "content": ai_ask_input.message})
 
-    return AiAskOutput(
-        content=response.choices[0].message.content
-    )
+    # Define common configuration
+    chat_config = {
+        "model": ai_ask_input.provider.model,
+        "messages": messages,
+        "temperature": ai_ask_input.temperature,
+        "max_tokens": ai_ask_input.max_tokens,
+        "stream": ai_ask_input.stream
+    }
+
+    if ai_ask_input.tools:
+        chat_config["tools"] = ai_ask_input.tools
+        chat_config["tool_choice"] = "auto"
+
+    if ai_ask_input.stream:
+        async def event_stream():
+            stream = client.chat.completions.create(**chat_config)
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield f"data: {chunk.choices[0].delta.content}\n\n"
+                elif chunk.choices[0].delta.tool_calls:
+                    yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].to_dict())}\n\n"
+            yield "event: stream_end\ndata: Stream ended\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    else:
+        response = client.chat.completions.create(**chat_config)
+
+        # TODO: Calculate cost based on token usage
+        cost_credits = None
+
+        content = [serialize_content_block({"type": "text", "text": response.choices[0].message.content})]
+        if response.choices[0].message.tool_calls:
+            for tool_call in response.choices[0].message.tool_calls:
+                content.append(serialize_content_block({
+                    "type": "tool_calls",
+                    "tool_calls": tool_call.to_dict()
+                }))
+
+        return AiAskOutput(
+            content=content,
+            cost_credits=cost_credits
+        )

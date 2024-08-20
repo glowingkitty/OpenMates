@@ -132,7 +132,7 @@ class AiAskInput(BaseModel):
         description="If true, prompt caching will be used. Available currently for 'Claude' only."
     )
     max_tokens: Optional[int] = Field(
-        None,
+        2000,
         title="Max Tokens",
         description="The maximum number of tokens to generate in the response"
     )
@@ -173,14 +173,6 @@ class AiAskInput(BaseModel):
                 raise ValueError("The last assistant message in the history must not be empty")
         return self
 
-    @model_validator(mode='after')
-    def validate_provider_specific_fields(self):
-        if self.provider.name == "chatgpt":
-            if self.tools:
-                raise ValueError("Tools are not supported for ChatGPT provider")
-            if self.stream:
-                raise ValueError("Streaming is not supported for ChatGPT provider")
-        return self
 
 class AiAskOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/ai/ask"""
