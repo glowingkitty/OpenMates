@@ -86,7 +86,7 @@ def test_ai_ask(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any("Berlin" in item.text for item in result.content if item.type == "text"), "Expected 'Berlin' to be in the response"
+    assert any("Berlin" in item.get("text", "") for item in result.content if item.get("type", "") == "text"), "Expected 'Berlin' to be in the response"
 
 @pytest.mark.api_dependent
 def test_ai_ask_with_message_history(ai_provider):
@@ -107,14 +107,11 @@ def test_ai_ask_with_message_history(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any("Berlin" in item.text for item in result.content if item.type == "text"), "Expected 'Berlin' to be in the response"
+    assert any("Berlin" in item.get("text", "") for item in result.content if item.get("type", "") == "text"), "Expected 'Berlin' to be in the response"
 
 @pytest.mark.api_dependent
 @pytest.mark.skipif(not os.path.exists("tests/api/endpoints/skills/claude/test_claude_ask_example_image.jpg"), reason="Test image not found")
 def test_ai_ask_with_image(ai_provider):
-    if ai_provider["name"] != "claude":
-        pytest.skip("Image analysis is only supported for Claude")
-
     image_path = "tests/api/endpoints/skills/claude/test_claude_ask_example_image.jpg"
     with open(image_path, "rb") as image_file:
         image_data = base64.b64encode(image_file.read()).decode('utf-8')
@@ -151,13 +148,10 @@ def test_ai_ask_with_image(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any(word in item.text.lower() for item in result.content if item.type == "text" for word in ["boat", "ship"]), "Expected 'boat' or 'ship' to be mentioned in the response"
+    assert any(word in item.get("text", "").lower() for item in result.content if item.get("type", "") == "text" for word in ["boat", "ship"]), "Expected 'boat' or 'ship' to be mentioned in the response"
 
 @pytest.mark.api_dependent
 def test_ai_ask_with_tool_use(ai_provider):
-    if ai_provider["name"] != "claude":
-        pytest.skip("Tool use is only supported for Claude")
-
     input_data = ai_ask_input_example_2.copy()
     input_data["provider"] = ai_provider
 
@@ -180,9 +174,6 @@ def test_ai_ask_with_tool_use(ai_provider):
 
 @pytest.mark.api_dependent
 def test_ai_ask_streaming(ai_provider):
-    if ai_provider["name"] == "chatgpt":
-        pytest.skip("Streaming is not supported for ChatGPT")
-
     response = make_request(message="Count from 1 to 5.", system="You are a helpful assistant.", provider=ai_provider, stream=True)
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"

@@ -57,6 +57,14 @@ class MessageItem(BaseModel):
             self.content = [MessageContent(type="text", text=self.content)]
         return self
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "role": self.role,
+            "content": self.content if isinstance(self.content, str) else [
+                content.model_dump(exclude_none=True) for content in self.content
+            ]
+        }
+
 class ToolInputSchema(BaseModel):
     type: Literal["object"] = Field("object", title="Type", description="Type of the input schema")
     properties: Dict[str, Any] = Field(..., title="Properties", description="Properties of the input schema")

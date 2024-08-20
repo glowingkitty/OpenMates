@@ -49,7 +49,7 @@ async def ask(
     Ask a question to Claude
     """
 
-    ai_ask_input = AiAskInput(
+    input = AiAskInput(
         system=system,
         message=message,
         message_history=message_history,
@@ -67,29 +67,34 @@ async def ask(
     add_to_log("Asking Claude ...", module_name="OpenMates | Skills | Claude | Ask", color="yellow")
 
     # Select a more specific model
-    if ai_ask_input.provider.model == "claude-3.5-sonnet":
+    if input.provider.model == "claude-3.5-sonnet":
         ai_model = "claude-3-5-sonnet-20240620"
-    elif ai_ask_input.provider.model == "claude-3-haiku":
+    elif input.provider.model == "claude-3-haiku":
         ai_model = "claude-3-haiku-20240307"
 
     # Define common configuration
     message_config = {
         "model": ai_model,
-        "max_tokens": ai_ask_input.max_tokens,
-        "system": ai_ask_input.system,
-        "messages": ai_ask_input.message_history if ai_ask_input.message_history else [{"role": "user", "content": ai_ask_input.message}],
-        "temperature": ai_ask_input.temperature
+        "max_tokens": input.max_tokens,
+        "system": input.system,
+        "messages": [message.to_dict() for message in input.message_history] if input.message_history else [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": input.message}]
+            }
+        ],
+        "temperature": input.temperature
     }
 
-    if ai_ask_input.tools:
-        message_config["tools"] = ai_ask_input.tools
+    if input.tools:
+        message_config["tools"] = input.tools
         message_config["tool_choice"] = {"type": "auto"}
 
     # Send request to Claude to get a response
     load_dotenv()
     client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-    if ai_ask_input.stream:
+    if input.stream:
         async def event_stream():
             with client.messages.stream(**message_config) as stream:
                 for text in stream.text_stream:

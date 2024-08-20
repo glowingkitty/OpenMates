@@ -44,7 +44,7 @@ async def ask(
     Ask a question to ChatGPT
     """
 
-    ai_ask_input = AiAskInput(
+    input = AiAskInput(
         system=system,
         message=message,
         message_history=message_history,
@@ -85,30 +85,30 @@ async def ask(
     load_dotenv()
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    messages = [{"role": "system", "content": ai_ask_input.system}]
-    if ai_ask_input.message_history:
-        messages.extend(ai_ask_input.message_history)
+    messages = [{"role": "system", "content": input.system}]
+    if input.message_history:
+        messages.extend(input.message_history)
     else:
-        messages.append({"role": "user", "content": ai_ask_input.message})
+        messages.append({"role": "user", "content": input.message})
 
     # Define common configuration
     chat_config = {
-        "model": ai_ask_input.provider.model,
+        "model": input.provider.model,
         "messages": messages,
-        "temperature": ai_ask_input.temperature,
-        "max_tokens": ai_ask_input.max_tokens,
-        "stream": ai_ask_input.stream
+        "temperature": input.temperature,
+        "max_tokens": input.max_tokens,
+        "stream": input.stream
     }
 
-    if ai_ask_input.tools:
-        chat_config["tools"] = ai_ask_input.tools
+    if input.tools:
+        chat_config["tools"] = input.tools
         chat_config["tool_choice"] = "auto"
 
-    if ai_ask_input.stream:
+    if input.stream:
         async def event_stream():
             stream = client.chat.completions.create(**chat_config)
             for chunk in stream:
-                if chunk.choices[0].delta.content:
+                if chunk.choices[0].delta.content is not None:
                     yield f"data: {chunk.choices[0].delta.content}\n\n"
                 elif chunk.choices[0].delta.tool_calls:
                     yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].to_dict())}\n\n"

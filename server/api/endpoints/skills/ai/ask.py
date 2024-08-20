@@ -39,7 +39,7 @@ async def ask(
     Ask a question to AI
     """
 
-    ai_ask_input = AiAskInput(
+    input = AiAskInput(
         system=system,
         message=message,
         message_history=message_history,
@@ -54,7 +54,7 @@ async def ask(
 
     add_to_log("Asking AI ...", module_name="OpenMates | Skills | AI | Ask", color="yellow")
 
-    if ai_ask_input.provider.name == "claude":
-        return await ask_claude(token=token, **ai_ask_input.model_dump())
-    elif ai_ask_input.provider.name == "chatgpt":
-        return await ask_chatgpt(token=token, **ai_ask_input.model_dump())
+    if input.provider.name == "claude":
+        return await ask_claude(token=token, **input.model_dump())
+    elif input.provider.name == "chatgpt":
+        return await ask_chatgpt(token=token, **input.model_dump())
