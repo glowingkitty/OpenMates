@@ -78,8 +78,8 @@ class Tool(BaseModel):
 class ContentItem(BaseModel):
     type: Literal["text", "tool_use", "tool_result"] = Field(..., title="Type", description="Type of the content item")
     text: Optional[str] = Field(None, title="Text", description="Text content")
-    tool_use: Optional[Dict[str, Any]] = Field(None, title="Tool Use", description="Tool use information")
-    tool_result: Optional[Dict[str, Any]] = Field(None, title="Tool Result", description="Tool result information")
+    tool_use: Optional[ToolUse] = Field(None, title="Tool Use", description="Tool use information")
+    tool_result: Optional[ToolResult] = Field(None, title="Tool Result", description="Tool result information")
 
     @model_validator(mode='after')
     def remove_none_fields(cls, values):

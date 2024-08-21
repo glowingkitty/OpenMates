@@ -40,6 +40,7 @@ def ai_provider(request):
 def make_request(**kwargs):
     return requests.post(f"{BASE_URL}/v1/{TEAM_SLUG}/skills/ai/ask", headers=HEADERS, json=kwargs)
 
+
 @pytest.mark.api_dependent
 def test_ai_ask_examples_validity():
     input_examples = [
@@ -70,6 +71,7 @@ def test_ai_ask_examples_validity():
             print(f"Example that failed validation: {example}")
             pytest.fail(f"Example is not valid: {e}")
 
+
 @pytest.mark.api_dependent
 def test_ai_ask(ai_provider):
     input_data = ai_ask_input_example.copy()
@@ -87,6 +89,7 @@ def test_ai_ask(ai_provider):
 
     assert result.content, "No response received from AI"
     assert any("Berlin" in item.get("text", "") for item in result.content if item.get("type", "") == "text"), "Expected 'Berlin' to be in the response"
+
 
 @pytest.mark.api_dependent
 def test_ai_ask_with_message_history(ai_provider):
@@ -108,6 +111,7 @@ def test_ai_ask_with_message_history(ai_provider):
 
     assert result.content, "No response received from AI"
     assert any("Berlin" in item.get("text", "") for item in result.content if item.get("type", "") == "text"), "Expected 'Berlin' to be in the response"
+
 
 @pytest.mark.api_dependent
 @pytest.mark.skipif(not os.path.exists("tests/api/endpoints/skills/claude/test_claude_ask_example_image.jpg"), reason="Test image not found")
@@ -150,6 +154,7 @@ def test_ai_ask_with_image(ai_provider):
     assert result.content, "No response received from AI"
     assert any(word in item.get("text", "").lower() for item in result.content if item.get("type", "") == "text" for word in ["boat", "ship"]), "Expected 'boat' or 'ship' to be mentioned in the response"
 
+
 @pytest.mark.api_dependent
 def test_ai_ask_with_tool_use(ai_provider):
     input_data = ai_ask_input_example_2.copy()
@@ -171,6 +176,50 @@ def test_ai_ask_with_tool_use(ai_provider):
     tool_use = next(item for item in result.content if item["type"] == "tool_use")
     assert tool_use["tool_use"]["name"] == "get_stock_price", "Expected the get_stock_price tool to be used"
     assert tool_use["tool_use"]["input"]["ticker"] == "AAPL", "Expected the ticker to be AAPL"
+
+
+@pytest.mark.api_dependent
+def test_ai_ask_with_tool_result(ai_provider):
+    # First, get the tool use response
+    tool_use = test_ai_ask_with_tool_use(ai_provider)
+
+    # Simulate getting the stock price
+    stock_price = 150.25  # This would normally come from calling the actual function
+
+    # Create a message history with the tool result
+    message_history = [
+        {"role": "user", "content": "What's the current stock price of Apple?"},
+        {"role": "assistant", "content": [{"type": "tool_use", "id": tool_use.id, "name": tool_use.name, "input": tool_use.input}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_use.id, "content": str(stock_price)}]}
+    ]
+
+    # Make a new request with the tool result
+    input_data = {
+        "system": "You are a helpful assistant. Keep your answers short.",
+        "message_history": message_history,
+        "provider": ai_provider,
+        "temperature": 0.5,
+        "max_tokens": 150
+    }
+
+    response = make_request(**input_data)
+
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
+
+    json_response = response.json()
+
+    try:
+        result = AiAskOutput.model_validate(json_response)
+    except ValidationError as e:
+        pytest.fail(f"Response does not match the AiAskOutput model: {e}")
+
+    assert result.content, "No response received from AI"
+    assert any(item.type == "text" for item in result.content), "Expected a text response"
+
+    text_response = next(item.text for item in result.content if item.type == "text")
+    assert "150.25" in text_response, "Expected the stock price to be mentioned in the response"
+    assert "Apple" in text_response, "Expected 'Apple' to be mentioned in the response"
+
 
 @pytest.mark.api_dependent
 def test_ai_ask_streaming(ai_provider):

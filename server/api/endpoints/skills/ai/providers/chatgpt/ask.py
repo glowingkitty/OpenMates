@@ -15,7 +15,7 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, ToolResult
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
@@ -118,7 +118,21 @@ async def ask(
     }
 
     if input.tools:
-        chat_config["tools"] = input.tools
+        chat_config["tools"] = [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": tool.input_schema.properties,
+                        "required": tool.input_schema.required
+                    }
+                }
+            }
+            for tool in input.tools
+        ]
         chat_config["tool_choice"] = "auto"
 
     if input.stream:
@@ -128,7 +142,7 @@ async def ask(
                 if chunk.choices[0].delta.content is not None:
                     yield f"data: {chunk.choices[0].delta.content}\n\n"
                 elif chunk.choices[0].delta.tool_calls:
-                    yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].to_dict())}\n\n"
+                    yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].model_dump())}\n\n"
             yield "event: stream_end\ndata: Stream ended\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -138,13 +152,22 @@ async def ask(
         # TODO: Calculate cost based on token usage
         cost_credits = None
 
-        content = [serialize_content_block({"type": "text", "text": response.choices[0].message.content})]
+        content = []
+        if response.choices[0].message.content:
+            content.append(ContentItem(type="text", text=response.choices[0].message.content))
         if response.choices[0].message.tool_calls:
+            add_to_log(response.choices[0].message.tool_calls)
             for tool_call in response.choices[0].message.tool_calls:
-                content.append(serialize_content_block({
-                    "type": "tool_calls",
-                    "tool_calls": tool_call.to_dict()
-                }))
+                content.append(ContentItem(
+                    type="tool_use",
+                    tool_use=ToolUse(
+                        id=tool_call.id,
+                        name=tool_call.function.name,
+                        input=json.loads(tool_call.function.arguments)
+                    )
+                ))
+
+        add_to_log(content)
 
         return AiAskOutput(
             content=content,
