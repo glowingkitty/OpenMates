@@ -167,10 +167,10 @@ def test_ai_ask_with_tool_use(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any(item.type == "tool_use" for item in result.content), "Expected a tool_use in the response"
-    tool_use = next(item for item in result.content if item.type == "tool_use")
-    assert tool_use.tool_use["name"] == "get_stock_price", "Expected the get_stock_price tool to be used"
-    assert tool_use.tool_use["input"]["ticker"] == "AAPL", "Expected the ticker to be AAPL"
+    assert any(item["type"] == "tool_use" for item in result.content), "Expected a tool_use in the response"
+    tool_use = next(item for item in result.content if item["type"] == "tool_use")
+    assert tool_use["tool_use"]["name"] == "get_stock_price", "Expected the get_stock_price tool to be used"
+    assert tool_use["tool_use"]["input"]["ticker"] == "AAPL", "Expected the ticker to be AAPL"
 
 @pytest.mark.api_dependent
 def test_ai_ask_streaming(ai_provider):
