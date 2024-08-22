@@ -324,8 +324,10 @@ def custom_openapi():
         "Select a tool": ai_ask_output_example_2,
         "Process tool response": ai_ask_output_example_3,
         "Process image": ai_ask_output_example_4,
-        "Get stream response": ai_ask_output_example_5
     }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
+        "Get stream response": ai_ask_output_example_5
+    }, "200", "text/event-stream")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", {
         "Example 1": ai_estimate_cost_input_example
     })

@@ -207,6 +207,11 @@ class AiAskOutput(BaseModel):
     content: Union[str, List[ContentItem]] = Field(..., title="Content", description="The response content from the AI to the question.")
     cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
 
+
+class AiAskOutputStream(BaseModel):
+    event: Literal["content", "tool_use", "stream_end"] = Field(..., title="Event", description="Type of streaming event")
+    data: Optional[Dict[str, Any]] = Field(None, title="Event data")
+
 ai_ask_input_example = {
     "system": "You are a helpful assistant. Keep your answers short.",
     "message": "What's the capital of Germany?",

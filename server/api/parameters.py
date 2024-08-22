@@ -42,7 +42,8 @@ from server.api.models.skills.skills_get_one import (
     Skill
 )
 from server.api.models.skills.ai.skills_ai_ask import (
-    AiAskOutput
+    AiAskOutput,
+    AiAskOutputStream
 )
 from server.api.models.skills.ai.skills_ai_estimate_cost import (
     AiEstimateCostOutput
@@ -77,7 +78,7 @@ from server.api.models.teams.teams_get_all import (
 from server.api.models.teams.teams_get_one import (
     Team
 )
-
+from typing import Union
 
 def generate_responses(status_codes):
     descriptions = {
@@ -99,7 +100,7 @@ def generate_responses(status_codes):
     return responses
 
 
-def set_example(openapi_schema, path, method, request_or_response, examples, response_code=None):
+def set_example(openapi_schema, path, method, request_or_response, examples, response_code=None, content_type="application/json"):
     if path not in openapi_schema["paths"]:
         openapi_schema["paths"][path] = {}
     if method not in openapi_schema["paths"][path]:
@@ -107,7 +108,6 @@ def set_example(openapi_schema, path, method, request_or_response, examples, res
     if request_or_response not in openapi_schema["paths"][path][method]:
         openapi_schema["paths"][path][method][request_or_response] = {}
 
-    content_type = "application/json"
     if request_or_response == "responses":
         if response_code not in openapi_schema["paths"][path][method][request_or_response]:
             openapi_schema["paths"][path][method][request_or_response][response_code] = {}
@@ -191,7 +191,7 @@ skills_endpoints = {
 
 skills_ai_endpoints = {
     "ask":{
-        "response_model":AiAskOutput,
+        "response_model":Union[AiAskOutput, AiAskOutputStream],
         "summary": "Ask",
         "description": "<img src='images/skills/ai/ask.png' alt='Ask your AI a question using text & images, and it will answer it based on its knowledge.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
