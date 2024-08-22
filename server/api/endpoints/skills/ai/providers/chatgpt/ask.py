@@ -16,7 +16,7 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, StreamEvent, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
@@ -28,6 +28,20 @@ def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
         "text": block.get("text", ""),
         "tool_calls": block.get("tool_calls", [])
     }
+
+def chunk_text(text, max_chunk_size=100):
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    chunks = []
+    current_chunk = ""
+    for sentence in sentences:
+        if len(current_chunk) + len(sentence) > max_chunk_size and current_chunk:
+            chunks.append(current_chunk.strip())
+            current_chunk = sentence
+        else:
+            current_chunk += " " + sentence if current_chunk else sentence
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    return chunks
 
 async def ask(
         token: str,
@@ -147,12 +161,40 @@ async def ask(
         # Handle streaming response
         async def event_stream():
             stream = client.chat.completions.create(**chat_config)
+            accumulated_text = ""
+            accumulated_tool_call = {}
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
-                    yield f"data: {chunk.choices[0].delta.content}\n\n"
+                    accumulated_text += chunk.choices[0].delta.content
+                    chunks = chunk_text(accumulated_text)
+                    if len(chunks) > 1:
+                        for complete_chunk in chunks[:-1]:
+                            yield ContentStreamEvent(
+                                event="content",
+                                data={"text": complete_chunk}
+                            ).model_dump_json() + "\n\n"
+                        accumulated_text = chunks[-1]
                 elif chunk.choices[0].delta.tool_calls:
-                    yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].function.model_dump())}\n\n"
-            yield "event: stream_end\ndata: Stream ended\n\n"
+                    tool_call = chunk.choices[0].delta.tool_calls[0]
+                    if tool_call.function.name:
+                        accumulated_tool_call["name"] = tool_call.function.name
+                    if tool_call.function.arguments:
+                        accumulated_tool_call["arguments"] = accumulated_tool_call.get("arguments", "") + tool_call.function.arguments
+                    try:
+                        json.loads(accumulated_tool_call.get("arguments", "{}"))
+                        yield ToolUseStreamEvent(
+                            event="tool_use",
+                            data=accumulated_tool_call
+                        ).model_dump_json() + "\n\n"
+                        accumulated_tool_call = {}
+                    except json.JSONDecodeError:
+                        pass  # Continue accumulating tool call data
+            if accumulated_text:
+                yield ContentStreamEvent(
+                    event="content",
+                    data={"text": accumulated_text}
+                ).model_dump_json() + "\n\n"
+            yield StreamEndEvent(event="stream_end").model_dump_json() + "\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
