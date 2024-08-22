@@ -181,6 +181,18 @@ class AiAskInput(BaseModel):
                 raise ValueError("The last assistant message in the history must not be empty")
         return self
 
+    @model_validator(mode='after')
+    def validate_tools_for_tool_use_and_result(self):
+        if self.message_history:
+            has_tool_use_or_result = any(
+                isinstance(msg.content, list) and
+                any(content.type in ['tool_use', 'tool_result'] for content in msg.content)
+                for msg in self.message_history
+            )
+            if has_tool_use_or_result and not self.tools:
+                raise ValueError("Tools must be defined when using tool_use or tool_result in message history")
+        return self
+
 
 class AiAskOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/ai/ask"""

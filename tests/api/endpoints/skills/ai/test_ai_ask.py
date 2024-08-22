@@ -180,17 +180,32 @@ def test_ai_ask_with_tool_use(ai_provider):
 
 @pytest.mark.api_dependent
 def test_ai_ask_with_tool_result(ai_provider):
-    # First, get the tool use response
-    tool_use = test_ai_ask_with_tool_use(ai_provider)
-
     # Simulate getting the stock price
     stock_price = 150.25  # This would normally come from calling the actual function
+
+    # Define the tools
+    tools = [
+        {
+            "name": "get_stock_price",
+            "description": "Get the current stock price for a given ticker symbol.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "ticker": {
+                        "type": "string",
+                        "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
+                    }
+                },
+                "required": ["ticker"]
+            }
+        }
+    ]
 
     # Create a message history with the tool result
     message_history = [
         {"role": "user", "content": "What's the current stock price of Apple?"},
-        {"role": "assistant", "content": [{"type": "tool_use", "id": tool_use.id, "name": tool_use.name, "input": tool_use.input}]},
-        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_use.id, "content": str(stock_price)}]}
+        {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_01VvRuf8tfQY2oWJ9GwohaE4", "name": "get_stock_price", "input": {"ticker": "AAPL"}}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_01VvRuf8tfQY2oWJ9GwohaE4", "content": str(stock_price)}]}
     ]
 
     # Make a new request with the tool result
@@ -199,7 +214,8 @@ def test_ai_ask_with_tool_result(ai_provider):
         "message_history": message_history,
         "provider": ai_provider,
         "temperature": 0.5,
-        "max_tokens": 150
+        "max_tokens": 150,
+        "tools": tools
     }
 
     response = make_request(**input_data)
@@ -214,9 +230,9 @@ def test_ai_ask_with_tool_result(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any(item.type == "text" for item in result.content), "Expected a text response"
+    assert any(item["type"] == "text" for item in result.content), "Expected a text response"
 
-    text_response = next(item.text for item in result.content if item.type == "text")
+    text_response = next(item["text"] for item in result.content if item["type"] == "text")
     assert "150.25" in text_response, "Expected the stock price to be mentioned in the response"
     assert "Apple" in text_response, "Expected 'Apple' to be mentioned in the response"
 

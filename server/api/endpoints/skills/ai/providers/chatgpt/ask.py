@@ -4,6 +4,7 @@
 import sys
 import os
 import re
+import uuid
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -89,10 +90,10 @@ async def ask(
 
     if input.message_history:
         for msg in input.message_history:
-            msg = msg.to_dict()
-            if isinstance(msg['content'], list):
+            msg_dict = msg.to_dict()
+            if isinstance(msg_dict['content'], list):
                 content = []
-                for item in msg['content']:
+                for item in msg_dict['content']:
                     if item['type'] == 'text':
                         content.append({"type": "text", "text": item['text']})
                     elif item['type'] == 'image':
@@ -102,9 +103,30 @@ async def ask(
                                 "url": f"data:{item['source']['media_type']};base64,{item['source']['data']}"
                             }
                         })
-                messages.append({"role": msg['role'], "content": content})
+                    elif item['type'] == 'tool_use':
+                        messages.append({
+                            "role": "assistant",
+                            "content": None,
+                            "function_call": {
+                                "name": item['name'],
+                                "arguments": json.dumps(item['input'])
+                            }
+                        })
+                    elif item['type'] == 'tool_result':
+                        # Find the corresponding tool_use to get the name
+                        tool_use = next((m for m in messages[::-1] if m.get('function_call') and m['function_call']['name']), None)
+                        if tool_use:
+                            messages.append({
+                                "role": "function",
+                                "name": tool_use['function_call']['name'],
+                                "content": item['content']
+                            })
+                        else:
+                            add_to_log("Warning: tool_result without corresponding tool_use", color="yellow")
+                if content:
+                    messages.append({"role": msg_dict['role'], "content": content})
             else:
-                messages.append(msg)
+                messages.append(msg_dict)
     elif input.message:
         messages.append({"role": "user", "content": input.message})
 
@@ -118,22 +140,19 @@ async def ask(
     }
 
     if input.tools:
-        chat_config["tools"] = [
+        chat_config["functions"] = [
             {
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": {
-                        "type": "object",
-                        "properties": tool.input_schema.properties,
-                        "required": tool.input_schema.required
-                    }
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": tool.input_schema.properties,
+                    "required": tool.input_schema.required
                 }
             }
             for tool in input.tools
         ]
-        chat_config["tool_choice"] = "auto"
+        chat_config["function_call"] = "auto"
 
     if input.stream:
         async def event_stream():
@@ -141,8 +160,8 @@ async def ask(
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
                     yield f"data: {chunk.choices[0].delta.content}\n\n"
-                elif chunk.choices[0].delta.tool_calls:
-                    yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].model_dump())}\n\n"
+                elif chunk.choices[0].delta.function_call:
+                    yield f"data: {json.dumps(chunk.choices[0].delta.function_call.model_dump())}\n\n"
             yield "event: stream_end\ndata: Stream ended\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -155,17 +174,16 @@ async def ask(
         content = []
         if response.choices[0].message.content:
             content.append(ContentItem(type="text", text=response.choices[0].message.content))
-        if response.choices[0].message.tool_calls:
-            add_to_log(response.choices[0].message.tool_calls)
-            for tool_call in response.choices[0].message.tool_calls:
-                content.append(ContentItem(
-                    type="tool_use",
-                    tool_use=ToolUse(
-                        id=tool_call.id,
-                        name=tool_call.function.name,
-                        input=json.loads(tool_call.function.arguments)
-                    )
-                ))
+        if response.choices[0].message.function_call:
+            add_to_log(response.choices[0].message.function_call)
+            content.append(ContentItem(
+                type="tool_use",
+                tool_use=ToolUse(
+                    id=f"toolu_{uuid.uuid4().hex}",
+                    name=response.choices[0].message.function_call.name,
+                    input=json.loads(response.choices[0].message.function_call.arguments)
+                )
+            ))
 
         add_to_log(content)
 
