@@ -15,7 +15,7 @@ from server import *
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData, Tool
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData, Tool, ContentStreamData
 from typing import Union, List, Dict, Any, Optional
 from fastapi.responses import StreamingResponse
 from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
@@ -143,7 +143,7 @@ async def ask(
                                 for complete_chunk in chunks[:-1]:
                                     yield ContentStreamEvent(
                                         event="content",
-                                        data={"text": complete_chunk}
+                                        data=ContentStreamData(text=complete_chunk)
                                     ).model_dump_json() + "\n\n"
                                 accumulated_text = chunks[-1]
                         elif event.delta.type == "input_json_delta":
@@ -166,7 +166,7 @@ async def ask(
                         if accumulated_text:
                             yield ContentStreamEvent(
                                 event="content",
-                                data={"text": accumulated_text}
+                                data=ContentStreamData(text=accumulated_text)
                             ).model_dump_json() + "\n\n"
                         yield StreamEndEvent(event="stream_end").model_dump_json() + "\n\n"
 

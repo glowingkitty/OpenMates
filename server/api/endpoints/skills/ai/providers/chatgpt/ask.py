@@ -16,7 +16,7 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, StreamEvent, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, StreamEvent, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData, ContentStreamData
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
@@ -158,7 +158,7 @@ async def ask(
                         for complete_chunk in chunks[:-1]:
                             yield ContentStreamEvent(
                                 event="content",
-                                data={"text": complete_chunk}
+                                data=ContentStreamData(text=complete_chunk)
                             ).model_dump_json() + "\n\n"
                         accumulated_text = chunks[-1]
                 elif chunk.choices[0].delta.tool_calls:
@@ -187,7 +187,7 @@ async def ask(
             if accumulated_text:
                 yield ContentStreamEvent(
                     event="content",
-                    data={"text": accumulated_text}
+                    data=ContentStreamData(text=accumulated_text)
                 ).model_dump_json() + "\n\n"
             yield StreamEndEvent(event="stream_end").model_dump_json() + "\n\n"
 

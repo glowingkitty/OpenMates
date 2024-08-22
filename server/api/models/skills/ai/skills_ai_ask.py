@@ -16,25 +16,28 @@ from server import *
 from typing import Literal, List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
-
-class StreamEvent(BaseModel):
-    event: Literal["content", "tool_use", "stream_end"] = Field(..., description="Type of streaming event")
-    data: Optional[Dict[str, Any]] = Field(None, description="Event data")
-
-class ContentStreamEvent(StreamEvent):
-    event: Literal["content"] = "content"
-    data: Dict[str, str] = Field(..., description="Content data")
+class ContentStreamData(BaseModel):
+    text: str = Field(..., description="Text content of the stream event")
 
 class ToolUseData(BaseModel):
     name: str = Field(..., description="Name of the tool being used")
     input: Dict[str, Any] = Field(..., description="Input parameters for the tool")
 
+class StreamEvent(BaseModel):
+    event: Literal["content", "tool_use", "stream_end"] = Field(..., description="Type of streaming event")
+    data: Optional[Union[ContentStreamData, ToolUseData]] = Field(None, description="Event data")
+
+class ContentStreamEvent(StreamEvent):
+    event: Literal["content"] = "content"
+    data: ContentStreamData
+
 class ToolUseStreamEvent(StreamEvent):
     event: Literal["tool_use"] = "tool_use"
-    data: ToolUseData = Field(..., description="Tool use data including name and input")
+    data: ToolUseData
 
 class StreamEndEvent(StreamEvent):
     event: Literal["stream_end"] = "stream_end"
+    data: None = None
 
 class ToolUse(BaseModel):
     id: str = Field(..., title="ID", description="Unique identifier for the tool use")
@@ -208,9 +211,8 @@ class AiAskOutput(BaseModel):
     cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
 
 
-class AiAskOutputStream(BaseModel):
-    event: Literal["content", "tool_use", "stream_end"] = Field(..., title="Event", description="Type of streaming event")
-    data: Optional[Dict[str, Any]] = Field(None, title="Event data")
+class AiAskOutputStream(StreamEvent):
+    pass
 
 ai_ask_input_example = {
     "system": "You are a helpful assistant. Keep your answers short.",
