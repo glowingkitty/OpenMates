@@ -15,8 +15,8 @@ from server import *
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
-from typing import Literal, Union, List, Dict, Any
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData, Tool
+from typing import Union, List, Dict, Any, Optional
 from fastapi.responses import StreamingResponse
 from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
 import json
@@ -33,6 +33,40 @@ def serialize_content_block(block: ContentBlock) -> Dict[str, Any]:
         }
     return result
 
+def chunk_text(text):
+    lines = text.split('\n')
+    chunks = []
+    current_chunk = ""
+    code_block = False
+
+    for line in lines:
+        current_chunk += line + "\n"
+
+        # Check for various separators
+        is_separator = (
+            re.match(r'^(#+\s|[A-Z][a-z]+(\s+[A-Z][a-z]+){0,2}:)', line.strip()) or  # Headlines
+            re.match(r'^(-{3,}|\*{3,}|_{3,})$', line.strip()) or  # Horizontal rules
+            re.match(r'^>.*$', line.strip()) or  # Block quotes
+            re.match(r'^\|.*\|$', line.strip()) or  # Tables
+            re.match(r'^(===+|#{3,})$', line.strip()) or  # Section breaks
+            re.match(r'^\s*[\d*-]\s', line) or  # List items
+            re.match(r'^[A-Za-z-]+:\s', line)  # Key-value pairs
+        )
+
+        # Check for code blocks
+        if line.strip().startswith('```'):
+            code_block = not code_block
+
+        # If it's a separator and we have a substantial chunk, start a new chunk
+        if (is_separator or line.strip() == '') and len(current_chunk.strip()) > 50 and not code_block:
+            chunks.append(current_chunk)
+            current_chunk = ""
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
+
 async def ask(
         token: str,
         system: str = "You are a helpful assistant. Keep your answers concise.",
@@ -44,7 +78,7 @@ async def ask(
         cache: bool = False,
         max_tokens: int = 1000,
         stop_sequence: str = None,
-        tools: List[dict] = None
+        tools: List[Tool] = None
     ) -> Union[AiAskOutput, StreamingResponse]:
     """
     Ask a question to Claude
@@ -98,14 +132,43 @@ async def ask(
     if input.stream:
         async def event_stream():
             with client.messages.stream(**message_config) as stream:
+                accumulated_text = ""
+                accumulated_json = ""
                 for event in stream:
                     if event.type == "content_block_delta":
                         if event.delta.type == "text_delta":
-                            yield f"data: {event.delta.text}\n\n"
+                            accumulated_text += event.delta.text
+                            chunks = chunk_text(accumulated_text)
+                            if len(chunks) > 1:
+                                for complete_chunk in chunks[:-1]:
+                                    yield ContentStreamEvent(
+                                        event="content",
+                                        data={"text": complete_chunk}
+                                    ).model_dump_json() + "\n\n"
+                                accumulated_text = chunks[-1]
                         elif event.delta.type == "input_json_delta":
-                            yield f"data: {json.dumps({'type': 'tool_use', 'partial_json': event.delta.partial_json})}\n\n"
+                            accumulated_json += event.delta.partial_json
+                            try:
+                                parsed_json = json.loads(accumulated_json)
+                                tool_name = determine_tool_name(parsed_json, input.tools)
+                                if tool_name:
+                                    yield ToolUseStreamEvent(
+                                        event="tool_use",
+                                        data=ToolUseData(
+                                            name=tool_name,
+                                            input=parsed_json
+                                        )
+                                    ).model_dump_json() + "\n\n"
+                                    accumulated_json = ""
+                            except json.JSONDecodeError:
+                                pass  # Continue accumulating JSON
                     elif event.type == "message_stop":
-                        yield "event: stream_end\ndata: Stream ended\n\n"
+                        if accumulated_text:
+                            yield ContentStreamEvent(
+                                event="content",
+                                data={"text": accumulated_text}
+                            ).model_dump_json() + "\n\n"
+                        yield StreamEndEvent(event="stream_end").model_dump_json() + "\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
@@ -117,3 +180,9 @@ async def ask(
             content=[serialize_content_block(block) for block in response.content],
             cost_credits=cost_credits
         )
+
+def determine_tool_name(parsed_json: Dict[str, Any], tools: List[Tool]) -> Optional[str]:
+    for tool in tools:
+        if all(prop in parsed_json for prop in tool.input_schema.properties.keys()):
+            return tool.name
+    return None

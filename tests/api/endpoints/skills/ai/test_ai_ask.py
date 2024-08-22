@@ -13,7 +13,11 @@ from server.api.models.skills.ai.skills_ai_ask import (
     ai_ask_output_example,
     ai_ask_output_example_2,
     ai_ask_output_example_3,
-    ai_ask_output_example_4
+    ai_ask_output_example_4,
+    StreamEvent,
+    ContentStreamEvent,
+    ToolUseStreamEvent,
+    StreamEndEvent
 )
 import base64
 import json
@@ -266,29 +270,8 @@ def test_ai_ask_with_tool_result(ai_provider):
 
 
 @pytest.mark.api_dependent
-def test_ai_ask_streaming(ai_provider):
-    response = make_request(message="Count from 1 to 5.", system="You are a helpful assistant.", provider=ai_provider, stream=True)
-
-    assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
-    assert response.headers.get('content-type').startswith('text/event-stream'), "Expected content-type to start with text/event-stream"
-
-    full_response = ""
-    for line in response.iter_lines():
-        if line:
-            decoded_line = line.decode('utf-8')
-            if decoded_line.startswith("data: "):
-                chunk = decoded_line[6:]
-                full_response += chunk
-                print(chunk, end='', flush=True)
-            elif decoded_line == "event: stream_end":
-                break
-
-    assert full_response, f"No response received from {ai_provider['name']}"
-    assert "1" in full_response and "5" in full_response, f"Expected numbers from 1 to 5 in the response from {ai_provider['name']}"
-
-
-@pytest.mark.api_dependent
-def test_ai_ask_streaming_with_function_calling(ai_provider):
+@pytest.mark.parametrize("use_tools", [False, True])
+def test_ai_ask_streaming(ai_provider, use_tools):
     tools = [
         {
             "name": "get_current_weather",
@@ -308,11 +291,14 @@ def test_ai_ask_streaming_with_function_calling(ai_provider):
                 "required": ["location"]
             }
         }
-    ]
+    ] if use_tools else None
+
+    message = "What's the weather like in San Francisco in celsius?" if use_tools else "Tell me about the history of San Francisco."
+    system = "You are a helpful assistant. Use the provided tools when necessary." if use_tools else "You are a helpful assistant. Provide concise information."
 
     request_data = {
-        "message": "What's the weather like in San Francisco in celcius?",
-        "system": "You are a helpful assistant. Use the provided tools when necessary.",
+        "message": message,
+        "system": system,
         "provider": ai_provider,
         "stream": True,
         "tools": tools
@@ -325,42 +311,44 @@ def test_ai_ask_streaming_with_function_calling(ai_provider):
 
     full_response = ""
     tool_use_detected = False
-    san_francisco_mentioned = False
-    accumulated_json = ""
+    content_chunks = []
+    tool_use_events = []
 
     for line in response.iter_lines():
         if line:
-            decoded_line = line.decode('utf-8')
-            if decoded_line.startswith("data: "):
-                chunk = decoded_line[6:]
-                full_response += chunk
-                print(chunk, end='', flush=True)
+            decoded_line = line.decode('utf-8').strip()
+            if decoded_line:
+                event = StreamEvent.model_validate_json(decoded_line)
+                print(f"Received event: {event.model_dump_json()}")
 
-                try:
-                    json_chunk = json.loads(chunk)
-                    if isinstance(json_chunk, dict) and json_chunk.get("type") == "tool_use":
-                        tool_use_detected = True
-                        partial_json = json_chunk.get("partial_json", "")
-                        accumulated_json += partial_json
-                        if "San Francisco" in accumulated_json:
-                            san_francisco_mentioned = True
-                            print(f"Tool use detected with San Francisco: {accumulated_json}")
-                except json.JSONDecodeError:
-                    # Not JSON, likely a text chunk
-                    if "San Francisco" in chunk:
-                        san_francisco_mentioned = True
+                if event.event == "content":
+                    content_event = ContentStreamEvent.model_validate_json(decoded_line)
+                    content_chunks.append(content_event.data["text"])
+                    full_response += content_event.data["text"]
+                elif event.event == "tool_use":
+                    tool_use_event = ToolUseStreamEvent.model_validate_json(decoded_line)
+                    tool_use_detected = True
+                    tool_use_events.append(tool_use_event)
+                    print(f"Tool use detected: {tool_use_event.model_dump_json()}")
+                elif event.event == "stream_end":
+                    break
 
-            elif decoded_line == "event: stream_end":
-                break
+    # Add assertions
+    assert full_response or tool_use_detected, "Expected a non-empty response or tool use to be detected"
 
-    assert full_response, f"No response received from {ai_provider['name']}"
-    
-    if ai_provider['name'] == 'claude':
-        assert tool_use_detected, f"Expected tool use to be detected in the response from {ai_provider['name']}"
-        assert san_francisco_mentioned, f"Expected 'San Francisco' to be mentioned in the tool use from {ai_provider['name']}"
-    else:  # ChatGPT
-        assert "San Francisco" in full_response, f"Expected 'San Francisco' to be mentioned in the response from {ai_provider['name']}"
-        assert tool_use_detected, f"Expected tool use to be detected in the response from {ai_provider['name']}"
+    if use_tools:
+        assert tool_use_detected, "Expected tool use to be detected when tools are provided"
+        assert len(tool_use_events) > 0, "Expected at least one tool use event when tools are provided"
+        assert tool_use_events[0].data.name == "get_current_weather", "Expected the get_current_weather tool to be used"
+        assert "San Francisco" in tool_use_events[0].data.input["location"], "Expected San Francisco to be in the location for tool use"
 
-    print(f"Full response: {full_response}")
-    print(f"Accumulated JSON: {accumulated_json}")
+        if content_chunks:
+            assert "weather" in full_response.lower(), "Expected 'weather' to be mentioned in the response when using tools"
+            assert "San Francisco" in full_response, "Expected 'San Francisco' to be mentioned in the response when using tools"
+    else:
+        assert not tool_use_detected, "Did not expect tool use to be detected when tools are not provided"
+        assert "San Francisco" in full_response, "Expected 'San Francisco' to be mentioned in the response"
+        assert any(word in full_response.lower() for word in ["history", "founded", "city"]), "Expected some historical information about San Francisco in the response"
+
+    # Verify that the last event was a stream_end event
+    assert event.event == "stream_end", "Expected the last event to be a stream_end event"

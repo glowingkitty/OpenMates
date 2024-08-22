@@ -16,10 +16,11 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, StreamEvent, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, StreamEvent, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
+from server.api.endpoints.skills.ai.providers.claude.ask import chunk_text
 
 def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
     # Helper function to serialize content blocks
@@ -28,40 +29,6 @@ def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
         "text": block.get("text", ""),
         "tool_calls": block.get("tool_calls", [])
     }
-
-def chunk_text(text):
-    lines = text.split('\n')
-    chunks = []
-    current_chunk = ""
-    code_block = False
-
-    for line in lines:
-        current_chunk += line + "\n"
-
-        # Check for various separators
-        is_separator = (
-            re.match(r'^(#+\s|[A-Z][a-z]+(\s+[A-Z][a-z]+){0,2}:)', line.strip()) or  # Headlines
-            re.match(r'^(-{3,}|\*{3,}|_{3,})$', line.strip()) or  # Horizontal rules
-            re.match(r'^>.*$', line.strip()) or  # Block quotes
-            re.match(r'^\|.*\|$', line.strip()) or  # Tables
-            re.match(r'^(===+|#{3,})$', line.strip()) or  # Section breaks
-            re.match(r'^\s*[\d*-]\s', line) or  # List items
-            re.match(r'^[A-Za-z-]+:\s', line)  # Key-value pairs
-        )
-
-        # Check for code blocks
-        if line.strip().startswith('```'):
-            code_block = not code_block
-
-        # If it's a separator and we have a substantial chunk, start a new chunk
-        if (is_separator or line.strip() == '') and len(current_chunk.strip()) > 50 and not code_block:
-            chunks.append(current_chunk)
-            current_chunk = ""
-
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    return chunks
 
 async def ask(
         token: str,
@@ -201,10 +168,13 @@ async def ask(
                     if tool_call.function.arguments:
                         accumulated_tool_call["arguments"] = accumulated_tool_call.get("arguments", "") + tool_call.function.arguments
                     try:
-                        json.loads(accumulated_tool_call.get("arguments", "{}"))
+                        parsed_arguments = json.loads(accumulated_tool_call.get("arguments", "{}"))
                         yield ToolUseStreamEvent(
                             event="tool_use",
-                            data=accumulated_tool_call
+                            data=ToolUseData(
+                                name=accumulated_tool_call["name"],
+                                input=parsed_arguments
+                            )
                         ).model_dump_json() + "\n\n"
                         accumulated_tool_call = {}
                     except json.JSONDecodeError:
