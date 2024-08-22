@@ -4,6 +4,7 @@
 import sys
 import os
 import re
+import uuid
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -155,6 +156,7 @@ async def ask(
                                         content=ContentItem(
                                             type="tool_use",
                                             tool_use=ToolUse(
+                                                id=str(uuid.uuid4()),
                                                 name=tool_name,
                                                 input=parsed_json
                                             )

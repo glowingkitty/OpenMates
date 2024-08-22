@@ -172,6 +172,7 @@ async def ask(
                                 content=ContentItem(
                                     type="tool_use",
                                     tool_use=ToolUse(
+                                        id=str(uuid.uuid4()),
                                         name=accumulated_tool_call["name"],
                                         input=parsed_arguments
                                     )
