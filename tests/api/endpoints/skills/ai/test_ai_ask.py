@@ -16,6 +16,8 @@ from server.api.models.skills.ai.skills_ai_ask import (
     ai_ask_output_example_4
 )
 import base64
+import json
+import uuid
 
 # Load environment variables from .env file
 load_dotenv()
@@ -157,10 +159,33 @@ def test_ai_ask_with_image(ai_provider):
 
 @pytest.mark.api_dependent
 def test_ai_ask_with_tool_use(ai_provider):
-    input_data = ai_ask_input_example_2.copy()
-    input_data["provider"] = ai_provider
+    tools = [
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given location",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"]
+                    }
+                },
+                "required": ["location"]
+            }
+        }
+    ]
 
-    response = make_request(**input_data)
+    response = make_request(
+        message="What's the weather like in San Francisco in celcius?",
+        system="You are a helpful assistant. Use the provided tools when necessary.",
+        provider=ai_provider,
+        tools=tools
+    )
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
 
@@ -172,10 +197,13 @@ def test_ai_ask_with_tool_use(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any(item["type"] == "tool_use" for item in result.content), "Expected a tool_use in the response"
-    tool_use = next(item for item in result.content if item["type"] == "tool_use")
-    assert tool_use["tool_use"]["name"] == "get_stock_price", "Expected the get_stock_price tool to be used"
-    assert tool_use["tool_use"]["input"]["ticker"] == "AAPL", "Expected the ticker to be AAPL"
+
+    tool_use_items = [item for item in result.content if item["type"] == "tool_use"]
+    assert tool_use_items, "Expected at least one tool_use in the response"
+
+    tool_use = tool_use_items[0]["tool_use"]
+    assert tool_use["name"] == "get_current_weather", "Expected the get_current_weather tool to be used"
+    assert "San Francisco" in tool_use["input"]["location"], "Expected San Francisco to be in the location"
 
 
 @pytest.mark.api_dependent
@@ -257,3 +285,63 @@ def test_ai_ask_streaming(ai_provider):
 
     assert full_response, f"No response received from {ai_provider['name']}"
     assert "1" in full_response and "5" in full_response, f"Expected numbers from 1 to 5 in the response from {ai_provider['name']}"
+
+
+@pytest.mark.api_dependent
+def test_ai_ask_streaming_with_function_calling(ai_provider):
+    tools = [
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given location",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"]
+                    }
+                },
+                "required": ["location"]
+            }
+        }
+    ]
+
+    response = make_request(
+        message="What's the weather like in San Francisco?",
+        system="You are a helpful assistant. Use the provided tools when necessary.",
+        provider=ai_provider,
+        stream=True,
+        tools=tools
+    )
+
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
+    assert response.headers.get('content-type').startswith('text/event-stream'), "Expected content-type to start with text/event-stream"
+
+    full_response = ""
+    function_call_detected = False
+
+    for line in response.iter_lines():
+        if line:
+            decoded_line = line.decode('utf-8')
+            if decoded_line.startswith("data: "):
+                chunk = decoded_line[6:]
+                full_response += chunk
+                print(chunk, end='', flush=True)
+
+                # Check if the chunk contains a function call
+                try:
+                    json_chunk = json.loads(chunk)
+                    if "name" in json_chunk and json_chunk["name"] == "get_current_weather":
+                        function_call_detected = True
+                except json.JSONDecodeError:
+                    pass
+            elif decoded_line == "event: stream_end":
+                break
+
+    assert full_response, f"No response received from {ai_provider['name']}"
+    assert function_call_detected, f"Expected a function call to get_current_weather in the response from {ai_provider['name']}"
+    assert "San Francisco" in full_response, f"Expected 'San Francisco' to be mentioned in the response from {ai_provider['name']}"

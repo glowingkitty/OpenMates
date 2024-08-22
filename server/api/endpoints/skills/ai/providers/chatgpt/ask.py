@@ -130,15 +130,18 @@ async def ask(
 
     # Add tools configuration if provided
     if input.tools:
-        chat_config["functions"] = [
+        chat_config["tools"] = [
             {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": tool.input_schema.model_dump()
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.input_schema.model_dump()
+                }
             }
             for tool in input.tools
         ]
-        chat_config["function_call"] = "auto"
+        chat_config["tool_choice"] = "auto"  # Use tool_choice instead of function_call
 
     if input.stream:
         # Handle streaming response
@@ -147,8 +150,8 @@ async def ask(
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
                     yield f"data: {chunk.choices[0].delta.content}\n\n"
-                elif chunk.choices[0].delta.function_call:
-                    yield f"data: {json.dumps(chunk.choices[0].delta.function_call.model_dump())}\n\n"
+                elif chunk.choices[0].delta.tool_calls:
+                    yield f"data: {json.dumps(chunk.choices[0].delta.tool_calls[0].function.model_dump())}\n\n"
             yield "event: stream_end\ndata: Stream ended\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -163,16 +166,18 @@ async def ask(
         content = []
         if response.choices[0].message.content:
             content.append(ContentItem(type="text", text=response.choices[0].message.content))
-        if response.choices[0].message.function_call:
-            add_to_log(response.choices[0].message.function_call)
-            content.append(ContentItem(
-                type="tool_use",
-                tool_use=ToolUse(
-                    id=f"toolu_{uuid.uuid4().hex}",
-                    name=response.choices[0].message.function_call.name,
-                    input=json.loads(response.choices[0].message.function_call.arguments)
-                )
-            ))
+
+        # Handle tool calls (previously function_call)
+        if response.choices[0].message.tool_calls:
+            for tool_call in response.choices[0].message.tool_calls:
+                content.append(ContentItem(
+                    type="tool_use",
+                    tool_use=ToolUse(
+                        id=f"toolu_{uuid.uuid4().hex}",
+                        name=tool_call.function.name,
+                        input=json.loads(tool_call.function.arguments)
+                    )
+                ))
 
         add_to_log(content)
 
