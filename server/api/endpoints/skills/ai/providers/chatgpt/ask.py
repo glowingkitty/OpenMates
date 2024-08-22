@@ -29,18 +29,38 @@ def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
         "tool_calls": block.get("tool_calls", [])
     }
 
-def chunk_text(text, max_chunk_size=100):
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+def chunk_text(text):
+    lines = text.split('\n')
     chunks = []
     current_chunk = ""
-    for sentence in sentences:
-        if len(current_chunk) + len(sentence) > max_chunk_size and current_chunk:
-            chunks.append(current_chunk.strip())
-            current_chunk = sentence
-        else:
-            current_chunk += " " + sentence if current_chunk else sentence
+    code_block = False
+
+    for line in lines:
+        current_chunk += line + "\n"
+
+        # Check for various separators
+        is_separator = (
+            re.match(r'^(#+\s|[A-Z][a-z]+(\s+[A-Z][a-z]+){0,2}:)', line.strip()) or  # Headlines
+            re.match(r'^(-{3,}|\*{3,}|_{3,})$', line.strip()) or  # Horizontal rules
+            re.match(r'^>.*$', line.strip()) or  # Block quotes
+            re.match(r'^\|.*\|$', line.strip()) or  # Tables
+            re.match(r'^(===+|#{3,})$', line.strip()) or  # Section breaks
+            re.match(r'^\s*[\d*-]\s', line) or  # List items
+            re.match(r'^[A-Za-z-]+:\s', line)  # Key-value pairs
+        )
+
+        # Check for code blocks
+        if line.strip().startswith('```'):
+            code_block = not code_block
+
+        # If it's a separator and we have a substantial chunk, start a new chunk
+        if (is_separator or line.strip() == '') and len(current_chunk.strip()) > 50 and not code_block:
+            chunks.append(current_chunk)
+            current_chunk = ""
+
     if current_chunk:
-        chunks.append(current_chunk.strip())
+        chunks.append(current_chunk)
+
     return chunks
 
 async def ask(
