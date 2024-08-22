@@ -353,6 +353,16 @@ ai_ask_input_example_4 = {
     }
 }
 
+ai_ask_input_example_5 = {
+    "system": "You are a helpful assistant. Keep your answers concise.",
+    "message":"Explain to me how dragonfly works for caching in python and give me a code example.",
+    "stream":True,
+    "provider": {
+        "name":"claude",
+        "model":"claude-3-haiku"
+    }
+}
+
 ai_ask_output_example = {
     "content": [
         {
@@ -398,3 +408,19 @@ ai_ask_output_example_4 = {
     ],
     "cost_credits": 3
 }
+
+ai_ask_output_example_5 = [
+    {"event":"content","data":{"text":"Dragonfly is a caching library for Python that provides a simple and efficient way to cache the results of expensive function calls. It allows you to cache the results of a function based on its input parameters, and it can automatically invalidate the cache when the function's dependencies change.\n\n"}},
+    {"event":"content","data":{"text":"Here\n's a simple example of how to use Dragonfly for caching in Python:\n\n"}},
+    {"event":"content","data":{"text":"```python\n\nfrom dragonfly import cache\n\n@cache\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return(fibonacci(n-1) + fibonacci(n-2))\n\nprint(fibonacci(10))  # Output: 55\nprint(fibonacci(10))  # Output: 55 (cached)\n```\n\n"}},
+    {"event":"content","data":{"text":"In this\n example, we define a `fibonacci` function that calculates the nth Fibonacci number. We use the `@cache` decorator from the Dragonfly library to cache the results of this function.\n\n"}},
+    {"event":"content","data":{"text":"When\n we first call the `fibonacci` function with an argument of `10`, the function is executed and the result is cached. When we call the function again with the same argument, the cached result is returned instead of recalculating the value.\n\n"}},
+    {"event":"content","data":{"text":"Dragonfly also\n supports more advanced caching features, such as:\n\n"}},
+    {"event":"content","data":{"text":"- Exp\niration: You can set a time-to-live (TTL) for cached values, after which they will be automatically invalidated.\n"}},
+    {"event":"content","data":{"text":"- Dependencies\n: You can specify dependencies for a cached function, so that the cache is invalidated when the dependencies change.\n- Memoization: Dragonfly can automatically memoize the results of a function based on its input parameters.\n"}},
+    {"event":"content","data":{"text":"- Distribute\nd caching: Dragonfly can be used to cache results across multiple processes or machines using a distributed cache backend, such as Redis or Memcached.\n\n"}},
+    {"event":"content","data":{"text":"Here's\n an example of using Dragonfly with dependencies:\n\n"}},
+    {"event":"content","data":{"text":"```python\n\nfrom dragonfly import cache\n\n@cache(dependencies=['data.txt'])\ndef load_data():\n    with open('data.txt', 'r') as f:\n        return f.read()\n\nprint(load_data())  # Output: the contents of data.txt\n# Modify data.txt\nprint(load_data())  # Output: the updated contents of data.txt (cache invalidated)\n```\n\n"}},
+    {"event":"content","data":{"text":"In this\n example, we use the `dependencies` parameter of the `@cache` decorator to specify that the `load_data` function depends on the `data.txt` file. If the contents of `data.txt` change, the cached result will be invalidated and the function will be called again to load the updated data."}},
+    {"event":"stream_end","data":None}
+]

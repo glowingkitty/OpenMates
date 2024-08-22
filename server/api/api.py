@@ -80,10 +80,12 @@ from server.api.models.skills.ai.skills_ai_ask import (
     ai_ask_input_example_2,
     ai_ask_input_example_3,
     ai_ask_input_example_4,
+    ai_ask_input_example_5,
     ai_ask_output_example,
     ai_ask_output_example_2,
     ai_ask_output_example_3,
-    ai_ask_output_example_4
+    ai_ask_output_example_4,
+    ai_ask_output_example_5
 )
 from server.api.models.skills.ai.skills_ai_estimate_cost import (
     AiEstimateCostInput,
@@ -314,13 +316,15 @@ def custom_openapi():
         "Ask question": ai_ask_input_example,
         "Select a tool": ai_ask_input_example_2,
         "Process tool response": ai_ask_input_example_3,
-        "Process image": ai_ask_input_example_4
+        "Process image": ai_ask_input_example_4,
+        "Get stream response": ai_ask_input_example_5
     })
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
         "Ask question": ai_ask_output_example,
         "Select a tool": ai_ask_output_example_2,
         "Process tool response": ai_ask_output_example_3,
-        "Process image": ai_ask_output_example_4
+        "Process image": ai_ask_output_example_4,
+        "Get stream response": ai_ask_output_example_5
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", {
         "Example 1": ai_estimate_cost_input_example
