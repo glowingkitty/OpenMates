@@ -163,22 +163,27 @@ async def ask(
                         accumulated_text = chunks[-1]
                 elif chunk.choices[0].delta.tool_calls:
                     tool_call = chunk.choices[0].delta.tool_calls[0]
+                    add_to_log(tool_call)
                     if tool_call.function.name:
                         accumulated_tool_call["name"] = tool_call.function.name
+                        add_to_log(f"Found a tool name: {tool_call.function.name}")
                     if tool_call.function.arguments:
                         accumulated_tool_call["arguments"] = accumulated_tool_call.get("arguments", "") + tool_call.function.arguments
-                    try:
-                        parsed_arguments = json.loads(accumulated_tool_call.get("arguments", "{}"))
-                        yield ToolUseStreamEvent(
-                            event="tool_use",
-                            data=ToolUseData(
-                                name=accumulated_tool_call["name"],
-                                input=parsed_arguments
-                            )
-                        ).model_dump_json() + "\n\n"
-                        accumulated_tool_call = {}
-                    except json.JSONDecodeError:
-                        pass  # Continue accumulating tool call data
+
+                    # Check if we have both name and arguments before yielding
+                    if "name" in accumulated_tool_call and "arguments" in accumulated_tool_call:
+                        try:
+                            parsed_arguments = json.loads(accumulated_tool_call["arguments"])
+                            yield ToolUseStreamEvent(
+                                event="tool_use",
+                                data=ToolUseData(
+                                    name=accumulated_tool_call["name"],
+                                    input=parsed_arguments
+                                )
+                            ).model_dump_json() + "\n\n"
+                            accumulated_tool_call = {}  # Reset after yielding
+                        except json.JSONDecodeError:
+                            pass  # Continue accumulating tool call data if arguments are incomplete
             if accumulated_text:
                 yield ContentStreamEvent(
                     event="content",

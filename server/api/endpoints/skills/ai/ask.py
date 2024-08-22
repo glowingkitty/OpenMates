@@ -59,6 +59,4 @@ async def ask(
     elif input.provider.name == "chatgpt":
         response = await ask_chatgpt(token=token, **input.model_dump())
 
-    add_to_log(response)
-
     return response
