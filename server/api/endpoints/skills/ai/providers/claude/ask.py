@@ -39,8 +39,19 @@ def chunk_text(text):
     chunks = []
     current_chunk = ""
     code_block = False
+    paragraph_break = False
 
     for line in lines:
+        # Check for code blocks
+        if line.strip().startswith('```'):
+            code_block = not code_block
+
+        # Check for paragraph breaks
+        if line.strip() == '':
+            paragraph_break = True
+        else:
+            paragraph_break = False
+
         current_chunk += line + "\n"
 
         # Check for various separators
@@ -54,12 +65,8 @@ def chunk_text(text):
             re.match(r'^[A-Za-z-]+:\s', line)  # Key-value pairs
         )
 
-        # Check for code blocks
-        if line.strip().startswith('```'):
-            code_block = not code_block
-
         # If it's a separator and we have a substantial chunk, start a new chunk
-        if (is_separator or line.strip() == '') and len(current_chunk.strip()) > 50 and not code_block:
+        if (is_separator or paragraph_break) and len(current_chunk.strip()) > 50 and not code_block:
             chunks.append(current_chunk)
             current_chunk = ""
 
