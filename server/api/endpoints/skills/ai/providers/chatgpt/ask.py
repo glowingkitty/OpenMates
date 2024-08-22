@@ -16,12 +16,13 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, ToolResult
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
 
 def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
+    # Helper function to serialize content blocks
     return {
         "type": block["type"],
         "text": block.get("text", ""),
@@ -45,6 +46,7 @@ async def ask(
     Ask a question to ChatGPT
     """
 
+    # Create an AiAskInput object with the provided parameters
     input = AiAskInput(
         system=system,
         message=message,
@@ -60,43 +62,26 @@ async def ask(
 
     add_to_log("Asking ChatGPT ...", module_name="OpenMates | Skills | ChatGPT | Ask", color="yellow")
 
-
-    # # TODO implement check for user key / balance
-    # user = get_user(token=token)
-
-    # # Get the estimated minimum cost of the skill
-    # estimated_minimum_cost = get_skill_costs(
-    #     software="chatgpt",
-    #     skill="ask",
-    #     token_count=count_tokens(system+message)+200 # assumming 200 tokens for the response
-    # )
-
-    # # Get the api credentials for ChatGPT
-    # api_credentials = get_api_credentials(
-    #     user=user,
-    #     software="chatgpt",
-    #     api_credentials="default",
-    #     costs_eur=estimated_minimum_cost
-    # )
-
-    # # Send request to ChatGPT to get a response
-    # client = OpenAI(api_key=api_credentials["api_key"])
-
-    # Send request to ChatGPT to get a response
+    # Initialize OpenAI client
     load_dotenv()
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+    # Prepare messages for the chat
     messages = [{"role": "system", "content": input.system}]
+    tool_use_map = {}
 
     if input.message_history:
         for msg in input.message_history:
             msg_dict = msg.to_dict()
             if isinstance(msg_dict['content'], list):
+                # Handle complex message content (text, images, tool uses, tool results)
                 content = []
                 for item in msg_dict['content']:
                     if item['type'] == 'text':
+                        # Add text content
                         content.append({"type": "text", "text": item['text']})
                     elif item['type'] == 'image':
+                        # Add image content
                         content.append({
                             "type": "image_url",
                             "image_url": {
@@ -104,33 +89,37 @@ async def ask(
                             }
                         })
                     elif item['type'] == 'tool_use':
-                        messages.append({
+                        # Handle tool use
+                        tool_call = {
                             "role": "assistant",
                             "content": None,
                             "function_call": {
                                 "name": item['name'],
                                 "arguments": json.dumps(item['input'])
                             }
-                        })
+                        }
+                        messages.append(tool_call)
+                        tool_use_map[item['id']] = item['name']
                     elif item['type'] == 'tool_result':
-                        # Find the corresponding tool_use to get the name
-                        tool_use = next((m for m in messages[::-1] if m.get('function_call') and m['function_call']['name']), None)
-                        if tool_use:
+                        # Handle tool result
+                        if item['tool_use_id'] in tool_use_map:
                             messages.append({
                                 "role": "function",
-                                "name": tool_use['function_call']['name'],
+                                "name": tool_use_map[item['tool_use_id']],
                                 "content": item['content']
                             })
                         else:
-                            add_to_log("Warning: tool_result without corresponding tool_use", color="yellow")
+                            add_to_log(f"Warning: tool_result without corresponding tool_use (ID: {item['tool_use_id']})", color="yellow")
                 if content:
                     messages.append({"role": msg_dict['role'], "content": content})
             else:
+                # Add simple message content
                 messages.append(msg_dict)
     elif input.message:
+        # Add single message if no history is provided
         messages.append({"role": "user", "content": input.message})
 
-    # Define common configuration
+    # Prepare chat configuration
     chat_config = {
         "model": input.provider.model,
         "messages": messages,
@@ -139,22 +128,20 @@ async def ask(
         "stream": input.stream
     }
 
+    # Add tools configuration if provided
     if input.tools:
         chat_config["functions"] = [
             {
                 "name": tool.name,
                 "description": tool.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": tool.input_schema.properties,
-                    "required": tool.input_schema.required
-                }
+                "parameters": tool.input_schema.model_dump()
             }
             for tool in input.tools
         ]
         chat_config["function_call"] = "auto"
 
     if input.stream:
+        # Handle streaming response
         async def event_stream():
             stream = client.chat.completions.create(**chat_config)
             for chunk in stream:
@@ -166,11 +153,13 @@ async def ask(
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
+        # Handle non-streaming response
         response = client.chat.completions.create(**chat_config)
 
         # TODO: Calculate cost based on token usage
         cost_credits = None
 
+        # Process the response content
         content = []
         if response.choices[0].message.content:
             content.append(ContentItem(type="text", text=response.choices[0].message.content))
@@ -187,6 +176,7 @@ async def ask(
 
         add_to_log(content)
 
+        # Return the final output
         return AiAskOutput(
             content=content,
             cost_credits=cost_credits
