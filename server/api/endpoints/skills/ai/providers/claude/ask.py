@@ -19,6 +19,7 @@ from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
+import json
 
 def serialize_content_block(block: ContentBlock) -> Dict[str, Any]:
     result = {"type": block.type}
@@ -97,9 +98,14 @@ async def ask(
     if input.stream:
         async def event_stream():
             with client.messages.stream(**message_config) as stream:
-                for text in stream.text_stream:
-                    yield f"data: {text}\n\n"
-                yield "event: stream_end\ndata: Stream ended\n\n"
+                for event in stream:
+                    if event.type == "content_block_delta":
+                        if event.delta.type == "text_delta":
+                            yield f"data: {event.delta.text}\n\n"
+                        elif event.delta.type == "input_json_delta":
+                            yield f"data: {json.dumps({'type': 'tool_use', 'partial_json': event.delta.partial_json})}\n\n"
+                    elif event.type == "message_stop":
+                        yield "event: stream_end\ndata: Stream ended\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:

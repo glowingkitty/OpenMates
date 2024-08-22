@@ -310,19 +310,23 @@ def test_ai_ask_streaming_with_function_calling(ai_provider):
         }
     ]
 
-    response = make_request(
-        message="What's the weather like in San Francisco?",
-        system="You are a helpful assistant. Use the provided tools when necessary.",
-        provider=ai_provider,
-        stream=True,
-        tools=tools
-    )
+    request_data = {
+        "message": "What's the weather like in San Francisco in celcius?",
+        "system": "You are a helpful assistant. Use the provided tools when necessary.",
+        "provider": ai_provider,
+        "stream": True,
+        "tools": tools
+    }
+
+    response = make_request(**request_data)
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
     assert response.headers.get('content-type').startswith('text/event-stream'), "Expected content-type to start with text/event-stream"
 
     full_response = ""
-    function_call_detected = False
+    tool_use_detected = False
+    san_francisco_mentioned = False
+    accumulated_json = ""
 
     for line in response.iter_lines():
         if line:
@@ -332,16 +336,31 @@ def test_ai_ask_streaming_with_function_calling(ai_provider):
                 full_response += chunk
                 print(chunk, end='', flush=True)
 
-                # Check if the chunk contains a function call
                 try:
                     json_chunk = json.loads(chunk)
-                    if "name" in json_chunk and json_chunk["name"] == "get_current_weather":
-                        function_call_detected = True
+                    if isinstance(json_chunk, dict) and json_chunk.get("type") == "tool_use":
+                        tool_use_detected = True
+                        partial_json = json_chunk.get("partial_json", "")
+                        accumulated_json += partial_json
+                        if "San Francisco" in accumulated_json:
+                            san_francisco_mentioned = True
+                            print(f"Tool use detected with San Francisco: {accumulated_json}")
                 except json.JSONDecodeError:
-                    pass
+                    # Not JSON, likely a text chunk
+                    if "San Francisco" in chunk:
+                        san_francisco_mentioned = True
+
             elif decoded_line == "event: stream_end":
                 break
 
     assert full_response, f"No response received from {ai_provider['name']}"
-    assert function_call_detected, f"Expected a function call to get_current_weather in the response from {ai_provider['name']}"
-    assert "San Francisco" in full_response, f"Expected 'San Francisco' to be mentioned in the response from {ai_provider['name']}"
+    
+    if ai_provider['name'] == 'claude':
+        assert tool_use_detected, f"Expected tool use to be detected in the response from {ai_provider['name']}"
+        assert san_francisco_mentioned, f"Expected 'San Francisco' to be mentioned in the tool use from {ai_provider['name']}"
+    else:  # ChatGPT
+        assert "San Francisco" in full_response, f"Expected 'San Francisco' to be mentioned in the response from {ai_provider['name']}"
+        assert tool_use_detected, f"Expected tool use to be detected in the response from {ai_provider['name']}"
+
+    print(f"Full response: {full_response}")
+    print(f"Accumulated JSON: {accumulated_json}")
