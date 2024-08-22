@@ -143,7 +143,7 @@ async def ask(
                                 for complete_chunk in chunks[:-1]:
                                     yield AiAskOutputStream(
                                         content=ContentItem(type="text", text=complete_chunk)
-                                    ).model_dump_json() + "\n\n"
+                                    ).model_dump_json(exclude_none=True) + "\n\n"
                                 accumulated_text = chunks[-1]
                         elif event.delta.type == "input_json_delta":
                             accumulated_json += event.delta.partial_json
@@ -159,14 +159,14 @@ async def ask(
                                                 input=parsed_json
                                             )
                                         )
-                                    ).model_dump_json() + "\n\n"
+                                    ).model_dump_json(exclude_none=True) + "\n\n"
                                     accumulated_json = ""
                             except json.JSONDecodeError:
                                 pass  # Continue accumulating JSON
                     elif event.type == "message_stop":
                         if accumulated_text:
-                            yield AiAskOutputStream(content=ContentItem(type="text", text=accumulated_text)).model_dump_json() + "\n\n"
-                        yield AiAskOutputStream(stream_end=True).model_dump_json() + "\n\n"
+                            yield AiAskOutputStream(content=ContentItem(type="text", text=accumulated_text)).model_dump_json(exclude_none=True) + "\n\n"
+                        yield AiAskOutputStream(stream_end=True).model_dump_json(exclude_none=True) + "\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
@@ -192,7 +192,7 @@ async def ask(
         return AiAskOutput(
             content=content,
             cost_credits=cost_credits
-        )
+        ).model_dump(exclude_none=True)
 
 def determine_tool_name(parsed_json: Dict[str, Any], tools: List[Tool]) -> Optional[str]:
     for tool in tools:

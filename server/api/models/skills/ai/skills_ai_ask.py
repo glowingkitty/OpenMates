@@ -212,9 +212,11 @@ class AiAskOutput(BaseModel):
 
 
 class AiAskOutputStream(BaseModel):
-    content: Optional[ContentItem] = Field(..., title="Content", description="The response content from the AI to the question.")
+    content: Optional[ContentItem] = Field(None, title="Content", description="The response content from the AI to the question.")
     cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
     stream_end: Optional[bool] = Field(None, title="Stream end", description="If true, the stream has ended")
+
+    model_config = ConfigDict(exclude_none=True)
 
 ai_ask_input_example = {
     "system": "You are a helpful assistant. Keep your answers short.",

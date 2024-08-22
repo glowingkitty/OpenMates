@@ -17,6 +17,7 @@ from server.api.models.skills.ai.skills_ai_ask import (
     ai_ask_output_example_4,
 )
 import base64
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -317,13 +318,14 @@ def test_ai_ask_streaming(ai_provider, use_tools):
                 print(f"Received event: {stream_event.model_dump_json()}")
 
                 if stream_event.content:
-                    if stream_event.content.type == "text":
-                        content_chunks.append(stream_event.content.text)
-                        full_response += stream_event.content.text
-                    elif stream_event.content.type == "tool_use":
-                        tool_use_detected = True
-                        tool_use_events.append(stream_event.content.tool_use)
-                        print(f"Tool use detected: {stream_event.content.tool_use.model_dump_json()}")
+                    if isinstance(stream_event.content, dict):
+                        if stream_event.content.get("type") == "text":
+                            content_chunks.append(stream_event.content.get("text", ""))
+                            full_response += stream_event.content.get("text", "")
+                        elif stream_event.content.get("type") == "tool_use":
+                            tool_use_detected = True
+                            tool_use_events.append(stream_event.content.get("tool_use", {}))
+                            print(f"Tool use detected: {json.dumps(stream_event.content.get('tool_use', {}))}")
                 elif stream_event.stream_end:
                     break
 
@@ -333,8 +335,8 @@ def test_ai_ask_streaming(ai_provider, use_tools):
     if use_tools:
         assert tool_use_detected, "Expected tool use to be detected when tools are provided"
         assert len(tool_use_events) > 0, "Expected at least one tool use event when tools are provided"
-        assert tool_use_events[0].name == "get_current_weather", "Expected the get_current_weather tool to be used"
-        assert "San Francisco" in tool_use_events[0].input["location"], "Expected San Francisco to be in the location for tool use"
+        assert tool_use_events[0].get("name", "") == "get_current_weather", "Expected the get_current_weather tool to be used"
+        assert "San Francisco" in tool_use_events[0].get("input", {}).get("location", ""), "Expected San Francisco to be in the location for tool use"
 
         if content_chunks:
             assert "weather" in full_response.lower(), "Expected 'weather' to be mentioned in the response when using tools"
