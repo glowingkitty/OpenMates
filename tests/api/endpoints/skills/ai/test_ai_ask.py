@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from server.api.models.skills.ai.skills_ai_ask import (
     AiAskInput,
     AiAskOutput,
+    AiAskOutputStream,
     ai_ask_input_example,
     ai_ask_input_example_2,
     ai_ask_input_example_3,
@@ -14,14 +15,8 @@ from server.api.models.skills.ai.skills_ai_ask import (
     ai_ask_output_example_2,
     ai_ask_output_example_3,
     ai_ask_output_example_4,
-    StreamEvent,
-    ContentStreamEvent,
-    ToolUseStreamEvent,
-    StreamEndEvent
 )
 import base64
-import json
-import uuid
 
 # Load environment variables from .env file
 load_dotenv()
@@ -120,9 +115,9 @@ def test_ai_ask_with_message_history(ai_provider):
 
 
 @pytest.mark.api_dependent
-@pytest.mark.skipif(not os.path.exists("tests/api/endpoints/skills/claude/test_claude_ask_example_image.jpg"), reason="Test image not found")
+@pytest.mark.skipif(not os.path.exists("tests/api/endpoints/skills/ai/test_ai_ask_example_image.jpg"), reason="Test image not found")
 def test_ai_ask_with_image(ai_provider):
-    image_path = "tests/api/endpoints/skills/claude/test_claude_ask_example_image.jpg"
+    image_path = "tests/api/endpoints/skills/ai/test_ai_ask_example_image.jpg"
     with open(image_path, "rb") as image_file:
         image_data = base64.b64encode(image_file.read()).decode('utf-8')
 
@@ -318,19 +313,18 @@ def test_ai_ask_streaming(ai_provider, use_tools):
         if line:
             decoded_line = line.decode('utf-8').strip()
             if decoded_line:
-                event = StreamEvent.model_validate_json(decoded_line)
-                print(f"Received event: {event.model_dump_json()}")
+                stream_event = AiAskOutputStream.model_validate_json(decoded_line)
+                print(f"Received event: {stream_event.model_dump_json()}")
 
-                if event.event == "content":
-                    content_event = ContentStreamEvent.model_validate_json(decoded_line)
-                    content_chunks.append(content_event.data["text"])
-                    full_response += content_event.data["text"]
-                elif event.event == "tool_use":
-                    tool_use_event = ToolUseStreamEvent.model_validate_json(decoded_line)
-                    tool_use_detected = True
-                    tool_use_events.append(tool_use_event)
-                    print(f"Tool use detected: {tool_use_event.model_dump_json()}")
-                elif event.event == "stream_end":
+                if stream_event.content:
+                    if stream_event.content.type == "text":
+                        content_chunks.append(stream_event.content.text)
+                        full_response += stream_event.content.text
+                    elif stream_event.content.type == "tool_use":
+                        tool_use_detected = True
+                        tool_use_events.append(stream_event.content.tool_use)
+                        print(f"Tool use detected: {stream_event.content.tool_use.model_dump_json()}")
+                elif stream_event.stream_end:
                     break
 
     # Add assertions
@@ -339,8 +333,8 @@ def test_ai_ask_streaming(ai_provider, use_tools):
     if use_tools:
         assert tool_use_detected, "Expected tool use to be detected when tools are provided"
         assert len(tool_use_events) > 0, "Expected at least one tool use event when tools are provided"
-        assert tool_use_events[0].data.name == "get_current_weather", "Expected the get_current_weather tool to be used"
-        assert "San Francisco" in tool_use_events[0].data.input["location"], "Expected San Francisco to be in the location for tool use"
+        assert tool_use_events[0].name == "get_current_weather", "Expected the get_current_weather tool to be used"
+        assert "San Francisco" in tool_use_events[0].input["location"], "Expected San Francisco to be in the location for tool use"
 
         if content_chunks:
             assert "weather" in full_response.lower(), "Expected 'weather' to be mentioned in the response when using tools"
@@ -351,4 +345,4 @@ def test_ai_ask_streaming(ai_provider, use_tools):
         assert any(word in full_response.lower() for word in ["history", "founded", "city"]), "Expected some historical information about San Francisco in the response"
 
     # Verify that the last event was a stream_end event
-    assert event.event == "stream_end", "Expected the last event to be a stream_end event"
+    assert stream_event.stream_end, "Expected the last event to be a stream_end event"

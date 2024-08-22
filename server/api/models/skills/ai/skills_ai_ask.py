@@ -16,28 +16,28 @@ from server import *
 from typing import Literal, List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
-class ContentStreamData(BaseModel):
-    text: str = Field(..., description="Text content of the stream event")
+# class ContentStreamData(BaseModel):
+#     text: str = Field(..., description="Text content of the stream event")
 
-class ToolUseData(BaseModel):
-    name: str = Field(..., description="Name of the tool being used")
-    input: Dict[str, Any] = Field(..., description="Input parameters for the tool")
+# class ToolUseData(BaseModel):
+#     name: str = Field(..., description="Name of the tool being used")
+#     input: Dict[str, Any] = Field(..., description="Input parameters for the tool")
 
-class StreamEvent(BaseModel):
-    event: Literal["content", "tool_use", "stream_end"] = Field(..., description="Type of streaming event")
-    data: Optional[Union[ContentStreamData, ToolUseData]] = Field(None, description="Event data")
+# class StreamEvent(BaseModel):
+#     event: Literal["content", "tool_use", "stream_end"] = Field(..., description="Type of streaming event")
+#     data: Optional[Union[ContentStreamData, ToolUseData]] = Field(None, description="Event data")
 
-class ContentStreamEvent(StreamEvent):
-    event: Literal["content"] = "content"
-    data: ContentStreamData
+# class ContentStreamEvent(StreamEvent):
+#     event: Literal["content"] = "content"
+#     data: ContentStreamData
 
-class ToolUseStreamEvent(StreamEvent):
-    event: Literal["tool_use"] = "tool_use"
-    data: ToolUseData
+# class ToolUseStreamEvent(StreamEvent):
+#     event: Literal["tool_use"] = "tool_use"
+#     data: ToolUseData
 
-class StreamEndEvent(StreamEvent):
-    event: Literal["stream_end"] = "stream_end"
-    data: None = None
+# class StreamEndEvent(StreamEvent):
+#     event: Literal["stream_end"] = "stream_end"
+#     data: None = None
 
 class ToolUse(BaseModel):
     id: str = Field(..., title="ID", description="Unique identifier for the tool use")
@@ -211,8 +211,10 @@ class AiAskOutput(BaseModel):
     cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
 
 
-class AiAskOutputStream(StreamEvent):
-    pass
+class AiAskOutputStream(BaseModel):
+    content: Optional[ContentItem] = Field(..., title="Content", description="The response content from the AI to the question.")
+    cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
+    stream_end: Optional[bool] = Field(None, title="Stream end", description="If true, the stream has ended")
 
 ai_ask_input_example = {
     "system": "You are a helpful assistant. Keep your answers short.",

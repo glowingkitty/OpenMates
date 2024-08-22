@@ -16,7 +16,7 @@ from server import *
 
 from openai import OpenAI
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, StreamEvent, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData, ContentStreamData
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, AiAskOutputStream
 from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
@@ -156,40 +156,33 @@ async def ask(
                     chunks = chunk_text(accumulated_text)
                     if len(chunks) > 1:
                         for complete_chunk in chunks[:-1]:
-                            yield ContentStreamEvent(
-                                event="content",
-                                data=ContentStreamData(text=complete_chunk)
-                            ).model_dump_json() + "\n\n"
+                            yield AiAskOutputStream(content=ContentItem(type="text", text=complete_chunk)).model_dump_json() + "\n\n"
                         accumulated_text = chunks[-1]
                 elif chunk.choices[0].delta.tool_calls:
                     tool_call = chunk.choices[0].delta.tool_calls[0]
-                    add_to_log(tool_call)
                     if tool_call.function.name:
                         accumulated_tool_call["name"] = tool_call.function.name
-                        add_to_log(f"Found a tool name: {tool_call.function.name}")
                     if tool_call.function.arguments:
                         accumulated_tool_call["arguments"] = accumulated_tool_call.get("arguments", "") + tool_call.function.arguments
 
-                    # Check if we have both name and arguments before yielding
                     if "name" in accumulated_tool_call and "arguments" in accumulated_tool_call:
                         try:
                             parsed_arguments = json.loads(accumulated_tool_call["arguments"])
-                            yield ToolUseStreamEvent(
-                                event="tool_use",
-                                data=ToolUseData(
-                                    name=accumulated_tool_call["name"],
-                                    input=parsed_arguments
+                            yield AiAskOutputStream(
+                                content=ContentItem(
+                                    type="tool_use",
+                                    tool_use=ToolUse(
+                                        name=accumulated_tool_call["name"],
+                                        input=parsed_arguments
+                                    )
                                 )
                             ).model_dump_json() + "\n\n"
-                            accumulated_tool_call = {}  # Reset after yielding
+                            accumulated_tool_call = {}
                         except json.JSONDecodeError:
-                            pass  # Continue accumulating tool call data if arguments are incomplete
+                            pass
             if accumulated_text:
-                yield ContentStreamEvent(
-                    event="content",
-                    data=ContentStreamData(text=accumulated_text)
-                ).model_dump_json() + "\n\n"
-            yield StreamEndEvent(event="stream_end").model_dump_json() + "\n\n"
+                yield AiAskOutputStream(content=ContentItem(type="text", text=accumulated_text)).model_dump_json() + "\n\n"
+            yield AiAskOutputStream(stream_end=True).model_dump_json() + "\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
@@ -210,11 +203,13 @@ async def ask(
                 content.append(ContentItem(
                     type="tool_use",
                     tool_use=ToolUse(
-                        id=f"toolu_{uuid.uuid4().hex}",
                         name=tool_call.function.name,
                         input=json.loads(tool_call.function.arguments)
                     )
                 ))
+
+        # Add handling for tool results if applicable
+        # This might depend on how ChatGPT returns tool results
 
         add_to_log(content)
 

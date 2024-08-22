@@ -15,7 +15,7 @@ from server import *
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, ContentStreamEvent, ToolUseStreamEvent, StreamEndEvent, ToolUseData, Tool, ContentStreamData
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, ContentItem, ToolUse, Tool, AiAskOutputStream
 from typing import Union, List, Dict, Any, Optional
 from fastapi.responses import StreamingResponse
 from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
@@ -141,9 +141,8 @@ async def ask(
                             chunks = chunk_text(accumulated_text)
                             if len(chunks) > 1:
                                 for complete_chunk in chunks[:-1]:
-                                    yield ContentStreamEvent(
-                                        event="content",
-                                        data=ContentStreamData(text=complete_chunk)
+                                    yield AiAskOutputStream(
+                                        content=ContentItem(type="text", text=complete_chunk)
                                     ).model_dump_json() + "\n\n"
                                 accumulated_text = chunks[-1]
                         elif event.delta.type == "input_json_delta":
@@ -152,11 +151,13 @@ async def ask(
                                 parsed_json = json.loads(accumulated_json)
                                 tool_name = determine_tool_name(parsed_json, input.tools)
                                 if tool_name:
-                                    yield ToolUseStreamEvent(
-                                        event="tool_use",
-                                        data=ToolUseData(
-                                            name=tool_name,
-                                            input=parsed_json
+                                    yield AiAskOutputStream(
+                                        content=ContentItem(
+                                            type="tool_use",
+                                            tool_use=ToolUse(
+                                                name=tool_name,
+                                                input=parsed_json
+                                            )
                                         )
                                     ).model_dump_json() + "\n\n"
                                     accumulated_json = ""
@@ -164,11 +165,8 @@ async def ask(
                                 pass  # Continue accumulating JSON
                     elif event.type == "message_stop":
                         if accumulated_text:
-                            yield ContentStreamEvent(
-                                event="content",
-                                data=ContentStreamData(text=accumulated_text)
-                            ).model_dump_json() + "\n\n"
-                        yield StreamEndEvent(event="stream_end").model_dump_json() + "\n\n"
+                            yield AiAskOutputStream(content=ContentItem(type="text", text=accumulated_text)).model_dump_json() + "\n\n"
+                        yield AiAskOutputStream(stream_end=True).model_dump_json() + "\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
@@ -176,8 +174,23 @@ async def ask(
 
         # TODO calculate cost, based on token usage
         cost_credits = None
+        content = []
+        for block in response.content:
+            if isinstance(block, TextBlock):
+                content.append(ContentItem(type="text", text=block.text))
+            elif isinstance(block, ToolUseBlock):
+                content.append(ContentItem(
+                    type="tool_use",
+                    tool_use=ToolUse(
+                        id=block.id,
+                        name=block.name,
+                        input=block.input
+                    )
+                ))
+            # Add handling for tool results if applicable
+            # This might depend on how Claude returns tool results
         return AiAskOutput(
-            content=[serialize_content_block(block) for block in response.content],
+            content=content,
             cost_credits=cost_credits
         )
 
