@@ -76,6 +76,7 @@ from server.api.models.skills.skills_get_one import (
 from server.api.models.skills.ai.skills_ai_ask import (
     AiAskInput,
     AiAskOutput,
+    AiAskOutputStream,
     ai_ask_input_example,
     ai_ask_input_example_2,
     ai_ask_input_example_3,
@@ -317,16 +318,16 @@ def custom_openapi():
         "Select a tool": ai_ask_input_example_2,
         "Process tool response": ai_ask_input_example_3,
         "Process image": ai_ask_input_example_4,
-        "Get stream response": ai_ask_input_example_5
+        "Ask question (stream)": ai_ask_input_example_5
     })
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
         "Ask question": ai_ask_output_example,
         "Select a tool": ai_ask_output_example_2,
         "Process tool response": ai_ask_output_example_3,
         "Process image": ai_ask_output_example_4,
-    }, "200")
+    }, "200", "application/json")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
-        "Get stream response": ai_ask_output_example_5
+        "Stream response": ai_ask_output_example_5
     }, "200", "text/event-stream")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", {
         "Example 1": ai_estimate_cost_input_example
@@ -370,6 +371,11 @@ def custom_openapi():
         "Example 1": image_editor_resize_output_example
     }, "200")
 
+
+    # Ensure AiAskOutput schema is correctly referenced
+    openapi_schema["paths"]["/v1/{team_slug}/skills/ai/ask"]["post"]["responses"]["200"]["content"]["application/json"]["schema"] = {
+        "$ref": "#/components/schemas/AiAskOutput"
+    }
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

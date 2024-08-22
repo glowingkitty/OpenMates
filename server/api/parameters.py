@@ -191,10 +191,26 @@ skills_endpoints = {
 
 skills_ai_endpoints = {
     "ask":{
-        "response_model":Union[AiAskOutput, AiAskOutputStream],
+        "response_model": Union[AiAskOutput, AiAskOutputStream],
         "summary": "Ask",
         "description": "<img src='images/skills/ai/ask.png' alt='Ask your AI a question using text & images, and it will answer it based on its knowledge.'>",
-        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+        "responses": {
+            200: {
+                "description": "Successful Response",
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/AiAskOutput"}
+                    },
+                    "text/event-stream": {
+                        "schema": {
+                            "type": "array",
+                            "items": {"$ref": "#/components/schemas/AiAskOutputStream"}
+                        }
+                    }
+                }
+            },
+            **generate_responses([400, 401, 403, 404, 422, 500])
+        }
     },
     "estimate_cost":{
         "response_model":AiEstimateCostOutput,
