@@ -31,7 +31,7 @@ def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 async def ask(
-        token: str,
+        api_token: str = os.getenv("OPENAI_API_KEY"),
         system: str = "You are a helpful assistant. Keep your answers concise.",
         message: str = None,
         message_history: List[Dict[str, Any]] = None,
@@ -65,7 +65,7 @@ async def ask(
 
     # Initialize OpenAI client
     load_dotenv()
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=api_token)
 
     # Prepare messages for the chat
     messages = [{"role": "system", "content": input.system}]

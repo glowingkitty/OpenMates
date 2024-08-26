@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
 import json
 
+
 def serialize_content_block(block: ContentBlock) -> Dict[str, Any]:
     result = {"type": block.type}
     if isinstance(block, TextBlock):
@@ -69,7 +70,7 @@ def chunk_text(text):
     return [chunk.strip() for chunk in chunks if chunk.strip()]
 
 async def ask(
-        token: str,
+        api_token: str = os.getenv("ANTHROPIC_API_KEY"),
         system: str = "You are a helpful assistant. Keep your answers concise.",
         message: str = None,
         message_history: List[Dict[str, Any]] = None,
@@ -97,8 +98,6 @@ async def ask(
         stop_sequence=stop_sequence,
         tools=tools
     )
-
-    # TODO check for user api key or billing / enough credits
 
     add_to_log("Asking Claude ...", module_name="OpenMates | Skills | Claude | Ask", color="yellow")
 
@@ -128,7 +127,7 @@ async def ask(
 
     # Send request to Claude to get a response
     load_dotenv()
-    client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    client = Anthropic(api_key=api_token)
 
     if input.stream:
         async def event_stream():

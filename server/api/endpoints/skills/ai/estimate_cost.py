@@ -21,7 +21,7 @@ def calculate_cost(total_tokens: int, cost_per_1M_tokens: int) -> int:
     return max(1, total_cost)  # Ensure minimum cost is 1 credit
 
 def estimate_cost(
-    token_count: int,
+    token_count: Optional[int] = None,
     system: Optional[str] = None,
     message: Optional[str] = None,
     message_history: Optional[List[Dict[str, str]]] = None,
@@ -49,7 +49,7 @@ def estimate_cost(
     )
 
     # Use token_count directly if provided
-    if input_data.token_count > 0:
+    if input_data.token_count and input_data.token_count > 0:
         total_tokens = input_data.token_count
     else:
         # Construct the input as the AI model would see it
@@ -73,10 +73,10 @@ def estimate_cost(
         total_tokens = count_tokens(input_text)
 
     # Set pricing based on the model
-    if input_data.provider['model'] in pricing:
-        cost_per_1M_tokens = pricing[input_data.provider['model']]
+    if input_data.provider.model in pricing:
+        cost_per_1M_tokens = pricing[input_data.provider.model]
     else:
-        raise ValueError(f"Unsupported model: {input_data.provider['model']}")
+        raise ValueError(f"Unsupported model: {input_data.provider.model}")
 
     # Calculate costs for different output token amounts
     cost_100 = calculate_cost(total_tokens + 100, cost_per_1M_tokens)

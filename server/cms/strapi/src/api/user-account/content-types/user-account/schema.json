@@ -47,7 +47,7 @@
       "target": "api::project.project"
     },
     "balance": {
-      "type": "decimal",
+      "type": "integer",
       "required": true,
       "default": 0
     },

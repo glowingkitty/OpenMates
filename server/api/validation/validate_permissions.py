@@ -55,6 +55,8 @@ async def validate_permissions(
             access = await validate_user_data_access(
                 token=user_api_token,
                 request_team_slug=team_slug,
+                username=user_username,
+                password=user_password,
                 request_endpoint="get_all_users"
             )
             return access

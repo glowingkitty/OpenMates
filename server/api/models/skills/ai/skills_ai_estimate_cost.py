@@ -4,6 +4,7 @@
 import sys
 import os
 import re
+from typing import Optional
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -17,7 +18,7 @@ from pydantic import BaseModel, Field
 from server.api.models.skills.ai.skills_ai_ask import AiAskInput
 
 class AiEstimateCostInput(AiAskInput):
-    token_count: int = Field(..., title="Token Count", description="Number of tokens for which the cost is being estimated")
+    token_count: Optional[int] = Field(None, title="Token Count", description="Number of tokens for which the cost is being estimated")
 
     class Config:
         extra = "forbid"

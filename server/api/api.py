@@ -642,7 +642,8 @@ async def skill_ai_ask(
         user_api_token=token
     )
     return await skill_ai_ask_processing(
-        token=token,
+        user_api_token=token,
+        team_slug=team_slug,
         system=parameters.system,
         message=parameters.message,
         message_history=parameters.message_history,
