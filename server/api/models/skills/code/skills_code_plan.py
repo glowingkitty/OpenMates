@@ -20,10 +20,9 @@ import base64
 # POST /{team_slug}/skills/code/plan (plan code structure and logic)
 
 class Question(BaseModel):
-    question: Optional[str] = Field(..., description="The question text")
-    answer: Optional[str] = Field(..., description="The answer to the question")
+    question: Optional[str] = Field(None, description="The question text")
+    answer: Optional[str] = Field(None, description="The answer to the question")
 
-    # make sure that either question or answer field is not none
     @model_validator(mode='after')
     def check_question_or_answer(self):
         if self.question is None and self.answer is None:
@@ -33,55 +32,55 @@ class Question(BaseModel):
 
 class QAndABasics(BaseModel):
     main_features: Optional[Question] = Field(
-        default=Question(question="What are the main features of the project?", answer=None),
+        default=Question(question="What are the main features of the project?"),
         description="What are the main features of the project?"
     )
     target_platform: Optional[Question] = Field(
-        default=Question(question="What is the target platform for the project?", answer=None),
+        default=Question(question="What is the target platform for the project?"),
         description="What is the target platform for the project?"
     )
     target_users: Optional[Question] = Field(
-        default=Question(question="Who are the target users and what are their needs?", answer=None),
+        default=Question(question="Who are the target users and what are their needs?"),
         description="Who are the target users and what are their needs?"
     )
     infrastructure_context: Optional[Question] = Field(
-        default=Question(question="What is the infrastructure context (server, cloud provider, services, etc.)?", answer=None),
+        default=Question(question="What is the infrastructure context (server, cloud provider, services, etc.)?"),
         description="What is the infrastructure context (server, cloud provider, services, etc.)"
     )
     specific_tech: Optional[Question] = Field(
-        default=Question(question="What specific technologies will be used (programming languages, frameworks, APIs, dependencies, etc.)?", answer=None),
+        default=Question(question="What specific technologies will be used (programming languages, frameworks, APIs, dependencies, etc.)?"),
         description="What specific technologies will be used (programming languages, frameworks, APIs, dependencies, etc.)"
     )
     security_requirements: Optional[Question] = Field(
-        default=Question(question="What are the security and data privacy requirements?", answer=None),
+        default=Question(question="What are the security and data privacy requirements?"),
         description="What are the security and data privacy requirements?"
     )
     error_handling: Optional[Question] = Field(
-        default=Question(question="What are the error handling requirements?", answer=None),
+        default=Question(question="What are the error handling requirements?"),
         description="What are the error handling requirements?"
     )
     testing_requirements: Optional[Question] = Field(
-        default=Question(question="What are the testing implementation requirements?", answer=None),
+        default=Question(question="What are the testing implementation requirements?"),
         description="What are the testing implementation requirements?"
     )
     scaling_requirements: Optional[Question] = Field(
-        default=Question(question="What are the scaling and performance requirements?", answer=None),
+        default=Question(question="What are the scaling and performance requirements?"),
         description="What are the scaling and performance requirements?"
     )
     naming_conventions: Optional[Question] = Field(
-        default=Question(question="What naming conventions should be followed?", answer=None),
+        default=Question(question="What naming conventions should be followed?"),
         description="What naming conventions should be followed?"
     )
     existing_templates: Optional[Question] = Field(
-        default=Question(question="Are there any existing templates to be used?", answer=None),
+        default=Question(question="Are there any existing templates to be used?"),
         description="Are there any existing templates to be used?"
     )
     documentation_requirements: Optional[Question] = Field(
-        default=Question(question="What are the comments and documentation requirements?", answer=None),
+        default=Question(question="What are the comments and documentation requirements?"),
         description="What are the comments and documentation requirements?"
     )
     other_requirements: Optional[Question] = Field(
-        default=Question(question="Are there any other requirements?", answer=None),
+        default=Question(question="Are there any other requirements?"),
         description="Are there any other requirements?"
     )
 
