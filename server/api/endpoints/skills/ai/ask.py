@@ -35,7 +35,7 @@ async def ask(
         temperature: float = 0.5,
         stream: bool = False,
         cache: bool = False,
-        max_tokens: int = 1000,
+        max_tokens: int = 4096,
         stop_sequence: str = None,
         tools: List[dict] = None,
     ) -> Union[AiAskOutput, StreamingResponse]:
