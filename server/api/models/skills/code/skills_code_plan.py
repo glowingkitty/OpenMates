@@ -31,6 +31,10 @@ class Question(BaseModel):
 
 
 class QAndABasics(BaseModel):
+    short_description: Optional[Question] = Field(
+        default=Question(question="Provide a brief description of the project in one or two sentences."),
+        description="A brief description of the project"
+    )
     main_features: Optional[Question] = Field(
         default=Question(question="What are the main features of the project?"),
         description="What are the main features of the project?"
@@ -163,6 +167,7 @@ class CodePlanOutput(BaseModel):
 
 code_plan_input_example = {
     "q_and_a_basics": {
+        "short_description": {"answer": "A task management web application for small to medium-sized businesses with real-time updates and user authentication."},
         "main_features": {"answer": "User authentication, task management, real-time updates"},
         "target_platform": {"answer": "Web application"},
         "target_users": {"answer": "Small to medium-sized businesses"},
@@ -181,6 +186,7 @@ code_plan_input_example = {
 
 code_plan_input_example_2 = {
     "q_and_a_basics": {
+        "short_description": {"answer": "A task management web application for small to medium-sized businesses with real-time updates and user authentication."},
         "main_features": {"answer": "User authentication, task management, real-time updates"},
         "target_platform": {"answer": "Web application"},
         "target_users": {"answer": "Small to medium-sized businesses"},
