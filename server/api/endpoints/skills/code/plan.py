@@ -78,7 +78,11 @@ async def plan(
             provider={"name": "claude", "model": "claude-3.5-sonnet"},
             temperature=0
         )
-        q_and_a_followup = json.loads(response["content"][0]["text"])
+        try:
+            q_and_a_followup = json.loads(response["content"][0]["text"])
+        except Exception as e:
+            add_to_log(f"LLM did not return valid JSON: {e}", module_name="OpenMates | Skills | Code | Plan", color="red")
+            raise Exception("LLM did not return valid JSON")
 
         return CodePlanOutput(
             q_and_a_followup=q_and_a_followup,
