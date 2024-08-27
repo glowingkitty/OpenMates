@@ -130,4 +130,7 @@ async def plan(
             costs_in_credits=1  # TODO: Implement cost calculation
         )
 
-    # TODO add correction phase 3, maybe by adding a new field to the input model
+    # TODO:
+    # - use tools / function calling instead of JSON parsing for more reliable output
+    # - implement tasks instead of waiting for full response
+    # - add correction phase 3, maybe by adding a new field to the input model

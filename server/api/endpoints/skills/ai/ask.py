@@ -85,8 +85,6 @@ async def ask(
     add_to_log("Asking AI ...", module_name="OpenMates | Skills | AI | Ask", color="yellow")
 
     if input.provider.name == "claude":
-        response = await ask_claude(**input.model_dump())
+        return await ask_claude(**input.model_dump())
     elif input.provider.name == "chatgpt":
-        response = await ask_chatgpt(**input.model_dump())
-
-    return response
+        return await ask_chatgpt(**input.model_dump())
