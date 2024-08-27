@@ -84,6 +84,14 @@ class QAndABasics(BaseModel):
         description="Are there any other requirements?"
     )
 
+    @model_validator(mode='after')
+    def set_default_questions(self):
+        for field, value in self.__dict__.items():
+            if value is not None and value.question is None:
+                default_question = self.model_fields[field].default.question
+                setattr(self, field, Question(question=default_question, answer=value.answer))
+        return self
+
 def is_base64(s):
     try:
         return base64.b64encode(base64.b64decode(s)).decode() == s

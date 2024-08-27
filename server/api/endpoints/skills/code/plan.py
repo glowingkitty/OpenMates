@@ -21,6 +21,8 @@ from server.api.models.skills.code.skills_code_plan import CodePlanInput, CodePl
 from server.api.endpoints.skills.ai.ask import ask
 import json
 from server.api.models.skills.code.skills_code_plan import code_plan_output_example
+from server.api.endpoints.skills.ai.utils import load_prompt
+
 
 async def plan(
     token: str,
@@ -51,22 +53,22 @@ async def plan(
     # Determine the phase based on the input
     if q_and_a_followup is None:
         # Phase 1: Generate follow-up questions
-        system_prompt = "You are a software development expert tasked with generating follow-up questions to clarify project requirements. Based on the initial requirements and file tree provided, generate relevant questions to gather more detailed information about the project."
+        system_prompt = load_prompt("/server/api/endpoints/skills/code/prompts/plan/generate_q_and_a_followup_system.md", {
+            "q_and_a_followup_example": code_plan_output_example["q_and_a_followup"]
+        })
 
-        message = f"""
-        Initial requirements:
-        {q_and_a_basics}
+        # Ensure q_and_a_basics is a dict and remove keys with None values for the answer
+        q_and_a_basics = q_and_a_basics if type(q_and_a_basics) == dict else q_and_a_basics.model_dump()
+        q_and_a_basics = {k: v for k, v in q_and_a_basics.items() if v is not None and v.get('answer') is not None}
 
-        File tree:
-        {file_tree}
+        message = load_prompt("/server/api/endpoints/skills/code/prompts/plan/generate_q_and_a_followup_message.md", {
+            "q_and_a_basics": q_and_a_basics,
+            "file_tree": file_tree,
+            "other_context_files": other_context_files
+        })
 
-        Other context files:
-        {other_context_files}
-
-        Please generate 5 follow-up questions to clarify the project requirements, based on the initial requirements, file tree and other context files provided.
-        Only respond with a valid JSON in the structure like in the following example:
-        {code_plan_output_example["q_and_a_followup"]}
-        """
+        # TODO retry a second time if the response is not valid JSON
+        # TODO clean up the code (seperate functions)
 
         response = await ask(
             user_api_token=token,
@@ -76,7 +78,6 @@ async def plan(
             provider={"name": "claude", "model": "claude-3.5-sonnet"},
             temperature=0
         )
-        add_to_log(response["content"][0]["text"])
         q_and_a_followup = json.loads(response["content"][0]["text"])
 
         return CodePlanOutput(
