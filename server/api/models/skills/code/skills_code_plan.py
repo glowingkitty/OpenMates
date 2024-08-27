@@ -221,6 +221,15 @@ code_plan_output_example = {
     "costs_in_credits": 10
 }
 
+# This example will be used by the plan.py file for the endpoint processing to generate the full plan. The content of the files and the file_tree will be added via hardcoding.
+code_plan_processing_output_example = {
+    "requirements": "{project requirements as markdown text}",
+    "coding_guidelines": "{coding guidelines as markdown text}",
+    "code_logic_draft": "{code logic draft as markdown text}",
+    "files_for_context": [{"path": "/src/App.js"}, {"path": "/src/index.js"}]
+}
+
+
 code_plan_output_example_2 = {
     "requirements": "# Project Requirements\n\n## Main Features\n- User authentication\n- Task management\n- Real-time updates\n\n## Task Management Features\n- Task creation\n- Task assignment\n- Due dates\n- Priority levels\n- Status tracking\n\n## Authentication\n- Email/password login\n- OAuth 2.0 integration (Google and GitHub)\n\n## Real-time Updates\n- WebSocket implementation for instant task updates and notifications\n\n## Data Model\n- Tasks: title, description, assignee, due date, priority, status\n- Users: name, email, role, associated tasks\n\n## Offline Functionality\n- Offline caching for recent tasks and user data\n- Sync functionality when connection is restored\n\n## Technical Stack\n- Frontend: React\n- Backend: Node.js with AWS Lambda\n- Database: DynamoDB\n- Infrastructure: AWS, serverless architecture\n\n## Security\n- HTTPS\n- JWT authentication\n- Data encryption at rest\n\n## Performance\n- Handle up to 10,000 concurrent users\n\n## Testing\n- Unit tests\n- Integration tests\n- End-to-end tests\n\n## Documentation\n- JSDoc for functions\n- README.md for project overview\n\n## Accessibility\n- WCAG 2.1 compliance",
     "coding_guidelines": "# Coding Guidelines\n\n## Naming Conventions\n- Use camelCase for variables and function names\n- Use PascalCase for component names\n- Use UPPER_CASE for constants\n\n## Code Style\n- Follow Airbnb JavaScript Style Guide\n- Use ESLint for code linting\n- Use Prettier for code formatting\n\n## React Best Practices\n- Use functional components and hooks\n- Keep components small and focused\n- Use PropTypes for type checking\n\n## Testing\n- Write unit tests for all components and functions\n- Aim for at least 80% code coverage\n- Use Jest and React Testing Library\n\n## Documentation\n- Use JSDoc for inline documentation\n- Keep README.md up-to-date\n- Document all API endpoints",

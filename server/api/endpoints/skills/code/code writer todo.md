@@ -39,8 +39,8 @@
         - processing:
           - extract from the git repo/zip file/code file a folder/file tree that includes all functions
           - then ask LLM in combination with ALL requirements answers and folder/file tree to create:
-            - requirements (QUESTION: auto save requirements for project to settings?)
-            - coding guidelines (QUESTION: auto save guidelines for tech to settings?)
+            - requirements (auto save requirements for project to settings?)
+            - coding guidelines (auto save guidelines for tech to settings?)
             - files for context
         - output:
           - requirements
