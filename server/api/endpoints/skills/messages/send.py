@@ -31,7 +31,10 @@ async def send(
     Send a message to a target provider
     """
     target_dict = target if isinstance(target, dict) else target.__dict__
-    attachments_dict = attachments if isinstance(attachments, list) else [attachment.__dict__ for attachment in attachments] if attachments else []
+    attachments_dict = [
+        attachment if isinstance(attachment, dict) else attachment.__dict__
+        for attachment in attachments
+    ] if attachments else []
 
     input = MessagesSendInput(
         message=message,

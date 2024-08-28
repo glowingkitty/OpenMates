@@ -38,7 +38,10 @@ async def send(
 
     # Convert target to dict if it's not already
     target_dict = target if isinstance(target, dict) else target.__dict__
-    attachments_dict = attachments if isinstance(attachments, list) else [attachment.__dict__ for attachment in attachments] if attachments else []
+    attachments_dict = [
+        attachment if isinstance(attachment, dict) else attachment.__dict__
+        for attachment in attachments
+    ] if attachments else []
 
     intents = discord.Intents.default()
     intents.guilds = True
