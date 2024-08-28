@@ -226,7 +226,7 @@ skills_ai_endpoints = {
 skills_messages_endpoints = {
     "send":{
         "response_model":MessagesSendOutput,
-        "summary": "Send message",
+        "summary": "Send",
         "description": "<img src='images/skills/messages/send.png' alt='Send a new message to a channel or thread.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
@@ -385,15 +385,15 @@ tags_metadata = [
         "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of software skills. Or, you can call them directly via the API.'>"
     },
     {
-        "name": "Skills | Messages",
-        "description": "<img src='images/skills/messages.png' alt='Send messages, create threads and more. \
-            Providers: Discord, Slack, Mattermost'>"
-    },
-    {
         "name": "Skills | AI",
         "description": "<img src='images/skills/ai.png' alt='Use generative AI to answer questions, brainstorm ideas, create images and more. \
             Providers: Claude, ChatGPT\
             Models: claude-3.5-sonnet, claude-3-haiku, gpt-4o, gpt-4o-mini'>"
+    },
+    {
+        "name": "Skills | Messages",
+        "description": "<img src='images/skills/messages.png' alt='Send messages, create threads and more. \
+            Providers: Discord, Slack, Mattermost'>"
     },
     {
         "name": "Skills | Code",

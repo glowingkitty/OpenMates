@@ -151,7 +151,7 @@ from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.endpoints.teams.get_teams import get_teams as get_teams_processing
 from server.api.endpoints.teams.get_team import get_team as get_team_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
-from server.api.endpoints.skills.messages.send_message import send_message as skill_messages_send_message_processing
+from server.api.endpoints.skills.messages.send import send as skill_messages_send_processing
 from server.api.endpoints.skills.code.plan import plan as skill_code_plan_processing
 from server.api.endpoints.skills.code.write import write as skill_code_write_processing
 from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
@@ -716,7 +716,7 @@ async def skill_messages_send(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_messages_send_message_processing(
+    return await skill_messages_send_processing(
         message=parameters.message,
         source=parameters.source,
         target=parameters.target,
