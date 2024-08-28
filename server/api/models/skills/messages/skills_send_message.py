@@ -94,5 +94,5 @@ skills_send_message_input_example = {
 skills_send_message_output_example = {
     "message_id": "1234567890123456789",
     "channel_id": "987654321098765432",
-    "thread_id": "123456789012345678"
+    "thread_id": None
 }
