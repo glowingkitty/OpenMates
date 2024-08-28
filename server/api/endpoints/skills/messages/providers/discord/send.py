@@ -50,7 +50,11 @@ async def send(
         nonlocal result
         try:
             channel = None
-            if target_dict.get('channel_id'):
+            thread = None
+            if target_dict.get('thread_id'):
+                thread = await client.fetch_channel(int(target_dict['thread_id']))
+                channel = thread
+            elif target_dict.get('channel_id'):
                 channel = client.get_channel(int(target_dict['channel_id']))
             elif target_dict.get('channel_name'):
                 for guild in client.guilds:
@@ -59,7 +63,7 @@ async def send(
                         break
 
             if not channel:
-                raise ValueError(f"Channel not found: {target_dict.get('channel_id') or target_dict.get('channel_name')}")
+                raise ValueError(f"Channel or thread not found: {target_dict.get('thread_id') or target_dict.get('channel_id') or target_dict.get('channel_name')}")
 
             files = [
                 File(io.BytesIO(base64.b64decode(attachment['base64_content'])), filename=attachment['filename'])
@@ -67,8 +71,6 @@ async def send(
             ] if attachments else []
 
             response = await channel.send(content=message, files=files)
-
-            add_to_log(response)
 
             result = MessagesSendOutput(
                 message_id=str(response.id),
