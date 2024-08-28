@@ -41,6 +41,9 @@ from server.api.models.users.users_get_one import (
 from server.api.models.skills.skills_get_one import (
     Skill
 )
+from server.api.models.skills.messages.skills_send_message import (
+    MessagesSendOutput
+)
 from server.api.models.skills.ai.skills_ai_ask import (
     AiAskOutput,
     AiAskOutputStream
@@ -220,6 +223,15 @@ skills_ai_endpoints = {
     }
 }
 
+skills_messages_endpoints = {
+    "send":{
+        "response_model":MessagesSendOutput,
+        "summary": "Send message",
+        "description": "<img src='images/skills/messages/send.png' alt='Send a new message to a channel or thread.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 skills_code_endpoints = {
     "plan":{
         "response_model":CodePlanOutput,
@@ -371,6 +383,11 @@ tags_metadata = [
     {
         "name": "Skills",
         "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of software skills. Or, you can call them directly via the API.'>"
+    },
+    {
+        "name": "Skills | Messages",
+        "description": "<img src='images/skills/messages.png' alt='Send messages, create threads and more. \
+            Providers: Discord, Slack, Mattermost'>"
     },
     {
         "name": "Skills | AI",

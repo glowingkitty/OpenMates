@@ -15,6 +15,8 @@ from server import *
 
 from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
 from typing import Union, List, Dict, Any
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
+from typing import Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 
 # load providers

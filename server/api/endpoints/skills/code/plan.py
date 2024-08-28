@@ -116,6 +116,7 @@ async def plan(
         )
 
         try:
+            # TODO cant be parsed. therefore use tools!!!
             response_content = json.loads(response["content"][0]["text"])
         except Exception as e:
             add_to_log(f"LLM did not return valid JSON: {e}", module_name="OpenMates | Skills | Code | Plan", color="red")

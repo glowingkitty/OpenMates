@@ -73,6 +73,12 @@ from server.api.models.users.users_replace_profile_picture import (
 from server.api.models.skills.skills_get_one import (
     skills_get_one_output_example
 )
+from server.api.models.skills.messages.skills_send_message import (
+    MessagesSendInput,
+    MessagesSendOutput,
+    skills_send_message_input_example,
+    skills_send_message_output_example
+)
 from server.api.models.skills.ai.skills_ai_ask import (
     AiAskInput,
     AiAskOutput,
@@ -145,6 +151,7 @@ from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.endpoints.teams.get_teams import get_teams as get_teams_processing
 from server.api.endpoints.teams.get_team import get_team as get_team_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
+from server.api.endpoints.skills.messages.send_message import send_message as skill_messages_send_message_processing
 from server.api.endpoints.skills.code.plan import plan as skill_code_plan_processing
 from server.api.endpoints.skills.code.write import write as skill_code_write_processing
 from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
@@ -166,6 +173,7 @@ from server.api.parameters import (
     files_endpoints,
     mates_endpoints,
     skills_endpoints,
+    skills_messages_endpoints,
     skills_code_endpoints,
     skills_ai_endpoints,
     skills_finance_endpoints,
@@ -195,6 +203,7 @@ from io import BytesIO
 files_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
+skills_messages_router = APIRouter()
 skills_ai_router = APIRouter()
 skills_code_router = APIRouter()
 skills_finance_router = APIRouter()
@@ -312,6 +321,12 @@ def custom_openapi():
     }, "201")
     set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", {
         "Example 1": skills_get_one_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/send", "post", "requestBody", {
+        "Example 1": skills_send_message_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/send", "post", "responses", {
+        "Example 1": skills_send_message_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", {
         "Ask question": ai_ask_input_example,
@@ -628,6 +643,29 @@ async def get_skill(
     )
 
 
+# POST /skills/messages/send (send a message)
+@skills_messages_router.post("/v1/{team_slug}/skills/messages/send", **skills_messages_endpoints["send"])
+@limiter.limit("20/minute")
+async def skill_messages_send(
+    request: Request,
+    parameters: MessagesSendInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> MessagesSendOutput:
+    await validate_permissions(
+        endpoint="/skills/messages/send",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_messages_send_message_processing(
+        message=parameters.message,
+        target=parameters.target,
+        source=parameters.source,
+        attachments=parameters.attachments
+    )
+
+
+# POST /skills/ai/ask (ask a question to an AI)
 @skills_ai_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
 @limiter.limit("20/minute")
 async def skill_ai_ask(
@@ -657,6 +695,7 @@ async def skill_ai_ask(
     )
 
 
+# POST /skills/ai/estimate_cost (estimate the cost of an AI call)
 @skills_ai_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
 @limiter.limit("20/minute")
 async def skill_ai_estimate_cost(
@@ -1125,6 +1164,7 @@ async def generate_new_user_api_token(
 app.include_router(files_router,                    tags=["Files"])
 app.include_router(mates_router,                    tags=["Mates"])
 app.include_router(skills_router,                   tags=["Skills"])
+app.include_router(skills_messages_router,          tags=["Skills | Messages"])
 app.include_router(skills_ai_router,                tags=["Skills | AI"])
 app.include_router(skills_code_router,              tags=["Skills | Code"])
 app.include_router(skills_finance_router,           tags=["Skills | Finance"])
