@@ -1,14 +1,6 @@
 version: '3.8'
 
 services:
-  rabbitmq:
-    image: rabbitmq:3.12-management
-    ports:
-      - "${RABBITMQ_PORT_1}:${RABBITMQ_PORT_1}"
-      - "${RABBITMQ_PORT_2}:${RABBITMQ_PORT_2}"
-    networks:
-      - openmates
-
   strapiDB:
     restart: unless-stopped
     env_file: .env
@@ -23,7 +15,7 @@ services:
       - openmates
 
   strapi:
-    build: 
+    build:
       context: ./server/cms/strapi
       dockerfile: Dockerfile
     image: strapi:latest
@@ -78,6 +70,7 @@ services:
     environment:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
+      DRAGONFLY_URL: "dragonfly:6379"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
@@ -85,11 +78,23 @@ services:
     networks:
       - openmates
     depends_on:
-      - rabbitmq
       - strapi
+      - dragonfly
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonfly-data:/data
+    networks:
+      - openmates
 
 networks:
   openmates:
 
 volumes:
   strapi-data:
+  dragonfly-data:

@@ -29,12 +29,14 @@ async def ask_mate(team_slug: str, message: str, mate_username: str):
         add_to_log("Processing an incoming message ...")
         # TODO replace with actual processing of the message
 
+        # TODO: implement task system and dragonfly cache
+        # TODO: add processing via AI and send response to messages
+
         output_message = "Hello, human! You asked me: " + message + ". Your dedicated AI team mate, " + mate_username 
 
         # prepare the message object
         message = MatesAskOutput(
             message=output_message,
-            team_mate_username=mate_username,
             # TODO: replace with actual counting of tokens and costs
             tokens_used_input=20,
             tokens_used_output=46,

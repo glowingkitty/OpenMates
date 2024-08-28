@@ -182,6 +182,7 @@ from server.api.parameters import (
     users_endpoints,
     teams_endpoints,
     server_endpoints,
+    tasks_endpoints,
     set_example,
     tags_metadata,
     input_parameter_descriptions
@@ -190,6 +191,10 @@ from fastapi.security import HTTPBearer
 from typing import Optional, List, Literal, Union
 from fastapi.responses import StreamingResponse, JSONResponse
 from io import BytesIO
+
+# Import Celery tasks
+from celery.result import AsyncResult
+from server.api.endpoints.tasks.tasks import ask_mate_task
 
 
 ##################################
@@ -466,11 +471,13 @@ async def ask_mate(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await ask_mate_processing(
+    # Instead of calling ask_mate_processing directly, use Celery task
+    task = ask_mate_task.delay(
         team_slug=team_slug,
         message=parameters.message,
         mate_username=parameters.mate_username
-        )
+    )
+    return {"task_id": task.id}
 
 
 # GET /mates (get all mates)
@@ -901,8 +908,58 @@ async def skill_image_editor_resize(
 
 # Explaination:
 # A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.
+@tasks_router.get("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["get_task"])
+@limiter.limit("60/minute")
+async def get_task_result(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    task_id: str = Path(..., description="The ID of the task"),
+    token: str = Depends(get_credentials)
+):
+    await validate_permissions(
+        endpoint="/tasks/{task_id}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+
+    task_result = AsyncResult(task_id)
+
+    if task_result.ready():
+        if task_result.successful():
+            return {"status": "completed", "result": task_result.result}
+        else:
+            return {"status": "failed", "error": str(task_result.result)}
+    elif task_result.state == 'PENDING':
+        return {"status": "pending"}
+    elif task_result.state == 'PROGRESS':
+        return {"status": "in_progress", "progress": task_result.info}
+    else:
+        raise HTTPException(status_code=500, detail="Unknown task state")
 
 
+@tasks_router.post("/v1/{team_slug}/tasks/{task_id}/cancel", **tasks_endpoints["cancel"])
+@limiter.limit("20/minute")
+async def cancel_task(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    task_id: str = Path(..., description="The ID of the task to cancel"),
+    token: str = Depends(get_credentials)
+):
+    await validate_permissions(
+        endpoint="/tasks/{task_id}/cancel",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+
+    task = AsyncResult(task_id)
+
+    if task.state in ['PENDING', 'STARTED', 'RETRY']:
+        task.revoke(terminate=True)
+        return {"status": "success", "message": f"Task {task_id} has been cancelled"}
+    elif task.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
+        raise HTTPException(status_code=400, detail=f"Cannot cancel task {task_id}. It has already completed or been revoked.")
+    else:
+        raise HTTPException(status_code=500, detail=f"Unknown task state for task {task_id}")
 
 
 ##################################

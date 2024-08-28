@@ -370,6 +370,19 @@ server_endpoints = {
     }
 }
 
+tasks_endpoints = {
+    "get_task":{
+        "summary": "Get task",
+        "description": "<img src='images/tasks/get_task.png' alt='Get a specific task, its status and if available its result.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "cancel":{
+        "summary": "Cancel",
+        "description": "<img src='images/tasks/cancel.png' alt='Cancel a specific task. If its already running, it will be gracefully stopped.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 
 tags_metadata = [
     {
