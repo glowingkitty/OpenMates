@@ -203,8 +203,8 @@ from io import BytesIO
 files_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
-skills_messages_router = APIRouter()
 skills_ai_router = APIRouter()
+skills_messages_router = APIRouter()
 skills_code_router = APIRouter()
 skills_finance_router = APIRouter()
 skills_videos_router = APIRouter()
@@ -643,28 +643,6 @@ async def get_skill(
     )
 
 
-# POST /skills/messages/send (send a message)
-@skills_messages_router.post("/v1/{team_slug}/skills/messages/send", **skills_messages_endpoints["send"])
-@limiter.limit("20/minute")
-async def skill_messages_send(
-    request: Request,
-    parameters: MessagesSendInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> MessagesSendOutput:
-    await validate_permissions(
-        endpoint="/skills/messages/send",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_messages_send_message_processing(
-        message=parameters.message,
-        target=parameters.target,
-        source=parameters.source,
-        attachments=parameters.attachments
-    )
-
-
 # POST /skills/ai/ask (ask a question to an AI)
 @skills_ai_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
 @limiter.limit("20/minute")
@@ -721,6 +699,28 @@ async def skill_ai_estimate_cost(
         max_tokens=parameters.max_tokens,
         stop_sequence=parameters.stop_sequence,
         tools=parameters.tools
+    )
+
+
+# POST /skills/messages/send (send a message)
+@skills_messages_router.post("/v1/{team_slug}/skills/messages/send", **skills_messages_endpoints["send"])
+@limiter.limit("20/minute")
+async def skill_messages_send(
+    request: Request,
+    parameters: MessagesSendInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> MessagesSendOutput:
+    await validate_permissions(
+        endpoint="/skills/messages/send",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_messages_send_message_processing(
+        message=parameters.message,
+        source=parameters.source,
+        target=parameters.target,
+        attachments=parameters.attachments
     )
 
 
@@ -1164,8 +1164,8 @@ async def generate_new_user_api_token(
 app.include_router(files_router,                    tags=["Files"])
 app.include_router(mates_router,                    tags=["Mates"])
 app.include_router(skills_router,                   tags=["Skills"])
-app.include_router(skills_messages_router,          tags=["Skills | Messages"])
 app.include_router(skills_ai_router,                tags=["Skills | AI"])
+app.include_router(skills_messages_router,          tags=["Skills | Messages"])
 app.include_router(skills_code_router,              tags=["Skills | Code"])
 app.include_router(skills_finance_router,           tags=["Skills | Finance"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])

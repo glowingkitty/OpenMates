@@ -21,11 +21,9 @@ from typing import Literal, List, Optional
 class Target(BaseModel):
     """This is the model for the message target"""
     provider: Literal["Discord", "Slack", "Mattermost"] = Field(..., description="Software where the message should be sent to")
-    server_url: Optional[str] = Field(None, description="URL of the server (required for Mattermost)")
-    group_id: Optional[str] = Field(None, description="ID of the group (guild in Discord, workspace in Slack, team in Mattermost)")
+    group_id: str = Field(..., description="ID of the group (guild in Discord, workspace in Slack, team in Mattermost)")
     channel_id: Optional[str] = Field(None, description="Channel ID where the message should be sent to")
     thread_id: Optional[str] = Field(None, description="Thread ID where the message should be sent to")
-    api_token: str = Field(..., description="API token for authentication with the provider")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -40,8 +38,6 @@ class Target(BaseModel):
         if self.provider == "Discord":
             if not self.group_id:
                 raise ValueError("'group_id' (guild ID) is required for Discord.")
-            if self.server_url:
-                raise ValueError("'server_url' is used for Mattermost only")
         return self
 
     @model_validator(mode='after')
@@ -49,15 +45,11 @@ class Target(BaseModel):
         if self.provider == "Slack":
             if not self.group_id:
                 raise ValueError("'group_id' (workspace ID) is required for Slack.")
-            if self.server_url:
-                raise ValueError("'server_url' should not be provided for Slack.")
         return self
 
     @model_validator(mode='after')
     def validate_mattermost_fields(self):
         if self.provider == "Mattermost":
-            if not self.server_url:
-                raise ValueError("'server_url' is required for Mattermost.")
             if not self.group_id:
                 raise ValueError("'group_id' (team ID) is required for Mattermost.")
         return self
@@ -77,9 +69,9 @@ class Attachment(BaseModel):
 class MessagesSendInput(BaseModel):
     """This is the model for sending a message"""
     message: str = Field(..., description="Message to send")
-    attachments: List[Attachment] = Field(..., description="List of attachments to send with the message")
-    target: Target = Field(..., description="Target information for the message")
     source: Source = Field(..., description="Source information for the message")
+    target: Target = Field(..., description="Target information for the message")
+    attachments: Optional[List[Attachment]] = Field(None, description="List of attachments to send with the message")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -100,8 +92,7 @@ skills_send_message_input_example = {
         "provider": "Discord",
         "group_id": "923456789012345678",
         "channel_id": "987654321098765432",
-        "thread_id": "123456789012345678",
-        "api_token": "MTk4NzY1NDMyMTA5ODc2NTQzMi5HZDM0aQ.AbCdEfGhIjKlMnOpQrStUvWxYz"
+        "thread_id": "123456789012345678"
     },
     "source": {
         "bot_name": "sophia_bot",

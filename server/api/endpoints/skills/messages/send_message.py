@@ -18,8 +18,8 @@ from typing import Union, List, Dict, Any
 
 async def send_message(
     message: str,
-    target: dict,
     source: dict,
+    target: dict,
     attachments: List[dict] = []
 ) -> MessagesSendOutput:
     """
@@ -27,17 +27,15 @@ async def send_message(
     """
     input = MessagesSendInput(
         message=message,
-        target=Target(
-            provider=target.get("provider"),
-            server_url=target.get("server_url"),
-            group_id=target.get("group_id"),
-            channel_id=target.get("channel_id"),
-            thread_id=target.get("thread_id"),
-            api_token=target.get("api_token")
-        ),
         source=Source(
             bot_name=source.get("bot_name"),
             ai_mate_name=source.get("ai_mate_name")
+        ),
+        target=Target(
+            provider=target.get("provider"),
+            group_id=target.get("group_id"),
+            channel_id=target.get("channel_id"),
+            thread_id=target.get("thread_id")
         ),
         attachments=[Attachment(
             filename=attachment.get("filename"),
