@@ -18,13 +18,13 @@ from discord import File
 import base64
 import io
 from server.api.models.skills.messages.skills_send_message import MessagesSendOutput
-from typing import List, Union
+from typing import List, Union, Any
 from fastapi import HTTPException
 
 async def send(
     message: str,
     source: dict,
-    target: dict,
+    target: Union[dict, Any],
     attachments: List[dict] = [],
     bot_token: str = os.environ.get('DISCORD_BOT_TOKEN')
 ) -> MessagesSendOutput:
@@ -36,7 +36,12 @@ async def send(
     if not bot_token:
         raise ValueError("DISCORD_BOT_TOKEN is not set")
 
+    # Convert target to dict if it's not already
+    target_dict = target if isinstance(target, dict) else target.__dict__
+
     intents = discord.Intents.default()
+    intents.guilds = True
+    intents.guild_messages = True
     client = discord.Client(intents=intents)
     result = None
 
@@ -44,13 +49,20 @@ async def send(
     async def on_ready():
         nonlocal result
         try:
-            channel_id = target['channel_id'] if type(target) == dict else target.channel_id
-            channel = client.get_channel(int(channel_id))
+            channel = None
+            if target_dict.get('channel_id'):
+                channel = client.get_channel(int(target_dict['channel_id']))
+            elif target_dict.get('channel_name'):
+                for guild in client.guilds:
+                    channel = discord.utils.get(guild.channels, name=target_dict['channel_name'])
+                    if channel:
+                        break
+
             if not channel:
-                raise ValueError(f"Channel with ID {channel_id} not found")
+                raise ValueError(f"Channel not found: {target_dict.get('channel_id') or target_dict.get('channel_name')}")
 
             files = [
-                File(io.BytesIO(base64.b64decode(attachment['base64_content'] if type(attachment) == dict else attachment.base64_content)), filename=attachment['filename'] if type(attachment) == dict else attachment.filename)
+                File(io.BytesIO(base64.b64decode(attachment['base64_content'])), filename=attachment['filename'])
                 for attachment in attachments
             ] if attachments else []
 

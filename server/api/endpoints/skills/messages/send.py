@@ -39,6 +39,7 @@ async def send(
         target=Target(
             provider=target.get("provider") if type(target) == dict else target.provider,
             group_id=target.get("group_id") if type(target) == dict else target.group_id,
+            channel_name=target.get("channel_name") if type(target) == dict else target.channel_name,
             channel_id=target.get("channel_id") if type(target) == dict else target.channel_id,
             thread_id=target.get("thread_id") if type(target) == dict else target.thread_id
         ),
