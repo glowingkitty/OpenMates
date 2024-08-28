@@ -74,6 +74,7 @@ class MessagesSendOutput(BaseModel):
     message_id: Optional[str] = Field(None, description="ID of the message")
     channel_id: Optional[str] = Field(None, description="ID of the channel")
     thread_id: Optional[str] = Field(None, description="ID of the thread")
+    error: Optional[str] = Field(None, description="Error message")
 
 
 skills_send_message_input_example = {

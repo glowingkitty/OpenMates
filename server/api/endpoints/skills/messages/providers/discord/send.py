@@ -81,7 +81,9 @@ async def send(
         except Exception as e:
             add_to_log(f"Error: {str(e)}")
             add_to_log(f"Full error details: {traceback.format_exc()}")
-            result = MessagesSendOutput()
+            result = MessagesSendOutput(
+                error=str(e),
+            )
         finally:
             await client.close()
 
