@@ -20,14 +20,17 @@ from typing import Literal, List, Optional
 
 class Target(BaseModel):
     """This is the model for the message target"""
-    provider: Literal["Discord", "Slack", "Mattermost"] = Field(..., description="Software where the message should be sent to")
-    team_name: str = Field(None, description="Name of the team (guild in Discord, workspace in Slack, team in Mattermost)")
-    group_id: Optional[str] = Field(None, description="ID of the group (guild in Discord, workspace in Slack, team in Mattermost)")
+    team: str = Field(..., description="Provider and team name in the format 'Provider | Team Name'")
     channel_name: Optional[str] = Field(None, description="Name of the channel where the message should be sent to")
     channel_id: Optional[str] = Field(None, description="Channel ID where the message should be sent to")
     thread_id: Optional[str] = Field(None, description="Thread ID where the message should be sent to")
 
     model_config = ConfigDict(extra="forbid")
+
+    @property
+    def provider(self) -> str:
+        """Generate the provider based on the team field."""
+        return self.team.split(" | ")[0].strip()
 
     @model_validator(mode='after')
     def check_channel_id_or_name(self):
@@ -38,25 +41,19 @@ class Target(BaseModel):
         return self
 
     @model_validator(mode='after')
-    def validate_slack_fields(self):
-        if self.provider == "Slack":
-            if not self.group_id:
-                raise ValueError("'target.group_id' (workspace ID) is required for Slack.")
+    def validate_team_format(self):
+        valid_providers = ["Discord", "Slack", "Mattermost"]
+        parts = self.team.split("|")
+        if len(parts) != 2 or parts[0].strip() not in valid_providers:
+            raise ValueError("'team' must be in the format 'Provider | Team Name' with a valid provider")
         return self
 
     @model_validator(mode='after')
     def validate_mattermost_fields(self):
         if self.provider == "Mattermost":
-            if not self.group_id:
+            if not getattr(self, 'group_id', None):
                 raise ValueError("'target.group_id' (team ID) is required for Mattermost.")
         return self
-
-class Source(BaseModel):
-    """This is the model for the message source"""
-    bot_name: str = Field(..., description="Name of the bot that sends the message")
-    ai_mate_name: str = Field(..., description="Name of the AI Mate that sends the message")
-
-    model_config = ConfigDict(extra="forbid")
 
 class Attachment(BaseModel):
     """This is the model for the message attachment"""
@@ -66,7 +63,7 @@ class Attachment(BaseModel):
 class MessagesSendInput(BaseModel):
     """This is the model for sending a message"""
     message: str = Field(..., description="Message to send")
-    source: Source = Field(..., description="Source information for the message")
+    ai_mate_username: str = Field(..., description="Username of the AI team mate sending the message")
     target: Target = Field(..., description="Target information for the message")
     attachments: Optional[List[Attachment]] = Field(None, description="List of attachments to send with the message")
 
@@ -81,13 +78,9 @@ class MessagesSendOutput(BaseModel):
 
 skills_send_message_input_example = {
     "message": "Hey there, do you have any coding related questions?",
-    "source": {
-        "bot_name": "sophia_bot",
-        "ai_mate_name": "sophia"
-    },
+    "ai_mate_username": "sophia",
     "target": {
-        "provider": "Discord",
-        "team_name": "OpenMates Development",
+        "team": "Discord | OpenMates Development",
         "channel_name": "general"
     },
     "attachments": [

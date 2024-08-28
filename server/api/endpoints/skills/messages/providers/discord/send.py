@@ -23,7 +23,7 @@ from fastapi import HTTPException
 
 async def send(
     message: str,
-    source: dict,
+    ai_mate_username: str,
     target: Union[dict, Any],
     attachments: List[dict] = [],
     bot_token: str = os.environ.get('DISCORD_BOT_TOKEN')
@@ -38,6 +38,7 @@ async def send(
 
     # Convert target to dict if it's not already
     target_dict = target if isinstance(target, dict) else target.__dict__
+    attachments_dict = attachments if isinstance(attachments, list) else [attachment.__dict__ for attachment in attachments] if attachments else []
 
     intents = discord.Intents.default()
     intents.guilds = True
@@ -67,8 +68,8 @@ async def send(
 
             files = [
                 File(io.BytesIO(base64.b64decode(attachment['base64_content'])), filename=attachment['filename'])
-                for attachment in attachments
-            ] if attachments else []
+                for attachment in attachments_dict
+            ] if attachments_dict else []
 
             response = await channel.send(content=message, files=files)
 

@@ -718,7 +718,7 @@ async def skill_messages_send(
     )
     return await skill_messages_send_processing(
         message=parameters.message,
-        source=parameters.source,
+        ai_mate_username=parameters.ai_mate_username,
         target=parameters.target,
         attachments=parameters.attachments
     )
