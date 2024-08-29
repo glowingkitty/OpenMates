@@ -289,7 +289,7 @@ def custom_openapi():
         "Example 1": mates_ask_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "responses", {
-        "Example 1": mates_ask_output_example
+        "Example 1": tasks_create_task_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/mates/", "get", "responses", {
         "Example 1": mates_get_all_output_example

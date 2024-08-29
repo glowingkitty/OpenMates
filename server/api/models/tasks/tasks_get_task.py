@@ -31,7 +31,7 @@ class TasksGetTaskOutput(BaseModel):
 
 
 tasks_get_task_output_example = {
-    "id": 31412313,
+    "id": "5659f9e7-bc9b-4236-bf38-afdb84420796",
     "title": "/openmatesdevs/mates/ask",
     "status": "completed",
     "scheduled_at": None,
