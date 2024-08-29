@@ -135,6 +135,15 @@ from server.api.models.skills.videos.skills_videos_get_transcript import (
 from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
     image_editor_resize_output_example
 )
+from server.api.models.tasks.tasks_get_task import (
+    TasksGetTaskOutput,
+    tasks_get_task_output_example
+)
+from server.api.models.tasks.tasks_cancel import (
+    TasksCancelOutput,
+    tasks_cancel_output_example
+)
+
 
 
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
@@ -389,6 +398,12 @@ def custom_openapi():
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", {
         "Example 1": image_editor_resize_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/tasks/{task_id}", "get", "responses", {
+        "Example 1": tasks_get_task_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/tasks/{task_id}", "delete", "responses", {
+        "Example 1": tasks_cancel_output_example
     }, "200")
 
 
@@ -909,7 +924,7 @@ async def skill_image_editor_resize(
 # Explaination:
 # A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.
 @tasks_router.get("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["get_task"])
-@limiter.limit("60/minute")
+@limiter.limit("30/minute")
 async def get_task_result(
     request: Request,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
@@ -926,18 +941,27 @@ async def get_task_result(
 
     if task_result.ready():
         if task_result.successful():
-            return {"status": "completed", "result": task_result.result}
+            return TasksGetTaskOutput(
+                status="completed",
+                output=task_result.result
+            )
         else:
-            return {"status": "failed", "error": str(task_result.result)}
+            return TasksGetTaskOutput(
+                status="failed",
+                error=str(task_result.result)
+            )
     elif task_result.state == 'PENDING':
-        return {"status": "pending"}
+        return TasksGetTaskOutput(status="pending")
     elif task_result.state == 'PROGRESS':
-        return {"status": "in_progress", "progress": task_result.info}
+        return TasksGetTaskOutput(
+            status="in_progress",
+            progress=task_result.info
+        )
     else:
         raise HTTPException(status_code=500, detail="Unknown task state")
 
 
-@tasks_router.post("/v1/{team_slug}/tasks/{task_id}/cancel", **tasks_endpoints["cancel"])
+@tasks_router.delete("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["cancel"])
 @limiter.limit("20/minute")
 async def cancel_task(
     request: Request,
@@ -946,7 +970,7 @@ async def cancel_task(
     token: str = Depends(get_credentials)
 ):
     await validate_permissions(
-        endpoint="/tasks/{task_id}/cancel",
+        endpoint="/tasks/{task_id}",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -955,7 +979,7 @@ async def cancel_task(
 
     if task.state in ['PENDING', 'STARTED', 'RETRY']:
         task.revoke(terminate=True)
-        return {"status": "success", "message": f"Task {task_id} has been cancelled"}
+        return TasksCancelOutput()
     elif task.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
         raise HTTPException(status_code=400, detail=f"Cannot cancel task {task_id}. It has already completed or been revoked.")
     else:
