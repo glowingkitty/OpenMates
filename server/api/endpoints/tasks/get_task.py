@@ -27,11 +27,20 @@ async def get_task(task_id: str) -> TasksGetTaskOutput:
     if not task_result:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # handle error
+    if task_result.state == 'FAILURE':
+        return TasksGetTaskOutput(
+            id=task_id,
+            title='Unknown',
+            status='failed',
+            error="An error occurred while processing the task"
+        )
+
     return TasksGetTaskOutput(
         id=task_id,
-        title=task_result.result.get('meta', {}).get('title', 'Unknown'),
+        title=task_result.result.get('title', 'Unknown'),
         status=task_result.state.lower(),
         output=task_result.result.get('output', {}),
-        execution_time_seconds=task_result.result.get('meta', {}).get('execution_time', 0)
+        execution_time_seconds=task_result.result.get('execution_time', 0)
     )
 
