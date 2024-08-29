@@ -27,16 +27,11 @@ async def get_task(task_id: str) -> TasksGetTaskOutput:
     if not task_result:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Calculate execution time
-    start_time = task_result.info.get('start_time')
-    end_time = task_result.info.get('end_time')
-    execution_time = (end_time - start_time).total_seconds() if start_time and end_time else None
-
     return TasksGetTaskOutput(
         id=task_id,
-        title=task_result.info.get('title', 'Unknown'),
+        title=task_result.result.get('meta', {}).get('title', 'Unknown'),
         status=task_result.state.lower(),
-        output=task_result.result,
-        execution_time_seconds=execution_time
+        output=task_result.result.get('output', {}),
+        execution_time_seconds=task_result.result.get('meta', {}).get('execution_time', 0)
     )
 

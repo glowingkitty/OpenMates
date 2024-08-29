@@ -22,7 +22,13 @@ from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
 @celery.task(bind=True)
 def ask_mate_task(self, team_slug, message, mate_username, task_info):
     # Add start time
-    task_info['start_time'] = datetime.now(timezone.utc)
+    task_info['start_time'] = datetime.now()
+    self.update_state(state='PROGRESS', meta={
+        'meta': {
+            'title': task_info['title'],
+            'start_time': task_info['start_time']
+        }
+    })
 
     # Run the async function in an event loop
     loop = asyncio.get_event_loop()
@@ -33,7 +39,15 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
     ))
 
     # Add end time and title
-    task_info['end_time'] = datetime.now(timezone.utc)
+    task_info['end_time'] = datetime.now()
     task_info['title'] = task_info.get('title', 'Unknown')
-
-    return response.model_dump()
+    execution_time = (task_info['end_time'] - task_info['start_time']).total_seconds()
+    self.update_state(state='SUCCESS', meta={
+        'output': response.model_dump(),
+        'meta': {
+            'title': task_info['title'],
+            'start_time': task_info['start_time'],
+            'end_time': task_info['end_time'],
+            'execution_time': round(execution_time, 3)
+        }
+    })
