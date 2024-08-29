@@ -84,6 +84,9 @@ from server.api.models.teams.teams_get_one import (
 from server.api.models.tasks.tasks_get_task import (
     TasksGetTaskOutput
 )
+from server.api.models.tasks.tasks_cancel import (
+    TasksCancelOutput
+)
 from server.api.models.tasks.tasks_create import (
     TasksCreateTaskOutput
 )
@@ -378,11 +381,13 @@ server_endpoints = {
 
 tasks_endpoints = {
     "get_task":{
+        "response_model":TasksGetTaskOutput,
         "summary": "Get task",
         "description": "<img src='images/tasks/get_task.png' alt='Get a specific task, its status and if available its result.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "cancel":{
+        "response_model":TasksCancelOutput,
         "summary": "Cancel",
         "description": "<img src='images/tasks/cancel.png' alt='Cancel a specific task. If its already running, it will be gracefully stopped.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
