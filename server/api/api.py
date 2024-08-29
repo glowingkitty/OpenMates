@@ -139,6 +139,10 @@ from server.api.models.tasks.tasks_get_task import (
     TasksGetTaskOutput,
     tasks_get_task_output_example
 )
+from server.api.models.tasks.tasks_create import (
+    TasksCreateTaskOutput,
+    tasks_create_task_output_example
+)
 from server.api.models.tasks.tasks_cancel import (
     TasksCancelOutput,
     tasks_cancel_output_example
@@ -482,7 +486,7 @@ async def ask_mate(
     parameters: MatesAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> TasksGetTaskOutput:
+) -> TasksCreateTaskOutput:
     await validate_permissions(
         endpoint="/mates/ask",
         team_slug=team_slug,
@@ -508,19 +512,10 @@ async def ask_mate(
         }
     )
 
-    # Add the task id to task_info
-    task_info["id"] = task.id
-
-    # Get initial task state
-    task_result = AsyncResult(task.id)
-
-    return TasksGetTaskOutput(
-        id=task.id,
-        title=task_info["title"],
-        status=task_result.state.lower(),
-        output=task_result.info.get('output') if task_result.info else None
+    return TasksCreateTaskOutput(
+        task_url=f"/v1/{team_slug}/tasks/{task.id}",
+        task_id=task.id
     )
-
 
 # GET /mates (get all mates)
 @mates_router.get("/v1/{team_slug}/mates/", **mates_endpoints["get_all_mates"])
