@@ -19,12 +19,12 @@ from typing import List, Optional
 
 
 class TasksGetTaskOutput(BaseModel):
-    id: int = Field(..., description="ID of the task")
+    id: str = Field(..., description="ID of the task")
     title: str = Field(..., description="Title of the task")
     status: str = Field(..., description="Current status of the task (e.g., 'scheduled', 'in_progress', 'completed', 'failed')")
     scheduled_at: Optional[str] = Field(None, description="Scheduled date and time of the task in ISO 8601 format")
-    priority: int = Field(..., description="Priority of the task (e.g., 1 for high, 2 for medium, 3 for low)")
-    assigned_to_user_id: int = Field(..., description="ID of the user this task is assigned to")
+    priority: Optional[int] = Field(None, description="Priority of the task (e.g., 1 for high, 2 for medium, 3 for low)")
+    assigned_to_user_id: Optional[int] = Field(None, description="ID of the user this task is assigned to")
     output: Optional[dict] = Field(None, description="Output of the task")
     error: Optional[str] = Field(None, description="Error of the task")
 

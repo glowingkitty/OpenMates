@@ -475,26 +475,51 @@ async def get_upload(
 ##################################
 
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
-@mates_router.post("/v1/{team_slug}/mates/ask",**mates_endpoints["ask_mate"])
+@mates_router.post("/v1/{team_slug}/mates/ask", **mates_endpoints["ask_mate"])
 @limiter.limit("20/minute")
 async def ask_mate(
     request: Request,
     parameters: MatesAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> TasksGetTaskOutput:
     await validate_permissions(
         endpoint="/mates/ask",
         team_slug=team_slug,
         user_api_token=token
     )
-    # Instead of calling ask_mate_processing directly, use Celery task
-    task = ask_mate_task.delay(
-        team_slug=team_slug,
-        message=parameters.message,
-        mate_username=parameters.mate_username
+
+    task_info = {
+        "title": f"/{team_slug}/mates/ask",
+        "endpoint": "/mates/ask",
+        "team_slug": team_slug,
+        "mate_username": parameters.mate_username
+    }
+
+    # Create the task with additional info
+    task = ask_mate_task.apply_async(
+        args=[
+            team_slug,
+            parameters.message,
+            parameters.mate_username
+        ],
+        kwargs={
+            'task_info': task_info
+        }
     )
-    return {"task_id": task.id}
+
+    # Add the task id to task_info
+    task_info["id"] = task.id
+
+    # Get initial task state
+    task_result = AsyncResult(task.id)
+
+    return TasksGetTaskOutput(
+        id=task.id,
+        title=task_info["title"],
+        status=task_result.state.lower(),
+        output=task_result.info.get('output') if task_result.info else None
+    )
 
 
 # GET /mates (get all mates)

@@ -81,6 +81,25 @@ services:
       - strapi
       - dragonfly
 
+  celery-worker:
+    build:
+      context: ./server/api
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
+      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      DRAGONFLY_URL: "dragonfly:6379"
+      PYTHONPATH: "/usr/src/OpenMates"
+    command: celery -A server.celery_app worker --loglevel=info
+    volumes:
+      - .:/usr/src/OpenMates
+    networks:
+      - openmates
+    depends_on:
+      - rest-api
+      - dragonfly
+
   dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
     ulimits:
@@ -89,6 +108,13 @@ services:
       - "6379:6379"
     volumes:
       - dragonfly-data:/data
+    command:
+      - "--maxmemory"
+      - "3000mb"
+    deploy:
+      resources:
+        limits:
+          memory: 2.5G
     networks:
       - openmates
 
