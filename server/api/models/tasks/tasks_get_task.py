@@ -25,6 +25,7 @@ class TasksGetTaskOutput(BaseModel):
     scheduled_at: Optional[str] = Field(None, description="Scheduled date and time of the task in ISO 8601 format")
     priority: Optional[int] = Field(None, description="Priority of the task (e.g., 1 for high, 2 for medium, 3 for low)")
     assigned_to_user_id: Optional[int] = Field(None, description="ID of the user this task is assigned to")
+    execution_time_seconds: Optional[float] = Field(None, description="Execution time of the task in seconds")
     output: Optional[dict] = Field(None, description="Output of the task")
     error: Optional[str] = Field(None, description="Error of the task")
 
@@ -36,6 +37,7 @@ tasks_get_task_output_example = {
     "scheduled_at": None,
     "priority": 1,
     "assigned_to_user_id": 392,
+    "execution_time_seconds": 3.14,
     "output": {
         "answer": "The capital city of France is Paris and there are about 2.1 million people living there.",
         "request_cost_credits": 1

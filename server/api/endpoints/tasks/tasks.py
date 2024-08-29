@@ -22,13 +22,9 @@ from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
 def ask_mate_task(team_slug, message, mate_username, task_info):
     # Run the async function in an event loop
     loop = asyncio.get_event_loop()
-    response = loop.run_until_complete(ask_mate_processing(team_slug, message, mate_username))
-    response_dict = response.model_dump()
-    # Return the task output
-    return TasksGetTaskOutput(
-        id="9999999",
-        title="some title",
-        status="completed",
-        output=response_dict,
-        error=None
-    ).model_dump()
+    response = loop.run_until_complete(ask_mate_processing(
+        team_slug=team_slug,
+        message=message,
+        mate_username=mate_username
+    ))
+    return response.model_dump()

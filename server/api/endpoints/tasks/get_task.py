@@ -26,4 +26,10 @@ async def get_task(task_id: str) -> TasksGetTaskOutput:
     if not task_result:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    return task_result.result
+    return TasksGetTaskOutput(
+        id=task_id,
+        title="Unknown",
+        status=task_result.state.lower(),
+        output=task_result.result
+    )
+
