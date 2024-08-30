@@ -126,6 +126,12 @@ from server.api.models.skills.finance.skills_finance_get_transactions import (
     finance_get_transactions_input_example,
     finance_get_transactions_output_example
 )
+from server.api.models.skills.docs.skills_create import (
+    DocsCreateInput,
+    DocsCreateOutput,
+    docs_create_input_example,
+    docs_create_output_example
+)
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput,
     VideosGetTranscriptOutput,
@@ -169,6 +175,7 @@ from server.api.endpoints.skills.code.plan import plan as skill_code_plan_proces
 from server.api.endpoints.skills.code.write import write as skill_code_write_processing
 from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
 from server.api.endpoints.skills.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
+from server.api.endpoints.skills.docs.create import create as skill_docs_create_processing
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
@@ -192,6 +199,7 @@ from server.api.parameters import (
     skills_code_endpoints,
     skills_ai_endpoints,
     skills_finance_endpoints,
+    skills_docs_endpoints,
     skills_videos_endpoints,
     skills_image_editor_endpoints,
     users_endpoints,
@@ -227,6 +235,7 @@ skills_ai_router = APIRouter()
 skills_messages_router = APIRouter()
 skills_code_router = APIRouter()
 skills_finance_router = APIRouter()
+skills_docs_router = APIRouter()
 skills_videos_router = APIRouter()
 skills_image_editor_router = APIRouter()
 software_router = APIRouter()
@@ -395,6 +404,12 @@ def custom_openapi():
     })
     set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "responses", {
         "Example 1": finance_get_transactions_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/docs/create", "post", "requestBody", {
+        "Example 1": docs_create_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/docs/create", "post", "responses", {
+        "Example 1": docs_create_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
         "Example 1": videos_get_transcript_input_example
@@ -864,6 +879,25 @@ async def skill_finance_get_transactions(
     )
 
 
+@skills_docs_router.post("/v1/{team_slug}/skills/docs/create", **skills_docs_endpoints["create"])
+@limiter.limit("20/minute")
+async def skill_docs_create(
+    request: Request,
+    parameters: DocsCreateInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> DocsCreateOutput:
+    await validate_permissions(
+        endpoint="/skills/docs/create",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_docs_create_processing(
+        title=parameters.title,
+        elements=parameters.elements
+    )
+
+
 @skills_videos_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_videos_get_transcript(
@@ -1242,6 +1276,7 @@ app.include_router(skills_ai_router,                tags=["Skills | AI"])
 app.include_router(skills_messages_router,          tags=["Skills | Messages"])
 app.include_router(skills_code_router,              tags=["Skills | Code"])
 app.include_router(skills_finance_router,           tags=["Skills | Finance"])
+app.include_router(skills_docs_router,              tags=["Skills | Docs"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])
 app.include_router(skills_image_editor_router,      tags=["Skills | Image Editor"])
 app.include_router(software_router,                 tags=["software"])

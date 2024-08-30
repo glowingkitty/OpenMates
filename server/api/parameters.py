@@ -63,6 +63,9 @@ from server.api.models.skills.finance.skills_finance_get_report import (
 from server.api.models.skills.finance.skills_finance_get_transactions import (
     FinanceGetTransactionsOutput
 )
+from server.api.models.skills.docs.skills_create import (
+    DocsCreateOutput
+)
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptOutput
 )
@@ -271,6 +274,15 @@ skills_finance_endpoints = {
     }
 }
 
+skills_docs_endpoints = {
+    "create":{
+        "response_model":DocsCreateOutput,
+        "summary": "Create",
+        "description": "<img src='images/skills/docs/create.png' alt='Create a new document. Including paragraphs, images, tables and more.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 skills_videos_endpoints = {
     "get_transcript":{
         "response_model":VideosGetTranscriptOutput,
@@ -426,6 +438,10 @@ tags_metadata = [
     {
         "name": "Skills | Finance",
         "description": "<img src='images/skills/finance.png' alt='Keep track of your finances and build a stable income. Providers: Akaunting, Revolut Business'>"
+    },
+    {
+        "name": "Skills | Docs",
+        "description": "<img src='images/skills/docs.png' alt='Create documents for everything from contracts to CVs and more.'>"
     },
     {
         "name": "Skills | Videos",

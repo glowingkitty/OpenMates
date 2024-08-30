@@ -6,13 +6,13 @@ import re
 
 class TextElement(BaseModel):
     """Model for a text element in the document"""
-    type: str = Field("text", description="Type of the element")
+    type: Literal["text"] = Field("text", description="Type of the element")
     text: str = Field(..., description="Text content")
     bold: bool = Field(False, description="Bold formatting")
     italic: bool = Field(False, description="Italic formatting")
     underline: bool = Field(False, description="Underline formatting")
     color: Optional[str] = Field(None, description="Text color in hex format")
-    alignment: Optional[str] = Field(None, description="Text alignment (left, right, center, justify)")
+    alignment: Optional[Literal["left", "right", "center", "justify"]] = Field(None, description="Text alignment (left, right, center, justify)")
     background_color: Optional[str] = Field(None, description="Background color in hex format")
 
     @field_validator('color', 'background_color')
@@ -26,9 +26,9 @@ class HeadingElement(BaseModel):
     """Model for a heading element in the document"""
     type: Literal["heading"] = Field("heading", description="Type of the element")
     text: str = Field(..., description="Heading text")
-    level: Optional[Literal[1, 2, 3, 4, 5, 6]] = Field(1, description="Heading level")
+    level: Optional[Literal[1, 2, 3, 4, 5, 6]] = Field(1, description="Heading level (1-6)")
     color: Optional[str] = Field(None, description="Heading color in hex format")
-    alignment: Optional[Literal["left", "right", "center", "justify"]] = Field(None, description="Text alignment")
+    alignment: Optional[Literal["left", "right", "center", "justify"]] = Field(None, description="Text alignment (left, right, center, justify)")
     background_color: Optional[str] = Field(None, description="Background color in hex format")
 
     @field_validator('color', 'background_color')
@@ -75,12 +75,11 @@ class ImageElement(BaseModel):
     margin: Optional[str] = Field(None, description="Margin around the image (e.g., '10px 20px')")
     border: Optional[str] = Field(None, description="Border around the image (e.g., '1px solid #000')")
 
-    @field_validator('url', 'base64_file')
-    @classmethod
-    def validate_image_source(cls, value, values, field):
-        if not value and not values.get('url') and not values.get('base64_file'):
+    @model_validator(mode='after')
+    def validate_image_source(cls, values):
+        if not values.get('url') and not values.get('base64_file'):
             raise ValueError('Either url or base64_file must be provided')
-        return value
+        return values
 
     @field_validator('border', 'margin')
     @classmethod
@@ -161,7 +160,7 @@ class PageBreakElement(BaseModel):
     break_type: Literal["page"] = Field("page", description="Type of break, e.g., 'page'")
 
 class DocsCreateInput(BaseModel):
-    """Model for a document"""
+    """Model for a document creation input"""
     title: str = Field(..., description="Title of the document")
     elements: List[Union[
         TextElement, HeadingElement, HyperlinkElement, ImageElement,
@@ -177,6 +176,12 @@ class DocsCreateInput(BaseModel):
         if not values['elements']:
             raise ValueError('Document must contain at least one element')
         return values
+
+class DocsCreateOutput(BaseModel):
+    """Model for a document creation output"""
+    title: str = Field(..., description="Title of the document")
+    file_url: str = Field(..., description="URL of the created document")
+    expiration_date_time: str = Field(..., description="Expiration date and time of the document in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ)")
 
 
 # Example of a document creation payload
@@ -204,4 +209,10 @@ docs_create_input_example = {
         {"type": "code_block", "code": "def main():\n    print('Project Proposal')", "language": "python"},
         {"type": "block_quote", "text": "The best way to predict the future is to invent it.", "author": "Alan Kay"}
     ]
+}
+
+docs_create_output_example = {
+    "title": "Project Proposal",
+    "file_url": "/v1/openmatesdevs/files/project_proposal.pdf",
+    "expiration_date_time": "2024-01-01T00:00:00Z"
 }
