@@ -441,7 +441,7 @@ tags_metadata = [
     },
     {
         "name": "Skills | Docs",
-        "description": "<img src='images/skills/docs.png' alt='Create documents for everything from contracts to CVs and more.'>"
+        "description": "<img src='images/skills/docs.png' alt='Create documents for everything from contracts to CVs and more. Providers: Google Docs, Microsoft Word, OnlyOffice'>"
     },
     {
         "name": "Skills | Videos",
