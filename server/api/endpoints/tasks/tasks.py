@@ -66,4 +66,5 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
         })
 
         # TODO: cannot access meta data here
+        # TODO: implement task data storage in strapi (might be also a workaround)
         raise

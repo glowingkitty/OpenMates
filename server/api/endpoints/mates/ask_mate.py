@@ -22,8 +22,6 @@ from server.api.models.mates.mates_ask import (
 async def ask_mate(team_slug: str, message: str, mate_username: str):
     """
     Process a message
-
-    - **content**: The content of the message
     """
     # try:
     add_to_log(module_name="OpenMates | API | Process message", state="start", color="yellow")
@@ -45,7 +43,6 @@ async def ask_mate(team_slug: str, message: str, mate_username: str):
         )
 
     add_to_log("Successfully processed the message", state="success")
-    raise HTTPException(status_code=500, detail="Internal server error")
     return message
 
 
