@@ -21,7 +21,7 @@ from urllib.parse import quote
 
 # POST /uploads (create a new mate)
 
-class FileUploadOutput(BaseModel):
+class FilesUploadOutput(BaseModel):
     """This is the model for the output of POST /uploads"""
     url: str = Field(..., description="URL of the uploaded file"),
     access_public: bool = Field(False, description="If set to True, the file can be accessed by anyone on the internet.")
@@ -31,7 +31,7 @@ class FileUploadOutput(BaseModel):
     write_access_limited_to_user_usernames: List[str] = Field(None, description="List of user usernames with write access (even if outside of the teams with file access)")
 
 
-file_upload_output_example = {
+files_upload_output_example = {
     "url": "/ai-sales-team/uploads/sophia_image.jpeg",
     "access_public": False,
     "read_access_limited_to_team_slugs": ["ai-sales-team"],
@@ -39,3 +39,5 @@ file_upload_output_example = {
     "read_access_limited_to_user_usernames": ["sophia"],
     "write_access_limited_to_user_usernames": ["sophia"]
 }
+
+# TODO move over to skills

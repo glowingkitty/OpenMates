@@ -46,22 +46,6 @@ services:
     depends_on:
       - strapiDB
 
-  strapi-setup:
-    build:
-      context: ./server/cms
-      dockerfile: Dockerfile
-    env_file: .env
-    environment:
-      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
-      STRAPI_TOKEN: ${STRAPI_TOKEN}
-    volumes:
-      - ./server/api/models:/usr/src/OpenMates/server/api/models
-      - ./server/cms/setup.py:/usr/src/OpenMates/setup.py
-    networks:
-      - openmates
-    depends_on:
-      - strapi
-
   rest-api:
     build:
       context: ./server/api
@@ -91,7 +75,7 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:6379"
       PYTHONPATH: "/usr/src/OpenMates"
-    command: celery -A server.celery_app worker --loglevel=info
+    command: celery -A server.api.endpoints.tasks.celery worker --loglevel=info
     volumes:
       - .:/usr/src/OpenMates
     networks:

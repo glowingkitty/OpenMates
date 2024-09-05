@@ -15,7 +15,7 @@ from server import *
 ################
 
 from server.api.models.files.files_upload import (
-    FileUploadOutput
+    FilesUploadOutput
 )
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
@@ -62,9 +62,6 @@ from server.api.models.skills.finance.skills_finance_get_report import (
 )
 from server.api.models.skills.finance.skills_finance_get_transactions import (
     FinanceGetTransactionsOutput
-)
-from server.api.models.skills.docs.skills_create import (
-    DocsCreateOutput
 )
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptOutput
@@ -147,7 +144,7 @@ def set_example(openapi_schema, path, method, request_or_response, examples, res
 
 files_endpoints = {
    "upload_file":{
-        "response_model":FileUploadOutput,
+        "response_model":FilesUploadOutput,
         "summary": "Upload",
         "description": "<img src='images/files/upload.png' alt='Upload an image to the OpenMates server, so you can use it as a profile picture.'>",
         "responses": generate_responses([200, 400, 401, 403, 409, 422, 500]),
@@ -276,9 +273,41 @@ skills_finance_endpoints = {
 
 skills_docs_endpoints = {
     "create":{
-        "response_model":DocsCreateOutput,
+        "response_model":FilesUploadOutput,
         "summary": "Create",
         "description": "<img src='images/skills/docs/create.png' alt='Create a new document. Including paragraphs, images, tables and more.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_files_endpoints = {
+    "download": {
+        "summary": "Download",
+        "description": "<img src='images/skills/files/download.png' alt='Download a file or folder from the OpenMates server or from a cloud storage account.'>",
+        "responses": {
+            "200": {
+                "description": "Successful Response",
+                "content": {
+                    "application/octet-stream": {
+                        "schema": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "example": {
+                            "summary": "Example file download",
+                            "description": "This endpoint returns the requested file as a binary stream. The actual content cannot be displayed here.",
+                            "value": "Binary file content"
+                        }
+                    }
+                }
+            },
+            **generate_responses([400, 401, 403, 404, 422, 500])
+        }
+    },
+    "upload": {
+        "response_model": FilesUploadOutput,
+        "summary": "Upload",
+        "description": "<img src='images/skills/files/upload.png' alt='Upload a file or folder to the OpenMates server or to a cloud storage account.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -444,6 +473,10 @@ tags_metadata = [
         "description": "<img src='images/skills/docs.png' alt='Create documents for everything from contracts to CVs and more. Providers: Google Docs, Microsoft Word, OnlyOffice'>"
     },
     {
+        "name": "Skills | Files",
+        "description": "<img src='images/skills/files.png' alt='Manage your files, regardless of where they are. Providers: OpenMates, Dropbox'>"
+    },
+    {
         "name": "Skills | Videos",
         "description": "<img src='images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
     },
@@ -509,6 +542,14 @@ input_parameter_descriptions = {
     "skill_slug": {
         "description": "The slug of the skill",
         "examples": ["ask"]
-    }
+    },
+    "provider": {
+        "description": "The name of the service provider",
+        "examples": ["dropbox"]
+    },
+    "file_path": {
+        "description": "The path to the file",
+        "examples": ["documents/contract.pdf"]
+    },
 }
 

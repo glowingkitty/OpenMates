@@ -16,7 +16,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.celery_app import celery
+from server.api.endpoints.tasks.celery import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
 

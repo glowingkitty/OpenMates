@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, root_validator
 from typing import List, Optional, Union, Literal
 import re
 
@@ -77,15 +77,17 @@ class ImageElement(BaseModel):
 
     @model_validator(mode='after')
     def validate_image_source(cls, values):
-        if not values.get('url') and not values.get('base64_file'):
+        if not values.url and not values.base64_file:
             raise ValueError('Either url or base64_file must be provided')
         return values
 
     @field_validator('border', 'margin')
     @classmethod
     def validate_border_margin(cls, value):
-        if value and not re.match(r'^\d+(px|em|%)\s*\d*(px|em|%)?\s*\d*(px|em|%)?\s*\d*(px|em|%)?$', value):
-            raise ValueError('Border and margin must be in a valid CSS format, e.g., "1px solid #000" or "10px 20px"')
+        if value:
+            # Regex to match "1px solid #000", "10px 20px", "10px"
+            if not re.match(r'^(\d+(px|em|%)\s*(\d+(px|em|%))?\s*(\d+(px|em|%))?\s*(\d+(px|em|%))?|(\d+px\s+solid\s+#\d{3,6}))$', value):
+                raise ValueError('Border and margin must be in a valid CSS format, e.g., "1px solid #000", "10px 20px", or "10px"')
         return value
 
 class FormulaElement(BaseModel):
@@ -127,8 +129,10 @@ class TableElement(BaseModel):
     @field_validator('border', 'margin')
     @classmethod
     def validate_border_margin(cls, value):
-        if value and not re.match(r'^\d+(px|em|%)\s*\d*(px|em|%)?\s*\d*(px|em|%)?\s*\d*(px|em|%)?$', value):
-            raise ValueError('Border and margin must be in a valid CSS format, e.g., "1px solid #000" or "10px 20px"')
+        if value:
+            # Regex to match "1px solid #000", "10px 20px", "10px"
+            if not re.match(r'^(\d+(px|em|%)\s*(\d+(px|em|%))?\s*(\d+(px|em|%))?\s*(\d+(px|em|%))?|(\d+px\s+solid\s+#\d{3,6}))$', value):
+                raise ValueError('Border and margin must be in a valid CSS format, e.g., "1px solid #000", "10px 20px", or "10px"')
         return value
 
 class ListItem(BaseModel):
@@ -170,18 +174,39 @@ class DocsCreateInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @root_validator(pre=True)
+    def validate_elements(cls, values):
+        elements = values.get('elements', [])
+        for element in elements:
+            element_type = element.get('type')
+            if element_type == 'text':
+                TextElement(**element)
+            elif element_type == 'heading':
+                HeadingElement(**element)
+            elif element_type == 'hyperlink':
+                HyperlinkElement(**element)
+            elif element_type == 'image':
+                ImageElement(**element)
+            elif element_type == 'table':
+                TableElement(**element)
+            elif element_type == 'list':
+                ListElement(**element)
+            elif element_type == 'code_block':
+                CodeBlockElement(**element)
+            elif element_type == 'block_quote':
+                BlockQuoteElement(**element)
+            elif element_type == 'page_break':
+                PageBreakElement(**element)
+            else:
+                raise ValueError(f"Unknown element type: {element_type}")
+        return values
+
     @model_validator(mode='after')
     def validate_document(cls, values):
         # Example validation: Ensure at least one element is present
-        if not values['elements']:
+        if not values.elements:
             raise ValueError('Document must contain at least one element')
         return values
-
-class DocsCreateOutput(BaseModel):
-    """Model for a document creation output"""
-    title: str = Field(..., description="Title of the document")
-    file_url: str = Field(..., description="URL of the created document")
-    expiration_date_time: str = Field(..., description="Expiration date and time of the document in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ)")
 
 
 # Example of a document creation payload
@@ -212,7 +237,12 @@ docs_create_input_example = {
 }
 
 docs_create_output_example = {
-    "title": "Project Proposal",
-    "file_url": "/v1/openmatesdevs/files/project_proposal.pdf",
-    "expiration_date_time": "2024-01-01T00:00:00Z"
+    "name": "project_proposal.docx",
+    "url": "/v1/openmatesdevs/skills/files/docs/project_proposal.docx",
+    "expiration_datetime": "2024-01-01T00:00:00Z",
+    "access_public": False,
+    "read_access_limited_to_teams": ["openmatesdevs"],
+    "read_access_limited_to_users": None,
+    "write_access_limited_to_teams": ["openmatesdevs"],
+    "write_access_limited_to_users": None
 }

@@ -126,11 +126,14 @@ from server.api.models.skills.finance.skills_finance_get_transactions import (
     finance_get_transactions_input_example,
     finance_get_transactions_output_example
 )
-from server.api.models.skills.docs.skills_create import (
+from server.api.models.skills.docs.skills_docs_create import (
     DocsCreateInput,
-    DocsCreateOutput,
     docs_create_input_example,
     docs_create_output_example
+)
+from server.api.models.skills.files.skills_files_upload import (
+    FilesUploadOutput,
+    files_upload_output_example
 )
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput,
@@ -175,6 +178,8 @@ from server.api.endpoints.skills.code.plan import plan as skill_code_plan_proces
 from server.api.endpoints.skills.code.write import write as skill_code_write_processing
 from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
 from server.api.endpoints.skills.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
+from server.api.endpoints.skills.files.download import download as skill_files_download_processing
+from server.api.endpoints.skills.files.upload import upload as skill_files_upload_processing
 from server.api.endpoints.skills.docs.create import create as skill_docs_create_processing
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
@@ -186,8 +191,6 @@ from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
 
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_invite_code import validate_invite_code
-from server.cms.strapi_requests import get_strapi_upload
-
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
@@ -200,6 +203,7 @@ from server.api.parameters import (
     skills_ai_endpoints,
     skills_finance_endpoints,
     skills_docs_endpoints,
+    skills_files_endpoints,
     skills_videos_endpoints,
     skills_image_editor_endpoints,
     users_endpoints,
@@ -219,6 +223,12 @@ from io import BytesIO
 from celery.result import AsyncResult
 from server.api.endpoints.tasks.tasks import ask_mate_task
 
+from server.api.startup import api_startup
+from server.api.shutdown import api_shutdown
+
+
+
+from fastapi.middleware.cors import CORSMiddleware
 
 ##################################
 ######### Setup FastAPI ##########
@@ -236,6 +246,7 @@ skills_messages_router = APIRouter()
 skills_code_router = APIRouter()
 skills_finance_router = APIRouter()
 skills_docs_router = APIRouter()
+skills_files_router = APIRouter()
 skills_videos_router = APIRouter()
 skills_image_editor_router = APIRouter()
 software_router = APIRouter()
@@ -250,9 +261,24 @@ users_router = APIRouter()
 # Create a limiter instance
 limiter = Limiter(key_func=get_remote_address)
 
+async def lifespan(app: FastAPI):
+    await api_startup()
+    yield
+    await api_shutdown()
+
 app = FastAPI(
     redoc_url="/docs",
-    docs_url="/swagger_docs"
+    docs_url="/swagger_docs",
+    lifespan=lifespan
+)
+
+# Add this after creating the FastAPI app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 bearer_scheme = HTTPBearer(
@@ -411,6 +437,9 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/docs/create", "post", "responses", {
         "Example 1": docs_create_output_example
     }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/files/upload", "post", "responses", {
+        "Example 1": files_upload_output_example
+    }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
         "Example 1": videos_get_transcript_input_example
     })
@@ -470,23 +499,6 @@ app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__
 @limiter.limit("20/minute")
 def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
-
-
-# GET /v1/{team_slug}/uploads/{file_name} (get an uploaded file)
-@files_router.get("/v1/{team_slug}/uploads/{file_name}", include_in_schema=False)
-@limiter.limit("20/minute")
-async def get_upload(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: Optional[str] = Depends(optional_bearer_token)
-    ):
-    await validate_permissions(
-        endpoint=f"/uploads/{request.path_params['file_name']}",
-        user_api_token=token,
-        team_slug=team_slug
-    )
-    return await get_strapi_upload(request.path_params['file_name'])
-
 
 
 ##################################
@@ -833,6 +845,7 @@ async def skill_code_write(
     )
 
 
+# POST /skills/finance/get_report (get a finance report)
 @skills_finance_router.post("/v1/{team_slug}/skills/finance/get_report", **skills_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
 async def skill_finance_get_report(
@@ -855,6 +868,7 @@ async def skill_finance_get_report(
     )
 
 
+# POST /skills/finance/get_transactions (get transactions)
 @skills_finance_router.post("/v1/{team_slug}/skills/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
 async def skill_finance_get_transactions(
@@ -879,6 +893,7 @@ async def skill_finance_get_transactions(
     )
 
 
+# POST /skills/docs/create (create a new document)
 @skills_docs_router.post("/v1/{team_slug}/skills/docs/create", **skills_docs_endpoints["create"])
 @limiter.limit("20/minute")
 async def skill_docs_create(
@@ -886,7 +901,7 @@ async def skill_docs_create(
     parameters: DocsCreateInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> DocsCreateOutput:
+) -> FilesUploadOutput:
     await validate_permissions(
         endpoint="/skills/docs/create",
         team_slug=team_slug,
@@ -898,6 +913,76 @@ async def skill_docs_create(
     )
 
 
+# POST /skills/files/upload (upload a file)
+@skills_files_router.post("/v1/{team_slug}/skills/files/upload", **skills_files_endpoints["upload"])
+@limiter.limit("20/minute")
+async def skill_files_upload(
+    request: Request,
+    file: UploadFile = File(..., description="The file to upload"),
+    team_slug: str = Path(..., description="The team slug"),
+    token: str = Depends(get_credentials),
+    provider: str = Form(..., description="The storage provider"),
+    name: str = Form(..., description="The name of the file"),
+    file_path: str = Form(..., description="The path where the file will be stored"),
+    account: Optional[str] = Form(None, description="The account to use for the storage provider"),
+    expiration_datetime: Optional[str] = Form(None, description="The expiration date and time of the file"),
+    access_public: bool = Form(False, description="If set to True, the file will be publicly accessible"),
+    read_access_limited_to_teams: Optional[List[str]] = Form(None, description="List of teams with read access"),
+    read_access_limited_to_users: Optional[List[str]] = Form(None, description="List of users with read access"),
+    write_access_limited_to_teams: Optional[List[str]] = Form(None, description="List of teams with write access"),
+    write_access_limited_to_users: Optional[List[str]] = Form(None, description="List of users with write access")
+) -> FilesUploadOutput:
+    await validate_permissions(
+        endpoint="/skills/files/upload",
+        team_slug=team_slug,
+        user_api_token=token,
+        required_permissions=["files:upload"]
+    )
+
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if len(contents) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 20MB limit")
+
+    return await skill_files_upload_processing(
+        provider=provider,
+        account=account,
+        file_path=file_path,
+        name=name,
+        file_data=contents,
+        expiration_datetime=expiration_datetime,
+        access_public=access_public,
+        read_access_limited_to_teams=read_access_limited_to_teams,
+        read_access_limited_to_users=read_access_limited_to_users,
+        write_access_limited_to_teams=write_access_limited_to_teams,
+        write_access_limited_to_users=write_access_limited_to_users
+    )
+
+
+# GET /skills/files/{provider}/{file_path} (download a file)
+@skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/{file_path}", **skills_files_endpoints["download"])
+@limiter.limit("20/minute")
+async def skill_files_download(
+    request: Request,
+    provider: str = Path(..., **input_parameter_descriptions["provider"]),
+    file_path: str = Path(..., **input_parameter_descriptions["file_path"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> StreamingResponse:
+    await validate_permissions(
+        endpoint=f"/skills/files/{provider}/{file_path}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_files_download_processing(
+        provider=provider,
+        file_path=file_path
+    )
+
+
+# POST /skills/videos/transcript (get the transcript of a video)
 @skills_videos_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_videos_get_transcript(
@@ -940,6 +1025,12 @@ async def skill_image_editor_resize(
     )
 
     image_data = await file.read()
+    if len(image_data) == 0:
+        raise HTTPException(status_code=400, detail="No image provided")
+
+    if len(image_data) > 10 * 1024 * 1024:  # Example size limit of 10MB
+        raise HTTPException(status_code=413, detail="Image size exceeds 10MB limit")
+
     return await skill_image_editor_resize_image_processing(
         image_data=image_data,
         target_resolution_width=target_resolution_width,
@@ -1277,6 +1368,7 @@ app.include_router(skills_messages_router,          tags=["Skills | Messages"])
 app.include_router(skills_code_router,              tags=["Skills | Code"])
 app.include_router(skills_finance_router,           tags=["Skills | Finance"])
 app.include_router(skills_docs_router,              tags=["Skills | Docs"])
+app.include_router(skills_files_router,             tags=["Skills | Files"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])
 app.include_router(skills_image_editor_router,      tags=["Skills | Image Editor"])
 app.include_router(software_router,                 tags=["software"])

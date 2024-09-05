@@ -16,7 +16,7 @@ from server import *
 
 from fastapi import HTTPException
 from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
-from server.celery_app import celery
+from server.api.endpoints.tasks.celery import celery
 from celery.result import AsyncResult
 
 async def get_task(task_id: str) -> TasksGetTaskOutput:

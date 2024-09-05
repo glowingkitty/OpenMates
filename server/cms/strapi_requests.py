@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 from typing import Optional, Dict, List, Tuple
 from fastapi import HTTPException, Response
 from fastapi.responses import StreamingResponse
+import base64
+from io import BytesIO
 
 # Load the .env file
 load_dotenv()
@@ -168,3 +170,45 @@ async def get_strapi_upload(url: str) -> Response:
                 raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
 
         return StreamingResponse(strapi_response.iter_bytes(), media_type=strapi_response.headers['Content-Type'])
+
+
+
+
+async def upload_file_to_strapi(file_data: bytes, file_name: str) -> Dict:
+    async with httpx.AsyncClient() as client:
+        try:
+            file = BytesIO(file_data)
+            files = {'files': (file_name, file, 'application/octet-stream')}
+
+            strapi_response = await client.post(
+                f"{STRAPI_URL}/upload",
+                headers={"Authorization": f"Bearer {STRAPI_API_TOKEN}"},
+                files=files
+            )
+            strapi_response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Upload failed: {exc.response.text}")
+
+        return strapi_response.json()
+
+
+async def create_uploaded_file_entry(file_id: str, filename: str, additional_data: Optional[Dict] = None) -> Dict:
+    async with httpx.AsyncClient() as client:
+        try:
+            data = {
+                "data": {
+                    "file": file_id,
+                    "filename": filename,
+                    **(additional_data or {})
+                }
+            }
+            strapi_response = await client.post(
+                f"{STRAPI_URL}/uploaded-files",
+                headers={"Authorization": f"Bearer {STRAPI_API_TOKEN}"},
+                json=data
+            )
+            strapi_response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Entry creation failed: {exc.response.text}")
+
+        return strapi_response.json()
