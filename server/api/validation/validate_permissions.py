@@ -74,5 +74,5 @@ async def validate_permissions(
         raise
 
     except Exception:
-        process_error("Failed to validate permissions", traceback=traceback.format_exc())
+        add_to_log(state="error", message=traceback.format_exc())
         raise HTTPException(status_code=500, detail="An error occurred while validating permissions")

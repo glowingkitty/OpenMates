@@ -15,7 +15,6 @@ sys.path.append(main_directory)
 import inspect
 from loguru import logger
 
-from server.setup.load_config import load_config
 import fitz
 
 # Remove the default handler to stop loguru from logging to the console
@@ -149,9 +148,7 @@ def add_to_log(
 
     # see if console output should be disabled
     print_to_console = True
-    config = load_config()
-    if (config and "environment" in config and config["environment"] == "production"):
-        print_to_console = False
+    print_to_console = True
 
     # if file_name does not end with (), add them
     # if file_name and not file_name.endswith("()"):

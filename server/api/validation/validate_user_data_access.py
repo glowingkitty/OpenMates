@@ -127,5 +127,5 @@ async def validate_user_data_access(
         raise
 
     except Exception:
-        process_error("Failed to validate the user data access.",traceback=traceback.format_exc())
+        add_to_log(state="error", message=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to validate the user data access.")

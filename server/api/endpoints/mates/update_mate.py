@@ -225,5 +225,5 @@ async def update_mate(
         raise
 
     except Exception:
-        process_error("Failed to update the AI team mate.", traceback=traceback.format_exc())
+        add_to_log(state="error", message=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to update the AI team mate.")

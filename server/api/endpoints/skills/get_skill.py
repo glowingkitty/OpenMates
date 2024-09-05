@@ -159,5 +159,5 @@ async def get_skill(
             raise
 
         except Exception:
-            process_error("Failed to get the requested skill.", traceback=traceback.format_exc())
+            add_to_log(state="error", message=traceback.format_exc())
             raise HTTPException(status_code=500, detail="Failed to get the requested skill.")

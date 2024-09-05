@@ -100,5 +100,5 @@ async def validate_token(
         raise
 
     except Exception:
-        process_error("Failed to verify token.", traceback=traceback.format_exc())
+        add_to_log(state="error", message=traceback.format_exc())
         raise HTTPException(status_code=401, detail="The API key is invalid")

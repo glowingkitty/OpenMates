@@ -104,5 +104,5 @@ async def get_users(
         raise
 
     except Exception:
-        process_error("Failed to get all users in the team.",traceback=traceback.format_exc())
+        add_to_log(state="error", message=traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to get all users in the team.")

@@ -1,3 +1,0 @@
-# Automations
-
-## Plans:
