@@ -18,13 +18,11 @@ from server.cms.strapi_requests import make_strapi_request, delete_file_from_str
 from server.api.models.skills.files.skills_files_delete import FilesDeleteOutput
 
 
-async def delete(file_path: str) -> FilesDeleteOutput:
+async def delete(file_id: str) -> FilesDeleteOutput:
     """
     Delete a file from the OpenMates server
     """
     add_to_log(module_name="OpenMates | API | Files | Providers | OpenMates | Delete", state="start", color="yellow")
-
-    file_id = file_path.split("/")[-2]
 
     add_to_log(f"Deleting file with ID {file_id} from OpenMates server...")
 

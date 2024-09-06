@@ -33,6 +33,7 @@ async def delete(
         # TODO: implement dropbox delete
         pass
     else:
+        file_id = file_path.split("/")[-2]
         return await openmates_delete(
-            file_path=file_path
+            file_id=file_id
         )

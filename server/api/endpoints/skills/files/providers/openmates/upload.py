@@ -75,8 +75,6 @@ async def upload(
     # Output url should be /v1/{team_slug}/skills/files/docs/{file_id}/{name}
     url = f"/v1/{team_slug}/skills/files/{file_path}"
 
-    # TODO implement auto delete after expiration_datetime
-
     return FilesUploadOutput(
         name=name,
         url=url,

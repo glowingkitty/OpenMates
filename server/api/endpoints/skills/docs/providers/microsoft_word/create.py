@@ -205,7 +205,7 @@ async def create(
 
     file_name = f"{title.lower().replace(' ', '_')}.docx"
     file_id = uuid.uuid4().hex[:10]
-    expiration_datetime = datetime.now() + timedelta(days=2)
+    expiration_datetime = datetime.now() + timedelta(days=1)
     file_info = await upload(
         provider="docs",
         team_slug=team_slug,
