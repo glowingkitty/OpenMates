@@ -17,11 +17,11 @@ from server import *
 import logging
 import asyncio
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-from server.api.memory import get_all_users_from_memory, load_users_into_memory, get_user_from_memory
+from server.api.memory import load_data_into_memory, get_all_users, get_user
 from server.api.endpoints.skills.messages.providers.discord.receive import start_discord_listener
 from server.api.endpoints.tasks.tasks import ask_mate_task
 
@@ -29,19 +29,27 @@ async def api_startup():
     # Startup event
     logger.info("Processing startup events...")
 
-    logger.info("Loading users into memory...")
-    # load_users_into_memory()
+    logger.debug("Loading data into memory (users, teams, mates, etc.)...")
+    load_data_into_memory()
+
+    users = get_all_users()
+    for user in users:
+        user_data = get_user(user.decode('utf-8').split(':')[1])
+        logger.debug(f"User data: {user_data}")
+
+    # TODO lets simplify testing
+    # 1. load user data from strapi into memory and print it out
+    # 1.2 ONLY load user data once they connect via their api key
+    # 1.3 delete the user data from memory after certain disconnected time
+    # 2. update database model to include discord server data in user model
+    # 3. then implement the logic to start the discord listener for each user
+    # 4. test / implement webhooks to receive messages from slack, mattermost, etc.
 
     # Check which users have a Discord connection and start an instance to check for new messages
     logger.info("Start listening for Discord messages for users with a Discord connection...")
     # users = get_all_users_from_memory()
     server_url_to_users = {}
     server_url_to_token = {}
-
-    # TODO lets simplify testing
-    # 1. load user data from strapi into memory and print it out
-    # 2. update database model to include discord server data in user model
-    # 3. then implement the logic to start the discord listener for each user
 
     # for user_key in users:
     #     user_id = user_key.decode('utf-8').split(':')[1]
