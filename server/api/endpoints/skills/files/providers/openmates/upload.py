@@ -75,6 +75,7 @@ async def upload(
     url = f"/v1/{team_slug}/skills/files/{file_path}"
 
     # TODO implement auto delete after expiration_datetime
+    # TODO fix that expiration_datetime is not included in the output
 
     return FilesUploadOutput(
         name=name,

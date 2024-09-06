@@ -221,12 +221,4 @@ async def create(
     file_stream.close()
     del file_data
 
-    add_to_log(expiration_datetime.isoformat())
-
-    add_to_log(file_info)
-    return FilesUploadOutput(
-        name=file_name,
-        url=file_info.url,
-        expiration_datetime=expiration_datetime.isoformat(),
-        access_public=False
-    )
+    return file_info
