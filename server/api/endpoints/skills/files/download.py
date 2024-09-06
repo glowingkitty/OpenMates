@@ -20,6 +20,7 @@ from server.api.endpoints.skills.files.providers.openmates.download import downl
 
 async def download(
     provider: str,
+    api_token: str,
     file_path: str
 ) -> StreamingResponse:
     """
@@ -32,4 +33,7 @@ async def download(
         # TODO: implement dropbox download
         pass
     else:
-        return await openmates_download(provider=provider, file_path=file_path)
+        return await openmates_download(
+            api_token=api_token,
+            file_path=file_path
+        )

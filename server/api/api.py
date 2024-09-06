@@ -215,6 +215,7 @@ from server.api.parameters import (
     input_parameter_descriptions
 )
 from fastapi.security import HTTPBearer
+from fastapi import Path
 from typing import Optional, List, Literal, Union
 from fastapi.responses import StreamingResponse, JSONResponse
 from io import BytesIO
@@ -964,7 +965,7 @@ async def skill_files_upload(
 
 
 # GET /skills/files/{provider}/{file_path} (download a file)
-@skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/{file_path}", **skills_files_endpoints["download"])
+@skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/{file_path:path}", **skills_files_endpoints["download"])
 @limiter.limit("20/minute")
 async def skill_files_download(
     request: Request,
@@ -980,6 +981,7 @@ async def skill_files_download(
     )
     return await skill_files_download_processing(
         provider=provider,
+        api_token=token,
         file_path=file_path
     )
 
