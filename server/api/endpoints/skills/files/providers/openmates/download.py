@@ -9,6 +9,8 @@ from fastapi.responses import StreamingResponse
 from server.cms.strapi_requests import get_strapi_upload, make_strapi_request
 import io
 from server.api.security.crypto import decrypt_file
+import gc
+from contextlib import contextmanager
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -21,6 +23,18 @@ from server import *
 from fastapi import HTTPException
 import requests
 
+
+@contextmanager
+def secure_decryption(encrypted_data, key):
+    try:
+        decrypted_file = decrypt_file(encrypted_data=encrypted_data, key=key)
+        yield decrypted_file
+    finally:
+        # Explicitly overwrite the decrypted data
+        if 'decrypted_file' in locals():
+            decrypted_file = b'\x00' * len(decrypted_file)
+        # Force garbage collection
+        gc.collect()
 
 async def download(
     api_token: str,
@@ -57,7 +71,5 @@ async def download(
         add_to_log("No file found with the given file_id.", state="error")
         raise HTTPException(status_code=404, detail="The file doesn't exist. This can be for various reasons: the file might be expired and deleted, the URL might be incorrect, you might not have access to it, or the file might not exist in the first place.")
 
-    # Decrypt the file
-    decrypted_file = decrypt_file(encrypted_data=encrypted_data, key=api_token+file_id)
-
-    return StreamingResponse(io.BytesIO(decrypted_file), media_type="application/octet-stream")
+    with secure_decryption(encrypted_data, api_token+file_id) as decrypted_file:
+        return StreamingResponse(io.BytesIO(decrypted_file), media_type="application/octet-stream")
