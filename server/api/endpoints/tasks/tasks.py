@@ -18,7 +18,11 @@ from server import *
 
 from server.api.endpoints.tasks.celery import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
-from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
+from celery import shared_task
+from datetime import datetime
+from server.cms.strapi_requests import make_strapi_request, delete_file_from_strapi
+from server.api.endpoints.skills.files.providers.openmates.delete import delete as openmates_delete
+
 
 @celery.task(bind=True)
 def ask_mate_task(self, team_slug, message, mate_username, task_info):
@@ -68,3 +72,34 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
         # TODO: cannot access meta data here
         # TODO: implement task data storage in strapi (might be also a workaround)
         raise
+
+
+@shared_task
+async def delete_expired_files():
+    add_to_log("Deleting expired files...")
+    now = datetime.now(datetime.UTC).isoformat()
+
+    # Fetch expired files
+    status_code, expired_files = await make_strapi_request(
+        method='get',
+        endpoint='uploaded-files',
+        params={'filters[expiration_datetime][$lt]': now}
+    )
+
+    if status_code != 200:
+        add_to_log(f"Failed to fetch expired files: {status_code}")
+        return f"Failed to fetch expired files: {status_code}"
+
+    deleted_count = 0
+    for file in expired_files['data']:
+        file_id = file['attributes']['file_id']
+
+        try:
+            await openmates_delete(file_id)
+            deleted_count += 1
+        except HTTPException as e:
+            # Log the error but continue with other files
+            add_to_log(f"Failed to delete file {file_id}: {str(e)}")
+
+    add_to_log(f"Deleted {deleted_count} expired files")
+    return f"Deleted {deleted_count} expired files"

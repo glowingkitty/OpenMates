@@ -135,6 +135,10 @@ from server.api.models.skills.files.skills_files_upload import (
     FilesUploadOutput,
     files_upload_output_example
 )
+from server.api.models.skills.files.skills_files_delete import (
+    FilesDeleteOutput,
+    files_delete_output_example
+)
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput,
     VideosGetTranscriptOutput,
@@ -180,6 +184,7 @@ from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
 from server.api.endpoints.skills.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
 from server.api.endpoints.skills.files.download import download as skill_files_download_processing
 from server.api.endpoints.skills.files.upload import upload as skill_files_upload_processing
+from server.api.endpoints.skills.files.delete import delete as skill_files_delete_processing
 from server.api.endpoints.skills.docs.create import create as skill_docs_create_processing
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
@@ -440,6 +445,9 @@ def custom_openapi():
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/files/upload", "post", "responses", {
         "Example 1": files_upload_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/files/{provider}/{file_path}", "delete", "responses", {
+        "Example 1": files_delete_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
         "Example 1": videos_get_transcript_input_example
@@ -964,6 +972,22 @@ async def skill_files_upload(
     )
 
 
+# TODO add endpoint for shared files
+# # GET /skills/files/{provider}/shared/{file_path} (download a shared file)
+# @skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/shared/{file_path:path}", **skills_files_endpoints["download_shared"])
+# @limiter.limit("20/minute")
+# async def skill_files_download_shared(
+#     request: Request,
+#     provider: str = Path(..., **input_parameter_descriptions["provider"]),
+#     file_path: str = Path(..., **input_parameter_descriptions["file_path"]),
+#     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
+# ) -> StreamingResponse:
+#     return await skill_files_download_processing(
+#         provider=provider,
+#         file_path=file_path
+#     )
+
+
 # GET /skills/files/{provider}/{file_path} (download a file)
 @skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/{file_path:path}", **skills_files_endpoints["download"])
 @limiter.limit("20/minute")
@@ -982,6 +1006,27 @@ async def skill_files_download(
     return await skill_files_download_processing(
         provider=provider,
         api_token=token,
+        file_path=file_path
+    )
+
+
+# DELETE /skills/files/{provider}/{file_path} (delete a file)
+@skills_files_router.delete("/v1/{team_slug}/skills/files/{provider}/{file_path:path}", **skills_files_endpoints["delete"])
+@limiter.limit("20/minute")
+async def skill_files_delete(
+    request: Request,
+    provider: str = Path(..., **input_parameter_descriptions["provider"]),
+    file_path: str = Path(..., **input_parameter_descriptions["file_path"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> FilesDeleteOutput:
+    await validate_permissions(
+        endpoint=f"/skills/files/{provider}/{file_path}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_files_delete_processing(
+        provider=provider,
         file_path=file_path
     )
 

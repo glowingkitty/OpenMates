@@ -19,7 +19,7 @@ from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from fastapi import HTTPException
 from typing import List, Optional
 from server.api.security.crypto import encrypt_file
-
+from datetime import datetime
 
 
 async def upload(
@@ -55,6 +55,7 @@ async def upload(
         "filename": name,
         "file_id": file_id,
         "access_public": access_public,
+        "expiration_datetime": expiration_datetime,
         "read_access_limited_to_teams": read_access_limited_to_teams,
         "read_access_limited_to_users": read_access_limited_to_users,
         "write_access_limited_to_teams": write_access_limited_to_teams,
@@ -75,7 +76,6 @@ async def upload(
     url = f"/v1/{team_slug}/skills/files/{file_path}"
 
     # TODO implement auto delete after expiration_datetime
-    # TODO fix that expiration_datetime is not included in the output
 
     return FilesUploadOutput(
         name=name,

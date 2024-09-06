@@ -14,9 +14,7 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from server.api.models.files.files_upload import (
-    FilesUploadOutput
-)
+
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
 )
@@ -50,6 +48,12 @@ from server.api.models.skills.ai.skills_ai_ask import (
 )
 from server.api.models.skills.ai.skills_ai_estimate_cost import (
     AiEstimateCostOutput
+)
+from server.api.models.skills.files.skills_files_upload import (
+    FilesUploadOutput
+)
+from server.api.models.skills.files.skills_files_delete import (
+    FilesDeleteOutput
 )
 from server.api.models.skills.code.skills_code_plan import (
     CodePlanOutput
@@ -308,6 +312,12 @@ skills_files_endpoints = {
         "response_model": FilesUploadOutput,
         "summary": "Upload",
         "description": "<img src='images/skills/files/upload.png' alt='Upload a file or folder to the OpenMates server or to a cloud storage account.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "delete": {
+        "response_model": FilesDeleteOutput,
+        "summary": "Delete",
+        "description": "<img src='images/skills/files/delete.png' alt='Delete a file or folder from the OpenMates server or from a cloud storage account.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

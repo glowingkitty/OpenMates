@@ -58,6 +58,9 @@
       "required": true,
       "minLength": 10,
       "maxLength": 10
+    },
+    "expiration_datetime": {
+      "type": "datetime"
     }
   }
 }

@@ -196,6 +196,24 @@ async def upload_file_to_strapi(file_data: bytes, file_name: str) -> Dict:
         return strapi_response.json()
 
 
+async def delete_file_from_strapi(strapi_file_id: int) -> Dict:
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "Authorization": f"Bearer {STRAPI_API_TOKEN}"
+            }
+
+            strapi_response = await client.delete(
+                f"{STRAPI_URL}/api/upload/files/{strapi_file_id}",
+                headers=headers
+            )
+            strapi_response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"File deletion failed: {exc.response.text}")
+
+        return strapi_response.json()
+
+
 async def create_uploaded_file_entry(file_id: str, filename: str, additional_data: Optional[Dict] = None) -> Dict:
     async with httpx.AsyncClient() as client:
         try:
