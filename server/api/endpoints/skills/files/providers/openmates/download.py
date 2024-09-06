@@ -55,7 +55,7 @@ async def download(
             encrypted_data += chunk
     else:
         add_to_log("No file found with the given file_id.", state="error")
-        raise HTTPException(status_code=404, detail="No file found with the given file_id.")
+        raise HTTPException(status_code=404, detail="The file doesn't exist. This can be for various reasons: the file might be expired and deleted, the URL might be incorrect, you might not have access to it, or the file might not exist in the first place.")
 
     # Decrypt the file
     decrypted_file = decrypt_file(encrypted_data=encrypted_data, key=api_token+file_id)
