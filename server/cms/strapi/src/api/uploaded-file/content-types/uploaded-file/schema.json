@@ -41,7 +41,7 @@
     "filename": {
       "type": "string",
       "required": true,
-      "unique": true
+      "unique": false
     },
     "write_access_limited_to_teams": {
       "type": "relation",
@@ -52,6 +52,12 @@
       "type": "relation",
       "relation": "oneToMany",
       "target": "api::user-account.user-account"
+    },
+    "file_id": {
+      "type": "uid",
+      "required": true,
+      "minLength": 10,
+      "maxLength": 10
     }
   }
 }

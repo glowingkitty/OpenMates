@@ -13,17 +13,26 @@ sys.path.append(main_directory)
 from server import *
 ################
 
-from fastapi.responses import StreamingResponse
 from fastapi import HTTPException
 from server.api.endpoints.skills.files.providers.openmates.upload import upload as openmates_upload
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
+from typing import List, Optional
 
 
 async def upload(
+    team_slug: str,
+    file_id: str,
+    encryption_key: str,
     provider: str,
-    file_path: str,
     name: str,
-    content_base64: str
+    file_data: bytes,
+    expiration_datetime: str,
+    access_public: bool = False,
+    file_path: Optional[str] = None,
+    read_access_limited_to_teams: Optional[List[int]] = None,
+    read_access_limited_to_users: Optional[List[int]] = None,
+    write_access_limited_to_teams: Optional[List[int]] = None,
+    write_access_limited_to_users: Optional[List[int]] = None
 ) -> FilesUploadOutput:
     """
     Upload a file to a provider
@@ -36,8 +45,16 @@ async def upload(
         pass
     else:
         return await openmates_upload(
-            provider=provider,
-            file_path=file_path,
             name=name,
-            content_base64=content_base64
+            team_slug=team_slug,
+            file_data=file_data,
+            file_path=file_path,
+            file_id=file_id,
+            encryption_key=encryption_key,
+            expiration_datetime=expiration_datetime,
+            access_public=access_public,
+            read_access_limited_to_teams=read_access_limited_to_teams,
+            read_access_limited_to_users=read_access_limited_to_users,
+            write_access_limited_to_teams=write_access_limited_to_teams,
+            write_access_limited_to_users=write_access_limited_to_users
         )

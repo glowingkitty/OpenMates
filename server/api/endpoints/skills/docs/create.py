@@ -19,6 +19,8 @@ from server.api.endpoints.skills.docs.providers.microsoft_word.create import cre
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 
 async def create(
+    team_slug: str,
+    api_token: str,
     title: str,
     elements: List[dict]
 ) -> FilesUploadOutput:
@@ -28,6 +30,11 @@ async def create(
     add_to_log(module_name="OpenMates | API | Create document", state="start", color="yellow", hide_variables=True)
     add_to_log("Creating a new document ...")
 
-    doc = await create_microsoft_word(title=title,elements=elements)
+    doc = await create_microsoft_word(
+        team_slug=team_slug,
+        api_token=api_token,
+        title=title,
+        elements=elements
+    )
 
     return doc

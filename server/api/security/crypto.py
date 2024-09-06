@@ -23,6 +23,7 @@ from cryptography.hazmat.backends import default_backend
 import base64
 from dotenv import load_dotenv, find_dotenv
 import hashlib
+from typing import Optional
 
 
 # Load .env file
@@ -59,11 +60,14 @@ def load_salt():
     return base64.urlsafe_b64decode(salt)
 
 
-def encrypt(message:str) -> str:
+def encrypt(message: str, key: Optional[str] = None) -> str:
     """
     Encrypts a message
     """
-    key = load_key()
+    if key is None:
+        key = load_key()
+    else:
+        key = key.encode()
     salt = load_salt()
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -84,14 +88,17 @@ def encrypt(message:str) -> str:
     return encrypted_message
 
 
-def decrypt(message:str, type:str=None) -> str:
+def decrypt(message: str, type: str = None, key: Optional[str] = None) -> str:
     """
     Decrypts an encrypted message
     """
-    if message==None:
+    if message is None:
         return None
 
-    key = load_key()
+    if key is None:
+        key = load_key()
+    else:
+        key = key.encode()
     salt = load_salt()
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -113,6 +120,52 @@ def decrypt(message:str, type:str=None) -> str:
         decrypted_message = decrypted_message.decode()
 
     return decrypted_message
+
+
+def encrypt_file(file_data: bytes, key: Optional[str] = None) -> bytes:
+    """
+    Encrypts file bytes
+    """
+    if key is None:
+        key = load_key()
+    else:
+        key = key.encode()
+    salt = load_salt()
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    encryption_key = base64.urlsafe_b64encode(kdf.derive(key))
+    f = Fernet(encryption_key)
+
+    encrypted_data = f.encrypt(file_data)
+    return encrypted_data
+
+
+def decrypt_file(encrypted_data: bytes, key: Optional[str] = None) -> bytes:
+    """
+    Decrypts encrypted file bytes
+    """
+    if key is None:
+        key = load_key()
+    else:
+        key = key.encode()
+    salt = load_salt()
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    encryption_key = base64.urlsafe_b64encode(kdf.derive(key))
+    f = Fernet(encryption_key)
+
+    decrypted_data = f.decrypt(encrypted_data)
+    return decrypted_data
 
 
 def hashing(text: str) -> str:

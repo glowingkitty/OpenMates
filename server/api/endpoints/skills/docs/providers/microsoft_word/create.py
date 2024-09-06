@@ -24,6 +24,10 @@ from typing import List
 from server.api.models.skills.docs.skills_docs_create import DocsCreateInput, TextElement, HeadingElement, HyperlinkElement, ImageElement, TableElement, ListElement, CodeBlockElement, BlockQuoteElement, PageBreakElement
 
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
+from server.api.endpoints.skills.files.upload import upload
+from datetime import datetime, timedelta
+import uuid
+
 
 def add_text_element(doc, element: TextElement):
     p = doc.add_paragraph()
@@ -161,6 +165,8 @@ def add_page_break_element(doc, element: PageBreakElement):
     doc.add_page_break()
 
 async def create(
+    team_slug: str,
+    api_token: str,
     title: str,
     elements: List[dict]
 ) -> FilesUploadOutput:
@@ -192,23 +198,35 @@ async def create(
         elif element_type == 'page_break':
             add_page_break_element(doc, PageBreakElement(**element)) if type(element) == dict else add_page_break_element(doc, element)
 
-    # Update the file path to be two directories above the folder where the current script is located
-    output_directory = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(full_current_path))), 'files')
-    os.makedirs(output_directory, exist_ok=True)
+
+    file_stream = BytesIO()
+    doc.save(file_stream)
+    file_data = file_stream.getvalue()
+
     file_name = f"{title.lower().replace(' ', '_')}.docx"
-    file_path = os.path.join(output_directory, file_name)
-    doc.save(file_path)
+    file_id = uuid.uuid4().hex[:10]
+    expiration_datetime = datetime.now() + timedelta(days=2)
+    file_info = await upload(
+        provider="docs",
+        team_slug=team_slug,
+        file_path=f"docs/{file_id}/{file_name}",
+        name=file_name,
+        file_data=file_data,
+        file_id=file_id,
+        encryption_key=api_token+file_id,
+        expiration_datetime=expiration_datetime.isoformat(),
+        access_public=False
+    )
+    # Clean up the file stream and data
+    file_stream.close()
+    del file_data
 
-    # TODO return the file path from server using the upload files endpoint
-    # TODO implement files endpoint
+    add_to_log(expiration_datetime.isoformat())
 
+    add_to_log(file_info)
     return FilesUploadOutput(
         name=file_name,
-        url=file_path,
-        expiration_datetime="2025-01-01T00:00:00Z",
-        access_public=False,
-        read_access_limited_to_teams=[],
-        read_access_limited_to_users=[],
-        write_access_limited_to_teams=[],
-        write_access_limited_to_users=[]
+        url=file_info.url,
+        expiration_datetime=expiration_datetime.isoformat(),
+        access_public=False
     )

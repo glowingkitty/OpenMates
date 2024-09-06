@@ -180,9 +180,13 @@ async def upload_file_to_strapi(file_data: bytes, file_name: str) -> Dict:
             file = BytesIO(file_data)
             files = {'files': (file_name, file, 'application/octet-stream')}
 
+            headers = {
+                "Authorization": f"Bearer {STRAPI_API_TOKEN}"
+            }
+
             strapi_response = await client.post(
-                f"{STRAPI_URL}/upload",
-                headers={"Authorization": f"Bearer {STRAPI_API_TOKEN}"},
+                f"{STRAPI_URL}/api/upload",
+                headers=headers,
                 files=files
             )
             strapi_response.raise_for_status()

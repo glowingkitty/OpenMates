@@ -9,7 +9,7 @@ class FilesUploadOutput(BaseModel):
     """Output for the files upload endpoint"""
     name: str = Field(..., description="The name of the file")
     url: str = Field(..., description="The URL of the file")
-    expiration_datetime: Optional[str] = Field(None, description="The expiration date and time of the file")
+    expiration_datetime: Optional[str] = Field(None, description="The expiration date and time of the file in ISO 8601 format")
     access_public: bool = Field(False, description="If set to True, the file will be publicly accessible")
     read_access_limited_to_teams: Optional[List[str]] = Field(None, description="List of teams with read access")
     read_access_limited_to_users: Optional[List[str]] = Field(None, description="List of users with read access")

@@ -908,6 +908,8 @@ async def skill_docs_create(
         user_api_token=token
     )
     return await skill_docs_create_processing(
+        team_slug=team_slug,
+        api_token=token,
         title=parameters.title,
         elements=parameters.elements
     )
