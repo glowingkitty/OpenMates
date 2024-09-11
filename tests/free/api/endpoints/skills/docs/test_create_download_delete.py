@@ -12,7 +12,7 @@ from docx import Document
 load_dotenv()
 
 @pytest.mark.api_dependent
-def test_create_doc():
+def test_create_download_delete_doc():
     # Get the API token from environment variable
     api_token = os.getenv('TEST_API_TOKEN')
     team_slug = os.getenv('TEST_TEAM_SLUG')
