@@ -19,7 +19,6 @@ from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from fastapi import HTTPException
 from typing import List, Optional
 from server.api.security.crypto import encrypt_file
-from datetime import datetime
 from urllib.parse import quote
 from server.api.endpoints.skills.files.providers.openmates.generate_file_id import generate_file_id
 

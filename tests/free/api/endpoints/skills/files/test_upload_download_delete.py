@@ -26,7 +26,7 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 @pytest.fixture
 def test_file_path():
-    return "tests/api/endpoints/skills/files/test_file.docx"
+    return "tests/free/api/endpoints/skills/files/test_file.docx"
 
 @pytest.fixture
 def test_file_data(test_file_path):
