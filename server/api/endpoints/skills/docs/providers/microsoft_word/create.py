@@ -205,16 +205,14 @@ async def create(
     file_data = file_stream.getvalue()
 
     file_name = f"{title.lower().replace(' ', '_')}.docx"
-    file_id = uuid.uuid4().hex[:10]
     expiration_datetime = datetime.now() + timedelta(days=1)
     file_info = await upload(
-        provider="docs",
         team_slug=team_slug,
-        file_path=f"docs/{file_id}/{file_name}",
-        name=file_name,
+        api_token=api_token,
+        provider="docs",
+        file_name=file_name,
         file_data=file_data,
-        file_id=file_id,
-        encryption_key=api_token+file_id,
+        folder_path="docs",
         expiration_datetime=expiration_datetime.isoformat(),
         access_public=False
     )

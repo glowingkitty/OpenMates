@@ -174,7 +174,7 @@ class DocsCreateInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    @root_validator(pre=True)
+    @model_validator(mode='before')
     def validate_elements(cls, values):
         elements = values.get('elements', [])
         for element in elements:
