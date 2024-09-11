@@ -30,3 +30,5 @@ discord==2.3.2
 celery==5.4.0
 redis==5.0.1
 python-docx==1.1.2
+ebooklib==0.18.0
+beautifulsoup4==4.12.2

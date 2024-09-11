@@ -21,14 +21,13 @@ from typing import List, Optional
 
 async def upload(
     team_slug: str,
-    file_id: str,
-    encryption_key: str,
+    api_token: str,
     provider: str,
-    name: str,
+    file_name: str,
     file_data: bytes,
     expiration_datetime: str,
     access_public: bool = False,
-    file_path: Optional[str] = None,
+    folder_path: Optional[str] = None,
     read_access_limited_to_teams: Optional[List[int]] = None,
     read_access_limited_to_users: Optional[List[int]] = None,
     write_access_limited_to_teams: Optional[List[int]] = None,
@@ -45,12 +44,11 @@ async def upload(
         pass
     else:
         return await openmates_upload(
-            name=name,
+            file_name=file_name,
             team_slug=team_slug,
             file_data=file_data,
-            file_path=file_path,
-            file_id=file_id,
-            encryption_key=encryption_key,
+            folder_path=folder_path,
+            api_token=api_token,
             expiration_datetime=expiration_datetime,
             access_public=access_public,
             read_access_limited_to_teams=read_access_limited_to_teams,

@@ -198,6 +198,7 @@ async def create(
         elif element_type == 'page_break':
             add_page_break_element(doc, PageBreakElement(**element)) if type(element) == dict else add_page_break_element(doc, element)
 
+    # TODO improve layout of created document, seems to be wrong partially
 
     file_stream = BytesIO()
     doc.save(file_stream)
