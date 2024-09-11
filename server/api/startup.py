@@ -21,7 +21,6 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-from server.api.memory import load_data_into_memory, get_all_users, get_user
 from server.api.endpoints.skills.messages.providers.discord.receive import start_discord_listener
 from server.api.endpoints.tasks.tasks import ask_mate_task
 

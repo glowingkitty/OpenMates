@@ -21,38 +21,7 @@ import json
 redis_url = f"redis://{os.getenv('DRAGONFLY_URL', 'dragonfly:6379')}/0"
 
 
-def load_users_into_memory():
-    """
-    Load users from Strapi and store them in Redis (Dragonfly).
-    """
-    client = Redis.from_url(redis_url)
-    users = users = [
-        {"id": 1, "name": "Alice", "has_discord_connection": True, "discord_bot_token": "token1"},
-        {"id": 2, "name": "Bob", "has_discord_connection": False, "discord_bot_token": None},
-    ]
-    for user in users:
-        client.set(f"user:{user['id']}", json.dumps(user))
-
-
-
-def load_data_into_memory():
-    """
-    Load data into memory (users, teams, mates, etc.)
-    """
-    load_users_into_memory()
-    # load_teams_into_memory()
-    # load_mates_into_memory()
-
-
-def get_all_users():
-    """
-    Retrieve all users from Redis (Dragonfly).
-    """
-    client = Redis.from_url(redis_url)
-    users = client.keys("user:*")
-    return users
-
-def get_user(user_id):
+def get_user_from_memory(user_id):
     """
     Retrieve a user from Redis (Dragonfly) by user ID.
     """
@@ -61,3 +30,11 @@ def get_user(user_id):
     if user_data:
         return json.loads(user_data)
     return None
+
+
+def save_user_to_memory(user_id, user_data):
+    """
+    Save a user to Redis (Dragonfly) by user ID.
+    """
+    client = Redis.from_url(redis_url)
+    client.set(f"user:{user_id}", json.dumps(user_data), ex=86400) # 24 hours expiration

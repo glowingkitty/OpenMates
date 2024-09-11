@@ -1172,18 +1172,21 @@ async def cancel_task(
 
 # TODO add test
 # GET /server/status (get server status)
-@server_router.get("/server/status", **server_endpoints["get_status"])
+@server_router.get("/v1/server/status", **server_endpoints["get_status"])
 @limiter.limit("20/minute")
 async def get_status(
     request: Request,
     token: str = Depends(get_credentials)
     ):
+    await validate_permissions(
+        endpoint="/server/status",
+        user_api_token=token
+    )
     return {"status": "online"}
-
 
 # TODO add test
 # GET /server/settings (get server settings)
-@server_router.get("/server/settings", **server_endpoints["get_settings"])
+@server_router.get("/v1/server/settings", **server_endpoints["get_settings"])
 @limiter.limit("20/minute")
 async def get_settings(
     request: Request,
@@ -1194,7 +1197,7 @@ async def get_settings(
 
 # TODO add test
 # PATCH /server/settings (update server settings)
-@server_router.patch("/server/settings", **server_endpoints["update_settings"])
+@server_router.patch("/v1/server/settings", **server_endpoints["update_settings"])
 @limiter.limit("20/minute")
 async def update_settings(
     request: Request,

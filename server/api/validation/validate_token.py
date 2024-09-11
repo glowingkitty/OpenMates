@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -17,6 +16,7 @@ from server import *
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from server.api.security.crypto import verify_hash
+from server.api.memory import get_user_from_memory, save_user_to_memory
 
 
 async def validate_token(
@@ -29,9 +29,19 @@ async def validate_token(
     try:
         add_to_log("Verifying the API token ...", module_name="OpenMates | API | Verify Token", color="yellow")
 
-        # seperate uid (first 32 characters) from api token (following 32 characters)
+        # separate uid (first 32 characters) from api token (following 32 characters)
         uid = token[:32]
         api_token = token[32:]
+
+        # Check Redis for the user
+        user = get_user_from_memory(uid)
+        if user:
+            if verify_hash(get_nested(user, "api_token"), api_token):
+                if team_slug is None or team_slug in [get_nested(team, "slug") for team in get_nested(user, "teams")]:
+                    # Update the expiration time
+                    save_user_to_memory(uid, user)
+                    add_to_log("Token found in cache and is valid.", module_name="OpenMates | API | Verify Token", state="success")
+                    return True
 
         # find the user with the token and check if the user is inside the team
         fields = [
@@ -50,6 +60,7 @@ async def validate_token(
             }
         ]
 
+        add_to_log("Requesting user data from Strapi...", module_name="OpenMates | API | Verify Token", color="yellow")
         status_code, user_json_response = await make_strapi_request(
             method='get',
             endpoint='user-accounts',
@@ -79,6 +90,9 @@ async def validate_token(
             if not verify_hash(get_nested(user, "api_token"), api_token):
                 add_to_log("The user token is invalid.", module_name="OpenMates | API | Verify Token", state="error")
                 raise HTTPException(status_code=403, detail=failure_message)
+
+            # Store the valid user in Redis
+            save_user_to_memory(uid, user)
 
             # check if the user is either a team admin or a member of the team
             if get_nested(user, "is_server_admin"):
