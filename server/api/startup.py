@@ -29,16 +29,7 @@ async def api_startup():
     # Startup event
     logger.info("Processing startup events...")
 
-    logger.debug("Loading data into memory (users, teams, mates, etc.)...")
-    load_data_into_memory()
-
-    users = get_all_users()
-    for user in users:
-        user_data = get_user(user.decode('utf-8').split(':')[1])
-        logger.debug(f"User data: {user_data}")
-
     # TODO lets simplify testing
-    # 1. load user data from strapi into memory and print it out
     # 1.2 ONLY load user data once they connect via their api key
     # 1.3 delete the user data from memory after certain disconnected time
     # 2. update database model to include discord server data in user model

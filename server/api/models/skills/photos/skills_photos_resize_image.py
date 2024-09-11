@@ -18,10 +18,10 @@ from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
-# POST /{team_slug}/skills/image_editor/resize (resize an image)
+# POST /{team_slug}/skills/photos/resize (resize an image)
 
 class ImageEditorResizeImageInput(BaseModel):
-    """This is the model for the incoming parameters for POST /{team_slug}/skills/image_editor/resize"""
+    """This is the model for the incoming parameters for POST /{team_slug}/skills/photos/resize"""
     image_data: bytes = Field(..., title="Image Data", description="The image data to resize")
     target_resolution_width: int = Field(..., title="Target Resolution Width", description="The target resolution width")
     target_resolution_height: int = Field(..., title="Target Resolution Height", description="The target resolution height")
@@ -44,6 +44,6 @@ class ImageEditorResizeImageInput(BaseModel):
         return v
 
 
-image_editor_resize_output_example = {
+photos_resize_output_example = {
     "image/jpeg": "data:image/jpeg;base64..."
 }

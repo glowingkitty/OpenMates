@@ -145,8 +145,8 @@ from server.api.models.skills.videos.skills_videos_get_transcript import (
     videos_get_transcript_input_example,
     videos_get_transcript_output_example
 )
-from server.api.models.skills.image_editor.skills_image_editor_resize_image import (
-    image_editor_resize_output_example
+from server.api.models.skills.photos.skills_photos_resize_image import (
+    photos_resize_output_example
 )
 from server.api.models.tasks.tasks_get_task import (
     TasksGetTaskOutput,
@@ -189,7 +189,7 @@ from server.api.endpoints.skills.docs.create import create as skill_docs_create_
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
-from server.api.endpoints.skills.image_editor.resize_image import resize_image as skill_image_editor_resize_image_processing
+from server.api.endpoints.skills.photos.resize_image import resize_image as skill_photos_resize_image_processing
 from server.api.endpoints.tasks.get_task import get_task as tasks_get_task_processing
 from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
 
@@ -210,7 +210,7 @@ from server.api.parameters import (
     skills_docs_endpoints,
     skills_files_endpoints,
     skills_videos_endpoints,
-    skills_image_editor_endpoints,
+    skills_photos_endpoints,
     users_endpoints,
     teams_endpoints,
     server_endpoints,
@@ -254,7 +254,7 @@ skills_finance_router = APIRouter()
 skills_docs_router = APIRouter()
 skills_files_router = APIRouter()
 skills_videos_router = APIRouter()
-skills_image_editor_router = APIRouter()
+skills_photos_router = APIRouter()
 software_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
@@ -455,8 +455,8 @@ def custom_openapi():
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "responses", {
         "Example 1": videos_get_transcript_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/image_editor/resize", "post", "responses", {
-        "Example 1": image_editor_resize_output_example
+    set_example(openapi_schema, "/v1/{team_slug}/skills/photos/resize", "post", "responses", {
+        "Example 1": photos_resize_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/tasks/{task_id}", "get", "responses", {
         "Example 1": tasks_get_task_output_example
@@ -1052,10 +1052,10 @@ async def skill_videos_get_transcript(
 
 
 # TODO add test
-# POST /skills/image_editor/resize (resize an image)
-@skills_image_editor_router.post("/v1/{team_slug}/skills/image_editor/resize", **skills_image_editor_endpoints["resize_image"])
+# POST /skills/photos/resize (resize an image)
+@skills_photos_router.post("/v1/{team_slug}/skills/photos/resize", **skills_photos_endpoints["resize_image"])
 @limiter.limit("20/minute")
-async def skill_image_editor_resize(
+async def skill_photos_resize(
     request: Request,
     file: UploadFile = File(..., **input_parameter_descriptions["file"]),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
@@ -1068,7 +1068,7 @@ async def skill_image_editor_resize(
     output_square: bool = Form(False, description="If set to True, the output image will be square")
     ) -> StreamingResponse:
     await validate_permissions(
-        endpoint="/skills/image_editor/resize",
+        endpoint="/skills/photos/resize",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -1080,7 +1080,7 @@ async def skill_image_editor_resize(
     if len(image_data) > 10 * 1024 * 1024:  # Example size limit of 10MB
         raise HTTPException(status_code=413, detail="Image size exceeds 10MB limit")
 
-    return await skill_image_editor_resize_image_processing(
+    return await skill_photos_resize_image_processing(
         image_data=image_data,
         target_resolution_width=target_resolution_width,
         target_resolution_height=target_resolution_height,
@@ -1419,7 +1419,7 @@ app.include_router(skills_finance_router,           tags=["Skills | Finance"])
 app.include_router(skills_docs_router,              tags=["Skills | Docs"])
 app.include_router(skills_files_router,             tags=["Skills | Files"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])
-app.include_router(skills_image_editor_router,      tags=["Skills | Image Editor"])
+app.include_router(skills_photos_router,            tags=["Skills | Photos"])
 app.include_router(software_router,                 tags=["software"])
 app.include_router(workflows_router,                tags=["Workflows"])
 app.include_router(tasks_router,                    tags=["Tasks"])

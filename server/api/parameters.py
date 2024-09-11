@@ -331,10 +331,10 @@ skills_videos_endpoints = {
     }
 }
 
-skills_image_editor_endpoints = {
+skills_photos_endpoints = {
      "resize_image":{
         "summary": "Resize",
-        "description": "<img src='images/skills/image_editor/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
+        "description": "<img src='images/skills/photos/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
         "responses": {
             "200": {
                 "description": "Successful Response",
@@ -491,8 +491,8 @@ tags_metadata = [
         "description": "<img src='images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
     },
     {
-        "name": "Skills | Image Editor",
-        "description": "<img src='images/skills/image_editor.png' alt='Modify images, resize them and more.'>"
+        "name": "Skills | Photos",
+        "description": "<img src='images/skills/photos.png' alt='Modify images, resize them and more.'>"
     },
     {
         "name": "Workflows",

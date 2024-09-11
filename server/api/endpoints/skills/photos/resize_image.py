@@ -17,7 +17,7 @@ from PIL import Image
 from io import BytesIO
 from typing import Literal, Optional
 
-from server.api.models.skills.image_editor.skills_image_editor_resize_image import ImageEditorResizeImageInput
+from server.api.models.skills.photos.skills_photos_resize_image import ImageEditorResizeImageInput
 from fastapi.responses import StreamingResponse
 
 
