@@ -10,7 +10,7 @@ full_current_path = os.path.realpath(__file__)
 main_directory = re.sub('server.*', '', full_current_path)
 sys.path.append(main_directory)
 
-from server import *
+from server.api import *
 ################
 
 import httpx

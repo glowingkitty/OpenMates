@@ -11,12 +11,12 @@ full_current_path = os.path.realpath(__file__)
 main_directory = re.sub('server.*', '', full_current_path)
 sys.path.append(main_directory)
 
-from server import *
+from server.api import *
 ################
 
 from fastapi import HTTPException
 from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
-from server.api.endpoints.tasks.celery import celery
+from server.task_management.task_management import celery
 from celery.result import AsyncResult
 
 async def get_task(task_id: str) -> TasksGetTaskOutput:

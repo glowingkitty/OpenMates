@@ -10,13 +10,13 @@ full_current_path = os.path.realpath(__file__)
 main_directory = re.sub('skills.*', '', full_current_path)
 sys.path.append(main_directory)
 
-from server import *
+from server.api import *
 ################
 
 from fastapi import HTTPException
 from server.cms.strapi_requests import make_strapi_request, get_nested
 from server.api.security.crypto import verify_hash
-from server.api.memory import get_user_from_memory, save_user_to_memory
+from server.memory.memory import get_user_from_memory, save_user_to_memory
 
 
 async def validate_token(
