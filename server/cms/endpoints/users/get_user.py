@@ -18,6 +18,7 @@ from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.security.crypto import verify_hash, decrypt
+from server.api.models.users.users_get_one import User
 
 
 async def get_user(
@@ -30,7 +31,7 @@ async def get_user(
         output_raw_data: bool = False,
         output_format: Literal["JSONResponse", "dict"] = "JSONResponse",
         decrypt_data: bool = False
-    ) -> Union[JSONResponse, Dict, HTTPException]:
+    ) -> User:
     """
     Get a specific user.
     """
@@ -219,15 +220,9 @@ async def get_user(
                     "username": get_nested(user, "username")
                 }
 
-                json_response = user
-
-
         add_to_log("Successfully got the user.", state="success")
 
-        if output_format == "JSONResponse":
-            return JSONResponse(status_code=status_code, content=json_response)
-        else:
-            return json_response
+        return User(**user)
 
     except HTTPException:
         raise

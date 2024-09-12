@@ -46,6 +46,7 @@ from server.api.models.mates.mates_delete import (
     mates_delete_output_example
 )
 from server.api.models.users.users_get_one import (
+    User,
     users_get_one_output_example
 )
 from server.api.models.users.users_get_all import (
@@ -1100,7 +1101,7 @@ async def skill_photos_resize(
     method: Literal["scale", "crop"] = Form("scale", description="The method to use for resizing."),
     use_ai_upscaling_if_needed: bool = Form(False, description="If set to True, AI upscaling will be used if needed"),
     output_square: bool = Form(False, description="If set to True, the output image will be square")
-    ) -> StreamingResponse:
+) -> StreamingResponse:
     await validate_permissions(
         endpoint="/skills/photos/resize",
         team_slug=team_slug,
@@ -1354,7 +1355,7 @@ async def get_user(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
-    ):
+) -> User:
     await validate_permissions(
         endpoint=f"/users/{username}",
         team_slug=team_slug,
