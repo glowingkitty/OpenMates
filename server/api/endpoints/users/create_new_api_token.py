@@ -14,7 +14,7 @@ from server.api import *
 ################
 
 from typing import List, Optional, Union, Dict, Literal
-from server.cms.strapi_requests import make_strapi_request, get_nested
+from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.models.users.users_create_new_api_token import UsersCreateNewApiTokenOutput

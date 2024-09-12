@@ -6,7 +6,7 @@ import os
 import re
 from cryptography.fernet import Fernet
 from fastapi.responses import StreamingResponse
-from server.cms.strapi_requests import get_strapi_upload, make_strapi_request
+from server.cms.cms import get_strapi_upload, make_strapi_request
 import io
 from server.api.security.crypto import decrypt_file
 import gc

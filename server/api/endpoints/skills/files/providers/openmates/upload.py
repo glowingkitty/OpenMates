@@ -11,7 +11,7 @@ main_directory = re.sub('server.*', '', full_current_path)
 sys.path.append(main_directory)
 
 from server.api import *
-from server.cms.strapi_requests import make_strapi_request, upload_file_to_strapi
+from server.cms.cms import make_strapi_request, upload_file_to_strapi
 
 ################
 

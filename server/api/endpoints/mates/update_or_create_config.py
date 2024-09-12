@@ -14,7 +14,7 @@ from server.api import *
 ################
 
 from typing import List, Optional
-from server.cms.strapi_requests import make_strapi_request, get_nested
+from server.cms.cms import make_strapi_request, get_nested
 from fastapi import HTTPException
 from server.api.security.crypto import verify_hash
 

@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-from server.cms.strapi_requests import make_strapi_request, get_nested
+from server.cms.cms import make_strapi_request, get_nested
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
 from server.api.validation.validate_permissions import validate_permissions

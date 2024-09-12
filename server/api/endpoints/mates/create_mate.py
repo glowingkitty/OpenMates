@@ -15,7 +15,7 @@ from server.api import *
 
 from typing import List, Optional, Union
 from server.api.models.mates.mates_create import MatesCreateOutput
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.cms import make_strapi_request
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.endpoints.skills.get_skill import get_skill

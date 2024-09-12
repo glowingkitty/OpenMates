@@ -14,18 +14,22 @@ from server.api import *
 
 ################
 
+from server.api.endpoints.teams.get_teams import get_teams
+
 import logging
-import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-from server.api.endpoints.tasks.tasks import ask_mate_task
-
 async def api_startup():
     # Startup event
     logger.info("Processing startup events...")
+
+    logger.info("Load teams into memory...")
+    teams = await get_teams()
+    if not teams:
+        logger.error("No teams could be loaded!")
 
     # TODO lets simplify testing
     # 2. update database model to include discord server data in user model

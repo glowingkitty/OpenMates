@@ -16,7 +16,7 @@ from server.api import *
 from typing import Optional
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.cms import make_strapi_request
 from server.api.endpoints.mates.get_mate import get_mate
 
 async def delete_mate(

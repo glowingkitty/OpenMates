@@ -1,13 +1,10 @@
 from server.api.models.teams.teams_get_all import TeamsGetAllOutput
-from server.cms.endpoints.teams.get_teams import get_teams as get_teams_from_cms
+
 
 async def get_teams(
     page: int = 1,
     pageSize: int = 25
 ) -> TeamsGetAllOutput:
     """Get all teams on the OpenMates server"""
-
-    return await get_teams_from_cms(
-        page=page,
-        pageSize=pageSize
-    )
+    # TODO add processing 
+    return {}

@@ -14,7 +14,7 @@ from server.api import *
 ################
 
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.cms import make_strapi_request
 
 
 async def validate_mate_username(username:str) -> bool:

@@ -15,7 +15,7 @@ from server.api import *
 
 from typing import List, Optional
 from server.api.models.mates.mates_update import MatesUpdateOutput
-from server.cms.strapi_requests import make_strapi_request, get_nested
+from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.validation.validate_permissions import validate_permissions

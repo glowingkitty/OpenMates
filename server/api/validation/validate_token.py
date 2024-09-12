@@ -14,7 +14,7 @@ from server.api import *
 ################
 
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request, get_nested
+from server.cms.cms import make_strapi_request, get_nested
 from server.api.security.crypto import verify_hash
 from server.memory.memory import get_user_from_memory, save_user_to_memory
 

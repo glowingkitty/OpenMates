@@ -14,22 +14,10 @@ load_dotenv()
 
 # Get environment variables
 BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://api:8000/message')  # Adjust the port if needed
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
-
-async def send_to_api(message_data):
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(API_ENDPOINT, json=message_data) as response:
-                if response.status == 200:
-                    logger.info(f"Successfully sent message to API: {message_data}")
-                else:
-                    logger.error(f"Failed to send message to API. Status: {response.status}")
-        except Exception as e:
-            logger.error(f"Error sending message to API: {e}")
 
 @client.event
 async def on_ready():
@@ -37,21 +25,40 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    # Make sure the message is not from the bot itself
     if message.author == client.user:
         return
-
-    print(message)
 
     message_data = {
         'content': message.content,
         'author': str(message.author),
-        'channel': str(message.channel),
-        'guild': str(message.guild),
-        'timestamp': message.created_at.isoformat()
+        'channel': {
+            "id": message.channel.id,
+            "name": message.channel.name
+        },
+        'guild': {
+            "id": message.guild.id,
+            "name": message.guild.name
+        }
     }
 
-    logger.info(f"Received message: {message_data}")
-    await send_to_api(message_data)
+    # TODO search in redis for team with guild.id and get team_slug
+
+    logger.info(f"Sending message to API: {message_data}")
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            team_slug = ""
+            # TODO extract team_slug from message_data
+            api_endpoint = f'http://rest-api:8000/v1/{team_slug}/skills/messages/process'
+            logger.info(f"Sending message to API: {api_endpoint}")
+            # async with session.post(api_endpoint, json=message_data) as response:
+            #     if response.status == 200:
+            #         logger.info(f"Successfully sent message to API: {message_data}")
+            #     else:
+            #         logger.error(f"Failed to send message to API. Status: {response.status}")
+        except Exception as e:
+            logger.error(f"Error sending message to API: {e}")
 
 async def main():
     if not BOT_TOKEN:

@@ -20,7 +20,7 @@ from server.task_management.task_management import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from celery import shared_task
 from datetime import datetime
-from server.cms.strapi_requests import make_strapi_request, delete_file_from_strapi
+from server.cms.cms import make_strapi_request, delete_file_from_strapi
 from server.api.endpoints.skills.files.providers.openmates.delete import delete as openmates_delete
 
 

@@ -13,7 +13,7 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-from server.cms.strapi_requests import make_strapi_request, get_nested
+from server.cms.cms import make_strapi_request, get_nested
 from typing import Dict, Union, Optional
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException

@@ -25,5 +25,6 @@ async def connect(
     """
     Gather all invite links for the given bots and return them
     """
-    # TODO load on startup of software all mates and their invite links from strapi
+    # TODO if phase 1: return all invite links for all mates
+    # TODO if phase 2: create MessengerTeam entry, connect it with team and this way request from a team can be matched with the right team
     pass

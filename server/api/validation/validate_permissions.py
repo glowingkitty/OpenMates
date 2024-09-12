@@ -15,7 +15,7 @@ from server.api import *
 
 from typing import Optional
 from fastapi import HTTPException
-from server.cms.strapi_requests import make_strapi_request
+from server.cms.cms import make_strapi_request
 from server.api.validation.validate_token import validate_token
 from server.api.validation.validate_user_data_access import validate_user_data_access
 from server.api.validation.validate_file_access import validate_file_access
