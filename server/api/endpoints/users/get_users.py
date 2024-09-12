@@ -18,6 +18,7 @@ from server.cms.cms import make_strapi_request, get_nested
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
 from server.api.validation.validate_permissions import validate_permissions
+from server.cms.endpoints.users.get_users import get_users as get_users_from_cms
 
 
 async def get_users(
@@ -39,66 +40,13 @@ async def get_users(
             team_slug=team_slug
         )
 
-        fields = [
-            "username",
-            "id"
-        ]
-        filters = [
-            {
-                "field": "teams.slug",
-                "operator": "$eq",
-                "value": team_slug
-            }
-        ]
-
-        if user_access == "basic_access_for_own_user_only":
-            filters.append({
-                "field": "uid",
-                "operator": "$eq",
-                "value": request_sender_api_token[:32]
-            })
-
-        # Get the users with pagination info
-        status_code, json_response = await make_strapi_request(
-            method='get',
-            endpoint='user-accounts',
-            fields=fields,
-            filters=filters,
+        return await get_users_from_cms(
+            user_access=user_access,
+            team_slug=team_slug,
+            request_sender_api_token=request_sender_api_token,
             page=page,
             pageSize=pageSize
         )
-
-        if status_code == 200:
-            users = [
-                {
-                    "id": get_nested(user, "id"),
-                    "username": get_nested(user, "username")
-                }
-                for user in json_response.get("data", [])
-            ]
-
-            # Extract pagination info from the response
-            pagination = json_response.get("meta", {}).get("pagination", {})
-            total = pagination.get("total", 0)
-            page_count = pagination.get("pageCount", 0)
-
-            meta = {
-                "pagination": {
-                    "page": page,
-                    "pageSize": pageSize,
-                    "pageCount": page_count,
-                    "total": total
-                }
-            }
-            users_get_all_output = {
-                "data": users,
-                "meta": meta
-            }
-            add_to_log(module_name="OpenMates | API | Get users", state="end", color="green")
-            return UsersGetAllOutput(**users_get_all_output)
-        else:
-            add_to_log(module_name="OpenMates | API | Get users", state="end", color="red")
-            raise HTTPException(status_code=status_code, detail=json_response)
 
     except HTTPException:
         raise
