@@ -29,8 +29,6 @@ async def api_startup():
     logger.info("Processing startup events...")
 
     # TODO lets simplify testing
-    # 1.2 ONLY load user data once they connect via their api key
-    # 1.3 delete the user data from memory after certain disconnected time
     # 2. update database model to include discord server data in user model
     # 3. then implement the logic to start the discord listener for each user
     # 4. test / implement webhooks to receive messages from slack, mattermost, etc.

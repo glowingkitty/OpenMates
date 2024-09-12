@@ -42,6 +42,9 @@ from server.api.models.skills.skills_get_one import (
 from server.api.models.skills.messages.skills_send_message import (
     MessagesSendOutput
 )
+from server.api.models.skills.messages.skills_connect_server import (
+    MessagesConnectOutput
+)
 from server.api.models.skills.ai.skills_ai_ask import (
     AiAskOutput,
     AiAskOutputStream
@@ -241,6 +244,12 @@ skills_messages_endpoints = {
         "response_model":MessagesSendOutput,
         "summary": "Send",
         "description": "<img src='images/skills/messages/send.png' alt='Send a new message to a channel or thread.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "connect":{
+        "response_model":MessagesConnectOutput,
+        "summary": "Connect",
+        "description": "<img src='images/skills/messages/connect.png' alt='Connect a third party messenger. Allows you to chat with your AI team mates in that messenger.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

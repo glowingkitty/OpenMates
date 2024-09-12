@@ -79,6 +79,12 @@ from server.api.models.skills.messages.skills_send_message import (
     skills_send_message_input_example,
     skills_send_message_output_example
 )
+from server.api.models.skills.messages.skills_connect_server import (
+    MessagesConnectInput,
+    MessagesConnectOutput,
+    messages_connect_input_example,
+    messages_connect_output_example
+)
 from server.api.models.skills.ai.skills_ai_ask import (
     AiAskInput,
     AiAskOutput,
@@ -178,6 +184,7 @@ from server.api.endpoints.teams.get_teams import get_teams as get_teams_processi
 from server.api.endpoints.teams.get_team import get_team as get_team_processing
 from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
 from server.api.endpoints.skills.messages.send import send as skill_messages_send_processing
+from server.api.endpoints.skills.messages.connect import connect as skill_messages_connect_processing
 from server.api.endpoints.skills.code.plan import plan as skill_code_plan_processing
 from server.api.endpoints.skills.code.write import write as skill_code_write_processing
 from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
@@ -388,6 +395,12 @@ def custom_openapi():
     })
     set_example(openapi_schema, "/v1/{team_slug}/skills/messages/send", "post", "responses", {
         "Example 1": skills_send_message_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/connect", "post", "requestBody", {
+        "Example 1": messages_connect_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/connect", "post", "responses", {
+        "Example 1": messages_connect_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", {
         "Ask question": ai_ask_input_example,
@@ -801,6 +814,27 @@ async def skill_messages_send(
         ai_mate_username=parameters.ai_mate_username,
         target=parameters.target,
         attachments=parameters.attachments
+    )
+
+
+# POST /skills/messages/connect (connect to a server)
+@skills_messages_router.post("/v1/{team_slug}/skills/messages/connect", **skills_messages_endpoints["connect"])
+@limiter.limit("20/minute")
+async def skill_messages_connect(
+    request: Request,
+    parameters: MessagesConnectInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> MessagesConnectOutput:
+    await validate_permissions(
+        endpoint="/skills/messages/connect",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_messages_connect_processing(
+        team_name=parameters.team_name,
+        include_all_bots=parameters.include_all_bots,
+        bots=parameters.bots
     )
 
 
