@@ -208,7 +208,6 @@ from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi
 from server.api.parameters import (
-    files_endpoints,
     mates_endpoints,
     skills_endpoints,
     skills_messages_endpoints,
@@ -217,6 +216,7 @@ from server.api.parameters import (
     skills_finance_endpoints,
     skills_docs_endpoints,
     skills_files_endpoints,
+    skills_books_endpoints,
     skills_videos_endpoints,
     skills_photos_endpoints,
     users_endpoints,
@@ -230,12 +230,10 @@ from server.api.parameters import (
 from fastapi.security import HTTPBearer
 from fastapi import Path
 from typing import Optional, List, Literal, Union
-from fastapi.responses import StreamingResponse, JSONResponse
-from io import BytesIO
+from fastapi.responses import StreamingResponse
 
 # Import Celery tasks
-from celery.result import AsyncResult
-from server.api.endpoints.tasks.tasks import ask_mate_task
+from server.api.endpoints.tasks.tasks import ask_mate_task, book_translate_task
 
 from server.api.startup import api_startup
 from server.api.shutdown import api_shutdown
@@ -261,6 +259,7 @@ skills_code_router = APIRouter()
 skills_finance_router = APIRouter()
 skills_docs_router = APIRouter()
 skills_files_router = APIRouter()
+skills_books_router = APIRouter()
 skills_videos_router = APIRouter()
 skills_photos_router = APIRouter()
 software_router = APIRouter()
@@ -462,6 +461,9 @@ def custom_openapi():
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/files/{provider}/{file_path}", "delete", "responses", {
         "Example 1": files_delete_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/books/translate", "post", "responses", {
+        "Example 1": tasks_create_task_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
         "Example 1": videos_get_transcript_input_example
@@ -1126,6 +1128,54 @@ async def skill_photos_resize(
     )
 
 
+# POST /skills/books/translate
+@skills_books_router.post("/v1/{team_slug}/skills/books/translate", **skills_books_endpoints["translate"])
+@limiter.limit("20/minute")
+async def skill_books_translate(
+    request: Request,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    output_language: str = Form(None, description="The output language of the ebook.")
+) -> TasksCreateTaskOutput:
+    await validate_permissions(
+        endpoint="/skills/books/translate",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+
+    # TODO how do I make sure that only .epub file is accepted and file is a valid epub file?
+
+    ebook_data = await file.read()
+    if len(ebook_data) == 0:
+        raise HTTPException(status_code=400, detail="No epub file provided")
+
+    if len(ebook_data) > 10 * 1024 * 1024:  # Example size limit of 10MB
+        raise HTTPException(status_code=413, detail="Image size exceeds 10MB limit")
+
+
+    task_info = {
+        "title": f"/{team_slug}/skills/books/translate",
+        "endpoint": "/skills/books/translate",
+        "team_slug": team_slug
+    }
+
+    # Create the task with additional info
+    task = book_translate_task.apply_async(
+        args=[
+            ebook_data,
+            output_language
+        ],
+        kwargs={
+            'task_info': task_info
+        }
+    )
+
+    return TasksCreateTaskOutput(
+        task_url=f"/v1/{team_slug}/tasks/{task.id}",
+        task_id=task.id
+    )
+
 
 ##################################
 ######### Software ###############
@@ -1456,6 +1506,7 @@ app.include_router(skills_code_router,              tags=["Skills | Code"])
 app.include_router(skills_finance_router,           tags=["Skills | Finance"])
 app.include_router(skills_docs_router,              tags=["Skills | Docs"])
 app.include_router(skills_files_router,             tags=["Skills | Files"])
+app.include_router(skills_books_router,             tags=["Skills | Books"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])
 app.include_router(skills_photos_router,            tags=["Skills | Photos"])
 app.include_router(software_router,                 tags=["software"])

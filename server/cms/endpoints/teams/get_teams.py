@@ -6,5 +6,5 @@ async def get_teams(
     pageSize: int = 25
 ) -> TeamsGetAllOutput:
     """Get all teams on the OpenMates server"""
-    # TODO add processing 
+    # TODO add processing, like with users
     return {}

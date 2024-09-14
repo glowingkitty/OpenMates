@@ -56,6 +56,27 @@ def get_team_from_memory(team_id):
         return json.loads(team_data)
     return None
 
+
+# Save/Get by discord guild id
+
+def save_team_slug_with_discord_guild_id_to_memory(guild_id, team_slug):
+    """
+    Save a team slug to Redis (Dragonfly) with its discord guild id, and no other data
+    """
+    client = Redis.from_url(redis_url)
+    client.set(f"team:guild_id:{guild_id}", team_slug, ex=default_expiration_time)
+
+def get_team_slug_with_discord_guild_id_from_memory(guild_id):
+    """
+    Retrieve a team slug from Redis (Dragonfly) by guild ID.
+    """
+    client = Redis.from_url(redis_url)
+    team_slug = client.get(f"team:guild_id:{guild_id}")
+    if team_slug:
+        return team_slug
+    return None
+
+
 # Save/Get all
 
 def save_teams_to_memory(teams):

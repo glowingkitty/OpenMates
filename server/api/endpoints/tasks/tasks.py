@@ -18,6 +18,8 @@ from server.api import *
 
 from server.task_management.task_management import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
+from server.api.endpoints.skills.books.translate import translate as book_translate_processing
+
 from celery import shared_task
 from datetime import datetime
 from server.cms.cms import make_strapi_request, delete_file_from_strapi
@@ -42,6 +44,55 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
             team_slug=team_slug,
             message=message,
             mate_username=mate_username
+        ))
+        response = response.model_dump()
+
+        # Add end time and title
+        task_info['end_time'] = datetime.now()
+        task_info['title'] = task_info.get('title', 'Unknown')
+        execution_time = (task_info['end_time'] - task_info['start_time']).total_seconds()
+        self.update_state(state='SUCCESS', meta={
+            'title': task_info['title'],
+            'start_time': task_info['start_time'],
+            'end_time': task_info['end_time'],
+            'execution_time': round(execution_time, 3),
+            'output': response
+        })
+    except Exception as e:
+        task_info['end_time'] = datetime.now()
+        task_info['title'] = task_info.get('title', 'Unknown')
+        execution_time = (task_info['end_time'] - task_info['start_time']).total_seconds()
+        self.update_state(state='FAILURE', meta={
+            'title': task_info['title'],
+            'start_time': task_info['start_time'],
+            'end_time': task_info['end_time'],
+            'execution_time': round(execution_time, 3),
+            'exc_type': type(e).__name__,
+            'exc_message': traceback.format_exc().split('\n')
+        })
+
+        # TODO: cannot access meta data here
+        # TODO: implement task data storage in strapi (might be also a workaround)
+        raise
+
+
+@celery.task(bind=True)
+def book_translate_task(self, ebook_data, output_language, task_info):
+    # Add start time
+    task_info['start_time'] = datetime.now()
+    self.update_state(state='PROGRESS', meta={
+        'meta': {
+            'title': task_info['title'],
+            'start_time': task_info['start_time']
+        }
+    })
+
+    try:
+        # Run the async function in an event loop
+        loop = asyncio.get_event_loop()
+        response = loop.run_until_complete(book_translate_processing(
+            ebook_data=ebook_data,
+            output_language=output_language
         ))
         response = response.model_dump()
 

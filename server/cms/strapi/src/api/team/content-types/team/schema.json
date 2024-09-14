@@ -70,6 +70,10 @@
       "relation": "manyToMany",
       "target": "api::user-account.user-account",
       "mappedBy": "teams_where_user_is_admin"
+    },
+    "discord_guild_id": {
+      "type": "text",
+      "unique": true
     }
   }
 }

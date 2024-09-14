@@ -148,16 +148,6 @@ def set_example(openapi_schema, path, method, request_or_response, examples, res
     for example_name, example_value in examples.items():
         target["examples"][example_name] = {"value": example_value}
 
-
-files_endpoints = {
-   "upload_file":{
-        "response_model":FilesUploadOutput,
-        "summary": "Upload",
-        "description": "<img src='images/files/upload.png' alt='Upload an image to the OpenMates server, so you can use it as a profile picture.'>",
-        "responses": generate_responses([200, 400, 401, 403, 409, 422, 500]),
-    }
-}
-
 # TODO add complex designs from figma as html/css, including data like prices, loaded from strapi database
 
 mates_endpoints = {
@@ -331,6 +321,15 @@ skills_files_endpoints = {
     }
 }
 
+skills_books_endpoints = {
+    "translate": {
+        "response_model": TasksCreateTaskOutput,
+        "summary": "Translate",
+        "description": "<img src='images/skills/books/translate.png' alt='Translate a book that was written by you to another language.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+}
+
 skills_videos_endpoints = {
     "get_transcript":{
         "response_model":VideosGetTranscriptOutput,
@@ -494,6 +493,10 @@ tags_metadata = [
     {
         "name": "Skills | Files",
         "description": "<img src='images/skills/files.png' alt='Manage your files, regardless of where they are. Providers: OpenMates, Dropbox'>"
+    },
+    {
+        "name": "Skills | Books",
+        "description": "<img src='images/skills/books.png' alt='Manage your ebooks, translate them and more. Providers: Amazon Kindle'>"
     },
     {
         "name": "Skills | Videos",

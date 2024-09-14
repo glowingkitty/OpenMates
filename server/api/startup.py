@@ -26,10 +26,7 @@ async def api_startup():
     # Startup event
     logger.info("Processing startup events...")
 
-    logger.info("Load teams into memory...")
-    teams = await get_teams()
-    if not teams:
-        logger.error("No teams could be loaded!")
+    # TODO not needed to load all into memory! only load team into memory once a request from team is made (like with users), else request data from cms
 
     # TODO lets simplify testing
     # 2. update database model to include discord server data in user model
