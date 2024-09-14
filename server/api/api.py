@@ -15,6 +15,8 @@ from server.api import *
 ################
 
 import uvicorn
+from ebooklib import epub
+from ebooklib.utils import is_epub
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
@@ -1152,6 +1154,15 @@ async def skill_books_translate(
 
     if len(ebook_data) > 10 * 1024 * 1024:  # Example size limit of 10MB
         raise HTTPException(status_code=413, detail="Image size exceeds 10MB limit")
+
+    # Check if the file is a valid EPUB
+    if not is_epub(ebook_data):
+        raise HTTPException(status_code=400, detail="Invalid EPUB file")
+
+    try:
+        epub.read_epub(ebook_data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid EPUB file")
 
 
     task_info = {
