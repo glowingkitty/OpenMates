@@ -77,7 +77,7 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
 
 
 @celery.task(bind=True)
-def book_translate_task(self, ebook_data, output_language, task_info):
+def book_translate_task(self, team_slug, api_token, ebook_data, output_language, task_info):
     # Add start time
     task_info['start_time'] = datetime.now()
     self.update_state(state='PROGRESS', meta={
@@ -91,6 +91,8 @@ def book_translate_task(self, ebook_data, output_language, task_info):
         # Run the async function in an event loop
         loop = asyncio.get_event_loop()
         response = loop.run_until_complete(book_translate_processing(
+            team_slug=team_slug,
+            api_token=api_token,
             ebook_data=ebook_data,
             output_language=output_language
         ))

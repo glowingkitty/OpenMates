@@ -14,9 +14,9 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
+import tempfile
 import uvicorn
 from ebooklib import epub
-from ebooklib.utils import is_epub
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
@@ -233,6 +233,7 @@ from fastapi.security import HTTPBearer
 from fastapi import Path
 from typing import Optional, List, Literal, Union
 from fastapi.responses import StreamingResponse
+from io import BytesIO
 
 # Import Celery tasks
 from server.api.endpoints.tasks.tasks import ask_mate_task, book_translate_task
@@ -1146,8 +1147,6 @@ async def skill_books_translate(
         user_api_token=token
     )
 
-    # TODO how do I make sure that only .epub file is accepted and file is a valid epub file?
-
     ebook_data = await file.read()
     if len(ebook_data) == 0:
         raise HTTPException(status_code=400, detail="No epub file provided")
@@ -1155,15 +1154,17 @@ async def skill_books_translate(
     if len(ebook_data) > 10 * 1024 * 1024:  # Example size limit of 10MB
         raise HTTPException(status_code=413, detail="Image size exceeds 10MB limit")
 
-    # Check if the file is a valid EPUB
-    if not is_epub(ebook_data):
-        raise HTTPException(status_code=400, detail="Invalid EPUB file")
+    # Save the bytes to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".epub") as temp_file:
+        temp_file.write(ebook_data)
+        temp_file_path = temp_file.name
 
     try:
-        epub.read_epub(ebook_data)
+        epub.read_epub(temp_file_path)  # Pass the file path to read_epub
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid EPUB file")
-
+        raise HTTPException(status_code=400, detail=f"Invalid EPUB file: {str(e)}")
+    finally:
+        os.remove(temp_file_path)  # Clean up the temporary file
 
     task_info = {
         "title": f"/{team_slug}/skills/books/translate",
@@ -1174,6 +1175,8 @@ async def skill_books_translate(
     # Create the task with additional info
     task = book_translate_task.apply_async(
         args=[
+            team_slug,
+            token,
             ebook_data,
             output_language
         ],
