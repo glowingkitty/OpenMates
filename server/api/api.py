@@ -1151,8 +1151,8 @@ async def skill_books_translate(
     if len(ebook_data) == 0:
         raise HTTPException(status_code=400, detail="No epub file provided")
 
-    if len(ebook_data) > 10 * 1024 * 1024:  # Example size limit of 10MB
-        raise HTTPException(status_code=413, detail="Image size exceeds 10MB limit")
+    if len(ebook_data) > 40 * 1024 * 1024:  # Example size limit of 40MB
+        raise HTTPException(status_code=413, detail="Ebook size exceeds 40MB limit")
 
     # Save the bytes to a temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".epub") as temp_file:
