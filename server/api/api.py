@@ -244,6 +244,7 @@ from server.api.shutdown import api_shutdown
 
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 ##################################
 ######### Setup FastAPI ##########
@@ -283,8 +284,8 @@ async def lifespan(app: FastAPI):
     await api_shutdown()
 
 app = FastAPI(
-    redoc_url="/docs",
-    docs_url="/swagger_docs",
+    redoc_url="/redoc_docs",
+    docs_url=None,
     lifespan=lifespan
 )
 
@@ -317,6 +318,31 @@ bearer_scheme = HTTPBearer(
 async def get_credentials(bearer: HTTPBearer = Depends(bearer_scheme)):
     return bearer.credentials
 
+def generate_python_example(method, path, params=None, body=None):
+    example = f"""
+import requests
+
+url = "https://{{your_server}}{path}"
+"""
+    if body:
+        example += f"payload = {body}\n"
+
+    example += """headers = {"Authorization": "Bearer {your_token}"}
+"""
+
+    if method.lower() == 'get':
+        example += f"response = requests.get(url, headers=headers)\n"
+    elif method.lower() == 'post':
+        example += f"response = requests.post(url, headers=headers, json=payload)\n"
+    elif method.lower() == 'put':
+        example += f"response = requests.put(url, headers=headers, json=payload)\n"
+    elif method.lower() == 'patch':
+        example += f"response = requests.patch(url, headers=headers, json=payload)\n"
+    elif method.lower() == 'delete':
+        example += f"response = requests.delete(url, headers=headers)\n"
+
+    example += "print(response.json())\n"
+    return example
 
 def custom_openapi():
     if app.openapi_schema:
@@ -335,6 +361,18 @@ def custom_openapi():
         routes=app.routes,
         tags=tags_metadata
     )
+
+    # Iterate through all paths and methods
+    for path, path_item in openapi_schema["paths"].items():
+        for method, operation in path_item.items():
+            # Use the predefined example for the body
+            body = operation.get("requestBody", {}).get("content", {}).get("application/json", {}).get("example")
+            python_example = generate_python_example(method, path, body=body)
+
+            # Add Python example to the description
+            if "description" not in operation:
+                operation["description"] = ""
+            operation["description"] += f"\n\n**Python Example:**\n```python\n{python_example}\n```"
 
     set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "requestBody", {
         "Example 1": mates_ask_input_example
@@ -506,6 +544,30 @@ async def ratelimit_handler(request, exc):
         status_code=HTTP_429_TOO_MANY_REQUESTS,
         detail="Too Many Requests"
     )
+
+
+@app.get("/docs", include_in_schema=False)
+async def custom_api_docs():
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>API Documentation</title>
+        <meta charset="utf-8">
+        <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
+    </head>
+    <body>
+        <rapi-doc 
+            spec-url="/openapi.json"
+            header-color="#2d87e2"
+            theme="dark"
+            show-header="false"
+            allow-spec-url-load="false"
+            allow-spec-file-load="false"
+        > </rapi-doc>
+    </body>
+    </html>
+    """)
 
 ##################################
 ######### Files ##################
