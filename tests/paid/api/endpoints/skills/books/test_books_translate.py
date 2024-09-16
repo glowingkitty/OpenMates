@@ -34,11 +34,16 @@ def test_books_translate():
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
 
     json_response = response.json()
-    task_url = json_response.get("task_url")
+    task_url = json_response.get("url")
     assert task_url, "No task_url found in the response"
 
     # Poll the task status
-    while True:
+    max_attempts = 30  # Maximum number of polling attempts
+    polling_interval = 2  # Time between polling attempts in seconds
+    timeout = 180  # Total timeout in seconds
+
+    start_time = time.time()
+    for attempt in range(max_attempts):
         task_response = requests.get(f"{BASE_URL}{task_url}", headers=HEADERS)
         assert task_response.status_code == 200, f"Unexpected status code: {task_response.status_code}: {task_response.text}"
 
@@ -46,12 +51,17 @@ def test_books_translate():
         status = task_json.get("status")
         error = task_json.get("error")
 
-        if status == "success" or error is not None:
+        if status == "completed" or error is not None:
             break
 
-        time.sleep(2)  # Wait for 2 seconds before checking again
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"Task did not complete within {timeout} seconds")
 
-    assert status == "success", f"Task did not complete successfully: {task_json}"
+        time.sleep(polling_interval)
+    else:
+        raise Exception(f"Task did not complete after {max_attempts} attempts")
+
+    assert status == "completed", f"Task did not complete successfully: {task_json}"
     assert "output" in task_json, "No output found in the task response"
     assert "url" in task_json["output"], "No url found in the task output"
 
