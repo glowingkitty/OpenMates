@@ -88,14 +88,11 @@ from server.api.models.teams.teams_get_all import (
 from server.api.models.teams.teams_get_one import (
     Team
 )
-from server.api.models.tasks.tasks_get_task import (
-    TasksGetTaskOutput
+from server.api.models.tasks.tasks_create import (
+    Task
 )
 from server.api.models.tasks.tasks_cancel import (
     TasksCancelOutput
-)
-from server.api.models.tasks.tasks_create import (
-    TasksCreateTaskOutput
 )
 from typing import Union
 
@@ -152,7 +149,7 @@ def set_example(openapi_schema, path, method, request_or_response, examples, res
 
 mates_endpoints = {
     "ask_mate":{
-        "response_model":TasksCreateTaskOutput,
+        "response_model":Task,
         "summary": "Ask",
         "description": "<img src='images/mates/ask.png' alt='Send a ask to one of your AI team mates. It will then automatically decide what skills to use to answer your question or fulfill the task.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
@@ -323,7 +320,7 @@ skills_files_endpoints = {
 
 skills_books_endpoints = {
     "translate": {
-        "response_model": TasksCreateTaskOutput,
+        "response_model": Task,
         "summary": "Translate",
         "description": "<img src='images/skills/books/translate.png' alt='Translate a book that was written by you to another language.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
@@ -440,7 +437,7 @@ server_endpoints = {
 
 tasks_endpoints = {
     "get_task":{
-        "response_model":TasksGetTaskOutput,
+        "response_model":Task,
         "summary": "Get task",
         "description": "<img src='images/tasks/get_task.png' alt='Get a specific task, its status and if available its result.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])

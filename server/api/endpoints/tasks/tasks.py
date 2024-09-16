@@ -24,6 +24,7 @@ from celery import shared_task
 from datetime import datetime
 from server.cms.cms import make_strapi_request, delete_file_from_strapi
 from server.api.endpoints.skills.files.providers.openmates.delete import delete as openmates_delete
+from server.api.endpoints.tasks.update import update as update_task
 
 
 @celery.task(bind=True)
@@ -77,53 +78,32 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
 
 
 @celery.task(bind=True)
-def book_translate_task(self, team_slug, api_token, ebook_data, output_language, task_info):
-    # Add start time
-    task_info['start_time'] = datetime.now()
-    self.update_state(state='PROGRESS', meta={
-        'meta': {
-            'title': task_info['title'],
-            'start_time': task_info['start_time']
-        }
-    })
-
+def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_language):
     try:
-        # Run the async function in an event loop
         loop = asyncio.get_event_loop()
         response = loop.run_until_complete(book_translate_processing(
             team_slug=team_slug,
             api_token=api_token,
             ebook_data=ebook_data,
-            output_language=output_language
+            output_language=output_language,
+            task_id=task_id
         ))
         response = response.model_dump()
 
-        # Add end time and title
-        task_info['end_time'] = datetime.now()
-        task_info['title'] = task_info.get('title', 'Unknown')
-        execution_time = (task_info['end_time'] - task_info['start_time']).total_seconds()
-        self.update_state(state='SUCCESS', meta={
-            'title': task_info['title'],
-            'start_time': task_info['start_time'],
-            'end_time': task_info['end_time'],
-            'execution_time': round(execution_time, 3),
-            'output': response
-        })
-    except Exception as e:
-        task_info['end_time'] = datetime.now()
-        task_info['title'] = task_info.get('title', 'Unknown')
-        execution_time = (task_info['end_time'] - task_info['start_time']).total_seconds()
-        self.update_state(state='FAILURE', meta={
-            'title': task_info['title'],
-            'start_time': task_info['start_time'],
-            'end_time': task_info['end_time'],
-            'execution_time': round(execution_time, 3),
-            'exc_type': type(e).__name__,
-            'exc_message': traceback.format_exc().split('\n')
-        })
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='completed',
+            progress=100,
+            output=response,
+            real_total_cost=response.get('total_cost')
+        ))
 
-        # TODO: cannot access meta data here
-        # TODO: implement task data storage in strapi (might be also a workaround)
+    except Exception as e:
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='failed',
+            error=str(e)
+        ))
         raise
 
 

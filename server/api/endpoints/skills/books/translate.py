@@ -8,6 +8,8 @@ import zipfile
 import xml.etree.ElementTree as ET
 import tempfile
 import asyncio
+from server.api.endpoints.tasks.update import update as update_task
+import time
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -55,13 +57,18 @@ async def translate_xhtml_file(
         user_api_token: str,
         team_slug: str,
         file_path: str,
-        output_language: str
-):
+        output_language: str,
+        total_chars: int,
+        translated_chars: int,
+        task_id: str,
+        start_time: float
+) -> int:
     ET.register_namespace('', "http://www.w3.org/1999/xhtml")
     tree = ET.parse(file_path)
     root = tree.getroot()
 
     async def translate_element(elem):
+        nonlocal translated_chars
         if elem.text and elem.text.strip():
             elem.text = await translate_text(
                 user_api_token=user_api_token,
@@ -69,6 +76,7 @@ async def translate_xhtml_file(
                 text=elem.text,
                 output_language=output_language
             )
+            translated_chars += len(elem.text)
         if elem.tail and elem.tail.strip():
             elem.tail = await translate_text(
                 user_api_token=user_api_token,
@@ -76,19 +84,43 @@ async def translate_xhtml_file(
                 text=elem.tail,
                 output_language=output_language
             )
+            translated_chars += len(elem.tail)
+
+        progress = (translated_chars / total_chars) * 100
+        elapsed_time = time.time() - start_time
+        remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
+        await update_task(task_id, progress=progress, estimated_completion_time=remaining_time)
 
     tasks = [translate_element(elem) for elem in root.iter()]
     await asyncio.gather(*tasks)
 
     tree.write(file_path, encoding='utf-8', xml_declaration=True)
+    return translated_chars
+
+def count_translatable_chars(file_path: str) -> int:
+    ET.register_namespace('', "http://www.w3.org/1999/xhtml")
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+
+    char_count = 0
+    for elem in root.iter():
+        if elem.text and elem.text.strip():
+            char_count += len(elem.text)
+        if elem.tail and elem.tail.strip():
+            char_count += len(elem.tail)
+
+    return char_count
 
 
 async def translate(
     team_slug: str,
     api_token: str,
     ebook_data: bytes,
-    output_language: str
+    output_language: str,
+    task_id: str
 ) -> FilesUploadOutput:
+
+    await update_task(task_id, status="in_progress", progress=0)
 
     # Create a temporary directory to work with the EPUB
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -104,15 +136,29 @@ async def translate(
             zip_ref.extractall(extract_dir)
 
         # Find and process all XHTML files
+        total_chars = 0
         for root, dirs, files in os.walk(extract_dir):
             for file in files:
                 if file.endswith('.xhtml') or file.endswith('.html'):
                     file_path = os.path.join(root, file)
-                    await translate_xhtml_file(
+                    total_chars += count_translatable_chars(file_path)
+
+        translated_chars = 0
+        start_time = time.time()
+
+        for root, dirs, files in os.walk(extract_dir):
+            for file in files:
+                if file.endswith('.xhtml') or file.endswith('.html'):
+                    file_path = os.path.join(root, file)
+                    translated_chars += await translate_xhtml_file(
                         user_api_token=api_token,
                         team_slug=team_slug,
                         file_path=file_path,
-                        output_language=output_language
+                        output_language=output_language,
+                        total_chars=total_chars,
+                        translated_chars=translated_chars,
+                        task_id=task_id,
+                        start_time=start_time
                     )
 
         # Create a new EPUB file with translated content

@@ -95,3 +95,27 @@ def get_teams_from_memory():
     if teams_data:
         return json.loads(teams_data)
     return None
+
+
+########################################################
+# Tasks
+########################################################
+
+# Save/Get one
+
+def save_task_to_memory(task_id, task_data):
+    """
+    Save a task to Redis (Dragonfly) by task ID.
+    """
+    client = Redis.from_url(redis_url)
+    client.set(f"task:{task_id}", json.dumps(task_data), ex=300)  # Expire after 5 minutes
+
+def get_task_from_memory(task_id):
+    """
+    Retrieve a task from Redis (Dragonfly) by task ID.
+    """
+    client = Redis.from_url(redis_url)
+    task_data = client.get(f"task:{task_id}")
+    if task_data:
+        return json.loads(task_data)
+    return None

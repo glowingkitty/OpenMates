@@ -158,12 +158,11 @@ from server.api.models.skills.photos.skills_photos_resize_image import (
     photos_resize_output_example
 )
 from server.api.models.tasks.tasks_get_task import (
-    TasksGetTaskOutput,
     tasks_get_task_output_example
 )
 from server.api.models.tasks.tasks_create import (
-    TasksCreateTaskOutput,
-    tasks_create_task_output_example
+    Task,
+    task_create_output_example
 )
 from server.api.models.tasks.tasks_cancel import (
     TasksCancelOutput,
@@ -200,9 +199,9 @@ from server.api.endpoints.skills.finance.get_report import get_report as skill_f
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
 from server.api.endpoints.skills.photos.resize_image import resize_image as skill_photos_resize_image_processing
-from server.api.endpoints.tasks.get_task import get_task as tasks_get_task_processing
+from server.api.endpoints.tasks.get_task import get as tasks_get_task_processing
 from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
-
+from server.api.endpoints.tasks.create import create as tasks_create_processing
 
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_invite_code import validate_invite_code
@@ -378,7 +377,7 @@ def custom_openapi():
         "Example 1": mates_ask_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/mates/ask", "post", "responses", {
-        "Example 1": tasks_create_task_output_example
+        "Example 1": task_create_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/mates/", "get", "responses", {
         "Example 1": mates_get_all_output_example
@@ -504,7 +503,7 @@ def custom_openapi():
         "Example 1": files_delete_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/books/translate", "post", "responses", {
-        "Example 1": tasks_create_task_output_example
+        "Example 1": task_create_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
         "Example 1": videos_get_transcript_input_example
@@ -603,7 +602,7 @@ async def ask_mate(
     parameters: MatesAskInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> TasksCreateTaskOutput:
+) -> Task:
     await validate_permissions(
         endpoint="/mates/ask",
         team_slug=team_slug,
@@ -629,7 +628,7 @@ async def ask_mate(
         }
     )
 
-    return TasksCreateTaskOutput(
+    return Task(
         task_url=f"/v1/{team_slug}/tasks/{task.id}",
         task_id=task.id
     )
@@ -1202,7 +1201,7 @@ async def skill_books_translate(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     output_language: str = Form(None, description="The output language of the ebook.")
-) -> TasksCreateTaskOutput:
+) -> Task:
     await validate_permissions(
         endpoint="/skills/books/translate",
         team_slug=team_slug,
@@ -1228,29 +1227,24 @@ async def skill_books_translate(
     finally:
         os.remove(temp_file_path)  # Clean up the temporary file
 
-    task_info = {
-        "title": f"/{team_slug}/skills/books/translate",
-        "endpoint": "/skills/books/translate",
-        "team_slug": team_slug
-    }
+    task = await tasks_create_processing(
+        team_slug=team_slug,
+        title="Skills/Books/Translate",
+        api_endpoint="/skills/books/translate"
+    )
 
-    # Create the task with additional info
-    task = book_translate_task.apply_async(
+    # Create the task
+    book_translate_task.apply_async(
         args=[
+            task.id,
             team_slug,
             token,
             ebook_data,
             output_language
-        ],
-        kwargs={
-            'task_info': task_info
-        }
+        ]
     )
 
-    return TasksCreateTaskOutput(
-        task_url=f"/v1/{team_slug}/tasks/{task.id}",
-        task_id=task.id
-    )
+    return task
 
 
 ##################################
@@ -1287,7 +1281,7 @@ async def get_task(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     task_id: str = Path(..., description="The ID of the task"),
     token: str = Depends(get_credentials)
-):
+) -> Task:
     await validate_permissions(
         endpoint="/tasks/{task_id}",
         team_slug=team_slug,
@@ -1304,7 +1298,7 @@ async def cancel_task(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     task_id: str = Path(..., description="The ID of the task to cancel"),
     token: str = Depends(get_credentials)
-):
+) -> TasksCancelOutput:
     await validate_permissions(
         endpoint="/tasks/{task_id}",
         team_slug=team_slug,

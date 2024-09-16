@@ -4,7 +4,6 @@
 import sys
 import os
 import re
-from datetime import datetime
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -15,32 +14,22 @@ from server.api import *
 ################
 
 from fastapi import HTTPException
-from server.api.models.tasks.tasks_get_task import TasksGetTaskOutput
-from server.task_management.task_management import celery
-from celery.result import AsyncResult
+from server.memory.memory import get_task_from_memory
+from server.cms.cms import make_strapi_request
+from server.api.models.tasks.tasks_create import Task
 
-async def get_task(task_id: str) -> TasksGetTaskOutput:
-    add_to_log(f"Getting task {task_id}")
-
-    task_result = AsyncResult(task_id, app=celery)
-
-    if not task_result:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    # handle error
-    if task_result.state == 'FAILURE':
-        return TasksGetTaskOutput(
-            id=task_id,
-            title='Unknown',
-            status='failed',
-            error="An error occurred while processing the task"
+async def get(task_id: str) -> Task:
+    task_data = get_task_from_memory(task_id)
+    if task_data is None:
+        add_to_log("Loading task from disk")
+        # If not in Redis, fetch from Strapi
+        status_code, strapi_data = await make_strapi_request(
+            method='get',
+            endpoint=f'tasks/{task_id}'
         )
+        if status_code == 200:
+            task_data = strapi_data['data']['attributes']
+        else:
+            raise HTTPException(status_code=404, detail="Task not found")
 
-    return TasksGetTaskOutput(
-        id=task_id,
-        title=task_result.result.get('title', 'Unknown'),
-        status=task_result.state.lower(),
-        output=task_result.result.get('output', {}),
-        execution_time_seconds=task_result.result.get('execution_time', 0)
-    )
-
+    return Task(**task_data)
