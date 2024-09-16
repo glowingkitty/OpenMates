@@ -21,15 +21,60 @@ from typing import List, Dict, Any
 from fastapi import HTTPException
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from server.api.endpoints.skills.files.upload import upload
-from server.api.endpoints.skills.ai.ask import ask as ask_ai
+from server.api.endpoints.skills.ai.ask import ask
 from datetime import datetime, timedelta
 from ebooklib import epub
 from urllib.parse import quote
 import tempfile
+import json
 
-def example_translate(text: str, output_language: str) -> str:
-    # This is a placeholder function. Replace with actual translation logic.
-    return f"Translated: '{text}' to '{output_language}'"
+
+async def translate_text(
+        user_api_token: str,
+        team_slug: str,
+        text: str, 
+        output_language: str
+) -> str:
+    response = await ask(
+        user_api_token=user_api_token,
+        team_slug=team_slug,
+        system=f"You are an expert translator. Translate the given text to {output_language} and output nothing else except the translation output.",
+        message=text,
+        provider={ "name": "chatgpt","model": "gpt-4o-mini" },
+        temperature=0.5
+    )
+    translated_text = response["content"][0]["text"]
+    return translated_text
+
+
+async def translate_xhtml_file(
+        user_api_token: str,
+        team_slug: str,
+        file_path: str,
+        output_language: str
+):
+    ET.register_namespace('', "http://www.w3.org/1999/xhtml")
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+
+    for elem in root.iter():
+        if elem.text and elem.text.strip():
+            elem.text = await translate_text(
+                user_api_token=user_api_token,
+                team_slug=team_slug,
+                text=elem.text,
+                output_language=output_language
+            )
+        if elem.tail and elem.tail.strip():
+            elem.tail = await translate_text(
+                user_api_token=user_api_token,
+                team_slug=team_slug,
+                text=elem.tail,
+                output_language=output_language
+            )
+
+    tree.write(file_path, encoding='utf-8', xml_declaration=True)
+
 
 async def translate(
     team_slug: str,
@@ -56,7 +101,12 @@ async def translate(
             for file in files:
                 if file.endswith('.xhtml') or file.endswith('.html'):
                     file_path = os.path.join(root, file)
-                    translate_xhtml_file(file_path, output_language)
+                    await translate_xhtml_file(
+                        user_api_token=api_token,
+                        team_slug=team_slug,
+                        file_path=file_path,
+                        output_language=output_language
+                    )
 
         # Create a new EPUB file with translated content
         output_epub = os.path.join(temp_dir, "output.epub")
@@ -74,7 +124,7 @@ async def translate(
         # Get the book title for the file name
         book = epub.read_epub(input_epub)
         title = book.get_metadata('DC', 'title')[0][0] if book.get_metadata('DC', 'title') else "Untitled"
-        file_name = f"{quote(title)}_translated.epub"
+        file_name = f"{quote(title)}_translated_{output_language}.epub"
 
     # Upload the translated EPUB
     expiration_datetime = datetime.now() + timedelta(days=1)
@@ -90,16 +140,3 @@ async def translate(
     )
 
     return file_info
-
-def translate_xhtml_file(file_path, output_language):
-    ET.register_namespace('', "http://www.w3.org/1999/xhtml")
-    tree = ET.parse(file_path)
-    root = tree.getroot()
-
-    for elem in root.iter():
-        if elem.text and elem.text.strip():
-            elem.text = example_translate(elem.text, output_language)
-        if elem.tail and elem.tail.strip():
-            elem.tail = example_translate(elem.tail, output_language)
-
-    tree.write(file_path, encoding='utf-8', xml_declaration=True)

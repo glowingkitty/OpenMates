@@ -1,3 +1,4 @@
+import json
 import pytest
 import requests
 import os
@@ -53,6 +54,10 @@ def test_books_translate():
     assert status == "success", f"Task did not complete successfully: {task_json}"
     assert "output" in task_json, "No output found in the task response"
     assert "url" in task_json["output"], "No url found in the task output"
+
+    # Save task output details as JSON
+    with open("tests/paid/api/endpoints/skills/books/task_output.json", "w") as json_file:
+        json.dump(task_json, json_file, indent=2)
 
     # Get the translated ebook
     translated_ebook_url = task_json["output"]["url"]
