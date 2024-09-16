@@ -7,6 +7,7 @@ import re
 import zipfile
 import xml.etree.ElementTree as ET
 import tempfile
+import asyncio
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -43,6 +44,9 @@ async def translate_text(
         provider={ "name": "chatgpt","model": "gpt-4o-mini" },
         temperature=0.5
     )
+    if type(response) != dict:
+        add_to_log(type(response))
+        add_to_log(response)
     translated_text = response["content"][0]["text"]
     return translated_text
 
@@ -57,7 +61,7 @@ async def translate_xhtml_file(
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    for elem in root.iter():
+    async def translate_element(elem):
         if elem.text and elem.text.strip():
             elem.text = await translate_text(
                 user_api_token=user_api_token,
@@ -72,6 +76,9 @@ async def translate_xhtml_file(
                 text=elem.tail,
                 output_language=output_language
             )
+
+    tasks = [translate_element(elem) for elem in root.iter()]
+    await asyncio.gather(*tasks)
 
     tree.write(file_path, encoding='utf-8', xml_declaration=True)
 

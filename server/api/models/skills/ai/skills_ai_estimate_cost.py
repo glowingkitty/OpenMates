@@ -16,12 +16,21 @@ from server.api import *
 
 from pydantic import BaseModel, Field
 from server.api.models.skills.ai.skills_ai_ask import AiAskInput
+from pydantic import model_validator
 
 class AiEstimateCostInput(AiAskInput):
     token_count: Optional[int] = Field(None, title="Token Count", description="Number of tokens for which the cost is being estimated")
 
     class Config:
         extra = "forbid"
+
+    @model_validator(mode='after')
+    def check_message_or_history(self):
+        if self.message is not None and self.message_history is not None:
+            raise ValueError("Only one of 'message' or 'message_history' should be provided.")
+        if self.message is None and self.message_history is None and self.token_count is None:
+            raise ValueError("Either 'message' or 'message_history' or 'token_count' must be provided.")
+        return self
 
 class EstimatedTotalCost(BaseModel):
     credits_for_100_output_tokens: int = Field(..., title="Estimated Cost for 100 Output Tokens", description="Estimated total cost in credits for the operation")

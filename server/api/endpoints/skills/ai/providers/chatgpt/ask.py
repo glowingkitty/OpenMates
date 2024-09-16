@@ -21,6 +21,10 @@ from typing import Literal, Union, List, Dict, Any
 from fastapi.responses import StreamingResponse
 import json
 from server.api.endpoints.skills.ai.providers.claude.ask import chunk_text
+import time
+import asyncio
+from collections import deque
+
 
 def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
     # Helper function to serialize content blocks
@@ -29,6 +33,38 @@ def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
         "text": block.get("text", ""),
         "tool_calls": block.get("tool_calls", [])
     }
+
+class SimpleRateLimiter:
+    def __init__(self, max_calls, period):
+        self.max_calls = max_calls
+        self.period = period
+        self.calls = deque()
+
+    async def acquire(self):
+        now = time.time()
+
+        # Remove old calls
+        while self.calls and now - self.calls[0] > self.period:
+            self.calls.popleft()
+
+        if len(self.calls) >= self.max_calls:
+            sleep_time = self.period - (now - self.calls[0])
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+
+        self.calls.append(time.time())
+
+# Initialize the rate limiter (adjust values as needed)
+rate_limiter = SimpleRateLimiter(max_calls=5000, period=60)  # 5000 calls per minute
+
+# Rate limit:
+# Tier 1: 500 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
+# Tier 2: 5000 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
+# Tier 3: 5000 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
+# Tier 4: 10000 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
+# Tier 5: 30000 calls per minute (gpt-4o-mini), 10000 calls per minute (gpt-4o), 20 calls per minute (o1-mini, o1-preview)
+
+
 
 async def ask(
         api_token: str = os.getenv("OPENAI_API_KEY"),
@@ -46,6 +82,9 @@ async def ask(
     """
     Ask a question to ChatGPT
     """
+
+    # Wait for rate limit to allow the call
+    await rate_limiter.acquire()
 
     # Create an AiAskInput object with the provided parameters
     input = AiAskInput(
@@ -211,8 +250,6 @@ async def ask(
 
         # Add handling for tool results if applicable
         # This might depend on how ChatGPT returns tool results
-
-        add_to_log(content)
 
         # Return the final output
         return AiAskOutput(
