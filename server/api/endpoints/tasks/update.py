@@ -66,10 +66,27 @@ async def update(
 
     if status in ['in_progress', 'completed', 'failed']:
         strapi_data = {k: v for k, v in task_data.items() if k != 'progress'}
-        await make_strapi_request(
-            method='put',
-            endpoint=f'tasks/{task_id}',
-            data={'data': strapi_data}
+
+        # Step 1: Get the Strapi entry
+        status_code, response = await make_strapi_request(
+            method='get',
+            endpoint='tasks',
+            filters=[{'field': 'task_id', 'operator': 'eq', 'value': task_id}],
+            pageSize=1  # We only need one result
         )
+
+        if status_code == 200 and response.get('data'):
+            strapi_id = response['data'][0]['id']
+
+            # Step 2: Update the Strapi entry
+            await make_strapi_request(
+                method='put',
+                endpoint=f'tasks/{strapi_id}',
+                data={'data': strapi_data}
+            )
+        else:
+            # Handle the case where the task is not found in Strapi
+            print(f"Task with task_id {task_id} not found in Strapi")
+            # You might want to log this or handle it differently
 
     return Task(**task_data)

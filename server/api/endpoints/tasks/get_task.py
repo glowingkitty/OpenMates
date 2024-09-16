@@ -25,10 +25,12 @@ async def get(task_id: str) -> Task:
         # If not in Redis, fetch from Strapi
         status_code, strapi_data = await make_strapi_request(
             method='get',
-            endpoint=f'tasks/{task_id}'
+            endpoint='tasks',
+            filters=[{'field': 'task_id', 'operator': 'eq', 'value': task_id}]
         )
-        if status_code == 200:
-            task_data = strapi_data['data']['attributes']
+        if status_code == 200 and strapi_data['data']:
+            task_data = strapi_data['data'][0]['attributes']
+            task_data['id'] = task_data.pop('task_id')
         else:
             raise HTTPException(status_code=404, detail="Task not found")
 
