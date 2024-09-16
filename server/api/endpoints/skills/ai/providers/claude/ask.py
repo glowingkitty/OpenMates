@@ -23,18 +23,6 @@ from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
 import json
 
 
-def serialize_content_block(block: ContentBlock) -> Dict[str, Any]:
-    result = {"type": block.type}
-    if isinstance(block, TextBlock):
-        result["text"] = block.text
-    elif isinstance(block, ToolUseBlock):
-        result["tool_use"] = {
-            "id": block.id,
-            "name": block.name,
-            "input": block.input
-        }
-    return result
-
 def chunk_text(text):
     lines = text.split('\n')
     chunks = []

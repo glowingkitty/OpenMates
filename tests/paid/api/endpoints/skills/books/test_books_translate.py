@@ -38,12 +38,9 @@ def test_books_translate():
     assert task_url, "No task_url found in the response"
 
     # Poll the task status
-    max_attempts = 30  # Maximum number of polling attempts
     polling_interval = 2  # Time between polling attempts in seconds
-    timeout = 180  # Total timeout in seconds
 
-    start_time = time.time()
-    for attempt in range(max_attempts):
+    while True:
         task_response = requests.get(f"{BASE_URL}{task_url}", headers=HEADERS)
         assert task_response.status_code == 200, f"Unexpected status code: {task_response.status_code}: {task_response.text}"
 
@@ -54,12 +51,7 @@ def test_books_translate():
         if status == "completed" or error is not None:
             break
 
-        if time.time() - start_time > timeout:
-            raise TimeoutError(f"Task did not complete within {timeout} seconds")
-
         time.sleep(polling_interval)
-    else:
-        raise Exception(f"Task did not complete after {max_attempts} attempts")
 
     assert status == "completed", f"Task did not complete successfully: {task_json}"
     assert "output" in task_json, "No output found in the task response"

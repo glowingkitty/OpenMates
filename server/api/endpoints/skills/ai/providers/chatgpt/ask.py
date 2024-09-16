@@ -14,7 +14,7 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-from openai import OpenAI
+from openai import OpenAI, APITimeoutError
 from dotenv import load_dotenv
 from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, AiAskOutputStream
 from typing import Literal, Union, List, Dict, Any
@@ -24,15 +24,6 @@ from server.api.endpoints.skills.ai.providers.claude.ask import chunk_text
 import time
 import asyncio
 from collections import deque
-
-
-def serialize_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
-    # Helper function to serialize content blocks
-    return {
-        "type": block["type"],
-        "text": block.get("text", ""),
-        "tool_calls": block.get("tool_calls", [])
-    }
 
 class SimpleRateLimiter:
     def __init__(self, max_calls, period):
@@ -77,7 +68,8 @@ async def ask(
         cache: bool = False,
         max_tokens: int = 1000,
         stop_sequence: str = None,
-        tools: List[dict] = None
+        tools: List[dict] = None,
+        retries: int = 3  # Add a retries parameter with a default value
     ) -> Union[AiAskOutput, StreamingResponse]:
     """
     Ask a question to ChatGPT
@@ -114,15 +106,15 @@ async def ask(
         for msg in input.message_history:
             msg_dict = msg.to_dict()
             if isinstance(msg_dict['content'], list):
-                # Handle complex message content (text, images, tool uses, tool results)
-                content = []
+                # Handle complex message input_content (text, images, tool uses, tool results)
+                input_content = []
                 for item in msg_dict['content']:
                     if item['type'] == 'text':
                         # Add text content
-                        content.append({"type": "text", "text": item['text']})
+                        input_content.append({"type": "text", "text": item['text']})
                     elif item['type'] == 'image':
                         # Add image content
-                        content.append({
+                        input_content.append({
                             "type": "image_url",
                             "image_url": {
                                 "url": f"data:{item['source']['media_type']};base64,{item['source']['data']}"
@@ -150,8 +142,8 @@ async def ask(
                             })
                         else:
                             add_to_log(f"Warning: tool_result without corresponding tool_use (ID: {item['tool_use_id']})", color="yellow")
-                if content:
-                    messages.append({"role": msg_dict['role'], "content": content})
+                if input_content:
+                    messages.append({"role": msg_dict['role'], "content": input_content})
             else:
                 # Add simple message content
                 messages.append(msg_dict)
@@ -227,10 +219,24 @@ async def ask(
         return StreamingResponse(event_stream(), media_type="text/event-stream")
     else:
         # Handle non-streaming response
-        response = client.chat.completions.create(**chat_config)
+        async def make_request():
+            try:
+                return client.chat.completions.create(**chat_config)
+            except APITimeoutError as e:
+                add_to_log(f"API Timeout Error: {e}", color="red")
+                raise
 
-        # TODO: Calculate cost based on token usage
-        cost_credits = None
+        for attempt in range(retries):
+            try:
+                response = await make_request()
+                break
+            except APITimeoutError:
+                if attempt < retries - 1:
+                    add_to_log(f"Retrying... ({attempt + 1}/{retries})", color="yellow")
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    add_to_log("Max retries reached. Request failed.", color="red")
+                    raise
 
         # Process the response content
         content = []
@@ -254,5 +260,5 @@ async def ask(
         # Return the final output
         return AiAskOutput(
             content=content,
-            cost_credits=cost_credits
+            cost_credits=None
         ).model_dump(exclude_none=True)

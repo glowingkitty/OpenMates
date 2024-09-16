@@ -19,7 +19,6 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-
 from typing import List, Dict, Any
 from fastapi import HTTPException
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
@@ -30,7 +29,11 @@ from ebooklib import epub
 from urllib.parse import quote
 import tempfile
 import json
+from bs4 import BeautifulSoup
 
+# Global counter for translations
+translation_counter = 0
+TRANSLATION_LIMIT = 30
 
 async def translate_text(
         user_api_token: str,
@@ -38,6 +41,10 @@ async def translate_text(
         text: str, 
         output_language: str
 ) -> str:
+    global translation_counter
+    if translation_counter >= TRANSLATION_LIMIT:
+        return text  # Return original text if limit is reached
+
     response = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
@@ -46,12 +53,39 @@ async def translate_text(
         provider={ "name": "chatgpt","model": "gpt-4o-mini" },
         temperature=0.5
     )
-    if type(response) != dict:
-        add_to_log(type(response))
-        add_to_log(response)
     translated_text = response["content"][0]["text"]
+    translation_counter += 1  # Increment the counter
     return translated_text
 
+def extract_body_content(file_path: str) -> str:
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        return ""
+
+    soup = BeautifulSoup(content, 'html.parser')
+    body = soup.find('body')
+    return str(body) if body else ""
+
+def split_into_chunks(body_content: str) -> list:
+    soup = BeautifulSoup(body_content, 'html.parser')
+    chunks = []
+
+    for tag in soup.find_all(['div', re.compile('^h[1-6]$'), 'p', 'section', 'a']):
+        if tag.has_attr('class'):
+            nested_divs = tag.find_all('div', class_=True)
+            nested_headings = tag.find_all(re.compile('^h[1-6]$'), class_=True)
+            if not nested_divs and not nested_headings:
+                chunks.append(str(tag))
+        else:
+            chunks.append(str(tag))
+
+    if not chunks:
+        chunks.append(str(soup))
+
+    return chunks
 
 async def translate_xhtml_file(
         user_api_token: str,
@@ -63,54 +97,39 @@ async def translate_xhtml_file(
         task_id: str,
         start_time: float
 ) -> int:
-    ET.register_namespace('', "http://www.w3.org/1999/xhtml")
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+    body_content = extract_body_content(file_path)
+    chunks = split_into_chunks(body_content)
 
-    async def translate_element(elem):
-        nonlocal translated_chars
-        if elem.text and elem.text.strip():
-            elem.text = await translate_text(
+    translated_chunks = []
+    for i, chunk in enumerate(chunks):
+        if i < 1000:  # Only translate the first 1000 chunks
+            translated_chunk = await translate_text(
                 user_api_token=user_api_token,
                 team_slug=team_slug,
-                text=elem.text,
+                text=chunk,
                 output_language=output_language
             )
-            translated_chars += len(elem.text)
-        if elem.tail and elem.tail.strip():
-            elem.tail = await translate_text(
-                user_api_token=user_api_token,
-                team_slug=team_slug,
-                text=elem.tail,
-                output_language=output_language
-            )
-            translated_chars += len(elem.tail)
+        else:
+            translated_chunk = chunk  # Use original chunk for the rest
+        translated_chunks.append(translated_chunk)
+        translated_chars += len(translated_chunk)
 
         progress = (translated_chars / total_chars) * 100
         elapsed_time = time.time() - start_time
         remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
         await update_task(task_id, progress=progress, estimated_completion_time=remaining_time)
 
-    tasks = [translate_element(elem) for elem in root.iter()]
-    await asyncio.gather(*tasks)
+    # Reconstruct the body content with translated chunks
+    new_body_content = ''.join(translated_chunks)
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(new_body_content)
 
-    tree.write(file_path, encoding='utf-8', xml_declaration=True)
     return translated_chars
 
 def count_translatable_chars(file_path: str) -> int:
-    ET.register_namespace('', "http://www.w3.org/1999/xhtml")
-    tree = ET.parse(file_path)
-    root = tree.getroot()
-
-    char_count = 0
-    for elem in root.iter():
-        if elem.text and elem.text.strip():
-            char_count += len(elem.text)
-        if elem.tail and elem.tail.strip():
-            char_count += len(elem.tail)
-
-    return char_count
-
+    body_content = extract_body_content(file_path)
+    chunks = split_into_chunks(body_content)
+    return sum(len(chunk) for chunk in chunks)
 
 async def translate(
     team_slug: str,
@@ -119,6 +138,8 @@ async def translate(
     output_language: str,
     task_id: str
 ) -> FilesUploadOutput:
+    global translation_counter
+    translation_counter = 0  # Reset the counter at the start
 
     await update_task(task_id, status="in_progress", progress=0)
 
