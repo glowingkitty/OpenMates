@@ -46,10 +46,10 @@
     "execution_time_seconds": {
       "type": "decimal"
     },
-    "total_cost_estimated": {
+    "total_credits_cost_estimated": {
       "type": "integer"
     },
-    "total_cost_real": {
+    "total_credits_cost_real": {
       "type": "integer"
     },
     "output": {

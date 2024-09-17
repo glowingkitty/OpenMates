@@ -60,7 +60,7 @@ async def ask(
 
     # # Estimate the cost of the request
     # estimated_cost = estimate_cost(**input.model_dump())
-    # required_credits = estimated_cost.estimated_total_cost.credits_for_500_output_tokens
+    # required_credits = estimated_cost.total_credits_cost_estimated.credits_for_500_output_tokens
 
     # add_to_log(f"Estimated cost: {required_credits} credits", module_name="OpenMates | Skills | Claude | Ask", color="yellow")
 

@@ -19,6 +19,11 @@ from server.api.models.skills.ai.skills_ai_ask import AiAskInput
 from pydantic import model_validator
 
 class AiEstimateCostInput(AiAskInput):
+    system: Optional[str] = Field(
+        None,
+        title="System prompt",
+        description="The system prompt to use for the AI"
+    )
     token_count: Optional[int] = Field(None, title="Token Count", description="Number of tokens for which the cost is being estimated")
 
     class Config:
@@ -33,12 +38,13 @@ class AiEstimateCostInput(AiAskInput):
         return self
 
 class EstimatedTotalCost(BaseModel):
-    credits_for_100_output_tokens: int = Field(..., title="Estimated Cost for 100 Output Tokens", description="Estimated total cost in credits for the operation")
-    credits_for_500_output_tokens: int = Field(..., title="Estimated Cost for 500 Output Tokens", description="Estimated total cost in credits for the operation")
-    credits_for_2000_output_tokens: int = Field(..., title="Estimated Cost for 2000 Output Tokens", description="Estimated total cost in credits for the operation")
+    credits_for_input_tokens: int = Field(..., title="Estimated Cost for Input Tokens", description="Estimated total cost in credits for the operation")
+    credits_for_input_plus_100_output_tokens: int = Field(..., title="Estimated Cost for Input Plus 100 Output Tokens", description="Estimated total cost in credits for the operation")
+    credits_for_input_plus_500_output_tokens: int = Field(..., title="Estimated Cost for Input Plus 500 Output Tokens", description="Estimated total cost in credits for the operation")
+    credits_for_input_plus_2000_output_tokens: int = Field(..., title="Estimated Cost for Input Plus 2000 Output Tokens", description="Estimated total cost in credits for the operation")
 
 class AiEstimateCostOutput(BaseModel):
-    estimated_total_cost: EstimatedTotalCost = Field(..., title="Estimated Total Cost", description="Estimated total cost in credits for the operation")
+    total_credits_cost_estimated: EstimatedTotalCost = Field(..., title="Estimated Total Cost", description="Estimated total cost in credits for the operation")
 
 ai_estimate_cost_input_example = {
     "system": "You are a helpful assistant. Keep your answers short.",
@@ -51,9 +57,10 @@ ai_estimate_cost_input_example = {
 }
 
 ai_estimate_cost_output_example = {
-    "estimated_total_cost": {
-        "credits_for_100_output_tokens": 2,
-        "credits_for_500_output_tokens": 7,
-        "credits_for_2000_output_tokens": 25
+    "total_credits_cost_estimated": {
+        "credits_for_input_tokens": 1,
+        "credits_for_input_plus_100_output_tokens": 2,
+        "credits_for_input_plus_500_output_tokens": 7,
+        "credits_for_input_plus_2000_output_tokens": 25
     }
 }

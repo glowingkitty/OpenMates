@@ -31,8 +31,8 @@ class Task(BaseModel):
     time_estimated_completion: Optional[str] = Field(None, description="ISO 8601 datetime string of the estimated completion time")
     time_completion: Optional[str] = Field(None, description="ISO 8601 datetime string when the task completed")
     execution_time_seconds: Optional[float] = Field(None, description="Execution time of the task in seconds")
-    total_cost_estimated: Optional[int] = Field(None, description="Estimated total cost of the task in credits")
-    total_cost_real: Optional[int] = Field(None, description="Real total cost of the task in credits")
+    total_credits_cost_estimated: Optional[int] = Field(None, description="Estimated total cost of the task in credits")
+    total_credits_cost_real: Optional[int] = Field(None, description="Real total cost of the task in credits")
     output: Optional[Dict[str, Any]] = Field(None, description="Output of the task")
 
     @model_validator(mode='after')
@@ -54,7 +54,7 @@ task_create_output_example = {
     "time_estimated_completion": "2023-05-17T12:36:00.000Z",
     "time_completion": None,
     "execution_time_seconds": None,
-    "total_cost_estimated": 720,
-    "total_cost_real": None,
+    "total_credits_cost_estimated": 720,
+    "total_credits_cost_real": None,
     "output": None
 }

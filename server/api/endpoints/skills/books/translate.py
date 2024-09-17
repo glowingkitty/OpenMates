@@ -10,7 +10,7 @@ import tempfile
 import asyncio
 from server.api.endpoints.tasks.update import update as update_task
 import time
-import shutil
+from server.api.endpoints.skills.ai.estimate_cost import estimate_cost, count_tokens
 
 # Fix import path
 full_current_path = os.path.realpath(__file__)
@@ -37,6 +37,8 @@ TRANSLATION_LIMIT = 0
 
 # TODO add estimated finish time and estimated costs and total costs to the task
 
+translation_provider = { "name": "chatgpt", "model": "gpt-4o-mini" }
+
 async def translate_text(
         user_api_token: str,
         team_slug: str,
@@ -52,7 +54,7 @@ async def translate_text(
         team_slug=team_slug,
         system=f"You are an expert translator. Translate the given text to {output_language} and output nothing else except the translation output (and make sure to keep the original formatting/html structure).",
         message=text,
-        provider={ "name": "chatgpt","model": "gpt-4o-mini" },
+        provider=translation_provider,
         temperature=0
     )
     translated_text = response["content"][0]["text"]
@@ -86,9 +88,9 @@ async def translate_xhtml_file(
         file_path: str,
         output_language: str,
         total_chars: int,
-        translated_chars: int,
         task_id: str,
-        start_time: float
+        start_time: float,
+        chunk_lengths: List[int]
 ) -> int:
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -100,11 +102,12 @@ async def translate_xhtml_file(
     chunks = split_into_chunks(content)
 
     translated_chunks = []
-    for chunk in chunks:
+    translated_chars = 0
+    for i, chunk in enumerate(chunks):
         # Replace processing instructions with placeholders
         pi_placeholders = {}
-        for i, pi in enumerate(re.findall(r'<\?.*?\?>', chunk)):
-            placeholder = f'__PI_PLACEHOLDER_{i}__'
+        for j, pi in enumerate(re.findall(r'<\?.*?\?>', chunk)):
+            placeholder = f'__PI_PLACEHOLDER_{j}__'
             pi_placeholders[placeholder] = pi
             chunk = chunk.replace(pi, placeholder)
 
@@ -120,6 +123,13 @@ async def translate_xhtml_file(
             translated_chunk = translated_chunk.replace(placeholder, pi)
 
         translated_chunks.append(translated_chunk)
+        translated_chars += len(translated_chunk)
+
+        # Update progress
+        progress = round((sum(chunk_lengths[:i+1]) / total_chars) * 100)
+        elapsed_time = time.time() - start_time
+        remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
+        await update_task(task_id, progress=progress, time_estimated_completion=remaining_time)
 
     translated_body = "".join(translated_chunks)
 
@@ -142,17 +152,6 @@ async def translate_xhtml_file(
         (post_body.group(0) if post_body else '')
     )
 
-    translated_chars = len(translated_content)
-
-    # Update progress
-    if total_chars:
-        progress = round((translated_chars / total_chars) * 100)
-    else:
-        progress = 0
-    elapsed_time = time.time() - start_time
-    remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
-    await update_task(task_id, progress=progress, estimated_completion_time=remaining_time)
-
     # Write the translated content back to the file
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(translated_content)
@@ -165,6 +164,8 @@ def count_translatable_chars(file_path: str) -> int:
     # Remove all HTML tags and count remaining characters
     text_content = re.sub(r'<.*?>', '', content)
     return len(text_content)
+
+from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostOutput
 
 async def translate(
     team_slug: str,
@@ -194,12 +195,31 @@ async def translate(
         # Find and process all XHTML files
         total_chars = 0
         xhtml_files = []
+        chunk_lengths = []
         for root, dirs, files in os.walk(extract_dir):
             for file in files:
                 if file.endswith('.xhtml') or file.endswith('.html'):
                     file_path = os.path.join(root, file)
                     xhtml_files.append(file_path)
                     total_chars += count_translatable_chars(file_path)
+
+                    # Extract chunks and their lengths
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    chunks = split_into_chunks(content)
+                    for chunk in chunks:
+                        tokens = count_tokens(chunk)
+                        chunk_lengths.append(tokens)
+
+        # Estimate total cost
+        total_credits_cost_estimated: AiEstimateCostOutput = estimate_cost(
+            token_count=sum(chunk_lengths),
+            provider=translation_provider
+        )
+        await update_task(
+            task_id=task_id,
+            total_credits_cost_estimated=round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens*2.1)
+        )
 
         translated_chars = 0
         start_time = time.time()
@@ -212,9 +232,9 @@ async def translate(
                 file_path=file_path,
                 output_language=output_language,
                 total_chars=total_chars,
-                translated_chars=translated_chars,
                 task_id=task_id,
-                start_time=start_time
+                start_time=start_time,
+                chunk_lengths=chunk_lengths
             ) for file_path in xhtml_files
         ]
         results = await asyncio.gather(*tasks)

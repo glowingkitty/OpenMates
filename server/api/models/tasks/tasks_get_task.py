@@ -24,8 +24,8 @@ tasks_get_task_output_example = {
     "time_estimated_completion": "2023-05-17T12:36:00.000Z",
     "time_completion": "2023-05-17T12:36:01.030Z",
     "execution_time_seconds": 61.03,
-    "total_cost_estimated": 720,
-    "total_cost_real": 720,
+    "total_credits_cost_estimated": 720,
+    "total_credits_cost_real": 720,
     "output": {
         "name": "book_translated.epub",
         "url": "/v1/openmatesdevs/skills/files/books/book_translated.epub",

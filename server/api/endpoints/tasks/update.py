@@ -26,9 +26,9 @@ async def update(
     task_id: str,
     status: Optional[str] = None,
     progress: Optional[float] = None,
-    estimated_completion_time: Optional[float] = None,
-    estimated_total_cost: Optional[int] = None,
-    real_total_cost: Optional[int] = None,
+    time_estimated_completion: Optional[float] = None,
+    total_credits_cost_estimated: Optional[int] = None,
+    total_credits_cost_real: Optional[int] = None,
     output: Optional[Dict[str, Any]] = None,
     api_endpoint: Optional[str] = None
 ) -> Task:
@@ -40,12 +40,12 @@ async def update(
         task_data.status = status
     if progress is not None:
         task_data.progress = progress
-    if estimated_completion_time is not None:
-        task_data.time_estimated_completion = (current_time + timedelta(seconds=estimated_completion_time)).isoformat()
-    if estimated_total_cost is not None:
-        task_data.total_cost_estimated = estimated_total_cost
-    if real_total_cost is not None:
-        task_data.total_cost_real = real_total_cost
+    if time_estimated_completion is not None:
+        task_data.time_estimated_completion = (current_time + timedelta(seconds=time_estimated_completion)).isoformat()
+    if total_credits_cost_estimated is not None:
+        task_data.total_credits_cost_estimated = total_credits_cost_estimated
+    if total_credits_cost_real is not None:
+        task_data.total_credits_cost_real = total_credits_cost_real
     if output is not None:
         task_data.output = output
     if api_endpoint is not None:

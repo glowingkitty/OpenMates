@@ -95,7 +95,7 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
             status='completed',
             progress=100,
             output=response,
-            real_total_cost=response.get('total_cost')
+            total_credits_cost_real=response.get('total_cost')
         ))
 
     except Exception as e:

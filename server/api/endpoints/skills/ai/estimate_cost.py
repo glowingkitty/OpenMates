@@ -1,7 +1,23 @@
+################
+# Default Imports
+################
+import sys
+import os
+import re
+
+# Fix import path
+full_current_path = os.path.realpath(__file__)
+main_directory = re.sub('skills.*', '', full_current_path)
+sys.path.append(main_directory)
+
+from server.api import *
+################
+
 from typing import List, Optional, Dict, Any
 from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostInput, AiEstimateCostOutput, EstimatedTotalCost
 import json
 import math
+import tiktoken
 
 # 1 USD = 10000 credits
 pricing = {
@@ -12,9 +28,10 @@ pricing = {
 }
 
 def count_tokens(text: str) -> int:
-    # Placeholder for token counting logic
-    # This should be replaced with the appropriate token counting method for the AI provider
-    return len(text.split()) * 1.2  # Simple word count as a placeholder * 1.2 to consider other tokens
+    # Use tiktoken to count tokens
+    encoding = tiktoken.get_encoding("cl100k_base")  # Explicitly specify the encoding
+    tokens = encoding.encode(text)
+    return len(tokens)  # Return the number of tokens
 
 def calculate_cost(total_tokens: int, cost_per_1M_tokens: int) -> int:
     total_cost = math.ceil((total_tokens * cost_per_1M_tokens) / 1000000)
@@ -83,10 +100,14 @@ def estimate_cost(
     cost_500 = calculate_cost(total_tokens + 500, cost_per_1M_tokens)
     cost_2000 = calculate_cost(total_tokens + 2000, cost_per_1M_tokens)
 
+    # Calculate cost for input tokens alone
+    input_token_cost = calculate_cost(total_tokens, cost_per_1M_tokens)
+
     return AiEstimateCostOutput(
-        estimated_total_cost=EstimatedTotalCost(
-            credits_for_100_output_tokens=cost_100,
-            credits_for_500_output_tokens=cost_500,
-            credits_for_2000_output_tokens=cost_2000
+        total_credits_cost_estimated=EstimatedTotalCost(
+            credits_for_input_tokens=input_token_cost,
+            credits_for_input_plus_100_output_tokens=cost_100,
+            credits_for_input_plus_500_output_tokens=cost_500,
+            credits_for_input_plus_2000_output_tokens=cost_2000
         )
     )
