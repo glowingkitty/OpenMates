@@ -52,21 +52,27 @@ def extract_body_content(file_path: str) -> str:
 def split_into_chunks(body_content: str) -> list:
     soup = BeautifulSoup(body_content, 'html.parser')
     chunks = []
+    current_chunk = []
+    heading_tags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
 
-    for tag in soup.find_all(['div', re.compile('^h[1-6]$'), 'p', 'section', 'a']):
-        if tag.name == 'div' and tag.get('class'):
-            # Check if the div contains any nested divs or headings with class
-            nested_divs = tag.find_all('div', class_=True)
-            nested_headings = tag.find_all(re.compile('^h[1-6]$'), class_=True)
-            if not nested_divs and not nested_headings:
-                chunks.append(str(tag))
-        else:
-            chunks.append(str(tag))
+    for element in soup.body.children:
+        if element.name in heading_tags:
+            if current_chunk:
+                chunks.append(''.join(map(str, current_chunk)))
+                current_chunk = []
+        current_chunk.append(element)
 
-    if not chunks:
-        chunks.append(str(soup))
+    if current_chunk:
+        chunks.append(''.join(map(str, current_chunk)))
 
-    return chunks
+    return chunks if chunks else [str(soup.body)]
+
+def extract_translatable_content(soup):
+    translatable_content = []
+    for element in soup.descendants:
+        if isinstance(element, NavigableString) and element.strip():
+            translatable_content.append((element, str(element)))
+    return translatable_content
 
 async def translate_xhtml_file(
         user_api_token: str,
@@ -78,9 +84,13 @@ async def translate_xhtml_file(
         task_id: str,
         start_time: float
 ) -> int:
-    body_content = extract_body_content(file_path)
-    chunks = split_into_chunks(body_content)
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
     
+    soup = BeautifulSoup(content, 'html.parser')
+    body_content = str(soup.body)
+    chunks = split_into_chunks(body_content)
+
     translated_chunks = []
     for chunk in chunks:
         translated_chunk = await translate_text(
@@ -90,18 +100,12 @@ async def translate_xhtml_file(
             output_language=output_language
         )
         translated_chunks.append(translated_chunk)
+
+    translated_body = "".join(translated_chunks)
     
-    translated_content = "".join(translated_chunks)
-    
-    # Update the file with translated content
-    with open(file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
-    
-    soup = BeautifulSoup(content, 'html.parser')
-    body_tag = soup.find('body')
-    if body_tag:
-        body_tag.clear()
-        body_tag.append(BeautifulSoup(translated_content, 'html.parser'))
+    # Replace the body content with translated content
+    soup.body.clear()
+    soup.body.append(BeautifulSoup(translated_body, 'html.parser'))
     
     # Translate title
     title_tag = soup.find('title')
@@ -131,9 +135,10 @@ async def translate_xhtml_file(
     return translated_chars
 
 def count_translatable_chars(file_path: str) -> int:
-    body_content = extract_body_content(file_path)
-    chunks = split_into_chunks(body_content)
-    return sum(len(chunk) for chunk in chunks)
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+    soup = BeautifulSoup(content, 'html.parser')
+    return len(soup.get_text())
 
 async def translate(
     team_slug: str,
