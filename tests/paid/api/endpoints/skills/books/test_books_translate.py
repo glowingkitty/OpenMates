@@ -16,12 +16,13 @@ assert API_TOKEN, "TEST_API_TOKEN not found in .env file"
 assert TEAM_SLUG, "TEST_TEAM_SLUG not found in .env file"
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
+ebook_path = "tests/paid/api/endpoints/skills/books/test_ebook.epub"
+
 @pytest.mark.api_dependent
-@pytest.mark.skipif(not os.path.exists("tests/paid/api/endpoints/skills/books/test_ebook.epub"), reason="Test ebook not found")
+@pytest.mark.skipif(not os.path.exists(ebook_path), reason="Test ebook not found")
 def test_books_translate():
-    ebook_path = "tests/paid/api/endpoints/skills/books/test_ebook.epub"
     with open(ebook_path, "rb") as ebook_file:
-        files = {"file": ("test_ebook.epub", ebook_file, "application/epub+zip")}
+        files = {"file": (ebook_path.split("/")[-1], ebook_file, "application/epub+zip")}
         data = {"output_language": "german"}
 
         response = requests.post(
@@ -69,7 +70,7 @@ def test_books_translate():
     assert translated_ebook_response.content, "No content received from the translated ebook URL"
 
     # Optionally, save the translated ebook to a file for further inspection
-    with open("tests/paid/api/endpoints/skills/books/translated_test_ebook.epub", "wb") as translated_file:
+    with open(f"tests/paid/api/endpoints/skills/books/{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.epub", "wb") as translated_file:
         translated_file.write(translated_ebook_response.content)
 
-    print("Translated ebook saved as 'translated_test_ebook.epub'")
+    print(f"Translated ebook saved as '{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.epub'")
