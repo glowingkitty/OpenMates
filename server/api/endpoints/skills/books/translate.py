@@ -29,7 +29,7 @@ from ebooklib import epub
 from urllib.parse import quote
 import tempfile
 import json
-from bs4 import BeautifulSoup, NavigableString
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 # Global counter for translations
 translation_counter = 0
@@ -97,42 +97,56 @@ async def translate_xhtml_file(
         task_id: str,
         start_time: float
 ) -> int:
-    body_content = extract_body_content(file_path)
-    chunks = split_into_chunks(body_content)
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
 
-    translated_chunks = []
-    for i, chunk in enumerate(chunks):
-        soup = BeautifulSoup(chunk, 'html.parser')
-        text_nodes = [node for node in soup.find_all(text=True) if isinstance(node, NavigableString) and node.strip()]
+    soup = BeautifulSoup(content, 'html.parser')
 
-        for node in text_nodes:
-            if i < 200:  # Only translate the first 200 chunks
-                translated_text = await translate_text(
-                    user_api_token=user_api_token,
-                    team_slug=team_slug,
-                    text=node,
-                    output_language=output_language
-                )
-                node.replace_with(translated_text)
-            else:
-                break  # Stop translating after the limit
+    async def translate_node(node):
+        if isinstance(node, NavigableString) and node.strip():
+            return await translate_text(
+                user_api_token=user_api_token,
+                team_slug=team_slug,
+                text=str(node),
+                output_language=output_language
+            )
+        elif isinstance(node, Tag):
+            for child in node.contents:
+                translated_child = await translate_node(child)
+                if translated_child:
+                    child.replace_with(translated_child)
+        return node
 
-        translated_chunk = str(soup)
-        translated_chunks.append(translated_chunk)
-        translated_chars += len(translated_chunk)
+    # Translate title
+    title_tag = soup.find('title')
+    if title_tag:
+        title_tag.string = await translate_text(
+            user_api_token=user_api_token,
+            team_slug=team_slug,
+            text=title_tag.string,
+            output_language=output_language
+        )
 
-        if total_chars:
-            progress = (translated_chars / total_chars) * 100
-        else:
-            progress = 0
-        elapsed_time = time.time() - start_time
-        remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
-        await update_task(task_id, progress=progress, estimated_completion_time=remaining_time)
+    # Translate body content
+    body_tag = soup.find('body')
+    if body_tag:
+        await translate_node(body_tag)
 
-    # Reconstruct the body content with translated chunks
-    new_body_content = ''.join(translated_chunks)
+    translated_content = str(soup)
+    translated_chars = len(translated_content)
+
+    # Update progress
+    if total_chars:
+        progress = (translated_chars / total_chars) * 100
+    else:
+        progress = 0
+    elapsed_time = time.time() - start_time
+    remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
+    await update_task(task_id, progress=progress, estimated_completion_time=remaining_time)
+
+    # Write the translated content back to the file
     with open(file_path, 'w', encoding='utf-8') as file:
-        file.write(new_body_content)
+        file.write(translated_content)
 
     return translated_chars
 
