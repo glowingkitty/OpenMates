@@ -47,7 +47,11 @@ async def download(
     add_to_log(f"Downloading and decrypting file from OpenMates server ...")
 
     # Extract file_id from file_path
-    file_id = file_path.split("/")[-2]
+    try:
+        file_id = file_path.split("/")[-2]
+    except Exception as e:
+        add_to_log(f"Error extracting file_id from file_path: {e}", state="error")
+        raise HTTPException(status_code=400, detail="Invalid file path")
 
     # Fetch the file information
     status_code, json_response = await make_strapi_request(

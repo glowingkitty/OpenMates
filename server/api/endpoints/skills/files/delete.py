@@ -33,7 +33,11 @@ async def delete(
         # TODO: implement dropbox delete
         pass
     else:
-        file_id = file_path.split("/")[-2]
+        try:
+            file_id = file_path.split("/")[-2]
+        except Exception as e:
+            add_to_log(f"Error extracting file_id from file_path: {e}", state="error")
+            raise HTTPException(status_code=400, detail="Invalid file path")
         return await openmates_delete(
             file_id=file_id
         )
