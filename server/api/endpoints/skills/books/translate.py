@@ -29,7 +29,7 @@ from ebooklib import epub
 from urllib.parse import quote
 import tempfile
 import json
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 # Global counter for translations
 translation_counter = 0
@@ -102,19 +102,29 @@ async def translate_xhtml_file(
 
     translated_chunks = []
     for i, chunk in enumerate(chunks):
-        if i < 1000:  # Only translate the first 1000 chunks
-            translated_chunk = await translate_text(
-                user_api_token=user_api_token,
-                team_slug=team_slug,
-                text=chunk,
-                output_language=output_language
-            )
-        else:
-            translated_chunk = chunk  # Use original chunk for the rest
+        soup = BeautifulSoup(chunk, 'html.parser')
+        text_nodes = [node for node in soup.find_all(text=True) if isinstance(node, NavigableString) and node.strip()]
+
+        for node in text_nodes:
+            if i < 200:  # Only translate the first 200 chunks
+                translated_text = await translate_text(
+                    user_api_token=user_api_token,
+                    team_slug=team_slug,
+                    text=node,
+                    output_language=output_language
+                )
+                node.replace_with(translated_text)
+            else:
+                break  # Stop translating after the limit
+
+        translated_chunk = str(soup)
         translated_chunks.append(translated_chunk)
         translated_chars += len(translated_chunk)
 
-        progress = (translated_chars / total_chars) * 100
+        if total_chars:
+            progress = (translated_chars / total_chars) * 100
+        else:
+            progress = 0
         elapsed_time = time.time() - start_time
         remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
         await update_task(task_id, progress=progress, estimated_completion_time=remaining_time)
@@ -158,29 +168,32 @@ async def translate(
 
         # Find and process all XHTML files
         total_chars = 0
+        xhtml_files = []
         for root, dirs, files in os.walk(extract_dir):
             for file in files:
                 if file.endswith('.xhtml') or file.endswith('.html'):
                     file_path = os.path.join(root, file)
+                    xhtml_files.append(file_path)
                     total_chars += count_translatable_chars(file_path)
 
         translated_chars = 0
         start_time = time.time()
 
-        for root, dirs, files in os.walk(extract_dir):
-            for file in files:
-                if file.endswith('.xhtml') or file.endswith('.html'):
-                    file_path = os.path.join(root, file)
-                    translated_chars += await translate_xhtml_file(
-                        user_api_token=api_token,
-                        team_slug=team_slug,
-                        file_path=file_path,
-                        output_language=output_language,
-                        total_chars=total_chars,
-                        translated_chars=translated_chars,
-                        task_id=task_id,
-                        start_time=start_time
-                    )
+        # Process all files concurrently
+        tasks = [
+            translate_xhtml_file(
+                user_api_token=api_token,
+                team_slug=team_slug,
+                file_path=file_path,
+                output_language=output_language,
+                total_chars=total_chars,
+                translated_chars=translated_chars,
+                task_id=task_id,
+                start_time=start_time
+            ) for file_path in xhtml_files
+        ]
+        results = await asyncio.gather(*tasks)
+        translated_chars = sum(results)
 
         # Create a new EPUB file with translated content
         output_epub = os.path.join(temp_dir, "output.epub")

@@ -33,13 +33,14 @@ def split_into_chunks(body_content: str) -> list:
     chunks = []
 
     for tag in soup.find_all(['div', re.compile('^h[1-6]$'), 'p', 'section', 'a']):
-        if tag.has_attr('class'):
-            nested_divs = tag.find_all('div', class_=True)
-            nested_headings = tag.find_all(re.compile('^h[1-6]$'), class_=True)
-            if not nested_divs and not nested_headings:
+        if tag.get_text(strip=True):  # Check if the tag contains any text
+            if tag.has_attr('class'):
+                nested_divs = tag.find_all('div', class_=True)
+                nested_headings = tag.find_all(re.compile('^h[1-6]$'), class_=True)
+                if not nested_divs and not nested_headings:
+                    chunks.append(str(tag))
+            else:
                 chunks.append(str(tag))
-        else:
-            chunks.append(str(tag))
 
     if not chunks:
         chunks.append(str(soup))
