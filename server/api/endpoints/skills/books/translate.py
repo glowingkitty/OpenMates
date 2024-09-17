@@ -35,6 +35,8 @@ import json
 translation_counter = 0
 TRANSLATION_LIMIT = 0
 
+# TODO add estimated finish time and estimated costs and total costs to the task
+
 async def translate_text(
         user_api_token: str,
         team_slug: str,
@@ -50,7 +52,7 @@ async def translate_text(
         team_slug=team_slug,
         system=f"You are an expert translator. Translate the given text to {output_language} and output nothing else except the translation output (and make sure to keep the original formatting/html structure).",
         message=text,
-        provider={ "name": "chatgpt","model": "gpt-4o" },
+        provider={ "name": "chatgpt","model": "gpt-4o-mini" },
         temperature=0
     )
     translated_text = response["content"][0]["text"]
@@ -144,7 +146,7 @@ async def translate_xhtml_file(
 
     # Update progress
     if total_chars:
-        progress = (translated_chars / total_chars) * 100
+        progress = round((translated_chars / total_chars) * 100)
     else:
         progress = 0
     elapsed_time = time.time() - start_time

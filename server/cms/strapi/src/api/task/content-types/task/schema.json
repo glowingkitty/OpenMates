@@ -27,7 +27,8 @@
         "scheduled",
         "in_progress",
         "completed",
-        "failed"
+        "failed",
+        "canceled"
       ]
     },
     "time_scheduled_for": {
@@ -54,11 +55,16 @@
     "output": {
       "type": "json"
     },
-    "error": {
-      "type": "string"
-    },
     "task_id": {
       "type": "uid"
+    },
+    "progress": {
+      "type": "integer",
+      "min": 0,
+      "max": 100
+    },
+    "team_slug": {
+      "type": "string"
     }
   }
 }

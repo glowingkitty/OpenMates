@@ -101,8 +101,7 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
     except Exception as e:
         loop.run_until_complete(update_task(
             task_id=task_id,
-            status='failed',
-            error=str(e)
+            status='failed'
         ))
         raise
 

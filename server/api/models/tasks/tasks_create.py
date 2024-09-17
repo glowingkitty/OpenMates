@@ -14,8 +14,8 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, model_validator
+from typing import List, Optional, Dict, Any, Literal
 
 
 class Task(BaseModel):
@@ -24,7 +24,7 @@ class Task(BaseModel):
     url: str = Field(..., description="URL of the task")
     api_endpoint: str = Field(..., description="API endpoint of the task")
     title: str = Field(..., description="Title of the task")
-    status: str = Field(..., description="Current status of the task (e.g., 'scheduled', 'in_progress', 'completed', 'failed')")
+    status: Literal["scheduled", "in_progress", "completed", "failed", "cancelled"] = Field(..., description="Current status of the task")
     progress: float = Field(..., description="Progress of the task in percentage")
     time_scheduled_for: Optional[str] = Field(None, description="ISO 8601 datetime string of the scheduled start time")
     time_started: str = Field(..., description="ISO 8601 datetime string when the task started")
@@ -34,8 +34,12 @@ class Task(BaseModel):
     total_cost_estimated: Optional[int] = Field(None, description="Estimated total cost of the task in credits")
     total_cost_real: Optional[int] = Field(None, description="Real total cost of the task in credits")
     output: Optional[Dict[str, Any]] = Field(None, description="Output of the task")
-    error: Optional[str] = Field(None, description="Error message if the task failed")
 
+    @model_validator(mode='after')
+    def validate_progress(self):
+        if self.progress < 0 or self.progress > 100:
+            raise ValueError("Progress must be between 0 and 100")
+        return self
 
 task_create_output_example = {
     "id": "153e0027-e34d-27i7-9a9c-14a6375b1c97",
@@ -52,6 +56,5 @@ task_create_output_example = {
     "execution_time_seconds": None,
     "total_cost_estimated": 720,
     "total_cost_real": None,
-    "output": None,
-    "error": None
+    "output": None
 }

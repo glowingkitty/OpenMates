@@ -43,7 +43,7 @@ async def create(
     )
 
     # Save to Strapi
-    strapi_data = {k: v for k, v in task.model_dump().items() if k != 'progress'}
+    strapi_data = task.model_dump()
     strapi_data['task_id'] = strapi_data.pop('id')
     status_code, json_response = await make_strapi_request(
         method='post',

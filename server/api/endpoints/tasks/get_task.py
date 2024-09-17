@@ -26,7 +26,7 @@ async def get(task_id: str) -> Task:
         status_code, strapi_data = await make_strapi_request(
             method='get',
             endpoint='tasks',
-            filters=[{'field': 'task_id', 'operator': 'eq', 'value': task_id}]
+            filters=[{'field': 'task_id', 'operator': '$eq', 'value': task_id}]
         )
         if status_code == 200 and strapi_data['data']:
             task_data = strapi_data['data'][0]['attributes']

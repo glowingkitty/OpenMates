@@ -1241,7 +1241,8 @@ async def skill_books_translate(
             token,
             ebook_data,
             output_language
-        ]
+        ],
+        task_id=task.id
     )
 
     return task

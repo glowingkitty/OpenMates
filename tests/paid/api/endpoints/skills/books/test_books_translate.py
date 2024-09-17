@@ -18,6 +18,8 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 ebook_path = "tests/paid/api/endpoints/skills/books/test_ebook.epub"
 
+# TODO add test for cancel task (and start it again)
+
 @pytest.mark.api_dependent
 @pytest.mark.skipif(not os.path.exists(ebook_path), reason="Test ebook not found")
 def test_books_translate():

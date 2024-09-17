@@ -14,7 +14,8 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-from server.memory.memory import save_task_to_memory, get_task_from_memory
+from server.memory.memory import save_task_to_memory
+from server.api.endpoints.tasks.get_task import get as get_task
 from server.cms.cms import make_strapi_request
 import time
 from typing import Optional, Dict, Any
@@ -29,49 +30,44 @@ async def update(
     estimated_total_cost: Optional[int] = None,
     real_total_cost: Optional[int] = None,
     output: Optional[Dict[str, Any]] = None,
-    error: Optional[str] = None,
     api_endpoint: Optional[str] = None
 ) -> Task:
-    task_data = get_task_from_memory(task_id) or {}
+    task_data = await get_task(task_id)
 
     current_time = datetime.now(timezone.utc)
 
     if status is not None:
-        task_data['status'] = status
+        task_data.status = status
     if progress is not None:
-        task_data['progress'] = progress
+        task_data.progress = progress
     if estimated_completion_time is not None:
-        task_data['estimated_completion_time'] = (current_time + timedelta(seconds=estimated_completion_time)).isoformat()
+        task_data.time_estimated_completion = (current_time + timedelta(seconds=estimated_completion_time)).isoformat()
     if estimated_total_cost is not None:
-        task_data['estimated_total_cost'] = estimated_total_cost
+        task_data.total_cost_estimated = estimated_total_cost
     if real_total_cost is not None:
-        task_data['real_total_cost'] = real_total_cost
+        task_data.total_cost_real = real_total_cost
     if output is not None:
-        task_data['output'] = output
-    if error is not None:
-        task_data['error'] = error
+        task_data.output = output
     if api_endpoint is not None:
-        task_data['api_endpoint'] = api_endpoint
+        task_data.api_endpoint = api_endpoint
 
     if 'time_started' not in task_data:
-        task_data['time_started'] = current_time.isoformat()
+        task_data.time_started = current_time.isoformat()
 
     if status in ['completed', 'failed']:
-        task_data['time_finished'] = current_time.isoformat()
+        task_data.time_completion = current_time.isoformat()
         if 'time_started' in task_data:
-            start_time = datetime.fromisoformat(task_data['time_started'])
-            task_data['execution_time_seconds'] = (current_time - start_time).total_seconds()
+            start_time = datetime.fromisoformat(task_data.time_started)
+            task_data.execution_time_seconds = (current_time - start_time).total_seconds()
 
-    save_task_to_memory(task_id, task_data)
+    save_task_to_memory(task_id, task_data.model_dump())
 
     if status in ['in_progress', 'completed', 'failed']:
-        strapi_data = {k: v for k, v in task_data.items() if k != 'progress'}
-
         # Step 1: Get the Strapi entry
         status_code, response = await make_strapi_request(
             method='get',
             endpoint='tasks',
-            filters=[{'field': 'task_id', 'operator': 'eq', 'value': task_id}],
+            filters=[{'field': 'task_id', 'operator': '$eq', 'value': task_id}],
             pageSize=1  # We only need one result
         )
 
@@ -82,11 +78,11 @@ async def update(
             await make_strapi_request(
                 method='put',
                 endpoint=f'tasks/{strapi_id}',
-                data={'data': strapi_data}
+                data={'data': task_data.model_dump()}
             )
         else:
             # Handle the case where the task is not found in Strapi
             print(f"Task with task_id {task_id} not found in Strapi")
             # You might want to log this or handle it differently
 
-    return Task(**task_data)
+    return task_data
