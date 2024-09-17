@@ -26,7 +26,6 @@ from ebooklib import epub
 from urllib.parse import quote
 import tempfile
 import json
-from bs4 import BeautifulSoup, NavigableString, Tag
 
 
 async def translate_text(
@@ -37,42 +36,26 @@ async def translate_text(
 ) -> str:
     return f"This is the translated text for '{text}' into '{output_language}'"
 
-def extract_body_content(file_path: str) -> str:
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
-    except Exception as e:
-        print(f"Error reading {file_path}: {e}")
-        return ""
-
-    soup = BeautifulSoup(content, 'html.parser')
-    body = soup.find('body')
-    return str(body) if body else ""
-
-def split_into_chunks(body_content: str) -> list:
-    soup = BeautifulSoup(body_content, 'html.parser')
-    chunks = []
-    current_chunk = []
-    heading_tags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
-
-    for element in soup.body.children:
-        if element.name in heading_tags:
-            if current_chunk:
-                chunks.append(''.join(map(str, current_chunk)))
-                current_chunk = []
-        current_chunk.append(element)
-
-    if current_chunk:
-        chunks.append(''.join(map(str, current_chunk)))
-
-    return chunks if chunks else [str(soup.body)]
-
-def extract_translatable_content(soup):
-    translatable_content = []
-    for element in soup.descendants:
-        if isinstance(element, NavigableString) and element.strip():
-            translatable_content.append((element, str(element)))
-    return translatable_content
+def split_into_chunks(content: str) -> list:
+    # Find the body content
+    body_match = re.search(r'<body.*?>(.*)</body>', content, re.DOTALL)
+    if not body_match:
+        return [content]  # If no body tag, return the entire content as one chunk
+    
+    body_content = body_match.group(1)
+    
+    # Split by heading tags
+    chunks = re.split(r'(<h[1-6].*?>)', body_content)
+    
+    # Combine headings with their content
+    combined_chunks = []
+    for i in range(0, len(chunks), 2):
+        if i + 1 < len(chunks):
+            combined_chunks.append(chunks[i] + chunks[i+1])
+        else:
+            combined_chunks.append(chunks[i])
+    
+    return combined_chunks if combined_chunks else [body_content]
 
 async def translate_xhtml_file(
         user_api_token: str,
@@ -87,37 +70,55 @@ async def translate_xhtml_file(
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
     
-    soup = BeautifulSoup(content, 'html.parser')
-    body_content = str(soup.body)
-    chunks = split_into_chunks(body_content)
-
+    # Extract content outside the body
+    pre_body = re.search(r'^.*?<body.*?>', content, re.DOTALL)
+    post_body = re.search(r'</body>.*?$', content, re.DOTALL)
+    
+    chunks = split_into_chunks(content)
+    
     translated_chunks = []
     for chunk in chunks:
+        # Replace processing instructions with placeholders
+        pi_placeholders = {}
+        for i, pi in enumerate(re.findall(r'<\?.*?\?>', chunk)):
+            placeholder = f'__PI_PLACEHOLDER_{i}__'
+            pi_placeholders[placeholder] = pi
+            chunk = chunk.replace(pi, placeholder)
+        
         translated_chunk = await translate_text(
             user_api_token=user_api_token,
             team_slug=team_slug,
             text=chunk,
             output_language=output_language
         )
+        
+        # Restore processing instructions
+        for placeholder, pi in pi_placeholders.items():
+            translated_chunk = translated_chunk.replace(placeholder, pi)
+        
         translated_chunks.append(translated_chunk)
-
+    
     translated_body = "".join(translated_chunks)
     
-    # Replace the body content with translated content
-    soup.body.clear()
-    soup.body.append(BeautifulSoup(translated_body, 'html.parser'))
-    
-    # Translate title
-    title_tag = soup.find('title')
-    if title_tag:
-        title_tag.string = await translate_text(
+    # Translate title if it exists
+    title_match = re.search(r'<title>(.*?)</title>', content)
+    if title_match:
+        original_title = title_match.group(1)
+        translated_title = await translate_text(
             user_api_token=user_api_token,
             team_slug=team_slug,
-            text=title_tag.string,
+            text=original_title,
             output_language=output_language
         )
+        content = content.replace(f'<title>{original_title}</title>', f'<title>{translated_title}</title>')
     
-    translated_content = str(soup)
+    # Reconstruct the full content
+    translated_content = (
+        (pre_body.group(0) if pre_body else '') +
+        f'<body>{translated_body}</body>' +
+        (post_body.group(0) if post_body else '')
+    )
+    
     translated_chars = len(translated_content)
     
     # Update progress
@@ -137,8 +138,9 @@ async def translate_xhtml_file(
 def count_translatable_chars(file_path: str) -> int:
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
-    soup = BeautifulSoup(content, 'html.parser')
-    return len(soup.get_text())
+    # Remove all HTML tags and count remaining characters
+    text_content = re.sub(r'<.*?>', '', content)
+    return len(text_content)
 
 async def translate(
     team_slug: str,
@@ -177,8 +179,9 @@ async def translate(
                     shutil.copy2(file_path, original_html_dir)
                     
                     # Extract chunks and add to all_chunks
-                    body_content = extract_body_content(file_path)
-                    chunks = split_into_chunks(body_content)
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    chunks = split_into_chunks(content)
                     all_chunks.extend(chunks)
 
         # Save all chunks to a single Markdown file
