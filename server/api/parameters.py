@@ -88,6 +88,9 @@ from server.api.models.teams.teams_get_all import (
 from server.api.models.teams.teams_get_one import (
     Team
 )
+from server.api.models.billing.billing_get_balance import (
+    BillingGetBalanceOutput
+)
 from server.api.models.tasks.tasks_create import (
     Task
 )
@@ -432,6 +435,15 @@ server_endpoints = {
         "summary": "Update settings",
         "description": "<img src='images/server/update_settings.png' alt='Update any of the setting on your OpenMates server.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])
+    }
+}
+
+billing_endpoints = {
+    "get_balance":{
+        "response_model":BillingGetBalanceOutput,
+        "summary": "Get balance",
+        "description": "<img src='images/billing/get_balance.png' alt='Get your current available balance in credits for your team or user account.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
 

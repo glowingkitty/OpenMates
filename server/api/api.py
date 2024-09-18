@@ -168,6 +168,12 @@ from server.api.models.tasks.tasks_cancel import (
     TasksCancelOutput,
     tasks_cancel_output_example
 )
+from server.api.models.billing.billing_get_balance import (
+    BillingGetBalanceInput,
+    BillingGetBalanceOutput,
+    billing_get_balance_input_example,
+    billing_get_balance_output_example
+)
 
 
 
@@ -202,6 +208,7 @@ from server.api.endpoints.skills.photos.resize_image import resize_image as skil
 from server.api.endpoints.tasks.get_task import get as tasks_get_task_processing
 from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
 from server.api.endpoints.tasks.create import create as tasks_create_processing
+from server.api.endpoints.billing.get_balance import get_balance as billing_get_balance_processing
 
 from server.api.validation.validate_permissions import validate_permissions
 from server.api.validation.validate_invite_code import validate_invite_code
@@ -224,6 +231,7 @@ from server.api.parameters import (
     teams_endpoints,
     server_endpoints,
     tasks_endpoints,
+    billing_endpoints,
     set_example,
     tags_metadata,
     input_parameter_descriptions
@@ -519,6 +527,12 @@ def custom_openapi():
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/tasks/{task_id}", "delete", "responses", {
         "Example 1": tasks_cancel_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/billing/get_balance", "get", "requestBody", {
+        "Example 1": billing_get_balance_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/billing/get_balance", "post", "responses", {
+        "Example 1": billing_get_balance_output_example
     }, "200")
 
 
@@ -1316,6 +1330,25 @@ async def cancel_task(
 # Explaination:
 # The billing endpoints allow users or team owners to manage their billing settings, download invoices and more.
 
+# POST /billing/get_balance (get the balance of the user or the team)
+@billing_router.post("/v1/{team_slug}/billing/get_balance", **billing_endpoints["get_balance"])
+@limiter.limit("20/minute")
+async def get_balance(
+    request: Request,
+    parameters: BillingGetBalanceInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> BillingGetBalanceOutput:
+    await validate_permissions(
+        endpoint="/billing/get_balance",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await billing_get_balance_processing(
+        team_slug=team_slug,
+        api_token=token,
+        for_team=parameters.for_team
+    )
 
 
 
