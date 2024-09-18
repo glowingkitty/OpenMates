@@ -12,6 +12,8 @@ def test_read_root():
     base_url = "http://localhost:8000"
     docs_url = f"{base_url}/docs"
 
+    # TODO update for new docs structure
+
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
