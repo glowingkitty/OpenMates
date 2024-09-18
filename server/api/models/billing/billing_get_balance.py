@@ -46,6 +46,6 @@ billing_get_balance_input_example = {
 
 billing_get_balance_output_example = {
     "for_user": False,
-    "for_team_slug": "openmates_devs",
+    "for_team_slug": "openmates_enthusiasts",
     "balance_credits": 429290
 }
