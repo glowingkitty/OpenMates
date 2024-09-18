@@ -210,8 +210,8 @@ from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
 from server.api.endpoints.tasks.create import create as tasks_create_processing
 from server.api.endpoints.billing.get_balance import get_balance as billing_get_balance_processing
 
-from server.api.validation.validate_permissions import validate_permissions
-from server.api.validation.validate_invite_code import validate_invite_code
+from server.api.security.validation.validate_permissions import validate_permissions
+from server.api.security.validation.validate_invite_code import validate_invite_code
 from starlette.responses import FileResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from fastapi.openapi.utils import get_openapi

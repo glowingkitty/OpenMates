@@ -18,9 +18,9 @@ from server.api.models.mates.mates_update import MatesUpdateOutput
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.validation.validate_permissions import validate_permissions
-from server.api.validation.validate_mate_username import validate_mate_username
-from server.api.validation.validate_skills import validate_skills
+from server.api.security.validation.validate_permissions import validate_permissions
+from server.api.security.validation.validate_mate_username import validate_mate_username
+from server.api.security.validation.validate_skills import validate_skills
 from server.api.endpoints.mates.get_mate import get_mate
 from server.api.endpoints.mates.update_or_create_config import update_or_create_config
 from server.api.endpoints.skills.get_skill import get_skill

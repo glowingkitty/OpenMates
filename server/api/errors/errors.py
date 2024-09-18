@@ -1,0 +1,19 @@
+import logging
+from fastapi import HTTPException
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
+# List all custom errors here
+
+class InvalidAPITokenError(HTTPException):
+    def __init__(self, detail: str = "Invalid API token", log_message: str = None):
+        super().__init__(status_code=401, detail=detail)
+        self.log_message = log_message
+        self._log_error()
+
+    def _log_error(self):
+        if self.log_message:
+            logger.error(self.log_message)
+        else:
+            logger.exception("Unexpected error during API token validation")

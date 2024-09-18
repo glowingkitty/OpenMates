@@ -19,9 +19,9 @@ from server.cms.cms import make_strapi_request
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.endpoints.skills.get_skill import get_skill
-from server.api.validation.validate_permissions import validate_permissions
-from server.api.validation.validate_mate_username import validate_mate_username
-from server.api.validation.validate_skills import validate_skills
+from server.api.security.validation.validate_permissions import validate_permissions
+from server.api.security.validation.validate_mate_username import validate_mate_username
+from server.api.security.validation.validate_skills import validate_skills
 
 
 async def create_mate(

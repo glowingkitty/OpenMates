@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.endpoints.users.get_user import get_user
 from server.api.models.users.users_replace_profile_picture import UsersReplaceProfilePictureOutput
-from server.api.validation.validate_permissions import validate_permissions
+from server.api.security.validation.validate_permissions import validate_permissions
 import time
 import base64
 

@@ -17,7 +17,7 @@ from server.api import *
 from server.cms.cms import make_strapi_request, get_nested
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
-from server.api.validation.validate_permissions import validate_permissions
+from server.api.security.validation.validate_permissions import validate_permissions
 from server.cms.endpoints.users.get_users import get_users as get_users_from_cms
 
 

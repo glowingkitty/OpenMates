@@ -53,7 +53,7 @@ async def validate_user_data_access(
         username: str = None,
         password: str = None,
         request_endpoint: Literal["get_one_user", "get_all_users"] = "get_one_user"
-    ) -> Union[dict, str, HTTPException]:
+    ) -> str:
     """
     Validate if the user has access to the user data
     """

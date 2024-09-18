@@ -1,26 +1,13 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
+import logging
 from typing import Optional
 from fastapi import HTTPException
-from server.cms.cms import make_strapi_request
-from server.api.validation.validate_api_token import validate_api_token
-from server.api.validation.validate_user_data_access import validate_user_data_access
-from server.api.validation.validate_file_access import validate_file_access
+from server.api.errors.errors import InvalidAPITokenError
+from server.api.security.validation.validate_api_token import validate_api_token
+from server.api.security.validation.validate_user_data_access import validate_user_data_access
+from server.api.security.validation.validate_file_access import validate_file_access
 
-
+# Set up logger
+logger = logging.getLogger(__name__)
 
 # TODO add tests
 
@@ -32,10 +19,9 @@ async def validate_permissions(
     user_password: Optional[str] = None,
     user_api_token_already_checked: Optional[bool] = False,
     required_permissions: Optional[list] = None
-) -> dict:
+) -> str:
     try:
-        add_to_log(module_name="OpenMates | API | Validate Permissions", state="start", color="yellow", hide_variables=True)
-        add_to_log(f"Validating permissions for endpoint '{endpoint}'...")
+        logger.info(f"Validating permissions for endpoint '{endpoint}'...")
 
         # TODO handle different endpoint usecases
 
@@ -48,7 +34,7 @@ async def validate_permissions(
                 filename=endpoint.split("/")[-1],
                 team_slug=team_slug
             )
-            return access
+
 
         # /users
         if endpoint == "/users":
@@ -59,20 +45,22 @@ async def validate_permissions(
                 password=user_password,
                 request_endpoint="get_all_users"
             )
-            return access
+
 
         # else just check the token
         if not user_api_token_already_checked:
-            await validate_api_token(
+            access = await validate_api_token(
                 token=user_api_token,
                 team_slug=team_slug
             )
 
+        return access
+
         # TODO handle check for access to create, delete or update mate
 
-    except HTTPException:
+    except InvalidAPITokenError:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
-        raise HTTPException(status_code=500, detail="An error occurred while validating permissions")
+        logger.exception("Unexpected error during permission validation")
+        raise HTTPException(status_code=500, detail="Unexpected error during permission validation")

@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.models.users.users_create_new_api_token import UsersCreateNewApiTokenOutput
 from server.api.endpoints.users.get_user import get_user
-from server.api.validation.validate_api_token import validate_api_token
+from server.api.security.validation.validate_api_token import validate_api_token
 import secrets
 
 

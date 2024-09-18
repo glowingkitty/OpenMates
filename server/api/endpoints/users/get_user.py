@@ -17,7 +17,7 @@ from typing import List, Optional, Union, Dict, Literal
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.validation.validate_permissions import validate_permissions
+from server.api.security.validation.validate_permissions import validate_permissions
 from server.api.security.crypto import verify_hash, decrypt
 from server.cms.endpoints.users.get_user import get_user as get_user_from_cms
 
