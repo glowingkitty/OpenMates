@@ -22,6 +22,7 @@ from server.api import *
 
 from typing import List, Dict, Any
 from fastapi import HTTPException
+from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostOutput
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from server.api.endpoints.skills.files.upload import upload
 from server.api.endpoints.skills.ai.ask import ask
@@ -30,10 +31,7 @@ from ebooklib import epub
 from urllib.parse import quote
 import tempfile
 import json
-
-# Global counter for translations
-translation_counter = 0
-TRANSLATION_LIMIT = 0
+import datetime
 
 # TODO add estimated finish time and estimated costs and total costs to the task
 
@@ -45,9 +43,6 @@ async def translate_text(
         text: str,
         output_language: str
 ) -> str:
-    global translation_counter
-    if TRANSLATION_LIMIT > 0 and translation_counter >= TRANSLATION_LIMIT:
-        return text  # Return original text if limit is reached
 
     response = await ask(
         user_api_token=user_api_token,
@@ -58,7 +53,6 @@ async def translate_text(
         temperature=0
     )
     translated_text = response["content"][0]["text"]
-    translation_counter += 1  # Increment the counter
     return translated_text
 
 def split_into_chunks(content: str) -> list:
@@ -129,7 +123,12 @@ async def translate_xhtml_file(
         progress = round((sum(chunk_lengths[:i+1]) / total_chars) * 100)
         elapsed_time = time.time() - start_time
         remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
-        await update_task(task_id, progress=progress, time_estimated_completion=remaining_time)
+        if remaining_time is not None:
+            estimated_completion_time = datetime.datetime.now() + datetime.timedelta(seconds=remaining_time)
+            time_estimated_completion = estimated_completion_time.isoformat()
+        else:
+            time_estimated_completion = None
+        await update_task(task_id, progress=progress, time_estimated_completion=time_estimated_completion)
 
     translated_body = "".join(translated_chunks)
 
@@ -165,7 +164,6 @@ def count_translatable_chars(file_path: str) -> int:
     text_content = re.sub(r'<.*?>', '', content)
     return len(text_content)
 
-from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostOutput
 
 async def translate(
     team_slug: str,
@@ -174,10 +172,6 @@ async def translate(
     output_language: str,
     task_id: str
 ) -> FilesUploadOutput:
-    global translation_counter
-    translation_counter = 0  # Reset the counter at the start
-
-    await update_task(task_id, status="in_progress", progress=0)
 
     # Create a temporary directory to work with the EPUB
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -218,8 +212,13 @@ async def translate(
         )
         await update_task(
             task_id=task_id,
-            total_credits_cost_estimated=round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens*2.1)
+            total_credits_cost_estimated=expected_total_cost
         )
+
+        # TODO check if the user has enough credits to perform the translation, else cancel the task and return an error
+        expected_total_cost = round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens*2.1)
+        # if get_balance(api_token=api_token, team_slug=team_slug) < expected_total_cost:
+        #     raise InsufficientCreditsException
 
         translated_chars = 0
         start_time = time.time()

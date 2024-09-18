@@ -81,6 +81,10 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
 def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_language):
     try:
         loop = asyncio.get_event_loop()
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='in_progress'
+        ))
         response = loop.run_until_complete(book_translate_processing(
             team_slug=team_slug,
             api_token=api_token,
@@ -98,11 +102,37 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
             total_credits_cost_real=response.get('total_cost')
         ))
 
+        # TODO: how to implement notifying user via chatbot about task completion, if the task was created in chat? (but don't notify if task was created via api call by default)
+        # notify_user(
+        #     team_slug=team_slug,
+        #     user_id=task_info['user_id'],
+        #     message='Task completed'
+        # )
+
+    # except InsufficientCreditsException as e:
+    #     loop.run_until_complete(update_task(
+    #         task_id=task_id,
+    #         status='failed',
+    #         error='Insufficient credits'
+    #     ))
+    #     notify_user(
+    #         team_slug=team_slug,
+    #         user_id=task_info['user_id'],
+    #         message='Insufficient credits'
+    #     )
+    #     raise
+
     except Exception as e:
         loop.run_until_complete(update_task(
             task_id=task_id,
-            status='failed'
+            status='failed',
+            error=str(e)
         ))
+        # notify_user(
+        #     team_slug=team_slug,
+        #     user_id=task_info['user_id'],
+        #     message=str(e)
+        # )
         raise
 
 
