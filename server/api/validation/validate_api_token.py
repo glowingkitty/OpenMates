@@ -19,7 +19,7 @@ from server.api.security.crypto import verify_hash
 from server.memory.memory import get_user_from_memory, save_user_to_memory
 
 
-async def validate_token(
+async def validate_api_token(
     token: str,
     team_slug: str = None
     ):

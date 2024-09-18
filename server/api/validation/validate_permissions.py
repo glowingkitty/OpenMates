@@ -16,7 +16,7 @@ from server.api import *
 from typing import Optional
 from fastapi import HTTPException
 from server.cms.cms import make_strapi_request
-from server.api.validation.validate_token import validate_token
+from server.api.validation.validate_api_token import validate_api_token
 from server.api.validation.validate_user_data_access import validate_user_data_access
 from server.api.validation.validate_file_access import validate_file_access
 
@@ -63,7 +63,7 @@ async def validate_permissions(
 
         # else just check the token
         if not user_api_token_already_checked:
-            await validate_token(
+            await validate_api_token(
                 token=user_api_token,
                 team_slug=team_slug
             )

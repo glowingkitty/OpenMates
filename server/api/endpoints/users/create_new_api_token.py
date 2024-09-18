@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.models.users.users_create_new_api_token import UsersCreateNewApiTokenOutput
 from server.api.endpoints.users.get_user import get_user
-from server.api.validation.validate_token import validate_token
+from server.api.validation.validate_api_token import validate_api_token
 import secrets
 
 
@@ -39,7 +39,7 @@ async def create_new_api_token(
 
     # make sure the new uid and API token don't already exist
     try:
-        while await validate_token(token=uid+api_token):
+        while await validate_api_token(token=uid+api_token):
             uid = secrets.token_hex(16)
             api_token = secrets.token_hex(16)
     except HTTPException as e:
