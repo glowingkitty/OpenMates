@@ -170,7 +170,7 @@ from server.api.models.tasks.tasks_cancel import (
 )
 from server.api.models.billing.billing_get_balance import (
     BillingGetBalanceInput,
-    BillingGetBalanceOutput,
+    BillingBalanceOutput,
     billing_get_balance_input_example,
     billing_get_balance_output_example
 )
@@ -1338,7 +1338,7 @@ async def get_balance(
     parameters: BillingGetBalanceInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> BillingGetBalanceOutput:
+) -> BillingBalanceOutput:
     await validate_permissions(
         endpoint="/billing/get_balance",
         team_slug=team_slug,

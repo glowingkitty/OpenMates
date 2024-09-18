@@ -89,7 +89,7 @@ from server.api.models.teams.teams_get_one import (
     Team
 )
 from server.api.models.billing.billing_get_balance import (
-    BillingGetBalanceOutput
+    BillingBalanceOutput
 )
 from server.api.models.tasks.tasks_create import (
     Task
@@ -440,7 +440,7 @@ server_endpoints = {
 
 billing_endpoints = {
     "get_balance":{
-        "response_model":BillingGetBalanceOutput,
+        "response_model":BillingBalanceOutput,
         "summary": "Get balance",
         "description": "<img src='images/billing/get_balance.png' alt='Get your current available balance in credits for your team or user account.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])

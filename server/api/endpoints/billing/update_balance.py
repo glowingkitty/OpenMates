@@ -14,21 +14,27 @@ from server.api import *
 ################
 
 from server.api.models.billing.billing_get_balance import BillingBalanceOutput
+from typing import Literal
 
-async def get_balance(
+
+async def update_balance(
         team_slug: str,
         api_token: str,
-        for_team: bool
+        for_team: bool,
+        amount: int,
+        action: Literal["add", "subtract"] = "subtract"
     ) -> BillingBalanceOutput:
     """
-    Get the current balance of credits for a team or user.
+    Update the balance of credits for a team or user.
     """
+    # Ensure amount is always positive
+    amount = abs(amount)
 
     # TODO: Implement this endpoint
     # check first if the user is allowed to use the team balance
-    # if so, return the balance of the team from memory (or if not in memory, get it from the database and store it in memory)
+    # if so, update the balance of the team both in memory and in the database
 
-    # if not, return the balance of the user from memory (or if not in memory, get it from the database and store it in memory)
+    # if not, update the balance of the user both in memory and in the database
 
     return BillingBalanceOutput(
         for_user=not for_team,

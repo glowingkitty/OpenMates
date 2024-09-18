@@ -23,7 +23,7 @@ max_overdraft = 50
 class BillingGetBalanceInput(BaseModel):
     for_team: bool = Field(..., description="If true, the balance is retrieved for the current selected team (assuming you are allowed to use the team balance), otherwise for your user")
 
-class BillingGetBalanceOutput(BaseModel):
+class BillingBalanceOutput(BaseModel):
     for_user: bool = Field(..., description="If true, the balance is retrieved for the current user, otherwise for the current team")
     for_team_slug: Optional[str] = Field(None, description="Slug of the team, for which the balance was successfully retrieved. If you set 'for_team' to true and this value is None, it means you are not allowed to access the team balance.")
     balance_credits: int = Field(..., description="Balance of the team or user in credits")
