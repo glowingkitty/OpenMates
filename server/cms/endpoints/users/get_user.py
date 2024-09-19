@@ -26,6 +26,8 @@ async def get_user(
         if not user_id and not username:
             raise HTTPException(status_code=400, detail="You need to provide either an api token or username.")
 
+        if user_access == "admin_access":
+            user_access = "basic_access"
 
         fields_dict = {
             "full_access": [

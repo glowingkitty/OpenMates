@@ -98,6 +98,25 @@ class User(BaseModel):
         'recent_topics'
     ]
 
+    api_output_fields: ClassVar[List[str]] = [
+        'id',
+        'username',
+        'email',
+        'teams',
+        'profile_picture_url',
+        'balance_credits',
+        'mates_default_privacy_settings',
+        'mates_custom_settings',
+        'other_settings',
+        'projects',
+        'likes',
+        'dislikes',
+        'topics_outside_my_bubble_that_i_should_consider',
+        'goals',
+        'recent_topics',
+        'is_server_admin'
+    ]
+
     def to_redis_dict(self) -> Dict[str, str]:
         """Convert User object to a dictionary suitable for Redis storage."""
         user_dict = self.model_dump(exclude=self.decrypted_fields, exclude_none=True)

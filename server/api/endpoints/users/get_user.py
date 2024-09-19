@@ -26,6 +26,14 @@ async def get_user(
     try:
         logger.debug("Getting a specific user ...")
 
+        if not fields:
+            fields = User.api_output_fields
+
+        # TODO fix that if one attempts to get full user via GET /users/{username}, many of the fields are missing (empty)
+        # TODO enable requesting specific fields only (e.g. GET /users/{username}?fields=id,username,email)
+
+        # TODO also implement same save to memory logic for teams
+
         if not api_token and not (username and password):
             raise ValueError("You need to provide either an api token or username and password.")
 
@@ -39,14 +47,12 @@ async def get_user(
             user: User = get_user_from_memory(user_id=user_id, fields=fields)
 
             if user:
-
                 # check if all required fields are in the user object and have non-None values, if not, get user from cms
-                if fields:
-                    for field in fields:
-                        if not hasattr(user, field) or getattr(user, field) is None:
-                            logger.debug(f"User object does not have field '{field}' or it's None. Setting user to None to get it from cms.")
-                            user = None
-                            break
+                for field in fields:
+                    if not hasattr(user, field) or getattr(user, field) is None:
+                        logger.debug(f"User object does not have field '{field}' or it's None. Setting user to None to get it from cms.")
+                        user = None
+                        break
 
         # if user is not found in memory, get it from cms
         if user is None:
