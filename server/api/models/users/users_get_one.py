@@ -134,7 +134,7 @@ class User(BaseModel):
         return cls(**parsed_data)
 
 users_get_one_output_example = {
-    "id": 1,
+    "id": "caa778864ce8ac4b0a820f750643ddd6",
     "username": "johnd",
     "email": "johnd_openmates@gmail.com",
     "teams": [

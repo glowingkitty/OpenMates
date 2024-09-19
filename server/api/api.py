@@ -1516,11 +1516,9 @@ async def get_user(
         user_api_token=token
     )
     return await get_user_processing(
-        team_slug=team_slug,
         api_token=token,
         username=username,
-        user_access=user_access,
-        use_cms_only=True
+        user_access=user_access
         )
 
 

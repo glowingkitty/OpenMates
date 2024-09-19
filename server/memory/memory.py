@@ -47,8 +47,9 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> User | None:
 
     # make sure id and username are in fields
     always_include_fields = ["id", "username", "api_token_encrypted", 'is_server_admin', 'teams']
-    fields = [x for x in fields if x not in always_include_fields]
-    fields = always_include_fields + fields
+    if fields:
+        fields = [x for x in fields if x not in always_include_fields]
+        fields = always_include_fields + fields
 
     logger.debug(f"Getting user from memory with fields: {fields}")
 
