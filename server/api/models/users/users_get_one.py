@@ -1,23 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, ClassVar, Dict, Any
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DefaultPrivacySettings(BaseModel):
     allowed_to_access_name: bool = Field(..., description="Whether the AI team mates are by default allowed to access the name of the user.")
@@ -41,10 +29,10 @@ class MateConfig(BaseModel):
     id: int = Field(..., description="ID of the Mate config")
     mate_username: str = Field(..., description="Username of the AI team mate this config is for.")
     team_slug: str = Field(..., description="Slug of the team this config is for.")
-    systemprompt: str = Field(..., description="Custom system prompt for the AI team mate.")
-    llm_endpoint: str = Field(..., description="The API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
-    llm_model: str = Field(..., description="The LLM model which is used by the AI team mate.")
-    skills: list[Skill] = Field(..., description="Custom selection of skills the AI team mate can use")
+    systemprompt: Optional[str] = Field(None, description="Custom system prompt for the AI team mate.")
+    llm_endpoint: Optional[str] = Field(None, description="The API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
+    llm_model: Optional[str] = Field(None, description="The LLM model which is used by the AI team mate.")
+    skills: Optional[list[Skill]] = Field(None, description="Custom selection of skills the AI team mate can use")
     allowed_to_access_user_name: bool = Field(..., description="Whether the AI team mate is allowed to access the name of the user.")
     allowed_to_access_user_username: bool = Field(..., description="Whether the AI team mate is allowed to access the username of the user.")
     allowed_to_access_user_projects: bool = Field(..., description="Whether the AI team mate is allowed to access the projects of the user.")
@@ -70,7 +58,7 @@ class User(BaseModel):
     profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the user")
     balance_credits: Optional[int] = Field(None, description="Balance of the user in credits. This balance can be used for using skills.")
     mates_default_privacy_settings: Optional[DefaultPrivacySettings] = Field(None, description="The default privacy settings for the AI team mates, which the user communicates with.")
-    mates_custom_settings: Optional[list[MateConfig]] = Field(None, description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
+    mate_configs: Optional[list[MateConfig]] = Field(None, description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
     other_settings: Optional[dict] = Field(None, description="Other settings, such as notification settings, etc.")
     projects: Optional[List[Project]] = Field(None, description="Projects of the user")
     likes: Optional[List[str]] = Field(None, description="List of topics the user is interested in")
@@ -98,6 +86,17 @@ class User(BaseModel):
         'recent_topics'
     ]
 
+    encrypted_fields: ClassVar[List[str]] = [
+        'email_encrypted',
+        'password_encrypted',
+        'api_token_encrypted',
+        'other_settings_encrypted',
+        'likes_encrypted',
+        'dislikes_encrypted',
+        'goals_encrypted',
+        'recent_topics_encrypted'
+    ]
+
     api_output_fields: ClassVar[List[str]] = [
         'id',
         'username',
@@ -106,7 +105,7 @@ class User(BaseModel):
         'profile_picture_url',
         'balance_credits',
         'mates_default_privacy_settings',
-        'mates_custom_settings',
+        'mate_configs',
         'other_settings',
         'projects',
         'likes',
@@ -116,6 +115,12 @@ class User(BaseModel):
         'recent_topics',
         'is_server_admin'
     ]
+
+    def to_api_output(self) -> Dict[str, Any]:
+        """Convert User object to a dictionary suitable for API output."""
+        user_dict = self.model_dump(exclude=self.encrypted_fields, exclude_none=True)
+        return user_dict
+
 
     def to_redis_dict(self) -> Dict[str, str]:
         """Convert User object to a dictionary suitable for Redis storage."""
@@ -143,7 +148,7 @@ class User(BaseModel):
                     return [Project(**project) for project in parsed]
                 elif key == 'mates_default_privacy_settings':
                     return DefaultPrivacySettings(**parsed)
-                elif key == 'mates_custom_settings' and isinstance(parsed, list):
+                elif key == 'mate_configs' and isinstance(parsed, list):
                     return [MateConfig(**config) for config in parsed]
                 return parsed
             except json.JSONDecodeError:
@@ -177,7 +182,7 @@ users_get_one_output_example = {
         "allowed_to_access_likes": True,
         "allowed_to_access_dislikes": True
     },
-    "mates_custom_settings": [],
+    "mate_configs": [],
     "other_settings": {
         "notifications": {
             "new_feature_announcements": {

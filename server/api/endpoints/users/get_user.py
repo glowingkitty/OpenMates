@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_user(
+        team_slug: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
         api_token: Optional[str] = None,
@@ -29,7 +30,6 @@ async def get_user(
         if not fields:
             fields = User.api_output_fields
 
-        # TODO fix that if one attempts to get full user via GET /users/{username}, many of the fields are missing (empty)
         # TODO enable requesting specific fields only (e.g. GET /users/{username}?fields=id,username,email)
 
         # TODO also implement same save to memory logic for teams
@@ -56,7 +56,7 @@ async def get_user(
 
         # if user is not found in memory, get it from cms
         if user is None:
-            user: User = await get_user_from_cms(user_id=user_id,user_access=user_access, fields=fields)
+            user: User = await get_user_from_cms(user_id=user_id,user_access=user_access, team_slug=team_slug, fields=fields)
 
             if user:
                 # if user found, save it to memory
@@ -86,7 +86,7 @@ async def get_user(
             "profile_picture_url": user.profile_picture_url,
             "balance_credits": user.balance_credits,
             "mates_default_privacy_settings": user.mates_default_privacy_settings,
-            "mates_custom_settings": user.mates_custom_settings,
+            "mate_configs": user.mate_configs,
             "other_settings": json.loads(decrypt(user.other_settings_encrypted)) if user.other_settings_encrypted else None,
             "projects": user.projects,
             "likes": json.loads(decrypt(user.likes_encrypted)) if user.likes_encrypted else None,

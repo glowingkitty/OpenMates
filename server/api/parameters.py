@@ -373,7 +373,7 @@ users_endpoints = {
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
     },
     "get_user":{
-        "response_model":User,
+        "response_model":dict,
         "summary": "Get user",
         "description": "<img src='images/users/get_user.png' alt='Get all details about a specific user.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])

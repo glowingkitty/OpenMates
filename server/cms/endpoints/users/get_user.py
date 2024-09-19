@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 async def get_user(
+        team_slug: str,
         user_id: str,
         user_access: str,
-        team_slug: Optional[str] = None,
         username: Optional[str] = None,
         fields: Optional[List[str]] = None,
     ) -> User:
@@ -125,7 +125,6 @@ async def get_user(
             raise HTTPException(status_code=404, detail="Could not find the requested user.")
 
         user = json_response["data"][0]
-
         # Create a dictionary of User fields
         user_fields = {
             "id": get_nested(user, "uid"),
@@ -156,7 +155,7 @@ async def get_user(
                     allowed_to_access_likes=get_nested(user, "mate_privacy_config_default__allowed_to_access_likes"),
                     allowed_to_access_dislikes=get_nested(user, "mate_privacy_config_default__allowed_to_access_dislikes"),
                 ) if any(get_nested(user, f"mate_privacy_config_default__{setting}") for setting in ["allowed_to_access_name", "allowed_to_access_username", "allowed_to_access_projects", "allowed_to_access_goals", "allowed_to_access_todos", "allowed_to_access_recent_topics", "allowed_to_access_recent_emails", "allowed_to_access_calendar", "allowed_to_access_likes", "allowed_to_access_dislikes"]) else None,
-                "mates_custom_settings": [
+                "mate_configs": [
                     MateConfig(
                         id=get_nested(config, "id"),
                         mate_username=get_nested(config, "mate.username"),
@@ -202,6 +201,7 @@ async def get_user(
                 "goals_encrypted": get_nested(user, "goals"),
                 "recent_topics_encrypted": get_nested(user, "recent_topics")
             }
+            logger.debug(f"Full access fields: {full_access_fields}")
             user_fields.update({k: v for k, v in full_access_fields.items() if v is not None})
 
         return User(**user_fields)
@@ -210,4 +210,4 @@ async def get_user(
         raise
     except Exception as e:
         logger.exception(f"Failed to get the user.")
-        raise HTTPException(status_code=500, detail=f"Failed to get the user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while getting the user.")

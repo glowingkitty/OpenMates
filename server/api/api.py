@@ -13,6 +13,9 @@ sys.path.append(main_directory)
 
 from server.api import *
 ################
+import logging
+
+logger = logging.getLogger(__name__)
 
 import tempfile
 import uvicorn
@@ -62,6 +65,7 @@ from server.api.models.teams.teams_get_one import (
 )
 from server.api.models.users.users_create import (
     UsersCreateInput,
+    UsersCreateOutput,
     users_create_input_example,
     users_create_output_example
 )
@@ -1486,7 +1490,7 @@ async def create_user(
     request: Request,
     parameters: UsersCreateInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
-    ):
+    ) -> UsersCreateOutput:
     await validate_invite_code(
         team_slug=team_slug,
         invite_code=parameters.invite_code
@@ -1509,17 +1513,20 @@ async def get_user(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
-) -> User:
+) -> dict:
     user_access: str = await validate_permissions(
         endpoint=f"/users/{username}",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await get_user_processing(
+    user: User = await get_user_processing(
+        team_slug=team_slug,
         api_token=token,
         username=username,
         user_access=user_access
         )
+
+    return user.to_api_output()
 
 
 # TODO add test

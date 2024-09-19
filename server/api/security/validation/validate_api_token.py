@@ -21,6 +21,7 @@ async def validate_api_token(
         try:
             # get_user will also verify the api token
             user: User = await get_user(
+                team_slug=team_slug,
                 api_token=token,
                 fields=["is_server_admin", "teams"]
             )
