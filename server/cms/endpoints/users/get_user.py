@@ -7,6 +7,7 @@ from server.api.models.teams.teams_get_one import Team
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.skills.skills_get_one import SkillMini
 import logging
+from server.api.models.users.users_get_one import UserEncrypted
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -186,19 +187,18 @@ async def get_user(
                         description=get_nested(project, "description")
                     ) for project in get_nested(user, "projects") or []
                 ],
-                "email_encrypted": get_nested(user, "email"),
-                "password_encrypted": get_nested(user, "password"),
-                "api_token_encrypted": get_nested(user, "api_token"),
-                "other_settings_encrypted": get_nested(user, "other_settings"),
-                "likes_encrypted": get_nested(user, "likes"),
-                "dislikes_encrypted": get_nested(user, "dislikes"),
-                "goals_encrypted": get_nested(user, "goals"),
-                "recent_topics_encrypted": get_nested(user, "recent_topics")
+                "email": get_nested(user, "email"),
+                "password": get_nested(user, "password"),
+                "api_token": get_nested(user, "api_token"),
+                "other_settings": get_nested(user, "other_settings"),
+                "likes": get_nested(user, "likes"),
+                "dislikes": get_nested(user, "dislikes"),
+                "goals": get_nested(user, "goals"),
+                "recent_topics": get_nested(user, "recent_topics")
             }
-            logger.debug(f"Full access fields: {full_access_fields}")
             user_fields.update({k: v for k, v in full_access_fields.items() if v is not None})
 
-        return User(**user_fields)
+        return UserEncrypted(**user_fields)
 
     except HTTPException:
         raise

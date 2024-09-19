@@ -1,11 +1,10 @@
 import os
 from redis import Redis
 import json
-from server.api.models.users.users_get_one import User, Team
 from server.api.models.teams.teams_get_one import Team
 from server.api.models.tasks.tasks_create import Task
 from pydantic import BaseModel
-
+from server.api.models.users.users_get_one import UserEncrypted
 import logging
 
 # Set up logger
@@ -24,11 +23,12 @@ default_expiration_time = 86400 # 24 hours
 
 # Save/Get one
 
-def save_user_to_memory(user_id: str, user_data: User) -> bool:
+def save_user_to_memory(user_id: str, user_data: UserEncrypted) -> bool:
     """
     Save a user to Redis (Dragonfly) by user ID.
     """
     logger.debug(f"Saving user to memory")
+    logger.debug(f"Saving user data: {user_data}")
 
     client = Redis.from_url(redis_url)
     user_data_dict = user_data.to_redis_dict()
@@ -37,7 +37,7 @@ def save_user_to_memory(user_id: str, user_data: User) -> bool:
     client.expire(f"user:{user_id}", default_expiration_time)
     return True
 
-def get_user_from_memory(user_id: str, fields: list[str] = None) -> User | None:
+def get_user_from_memory(user_id: str, fields: list[str] = None) -> UserEncrypted | None:
     """
     Retrieve a user from Redis (Dragonfly) by user ID.
     If fields are specified, return a User object with only those fields populated.
@@ -46,7 +46,7 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> User | None:
     user_key = f"user:{user_id}"
 
     # make sure id and username are in fields
-    always_include_fields = ["id", "username", "api_token_encrypted", 'is_server_admin', 'teams']
+    always_include_fields = ["id", "username", "api_token", 'is_server_admin', 'teams']
     if fields:
         fields = [x for x in fields if x not in always_include_fields]
         fields = always_include_fields + fields
@@ -57,12 +57,12 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> User | None:
         user_data = client.hmget(user_key, fields)
         if not any(user_data):
             return None
-        return User.from_redis_dict({k: v for k, v in zip(fields, user_data) if v is not None})
+        return UserEncrypted.from_redis_dict({k: v for k, v in zip(fields, user_data) if v is not None})
     else:
         user_data = client.hgetall(user_key)
         if not user_data:
             return None
-        return User.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()})
+        return UserEncrypted.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()})
 
 
 ########################################################

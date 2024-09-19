@@ -64,35 +64,6 @@ class User(BaseModel):
     recent_topics: Optional[List[str]] = Field(None, description="Recent topics the user asked the AI team mates about.")
     is_server_admin: Optional[bool] = Field(None, description="Whether the user is a server admin")
 
-    email_encrypted: Optional[str] = Field(None, description="Encrypted email address of the user")
-    password_encrypted: Optional[str] = Field(None, description="Encrypted password of the user")
-    api_token_encrypted: Optional[str] = Field(None, description="Encrypted API token of the user")
-    other_settings_encrypted: Optional[str] = Field(None, description="Encrypted other settings of the user")
-    likes_encrypted: Optional[str] = Field(None, description="Encrypted likes of the user")
-    dislikes_encrypted: Optional[str] = Field(None, description="Encrypted dislikes of the user")
-    goals_encrypted: Optional[str] = Field(None, description="Encrypted goals of the user")
-    recent_topics_encrypted: Optional[str] = Field(None, description="Encrypted recent topics of the user")
-
-    decrypted_fields: ClassVar[List[str]] = [
-        'email',
-        'other_settings',
-        'likes',
-        'dislikes',
-        'goals',
-        'recent_topics'
-    ]
-
-    encrypted_fields: ClassVar[List[str]] = [
-        'email_encrypted',
-        'password_encrypted',
-        'api_token_encrypted',
-        'other_settings_encrypted',
-        'likes_encrypted',
-        'dislikes_encrypted',
-        'goals_encrypted',
-        'recent_topics_encrypted'
-    ]
-
     api_output_fields: ClassVar[List[str]] = [
         'id',
         'username',
@@ -114,13 +85,23 @@ class User(BaseModel):
 
     def to_api_output(self) -> Dict[str, Any]:
         """Convert User object to a dictionary suitable for API output."""
-        user_dict = self.model_dump(exclude=self.encrypted_fields, exclude_none=True)
+        user_dict = self.model_dump(exclude_none=True)
         return user_dict
 
 
+class UserEncrypted(User):
+    email: Optional[str] = Field(None, description="Encrypted Email address of the user")
+    password: Optional[str] = Field(None, description="Encrypted password of the user")
+    api_token: Optional[str] = Field(None, description="Encrypted API token of the user")
+    other_settings: Optional[str] = Field(None, description="Encrypted Other settings, such as notification settings, etc.")
+    likes: Optional[str] = Field(None, description="Encrypted likes of the user")
+    dislikes: Optional[str] = Field(None, description="Encrypted dislikes of the user")
+    goals: Optional[str] = Field(None, description="Encrypted goals of the user")
+    recent_topics: Optional[str] = Field(None, description="Encrypted recent topics of the user")
+
     def to_redis_dict(self) -> Dict[str, str]:
         """Convert User object to a dictionary suitable for Redis storage."""
-        user_dict = self.model_dump(exclude=self.decrypted_fields, exclude_none=True)
+        user_dict = self.model_dump(exclude_none=True)
         for key, value in user_dict.items():
             if isinstance(value, (list, dict, BaseModel)):
                 user_dict[key] = json.dumps(value, default=lambda o: o.model_dump() if isinstance(o, BaseModel) else None)
@@ -152,6 +133,7 @@ class User(BaseModel):
 
         parsed_data = {k: parse_value(k, v) for k, v in data.items()}
         return cls(**parsed_data)
+
 
 users_get_one_output_example = {
     "id": "caa778864ce8ac4b0a820f750643ddd6",
