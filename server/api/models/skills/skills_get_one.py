@@ -25,8 +25,8 @@ from typing import List, Optional
 class SkillMini(BaseModel):
     """This is the minified model for a skill"""
     id: int = Field(..., description="ID of the skill")
+    software_slug: str = Field(..., description="Slug of the software related to the skill")
     api_endpoint: str = Field(..., description="API endpoint of the skill")
-    description: str = Field(..., description="Description of the skill")
 
     @field_validator('api_endpoint')
     @classmethod

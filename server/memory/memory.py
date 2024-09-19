@@ -1,7 +1,7 @@
 import os
 from redis import Redis
 import json
-from server.api.models.users.users_get_one import User, Team, Project, DefaultPrivacySettings, MateConfig, Skill
+from server.api.models.users.users_get_one import User, Team
 from server.api.models.teams.teams_get_one import Team
 from server.api.models.tasks.tasks_create import Task
 from pydantic import BaseModel

@@ -4,6 +4,7 @@ from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
 import json
 import logging
+from server.api.models.skills.skills_get_one import SkillMini
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,6 @@ class DefaultPrivacySettings(BaseModel):
     allowed_to_access_likes: bool = Field(..., description="Whether the AI team mates are by default allowed to access the likes of the user.")
     allowed_to_access_dislikes: bool = Field(..., description="Whether the AI team mates are by default allowed to access the dislikes of the user.")
 
-class Skill(BaseModel):
-    id: int = Field(..., description="ID of the skill")
-    name: str = Field(..., description="Name of the skill")
-    software: str = Field(..., description="Software related to the skill")
-    api_endpoint: str = Field(..., description="API endpoint for the skill")
 
 class MateConfig(BaseModel):
     id: int = Field(..., description="ID of the Mate config")
@@ -32,7 +28,7 @@ class MateConfig(BaseModel):
     systemprompt: Optional[str] = Field(None, description="Custom system prompt for the AI team mate.")
     llm_endpoint: Optional[str] = Field(None, description="The API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
     llm_model: Optional[str] = Field(None, description="The LLM model which is used by the AI team mate.")
-    skills: Optional[list[Skill]] = Field(None, description="Custom selection of skills the AI team mate can use")
+    skills: Optional[list[SkillMini]] = Field(None, description="Custom selection of skills the AI team mate can use")
     allowed_to_access_user_name: bool = Field(..., description="Whether the AI team mate is allowed to access the name of the user.")
     allowed_to_access_user_username: bool = Field(..., description="Whether the AI team mate is allowed to access the username of the user.")
     allowed_to_access_user_projects: bool = Field(..., description="Whether the AI team mate is allowed to access the projects of the user.")

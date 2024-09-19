@@ -5,7 +5,7 @@ from typing import List
 from server.api.models.users.users_get_one import User, DefaultPrivacySettings, MateConfig
 from server.api.models.teams.teams_get_one import Team
 from server.api.models.projects.projects_get_one import Project
-from server.api.models.skills.skills_get_one import Skill
+from server.api.models.skills.skills_get_one import SkillMini
 import logging
 
 # Set up logger
@@ -70,10 +70,7 @@ async def get_user(
                 "mate_configs.team.slug",
                 "mate_configs.ai_endpoint",
                 "mate_configs.ai_model",
-                "mate_configs.skills.name",
-                "mate_configs.skills.description",
                 "mate_configs.skills.slug",
-                "mate_configs.skills.software.name",
                 "mate_configs.skills.software.slug",
                 "mate_configs.allowed_to_access_user_name",
                 "mate_configs.allowed_to_access_user_username",
@@ -164,13 +161,10 @@ async def get_user(
                         llm_endpoint=get_nested(config, "ai_endpoint"),
                         llm_model=get_nested(config, "ai_model"),
                         skills=[
-                            Skill(
+                            SkillMini(
                                 id=get_nested(skill, "id"),
-                                name=get_nested(skill, "name"),
-                                description=get_nested(skill, "description"),
-                                slug=get_nested(skill, "slug"),
-                                software=get_nested(skill, "software.name"),
-                                api_endpoint=get_nested(skill, "api_endpoint")
+                                software_slug=get_nested(skill, "software.slug"),
+                                api_endpoint=f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}"
                             ) for skill in get_nested(config, "skills") or []
                         ],
                         allowed_to_access_user_name=get_nested(config, "allowed_to_access_user_name"),
