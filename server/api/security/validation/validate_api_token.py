@@ -1,6 +1,6 @@
 import logging
 from server.api.security.crypto import verify_hash
-from server.api.errors.errors import InvalidAPITokenError
+from server.api.errors.errors import InvalidAPITokenError, UserNotFoundError
 from server.api.endpoints.users.get_user import get_user
 from server.api.models.users.users_get_one import User
 
@@ -17,20 +17,16 @@ async def validate_api_token(
     """
     try:
         logger.info("Verifying User API token...")
-        # separate uid (first 32 characters) from api token (following 32 characters)
-        uid: str = token[:32]
-        api_token_from_request: str = token[32:]
-
         # get the user data via get_user (which will first check in memory, then in cms)
-        user: User = await get_user(uid, cache=True)
-
-        # if the user is not found, then the token is invalid
-        if user is None:
+        try:
+            # get_user will also verify the api token
+            user: User = await get_user(
+                api_token=token,
+                team_slug=team_slug,
+                user_access="full_access"
+            )
+        except UserNotFoundError:
             raise InvalidAPITokenError(log_message="The user does not exist.")
-
-        # verify the api token
-        if not verify_hash(user.api_token, api_token_from_request):
-            raise InvalidAPITokenError(log_message="The user token is invalid.")
 
         # verify that the user is a server admin
         if user.is_server_admin:
@@ -38,12 +34,13 @@ async def validate_api_token(
             return "user_is_server_admin"
 
         # verify that the user is a member of the team
-        if team_slug is not None and team_slug not in user.teams:
-            raise InvalidAPITokenError(log_message="The user is not a member of the team.")
+        if team_slug and user.teams and (team_slug in [team.slug for team in user.teams]):
+            logger.info("The user is a member of the team.")
+            return "user_is_member_of_team"
 
-        # else the user is valid, because the user is a member of the team
-        logger.info("The user is a member of the team.")
-        return "user_is_member_of_team"
+        # if the user is not a member of the team, raise an error
+        raise InvalidAPITokenError(log_message="The user is not a member of the team.")
+
 
     except InvalidAPITokenError:
         raise

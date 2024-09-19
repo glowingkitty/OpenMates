@@ -46,7 +46,7 @@
       "relation": "oneToMany",
       "target": "api::project.project"
     },
-    "balance": {
+    "balance_credits": {
       "type": "integer",
       "required": true,
       "default": 0
@@ -55,9 +55,6 @@
       "type": "text"
     },
     "goals": {
-      "type": "text"
-    },
-    "todos": {
       "type": "text"
     },
     "recent_topics": {
@@ -93,12 +90,6 @@
       "default": true,
       "required": true
     },
-    "recent_emails": {
-      "type": "text"
-    },
-    "calendar": {
-      "type": "text"
-    },
     "mate_privacy_config_default__allowed_to_access_recent_emails": {
       "type": "boolean",
       "default": true,
@@ -128,9 +119,6 @@
     "uid": {
       "type": "uid",
       "required": true
-    },
-    "software_settings": {
-      "type": "text"
     },
     "invoices": {
       "type": "relation",

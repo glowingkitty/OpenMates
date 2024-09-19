@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -14,11 +13,10 @@ sys.path.append(main_directory)
 from server.api import *
 ################
 
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional, ClassVar
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
-
 
 class DefaultPrivacySettings(BaseModel):
     allowed_to_access_name: bool = Field(..., description="Whether the AI team mates are by default allowed to access the name of the user.")
@@ -62,27 +60,42 @@ class MateConfig(BaseModel):
 
 class User(BaseModel):
     """This is the base model for a user"""
-    id: int = Field(..., description="ID of the user")
-    username: str = Field(..., description="Username of the user")
-    email: str = Field(..., description="Email address of the user")
-    teams: List[Team] = Field(..., description="Teams the user is a member of")
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the user")
-    balance_in_EUR: float = Field(..., description="Balance of the user in EUR. This balance can be used for using paid skills.")
-    mates_default_privacy_settings: DefaultPrivacySettings = Field(..., description="The default privacy settings for the AI team mates, which the user communicates with.")
-    mates_custom_settings: list[MateConfig] = Field(..., description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
-    software_settings: dict = Field(..., description="Software settings, such as privacy settings, which cloud accounts are connected, default settings and more.")
-    other_settings: dict = Field(..., description="Other settings, such as notification settings, etc.")
-    projects: List[Project] = Field(..., description="Projects of the user")
-    likes: List[str] = Field(..., description="List of topics the user is interested in")
-    dislikes: List[str] = Field(..., description="List of topics the user is not interested in")
-    # TODO
-    topics_outside_my_bubble_that_i_should_consider: List[str] = Field(..., description="List of topics the user is not interested in, but should consider")
-    goals: List[dict] = Field(..., description="Goals and priorities of the user, related to projects, learning, finances etc.")
-    todos: List[str] = Field(..., description="List of current To Do's of the user")
-    recent_topics: List[str] = Field(..., description="Recent topics the user asked the AI team mates about.")
-    recent_emails: List[dict] = Field(..., description="Recent incoming and outgoing emails of the user, of connected email accounts.")
-    calendar: dict = Field(..., description="Calendar of the user, with past events of the past month and upcoming events of the next year.")
+    model_config = ConfigDict(extra='allow')
 
+    id: str = Field(..., description="ID of the user")
+    username: str = Field(..., description="Username of the user")
+    email: Optional[str] = Field(None, description="Email address of the user")
+    teams: Optional[List[Team]] = Field(None, description="Teams the user is a member of")
+    profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the user")
+    balance_credits: int = Field(..., description="Balance of the user in credits. This balance can be used for using skills.")
+    mates_default_privacy_settings: Optional[DefaultPrivacySettings] = Field(None, description="The default privacy settings for the AI team mates, which the user communicates with.")
+    mates_custom_settings: Optional[list[MateConfig]] = Field(None, description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
+    other_settings: Optional[dict] = Field(None, description="Other settings, such as notification settings, etc.")
+    projects: Optional[List[Project]] = Field(None, description="Projects of the user")
+    likes: Optional[List[str]] = Field(None, description="List of topics the user is interested in")
+    dislikes: Optional[List[str]] = Field(None, description="List of topics the user is not interested in")
+    topics_outside_my_bubble_that_i_should_consider: Optional[List[str]] = Field(None, description="List of topics the user is not interested in, but should consider")
+    goals: Optional[List[dict]] = Field(None, description="Goals and priorities of the user, related to projects, learning, finances etc.")
+    recent_topics: Optional[List[str]] = Field(None, description="Recent topics the user asked the AI team mates about.")
+    is_server_admin: Optional[bool] = Field(None, description="Whether the user is a server admin")
+
+    email_encrypted: Optional[str] = Field(None, description="Encrypted email address of the user")
+    password_encrypted: Optional[str] = Field(None, description="Encrypted password of the user")
+    api_token_encrypted: Optional[str] = Field(None, description="Encrypted API token of the user")
+    other_settings_encrypted: Optional[str] = Field(None, description="Encrypted other settings of the user")
+    likes_encrypted: Optional[str] = Field(None, description="Encrypted likes of the user")
+    dislikes_encrypted: Optional[str] = Field(None, description="Encrypted dislikes of the user")
+    goals_encrypted: Optional[str] = Field(None, description="Encrypted goals of the user")
+    recent_topics_encrypted: Optional[str] = Field(None, description="Encrypted recent topics of the user")
+
+    decrypted_fields: ClassVar[List[str]] = [
+        'email',
+        'other_settings',
+        'likes',
+        'dislikes',
+        'goals',
+        'recent_topics'
+    ]
 
 users_get_one_output_example = {
     "id": 1,
@@ -96,7 +109,7 @@ users_get_one_output_example = {
         }
     ],
     "profile_picture_url": "/v1/ai-sales-team/uploads/johnd_image.jpeg",
-    "balance_in_EUR": 100.0,
+    "balance_credits": 49200,
     "mates_default_privacy_settings": {
         "allowed_to_access_name": True,
         "allowed_to_access_username": True,
@@ -110,38 +123,6 @@ users_get_one_output_example = {
         "allowed_to_access_dislikes": True
     },
     "mates_custom_settings": [],
-    "software_settings": {
-        "dropbox": {
-            "accounts": [
-                {
-                    "name": "John's Dropbox",
-                    "default": True,
-                    "email": "johnd_dropbox@gmail.com",
-                    "default_upload_folder": "/openmates"
-                }
-            ]
-        },
-        "rss": {
-            "feeds": [
-                {
-                    "name": "The Verge - Science",
-                    "url": "https://www.theverge.com/rss/science/index.xml"
-                }
-            ]
-        },
-        "youtube": {
-            "privacy":{
-                "allowed_to_access_my_project_data": True,
-                "allowed_to_access_my_goals": True,
-                "allowed_to_access_my_todos": True,
-                "allowed_to_access_my_recent_topics": True,
-                "allowed_to_access_my_recent_emails": True,
-                "allowed_to_access_my_calendar": True,
-                "allowed_to_access_my_likes": True,
-                "allowed_to_access_my_dislikes": True
-            }
-        }
-    },
     "other_settings": {
         "notifications": {
             "new_feature_announcements": {
@@ -178,10 +159,6 @@ users_get_one_output_example = {
             "priority": 2
         }
     ],
-    "todos": [
-        "learn TensorFlow",
-        "check out new Python AI libraries"
-    ],
     "recent_topics": [
         "AI",
         "Python",
@@ -191,35 +168,5 @@ users_get_one_output_example = {
         "sales software",
         "FastAPI",
         "Docker"
-    ],
-    "recent_emails": {
-        "work_emails": {
-            "incoming": [
-                {
-                    "subject": "Meeting with the AI team",
-                    "from": "AI Team",
-                    "date": "2021-09-01T09:00:00Z",
-                    "read": False,
-                    "summary": "We have a meeting to discuss the AI integration into the sales software."
-                },
-                {
-                    "subject": "New AI team member",
-                    "from": "AI Team",
-                    "date": "2021-09-01T10:00:00Z",
-                    "read": False,
-                    "summary": "We have a new team member joining the AI team."
-                }
-            ]
-        }
-    },
-    "calendar": {
-        "2024-08-01T09:00:00Z": {
-            "title": "Meeting with the AI team",
-            "description": "We have a meeting to discuss the AI integration into the sales software."
-        },
-        "2024-08-01T10:00:00Z": {
-            "title": "Sales software demo",
-            "description": "Demo of the updated sales software with AI integration."
-        }
-    }
+    ]
 }

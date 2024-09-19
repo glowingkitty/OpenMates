@@ -17,14 +17,27 @@ from server.api import *
 from server.api.endpoints.teams.get_teams import get_teams
 
 import logging
+import redis.asyncio as redis
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+redis_url = f"redis://{os.getenv('DRAGONFLY_URL', 'dragonfly:6379')}/0"
+redis_client = redis.Redis.from_url(redis_url)
+
+async def clear_all_memory():
+    """
+    Clear all data from Redis (Dragonfly).
+    """
+    await redis_client.flushall()
+    logger.info("Cleared all data from memory")
 
 
 async def api_startup():
     # Startup event
     logger.info("Processing startup events...")
+
+    await clear_all_memory()
 
     # TODO not needed to load all into memory! only load team into memory once a request from team is made (like with users), else request data from cms
 

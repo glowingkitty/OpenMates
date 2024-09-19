@@ -1510,17 +1510,17 @@ async def get_user(
     token: str = Depends(get_credentials),
     username: str = Path(..., **input_parameter_descriptions["user_username"])
 ) -> User:
-    await validate_permissions(
+    user_access: str = await validate_permissions(
         endpoint=f"/users/{username}",
         team_slug=team_slug,
         user_api_token=token
     )
     return await get_user_processing(
         team_slug=team_slug,
-        request_sender_api_token=token,
         api_token=token,
         username=username,
-        decrypt_data=True
+        user_access=user_access,
+        use_cms_only=True
         )
 
 
