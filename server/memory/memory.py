@@ -28,7 +28,6 @@ def save_user_to_memory(user_id: str, user_data: UserEncrypted) -> bool:
     Save a user to Redis (Dragonfly) by user ID.
     """
     logger.debug(f"Saving user to memory")
-    logger.debug(f"Saving user data: {user_data}")
 
     client = Redis.from_url(redis_url)
     user_data_dict = user_data.to_redis_dict()

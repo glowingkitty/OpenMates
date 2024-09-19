@@ -29,7 +29,7 @@ async def get_user(
         if not fields:
             fields = User.api_output_fields
 
-        # TODO encrypted fields are not saved in memory currently (except for api_token_encrypted)
+        # TODO fix empty profile_picture_url field (and reconsider if cms should be called if value of a field is None)
 
         # TODO enable requesting specific fields only (e.g. GET /users/{username}?fields=id,username,email)
 
