@@ -28,6 +28,8 @@ def save_user_to_memory(user_id: str, user_data: User) -> bool:
     """
     Save a user to Redis (Dragonfly) by user ID.
     """
+    logger.debug(f"Saving user to memory")
+
     client = Redis.from_url(redis_url)
     user_data_dict = user_data.to_redis_dict()
 
@@ -47,6 +49,8 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> User | None:
     always_include_fields = ["id", "username", "api_token_encrypted", 'is_server_admin', 'teams']
     fields = [x for x in fields if x not in always_include_fields]
     fields = always_include_fields + fields
+
+    logger.debug(f"Getting user from memory with fields: {fields}")
 
     if fields:
         user_data = client.hmget(user_key, fields)

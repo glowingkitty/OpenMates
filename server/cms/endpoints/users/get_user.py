@@ -92,6 +92,8 @@ async def get_user(
             always_include_fields = ["uid", "username", "api_token", "is_server_admin", "teams"]
             fields = [x for x in fields if x not in always_include_fields]
             fields = always_include_fields + fields
+
+            logger.debug(f"Loading user from cms with fields: {fields}")
             # Filter fields and populate based on user input
             fields_dict = {
                 access: [f for f in fields_list if f in fields]

@@ -39,7 +39,6 @@ async def get_user(
             user: User = get_user_from_memory(user_id=user_id, fields=fields)
 
             if user:
-                logger.debug(f"Loaded user from memory with fields: {fields}")
 
                 # check if all required fields are in the user object and have non-None values, if not, get user from cms
                 if fields:
@@ -54,12 +53,9 @@ async def get_user(
             user: User = await get_user_from_cms(user_id=user_id,user_access=user_access, fields=fields)
 
             if user:
-                logger.debug(f"Loaded user from cms with fields: {fields}")
-
                 # if user found, save it to memory
                 if not use_cms_only:
                     save_user_to_memory(user_id=user_id, user_data=user)
-                    logger.debug("Saved user to memory")
 
 
         # if user is not found in cms, raise error
@@ -98,6 +94,8 @@ async def get_user(
         user_fields = {k: v for k, v in user_fields.items() if v is not None}
 
         output_user = User(**user_fields)
+
+        logger.debug(f"Successfully loaded user.")
 
         return output_user
 
