@@ -21,7 +21,7 @@ async def validate_permissions(
     required_permissions: Optional[list] = None
 ) -> str:
     try:
-        logger.info(f"Validating permissions for endpoint '{endpoint}'...")
+        logger.debug(f"Validating permissions for endpoint '{endpoint}'...")
 
         # TODO handle different endpoint usecases
 
@@ -53,6 +53,8 @@ async def validate_permissions(
                 token=user_api_token,
                 team_slug=team_slug
             )
+
+        logger.debug(f"Access: '{access}'")
 
         return access
 

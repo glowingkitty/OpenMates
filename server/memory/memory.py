@@ -1,9 +1,10 @@
 import os
 from redis import Redis
 import json
-from server.api.models.users.users_get_one import User
+from server.api.models.users.users_get_one import User, Team, Project, DefaultPrivacySettings, MateConfig, Skill
 from server.api.models.teams.teams_get_one import Team
 from server.api.models.tasks.tasks_create import Task
+from pydantic import BaseModel
 
 import logging
 
@@ -28,22 +29,35 @@ def save_user_to_memory(user_id: str, user_data: User) -> bool:
     Save a user to Redis (Dragonfly) by user ID.
     """
     client = Redis.from_url(redis_url)
-    # remove not wanted data before saving
-    user_data_dict = user_data.model_dump(exclude=user_data.decrypted_fields, exclude_none=True)
-    client.set(f"user:{user_id}", json.dumps(user_data_dict), ex=default_expiration_time)
+    user_data_dict = user_data.to_redis_dict()
 
+    client.hmset(f"user:{user_id}", user_data_dict)
+    client.expire(f"user:{user_id}", default_expiration_time)
     return True
 
-def get_user_from_memory(user_id: str) -> User:
+def get_user_from_memory(user_id: str, fields: list[str] = None) -> User | None:
     """
     Retrieve a user from Redis (Dragonfly) by user ID.
+    If fields are specified, return a User object with only those fields populated.
     """
     client = Redis.from_url(redis_url)
-    user_data = client.get(f"user:{user_id}")
-    if user_data:
-        user_data_dict = json.loads(user_data)
-        return User(**user_data_dict)
-    return None
+    user_key = f"user:{user_id}"
+
+    # make sure id and username are in fields
+    always_include_fields = ["id", "username", "api_token_encrypted", 'is_server_admin', 'teams']
+    fields = [x for x in fields if x not in always_include_fields]
+    fields = always_include_fields + fields
+
+    if fields:
+        user_data = client.hmget(user_key, fields)
+        if not any(user_data):
+            return None
+        return User.from_redis_dict({k: v for k, v in zip(fields, user_data) if v is not None})
+    else:
+        user_data = client.hgetall(user_key)
+        if not user_data:
+            return None
+        return User.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()})
 
 
 ########################################################

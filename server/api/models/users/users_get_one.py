@@ -14,9 +14,10 @@ from server.api import *
 ################
 
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, ClassVar
+from typing import List, Optional, ClassVar, Dict, Any
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
+import json
 
 class DefaultPrivacySettings(BaseModel):
     allowed_to_access_name: bool = Field(..., description="Whether the AI team mates are by default allowed to access the name of the user.")
@@ -67,7 +68,7 @@ class User(BaseModel):
     email: Optional[str] = Field(None, description="Email address of the user")
     teams: Optional[List[Team]] = Field(None, description="Teams the user is a member of")
     profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the user")
-    balance_credits: int = Field(..., description="Balance of the user in credits. This balance can be used for using skills.")
+    balance_credits: Optional[int] = Field(None, description="Balance of the user in credits. This balance can be used for using skills.")
     mates_default_privacy_settings: Optional[DefaultPrivacySettings] = Field(None, description="The default privacy settings for the AI team mates, which the user communicates with.")
     mates_custom_settings: Optional[list[MateConfig]] = Field(None, description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
     other_settings: Optional[dict] = Field(None, description="Other settings, such as notification settings, etc.")
@@ -96,6 +97,41 @@ class User(BaseModel):
         'goals',
         'recent_topics'
     ]
+
+    def to_redis_dict(self) -> Dict[str, str]:
+        """Convert User object to a dictionary suitable for Redis storage."""
+        user_dict = self.model_dump(exclude=self.decrypted_fields, exclude_none=True)
+        for key, value in user_dict.items():
+            if isinstance(value, (list, dict, BaseModel)):
+                user_dict[key] = json.dumps(value, default=lambda o: o.model_dump() if isinstance(o, BaseModel) else None)
+            elif isinstance(value, bool):
+                user_dict[key] = str(value).lower()
+            else:
+                user_dict[key] = str(value)
+        return user_dict
+
+    @classmethod
+    def from_redis_dict(cls, data: Dict[str, str]) -> 'User':
+        """Create a User object from Redis data."""
+        def parse_value(key: str, value: str) -> Any:
+            if value.lower() in ('true', 'false'):
+                return value.lower() == 'true'
+            try:
+                parsed = json.loads(value)
+                if key == 'teams' and isinstance(parsed, list):
+                    return [Team(**team) for team in parsed]
+                elif key == 'projects' and isinstance(parsed, list):
+                    return [Project(**project) for project in parsed]
+                elif key == 'mates_default_privacy_settings':
+                    return DefaultPrivacySettings(**parsed)
+                elif key == 'mates_custom_settings' and isinstance(parsed, list):
+                    return [MateConfig(**config) for config in parsed]
+                return parsed
+            except json.JSONDecodeError:
+                return value
+
+        parsed_data = {k: parse_value(k, v) for k, v in data.items()}
+        return cls(**parsed_data)
 
 users_get_one_output_example = {
     "id": 1,

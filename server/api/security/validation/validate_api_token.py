@@ -16,26 +16,25 @@ async def validate_api_token(
     Verify if the API token is valid for the requested team
     """
     try:
-        logger.info("Verifying User API token...")
+        logger.debug("Verifying User API token...")
         # get the user data via get_user (which will first check in memory, then in cms)
         try:
             # get_user will also verify the api token
             user: User = await get_user(
                 api_token=token,
-                team_slug=team_slug,
-                user_access="full_access"
+                fields=["is_server_admin", "teams"]
             )
         except UserNotFoundError:
             raise InvalidAPITokenError(log_message="The user does not exist.")
 
         # verify that the user is a server admin
         if user.is_server_admin:
-            logger.info("The user is a server admin.")
+            logger.debug("The user is a server admin.")
             return "user_is_server_admin"
 
         # verify that the user is a member of the team
         if team_slug and user.teams and (team_slug in [team.slug for team in user.teams]):
-            logger.info("The user is a member of the team.")
+            logger.debug("The user is a member of the team.")
             return "user_is_member_of_team"
 
         # if the user is not a member of the team, raise an error
