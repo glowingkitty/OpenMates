@@ -1,22 +1,9 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
 from server.cms.cms import make_strapi_request
-
-################
-
 import uuid
+import logging
 
+logger = logging.getLogger(__name__)
+import logging
 
 async def generate_file_id() -> str:
     """
@@ -34,8 +21,8 @@ async def generate_file_id() -> str:
             }]
         )
         if status_code == 200 and not response['data']:
-            add_to_log(f'Generated file ID: {file_id}')
+            logger.info(f'Generated file ID: {file_id}')
             # If no files are found with this ID, return it
             return file_id
         else:
-            add_to_log(f'File ID {file_id} already exists')
+            logger.info(f'File ID {file_id} already exists')

@@ -1,26 +1,14 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-from server.cms.cms import make_strapi_request, upload_file_to_strapi
-
-################
-
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from fastapi import HTTPException
 from typing import List, Optional
 from server.api.security.crypto import encrypt_file
 from urllib.parse import quote
 from server.api.endpoints.skills.files.providers.openmates.generate_file_id import generate_file_id
+from server.cms.cms import make_strapi_request, upload_file_to_strapi
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 async def upload(
     team_slug: str,
@@ -38,7 +26,7 @@ async def upload(
     """
     Upload a file to OpenMates
     """
-    add_to_log(module_name="OpenMates | API | Files | Providers | OpenMates | Upload", state="start", color="yellow", hide_variables=True)
+    logger.info(f"Uploading file to provider openmates")
 
     # update the file name and make sure it is url safe
     file_name = quote(file_name.replace(" ", "_").lower(), safe='')
@@ -73,7 +61,7 @@ async def upload(
     )
 
     if status_code != 200:
-        add_to_log("Failed to create the uploaded file entry.", state="error")
+        logger.error(f"Failed to create the uploaded file entry.")
         raise HTTPException(status_code=500, detail="Failed to create the uploaded file entry.")
 
     # Output url should be /v1/{team_slug}/skills/files/{folder_path}/{file_id}/{file_name}

@@ -1,22 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi import HTTPException
 from server.api.endpoints.skills.files.providers.openmates.upload import upload as openmates_upload
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from typing import List, Optional
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def upload(
@@ -36,7 +25,7 @@ async def upload(
     """
     Upload a file to a provider
     """
-    add_to_log(module_name="OpenMates | API | Files | Upload", state="start", color="yellow", hide_variables=True)
+    logger.info(f"Uploading file to provider {provider}")
 
     if provider == "dropbox":
         # return await dropbox_upload(file_path)

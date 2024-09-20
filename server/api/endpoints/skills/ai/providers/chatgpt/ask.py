@@ -1,15 +1,22 @@
-from openai import OpenAI, APITimeoutError
-from dotenv import load_dotenv
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, AiAskOutputStream
-from typing import Literal, Union, List, Dict, Any
-from fastapi.responses import StreamingResponse
+import os
 import json
-from server.api.endpoints.skills.ai.providers.claude.ask import chunk_text
+import uuid
 import time
 import asyncio
-from collections import deque
 import logging
-import os
+from datetime import datetime
+from typing import Literal, Union, List, Dict, Any
+from fastapi.responses import StreamingResponse
+from dotenv import load_dotenv
+import httpx  # New asynchronous HTTP client
+from server.api.models.skills.ai.skills_ai_ask import (
+    AiAskOutput,
+    ContentItem,
+    AiAskInput,
+    ToolUse,
+    AiAskOutputStream
+)
+from server.api.endpoints.skills.ai.providers.claude.ask import chunk_text
 
 logger = logging.getLogger(__name__)
 
@@ -17,33 +24,26 @@ class SimpleRateLimiter:
     def __init__(self, max_calls, period):
         self.max_calls = max_calls
         self.period = period
-        self.calls = deque()
+        self.calls = asyncio.Queue()
 
     async def acquire(self):
         now = time.time()
 
-        # Remove old calls
-        while self.calls and now - self.calls[0] > self.period:
-            self.calls.popleft()
+        while not self.calls.empty():
+            if now - self.calls._queue[0] > self.period:
+                await self.calls.get()
+            else:
+                break
 
-        if len(self.calls) >= self.max_calls:
-            sleep_time = self.period - (now - self.calls[0])
+        if self.calls.qsize() >= self.max_calls:
+            sleep_time = self.period - (now - self.calls._queue[0])
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
 
-        self.calls.append(time.time())
+        await self.calls.put(now)
 
 # Initialize the rate limiter (adjust values as needed)
 rate_limiter = SimpleRateLimiter(max_calls=5000, period=60)  # 5000 calls per minute
-
-# Rate limit:
-# Tier 1: 500 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
-# Tier 2: 5000 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
-# Tier 3: 5000 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
-# Tier 4: 10000 calls per minute (gpt-4o-mini, gpt-4o), no access to o1-mini, o1-preview
-# Tier 5: 30000 calls per minute (gpt-4o-mini), 10000 calls per minute (gpt-4o), 20 calls per minute (o1-mini, o1-preview)
-
-
 
 async def ask(
         api_token: str = os.getenv("OPENAI_API_KEY"),
@@ -60,7 +60,7 @@ async def ask(
         retries: int = 3  # Add a retries parameter with a default value
     ) -> Union[AiAskOutput, StreamingResponse]:
     """
-    Ask a question to ChatGPT
+    Ask a question to ChatGPT asynchronously using httpx.
     """
 
     # Wait for rate limit to allow the call
@@ -82,9 +82,7 @@ async def ask(
 
     logger.info("Asking ChatGPT ...")
 
-    # Initialize OpenAI client
     load_dotenv()
-    client = OpenAI(api_key=api_token)
 
     # Prepare messages for the chat
     messages = [{"role": "system", "content": input.system}]
@@ -145,108 +143,112 @@ async def ask(
         "messages": messages,
         "temperature": input.temperature,
         "max_tokens": input.max_tokens,
+        "stop": input.stop_sequence,
         "stream": input.stream
     }
 
     # Add tools configuration if provided
     if input.tools:
-        chat_config["tools"] = [
+        chat_config["functions"] = [
             {
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.input_schema.model_dump()
-                }
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": tool["input_schema"]
             }
             for tool in input.tools
         ]
-        chat_config["tool_choice"] = "auto"  # Use tool_choice instead of function_call
+        chat_config["function_call"] = "auto"  # Use function_call instead of tool_choice
 
-    if input.stream:
-        # Handle streaming response
-        async def event_stream():
-            stream = client.chat.completions.create(**chat_config)
-            accumulated_text = ""
-            accumulated_tool_call = {}
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    accumulated_text += chunk.choices[0].delta.content
-                    chunks = chunk_text(accumulated_text)
-                    if len(chunks) > 1:
-                        for complete_chunk in chunks[:-1]:
-                            yield AiAskOutputStream(content=ContentItem(type="text", text=complete_chunk)).model_dump_json(exclude_none=True) + "\n\n"
-                        accumulated_text = chunks[-1]
-                elif chunk.choices[0].delta.tool_calls:
-                    tool_call = chunk.choices[0].delta.tool_calls[0]
-                    if tool_call.function.name:
-                        accumulated_tool_call["name"] = tool_call.function.name
-                    if tool_call.function.arguments:
-                        accumulated_tool_call["arguments"] = accumulated_tool_call.get("arguments", "") + tool_call.function.arguments
+    async with httpx.AsyncClient() as client:
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
 
-                    if "name" in accumulated_tool_call and "arguments" in accumulated_tool_call:
-                        try:
-                            parsed_arguments = json.loads(accumulated_tool_call["arguments"])
-                            yield AiAskOutputStream(
-                                content=ContentItem(
-                                    type="tool_use",
-                                    tool_use=ToolUse(
-                                        id=str(uuid.uuid4()),
-                                        name=accumulated_tool_call["name"],
-                                        input=parsed_arguments
-                                    )
-                                )
-                            ).model_dump_json(exclude_none=True) + "\n\n"
-                            accumulated_tool_call = {}
-                        except json.JSONDecodeError:
-                            pass
-            if accumulated_text:
-                yield AiAskOutputStream(content=ContentItem(type="text", text=accumulated_text)).model_dump_json(exclude_none=True) + "\n\n"
-            yield AiAskOutputStream(stream_end=True).model_dump_json(exclude_none=True) + "\n\n"
+        if input.stream:
+            # Handle streaming response
+            async def event_stream():
+                async with client.stream("POST", "https://api.openai.com/v1/chat/completions", headers=headers, json=chat_config) as response:
+                    accumulated_text = ""
+                    accumulated_tool_call = {}
+                    async for chunk in response.aiter_text():
+                        data = json.loads(chunk)
+                        if 'choices' in data:
+                            choice = data['choices'][0]
+                            if 'delta' in choice:
+                                delta = choice['delta']
+                                if 'content' in delta:
+                                    accumulated_text += delta['content']
+                                    chunks = chunk_text(accumulated_text)
+                                    if len(chunks) > 1:
+                                        for complete_chunk in chunks[:-1]:
+                                            yield AiAskOutputStream(content=ContentItem(type="text", text=complete_chunk)).model_dump_json(exclude_none=True) + "\n\n"
+                                        accumulated_text = chunks[-1]
+                                if 'function_call' in delta:
+                                    tool_call = delta['function_call']
+                                    if tool_call.get('name'):
+                                        accumulated_tool_call["name"] = tool_call['name']
+                                    if tool_call.get('arguments'):
+                                        accumulated_tool_call["arguments"] = accumulated_tool_call.get("arguments", "") + tool_call['arguments']
 
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
-    else:
-        # Handle non-streaming response
-        async def make_request():
-            try:
-                return client.chat.completions.create(**chat_config)
-            except APITimeoutError as e:
-                logger.error(f"API Timeout Error: {e}")
-                raise
+                                        if "name" in accumulated_tool_call and "arguments" in accumulated_tool_call:
+                                            try:
+                                                parsed_arguments = json.loads(accumulated_tool_call["arguments"])
+                                                yield AiAskOutputStream(
+                                                    content=ContentItem(
+                                                        type="tool_use",
+                                                        tool_use=ToolUse(
+                                                            id=str(uuid.uuid4()),
+                                                            name=accumulated_tool_call["name"],
+                                                            input=parsed_arguments
+                                                        )
+                                                    )
+                                                ).model_dump_json(exclude_none=True) + "\n\n"
+                                                accumulated_tool_call = {}
+                                            except json.JSONDecodeError:
+                                                pass
+                    if accumulated_text:
+                        yield AiAskOutputStream(content=ContentItem(type="text", text=accumulated_text)).model_dump_json(exclude_none=True) + "\n\n"
+                    yield AiAskOutputStream(stream_end=True).model_dump_json(exclude_none=True) + "\n\n"
 
-        for attempt in range(retries):
-            try:
-                response = await make_request()
-                break
-            except APITimeoutError:
-                if attempt < retries - 1:
-                    logger.warning(f"Retrying... ({attempt + 1}/{retries})")
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                else:
-                    logger.error("Max retries reached. Request failed.")
+            return StreamingResponse(event_stream(), media_type="text/event-stream")
+        else:
+            # Handle non-streaming response
+            for attempt in range(retries):
+                try:
+                    response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=chat_config, timeout=60.0)
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except httpx.TimeoutException as e:
+                    logger.error(f"HTTP Timeout Error: {e}")
+                    if attempt < retries - 1:
+                        logger.warning(f"Retrying... ({attempt + 1}/{retries})")
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        logger.error("Max retries reached. Request failed.")
+                        raise
+                except httpx.HTTPStatusError as e:
+                    logger.error(f"HTTP Error: {e}")
                     raise
 
-        # Process the response content
-        content = []
-        if response.choices[0].message.content:
-            content.append(ContentItem(type="text", text=response.choices[0].message.content))
+            # Process the response content
+            content = []
+            if data['choices'][0]['message'].get('content'):
+                content.append(ContentItem(type="text", text=data['choices'][0]['message']['content']))
 
-        # Handle tool calls (previously function_call)
-        if response.choices[0].message.tool_calls:
-            for tool_call in response.choices[0].message.tool_calls:
+            # Handle tool calls
+            if data['choices'][0]['message'].get('function_call'):
+                tool_call = data['choices'][0]['message']['function_call']
                 content.append(ContentItem(
                     type="tool_use",
                     tool_use=ToolUse(
-                        name=tool_call.function.name,
-                        input=json.loads(tool_call.function.arguments)
+                        name=tool_call['name'],
+                        input=json.loads(tool_call['arguments'])
                     )
                 ))
 
-        # Add handling for tool results if applicable
-        # This might depend on how ChatGPT returns tool results
-
-        # Return the final output
-        return AiAskOutput(
-            content=content,
-            cost_credits=None
-        ).model_dump(exclude_none=True)
+            return AiAskOutput(
+                content=content,
+                cost_credits=None
+            ).model_dump(exclude_none=True)
