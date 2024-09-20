@@ -27,16 +27,16 @@ web_read_input_examples = [
 ]
 
 web_read_input_example = {
-    "url": "https://www.theverge.com/2024/9/20/24248356/iphone-16-camera-photographic-styles"
+    "url": "https://www.anthropic.com/news/claude-3-5-sonnet"
 }
 
 web_read_output_example = {
-    "url": "https://www.theverge.com/2024/9/20/24248356/iphone-16-camera-photographic-styles",
-    "title": "The iPhone camera is more confusing than ever",
-    "content": "The iPhone camera is more confusing than ever ...",
-    "description": "What is a camera? Its personal, it turns out.",
-    "keywords": ["camera", "iPhone", "photography"],
-    "authors": ["Allison Johnson"],
-    "publisher": "The Verge",
-    "published_date": "2024-09-20"
+    "url": "https://www.anthropic.com/news/claude-3-5-sonnet",
+    "title": "Introducing Claude 3.5 Sonnet",
+    "content": "# Claude 3.5 Sonnet\n\n![Claude head illustration](https://www.anthropic.com/_next/image?url=htt...",
+    "description": "Introducing Claude 3.5 Sonnet—our most intelligent model yet. Sonnet now outperforms competitor models and Claude 3 Opus on key evaluations, at twice the speed.",
+    "keywords": [],
+    "authors": [],
+    "publisher": "https://www.anthropic.com",
+    "published_date": None
 }
