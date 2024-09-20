@@ -26,10 +26,29 @@ async def get_user(
     try:
         logger.debug("Getting a specific user ...")
 
-        if not fields:
+        # Split the fields by comma if provided as a single string
+        if fields:
+            for field in fields:
+                # if there is a comma in the field, split it and remove spaces
+                if "," in field:
+                    fields.remove(field)
+                    fields.extend(field.split(","))
+                elif ";" in field:
+                    fields.remove(field)
+                    fields.extend(field.split(";"))
+                elif " " in field:
+                    fields.remove(field)
+                    fields.extend(field.split(" "))
+            # remove duplicates and spaces
+            fields = [field.strip() for field in fields]
+            fields = list(set(fields))
+            logger.debug(f"Fields: {fields}")
+        else:
             fields = User.api_output_fields
 
-        # TODO also implement same save to memory logic for teams
+        # TODO also implement same save / load from memory logic for getting all users
+
+        # TODO also implement same save / load from memory logic for teams
 
         if not api_token and not (username and password):
             raise ValueError("You need to provide either an api token or username and password.")
@@ -70,6 +89,10 @@ async def get_user(
         # verify password
         if password and not verify_hash(hashed_text=user.password, text=password):
             raise InvalidPasswordError(log_message="The user password is invalid.")
+
+        # verify username
+        if username and not user.username == username:
+            raise UserNotFoundError()
 
         # decrypt user data and fill non-encrypted fields
         user_fields = {
