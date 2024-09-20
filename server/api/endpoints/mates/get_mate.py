@@ -145,7 +145,7 @@ async def get_mate(
                         "name": get_nested(mate, "name"),
                         "username": get_nested(mate, "name").lower().replace(" ", "_"),
                         "description": get_nested(mate, "description"),
-                        "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
+                        "profile_image": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
                         "llm_endpoint": f"/v1/{team_slug}/skills/{llm_skill_software_slug}/{llm_skill_slug}",
                         "llm_model": get_nested(mate, "config.llm_model") or get_nested(mate, "default_llm_model"),
                         "systemprompt": get_nested(mate, "config.systemprompt") or get_nested(mate, "default_systemprompt"),

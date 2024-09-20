@@ -22,7 +22,7 @@ async def update_user(
         username: str = None,
         email: str = None,
         teams: list[int] = None, # the ids of the team
-        profile_picture_url: str = None,
+        profile_image: str = None,
         balance_eur: float = None,
         mates_default_privacy_settings__allowed_to_access_name: bool = None,
         mates_default_privacy_settings__allowed_to_access_username: bool = None,

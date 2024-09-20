@@ -27,7 +27,7 @@ class MatesUpdateInput(BaseModel):
     name: str = Field(None, description="Name of the AI team mate")
     username: str = Field(None, description="Username of the AI team mate", min_length=1, max_length=30, json_schema_extra={"unique": True})
     description: str = Field(None, description="Description of the AI team mate", min_length=1, max_length=150)
-    profile_picture_url: str = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
+    profile_image: str = Field(None, description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(None, description="Default system prompt of the AI team mate", min_length=1)
     default_skills: Optional[List[Union[int, str]]] = Field(None, description="Default list of skill IDs or skill API endpoints for the AI team mate")
     default_llm_endpoint: str = Field(None, description="Default API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
@@ -60,9 +60,9 @@ class MatesUpdateInput(BaseModel):
             raise ValueError('username must be all lowercase')
         return v
 
-    @field_validator('profile_picture_url')
+    @field_validator('profile_image')
     @classmethod
-    def validate_profile_picture_url(cls, v):
+    def validate_profile_image(cls, v):
         pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png)$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid profile picture URL format: {v}")

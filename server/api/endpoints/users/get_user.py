@@ -29,8 +29,6 @@ async def get_user(
         if not fields:
             fields = User.api_output_fields
 
-        # TODO fix empty profile_picture_url field (and reconsider if cms should be called if value of a field is None)
-
         # TODO enable requesting specific fields only (e.g. GET /users/{username}?fields=id,username,email)
 
         # TODO also implement same save to memory logic for teams
@@ -82,7 +80,7 @@ async def get_user(
             "is_server_admin": user.is_server_admin,
             "email": decrypt(user.email),
             "teams": user.teams,
-            "profile_picture_url": user.profile_picture_url,
+            "profile_image": user.profile_image,
             "balance_credits": user.balance_credits,
             "mates_default_privacy_settings": user.mates_default_privacy_settings,
             "mate_configs": user.mate_configs,

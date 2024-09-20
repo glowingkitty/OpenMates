@@ -51,7 +51,7 @@ class User(BaseModel):
     username: str = Field(..., description="Username of the user")
     email: Optional[str] = Field(None, description="Email address of the user")
     teams: Optional[List[Team]] = Field(None, description="Teams the user is a member of")
-    profile_picture_url: Optional[str] = Field(None, description="URL of the profile picture of the user")
+    profile_image: Optional[str] = Field(None, description="URL of the profile picture of the user")
     balance_credits: Optional[int] = Field(None, description="Balance of the user in credits. This balance can be used for using skills.")
     mates_default_privacy_settings: Optional[DefaultPrivacySettings] = Field(None, description="The default privacy settings for the AI team mates, which the user communicates with.")
     mate_configs: Optional[list[MateConfig]] = Field(None, description="Custom settings for the AI team mates, such as system prompt, privacy settings, etc.")
@@ -69,7 +69,7 @@ class User(BaseModel):
         'username',
         'email',
         'teams',
-        'profile_picture_url',
+        'profile_image',
         'balance_credits',
         'mates_default_privacy_settings',
         'mate_configs',
@@ -146,7 +146,7 @@ users_get_one_output_example = {
             "slug": "ai-sales-team"
         }
     ],
-    "profile_picture_url": "/v1/ai-sales-team/uploads/johnd_image.jpeg",
+    "profile_image": "/v1/ai-sales-team/uploads/johnd_image.jpeg",
     "balance_credits": 49200,
     "mates_default_privacy_settings": {
         "allowed_to_access_name": True,

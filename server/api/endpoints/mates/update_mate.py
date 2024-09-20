@@ -31,7 +31,7 @@ async def update_mate(
         new_name: Optional[str] = None,
         new_username: Optional[str] = None,
         new_description: Optional[str] = None,
-        new_profile_picture_url: Optional[str] = None,
+        new_profile_image: Optional[str] = None,
         new_default_systemprompt: Optional[str] = None,
         new_default_llm_endpoint: Optional[str] = None,
         new_default_llm_model: Optional[str] = None,
@@ -63,11 +63,11 @@ async def update_mate(
             await validate_mate_username(username=new_username)
 
         new_profile_picture = await validate_permissions(
-            endpoint=f"/uploads/{new_profile_picture_url.split('/')[-1]}",
+            endpoint=f"/uploads/{new_profile_image.split('/')[-1]}",
             user_api_token=user_api_token,
             user_api_token_already_checked=True,
             team_slug=team_slug
-        ) if new_profile_picture_url!=None else None
+        ) if new_profile_image!=None else None
 
         # Process new_default_skills to ensure they are all integers
         if new_default_skills != None:

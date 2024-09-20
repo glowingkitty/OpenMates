@@ -716,7 +716,7 @@ async def create_mate(
         name=parameters.name,
         username=parameters.username,
         description=parameters.description,
-        profile_picture_url=parameters.profile_picture_url,
+        profile_image=parameters.profile_image,
         default_systemprompt=parameters.default_systemprompt,
         default_skills=parameters.default_skills,
         default_llm_endpoint=parameters.default_llm_endpoint,
@@ -747,7 +747,7 @@ async def update_mate(
         new_name=parameters.name,                                   # updates mate, only if user has right to edit original mate
         new_username=parameters.username,                           # updates mate, only if user has right to edit original mate
         new_description=parameters.description,                     # updates mate, only if user has right to edit original mate
-        new_profile_picture_url=parameters.profile_picture_url,     # updates mate, only if user has right to edit original mate
+        new_profile_image=parameters.profile_image,     # updates mate, only if user has right to edit original mate
         new_default_systemprompt=parameters.default_systemprompt,   # updates mate, only if user has right to edit original mate
         new_default_skills=parameters.default_skills,               # updates mate, only if user has right to edit original mate
         new_default_llm_endpoint=parameters.default_llm_endpoint,   # updates mate, only if user has right to edit original mate

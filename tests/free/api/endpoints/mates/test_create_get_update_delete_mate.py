@@ -59,7 +59,7 @@ def test_create_update_delete_mate_basic(api_config):
         "name": "Test Mate",
         "username": "test_mate_basic",
         "description": "Test mate description",
-        "profile_picture_url": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
+        "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
         "default_skills": [1],
         "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
@@ -84,7 +84,7 @@ def test_create_update_delete_mate_with_youtube_skill(api_config):
         "name": "YouTube Skill Mate",
         "username": "youtube_skill_mate",
         "description": "Mate with YouTube skill",
-        "profile_picture_url": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
+        "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a YouTube content expert.",
         "default_skills": [f'/v1/{api_config["team_slug"]}/skills/youtube/transcript'],
         "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
@@ -107,7 +107,7 @@ def test_create_update_delete_mate_multiple_updates(api_config):
         "name": "Multi Update Mate",
         "username": "multi_update_mate",
         "description": "Mate for testing multiple updates",
-        "profile_picture_url": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
+        "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a versatile AI assistant.",
         "default_skills": [1],
         "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
@@ -147,7 +147,7 @@ def test_create_mate_validation_error(api_config):
         "name": "Invalid Mate",
         "username": "INVALID_USERNAME",
         "description": "This mate should fail validation",
-        "profile_picture_url": "invalid_url",
+        "profile_image": "invalid_url",
         "default_systemprompt": "",
         "default_skills": [1],
         "default_llm_endpoint": "invalid_endpoint",
@@ -171,7 +171,7 @@ def test_update_mate_validation_error(api_config):
         "name": "Valid Mate",
         "username": "valid_mate",
         "description": "This mate is valid",
-        "profile_picture_url": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
+        "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a test mate.",
         "default_skills": [1],
         "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
@@ -182,7 +182,7 @@ def test_update_mate_validation_error(api_config):
 
     invalid_update_data = {
         "username": "INVALID_USERNAME",
-        "profile_picture_url": "invalid_url",
+        "profile_image": "invalid_url",
         "default_llm_endpoint": "invalid_endpoint",
         "default_llm_model": "invalid_model"
     }

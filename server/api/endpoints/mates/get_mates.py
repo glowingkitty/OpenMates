@@ -64,7 +64,7 @@ async def get_mates(
                     "name": get_nested(mate, "name"),
                     "username": get_nested(mate, "username"),
                     "description": get_nested(mate, "description"),
-                    "profile_picture_url": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
+                    "profile_image": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
                 }
                 mates.append(mate_data)
 

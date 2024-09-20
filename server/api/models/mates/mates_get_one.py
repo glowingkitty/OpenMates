@@ -28,7 +28,7 @@ class Mate(BaseModel):
     name: str = Field(..., description="name of the AI team mate")
     username: str = Field(..., description="username of the AI team mate")
     description: str = Field(..., description="Description of the AI team mate")
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
+    profile_image: str = Field(..., description="URL of the profile picture of the AI team mate")
     llm_endpoint: str = Field(..., description="The API endpoint of the Large Language Model (LLM) which is used by the AI team mate.")
     llm_model: str = Field(..., description="The LLM model which is used by the AI team mate.")
     systemprompt: str = Field(..., description="Currently used system prompt of the AI team mate for the user who makes the request to the API, in the context of the selected team.")
@@ -51,9 +51,9 @@ class Mate(BaseModel):
             raise ValueError('username must be all lowercase')
         return v
 
-    @field_validator('profile_picture_url')
+    @field_validator('profile_image')
     @classmethod
-    def validate_profile_picture_url(cls, v: str) -> str:
+    def validate_profile_image(cls, v: str) -> str:
         pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid profile picture URL format: {v}")
@@ -86,7 +86,7 @@ mates_get_one_output_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
+    "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
     "llm_model":"gpt-4o",
     "systemprompt": "You are a software development expert. Keep your answers clear and concise.",

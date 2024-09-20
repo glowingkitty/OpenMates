@@ -93,6 +93,19 @@ async def get_user(
             fields = [x for x in fields if x not in always_include_fields]
             fields = always_include_fields + fields
 
+            # replace field names which have different names in cms
+            allowed_to_access_fields = ["name", "username", "projects", "goals", "todos", "recent_topics", "recent_emails", "calendar", "likes", "dislikes"]
+            allowed_to_access_fields = [f"allowed_to_access_{field}" for field in allowed_to_access_fields]
+            alternative_field_names = {
+                "mates_default_privacy_settings": [f"mate_privacy_config_default__{field}" for field in allowed_to_access_fields]
+            }
+            for field in fields:
+                if field in alternative_field_names:
+                    if type(alternative_field_names[field]) == list:
+                        fields.extend(alternative_field_names[field])
+                    else:
+                        fields.append(alternative_field_names[field])
+
             logger.debug(f"Loading user from cms with fields: {fields}")
             # Filter fields and populate based on user input
             fields_dict = {
@@ -139,7 +152,7 @@ async def get_user(
                         slug=get_nested(team, "slug")
                     ) for team in get_nested(user, "teams") or []
                 ],
-                "profile_picture_url": f"/v1/{team_slug}{get_nested(user, 'profile_image.file.url')}" if get_nested(user, 'profile_image') else None,
+                "profile_image": f"/v1/{team_slug}{get_nested(user, 'profile_image.file.url')}" if get_nested(user, 'profile_image') else None,
                 "balance_credits": get_nested(user, "balance_credits"),
                 "mates_default_privacy_settings": DefaultPrivacySettings(
                     allowed_to_access_name=get_nested(user, "mate_privacy_config_default__allowed_to_access_name"),
@@ -152,7 +165,7 @@ async def get_user(
                     allowed_to_access_calendar=get_nested(user, "mate_privacy_config_default__allowed_to_access_calendar"),
                     allowed_to_access_likes=get_nested(user, "mate_privacy_config_default__allowed_to_access_likes"),
                     allowed_to_access_dislikes=get_nested(user, "mate_privacy_config_default__allowed_to_access_dislikes"),
-                ) if any(get_nested(user, f"mate_privacy_config_default__{setting}") for setting in ["allowed_to_access_name", "allowed_to_access_username", "allowed_to_access_projects", "allowed_to_access_goals", "allowed_to_access_todos", "allowed_to_access_recent_topics", "allowed_to_access_recent_emails", "allowed_to_access_calendar", "allowed_to_access_likes", "allowed_to_access_dislikes"]) else None,
+                ) if any(get_nested(user, f"mate_privacy_config_default__{setting}") for setting in allowed_to_access_fields) else None,
                 "mate_configs": [
                     MateConfig(
                         id=get_nested(config, "id"),
@@ -196,7 +209,7 @@ async def get_user(
                 "goals": get_nested(user, "goals"),
                 "recent_topics": get_nested(user, "recent_topics")
             }
-            user_fields.update({k: v for k, v in full_access_fields.items() if v is not None})
+            user_fields.update({k: v for k, v in full_access_fields.items() if v is not None and v != []})
 
         return UserEncrypted(**user_fields)
 

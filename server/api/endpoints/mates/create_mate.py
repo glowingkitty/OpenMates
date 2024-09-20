@@ -28,7 +28,7 @@ async def create_mate(
         name: str,
         username: str,
         description: str,
-        profile_picture_url: str,
+        profile_image: str,
         default_systemprompt: str,
         default_llm_endpoint: str,
         default_llm_model: str,
@@ -48,7 +48,7 @@ async def create_mate(
 
         # check if the profile picture exists and the user has access to it
         profile_picture = await validate_permissions(
-            endpoint=f"/uploads/{profile_picture_url.split('/')[-1]}",
+            endpoint=f"/uploads/{profile_image.split('/')[-1]}",
             user_api_token=user_api_token,
             user_api_token_already_checked=True,
             team_slug=team_slug
@@ -143,7 +143,7 @@ async def create_mate(
             "name": name,
             "username": username,
             "description": description,
-            "profile_picture_url": profile_picture_url,
+            "profile_image": profile_image,
             "default_systemprompt": default_systemprompt,
             "default_skills": default_skills_extended_data,
             "default_llm_endpoint": default_llm_endpoint,

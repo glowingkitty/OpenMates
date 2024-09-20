@@ -27,13 +27,13 @@ class MateMini(BaseModel):
     name: str = Field(..., description="name of the AI team mate")
     username: str = Field(..., description="username of the AI team mate")
     description: str = Field(..., description="Description of the AI team mate")
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate")
+    profile_image: str = Field(..., description="URL of the profile picture of the AI team mate")
 
     model_config = ConfigDict(extra="forbid")
 
-    @field_validator('profile_picture_url')
+    @field_validator('profile_image')
     @classmethod
-    def validate_profile_picture_url(cls, v):
+    def validate_profile_image(cls, v):
         pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid profile picture URL format: {v}")
@@ -61,14 +61,14 @@ mates_get_all_output_example = {
             "name": "Burton",
             "username": "burton",
             "description": "Business development expert",
-            "profile_picture_url": "/v1/ai-sales-team/uploads/burton_image.jpeg"
+            "profile_image": "/v1/ai-sales-team/uploads/burton_image.jpeg"
         },
         {
             "id": 2,
             "name": "Sophia",
             "username": "sophia",
             "description": "Software development expert",
-            "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg"
+            "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg"
         }
     ],
     "meta": {

@@ -27,7 +27,7 @@ class MatesCreateInput(BaseModel):
     name: str = Field(..., description="Name of the AI team mate", min_length=1, max_length=30)
     username: str = Field(..., description="Username of the AI team mate", min_length=1, max_length=30, json_schema_extra={"unique": True})
     description: str = Field(..., description="Description of the AI team mate", min_length=1, max_length=150)
-    profile_picture_url: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
+    profile_image: str = Field(..., description="URL of the profile picture of the AI team mate", pattern=r".*\.(jpg|jpeg|png)$")
     default_systemprompt: str = Field(..., description="Default system prompt of the AI team mate", min_length=1)
     default_skills: Optional[List[Union[int, str]]] = Field(None, description="Default list of skill IDs or skill API endpoints for the AI team mate")
     default_llm_endpoint: str = Field(..., description="Default LLM endpoint of the AI team mate")
@@ -47,9 +47,9 @@ class MatesCreateInput(BaseModel):
             raise ValueError('username must be all lowercase')
         return v
 
-    @field_validator('profile_picture_url')
+    @field_validator('profile_image')
     @classmethod
-    def validate_profile_picture_url(cls, v):
+    def validate_profile_image(cls, v):
         pattern = r'^/v1/[a-z0-9-]+/uploads/[a-zA-Z0-9_.-]+\.(jpeg|jpg|png|gif)$'
         if not re.match(pattern, v):
             raise ValueError(f"Invalid profile picture URL format: {v}")
@@ -71,7 +71,7 @@ mates_create_input_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
+    "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": ['/v1/ai-sales-team/skills/vs_code/write_and_test_code'],
     "default_llm_endpoint": "/v1/ai-sales-team/skills/claude/ask",
@@ -91,7 +91,7 @@ mates_create_output_example = {
     "name": "Sophia",
     "username": "sophia",
     "description": "Software development expert",
-    "profile_picture_url": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
+    "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [
         {
