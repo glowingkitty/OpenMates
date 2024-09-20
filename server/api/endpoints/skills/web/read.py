@@ -5,7 +5,6 @@ from newspaper import Article, ArticleException
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-import mimetypes
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -53,6 +52,9 @@ async def read(
         url: str,
         include_images: bool = True
     ) -> WebReadOutput:
+    """
+    Read a web page and return the content in markdown format.
+    """
     try:
         logger.debug(f"Reading web page with URL: {url}")
 

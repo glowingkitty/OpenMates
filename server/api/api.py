@@ -150,6 +150,12 @@ from server.api.models.skills.web.skills_web_read import (
     web_read_input_example,
     web_read_output_example
 )
+from server.api.models.skills.web.skills_web_view import (
+    WebViewInput,
+    WebViewOutput,
+    web_view_input_example,
+    web_view_output_example
+)
 from server.api.models.skills.files.skills_files_upload import (
     FilesUploadOutput,
     files_upload_output_example
@@ -212,6 +218,7 @@ from server.api.endpoints.skills.files.upload import upload as skill_files_uploa
 from server.api.endpoints.skills.files.delete import delete as skill_files_delete_processing
 from server.api.endpoints.skills.docs.create import create as skill_docs_create_processing
 from server.api.endpoints.skills.web.read import read as skill_web_read_processing
+from server.api.endpoints.skills.web.view import view as skill_web_view_processing
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
@@ -522,6 +529,12 @@ def custom_openapi():
     })
     set_example(openapi_schema, "/v1/{team_slug}/skills/web/read", "post", "responses", {
         "Example 1": web_read_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/web/view", "post", "requestBody", {
+        "Example 1": web_view_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/web/view", "post", "responses", {
+        "Example 1": web_view_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/files/upload", "post", "responses", {
         "Example 1": files_upload_output_example
@@ -1202,6 +1215,25 @@ async def skill_web_read(
     return await skill_web_read_processing(
         url=parameters.url,
         include_images=parameters.include_images
+    )
+
+
+# POST /skills/web/view (view a web page)
+@skills_web_router.post("/v1/{team_slug}/skills/web/view", **skills_web_endpoints["view"])
+@limiter.limit("20/minute")
+async def skill_web_view(
+    request: Request,
+    parameters: WebViewInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> WebViewOutput:
+    await validate_permissions(
+        endpoint="/skills/web/view",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_web_view_processing(
+        url=parameters.url
     )
 
 

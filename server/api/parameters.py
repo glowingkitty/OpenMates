@@ -76,6 +76,9 @@ from server.api.models.skills.videos.skills_videos_get_transcript import (
 from server.api.models.skills.web.skills_web_read import (
     WebReadOutput
 )
+from server.api.models.skills.web.skills_web_view import (
+    WebViewOutput
+)
 from server.api.models.users.users_create import (
     UsersCreateOutput
 )
@@ -290,7 +293,13 @@ skills_web_endpoints = {
     "read":{
         "response_model":WebReadOutput,
         "summary": "Read",
-        "description": "<img src='images/skills/web/read.png' alt='Return the content of a website as easy to read text plus images.'>",
+        "description": "<img src='images/skills/web/read.png' alt='Return the content of a website as easy to read text plus images. Great for news articles and blogs.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "view":{
+        "response_model":WebViewOutput,
+        "summary": "View",
+        "description": "<img src='images/skills/web/view.png' alt='Return a website in its full form, including content that loads with scripts. Great for more complex websites.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
