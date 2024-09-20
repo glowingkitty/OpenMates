@@ -6,6 +6,7 @@ from typing import List, Optional
 class WebReadInput(BaseModel):
     """This is the model for the input of the web read skill"""
     url: str = Field(..., description="URL of the web page")
+    include_images: bool = Field(True, description="Whether to include images in the output")
 
 class WebReadOutput(BaseModel):
     """This is the model for the output of the web read skill"""
@@ -27,7 +28,8 @@ web_read_input_examples = [
 ]
 
 web_read_input_example = {
-    "url": "https://www.anthropic.com/news/claude-3-5-sonnet"
+    "url": "https://www.anthropic.com/news/claude-3-5-sonnet",
+    "include_images": True
 }
 
 web_read_output_example = {

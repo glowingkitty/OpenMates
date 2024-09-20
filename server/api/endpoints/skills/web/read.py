@@ -10,9 +10,9 @@ import mimetypes
 # Set up logger
 logger = logging.getLogger(__name__)
 
-def process_content(article, base_url):
+def process_content(article, base_url, include_images):
     # Parse the HTML content
-    soup = BeautifulSoup(article.html, 'html.parser')
+    soup: BeautifulSoup = BeautifulSoup(article.html, 'html.parser')
 
     # Process the content to create a markdown structure
     markdown_content = []
@@ -26,7 +26,7 @@ def process_content(article, base_url):
         elif element.name.startswith('h'):
             level = int(element.name[1])
             current_content = f"\n{'#' * level} {element.get_text().strip()}\n"
-        elif element.name == 'img':
+        elif element.name == 'img' and include_images:
             src = element.get('src', '')
             alt = element.get('alt', 'Image')
 
@@ -49,19 +49,22 @@ def process_content(article, base_url):
 
     return full_content.strip()
 
-async def read(url: str) -> WebReadOutput:
+async def read(
+        url: str,
+        include_images: bool = True
+    ) -> WebReadOutput:
     try:
         logger.debug(f"Reading web page with URL: {url}")
 
         # Create an Article object
-        article = Article(url)
+        article: Article = Article(url)
 
         # Download and parse the article
         article.download()
         article.parse()
 
-        # Process the content with the base URL
-        full_content = process_content(article, url)
+        # Process the content with the base URL and include_images parameter
+        full_content: str = process_content(article=article, base_url=url, include_images=include_images)
 
         web_read_output: WebReadOutput = WebReadOutput(
             url=url,

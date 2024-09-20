@@ -1200,7 +1200,8 @@ async def skill_web_read(
         user_api_token=token
     )
     return await skill_web_read_processing(
-        url=parameters.url
+        url=parameters.url,
+        include_images=parameters.include_images
     )
 
 
