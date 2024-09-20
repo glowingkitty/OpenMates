@@ -241,7 +241,7 @@ from server.api.parameters import (
     input_parameter_descriptions
 )
 from fastapi.security import HTTPBearer
-from fastapi import Path
+from fastapi import Path, Query
 from typing import Optional, List, Literal, Union
 from fastapi.responses import StreamingResponse
 from io import BytesIO
@@ -1512,7 +1512,8 @@ async def get_user(
     request: Request,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
-    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    username: str = Path(..., **input_parameter_descriptions["user_username"]),
+    fields: Optional[List[str]] = Query(None, description="Which fields to include in the response. If not specified, all fields are returned.")
 ) -> dict:
     user_access: str = await validate_permissions(
         endpoint=f"/users/{username}",
@@ -1523,10 +1524,11 @@ async def get_user(
         team_slug=team_slug,
         api_token=token,
         username=username,
-        user_access=user_access
+        user_access=user_access,
+        fields=fields
         )
 
-    return user.to_api_output()
+    return user.to_api_output(fields)
 
 
 # TODO add test

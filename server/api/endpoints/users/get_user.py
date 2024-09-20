@@ -29,8 +29,6 @@ async def get_user(
         if not fields:
             fields = User.api_output_fields
 
-        # TODO enable requesting specific fields only (e.g. GET /users/{username}?fields=id,username,email)
-
         # TODO also implement same save to memory logic for teams
 
         if not api_token and not (username and password):

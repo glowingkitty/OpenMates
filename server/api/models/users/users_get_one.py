@@ -83,9 +83,12 @@ class User(BaseModel):
         'is_server_admin'
     ]
 
-    def to_api_output(self) -> Dict[str, Any]:
+    def to_api_output(self, fields: Optional[List[str]] = None) -> Dict[str, Any]:
         """Convert User object to a dictionary suitable for API output."""
-        user_dict = self.model_dump(exclude_none=True)
+        if fields:
+            user_dict = self.model_dump(include=fields, exclude_none=True)
+        else:
+            user_dict = self.model_dump(exclude_none=True)
         return user_dict
 
 
