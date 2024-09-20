@@ -65,6 +65,9 @@
     },
     "team_slug": {
       "type": "string"
+    },
+    "error": {
+      "type": "text"
     }
   }
 }

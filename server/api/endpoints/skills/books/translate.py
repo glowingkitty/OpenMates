@@ -31,7 +31,7 @@ from ebooklib import epub
 from urllib.parse import quote
 import tempfile
 import json
-import datetime
+from datetime import datetime, timedelta
 
 # TODO add estimated finish time and estimated costs and total costs to the task
 
@@ -95,9 +95,7 @@ async def translate_xhtml_file(
 
     chunks = split_into_chunks(content)
 
-    translated_chunks = []
-    translated_chars = 0
-    for i, chunk in enumerate(chunks):
+    async def translate_chunk(chunk, i):
         # Replace processing instructions with placeholders
         pi_placeholders = {}
         for j, pi in enumerate(re.findall(r'<\?.*?\?>', chunk)):
@@ -116,21 +114,26 @@ async def translate_xhtml_file(
         for placeholder, pi in pi_placeholders.items():
             translated_chunk = translated_chunk.replace(placeholder, pi)
 
-        translated_chunks.append(translated_chunk)
-        translated_chars += len(translated_chunk)
-
         # Update progress
         progress = round((sum(chunk_lengths[:i+1]) / total_chars) * 100)
         elapsed_time = time.time() - start_time
         remaining_time = (elapsed_time / progress) * (100 - progress) if progress > 0 else None
         if remaining_time is not None:
-            estimated_completion_time = datetime.datetime.now() + datetime.timedelta(seconds=remaining_time)
+            estimated_completion_time = datetime.now() + timedelta(seconds=remaining_time)
             time_estimated_completion = estimated_completion_time.isoformat()
         else:
             time_estimated_completion = None
         await update_task(task_id, progress=progress, time_estimated_completion=time_estimated_completion)
 
+        return translated_chunk, len(translated_chunk)
+
+    # Translate chunks concurrently
+    tasks = [translate_chunk(chunk, i) for i, chunk in enumerate(chunks)]
+    results = await asyncio.gather(*tasks)
+
+    translated_chunks, translated_chars_list = zip(*results)
     translated_body = "".join(translated_chunks)
+    translated_chars = sum(translated_chars_list)
 
     # Translate title if it exists
     title_match = re.search(r'<title>(.*?)</title>', content)
@@ -210,15 +213,16 @@ async def translate(
             token_count=sum(chunk_lengths),
             provider=translation_provider
         )
-        await update_task(
-            task_id=task_id,
-            total_credits_cost_estimated=expected_total_cost
-        )
 
         # TODO check if the user has enough credits to perform the translation, else cancel the task and return an error
         expected_total_cost = round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens*2.1)
         # if get_balance(api_token=api_token, team_slug=team_slug) < expected_total_cost:
         #     raise InsufficientCreditsException
+
+        await update_task(
+            task_id=task_id,
+            total_credits_cost_estimated=expected_total_cost
+        )
 
         translated_chars = 0
         start_time = time.time()

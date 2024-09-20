@@ -1,19 +1,3 @@
-
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Literal
 
@@ -34,6 +18,7 @@ class Task(BaseModel):
     total_credits_cost_estimated: Optional[int] = Field(None, description="Estimated total cost of the task in credits")
     total_credits_cost_real: Optional[int] = Field(None, description="Real total cost of the task in credits")
     output: Optional[Dict[str, Any]] = Field(None, description="Output of the task")
+    error: Optional[str] = Field(None, description="Error of the task")
 
     @model_validator(mode='after')
     def validate_progress(self):
@@ -56,5 +41,6 @@ task_create_output_example = {
     "execution_time_seconds": None,
     "total_credits_cost_estimated": 720,
     "total_credits_cost_real": None,
-    "output": None
+    "output": None,
+    "error": None
 }

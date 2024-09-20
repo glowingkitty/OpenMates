@@ -1,25 +1,15 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-from datetime import datetime, timedelta, timezone
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.memory.memory import save_task_to_memory
 from server.api.endpoints.tasks.get_task import get as get_task
-from server.cms.cms import make_strapi_request
-import time
+from server.cms.endpoints.tasks.update import update_task as update_task_in_cms
+from fastapi import HTTPException
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
-from models.tasks.tasks_create import Task
+from server.api.models.tasks.tasks_create import Task
+
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def update(
@@ -30,59 +20,54 @@ async def update(
     total_credits_cost_estimated: Optional[int] = None,
     total_credits_cost_real: Optional[int] = None,
     output: Optional[Dict[str, Any]] = None,
-    api_endpoint: Optional[str] = None
+    api_endpoint: Optional[str] = None,
+    error: Optional[str] = None
 ) -> Task:
-    task_data = await get_task(task_id)
+    try:
+        logger.debug(f"Updating task {task_id}")
 
-    current_time = datetime.now(timezone.utc)
+        # Get the existing task
+        task: Task = await get_task(task_id)
 
-    if status is not None:
-        task_data.status = status
-    if progress is not None:
-        task_data.progress = progress
-    if time_estimated_completion is not None:
-        task_data.time_estimated_completion = (current_time + timedelta(seconds=time_estimated_completion)).isoformat()
-    if total_credits_cost_estimated is not None:
-        task_data.total_credits_cost_estimated = total_credits_cost_estimated
-    if total_credits_cost_real is not None:
-        task_data.total_credits_cost_real = total_credits_cost_real
-    if output is not None:
-        task_data.output = output
-    if api_endpoint is not None:
-        task_data.api_endpoint = api_endpoint
+        current_time: datetime = datetime.now(timezone.utc)
 
-    if 'time_started' not in task_data:
-        task_data.time_started = current_time.isoformat()
+        # Update the task
+        if status is not None:
+            task.status = status
+        if progress is not None:
+            task.progress = progress
+        if time_estimated_completion is not None:
+            task.time_estimated_completion = time_estimated_completion
+        if total_credits_cost_estimated is not None:
+            task.total_credits_cost_estimated = total_credits_cost_estimated
+        if total_credits_cost_real is not None:
+            task.total_credits_cost_real = total_credits_cost_real
+        if output is not None:
+            task.output = output
+        if api_endpoint is not None:
+            task.api_endpoint = api_endpoint
+        if error is not None:
+            task.error = error
 
-    if status in ['completed', 'failed']:
-        task_data.time_completion = current_time.isoformat()
-        if 'time_started' in task_data:
-            start_time = datetime.fromisoformat(task_data.time_started)
-            task_data.execution_time_seconds = (current_time - start_time).total_seconds()
+        # Set the time started if it's not already set
+        if not task.time_started:
+            task.time_started = current_time.isoformat()
 
-    save_task_to_memory(task_id, task_data.model_dump())
+        # Set the time completion if the status is completed or failed
+        if status in ['completed', 'failed']:
+            task.time_completion = current_time.isoformat()
+            if task.time_started:
+                start_time = datetime.fromisoformat(task.time_started)
+                task.execution_time_seconds = (current_time - start_time).total_seconds()
 
-    if status in ['in_progress', 'completed', 'failed']:
-        # Step 1: Get the Strapi entry
-        status_code, response = await make_strapi_request(
-            method='get',
-            endpoint='tasks',
-            filters=[{'field': 'task_id', 'operator': '$eq', 'value': task_id}],
-            pageSize=1  # We only need one result
-        )
+        # Save to memory
+        save_task_to_memory(task_id=task_id, task_data=task)
 
-        if status_code == 200 and response.get('data'):
-            strapi_id = response['data'][0]['id']
+        if status in ['in_progress', 'completed', 'failed']:
+            await update_task_in_cms(task_id=task_id, task=task)
 
-            # Step 2: Update the Strapi entry
-            await make_strapi_request(
-                method='put',
-                endpoint=f'tasks/{strapi_id}',
-                data={'data': task_data.model_dump()}
-            )
-        else:
-            # Handle the case where the task is not found in Strapi
-            print(f"Task with task_id {task_id} not found in Strapi")
-            # You might want to log this or handle it differently
+        return task
 
-    return task_data
+    except Exception:
+        logger.exception(f"Error updating task {task_id}.")
+        raise HTTPException(status_code=500, detail="An error occurred while updating the task.")

@@ -42,6 +42,8 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> UserEncrypte
     Retrieve a user from Redis (Dragonfly) by user ID.
     If fields are specified, return a User object with only those fields populated.
     """
+    logger.debug(f"Getting user from memory with fields: {fields}")
+
     client = Redis.from_url(redis_url)
     user_key = f"user:{user_id}"
 
@@ -68,6 +70,8 @@ def get_many_users_from_memory(team_slug: str, page: int, pageSize: int) -> User
     """
     Retrieve a list of users from Redis (Dragonfly) by team slug, page, and page size.
     """
+    logger.debug(f"Getting many users from memory with team slug: {team_slug}, page: {page}, pageSize: {pageSize}")
+
     client = Redis.from_url(redis_url)
     user_ids_key = f"users:{team_slug}:ids"
 
@@ -102,6 +106,8 @@ def save_many_users_to_memory(team_slug: str, users: UsersGetAllOutput) -> bool:
     """
     Save a list of users to Redis (Dragonfly) by team slug.
     """
+    logger.debug(f"Saving many users to memory with team slug: {team_slug}")
+
     client = Redis.from_url(redis_url)
     user_ids_key = f"users:{team_slug}:ids"
 
@@ -126,6 +132,8 @@ def save_team_to_memory(team_id: str, team_data: Team) -> bool:
     """
     Save a team to Redis (Dragonfly) by team ID.
     """
+    logger.debug(f"Saving team to memory with team ID: {team_id}")
+
     client = Redis.from_url(redis_url)
     client.set(f"team:{team_id}", json.dumps(team_data), ex=default_expiration_time)
 
@@ -135,6 +143,8 @@ def get_team_from_memory(team_id: str) -> Team:
     """
     Retrieve a team from Redis (Dragonfly) by team ID.
     """
+    logger.debug(f"Getting team from memory with team ID: {team_id}")
+
     client = Redis.from_url(redis_url)
     team_data = client.get(f"team:{team_id}")
     if team_data:
@@ -148,6 +158,8 @@ def save_team_slug_with_discord_guild_id_to_memory(guild_id: str, team_slug: str
     """
     Save a team slug to Redis (Dragonfly) with its discord guild id, and no other data
     """
+    logger.debug(f"Saving team slug to memory with guild ID: {guild_id}")
+
     client = Redis.from_url(redis_url)
     client.set(f"team:guild_id:{guild_id}", team_slug, ex=default_expiration_time)
 
@@ -157,6 +169,8 @@ def get_team_slug_with_discord_guild_id_from_memory(guild_id: str) -> str:
     """
     Retrieve a team slug from Redis (Dragonfly) by guild ID.
     """
+    logger.debug(f"Getting team slug from memory with guild ID: {guild_id}")
+
     client = Redis.from_url(redis_url)
     team_slug: str = client.get(f"team:guild_id:{guild_id}")
     if team_slug:
@@ -170,6 +184,8 @@ def save_teams_to_memory(teams: list[Team]) -> bool:
     """
     Save teams to Redis (Dragonfly).
     """
+    logger.debug(f"Saving teams to memory")
+
     client = Redis.from_url(redis_url)
     client.set("teams", json.dumps(teams), ex=default_expiration_time)
 
@@ -179,6 +195,8 @@ def get_teams_from_memory() -> list[Team]:
     """
     Retrieve all teams from Redis (Dragonfly).
     """
+    logger.debug(f"Getting teams from memory")
+
     client = Redis.from_url(redis_url)
     teams_data = client.get("teams")
     if teams_data:
@@ -196,13 +214,17 @@ def save_task_to_memory(task_id: str, task_data: Task) -> bool:
     """
     Save a task to Redis (Dragonfly) by task ID.
     """
+    logger.debug(f"Saving task to memory with task ID: {task_id}")
+
     client = Redis.from_url(redis_url)
-    client.set(f"task:{task_id}", json.dumps(task_data), ex=300)  # Expire after 5 minutes
+    client.set(f"task:{task_id}", json.dumps(task_data.model_dump()), ex=300)  # Expire after 5 minutes
 
 def get_task_from_memory(task_id: str) -> Task:
     """
     Retrieve a task from Redis (Dragonfly) by task ID.
     """
+    logger.debug(f"Getting task from memory with task ID: {task_id}")
+
     client = Redis.from_url(redis_url)
     task_data = client.get(f"task:{task_id}")
     if task_data:
