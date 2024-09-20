@@ -41,6 +41,12 @@ class MateConfig(BaseModel):
     allowed_to_access_user_dislikes: bool = Field(..., description="Whether the AI team mate is allowed to access the dislikes of the user.")
 
 
+class MyTeam(BaseModel):
+    id: int = Field(..., description="ID of the team")
+    name: str = Field(..., description="Name of the team")
+    slug: str = Field(..., description="Slug of the team")
+    admin: bool = Field(..., description="Whether the user is an admin of the team")
+
 # GET /users/{user_username} (get a user)
 
 class User(BaseModel):
@@ -50,7 +56,7 @@ class User(BaseModel):
     id: str = Field(..., description="ID of the user")
     username: str = Field(..., description="Username of the user")
     email: Optional[str] = Field(None, description="Email address of the user")
-    teams: Optional[List[Team]] = Field(None, description="Teams the user is a member of")
+    teams: Optional[List[MyTeam]] = Field(None, description="Teams the user is a member of")
     profile_image: Optional[str] = Field(None, description="URL of the profile picture of the user")
     balance_credits: Optional[int] = Field(None, description="Balance of the user in credits. This balance can be used for using skills.")
     mates_default_privacy_settings: Optional[DefaultPrivacySettings] = Field(None, description="The default privacy settings for the AI team mates, which the user communicates with.")
@@ -123,7 +129,7 @@ class UserEncrypted(User):
             try:
                 parsed = json.loads(value)
                 if key == 'teams' and isinstance(parsed, list):
-                    return [Team(**team) for team in parsed]
+                    return [MyTeam(**team) for team in parsed]
                 elif key == 'projects' and isinstance(parsed, list):
                     return [Project(**project) for project in parsed]
                 elif key == 'mates_default_privacy_settings':
@@ -146,7 +152,8 @@ users_get_one_output_example = {
         {
             "id": 1,
             "name": "AI Sales Team",
-            "slug": "ai-sales-team"
+            "slug": "ai-sales-team",
+            "admin": True
         }
     ],
     "profile_image": "/v1/ai-sales-team/uploads/johnd_image.jpeg",

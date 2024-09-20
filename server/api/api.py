@@ -1469,12 +1469,13 @@ async def get_users(
     page: int = 1,
     pageSize: int = 25
     ):
-    await validate_permissions(
+    user_access: str = await validate_permissions(
         endpoint="/users",
         team_slug=team_slug,
         user_api_token=token
     )
     return await get_users_processing(
+        user_access=user_access,
         team_slug=team_slug,
         request_sender_api_token=token,
         page=page,

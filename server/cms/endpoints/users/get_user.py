@@ -2,8 +2,7 @@ from typing import Optional
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi import HTTPException
 from typing import List
-from server.api.models.users.users_get_one import User, DefaultPrivacySettings, MateConfig
-from server.api.models.teams.teams_get_one import Team
+from server.api.models.users.users_get_one import User, DefaultPrivacySettings, MateConfig, MyTeam
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.skills.skills_get_one import SkillMini
 import logging
@@ -82,16 +81,22 @@ async def get_user(
                 "mate_configs.allowed_to_access_user_recent_emails",
                 "mate_configs.allowed_to_access_user_calendar",
                 "mate_configs.allowed_to_access_user_likes",
-                "mate_configs.allowed_to_access_user_dislikes"
+                "mate_configs.allowed_to_access_user_dislikes",
+                "teams_where_user_is_admin.slug"
             ],
             "basic_access": []
         }
 
+        # Process fields and match with their cms names
         if fields:
             # make sure uid and username are always included (but check if they are in the fields list)
             always_include_fields = ["uid", "username", "api_token", "is_server_admin", "teams"]
             fields = [x for x in fields if x not in always_include_fields]
             fields = always_include_fields + fields
+
+            # if user requests teams, then also request teams_where_user_is_admin
+            if "teams" in fields:
+                fields.append("teams_where_user_is_admin")
 
             # replace field names which have different names in cms
             allowed_to_access_fields = ["name", "username", "projects", "goals", "todos", "recent_topics", "recent_emails", "calendar", "likes", "dislikes"]
@@ -146,10 +151,11 @@ async def get_user(
             full_access_fields = {
                 "is_server_admin": get_nested(user, "is_server_admin"),
                 "teams": [
-                    Team(
+                    MyTeam(
                         id=get_nested(team, "id"),
                         name=get_nested(team, "name"),
-                        slug=get_nested(team, "slug")
+                        slug=get_nested(team, "slug"),
+                        admin=get_nested(team, "id") in [get_nested(admin_team, "id") for admin_team in get_nested(user, "teams_where_user_is_admin")]
                     ) for team in get_nested(user, "teams") or []
                 ],
                 "profile_image": f"/v1/{team_slug}{get_nested(user, 'profile_image.file.url')}" if get_nested(user, 'profile_image') else None,

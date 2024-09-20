@@ -1,4 +1,3 @@
-
 ################
 # Default Imports
 ################
@@ -15,7 +14,7 @@ from server.api import *
 ################
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Dict
 from server.api.models.metadata import MetaData
 
 
@@ -25,6 +24,14 @@ class UserMini(BaseModel):
     """This is the model for a single user, for the endpoint GET /users"""
     id: int = Field(..., description="ID of the user")
     username: str = Field(..., description="Username of the user")
+
+    @classmethod
+    def from_redis_dict(cls, data: Dict[str, str]) -> 'UserMini':
+        """Create a UserMini object from Redis data."""
+        return cls(
+            id=int(data['id']),
+            username=data['username']
+        )
 
 class UsersGetAllOutput(BaseModel):
     data: List[UserMini] = Field(..., description="List of all users")

@@ -5,8 +5,9 @@ from server.api.models.teams.teams_get_one import Team
 from server.api.models.tasks.tasks_create import Task
 from pydantic import BaseModel
 from server.api.models.users.users_get_one import UserEncrypted
+from server.api.models.users.users_get_all import UsersGetAllOutput, UserMini
 import logging
-
+from server.api.models.metadata import MetaData, Pagination
 # Set up logger
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,60 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> UserEncrypte
         if not user_data:
             return None
         return UserEncrypted.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()})
+
+def get_many_users_from_memory(team_slug: str, page: int, pageSize: int) -> UsersGetAllOutput:
+    """
+    Retrieve a list of users from Redis (Dragonfly) by team slug, page, and page size.
+    """
+    client = Redis.from_url(redis_url)
+    user_ids_key = f"users:{team_slug}:ids"
+
+    start = (page - 1) * pageSize
+    end = start + pageSize - 1
+
+    user_ids = client.lrange(user_ids_key, start, end)
+    if not user_ids:
+        return None
+
+    users = []
+    for user_id in user_ids:
+        user_data = client.hgetall(f"basic_user:{user_id.decode()}")
+        if user_data:
+            users.append(UserMini.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()}))
+
+    return UsersGetAllOutput(
+        data=users,
+        meta=MetaData(
+            pagination=Pagination(
+                page=page,
+                pageSize=pageSize,
+                pageCount=len(users) // pageSize + 1,
+                total=len(users)
+            )
+        )
+    )
+
+def save_many_users_to_memory(team_slug: str, users: UsersGetAllOutput) -> bool:
+    """
+    Save a list of users to Redis (Dragonfly) by team slug.
+    """
+    client = Redis.from_url(redis_url)
+    user_ids_key = f"users:{team_slug}:ids"
+
+    # Store basic user data and maintain a list of user IDs
+    for user in users.users:
+        user_id = user.id
+        basic_user_data = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email  # Add other basic fields as needed
+        }
+        client.hmset(f"basic_user:{user_id}", basic_user_data)
+        client.expire(f"basic_user:{user_id}", default_expiration_time)
+        client.rpush(user_ids_key, user_id)
+
+    client.expire(user_ids_key, default_expiration_time)
+    return True
 
 
 ########################################################

@@ -1,29 +1,16 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-import math
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
-from server.cms.cms import make_strapi_request, get_nested
+import logging
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
-from server.api.security.validation.validate_permissions import validate_permissions
-from server.cms.endpoints.users.get_users import get_users as get_users_from_cms
+from server.cms.endpoints.users.get_users import get_users as get_many_users_from_cms
+from server.memory.memory import get_many_users_from_memory, save_many_users_to_memory
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def get_users(
+        user_access: str,
         team_slug: str,
-        request_sender_api_token: str,
         page: int = 1,
         pageSize: int = 25
     ) -> UsersGetAllOutput:
@@ -31,26 +18,28 @@ async def get_users(
     Get a list of all users on a team
     """
     try:
-        add_to_log(module_name="OpenMates | API | Get users", state="start", color="yellow")
-        add_to_log("Getting a list of all users in a team ...")
+        logger.debug("Getting a list of all users on a team ...")
 
-        user_access = await validate_permissions(
-            endpoint="/users",
-            user_api_token=request_sender_api_token,
-            team_slug=team_slug
-        )
+        if user_access != "basic_access_for_all_users_on_team" and user_access != "basic_access_for_all_users_on_server":
+            raise HTTPException(status_code=403, detail="You are not authorized to access this endpoint")
 
-        return await get_users_from_cms(
-            user_access=user_access,
-            team_slug=team_slug,
-            request_sender_api_token=request_sender_api_token,
-            page=page,
-            pageSize=pageSize
-        )
+        # TODO: if user who makes request is server admin or team admin, show all users with basic details (id, username)
+        # TODO: else, show no results
+
+        # attempt to get users from memory
+        users: UsersGetAllOutput = get_many_users_from_memory(team_slug=team_slug, page=page, pageSize=pageSize)
+
+        if not users:
+            users = await get_many_users_from_cms(team_slug=team_slug, page=page, pageSize=pageSize)
+
+            # save users to memory
+            save_many_users_to_memory(team_slug=team_slug, users=users)
+
+        return users
 
     except HTTPException:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Failed to get all users in the team.")
+        logger.exception("Unexpected error during get users")
+        raise HTTPException(status_code=500, detail="Unexpected error during get users")

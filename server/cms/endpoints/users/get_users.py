@@ -20,9 +20,7 @@ from fastapi import HTTPException
 
 
 async def get_users(
-        user_access: str,
         team_slug: str,
-        request_sender_api_token: str,
         page: int = 1,
         pageSize: int = 25
     ) -> UsersGetAllOutput:
@@ -41,13 +39,6 @@ async def get_users(
                 "value": team_slug
             }
         ]
-
-        if user_access == "basic_access_for_own_user_only":
-            filters.append({
-                "field": "uid",
-                "operator": "$eq",
-                "value": request_sender_api_token[:32]
-            })
 
         # Get the users with pagination info
         status_code, json_response = await make_strapi_request(
