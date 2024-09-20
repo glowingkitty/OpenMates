@@ -84,14 +84,16 @@ def get_many_users_from_memory(team_slug: str, page: int, pageSize: int) -> User
         if user_data:
             users.append(UserMini.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()}))
 
+    total_users = client.llen(user_ids_key)  # Get the total number of user IDs
+
     return UsersGetAllOutput(
         data=users,
         meta=MetaData(
             pagination=Pagination(
                 page=page,
                 pageSize=pageSize,
-                pageCount=len(users) // pageSize + 1,
-                total=len(users)
+                pageCount=(total_users + pageSize - 1) // pageSize,  # Calculate total pages
+                total=total_users  # Total number of users
             )
         )
     )
@@ -104,14 +106,9 @@ def save_many_users_to_memory(team_slug: str, users: UsersGetAllOutput) -> bool:
     user_ids_key = f"users:{team_slug}:ids"
 
     # Store basic user data and maintain a list of user IDs
-    for user in users.users:
+    for user in users.data:
         user_id = user.id
-        basic_user_data = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email  # Add other basic fields as needed
-        }
-        client.hmset(f"basic_user:{user_id}", basic_user_data)
+        client.hmset(f"basic_user:{user_id}", user.model_dump())
         client.expire(f"basic_user:{user_id}", default_expiration_time)
         client.rpush(user_ids_key, user_id)
 

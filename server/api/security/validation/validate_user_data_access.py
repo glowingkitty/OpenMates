@@ -23,7 +23,7 @@ async def validate_user_data_access(
     try:
         logger.debug("Validating if the user has access to the user data ...")
 
-        user: User = get_user(
+        user: User = await get_user(
             team_slug=team_slug,
             username=username,
             api_token=token,

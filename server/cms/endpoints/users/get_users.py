@@ -1,22 +1,9 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-import math
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.cms.cms import make_strapi_request, get_nested
 from server.api.models.users.users_get_all import UsersGetAllOutput
 from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def get_users(
@@ -28,6 +15,8 @@ async def get_users(
     Get a list of all users on a team
     """
     try:
+        logger.debug("Getting a list of all users on a team from CMS ...")
+
         fields = [
             "username",
             "id"
@@ -76,15 +65,13 @@ async def get_users(
                 "data": users,
                 "meta": meta
             }
-            add_to_log(module_name="OpenMates | API | Get users", state="end", color="green")
+            logger.debug("Successfully got a list of all users on a team from CMS")
             return UsersGetAllOutput(**users_get_all_output)
         else:
-            add_to_log(module_name="OpenMates | API | Get users", state="end", color="red")
-            raise HTTPException(status_code=status_code, detail=json_response)
+            logger.exception("Failed to get a list of all users on a team from CMS")
 
     except HTTPException:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Failed to get all users in the team.")
+        logger.exception("Unexpected error during get users")

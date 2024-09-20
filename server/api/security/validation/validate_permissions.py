@@ -17,7 +17,6 @@ async def validate_permissions(
     team_slug: Optional[str] = None,
     user_username: Optional[str] = None,
     user_password: Optional[str] = None,
-    user_api_token_already_checked: Optional[bool] = False,
     required_permissions: Optional[list] = None
 ) -> str:
     try:
@@ -37,8 +36,9 @@ async def validate_permissions(
 
 
         # /users
-        if endpoint == "/users":
+        elif endpoint == "/users":
             access = await validate_user_data_access(
+                team_slug=team_slug,
                 token=user_api_token,
                 request_team_slug=team_slug,
                 username=user_username,
@@ -48,7 +48,7 @@ async def validate_permissions(
 
 
         # else just check the token
-        if not user_api_token_already_checked:
+        else:
             access = await validate_api_token(
                 token=user_api_token,
                 team_slug=team_slug

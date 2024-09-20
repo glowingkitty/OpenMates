@@ -1477,7 +1477,6 @@ async def get_users(
     return await get_users_processing(
         user_access=user_access,
         team_slug=team_slug,
-        request_sender_api_token=token,
         page=page,
         pageSize=pageSize
         )

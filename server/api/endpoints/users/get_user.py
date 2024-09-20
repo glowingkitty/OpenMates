@@ -64,7 +64,6 @@ async def get_user(
         user: UserEncrypted = get_user_from_memory(user_id=user_id, fields=fields)
 
         if user:
-            logger.debug(f"User object found in memory: {user}")
             # check if all required fields are in the user object and have non-None values, if not, get user from cms
             for field in fields:
                 logger.debug(f"Proccesing field: {field}")
