@@ -1,31 +1,47 @@
 from server.api.models.skills.web.skills_web_read import WebReadOutput
 import logging
 from fastapi import HTTPException
-from newspaper import Article
+from newspaper import Article, ArticleException
 import re
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import mimetypes
 
 # Set up logger
 logger = logging.getLogger(__name__)
 
-def process_content(article):
+def process_content(article, base_url):
     # Parse the HTML content
     soup = BeautifulSoup(article.html, 'html.parser')
 
     # Process the content to create a markdown structure
     markdown_content = []
+    previous_element = None
 
     for element in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img']):
+        current_content = None
+
         if element.name == 'p':
-            markdown_content.append(f"\n{element.get_text().strip()}\n")
+            current_content = f"\n{element.get_text().strip()}\n"
         elif element.name.startswith('h'):
             level = int(element.name[1])
-            markdown_content.append(f"\n{'#' * level} {element.get_text().strip()}\n")
+            current_content = f"\n{'#' * level} {element.get_text().strip()}\n"
         elif element.name == 'img':
             src = element.get('src', '')
             alt = element.get('alt', 'Image')
+
+            # Skip SVGs and GIFs
+            if 'svg' in src.lower():
+                continue
+
+            # Include all other images
             if src:
-                markdown_content.append(f"\n![{alt}]({src})\n")
+                full_src = urljoin(base_url, src)
+                current_content = f"\n![{alt}]({full_src})\n"
+
+        if current_content and current_content != previous_element:
+            markdown_content.append(current_content)
+            previous_element = current_content
 
     # Join the content and remove excessive newlines
     full_content = '\n'.join(markdown_content)
@@ -44,8 +60,8 @@ async def read(url: str) -> WebReadOutput:
         article.download()
         article.parse()
 
-        # Process the content
-        full_content = process_content(article)
+        # Process the content with the base URL
+        full_content = process_content(article, url)
 
         web_read_output: WebReadOutput = WebReadOutput(
             url=url,
@@ -62,6 +78,10 @@ async def read(url: str) -> WebReadOutput:
 
         return web_read_output
 
+    except ArticleException:
+        logger.exception(f"Newspaper3k couldn't parse the web page.")
+        raise HTTPException(status_code=404, detail="Could not load the web page.")
+
     except Exception as e:
-        logger.exception(f"An error occurred while reading the web page: {str(e)}")
+        logger.exception(f"An error occurred while reading the web page.")
         raise HTTPException(status_code=500, detail="An error occurred while reading the web page.")

@@ -20,7 +20,10 @@ class WebReadOutput(BaseModel):
 
 
 web_read_input_examples = [
-    "https://www.theverge.com/2024/9/20/24248356/iphone-16-camera-photographic-styles"
+    "https://www.theverge.com/2024/9/20/24248356/iphone-16-camera-photographic-styles",
+    "https://www.theverge.com/2024/9/20/24249856/battery-ev-renewable-energy-doe-funding",
+    "https://www.tagesschau.de/inland/gesellschaft/fridays-for-future-254.html",
+    "https://www.anthropic.com/news/claude-3-5-sonnet"
 ]
 
 web_read_input_example = {

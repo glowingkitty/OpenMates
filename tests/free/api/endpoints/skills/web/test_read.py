@@ -39,14 +39,14 @@ def test_read():
             # Check if the content is valid markdown
             assert markdown.markdown(web_read_output.content), f"Invalid markdown content for URL: {url}"
 
-            # Create a URL-safe filename from the title
-            safe_filename = quote(web_read_output.title, safe='') + '.md'
+            # # Create a URL-safe filename from the title
+            # safe_filename = quote(web_read_output.title, safe='') + '.md'
 
-            # Save the markdown content to a file
-            with open(safe_filename, 'w', encoding='utf-8') as f:
-                f.write(web_read_output.content)
+            # # Save the markdown content to a file
+            # with open(safe_filename, 'w', encoding='utf-8') as f:
+            #     f.write(web_read_output.content)
 
-            print(f"Saved markdown file: {safe_filename}")
+            # print(f"Saved markdown file: {safe_filename}")
 
         except ValidationError as e:
             pytest.fail(f"Response does not match the WebReadOutput model: {e}, with response: {json_response}")
