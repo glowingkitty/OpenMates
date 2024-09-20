@@ -30,8 +30,6 @@ async def get_user(
         # TODO enable team admin to get basic user info about all team members (id, username)
         # TODO enable server admin to get basic user info about all users (id, username)
 
-        # TODO also implement same save / load from memory logic for getting all users
-
         # TODO also implement same save / load from memory logic for teams
 
         # Split the fields by comma if provided as a single string
