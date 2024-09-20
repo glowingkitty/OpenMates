@@ -23,9 +23,6 @@ async def get_users(
         if user_access != "basic_access_for_all_users_on_team" and user_access != "basic_access_for_all_users_on_server":
             raise HTTPException(status_code=403, detail="You are not authorized to access this endpoint")
 
-        # TODO: if user who makes request is server admin or team admin, show all users with basic details (id, username)
-        # TODO: else, show no results
-
         # attempt to get users from memory
         users: UsersGetAllOutput = get_many_users_from_memory(team_slug=team_slug, page=page, pageSize=pageSize)
 
