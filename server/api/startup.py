@@ -1,22 +1,7 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-
-################
-
-from server.api.endpoints.teams.get_teams import get_teams
-
+from playwright.async_api import async_playwright
+from server.api.endpoints.skills.web.view import open_webbrowser
 import logging
+import os
 import redis.asyncio as redis
 
 logging.basicConfig(level=logging.DEBUG)
@@ -34,10 +19,13 @@ async def clear_all_memory():
 
 
 async def api_startup():
-    # Startup event
+    # Existing startup code
     logger.info("Processing startup events...")
 
     await clear_all_memory()
+
+    logger.info("Opening web browser...")
+    await open_webbrowser()
 
     # TODO not needed to load all into memory! only load team into memory once a request from team is made (like with users), else request data from cms
 

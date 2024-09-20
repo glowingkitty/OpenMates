@@ -1,18 +1,6 @@
-################
-# Default Imports
-################
-import sys
+
+from server.api.endpoints.skills.web.view import close_webbrowser
 import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 import logging
 import redis.asyncio as redis
 
@@ -27,9 +15,13 @@ async def api_shutdown():
     logger.info("Processing shutdown events...")
 
     try:
+        logger.info("Closing Redis connection...")
         await redis_client.close()
         logger.info("Redis connection closed successfully.")
     except Exception as e:
         logger.error(f"Error closing Redis connection: {e}")
+
+    logger.info("Closing web browser...")
+    await close_webbrowser()
 
     logger.info("Shutdown complete.")
