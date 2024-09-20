@@ -73,6 +73,9 @@ from server.api.models.skills.finance.skills_finance_get_transactions import (
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptOutput
 )
+from server.api.models.skills.web.skills_web_read import (
+    WebReadOutput
+)
 from server.api.models.users.users_create import (
     UsersCreateOutput
 )
@@ -279,6 +282,15 @@ skills_docs_endpoints = {
         "response_model":FilesUploadOutput,
         "summary": "Create",
         "description": "<img src='images/skills/docs/create.png' alt='Create a new document. Including paragraphs, images, tables and more.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
+skills_web_endpoints = {
+    "read":{
+        "response_model":WebReadOutput,
+        "summary": "Read",
+        "description": "<img src='images/skills/web/read.png' alt='Return the content of a website as easy to read text plus images.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -510,6 +522,10 @@ tags_metadata = [
     {
         "name": "Skills | Videos",
         "description": "<img src='images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
+    },
+    {
+        "name": "Skills | Web",
+        "description": "<img src='images/skills/web.png' alt='Browse the web, researches topics and more.'>"
     },
     {
         "name": "Skills | Photos",

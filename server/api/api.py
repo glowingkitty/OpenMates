@@ -144,6 +144,12 @@ from server.api.models.skills.docs.skills_docs_create import (
     docs_create_input_example,
     docs_create_output_example
 )
+from server.api.models.skills.web.skills_web_read import (
+    WebReadInput,
+    WebReadOutput,
+    web_read_input_example,
+    web_read_output_example
+)
 from server.api.models.skills.files.skills_files_upload import (
     FilesUploadOutput,
     files_upload_output_example
@@ -205,6 +211,7 @@ from server.api.endpoints.skills.files.download import download as skill_files_d
 from server.api.endpoints.skills.files.upload import upload as skill_files_upload_processing
 from server.api.endpoints.skills.files.delete import delete as skill_files_delete_processing
 from server.api.endpoints.skills.docs.create import create as skill_docs_create_processing
+from server.api.endpoints.skills.web.read import read as skill_web_read_processing
 from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
@@ -227,6 +234,7 @@ from server.api.parameters import (
     skills_ai_endpoints,
     skills_finance_endpoints,
     skills_docs_endpoints,
+    skills_web_endpoints,
     skills_files_endpoints,
     skills_books_endpoints,
     skills_videos_endpoints,
@@ -277,6 +285,7 @@ skills_files_router = APIRouter()
 skills_books_router = APIRouter()
 skills_videos_router = APIRouter()
 skills_photos_router = APIRouter()
+skills_web_router = APIRouter()
 software_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
@@ -507,6 +516,12 @@ def custom_openapi():
     })
     set_example(openapi_schema, "/v1/{team_slug}/skills/docs/create", "post", "responses", {
         "Example 1": docs_create_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/web/read", "post", "requestBody", {
+        "Example 1": web_read_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/web/read", "post", "responses", {
+        "Example 1": web_read_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/files/upload", "post", "responses", {
         "Example 1": files_upload_output_example
@@ -1170,6 +1185,25 @@ async def skill_videos_get_transcript(
     )
 
 
+# POST /skills/web/read (read a web page)
+@skills_web_router.post("/v1/{team_slug}/skills/web/read", **skills_web_endpoints["read"])
+@limiter.limit("20/minute")
+async def skill_web_read(
+    request: Request,
+    parameters: WebReadInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> WebReadOutput:
+    await validate_permissions(
+        endpoint="/skills/web/read",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_web_read_processing(
+        url=parameters.url
+    )
+
+
 # TODO add test
 # POST /skills/photos/resize (resize an image)
 @skills_photos_router.post("/v1/{team_slug}/skills/photos/resize", **skills_photos_endpoints["resize_image"])
@@ -1620,6 +1654,7 @@ app.include_router(skills_files_router,             tags=["Skills | Files"])
 app.include_router(skills_books_router,             tags=["Skills | Books"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])
 app.include_router(skills_photos_router,            tags=["Skills | Photos"])
+app.include_router(skills_web_router,               tags=["Skills | Web"])
 app.include_router(software_router,                 tags=["software"])
 app.include_router(workflows_router,                tags=["Workflows"])
 app.include_router(tasks_router,                    tags=["Tasks"])
