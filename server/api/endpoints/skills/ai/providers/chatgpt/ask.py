@@ -1,19 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-import uuid
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('skills.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from openai import OpenAI, APITimeoutError
 from dotenv import load_dotenv
 from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, ContentItem, AiAskInput, ToolUse, AiAskOutputStream
@@ -24,6 +8,10 @@ from server.api.endpoints.skills.ai.providers.claude.ask import chunk_text
 import time
 import asyncio
 from collections import deque
+import logging
+import os
+
+logger = logging.getLogger(__name__)
 
 class SimpleRateLimiter:
     def __init__(self, max_calls, period):
@@ -92,7 +80,7 @@ async def ask(
         tools=tools
     )
 
-    add_to_log("Asking ChatGPT ...", module_name="OpenMates | Skills | ChatGPT | Ask", color="yellow")
+    logger.info("Asking ChatGPT ...")
 
     # Initialize OpenAI client
     load_dotenv()
@@ -141,7 +129,7 @@ async def ask(
                                 "content": item['content']
                             })
                         else:
-                            add_to_log(f"Warning: tool_result without corresponding tool_use (ID: {item['tool_use_id']})", color="yellow")
+                            logger.warning(f"Warning: tool_result without corresponding tool_use (ID: {item['tool_use_id']})")
                 if input_content:
                     messages.append({"role": msg_dict['role'], "content": input_content})
             else:
@@ -223,7 +211,7 @@ async def ask(
             try:
                 return client.chat.completions.create(**chat_config)
             except APITimeoutError as e:
-                add_to_log(f"API Timeout Error: {e}", color="red")
+                logger.error(f"API Timeout Error: {e}")
                 raise
 
         for attempt in range(retries):
@@ -232,10 +220,10 @@ async def ask(
                 break
             except APITimeoutError:
                 if attempt < retries - 1:
-                    add_to_log(f"Retrying... ({attempt + 1}/{retries})", color="yellow")
+                    logger.warning(f"Retrying... ({attempt + 1}/{retries})")
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff
                 else:
-                    add_to_log("Max retries reached. Request failed.", color="red")
+                    logger.error("Max retries reached. Request failed.")
                     raise
 
         # Process the response content

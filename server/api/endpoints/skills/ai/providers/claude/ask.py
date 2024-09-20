@@ -1,19 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-import uuid
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('skills.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, ContentItem, ToolUse, Tool, AiAskOutputStream
@@ -21,6 +5,12 @@ from typing import Union, List, Dict, Any, Optional
 from fastapi.responses import StreamingResponse
 from anthropic.types import ContentBlock, TextBlock, ToolUseBlock
 import json
+import logging
+import os
+import re
+import uuid
+
+logger = logging.getLogger(__name__)
 
 
 def chunk_text(text):
@@ -87,7 +77,7 @@ async def ask(
         tools=tools
     )
 
-    add_to_log("Asking Claude ...", module_name="OpenMates | Skills | Claude | Ask", color="yellow")
+    logger.info("Asking Claude ...")
 
     # Select a more specific model
     if input.provider.model == "claude-3.5-sonnet":
