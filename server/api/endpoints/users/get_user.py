@@ -26,6 +26,14 @@ async def get_user(
     try:
         logger.debug("Getting a specific user ...")
 
+        # TODO currently user can only find himself and get full user info
+        # TODO enable team admin to get basic user info about all team members (id, username)
+        # TODO enable server admin to get basic user info about all users (id, username)
+
+        # TODO also implement same save / load from memory logic for getting all users
+
+        # TODO also implement same save / load from memory logic for teams
+
         # Split the fields by comma if provided as a single string
         if fields:
             for field in fields:
@@ -45,10 +53,6 @@ async def get_user(
             logger.debug(f"Fields: {fields}")
         else:
             fields = User.api_output_fields
-
-        # TODO also implement same save / load from memory logic for getting all users
-
-        # TODO also implement same save / load from memory logic for teams
 
         if not api_token and not (username and password):
             raise ValueError("You need to provide either an api token or username and password.")
