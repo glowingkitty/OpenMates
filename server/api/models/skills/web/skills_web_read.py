@@ -11,7 +11,7 @@ class WebReadOutput(BaseModel):
     """This is the model for the output of the web read skill"""
     url: str = Field(..., description="URL of the web page")
     title: str = Field(..., description="Title of the web page")
-    content: str = Field(..., description="Content of the web page")
+    content: str = Field(..., description="Content of the web page in markdown format")
     description: Optional[str] = Field(..., description="Description of the web page")
     keywords: Optional[List[str]] = Field(..., description="Keywords of the web page")
     authors: Optional[List[str]] = Field(..., description="Authors of the web page")
