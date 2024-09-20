@@ -34,6 +34,7 @@ import json
 from datetime import datetime, timedelta
 
 # TODO add estimated finish time and estimated costs and total costs to the task
+# TODO add PDF output support
 
 translation_provider = { "name": "chatgpt", "model": "gpt-4o-mini" }
 
