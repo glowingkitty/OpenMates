@@ -28,15 +28,15 @@ async def validate_api_token(
         except UserNotFoundError:
             raise InvalidAPITokenError(log_message="The user does not exist.")
 
-        # verify that the user is a server admin
-        if user.is_server_admin:
-            logger.debug("The user is a server admin.")
-            return "admin_access"
-
         # verify that the user is a member of the team
         if team_slug and user.teams and (team_slug in [team.slug for team in user.teams]):
             logger.debug("The user is a member of the team.")
             return "full_access"
+
+        # verify that the user is a server admin
+        if user.is_server_admin:
+            logger.debug("The user is a server admin.")
+            return "admin_access"
 
         # some endpoints don't require a team slug
         if not team_slug:
