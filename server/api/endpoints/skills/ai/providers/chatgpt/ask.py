@@ -92,7 +92,7 @@ async def ask(
 
     if input.message_history:
         for msg in input.message_history:
-            msg_dict = msg.to_dict()
+            msg_dict = msg.model_dump()
             if isinstance(msg_dict['content'], list):
                 # Handle complex message input_content (text, images, tool uses, tool results)
                 input_content = []

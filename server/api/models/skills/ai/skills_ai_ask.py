@@ -14,7 +14,7 @@ from server.api import *
 ################
 
 from typing import Literal, List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 
 
 class ToolUse(BaseModel):
@@ -58,13 +58,13 @@ class MessageItem(BaseModel):
             self.content = [MessageContent(type="text", text=self.content)]
         return self
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "role": self.role,
-            "content": self.content if isinstance(self.content, str) else [
-                content.model_dump(exclude_none=True) for content in self.content
-            ]
-        }
+    # def to_dict(self) -> Dict[str, Any]:
+    #     return {
+    #         "role": self.role,
+    #         "content": self.content if isinstance(self.content, str) else [
+    #             content.model_dump(exclude_none=True) for content in self.content
+    #         ]
+    #     }
 
 class ToolInputSchema(BaseModel):
     type: Literal["object"] = Field("object", title="Type", description="Type of the input schema")
@@ -81,10 +81,6 @@ class ContentItem(BaseModel):
     text: Optional[str] = Field(None, title="Text", description="Text content")
     tool_use: Optional[ToolUse] = Field(None, title="Tool Use", description="Tool use information")
     tool_result: Optional[ToolResult] = Field(None, title="Tool Result", description="Tool result information")
-
-    @model_validator(mode='after')
-    def remove_none_fields(cls, values):
-        return {k: v for k, v in values.model_dump().items() if v is not None}
 
 class AiProvider(BaseModel):
     name: Literal["claude", "chatgpt"] = Field(..., title="Provider Name", description="Name of the AI provider")
