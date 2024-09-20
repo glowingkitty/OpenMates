@@ -216,7 +216,7 @@ async def ask(
             # Handle non-streaming response
             for attempt in range(retries):
                 try:
-                    response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=chat_config, timeout=60.0)
+                    response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=chat_config, timeout=300.0)
                     response.raise_for_status()
                     data = response.json()
                     break
