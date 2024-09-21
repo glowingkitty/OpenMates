@@ -52,5 +52,10 @@ def test_read():
                 else:
                     assert not image_tags, f"Image tags found in content when include_images=False for URL: {url}"
 
+
+                # # save markdown to file
+                # with open(f"tests/free/api/endpoints/skills/web/test_read_output_{url.replace('/', '_')}_{include_images}.md", "w") as f:
+                #     f.write(web_read_output.content)
+
             except ValidationError as e:
                 pytest.fail(f"Response does not match the WebReadOutput model: {e}, with response: {json_response}")
