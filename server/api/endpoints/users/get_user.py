@@ -95,6 +95,10 @@ async def get_user(
         if username and not user.username == username:
             raise UserNotFoundError()
 
+        # Make sure user is a member of the team
+        if team_slug and user.teams and (team_slug not in [team.slug for team in user.teams]):
+            raise UserNotFoundError()
+
         # decrypt user data and fill non-encrypted fields
         user_fields = {
             "id": user_id,
