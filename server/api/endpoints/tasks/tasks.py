@@ -78,7 +78,7 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
 
 
 @celery.task(bind=True)
-def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_language):
+def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_language, output_format):
     try:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(update_task(
@@ -90,6 +90,7 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
             api_token=api_token,
             ebook_data=ebook_data,
             output_language=output_language,
+            output_format=output_format,
             task_id=task_id
         ))
         response = response.model_dump()

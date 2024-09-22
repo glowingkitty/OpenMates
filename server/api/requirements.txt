@@ -35,3 +35,4 @@ beautifulsoup4==4.12.2
 newspaper3k==0.2.8
 lxml[html_clean]
 playwright==1.46.0
+WeasyPrint==62.3

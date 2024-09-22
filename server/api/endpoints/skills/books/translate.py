@@ -1,7 +1,3 @@
-################
-# Default Imports
-################
-import sys
 import os
 import re
 import zipfile
@@ -11,16 +7,8 @@ import asyncio
 from server.api.endpoints.tasks.update import update as update_task
 import time
 from server.api.endpoints.skills.ai.estimate_cost import estimate_cost, count_tokens
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
-from typing import List, Dict, Any
+from weasyprint import HTML, CSS
+from typing import List, Literal
 from fastapi import HTTPException
 from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostOutput
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
@@ -30,7 +18,6 @@ from datetime import datetime, timedelta
 from ebooklib import epub
 from urllib.parse import quote
 import tempfile
-import json
 from datetime import datetime, timedelta
 
 # TODO add estimated finish time and estimated costs and total costs to the task
@@ -168,13 +155,48 @@ def count_translatable_chars(file_path: str) -> int:
     text_content = re.sub(r'<.*?>', '', content)
     return len(text_content)
 
+def convert_to_pdf(extract_dir: str) -> bytes:
+    """
+    Convert the translated XHTML files in extract_dir to a single PDF.
+    Each XHTML file corresponds to a page in the PDF.
+    """
+    html_files = []
+    for root, dirs, files in os.walk(extract_dir):
+        for file in sorted(files):
+            if file.endswith('.xhtml') or file.endswith('.html'):
+                file_path = os.path.join(root, file)
+                html_files.append(file_path)
+
+    # Combine all HTML files into a single HTML string
+    combined_html = ""
+    for html_file in html_files:
+        with open(html_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            combined_html += content
+            combined_html += "<div style='page-break-after: always;'></div>"
+
+    # Create a WeasyPrint HTML object
+    html = HTML(string=combined_html, base_url=extract_dir)
+
+    # Optional: Define CSS to enhance PDF appearance
+    css = CSS(string='''
+        @page { size: A4; margin: 1cm }
+        img { max-width: 100%; height: auto }
+        a { color: blue; text-decoration: underline }
+    ''')
+
+    # Generate the PDF
+    pdf = html.write_pdf(stylesheets=[css])
+
+    return pdf
 
 async def translate(
     team_slug: str,
     api_token: str,
     ebook_data: bytes,
     output_language: str,
-    task_id: str
+    task_id: str,
+    output_format: Literal["epub", "pdf"] = 'epub'
 ) -> FilesUploadOutput:
 
     # Create a temporary directory to work with the EPUB
@@ -216,7 +238,7 @@ async def translate(
         )
 
         # TODO check if the user has enough credits to perform the translation, else cancel the task and return an error
-        expected_total_cost = round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens*2.1)
+        expected_total_cost = round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens * 2.1)
         # if get_balance(api_token=api_token, team_slug=team_slug) < expected_total_cost:
         #     raise InsufficientCreditsException
 
@@ -244,35 +266,54 @@ async def translate(
         results = await asyncio.gather(*tasks)
         translated_chars = sum(results)
 
-        # Create a new EPUB file with translated content
-        output_epub = os.path.join(temp_dir, "output.epub")
-        with zipfile.ZipFile(output_epub, 'w') as zip_ref:
-            for root, dirs, files in os.walk(extract_dir):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, extract_dir)
-                    zip_ref.write(file_path, arcname)
-
-        # Read the translated EPUB data
-        with open(output_epub, "rb") as f:
-            translated_epub_data = f.read()
-
         # Get the book title for the file name
         book = epub.read_epub(input_epub)
         title = book.get_metadata('DC', 'title')[0][0] if book.get_metadata('DC', 'title') else "Untitled"
-        file_name = f"{quote(title)}_translated_{output_language}.epub"
 
-    # Upload the translated EPUB
-    expiration_datetime = datetime.now() + timedelta(days=1)
-    file_info = await upload(
-        team_slug=team_slug,
-        api_token=api_token,
-        provider="books",
-        file_name=file_name,
-        file_data=translated_epub_data,
-        expiration_datetime=expiration_datetime.isoformat(),
-        access_public=False,
-        folder_path="books"
-    )
+        if output_format.lower() == 'pdf':
+            # Convert translated XHTML files to PDF
+            pdf_data = convert_to_pdf(extract_dir)
+            # Define the PDF file name
+            file_name = f"{quote(title)}_translated_{output_language}.pdf"
+            # Upload the PDF
+            file_info = await upload(
+                team_slug=team_slug,
+                api_token=api_token,
+                provider="books",
+                file_name=file_name,
+                file_data=pdf_data,
+                expiration_datetime=(datetime.now() + timedelta(days=1)).isoformat(),
+                access_public=False,
+                folder_path="books"
+            )
+        else:
+            # Existing EPUB processing
+            # Create a new EPUB file with translated content
+            output_epub = os.path.join(temp_dir, "output_translated.epub")
+            with zipfile.ZipFile(output_epub, 'w') as zip_ref:
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, extract_dir)
+                        zip_ref.write(file_path, arcname)
 
-    return file_info
+            # Read the translated EPUB data
+            with open(output_epub, "rb") as f:
+                translated_epub_data = f.read()
+
+            # Define the EPUB file name
+            file_name = f"{quote(title)}_translated_{output_language}.epub"
+
+            # Upload the translated EPUB
+            file_info = await upload(
+                team_slug=team_slug,
+                api_token=api_token,
+                provider="books",
+                file_name=file_name,
+                file_data=translated_epub_data,
+                expiration_datetime=(datetime.now() + timedelta(days=1)).isoformat(),
+                access_public=False,
+                folder_path="books"
+            )
+
+        return file_info

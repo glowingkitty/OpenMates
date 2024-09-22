@@ -1285,7 +1285,8 @@ async def skill_books_translate(
     file: UploadFile = File(..., **input_parameter_descriptions["file"]),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials),
-    output_language: str = Form(None, description="The output language of the ebook.")
+    output_language: str = Form(None, description="The output language of the ebook."),
+    output_format: Literal["epub", "pdf"] = Form("epub", description="The output format of the ebook.")
 ) -> Task:
     await validate_permissions(
         endpoint="/skills/books/translate",
@@ -1325,7 +1326,8 @@ async def skill_books_translate(
             team_slug,
             token,
             ebook_data,
-            output_language
+            output_language,
+            output_format
         ],
         task_id=task.id
     )

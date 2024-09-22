@@ -25,7 +25,7 @@ ebook_path = "tests/paid/api/endpoints/skills/books/test_ebook.epub"
 def test_books_translate():
     with open(ebook_path, "rb") as ebook_file:
         files = {"file": (ebook_path.split("/")[-1], ebook_file, "application/epub+zip")}
-        data = {"output_language": "german"}
+        data = {"output_language": "german", "output_format": "pdf"}
 
         response = requests.post(
             f"{BASE_URL}/v1/{TEAM_SLUG}/skills/books/translate",
@@ -72,7 +72,7 @@ def test_books_translate():
     assert translated_ebook_response.content, "No content received from the translated ebook URL"
 
     # Optionally, save the translated ebook to a file for further inspection
-    with open(f"tests/paid/api/endpoints/skills/books/{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.epub", "wb") as translated_file:
+    with open(f"tests/paid/api/endpoints/skills/books/{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.{data['output_format']}", "wb") as translated_file:
         translated_file.write(translated_ebook_response.content)
 
-    print(f"Translated ebook saved as '{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.epub'")
+    print(f"Translated ebook saved as '{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.{data['output_format']}'")
