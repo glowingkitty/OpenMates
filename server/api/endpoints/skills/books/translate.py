@@ -20,6 +20,10 @@ from urllib.parse import quote
 import tempfile
 from datetime import datetime, timedelta
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # TODO add estimated finish time and estimated costs and total costs to the task
 # TODO add PDF output support
 
@@ -31,7 +35,7 @@ async def translate_text(
         text: str,
         output_language: str
 ) -> str:
-
+    logger.debug(f"Translating text to {output_language}")
     response = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
@@ -41,12 +45,15 @@ async def translate_text(
         temperature=0
     )
     translated_text = response["content"][0]["text"]
+    logger.debug(f"Translation complete")
     return translated_text
 
 def split_into_chunks(content: str) -> list:
+    logger.debug("Splitting content into chunks")
     # Find the body content
     body_match = re.search(r'<body.*?>(.*)</body>', content, re.DOTALL)
     if not body_match:
+        logger.debug("No body tag found, returning entire content as one chunk")
         return [content]  # If no body tag, return the entire content as one chunk
 
     body_content = body_match.group(1)
@@ -62,6 +69,7 @@ def split_into_chunks(content: str) -> list:
         else:
             combined_chunks.append(chunks[i])
 
+    logger.debug(f"Split into {len(combined_chunks)} chunks")
     return combined_chunks if combined_chunks else [body_content]
 
 async def translate_xhtml_file(
@@ -74,6 +82,7 @@ async def translate_xhtml_file(
         start_time: float,
         chunk_lengths: List[int]
 ) -> int:
+    logger.debug(f"Translating XHTML file: {file_path}")
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
@@ -84,6 +93,7 @@ async def translate_xhtml_file(
     chunks = split_into_chunks(content)
 
     async def translate_chunk(chunk, i):
+        logger.debug(f"Translating chunk {i+1}/{len(chunks)}")
         # Replace processing instructions with placeholders
         pi_placeholders = {}
         for j, pi in enumerate(re.findall(r'<\?.*?\?>', chunk)):
@@ -112,6 +122,7 @@ async def translate_xhtml_file(
         else:
             time_estimated_completion = None
         await update_task(task_id, progress=progress, time_estimated_completion=time_estimated_completion)
+        logger.debug(f"Chunk {i+1} translated, progress: {progress}%")
 
         return translated_chunk, len(translated_chunk)
 
@@ -127,6 +138,7 @@ async def translate_xhtml_file(
     title_match = re.search(r'<title>(.*?)</title>', content)
     if title_match:
         original_title = title_match.group(1)
+        logger.debug(f"Translating title.")
         translated_title = await translate_text(
             user_api_token=user_api_token,
             team_slug=team_slug,
@@ -145,50 +157,19 @@ async def translate_xhtml_file(
     # Write the translated content back to the file
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(translated_content)
+    logger.debug(f"File {file_path} translation complete")
 
     return translated_chars
 
 def count_translatable_chars(file_path: str) -> int:
+    logger.debug(f"Counting translatable characters in file: {file_path}")
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
     # Remove all HTML tags and count remaining characters
     text_content = re.sub(r'<.*?>', '', content)
-    return len(text_content)
-
-def convert_to_pdf(extract_dir: str) -> bytes:
-    """
-    Convert the translated XHTML files in extract_dir to a single PDF.
-    Each XHTML file corresponds to a page in the PDF.
-    """
-    html_files = []
-    for root, dirs, files in os.walk(extract_dir):
-        for file in sorted(files):
-            if file.endswith('.xhtml') or file.endswith('.html'):
-                file_path = os.path.join(root, file)
-                html_files.append(file_path)
-
-    # Combine all HTML files into a single HTML string
-    combined_html = ""
-    for html_file in html_files:
-        with open(html_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-            combined_html += content
-            combined_html += "<div style='page-break-after: always;'></div>"
-
-    # Create a WeasyPrint HTML object
-    html = HTML(string=combined_html, base_url=extract_dir)
-
-    # Optional: Define CSS to enhance PDF appearance
-    css = CSS(string='''
-        @page { size: A4; margin: 1cm }
-        img { max-width: 100%; height: auto }
-        a { color: blue; text-decoration: underline }
-    ''')
-
-    # Generate the PDF
-    pdf = html.write_pdf(stylesheets=[css])
-
-    return pdf
+    char_count = len(text_content)
+    logger.debug(f"File {file_path} has {char_count} translatable characters")
+    return char_count
 
 async def translate(
     team_slug: str,
@@ -198,19 +179,21 @@ async def translate(
     task_id: str,
     output_format: Literal["epub", "pdf"] = 'epub'
 ) -> FilesUploadOutput:
-
+    logger.debug("Starting translation process")
     # Create a temporary directory to work with the EPUB
     with tempfile.TemporaryDirectory() as temp_dir:
         # Save the input EPUB to a temporary file
         input_epub = os.path.join(temp_dir, "input.epub")
         with open(input_epub, "wb") as f:
             f.write(ebook_data)
+        logger.debug(f"EPUB saved to temporary file: {input_epub}")
 
         # Extract the EPUB file
         extract_dir = os.path.join(temp_dir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
         with zipfile.ZipFile(input_epub, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
+        logger.debug(f"EPUB extracted to directory: {extract_dir}")
 
         # Find and process all XHTML files
         total_chars = 0
@@ -230,12 +213,14 @@ async def translate(
                     for chunk in chunks:
                         tokens = count_tokens(chunk)
                         chunk_lengths.append(tokens)
+        logger.debug(f"Found {len(xhtml_files)} XHTML files with a total of {total_chars} characters")
 
         # Estimate total cost
         total_credits_cost_estimated: AiEstimateCostOutput = estimate_cost(
             token_count=sum(chunk_lengths),
             provider=translation_provider
         )
+        logger.debug(f"Estimated total cost: {total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens * 2.1}")
 
         # TODO check if the user has enough credits to perform the translation, else cancel the task and return an error
         expected_total_cost = round(total_credits_cost_estimated.total_credits_cost_estimated.credits_for_input_tokens * 2.1)
@@ -271,21 +256,20 @@ async def translate(
         title = book.get_metadata('DC', 'title')[0][0] if book.get_metadata('DC', 'title') else "Untitled"
 
         if output_format.lower() == 'pdf':
-            # Convert translated XHTML files to PDF
-            pdf_data = convert_to_pdf(extract_dir)
-            # Define the PDF file name
-            file_name = f"{quote(title)}_translated_{output_language}.pdf"
-            # Upload the PDF
-            file_info = await upload(
-                team_slug=team_slug,
-                api_token=api_token,
-                provider="books",
-                file_name=file_name,
-                file_data=pdf_data,
-                expiration_datetime=(datetime.now() + timedelta(days=1)).isoformat(),
-                access_public=False,
-                folder_path="books"
-            )
+            logger.info("PDF conversion not implemented yet")
+            # Placeholder for PDF conversion
+            # pdf_data = convert_file(input_format='epub', output_format='pdf')
+            # file_name = f"{quote(title)}_translated_{output_language}.pdf"
+            # file_info = await upload(
+            #     team_slug=team_slug,
+            #     api_token=api_token,
+            #     provider="books",
+            #     file_name=file_name,
+            #     file_data=pdf_data,
+            #     expiration_datetime=(datetime.now() + timedelta(days=1)).isoformat(),
+            #     access_public=False,
+            #     folder_path="books"
+            # )
         else:
             # Existing EPUB processing
             # Create a new EPUB file with translated content

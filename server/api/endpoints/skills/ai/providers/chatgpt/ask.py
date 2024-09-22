@@ -229,8 +229,20 @@ async def ask(
                         logger.error("Max retries reached. Request failed.")
                         raise
                 except httpx.HTTPStatusError as e:
-                    logger.error(f"HTTP Error: {e}")
-                    raise
+                    if e.response.status_code == 429:
+                        error_details = e.response.json()
+                        logger.error(f"HTTP 429 Too Many Requests Error: {error_details}")
+                        if attempt < retries - 1:
+                            retry_after = int(e.response.headers.get("Retry-After", 2 ** attempt))
+                            logger.warning(f"Retrying after {retry_after} seconds... ({attempt + 1}/{retries})")
+                            await asyncio.sleep(retry_after)
+                        else:
+                            logger.error("Max retries reached. Request failed.")
+                            raise
+                    else:
+                        error_details = e.response.json()
+                        logger.error(f"HTTP Error: {error_details}")
+                        raise
 
             # Process the response content
             content = []
