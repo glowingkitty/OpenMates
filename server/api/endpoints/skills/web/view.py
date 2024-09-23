@@ -46,6 +46,8 @@ async def close_webbrowser():
         await playwright.stop()
 
 
+#TODO: completely seperate web browser to its own docker, running on a seperate server
+
 async def view(
     url: str
 ) -> WebViewOutput:

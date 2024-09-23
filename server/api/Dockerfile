@@ -1,11 +1,12 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# Install system dependencies required by WeasyPrint and other packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpangoft2-1.0-0 \
-    libcairo2 \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y wget xz-utils libegl1 libopengl0 libxcb-cursor0 && \
+    wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /usr/src/OpenMates/server/api
@@ -17,5 +18,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # At runtime, the current directory will be mounted, so no need to COPY it
 
-# Run api.py when the container launches
-CMD ["python", "api.py"]
+# Run api.py with Uvicorn when the container launches
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

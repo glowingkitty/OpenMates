@@ -21,7 +21,4 @@ async def api_shutdown():
     except Exception as e:
         logger.error(f"Error closing Redis connection: {e}")
 
-    logger.info("Closing web browser...")
-    await close_webbrowser()
-
     logger.info("Shutdown complete.")

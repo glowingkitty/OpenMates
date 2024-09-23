@@ -55,6 +55,8 @@ services:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:6379"
+      WEB_BROWSER_URL: "http://web_browser:8000"
+      SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
@@ -64,6 +66,7 @@ services:
     depends_on:
       - strapi
       - dragonfly
+      - web_browser
 
   celery-worker:
     build:
@@ -120,6 +123,22 @@ services:
           memory: 2.5G
     networks:
       - openmates
+
+  web_browser:
+    build:
+      context: ./server/web_browser
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+    volumes:
+      - ./server/web_browser:/usr/src/web_browser
+    networks:
+      - openmates
+    depends_on:
+      - rest-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   openmates:

@@ -24,9 +24,6 @@ async def api_startup():
 
     await clear_all_memory()
 
-    logger.info("Opening web browser...")
-    await open_webbrowser()
-
     # TODO not needed to load all into memory! only load team into memory once a request from team is made (like with users), else request data from cms
 
     # TODO lets simplify testing
