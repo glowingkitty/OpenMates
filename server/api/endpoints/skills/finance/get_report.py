@@ -1,21 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import Literal
 from server.api.models.skills.finance.skills_finance_get_report import FinanceGetReportInput, FinanceGetReportOutput
 from fastapi import HTTPException
+
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def get_report(
@@ -37,8 +27,7 @@ async def get_report(
             include_attachments=include_attachments
         )
 
-        add_to_log(module_name="OpenMates | API | Finance | Get report", state="start", color="yellow", hide_variables=True)
-        add_to_log("Getting a report from Finance ...")
+        logger.debug("Getting a report from Finance ...")
 
         # TODO processing - what kind of reports? how to get them?
 
@@ -75,5 +64,5 @@ async def get_report(
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to get the report from Akaunting.")
         raise HTTPException(status_code=500, detail="Failed to get the report from Akaunting.")

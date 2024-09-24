@@ -1,34 +1,24 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-import asyncio
-from datetime import datetime, timezone
-from fastapi import HTTPException
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.task_management.task_management import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.endpoints.skills.books.translate import translate as book_translate_processing
-
 from celery import shared_task
 from datetime import datetime
-from server.cms.cms import make_strapi_request, delete_file_from_strapi
+from server.cms.cms import make_strapi_request
 from server.api.endpoints.skills.files.providers.openmates.delete import delete as openmates_delete
 from server.api.endpoints.tasks.update import update as update_task
+import asyncio
+import traceback
+from datetime import datetime, timezone
+from fastapi import HTTPException
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @celery.task(bind=True)
 def ask_mate_task(self, team_slug, message, mate_username, task_info):
+    logger.debug(f"Starting ask mate task for task_id: {task_info['id']}")
     # Add start time
     task_info['start_time'] = datetime.now()
     self.update_state(state='PROGRESS', meta={
@@ -80,6 +70,7 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
 @celery.task(bind=True)
 def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_language, output_format):
     try:
+        logger.debug(f"Starting book translate task for task_id: {task_id}")
         loop = asyncio.get_event_loop()
         loop.run_until_complete(update_task(
             task_id=task_id,
@@ -102,6 +93,8 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
             output=response,
             total_credits_cost_real=response.get('total_cost')
         ))
+
+        logger.debug(f"Book translate task for task_id: {task_id} completed")
 
         # TODO: how to implement notifying user via chatbot about task completion, if the task was created in chat? (but don't notify if task was created via api call by default)
         # notify_user(
@@ -139,7 +132,7 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
 
 @shared_task
 def delete_expired_files():
-    add_to_log("Deleting expired files...")
+    logger.info("Deleting expired files...")
     now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
     async def async_delete_expired_files():
@@ -151,7 +144,7 @@ def delete_expired_files():
         )
 
         if status_code != 200:
-            add_to_log(f"Failed to fetch expired files: {status_code}")
+            logger.error(f"Failed to fetch expired files: {status_code}")
             return
 
         deleted_count = 0
@@ -163,9 +156,9 @@ def delete_expired_files():
                 deleted_count += 1
             except HTTPException as e:
                 # Log the error but continue with other files
-                add_to_log(f"Failed to delete file {file_id}: {str(e)}")
+                logger.error(f"Failed to delete file {file_id}: {str(e)}")
 
-        add_to_log(f"Deleted {deleted_count} expired files")
+        logger.info(f"Deleted {deleted_count} expired files")
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(async_delete_expired_files())

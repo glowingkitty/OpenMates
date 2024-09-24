@@ -1,22 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from server.api.models.mates.mates_get_all import MatesGetAllOutput
 from fastapi import HTTPException
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def get_mates(
@@ -28,8 +17,7 @@ async def get_mates(
     Get a list of all AI team mates on a team
     """
     try:
-        add_to_log(module_name="OpenMates | API | Get mates", state="start", color="yellow")
-        add_to_log("Getting a list of all AI team mates in a team ...")
+        logger.debug("Getting a list of all AI team mates in a team ...")
 
         fields = [
             "name",
@@ -77,12 +65,16 @@ async def get_mates(
             else:
                 json_response["data"] = mates
 
-        add_to_log("Successfully created a list of all mates in the requested team.", state="success")
-        return JSONResponse(status_code=status_code, content=json_response)
+            logger.debug("Successfully created a list of all mates in the requested team.")
+            return JSONResponse(status_code=status_code, content=json_response)
+
+        else:
+            logger.error("Failed to get all AI team mates in the team.")
+            raise HTTPException(status_code=500, detail="Failed to get all AI team mates in the team.")
 
     except HTTPException:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to get all AI team mates in the team.")
         raise HTTPException(status_code=500, detail="Failed to get all AI team mates in the team.")

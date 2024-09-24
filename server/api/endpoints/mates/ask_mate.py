@@ -1,22 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi import HTTPException
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
 )
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def ask_mate(team_slug: str, message: str, mate_username: str):
@@ -24,8 +13,7 @@ async def ask_mate(team_slug: str, message: str, mate_username: str):
     Process a message
     """
     # try:
-    add_to_log(module_name="OpenMates | API | Process message", state="start", color="yellow")
-    add_to_log("Processing an incoming message ...")
+    logger.debug("Processing an incoming message ...")
     # TODO replace with actual processing of the message
 
     # TODO: implement task system and dragonfly cache
@@ -42,7 +30,7 @@ async def ask_mate(team_slug: str, message: str, mate_username: str):
         total_costs_eur=0.003
         )
 
-    add_to_log("Successfully processed the message", state="success")
+    logger.debug("Successfully processed the message")
     return message
 
 

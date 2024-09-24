@@ -1,23 +1,13 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import Optional
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.cms.cms import make_strapi_request
 from server.api.endpoints.mates.get_mate import get_mate
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 async def delete_mate(
         mate_username: str,
@@ -28,8 +18,7 @@ async def delete_mate(
     Delete a specific AI team mate from the team
     """
     try:
-        add_to_log(module_name="OpenMates | API | Delete mate", state="start", color="yellow", hide_variables=True)
-        add_to_log("Deleting a specific AI team mate from the team ...")
+        logger.debug("Deleting a specific AI team mate from the team ...")
 
         # Get the mate to be deleted
         mate = await get_mate(
@@ -49,15 +38,15 @@ async def delete_mate(
         }
 
         if status_code == 200:
-            add_to_log("Successfully deleted the AI team mate", state="success")
+            logger.debug("Successfully deleted the AI team mate")
             return JSONResponse(status_code=200, content=delete_mate)
         else:
-            add_to_log("Failed to delete the AI team mate.", state="error")
+            logger.error("Failed to delete the AI team mate.")
             raise HTTPException(status_code=500, detail="Failed to delete the AI team mate.")
 
     except HTTPException:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to delete the AI team mate.")
         raise HTTPException(status_code=500, detail="Failed to delete the AI team mate.")

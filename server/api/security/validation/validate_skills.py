@@ -1,21 +1,10 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi import HTTPException
 from server.cms.cms import make_strapi_request, get_nested
 from typing import List, Optional
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def validate_skills(
@@ -26,8 +15,7 @@ async def validate_skills(
     Validate if the skills exist with their ID
     """
     try:
-        add_to_log(module_name="OpenMates | API | Validate skills", state="start", color="yellow", hide_variables=True)
-        add_to_log("Validating if the skills exist with their ID ...")
+        logger.debug("Validating if the skills exist with their ID ...")
 
         # check if the skills exist with their ID
         # return the skills from the strapi request, so they can be included with their details later in the API response
@@ -43,7 +31,7 @@ async def validate_skills(
         output_skills = []
 
         for skill in skills:
-            add_to_log(f"Validating skill with ID {skill} ...")
+            logger.debug(f"Validating skill with ID {skill} ...")
             skill_data = {
                 "id": skill,
             }
@@ -64,7 +52,7 @@ async def validate_skills(
             )
 
             if status_code == 200 and len(skill_json_response["data"])>0:
-                add_to_log(f"Skill with ID {skill} exists.")
+                logger.debug(f"Skill with ID {skill} exists.")
 
                 skill_data["description"] = get_nested(skill_json_response, "description")
                 skill_data["api_endpoint"] = f"/v1/{team_slug}/skills/{get_nested(skill_json_response, 'software.slug')}/{get_nested(skill_json_response, 'slug')}"
@@ -72,7 +60,7 @@ async def validate_skills(
                 output_skills.append(skill_data)
 
             if status_code != 200 or len(skill_json_response["data"])==0:
-                add_to_log(f"Skill with ID {skill} does not exist.")
+                logger.debug(f"Skill with ID {skill} does not exist.")
                 raise HTTPException(status_code=400, detail=f"Skill with ID {skill} does not exist.")
 
         return output_skills
@@ -81,5 +69,5 @@ async def validate_skills(
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to validate the skills.")
         raise HTTPException(status_code=500, detail="Failed to validate the skills.")

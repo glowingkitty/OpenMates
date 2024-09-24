@@ -1,22 +1,12 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi.responses import StreamingResponse
 from fastapi import HTTPException
 from server.api.endpoints.skills.files.providers.openmates.delete import delete as openmates_delete
 from server.api.models.skills.files.skills_files_delete import FilesDeleteOutput
+
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def delete(
@@ -26,7 +16,7 @@ async def delete(
     """
     Delete a file from a provider
     """
-    add_to_log(module_name="OpenMates | API | Files | Delete", state="start", color="yellow", hide_variables=True)
+    logger.debug("Deleting a file from a provider ...")
 
     if provider == "dropbox":
         # return await dropbox_delete(file_path)
@@ -36,7 +26,7 @@ async def delete(
         try:
             file_id = file_path.split("/")[-2]
         except Exception as e:
-            add_to_log(f"Error extracting file_id from file_path: {e}", state="error")
+            logger.error(f"Error extracting file_id from file_path: {e}")
             raise HTTPException(status_code=400, detail="Invalid file path")
         return await openmates_delete(
             file_id=file_id

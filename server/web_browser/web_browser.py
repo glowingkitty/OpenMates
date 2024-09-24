@@ -36,6 +36,7 @@ app = FastAPI(lifespan=lifespan)
 
 class URLRequest(BaseModel):
     url: str
+    include_images: bool = True
 
 @app.post("/view")
 async def view_page(request: URLRequest, req: Request):
@@ -45,6 +46,8 @@ async def view_page(request: URLRequest, req: Request):
         if auth_header != f"Bearer {WEB_BROWSER_SECRET_KEY}":
             logger.warning("Unauthorized access attempt")
             raise HTTPException(status_code=403, detail="Forbidden")
+
+        # TODO check if url is harmful
 
         page = None
         try:
@@ -78,6 +81,8 @@ async def read_page(request: URLRequest, req: Request):
             logger.warning("Unauthorized access attempt")
             raise HTTPException(status_code=403, detail="Forbidden")
 
+        # TODO check if url is harmful
+
         article = Article(request.url)
         try:
             logger.debug("Downloading and parsing article with Newspaper")
@@ -93,7 +98,7 @@ async def read_page(request: URLRequest, req: Request):
             article.set_html(content)
             article.parse()
 
-        full_content = process_content(article=article, base_url=request.url, include_images=True)
+        full_content = process_content(article=article, base_url=request.url, include_images=request.include_images)
         logger.info(f"Article title: {article.title}")
 
         return {

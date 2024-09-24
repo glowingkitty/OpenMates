@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 import os
 from cryptography.fernet import Fernet
 import json
@@ -22,8 +7,11 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 import base64
 from dotenv import load_dotenv, find_dotenv
-import hashlib
 from typing import Optional
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 # Load .env file
@@ -188,5 +176,5 @@ def verify_hash(hashed_text: str, text: str) -> bool:
 if __name__ == "__main__":
     # If the script is executed directly, generate and save key and salt if they don't exist yet
     if not os.getenv("CRYPTO_KEY") or not os.getenv("CRYPTO_SALT"):
-        add_to_log("Generating key and salt ...")
+        logger.info("Generating key and salt ...")
         generate_key_salt()

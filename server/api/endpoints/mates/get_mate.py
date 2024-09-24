@@ -1,23 +1,13 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.cms.cms import make_strapi_request, get_nested
 from typing import Dict, Union, Literal
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.security.crypto import verify_hash
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 async def get_mate(
         team_slug: str,
@@ -31,8 +21,7 @@ async def get_mate(
     Get a specific AI team mate on the team
     """
     try:
-        add_to_log(module_name="OpenMates | API | Get mate", state="start", color="yellow", hide_variables=True)
-        add_to_log("Getting a specific AI team mate on the team ...")
+        logger.debug("Getting a specific AI team mate on the team ...")
 
         fields = [
             "name",
@@ -190,10 +179,10 @@ async def get_mate(
                 json_response = mate
 
 
-                add_to_log("Successfully got the mate.", state="success")
+                logger.debug("Successfully got the mate.")
 
         if status_code == 404:
-            add_to_log("Could not find the requested mate.", state="error")
+            logger.error("Could not find the requested mate.")
 
         if output_format == "JSONResponse":
             return JSONResponse(status_code=status_code, content=json_response)
@@ -204,5 +193,5 @@ async def get_mate(
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to get the requested mate.")
         raise HTTPException(status_code=500, detail="Failed to get the requested mate.")

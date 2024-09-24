@@ -1,9 +1,9 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
+from typing import List
+from server.api.models.skills.docs.skills_docs_create import DocsCreateInput, TextElement, HeadingElement, HyperlinkElement, ImageElement, TableElement, ListElement, CodeBlockElement, BlockQuoteElement, PageBreakElement
+
+from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
+from server.api.endpoints.skills.files.upload import upload
+from datetime import datetime, timedelta
 from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -12,21 +12,10 @@ from docx.oxml import OxmlElement
 import requests
 from io import BytesIO
 
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
+import logging
 
-from server.api import *
-################
-
-from typing import List
-from server.api.models.skills.docs.skills_docs_create import DocsCreateInput, TextElement, HeadingElement, HyperlinkElement, ImageElement, TableElement, ListElement, CodeBlockElement, BlockQuoteElement, PageBreakElement
-
-from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
-from server.api.endpoints.skills.files.upload import upload
-from datetime import datetime, timedelta
-import uuid
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 def add_text_element(doc, element: TextElement):
@@ -173,8 +162,7 @@ async def create(
     """
     Create a new document
     """
-    add_to_log(module_name="OpenMates | API | Microsoft Word | Create document", state="start", color="yellow", hide_variables=True)
-    add_to_log("Creating a new document ...")
+    logger.debug("Creating a new document ...")
 
     doc = Document()
     for element in elements:
@@ -219,5 +207,7 @@ async def create(
     # Clean up the file stream and data
     file_stream.close()
     del file_data
+
+    logger.debug(f"Successfully created document: {file_info.file_name}")
 
     return file_info

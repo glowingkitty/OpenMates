@@ -1,27 +1,14 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import List, Optional, Union, Dict, Literal
-from server.cms.cms import make_strapi_request, get_nested
-from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from server.api.endpoints.users.get_user import get_user
 from server.api.models.users.users_replace_profile_picture import UsersReplaceProfilePictureOutput
 from server.api.security.validation.validate_permissions import validate_permissions
 import time
 import base64
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def replace_profile_picture(
@@ -42,7 +29,7 @@ async def replace_profile_picture(
     error_message = "User not found. Either the username is wrong, the team slug is wrong or the user is not part of the team or you don't have the permission to access this user."
 
     if user_access == "full_access":
-        add_to_log("User has full access to the user data.")
+        logger.debug("User has full access to the user data.")
 
         # give file a name based on team_slug, username and unix timestamp
         filename = f"{team_slug}_{username}_{int(time.time())}.jpeg"
@@ -64,11 +51,11 @@ async def replace_profile_picture(
             #         team = json_response["data"][0]
             #         read_access_limited_to_teams.append(team)
             #     elif len(json_response["data"])>1:
-            #         add_to_log("More than one team found with the same URL.", state="error")
+            #         logger.error("More than one team found with the same URL.")
             #         raise HTTPException(status_code=500, detail="More than one team found with the same URL.")
 
             # else:
-            #     add_to_log("No team found with the given URL.", state="error")
+            #     logger.error("No team found with the given URL.")
             #     raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
         # limit the write access to the user (get the user from the strapi request)
@@ -113,5 +100,5 @@ async def replace_profile_picture(
         }
 
     else:
-        add_to_log("User has no access to change the profile picture.")
+        logger.error("User has no access to change the profile picture.")
         raise HTTPException(status_code=403, detail=error_message)

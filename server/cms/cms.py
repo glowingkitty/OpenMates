@@ -1,25 +1,13 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 import httpx
 from dotenv import load_dotenv
 from typing import Optional, Dict, List, Tuple
 from fastapi import HTTPException, Response
 from fastapi.responses import StreamingResponse
-import base64
+import os
 from io import BytesIO
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load the .env file
 load_dotenv()
@@ -151,8 +139,8 @@ async def make_strapi_request(
             if exc.response.status_code == 401:
                 raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
             else:
-                add_to_log(f"A {exc.response.status_code} error occured.", module_name="OpenMates | API | Strapi Requests", state="error")
-                add_to_log(exc.response.json(), module_name="OpenMates | API | Strapi Requests", state="error")
+                logger.error(f"A {exc.response.status_code} error occured.")
+                logger.error(exc.response.json())
                 raise HTTPException(status_code=exc.response.status_code, detail=f"A {exc.response.status_code} error occured.")
 
         return strapi_response.status_code, strapi_response.json()

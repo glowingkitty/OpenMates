@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import List, Optional
 from server.api.models.mates.mates_update import MatesUpdateOutput
 from server.cms.cms import make_strapi_request, get_nested
@@ -24,6 +9,10 @@ from server.api.security.validation.validate_skills import validate_skills
 from server.api.endpoints.mates.get_mate import get_mate
 from server.api.endpoints.mates.update_or_create_config import update_or_create_config
 from server.api.endpoints.skills.get_skill import get_skill
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def update_mate(
@@ -55,8 +44,7 @@ async def update_mate(
     # TODO add llm endpoint and model
     # TODO update docs
     try:
-        add_to_log(module_name="OpenMates | API | Update mate", state="start", color="yellow", hide_variables=True)
-        add_to_log("Updating a specific AI team mate on the team ...")
+        logger.debug("Updating a specific AI team mate on the team ...")
 
         # validate the values
         if new_username != None:
@@ -134,7 +122,7 @@ async def update_mate(
             )
 
             if not isinstance(default_llm_endpoint_skill, dict) or 'id' not in default_llm_endpoint_skill:
-                add_to_log(f"Unexpected response from get_skill: {default_llm_endpoint_skill}", state="error")
+                logger.error(f"Unexpected response from get_skill: {default_llm_endpoint_skill}")
                 raise HTTPException(status_code=500, detail="Failed to retrieve LLM endpoint skill")
 
             updated_mate["default_llm_endpoint"] = {
@@ -225,5 +213,5 @@ async def update_mate(
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to update the AI team mate.")
         raise HTTPException(status_code=500, detail="Failed to update the AI team mate.")

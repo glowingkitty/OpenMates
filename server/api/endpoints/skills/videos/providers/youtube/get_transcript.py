@@ -1,24 +1,13 @@
-
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled
 from fastapi import HTTPException
 from server.api.models.skills.videos.skills_videos_get_transcript import VideosGetTranscriptInput, VideosGetTranscriptOutput
 import tiktoken
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
 
 def format_time(seconds: float) -> str:
     minutes, seconds = divmod(seconds, 60)
@@ -30,8 +19,7 @@ def count_tokens(
         message_history: list = None,
         model_name: str = "gpt-3.5-turbo") -> int:
     try:
-        add_to_log(state="start", module_name="LLMs", color="yellow")
-        add_to_log(f"Counting the tokens ...")
+        logger.debug(f"Counting the tokens ...")
 
         if message_history and not message:
             message = ""
@@ -52,13 +40,13 @@ def count_tokens(
         encoding = tiktoken.encoding_for_model(model_name)
         tokens = len(encoding.encode(message))
 
-        add_to_log(state="success", message=f"Successfully counted the tokens: {tokens}")
+        logger.debug(f"Successfully counted the tokens: {tokens}")
 
         return tokens
 
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception(f"An error occurred while counting the tokens")
         return None
 
 
@@ -72,8 +60,7 @@ async def get_transcript(
             block_token_limit=block_token_limit
         )
 
-        add_to_log(module_name="YouTube | Transcript", color="yellow", state="start")
-        add_to_log(f"Getting transcript for video at URL: {input_data.url}")
+        logger.debug(f"Getting transcript for video at URL: {input_data.url}")
 
         # Extract the video ID from the URL
         video_id = input_data.url.split("v=")[1]
@@ -98,7 +85,7 @@ async def get_transcript(
                     transcript_blocks[start_time] = text
                 token_count += text_tokens
 
-        add_to_log(f"Got transcript for video at URL: {url}", state="success")
+        logger.debug(f"Got transcript for video at URL: {url}")
 
         # Return the transcript as a dictionary
         return VideosGetTranscriptOutput(
@@ -106,9 +93,9 @@ async def get_transcript(
         )
 
     except TranscriptsDisabled:
-        add_to_log(f"Currently there is no transcript available for the url '{input_data.url}'", state="error")
+        logger.error(f"Currently there is no transcript available for the url '{input_data.url}'")
         raise HTTPException(status_code=404, detail="Currently there is no transcript available for this video.")
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception(f"An error occurred while getting the transcript for this video.")
         raise HTTPException(status_code=500, detail="Failed to get the transcript for this video.")

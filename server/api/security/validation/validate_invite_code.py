@@ -1,22 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('skills.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi import HTTPException
 from server.cms.cms import make_strapi_request, get_nested
 from typing import Optional
 from datetime import datetime
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def validate_invite_code(
@@ -27,7 +16,7 @@ async def validate_invite_code(
     Verify if the invite code is valid
     """
     try:
-        add_to_log("Verifying the invite code ...", module_name="OpenMates | API | Validate Invite Code", color="yellow")
+        logger.debug("Verifying the invite code ...")
 
         # find the invite code and check if it is valid
         fields = [
@@ -67,15 +56,15 @@ async def validate_invite_code(
         failure_message = "The invite code is invalid. This can be for various reasons. Maybe the code doesn't exist, or its for a specific team, or it expired."
 
         if status_code != 200:
-            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate Invite Code", state="error")
+            logger.error("Got a status code of " + str(status_code) + " from strapi.")
             raise HTTPException(status_code=403, detail=failure_message)
 
         if not invite_codes:
-            add_to_log(failure_message, module_name="OpenMates | API | Validate Invite Code", state="error")
+            logger.error(failure_message)
             raise HTTPException(status_code=403, detail=failure_message)
 
         # mark the invite code as used (and if it can only be used once, delete it)
-        add_to_log("The invite code is valid. Now marking it as used.", module_name="OpenMates | API | Validate Invite Code", state="success")
+        logger.debug("The invite code is valid. Now marking it as used.")
         invite_code = invite_codes[0]
         # if the invite code can be used x more times, decrement the counter
         if get_nested(invite_code, "can_be_used_x_more_times") != None:
@@ -106,7 +95,7 @@ async def validate_invite_code(
             )
 
         if status_code != 200:
-            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate Invite Code", state="error")
+            logger.error("Got a status code of " + str(status_code) + " from strapi.")
             raise HTTPException(status_code=403, detail=failure_message)
 
         return True
@@ -115,5 +104,5 @@ async def validate_invite_code(
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to validate the invite code.")
         raise HTTPException(status_code=500, detail="Failed to validate the invite code. Please contact the administrator.")

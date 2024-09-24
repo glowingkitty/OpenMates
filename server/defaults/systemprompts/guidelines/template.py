@@ -1,27 +1,15 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('API_OpenAI.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 import tiktoken
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 def count_tokens(
         message: str, 
         model_name: str = "gpt-3.5-turbo") -> int:
     try:
-        add_to_log(module_name="OpenAI", color="yellow", state="start")
-        add_to_log("Counting the tokens ...")
+        logger.debug("Counting the tokens ...")
 
         message = str(message)
         if model_name == "gpt-3.5":
@@ -29,12 +17,12 @@ def count_tokens(
         encoding = tiktoken.encoding_for_model(model_name)
         tokens = len(encoding.encode(message))
 
-        add_to_log(f"Successfully counted the tokens: {tokens}",state="success")
+        logger.debug(f"Successfully counted the tokens: {tokens}")
 
         return tokens
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to count the tokens.")
         return None
 
 

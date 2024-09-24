@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('skills.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 import discord
 from discord import File
 import base64
@@ -20,6 +5,11 @@ import io
 from server.api.models.skills.messages.skills_send_message import MessagesSendOutput
 from typing import List, Union, Any
 from fastapi import HTTPException
+import logging
+import os
+# Set up logger
+logger = logging.getLogger(__name__)
+
 
 async def send(
     message: str,
@@ -31,8 +21,7 @@ async def send(
     """
     Send a message to a Discord channel
     """
-    add_to_log(module_name="OpenMates | API | Send message to Discord", state="start", color="yellow", hide_variables=True)
-    add_to_log("Sending a message to a Discord channel ...")
+    logger.debug("Sending a message to a Discord channel ...")
     if not bot_token:
         raise ValueError("DISCORD_BOT_TOKEN is not set")
 
@@ -82,8 +71,7 @@ async def send(
                 thread_id=str(response.channel.id) if isinstance(response.channel, discord.Thread) else None
             )
         except Exception as e:
-            add_to_log(f"Error: {str(e)}")
-            add_to_log(f"Full error details: {traceback.format_exc()}")
+            logger.exception("An error occurred while sending a message to a Discord channel")
             result = MessagesSendOutput(
                 error=str(e),
             )

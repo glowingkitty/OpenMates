@@ -1,21 +1,9 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi import HTTPException
 from server.cms.cms import make_strapi_request, get_nested
 from server.api.security.crypto import verify_hash
+import logging
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def validate_file_access(
@@ -28,8 +16,7 @@ async def validate_file_access(
     Validate if the user has access to the file (and if its uploaded)
     """
     try:
-        add_to_log(module_name="OpenMates | API | Validate file Access", state="start", color="yellow", hide_variables=True)
-        add_to_log("Validating if the user has access to the file ...")
+        logger.debug("Validating if the user has access to the file ...")
 
         request_refused_response_text = f"The file '/v1/{team_slug}/uploads/{filename}' does not exist or you do not have access to it."
 
@@ -67,31 +54,31 @@ async def validate_file_access(
 
         # if it fails, return a http response error that says either the file doesn't exist or you don't have access to it
         if status_code != 200:
-            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access")
+            logger.error("Got a status code of " + str(status_code) + " from strapi.")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         if file_json_response["data"] == []:
-            add_to_log("The file does not exist.", module_name="OpenMates | API | Validate file Access")
+            logger.error("The file does not exist.")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         # if the file exists and is is public, return True
         if get_nested(file_json_response,"access_public") == True:
-            add_to_log("The file is public.", module_name="OpenMates | API | Validate file Access", state="success")
+            logger.debug("The file is public.")
             return file_json_response["data"][0]
 
         # else check if the user is on the list of users with access to the file
         if len(get_nested(file_json_response, f"{requested_access}_access_limited_to_users")) > 0:
             for user in get_nested(file_json_response, f"{requested_access}_access_limited_to_users"):
                 if user_api_token and len(user_api_token)>1 and verify_hash(get_nested(user, "api_token"), user_api_token[32:]):
-                    add_to_log("The user is on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
+                    logger.debug("The user is on the list of users with access to the file.")
                     return file_json_response["data"][0]
 
         if len(get_nested(file_json_response, f"{requested_access}_access_limited_to_teams")) == 0 and len(get_nested(file_json_response, f"{requested_access}_access_limited_to_users")) == 0:
-            add_to_log("The file is not public and is not limited to any users or teams.", module_name="OpenMates | API | Validate file Access", state="error")
+            logger.error("The file is not public and is not limited to any users or teams.")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         if len(get_nested(file_json_response, f"{requested_access}_access_limited_to_teams")) == 0:
-            add_to_log("The file is not public and the user is not on the list of users with access to the file.", module_name="OpenMates | API | Validate file Access", state="error")
+            logger.error("The file is not public and the user is not on the list of users with access to the file.")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         # else get the user team based on the token
@@ -122,15 +109,15 @@ async def validate_file_access(
             )
 
         if status_code != 200:
-            add_to_log("Got a status code of " + str(status_code) + " from strapi.", module_name="OpenMates | API | Validate file Access", state="error")
+            logger.error("Got a status code of " + str(status_code) + " from strapi.")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         if len(user_json_response) == 0:
-            add_to_log("The user does not exist.", module_name="OpenMates | API | Validate file Access", state="error")
+            logger.error("The user does not exist.")
             raise HTTPException(status_code=404, detail=request_refused_response_text)
 
         if len(user_json_response) > 1:
-            add_to_log("Found more than one user with the token.", module_name="OpenMates | API | Validate file Access", state="error")
+            logger.error("Found more than one user with the token.")
             raise HTTPException(status_code=500, detail="Found more than one user with your token. Please contact the administrator.")
 
         # check if the user team (based on token) is on the list of teams with access to the file
@@ -138,15 +125,15 @@ async def validate_file_access(
             # then check if the user in user_json_response is actually part of the team
             for user_team in get_nested(user_json_response, "teams"):
                 if get_nested(user_team, "slug") == get_nested(allowed_team, "slug"):
-                    add_to_log("The user is part of the team that has access to the file.", module_name="OpenMates | API | Validate file Access", state="success")
+                    logger.debug("The user is part of the team that has access to the file.")
                     return file_json_response["data"][0]
 
-        add_to_log("The user is not part of the team that has access to the file.", module_name="OpenMates | API | Validate file Access", state="error")
+        logger.error("The user is not part of the team that has access to the file.")
         raise HTTPException(status_code=404, detail=request_refused_response_text)
 
     except HTTPException:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.error("Failed to validate the file access.")
         raise HTTPException(status_code=500, detail="Failed to validate the file access.")

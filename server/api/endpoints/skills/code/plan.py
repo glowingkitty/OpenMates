@@ -1,19 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
-
 from typing import Optional
 from fastapi import HTTPException
 from server.api.models.skills.code.skills_code_plan import CodePlanInput, CodePlanOutput, FileContext
@@ -22,6 +6,10 @@ from server.api.endpoints.skills.ai.ask import ask
 import json
 from server.api.models.skills.code.skills_code_plan import code_plan_output_example, code_plan_processing_output_example
 from server.api.endpoints.skills.ai.utils import load_prompt
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def plan(
@@ -44,7 +32,7 @@ async def plan(
         other_context_files=other_context_files
     )
 
-    add_to_log("Making plan ...", module_name="OpenMates | Skills | Code | Plan", color="blue")
+    logger.debug("Making plan ...")
 
     # Extract file tree from the provided code source
     # file_tree = extract_file_tree(code_git_url, code_zip, code_file)
@@ -86,7 +74,7 @@ async def plan(
             # TODO: use tool processing instead of JSON parsing?
             q_and_a_followup = json.loads(response["content"][0]["text"])
         except Exception as e:
-            add_to_log(f"LLM did not return valid JSON: {e}", module_name="OpenMates | Skills | Code | Plan", color="red")
+            logger.error(f"LLM did not return valid JSON: {e}")
             raise Exception("LLM did not return valid JSON")
 
         return CodePlanOutput(
@@ -119,7 +107,7 @@ async def plan(
             # TODO cant be parsed. therefore use tools!!!
             response_content = json.loads(response["content"][0]["text"])
         except Exception as e:
-            add_to_log(f"LLM did not return valid JSON: {e}", module_name="OpenMates | Skills | Code | Plan", color="red")
+            logger.error(f"LLM did not return valid JSON: {e}")
             raise Exception("LLM did not return valid JSON")
 
         return CodePlanOutput(

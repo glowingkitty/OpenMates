@@ -1,22 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import List, Optional
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi import HTTPException
 from server.api.security.crypto import verify_hash
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def update_or_create_config(
@@ -63,11 +52,11 @@ async def update_or_create_config(
                 if len(json_response["data"])==1:
                     team = json_response["data"][0]
                 elif len(json_response["data"])>1:
-                    add_to_log("More than one team found with the same URL.", state="error")
+                    logger.error("More than one team found with the same URL.")
                     raise HTTPException(status_code=500, detail="More than one team found with the same URL.")
 
             else:
-                add_to_log("No team found with the given URL.", state="error")
+                logger.error("No team found with the given URL.")
                 raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
             # get the user and its ID
@@ -81,8 +70,8 @@ async def update_or_create_config(
                 if not verify_hash(get_nested(user, "api_token"), api_token):
                     raise HTTPException(status_code=403, detail="Invalid API token.")
             else:
-                add_to_log("No user found with the given UID.", state="error")
-                add_to_log(f"UID: {uid}", state="error")
+                logger.error("No user found with the given UID.")
+                logger.error(f"UID: {uid}")
                 raise HTTPException(status_code=404, detail="No user found with the given UID.")
 
             # create a new config
@@ -154,5 +143,5 @@ async def update_or_create_config(
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to update or create a config for the AI team mate.")
         raise HTTPException(status_code=500, detail="Failed to update or create a config for the AI team mate.")

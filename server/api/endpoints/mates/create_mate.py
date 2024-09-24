@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import List, Optional, Union
 from server.api.models.mates.mates_create import MatesCreateOutput
 from server.cms.cms import make_strapi_request
@@ -22,6 +7,10 @@ from server.api.endpoints.skills.get_skill import get_skill
 from server.api.security.validation.validate_permissions import validate_permissions
 from server.api.security.validation.validate_mate_username import validate_mate_username
 from server.api.security.validation.validate_skills import validate_skills
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_mate(
@@ -40,8 +29,7 @@ async def create_mate(
     Create a new AI team mate on the team
     """
     try:
-        add_to_log(module_name="OpenMates | API | Create mate", state="start", color="yellow", hide_variables=True)
-        add_to_log("Creating a new AI team mate on the server and adding it to the team ...")
+        logger.debug("Creating a new AI team mate on the server and adding it to the team ...")
 
         # check if the username is already taken
         await validate_mate_username(username=username)
@@ -84,11 +72,11 @@ async def create_mate(
             if len(json_response["data"])==1:
                 team = json_response["data"][0]
             elif len(json_response["data"])>1:
-                add_to_log("More than one team found with the same URL.", state="error")
+                logger.error("More than one team found with the same URL.")
                 raise HTTPException(status_code=500, detail="More than one team found with the same URL.")
 
         else:
-            add_to_log("No team found with the given URL.", state="error")
+            logger.error("No team found with the given URL.")
             raise HTTPException(status_code=404, detail="No team found with the given URL.")
 
         # add default_llm_endpoint as linked skill
@@ -112,7 +100,7 @@ async def create_mate(
         )
 
         if not isinstance(default_llm_endpoint_skill, dict) or 'id' not in default_llm_endpoint_skill:
-            add_to_log(f"Unexpected response from get_skill: {default_llm_endpoint_skill}", state="error")
+            logger.error(f"Unexpected response from get_skill: {default_llm_endpoint_skill}")
             raise HTTPException(status_code=500, detail="Failed to retrieve LLM endpoint skill")
 
         # add default_llm_endpoint skill to default_llm_endpoint
@@ -151,15 +139,15 @@ async def create_mate(
         }
 
         if status_code == 200:
-            add_to_log("Successfully created the AI team mate", state="success")
+            logger.debug("Successfully created the AI team mate")
             return JSONResponse(status_code=201, content=created_mate)
         else:
-            add_to_log("Failed to create the AI team mate.", state="error")
+            logger.error("Failed to create the AI team mate.")
             raise HTTPException(status_code=500, detail="Failed to create the AI team mate.")
 
     except HTTPException:
         raise
 
     except Exception:
-        add_to_log(state="error", message=traceback.format_exc())
+        logger.exception("Failed to create the AI team mate.")
         raise HTTPException(status_code=500, detail="Failed to create the AI team mate.")

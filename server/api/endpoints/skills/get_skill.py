@@ -1,23 +1,12 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.cms.cms import make_strapi_request, get_nested
 from typing import Dict, Union, Optional
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from typing import Literal
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def get_skill(
@@ -33,8 +22,7 @@ async def get_skill(
         Get a specific skill
         """
         try:
-            add_to_log(module_name="OpenMates | API | Get skill", state="start", color="yellow", hide_variables=True)
-            add_to_log("Getting a specific skill ...")
+            logger.debug("Getting a specific skill ...")
 
             if id is None and (software_slug is None or skill_slug is None):
                 raise HTTPException(status_code=400, detail="Either id or software_slug and skill_slug must be provided")
@@ -145,10 +133,10 @@ async def get_skill(
                     json_response = skill
 
 
-                    add_to_log("Successfully got the skill.", state="success")
+                    logger.debug("Successfully got the skill.")
 
             if status_code == 404:
-                add_to_log("Could not find the requested skill.", state="error")
+                logger.error("Could not find the requested skill.")
 
             if output_format == "JSONResponse":
                 return JSONResponse(status_code=status_code, content=json_response)
@@ -159,5 +147,5 @@ async def get_skill(
             raise
 
         except Exception:
-            add_to_log(state="error", message=traceback.format_exc())
+            logger.exception("Failed to get the requested skill.")
             raise HTTPException(status_code=500, detail="Failed to get the requested skill.")

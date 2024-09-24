@@ -1,10 +1,4 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-from cryptography.fernet import Fernet
+from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from server.cms.cms import get_strapi_upload, make_strapi_request
 import io
@@ -12,16 +6,10 @@ from server.api.security.crypto import decrypt_file
 import gc
 from contextlib import contextmanager
 
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
+import logging
 
-from server.api import *
-################
-
-from fastapi import HTTPException
-import requests
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -43,14 +31,13 @@ async def download(
     """
     Download and decrypt a file from the OpenMates server
     """
-    add_to_log(module_name="OpenMates | API | Files | Providers | OpenMates | Download", state="start", color="yellow", hide_variables=True)
-    add_to_log(f"Downloading and decrypting file from OpenMates server ...")
+    logger.debug(f"Downloading and decrypting file from OpenMates server ...")
 
     # Extract file_id from file_path
     try:
         file_id = file_path.split("/")[-2]
     except Exception as e:
-        add_to_log(f"Error extracting file_id from file_path: {e}", state="error")
+        logger.error(f"Error extracting file_id from file_path: {e}")
         raise HTTPException(status_code=400, detail="Invalid file path")
 
     # Fetch the file information
@@ -72,7 +59,7 @@ async def download(
         async for chunk in encrypted_file_response.body_iterator:
             encrypted_data += chunk
     else:
-        add_to_log("No file found with the given file_id.", state="error")
+        logger.error("No file found with the given file_id.")
         raise HTTPException(status_code=404, detail="The file doesn't exist. This can be for various reasons: the file might be expired and deleted, the URL might be incorrect, you might not have access to it, or the file might not exist in the first place.")
 
     with secure_decryption(encrypted_data, api_token+file_id) as decrypted_file:

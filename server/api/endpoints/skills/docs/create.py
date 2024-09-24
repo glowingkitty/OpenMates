@@ -1,22 +1,11 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from typing import List
-
+import logging
 from server.api.endpoints.skills.docs.providers.microsoft_word.create import create as create_microsoft_word
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
 
 async def create(
     team_slug: str,
@@ -27,8 +16,7 @@ async def create(
     """
     Create a new document
     """
-    add_to_log(module_name="OpenMates | API | Create document", state="start", color="yellow", hide_variables=True)
-    add_to_log("Creating a new document ...")
+    logger.debug("Creating a new document ...")
 
     doc = await create_microsoft_word(
         team_slug=team_slug,

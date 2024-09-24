@@ -1,21 +1,10 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi.responses import StreamingResponse
-from fastapi import HTTPException
 from server.api.endpoints.skills.files.providers.openmates.download import download as openmates_download
+
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 async def download(
@@ -26,7 +15,7 @@ async def download(
     """
     Download a file from a provider
     """
-    add_to_log(module_name="OpenMates | API | Files | Download", state="start", color="yellow", hide_variables=True)
+    logger.debug("Downloading a file from a provider ...")
 
     if provider == "dropbox":
         # return await dropbox_download(file_path)
