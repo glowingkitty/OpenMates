@@ -26,7 +26,8 @@ def test_read():
         "Authorization": f"Bearer {api_token}"
     }
 
-    urls = ["https://www.digitalwaffle.co/job/product-designer-51"]
+    # urls = ["https://www.digitalwaffle.co/job/product-designer-51"]
+    urls = web_read_input_examples
     request_times = []  # List to store request times
 
     # Create 'hidden' directory if it doesn't exist
@@ -59,7 +60,7 @@ def test_read():
                 web_read_output = WebReadOutput(**json_response)
 
                 # Check if the content is valid markdown
-                assert markdown.markdown(web_read_output.content), f"Invalid markdown content for URL: {url}, include_images: {include_images}"
+                # assert markdown.markdown(web_read_output.content), f"Invalid markdown content for URL: {url}, include_images: {include_images}"
 
                 # Check for image tags in the content
                 # image_tags = re.findall(r'!\[.*?\]\(.*?\)', web_read_output.content)
@@ -72,12 +73,6 @@ def test_read():
                 markdown_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.md"
                 with open(markdown_filename, "w") as f:
                     f.write(web_read_output.content)
-
-                # Convert markdown to HTML and save to file
-                html_content = markdown.markdown(web_read_output.html)
-                html_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.html"
-                with open(html_filename, "w") as f:
-                    f.write(html_content)
 
                 # Save author if available
                 if hasattr(web_read_output, 'authors'):

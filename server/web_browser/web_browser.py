@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import logging
 from newspaper import Article, ArticleException
 import os
-from read import process_content
+from read import process_content, replace_relative_urls
 from markdownify import markdownify as md
 
 logging.basicConfig(level=logging.DEBUG)
@@ -110,21 +110,31 @@ async def read_page(request: URLRequest, req: Request):
             logger.debug("Article has no authors or failed to parse, processing as regular web page.")
             logger.debug("Loading web page with Playwright")
             page = await browser.new_page()
-            await page.goto(request.url, wait_until='networkidle')
+            await page.goto(request.url, wait_until='domcontentloaded', timeout=5000)
             content = await page.content()
-            main_content = await page.query_selector("main")
+
+            # Check for <article>, <main>, and <body> tags in that order
+            main_content = await page.query_selector("article")
+            if not main_content:
+                main_content = await page.query_selector("main")
+            if not main_content:
+                main_content = await page.query_selector("body")
+
             if main_content:
                 main_html = await main_content.inner_html()
             else:
-                main_html = await page.inner_html("body")
+                main_html = content  # Fallback to the entire page content if no specific tag is found
+
+            # Replace relative image links with full URLs
+            main_html = replace_relative_urls(main_html, request.url)
+
             await page.close()
             logger.debug("Playwright loaded the web page.")
             markdown_content = md(main_html)
             return {
                 "url": request.url,
                 "title": article.title if article else "No Title",
-                "text": markdown_content,
-                "html": content
+                "text": markdown_content
             }
     except Exception as e:
         logger.exception("An error occurred while reading the web page")

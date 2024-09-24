@@ -41,3 +41,7 @@ def process_content(article, base_url, include_images):
     full_content = re.sub(r'\n{3,}', '\n\n', full_content)
 
     return full_content.strip()
+
+
+def replace_relative_urls(html, base_url):
+    return re.sub(r'src="(/[^"]+)"', lambda match: f'src="{urljoin(base_url, match.group(1))}"', html)
