@@ -1,5 +1,3 @@
-
-from server.api.endpoints.skills.web.view import close_webbrowser
 import os
 import logging
 import redis.asyncio as redis

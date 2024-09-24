@@ -4,14 +4,16 @@ FROM mcr.microsoft.com/playwright:v1.47.0-focal
 # Install pip
 RUN apt-get update && apt-get install -y python3-pip
 
-# Install FastAPI, Uvicorn, and Playwright
-RUN pip3 install fastapi uvicorn playwright
+# Install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the working directory
 WORKDIR /usr/src/web_browser
 
-# Expose the port
-EXPOSE 8000
+# Copy the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Command to run the FastAPI app
-CMD ["uvicorn", "playwright_service:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use the entrypoint script to start Uvicorn
+ENTRYPOINT ["/entrypoint.sh"]

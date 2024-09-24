@@ -52,11 +52,12 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
+      REST_API_PORT: ${REST_API_PORT}
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
-      DRAGONFLY_URL: "dragonfly:6379"
-      WEB_BROWSER_URL: "http://web_browser:8000"
-      SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+      DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
+      WEB_BROWSER_URL: "http://web_browser:${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
@@ -76,7 +77,7 @@ services:
     environment:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
-      DRAGONFLY_URL: "dragonfly:6379"
+      DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
       PYTHONPATH: "/usr/src/OpenMates"
     command: celery -A server.task_management.task_management worker --loglevel=info
     volumes:
@@ -95,7 +96,7 @@ services:
     environment:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
-      DRAGONFLY_URL: "dragonfly:6379"
+      DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
       PYTHONPATH: "/usr/src/OpenMates"
     command: celery -A server.task_management.task_management beat --loglevel=info
     volumes:
@@ -111,7 +112,7 @@ services:
     ulimits:
       memlock: -1
     ports:
-      - "6379:6379"
+      - "${DRAGONFLY_PORT}:${DRAGONFLY_PORT}"
     volumes:
       - dragonfly-data:/data
     command:
@@ -130,13 +131,12 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+      WEB_BROWSER_PORT: ${WEB_BROWSER_PORT}
+      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
     volumes:
       - ./server/web_browser:/usr/src/web_browser
     networks:
       - openmates
-    depends_on:
-      - rest-api
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

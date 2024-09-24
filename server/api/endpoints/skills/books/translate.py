@@ -7,9 +7,7 @@ import asyncio
 from server.api.endpoints.tasks.update import update as update_task
 import time
 from server.api.endpoints.skills.ai.estimate_cost import estimate_cost, count_tokens
-from weasyprint import HTML, CSS
 from typing import List, Literal
-from fastapi import HTTPException
 from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostOutput
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from server.api.endpoints.skills.files.upload import upload

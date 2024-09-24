@@ -1,5 +1,3 @@
-from playwright.async_api import async_playwright
-from server.api.endpoints.skills.web.view import open_webbrowser
 import logging
 import os
 import redis.asyncio as redis

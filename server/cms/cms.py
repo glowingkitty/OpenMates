@@ -25,7 +25,7 @@ from io import BytesIO
 load_dotenv()
 
 STRAPI_URL = os.getenv('STRAPI_URL')
-STRAPI_API_TOKEN = os.getenv('STRAPI_API_TOKEN')
+STRAPI_TOKEN = os.getenv('STRAPI_TOKEN')
 
 def add_params(params, populate) -> str:
     for field in populate:
@@ -134,7 +134,7 @@ async def make_strapi_request(
 
             strapi_url = f"{STRAPI_URL}/api/{endpoint}{params}"
 
-            strapi_headers = {"Authorization": f"Bearer {STRAPI_API_TOKEN}"}
+            strapi_headers = {"Authorization": f"Bearer {STRAPI_TOKEN}"}
             if method.lower() == 'get':
                 strapi_response = await client.get(strapi_url, headers=strapi_headers)
             elif method.lower() == 'post':
@@ -181,7 +181,7 @@ async def upload_file_to_strapi(file_data: bytes, file_name: str) -> Dict:
             files = {'files': (file_name, file, 'application/octet-stream')}
 
             headers = {
-                "Authorization": f"Bearer {STRAPI_API_TOKEN}"
+                "Authorization": f"Bearer {STRAPI_TOKEN}"
             }
 
             strapi_response = await client.post(
@@ -200,7 +200,7 @@ async def delete_file_from_strapi(strapi_file_id: int) -> Dict:
     async with httpx.AsyncClient() as client:
         try:
             headers = {
-                "Authorization": f"Bearer {STRAPI_API_TOKEN}"
+                "Authorization": f"Bearer {STRAPI_TOKEN}"
             }
 
             strapi_response = await client.delete(
@@ -226,7 +226,7 @@ async def create_uploaded_file_entry(file_id: str, filename: str, additional_dat
             }
             strapi_response = await client.post(
                 f"{STRAPI_URL}/uploaded-files",
-                headers={"Authorization": f"Bearer {STRAPI_API_TOKEN}"},
+                headers={"Authorization": f"Bearer {STRAPI_TOKEN}"},
                 json=data
             )
             strapi_response.raise_for_status()

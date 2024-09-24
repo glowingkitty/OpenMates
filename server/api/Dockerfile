@@ -18,5 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # At runtime, the current directory will be mounted, so no need to COPY it
 
-# Run api.py with Uvicorn when the container launches
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copy the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Use the entrypoint script to start Uvicorn
+ENTRYPOINT ["/entrypoint.sh"]

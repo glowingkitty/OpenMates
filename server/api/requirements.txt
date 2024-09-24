@@ -1,4 +1,5 @@
 fastapi==0.109.0
+uvicorn==0.30.6
 python-multipart==0.0.9
 python-dotenv==1.0.0
 loguru==0.7.2
@@ -7,7 +8,6 @@ PyMuPDF==1.23.6
 requests==2.31.0
 Jinja2==3.1.2
 tiktoken==0.5.1
-uvicorn==0.27.0
 slowapi==0.1.8
 google-api-core==2.12.0
 google-api-python-client==2.106.0
@@ -33,6 +33,5 @@ python-docx==1.1.2
 ebooklib==0.18.0
 beautifulsoup4==4.12.2
 newspaper3k==0.2.8
-lxml[html_clean]
-playwright==1.46.0
-WeasyPrint==62.3
+lxml_html_clean==0.2.2
+reportlab==4.2.2
