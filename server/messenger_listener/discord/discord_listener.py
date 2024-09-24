@@ -6,7 +6,7 @@ import aiohttp
 from dotenv import load_dotenv
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Load environment variables

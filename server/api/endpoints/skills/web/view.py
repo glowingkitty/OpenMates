@@ -24,9 +24,9 @@ async def view(
 
         # Call the web_browser service
         async with aiohttp.ClientSession() as session:
-            async with session.get(
+            async with session.post(
                 f"http://web_browser:{WEB_BROWSER_PORT}/view",
-                params={"url": url},
+                json={"url": url},
                 headers={"Authorization": f"Bearer {WEB_BROWSER_SECRET_KEY}"}
             ) as response:
                 if response.status != 200:

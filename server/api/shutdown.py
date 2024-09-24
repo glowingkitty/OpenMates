@@ -2,9 +2,6 @@ import os
 import logging
 import redis.asyncio as redis
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 redis_url = f"redis://{os.getenv('DRAGONFLY_URL', 'dragonfly:6379')}/0"
 redis_client = redis.Redis.from_url(redis_url)
