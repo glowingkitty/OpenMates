@@ -9,7 +9,7 @@ import markdown
 import re
 from urllib.parse import quote
 from server.api.models.skills.web.skills_web_read import WebReadOutput, web_read_input_examples
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,29 +26,47 @@ def test_read():
         "Authorization": f"Bearer {api_token}"
     }
 
-    # urls = ["https://www.digitalwaffle.co/job/product-designer-51"]
-    urls = web_read_input_examples
+    # urls = web_read_input_examples
+    urls = ["https://www.digitalwaffle.co/job/product-designer-51"]
     request_times = []  # List to store request times
 
     # Create 'hidden' directory if it doesn't exist
     hidden_dir = "tests/free/api/endpoints/skills/web/hidden"
     os.makedirs(hidden_dir, exist_ok=True)
 
-    for url in urls:
-        for include_images in [True, False]:
-            params = {
-                "url": url,
-                "include_images": include_images
-            }
-            start_time = time.time()  # Start timing
-            response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/web/read", headers=headers, json=params)
-            end_time = time.time()  # End timing
+    def make_request(url, include_images):
+        params = {
+            "url": url,
+            "include_images": include_images
+        }
+        start_time = time.time()  # Start timing
+        response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/web/read", headers=headers, json=params)
+        end_time = time.time()  # End timing
 
-            request_time_ms = (end_time - start_time) * 1000  # Calculate time in ms
+        request_time_ms = (end_time - start_time) * 1000  # Calculate time in ms
+        result = {
+            "url": url,
+            "include_images": include_images,
+            "time_ms": request_time_ms,
+            "response": response
+        }
+        return result
+
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for url in urls:
+            for include_images in [True, False]:
+                futures.append(executor.submit(make_request, url, include_images))
+
+        for future in as_completed(futures):
+            result = future.result()
+            url = result["url"]
+            include_images = result["include_images"]
+            response = result["response"]
             request_times.append({
                 "url": url,
                 "include_images": include_images,
-                "time_ms": request_time_ms
+                "time_ms": result["time_ms"]
             })
 
             assert response.status_code == 200, f"Unexpected status code: {response.status_code} for URL: {url}, include_images: {include_images}"
@@ -58,16 +76,6 @@ def test_read():
             try:
                 # Validate the response against the WebReadOutput model
                 web_read_output = WebReadOutput(**json_response)
-
-                # Check if the content is valid markdown
-                # assert markdown.markdown(web_read_output.content), f"Invalid markdown content for URL: {url}, include_images: {include_images}"
-
-                # Check for image tags in the content
-                # image_tags = re.findall(r'!\[.*?\]\(.*?\)', web_read_output.content)
-                # if include_images:
-                #     assert image_tags, f"No image tags found in content when include_images=True for URL: {url}"
-                # else:
-                #     assert not image_tags, f"Image tags found in content when include_images=False for URL: {url}"
 
                 # save markdown to file
                 markdown_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.md"

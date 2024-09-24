@@ -4,6 +4,8 @@ from pydantic import BaseModel
 import logging
 import os
 from read import read as read_processing
+from playwright.async_api import BrowserContext
+from context import new_context
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -81,8 +83,9 @@ async def read_page(request: URLRequest, req: Request):
 
         # TODO check if url is harmful
 
-        result = await read_processing(request.url, request.include_images, browser)
-        return result
+        context: BrowserContext = await new_context(browser)
+
+        return await read_processing(url=request.url, include_images=request.include_images, browser=context)
     except Exception as e:
         logger.exception("An error occurred while reading the web page")
         raise HTTPException(status_code=500, detail="An error occurred while reading the web page")

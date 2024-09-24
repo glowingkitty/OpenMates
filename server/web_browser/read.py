@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 from newspaper import Article, ArticleException
 from markdownify import markdownify as md
 import logging
+from playwright.async_api import Browser, Page, ElementHandle, BrowserContext
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,8 @@ def replace_relative_urls(html, base_url):
     return re.sub(r'src="(/[^"]+)"', lambda match: f'src="{urljoin(base_url, match.group(1))}"', html)
 
 
-async def read(url, include_images, browser):
-    article = Article(url)
+async def read(url: str, include_images: bool, browser: BrowserContext):
+    article: Article = Article(url)
     try:
         article.download()
         article.parse()
@@ -77,31 +78,36 @@ async def read(url, include_images, browser):
     else:
         logger.debug("Article has no authors or failed to parse, processing as regular web page.")
         logger.debug("Loading web page with Playwright")
-        page = await browser.new_page()
-        await page.goto(url, wait_until='domcontentloaded', timeout=5000)
-        content = await page.content()
 
-        main_content = await page.query_selector("article")
+        # Create a new context with the desired user agent
+        page: Page = await browser.new_page()
+
+        await page.goto(url, wait_until='domcontentloaded', timeout=8000)
+        content: str = await page.content()
+        logger.debug("Playwright loaded the web page.")
+
+        main_content: ElementHandle = await page.query_selector("article")
         if not main_content:
-            main_content = await page.query_selector("main")
+            main_content: ElementHandle = await page.query_selector("main")
         if not main_content:
-            main_content = await page.query_selector("body")
+            main_content: ElementHandle = await page.query_selector("body")
 
         if main_content:
-            main_html = await main_content.inner_html()
+            main_html: str = await main_content.inner_html()
         else:
-            main_html = content  # Fallback to the entire page content if no specific tag is found
+            main_html: str = content  # Fallback to the entire page content if no specific tag is found
 
-        if not main_html.strip():
-            raise Exception("Main content is empty")
-
-        main_html = replace_relative_urls(main_html, url)
+        main_html: str = replace_relative_urls(main_html, url)
         await page.close()
-        logger.debug("Playwright loaded the web page.")
-        markdown_content = md(main_html)
+        logger.debug("Playwright closed the web page.")
+        markdown_content: str = md(main_html)
 
         # Remove duplicate headlines and images
-        markdown_content = remove_duplicates(markdown_content)
+        markdown_content: str = remove_duplicates(markdown_content)
+
+        if not markdown_content.strip():
+            logger.warning(f"Page is empty: {url}")
+            raise Exception("Page is empty")
 
         return {
             "url": url,
@@ -109,10 +115,10 @@ async def read(url, include_images, browser):
             "text": markdown_content
         }
 
-def remove_duplicates(content):
-    lines = content.split('\n')
-    seen = set()
-    result = []
+def remove_duplicates(content: str) -> str:
+    lines: list[str] = content.split('\n')
+    seen: set[str] = set()
+    result: list[str] = []
     for line in lines:
         if line.strip() and line not in seen:
             result.append(line)
@@ -121,5 +127,5 @@ def remove_duplicates(content):
             result.append(line)
     # Remove excessive newlines
     result = '\n'.join(result)
-    result = re.sub(r'\n{3,}', '\n\n', result)
+    result: str = re.sub(r'\n{3,}', '\n\n', result)
     return result.strip()
