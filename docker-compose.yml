@@ -79,7 +79,7 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
       PYTHONPATH: "/usr/src/OpenMates"
-    command: celery -A server.task_management.task_management worker --loglevel=info
+    command: celery -A server.task_management.task_management worker --loglevel=info --uid=nobody
     volumes:
       - .:/usr/src/OpenMates
     networks:
@@ -98,7 +98,7 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
       PYTHONPATH: "/usr/src/OpenMates"
-    command: celery -A server.task_management.task_management beat --loglevel=info
+    command: celery -A server.task_management.task_management beat --loglevel=info --uid=nobody
     volumes:
       - .:/usr/src/OpenMates
     networks:

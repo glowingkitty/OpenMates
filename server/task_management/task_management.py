@@ -13,6 +13,7 @@ celery = Celery('openmates',
 celery.conf.update(
     result_expires=3600, # 1 hour
     broker_transport_options = {'visibility_timeout': 3600},  # 1 hour.
+    broker_connection_retry_on_startup=True
 )
 
 celery.conf.beat_schedule = {
