@@ -46,15 +46,19 @@ async def view_page(request: URLRequest, req: Request):
             logger.warning("Unauthorized access attempt")
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        page = await browser.new_page()
-        logger.debug(f"Navigating to URL: {request.url}")
-        await page.goto(request.url)
-        content = await page.content()
-        title = await page.title()
-        logger.debug(f"Page title: {title}")
-
-        await page.close()
-        logger.debug("Page closed")
+        page = None
+        try:
+            page = await browser.new_page()
+            logger.debug(f"Navigating to URL: {request.url}")
+            await page.goto(request.url)
+            logger.debug("Page loaded")
+            content = await page.content()
+            title = await page.title()
+            logger.debug(f"Page title: {title}")
+        finally:
+            if page:
+                await page.close()
+                logger.debug("Page closed")
 
         return {
             "url": request.url,

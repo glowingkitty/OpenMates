@@ -9,9 +9,6 @@ import os
 # Set up logger
 logger = logging.getLogger(__name__)
 
-WEB_BROWSER_SECRET_KEY = os.getenv("WEB_BROWSER_SECRET_KEY")
-WEB_BROWSER_PORT = os.getenv("WEB_BROWSER_PORT")
-
 
 async def view(
     url: str
@@ -25,15 +22,17 @@ async def view(
         # Call the web_browser service
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"http://web_browser:{WEB_BROWSER_PORT}/view",
+                f"http://web_browser:{os.getenv("WEB_BROWSER_PORT")}/view",
                 json={"url": url},
-                headers={"Authorization": f"Bearer {WEB_BROWSER_SECRET_KEY}"}
+                headers={"Authorization": f"Bearer {os.getenv("WEB_BROWSER_SECRET_KEY")}"}
             ) as response:
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail="Failed to fetch content from web_browser")
                 data = await response.json()
+                logger.debug(f"Received data from web_browser: {data}")
 
         # TODO: Extract keywords, authors, publisher, and published_date
+
 
         web_view_output: WebViewOutput = WebViewOutput(
             url=data.get("url", ""),

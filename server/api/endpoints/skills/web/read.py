@@ -7,9 +7,6 @@ import os
 # Set up logger
 logger = logging.getLogger(__name__)
 
-WEB_BROWSER_SECRET_KEY = os.getenv("WEB_BROWSER_SECRET_KEY")
-WEB_BROWSER_PORT = os.getenv("WEB_BROWSER_PORT")
-
 
 async def read(
         url: str,
@@ -24,9 +21,9 @@ async def read(
         # Call the web_browser service
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"http://web_browser:{WEB_BROWSER_PORT}/read",
+                f"http://web_browser:{os.getenv("WEB_BROWSER_PORT")}/read",
                 json={"url": url, "include_images": include_images},
-                headers={"Authorization": f"Bearer {WEB_BROWSER_SECRET_KEY}"}
+                headers={"Authorization": f"Bearer {os.getenv("WEB_BROWSER_SECRET_KEY")}"}
             ) as response:
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail="Failed to fetch content from web_browser")

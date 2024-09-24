@@ -27,14 +27,14 @@ class WebViewOutput(BaseModel):
     """This is the model for the output of the web view skill"""
     url: str = Field(..., description="URL of the web page")
     title: str = Field(..., description="Title of the web page")
-    description: Optional[str] = Field(..., description="Description of the web page")
-    keywords: Optional[List[str]] = Field(..., description="Keywords of the web page")
-    authors: Optional[List[str]] = Field(..., description="Authors of the web page")
-    publisher: Optional[str] = Field(..., description="Publisher of the web page")
-    published_date: Optional[str] = Field(..., description="Published date of the web page")
+    description: Optional[str] = Field(None, description="Description of the web page")
+    keywords: Optional[List[str]] = Field(None, description="Keywords of the web page")
+    authors: Optional[List[str]] = Field(None, description="Authors of the web page")
+    publisher: Optional[str] = Field(None, description="Publisher of the web page")
+    published_date: Optional[str] = Field(None, description="Published date of the web page")
     elements: List[Union[
         NavBar, ContentBlock
-    ]] = Field(..., description="List of elements in the web page")
+    ]] = Field(None, description="List of elements in the web page")
 
 
 
