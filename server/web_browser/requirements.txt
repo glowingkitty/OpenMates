@@ -3,3 +3,4 @@ uvicorn==0.30.6
 newspaper3k==0.2.8
 lxml_html_clean==0.2.2
 playwright==1.47.0
+markdownify==0.13.1

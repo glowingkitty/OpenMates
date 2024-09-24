@@ -13,14 +13,16 @@ class WebReadOutput(BaseModel):
     url: str = Field(..., description="URL of the web page")
     title: str = Field(..., description="Title of the web page")
     content: str = Field(..., description="Content of the web page in markdown format")
-    description: Optional[str] = Field(..., description="Description of the web page")
-    keywords: Optional[List[str]] = Field(..., description="Keywords of the web page")
-    authors: Optional[List[str]] = Field(..., description="Authors of the web page")
-    publisher: Optional[str] = Field(..., description="Publisher of the web page")
-    published_date: Optional[str] = Field(..., description="Published date of the web page")
-
+    description: Optional[str] = Field(None, description="Description of the web page")
+    keywords: Optional[List[str]] = Field(None, description="Keywords of the web page")
+    authors: Optional[List[str]] = Field(None, description="Authors of the web page")
+    publisher: Optional[str] = Field(None, description="Publisher of the web page")
+    published_date: Optional[str] = Field(None, description="Published date of the web page")
+    html: Optional[str] = Field(None, description="HTML content of the web page")
 
 web_read_input_examples = [
+    "https://www.digitalwaffle.co/job/product-designer-51",
+    "https://machine-learning-made-simple.medium.com/openai-is-lying-about-o-1s-medical-diagnostic-capabilities-e5f4b4036eb8",
     "https://www.theverge.com/2024/9/20/24248356/iphone-16-camera-photographic-styles",
     "https://www.theverge.com/2024/9/20/24249856/battery-ev-renewable-energy-doe-funding",
     "https://www.tagesschau.de/inland/gesellschaft/fridays-for-future-254.html",
