@@ -71,8 +71,8 @@ services:
 
   celery-worker:
     build:
-      context: ./server/api
-      dockerfile: Dockerfile
+      context: ./server
+      dockerfile: task_management/Dockerfile
     env_file: .env
     environment:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
@@ -90,8 +90,8 @@ services:
 
   celery-beat:
     build:
-      context: ./server/api
-      dockerfile: Dockerfile
+      context: ./server
+      dockerfile: task_management/Dockerfile
     env_file: .env
     environment:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
