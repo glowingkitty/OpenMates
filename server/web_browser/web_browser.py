@@ -1,12 +1,9 @@
-# playwright_service.py
 from fastapi import FastAPI, HTTPException, Request
 from playwright.async_api import async_playwright
 from pydantic import BaseModel
 import logging
-from newspaper import Article, ArticleException
 import os
-from read import process_content, replace_relative_urls
-from markdownify import markdownify as md
+from read import read as read_processing
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -84,58 +81,8 @@ async def read_page(request: URLRequest, req: Request):
 
         # TODO check if url is harmful
 
-        article = Article(request.url)
-        try:
-            article.download()
-            article.parse()
-            logger.debug(f"Newspaper parsed the web page.")
-        except ArticleException as e:
-            logger.warning(f"Newspaper failed to parse the web page: {e}")
-            article = None
-
-        if article and article.authors:
-            logger.debug("Article has authors, processing as news article.")
-            full_content = process_content(article=article, base_url=request.url, include_images=request.include_images)
-            return {
-                "url": request.url,
-                "title": article.title,
-                "text": full_content,
-                "description": article.meta_description,
-                "keywords": article.keywords,
-                "authors": article.authors,
-                "publish_date": article.publish_date,
-                "html": article.html
-            }
-        else:
-            logger.debug("Article has no authors or failed to parse, processing as regular web page.")
-            logger.debug("Loading web page with Playwright")
-            page = await browser.new_page()
-            await page.goto(request.url, wait_until='domcontentloaded', timeout=5000)
-            content = await page.content()
-
-            # Check for <article>, <main>, and <body> tags in that order
-            main_content = await page.query_selector("article")
-            if not main_content:
-                main_content = await page.query_selector("main")
-            if not main_content:
-                main_content = await page.query_selector("body")
-
-            if main_content:
-                main_html = await main_content.inner_html()
-            else:
-                main_html = content  # Fallback to the entire page content if no specific tag is found
-
-            # Replace relative image links with full URLs
-            main_html = replace_relative_urls(main_html, request.url)
-
-            await page.close()
-            logger.debug("Playwright loaded the web page.")
-            markdown_content = md(main_html)
-            return {
-                "url": request.url,
-                "title": article.title if article else "No Title",
-                "text": markdown_content
-            }
+        result = await read_processing(request.url, request.include_images, browser)
+        return result
     except Exception as e:
         logger.exception("An error occurred while reading the web page")
         raise HTTPException(status_code=500, detail="An error occurred while reading the web page")
