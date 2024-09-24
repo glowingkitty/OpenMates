@@ -1,6 +1,8 @@
 import pytest
 import requests
 import os
+import time
+import json
 from dotenv import load_dotenv
 from pydantic import ValidationError
 import markdown
@@ -25,6 +27,11 @@ def test_read():
     }
 
     urls = web_read_input_examples
+    request_times = []  # List to store request times
+
+    # Create 'hidden' directory if it doesn't exist
+    hidden_dir = "tests/free/api/endpoints/skills/web/hidden"
+    os.makedirs(hidden_dir, exist_ok=True)
 
     for url in urls:
         for include_images in [True, False]:
@@ -32,7 +39,16 @@ def test_read():
                 "url": url,
                 "include_images": include_images
             }
+            start_time = time.time()  # Start timing
             response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/web/read", headers=headers, json=params)
+            end_time = time.time()  # End timing
+
+            request_time_ms = (end_time - start_time) * 1000  # Calculate time in ms
+            request_times.append({
+                "url": url,
+                "include_images": include_images,
+                "time_ms": request_time_ms
+            })
 
             assert response.status_code == 200, f"Unexpected status code: {response.status_code} for URL: {url}, include_images: {include_images}"
 
@@ -52,10 +68,13 @@ def test_read():
                 else:
                     assert not image_tags, f"Image tags found in content when include_images=False for URL: {url}"
 
-
-                # # save markdown to file
-                # with open(f"tests/free/api/endpoints/skills/web/test_read_output_{url.replace('/', '_')}_{include_images}.md", "w") as f:
-                #     f.write(web_read_output.content)
+                # save markdown to file
+                with open(f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.md", "w") as f:
+                    f.write(web_read_output.content)
 
             except ValidationError as e:
                 pytest.fail(f"Response does not match the WebReadOutput model: {e}, with response: {json_response}")
+
+    # Save request times to a JSON file
+    with open(f"{hidden_dir}/request_times.json", "w") as f:
+        json.dump(request_times, f, indent=4)
