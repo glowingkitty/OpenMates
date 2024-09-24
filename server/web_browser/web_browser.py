@@ -75,7 +75,7 @@ async def view_page(request: URLRequest, req: Request):
 @app.post("/read")
 async def read_page(request: URLRequest, req: Request):
     try:
-        logger.debug(f"Received request to read page: {request.url}")
+        logger.debug(f"Received request to read page.")
         auth_header = req.headers.get("Authorization")
         if auth_header != f"Bearer {WEB_BROWSER_SECRET_KEY}":
             logger.warning("Unauthorized access attempt")
@@ -88,18 +88,21 @@ async def read_page(request: URLRequest, req: Request):
             logger.debug("Downloading and parsing article with Newspaper")
             article.download()
             article.parse()
+            logger.debug(f"Newspaper parsed the web page.")
         except ArticleException:
             logger.debug("Newspaper couldn't parse the web page, loading it first with Playwright")
             page = await browser.new_page()
             await page.goto(request.url)
             content = await page.content()
             await page.close()
+            logger.debug(f"Playwright loaded the web page.")
 
             article.set_html(content)
             article.parse()
+            logger.debug(f"Newspaper parsed the web page.")
 
         full_content = process_content(article=article, base_url=request.url, include_images=request.include_images)
-        logger.info(f"Article title: {article.title}")
+        logger.debug(f"Processed content for url.")
 
         return {
             "url": request.url,
