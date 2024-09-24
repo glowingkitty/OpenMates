@@ -29,7 +29,6 @@ async def view(
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail="Failed to fetch content from web_browser")
                 data = await response.json()
-                logger.debug(f"Received data from web_browser: {data}")
 
         # TODO: Extract keywords, authors, publisher, and published_date
 
