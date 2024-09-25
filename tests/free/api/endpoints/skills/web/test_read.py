@@ -77,10 +77,15 @@ def test_read():
                 # Validate the response against the WebReadOutput model
                 web_read_output = WebReadOutput(**json_response)
 
-                # save markdown to file
+                # Save markdown to file
                 markdown_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.md"
                 with open(markdown_filename, "w") as f:
                     f.write(web_read_output.content)
+
+                # Save HTML to file
+                html_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.html"
+                with open(html_filename, "w") as f:
+                    f.write(web_read_output.html)
 
                 # Save author if available
                 if hasattr(web_read_output, 'authors'):

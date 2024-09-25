@@ -37,7 +37,8 @@ async def read(
             keywords=data.get("keywords", []),
             authors=data.get("authors", []),
             publisher=data.get("publisher", ""),
-            published_date=data.get("published_date", "")
+            published_date=data.get("published_date", ""),
+            html=data.get("html","")
         )
 
         logger.debug(f"Successfully read web page with URL: {url}")

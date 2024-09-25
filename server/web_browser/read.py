@@ -77,24 +77,38 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
         }
     else:
         logger.debug("Article has no authors or failed to parse, processing as regular web page.")
+
+        # Open the page
         logger.debug("Loading web page with Playwright")
-
-        # Create a new context with the desired user agent
         page: Page = await browser.new_page()
-
         await page.goto(url, wait_until='domcontentloaded', timeout=8000)
         content: str = await page.content()
         logger.debug("Playwright loaded the web page.")
 
+        if content.strip() == "":
+            logger.warning(f"Page is empty")
+            raise Exception("Page is empty")
+        else:
+            logger.debug(f"Page is not empty")
+
         main_content: ElementHandle = await page.query_selector("article")
+        if main_content:
+            text_content = await main_content.inner_text()
+            if not text_content.strip():
+                main_content = None
+
         if not main_content:
+            logger.debug("No article tag found or it is empty, trying main")
             main_content: ElementHandle = await page.query_selector("main")
-        if not main_content:
-            main_content: ElementHandle = await page.query_selector("body")
+            if main_content:
+                text_content = await main_content.inner_text()
+                if not text_content.strip():
+                    main_content = None
 
         if main_content:
             main_html: str = await main_content.inner_html()
         else:
+            logger.debug("No main tag found, using the entire page content")
             main_html: str = content  # Fallback to the entire page content if no specific tag is found
 
         main_html: str = replace_relative_urls(main_html, url)
@@ -112,7 +126,8 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
         return {
             "url": url,
             "title": article.title if article else "No Title",
-            "text": markdown_content
+            "text": markdown_content,
+            "html": content
         }
 
 def remove_duplicates(content: str) -> str:
