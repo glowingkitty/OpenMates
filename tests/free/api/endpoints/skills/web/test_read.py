@@ -26,8 +26,7 @@ def test_read():
         "Authorization": f"Bearer {api_token}"
     }
 
-    # urls = web_read_input_examples
-    urls = ["https://www.digitalwaffle.co/job/product-designer-51"]
+    urls = web_read_input_examples
     request_times = []  # List to store request times
 
     # Create 'hidden' directory if it doesn't exist
@@ -77,13 +76,16 @@ def test_read():
                 # Validate the response against the WebReadOutput model
                 web_read_output = WebReadOutput(**json_response)
 
+                # Shorten the URL for filenames
+                shortened_url = url[:20]  # Adjust the number of characters as needed
+
                 # Save markdown to file
-                markdown_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.md"
+                markdown_filename = f"{hidden_dir}/test_read_output_{shortened_url.replace('/', '_')}_{include_images}.md"
                 with open(markdown_filename, "w") as f:
                     f.write(web_read_output.content)
 
                 # Save HTML to file
-                html_filename = f"{hidden_dir}/test_read_output_{url.replace('/', '_')}_{include_images}.html"
+                html_filename = f"{hidden_dir}/test_read_output_{shortened_url.replace('/', '_')}_{include_images}.html"
                 with open(html_filename, "w") as f:
                     f.write(web_read_output.html)
 

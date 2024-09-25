@@ -44,6 +44,10 @@ def process_content(article, base_url, include_images):
     # Join the content and remove excessive newlines
     full_content = '\n'.join(markdown_content)
     full_content = re.sub(r'\n{3,}', '\n\n', full_content)
+    full_content = re.sub(r'\n +', '\n', full_content)  # Replace lines with only spaces with a single newline
+    full_content = re.sub(r'\n{2,}', '\n', full_content)  # Replace multiple empty lines with a single empty line
+    full_content = re.sub(r' +', ' ', full_content)  # Replace multiple spaces with a single space
+    full_content = re.sub(r' *\n', '\n', full_content)  # Remove trailing spaces at the end of lines
 
     return full_content.strip()
 
@@ -59,7 +63,7 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
         article.parse()
         logger.debug(f"Newspaper parsed the web page.")
     except ArticleException as e:
-        logger.warning(f"Newspaper failed to parse the web page: {e}")
+        logger.warning(f"Newspaper failed to parse the web page.")
         article = None
 
     if article and article.authors:
@@ -81,7 +85,16 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
         # Open the page
         logger.debug("Loading web page with Playwright")
         page: Page = await browser.new_page()
-        await page.goto(url, wait_until='domcontentloaded', timeout=8000)
+
+        response = await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+
+        # Check if the final URL is different from the initial URL (indicating a redirect)
+        if response.url != url:
+            logger.debug(f"Redirected to: {response.url}")
+
+        # Wait for a specific element to ensure the page is fully loaded
+        await page.wait_for_selector("body", state="attached")
+
         content: str = await page.content()
         logger.debug("Playwright loaded the web page.")
 
@@ -96,6 +109,8 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
             text_content = await main_content.inner_text()
             if not text_content.strip():
                 main_content = None
+            else:
+                logger.debug("Article tag found")
 
         if not main_content:
             logger.debug("No article tag found or it is empty, trying main")
@@ -104,6 +119,8 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
                 text_content = await main_content.inner_text()
                 if not text_content.strip():
                     main_content = None
+                else:
+                    logger.debug("Main tag found")
 
         if main_content:
             main_html: str = await main_content.inner_html()
@@ -119,9 +136,20 @@ async def read(url: str, include_images: bool, browser: BrowserContext):
         # Remove duplicate headlines and images
         markdown_content: str = remove_duplicates(markdown_content)
 
-        if not markdown_content.strip():
-            logger.warning(f"Page is empty: {url}")
-            raise Exception("Page is empty")
+        if not include_images:
+            markdown_content = re.sub(r'!\[.*?\]\(.*?\)', '', markdown_content)
+
+        # Replace multiple empty lines with a single empty line
+        markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
+        markdown_content = re.sub(r'\n{2,}', '\n', markdown_content)
+        markdown_content = re.sub(r'\n +', '\n', markdown_content)  # Replace lines with only spaces with a single newline
+        markdown_content = re.sub(r' +', ' ', markdown_content)  # Replace multiple spaces with a single space
+        markdown_content = re.sub(r' *\n', '\n', markdown_content)  # Remove trailing spaces at the end of lines
+
+
+        # if not markdown_content.strip():
+        #     logger.warning(f"Page is empty: {url}")
+        #     raise Exception("Page is empty")
 
         return {
             "url": url,
