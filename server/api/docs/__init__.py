@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
 # Import examples
 from server.api.models.billing.billing_get_balance import (

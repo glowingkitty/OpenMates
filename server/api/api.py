@@ -78,12 +78,8 @@ async def ratelimit_handler(request, exc):
 setup_docs(app)
 
 ##################################
-######### Files ##################
+######### Web interface ##########
 ##################################
-
-# GET /images/{file_path} (get an image)
-app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'endpoints/images')), name="images")
-
 
 # GET / (get the index.html file)
 @app.get("/",include_in_schema=False)
