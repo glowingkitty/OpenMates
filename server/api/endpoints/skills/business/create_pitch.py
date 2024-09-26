@@ -19,7 +19,7 @@ async def create_pitch(
     Based on the information provided, create an amazing pitch for the project or company.
     """
 
-    # generate the message for the LLM
+    # generate the message for the LLM with the questions of each field and its response from the user
     message = "\n".join([
         f"*{pitch_input.model_fields[field_name].description}*\n{getattr(pitch_input, field_name)}\n"
         for field_name in pitch_input.model_fields
