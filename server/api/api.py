@@ -25,6 +25,7 @@ skills_books_router = APIRouter()
 skills_videos_router = APIRouter()
 skills_photos_router = APIRouter()
 skills_web_router = APIRouter()
+skills_business_router = APIRouter()
 software_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
@@ -787,6 +788,83 @@ async def skill_books_translate(
     return task
 
 
+# POST /skills/business/create_pitch
+@skills_business_router.post("/v1/{team_slug}/skills/business/create_pitch", **skills_business_endpoints["create_pitch"])
+@limiter.limit("20/minute")
+async def skill_business_create_pitch(
+    request: Request,
+    parameters: BusinessCreatePitchInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> BusinessCreatePitchOutput:
+    await validate_permissions(
+        endpoint="/skills/business/create_pitch",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_business_create_pitch_processing(
+        what=parameters.what,
+        name=parameters.name,
+        existing_pitch=parameters.existing_pitch,
+        short_description=parameters.short_description,
+        in_depth_description=parameters.in_depth_description,
+        highlights=parameters.highlights,
+        impact=parameters.impact,
+        potential_future=parameters.potential_future,
+        target_audience=parameters.target_audience,
+        unique_selling_proposition=parameters.unique_selling_proposition,
+        goals=parameters.goals,
+        market_analysis=parameters.market_analysis,
+        users=parameters.users,
+        problems=parameters.problems,
+        solutions=parameters.solutions,
+        team_information=parameters.team_information,
+        financial_projections=parameters.financial_projections,
+        customer_testimonials=parameters.customer_testimonials,
+        pitch_type=parameters.pitch_type,
+        pitch_type_other_use_case=parameters.pitch_type_other_use_case
+    )
+
+
+# POST /skills/business/plan_application
+@skills_business_router.post("/v1/{team_slug}/skills/business/plan_application", **skills_business_endpoints["plan_application"])
+@limiter.limit("20/minute")
+async def skill_business_plan_application(
+    request: Request,
+    parameters: BusinessPlanApplicationInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> BusinessPlanApplicationOutput:
+    await validate_permissions(
+        endpoint="/skills/business/plan_application",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_business_plan_application_processing(
+        name=parameters.name
+    )
+
+
+# POST /skills/business/create_application
+@skills_business_router.post("/v1/{team_slug}/skills/business/create_application", **skills_business_endpoints["create_application"])
+@limiter.limit("20/minute")
+async def skill_business_create_application(
+    request: Request,
+    parameters: BusinessCreateApplicationInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> BusinessCreateApplicationOutput:
+    await validate_permissions(
+        endpoint="/skills/business/create_application",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_business_create_application_processing(
+        requirements=parameters.requirements,
+        recommendations=parameters.recommendations
+    )
+
+
 ##################################
 ######### Software ###############
 ##################################
@@ -1142,6 +1220,7 @@ app.include_router(skills_books_router,             tags=["Skills | Books"])
 app.include_router(skills_videos_router,            tags=["Skills | Videos"])
 app.include_router(skills_photos_router,            tags=["Skills | Photos"])
 app.include_router(skills_web_router,               tags=["Skills | Web"])
+app.include_router(skills_business_router,          tags=["Skills | Business"])
 app.include_router(software_router,                 tags=["software"])
 app.include_router(workflows_router,                tags=["Workflows"])
 app.include_router(tasks_router,                    tags=["Tasks"])
@@ -1149,6 +1228,3 @@ app.include_router(billing_router,                  tags=["Billing"])
 app.include_router(server_router,                   tags=["Server"])
 app.include_router(teams_router,                    tags=["Teams"])
 app.include_router(users_router,                    tags=["Users"])
-
-if __name__ == "__main__":
-    uvicorn.run("server.api.api:app", host="0.0.0.0", port=8000, log_level="info")

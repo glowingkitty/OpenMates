@@ -16,6 +16,9 @@ class BusinessCreatePitchInput(BaseModel):
     unique_selling_proposition: Optional[str] = Field(None, description="What makes the project or company unique?")
     goals: Optional[str] = Field(None, description="What are the goals of the pitch? What should the audience do after hearing the pitch or take away?")
     market_analysis: Optional[str] = Field(None, description="Provide an analysis of the market, including size, trends, and competitive landscape.")
+    users: Optional[str] = Field(None, description="Who are the users of the project or company?")
+    problems: Optional[str] = Field(None, description="What problems does the project or company solve?")
+    solutions: Optional[str] = Field(None, description="What solutions does the project or company offer?")
     team_information: Optional[str] = Field(None, description="Details about the team members and their expertise.")
     financial_projections: Optional[str] = Field(None, description="Basic financial projections or current financial status.")
     customer_testimonials: Optional[List[str]] = Field(None, description="Quotes or feedback from existing customers.")
@@ -73,6 +76,9 @@ business_create_pitch_input_example = {
     "unique_selling_proposition": "GreenThumb's personalized tips and community support make it easier for beginners to start and succeed in urban gardening.",
     "goals": "We aim to acquire 50,000 users within the first year and secure $200,000 in seed funding to enhance app features and marketing efforts.",
     "market_analysis": "The urban gardening market is growing as more people seek sustainable living options. Our research shows a significant interest in gardening among urban residents, with few apps offering comprehensive support for small-space gardening.",
+    "users": "Urban residents with limited space who are interested in gardening and sustainable living.",
+    "problems": "Many urban residents struggle to find time and space for gardening, and there are few resources to help them get started.",
+    "solutions": "GreenThumb provides a mobile app that offers step-by-step guides, personalized tips, and a community platform for urban gardeners.",
     "team_information": "Our team consists of a horticulturist, a software developer, and a marketing specialist, all passionate about urban gardening and sustainability.",
     "financial_projections": "We project revenues of $500,000 within the first two years, with a break-even point at year one.",
     "customer_testimonials": [

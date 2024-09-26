@@ -209,7 +209,25 @@ def custom_openapi(app: FastAPI):
     set_example(openapi_schema, "/v1/{team_slug}/skills/web/view", "post", "responses", {
         "Example 1": web_view_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/files/upload", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_pitch", "post", "requestBody", {
+        "Example 1": business_create_pitch_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_pitch", "post", "responses", {
+        "Example 1": business_create_pitch_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/business/plan_application", "post", "requestBody", {
+        "Example 1": business_plan_application_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/business/plan_application", "post", "responses", {
+        "Example 1": business_plan_application_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_application", "post", "requestBody", {
+        "Example 1": business_create_application_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_application", "post", "responses", {
+        "Example 1": business_create_application_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/files/upload", "post", "responses", {
         "Example 1": files_upload_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/skills/files/{provider}/{file_path}", "delete", "responses", {
