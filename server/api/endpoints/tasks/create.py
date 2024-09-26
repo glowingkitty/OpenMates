@@ -2,7 +2,7 @@ from server.memory.memory import save_task_to_memory
 from server.cms.cms import make_strapi_request
 from datetime import datetime, timezone
 import uuid
-from models.tasks.tasks_create import Task
+from server.api.models.tasks.tasks_create import Task
 from fastapi import HTTPException
 from server.cms.endpoints.tasks.create import create as create_task_in_cms
 
