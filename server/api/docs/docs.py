@@ -280,6 +280,22 @@ def setup_docs(app: FastAPI):
             <title>API Documentation</title>
             <meta charset="utf-8">
             <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
+            <style>
+                rapi-doc::part(section-operation-response),
+                rapi-doc::part(section-request-body),
+                rapi-doc::part(section-response-body),
+                rapi-doc::part(section-response-headers) {
+                    white-space: pre-wrap !important;
+                    word-wrap: break-word !important;
+                    overflow-wrap: break-word !important;
+                    max-width: 100% !important;
+                }
+                rapi-doc::part(textarea) {
+                    white-space: pre-wrap !important;
+                    word-wrap: break-word !important;
+                    overflow-wrap: break-word !important;
+                }
+            </style>
         </head>
         <body>
             <rapi-doc
@@ -289,6 +305,7 @@ def setup_docs(app: FastAPI):
                 show-header="false"
                 allow-spec-url-load="false"
                 allow-spec-file-load="false"
+                render-style="read"
             > </rapi-doc>
         </body>
         </html>
