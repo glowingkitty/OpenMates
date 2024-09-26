@@ -26,6 +26,8 @@ async def create_pitch(
         if getattr(pitch_input, field_name) is not None
     ])
 
+    # TODO either return stream response or task id
+
     # send the prompt to the LLM
     response: AiAskOutput = await ask(
         user_api_token=user_api_token,
