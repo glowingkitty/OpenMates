@@ -31,6 +31,9 @@ def test_business_create_pitch():
     assert pitch_data, "No pitch found in the response"
 
     # Save the "pitch" field as a markdown file
+    # make sure the folder exists
+    if not os.path.exists("tests/paid/api/endpoints/skills/business/hidden"):
+        os.makedirs("tests/paid/api/endpoints/skills/business/hidden")
     with open("tests/paid/api/endpoints/skills/business/hidden/created_pitch.md", "w") as md_file:
         md_file.write(pitch_data)
 
