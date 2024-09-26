@@ -263,4 +263,5 @@ async def ask(
             return AiAskOutput(
                 content=content,
                 cost_credits=None
-            ).model_dump(exclude_none=True)
+            )
+        # .model_dump(exclude_none=True)

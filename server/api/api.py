@@ -803,6 +803,8 @@ async def skill_business_create_pitch(
         user_api_token=token
     )
     return await skill_business_create_pitch_processing(
+        user_api_token=token,
+        team_slug=team_slug,
         what=parameters.what,
         name=parameters.name,
         existing_pitch=parameters.existing_pitch,

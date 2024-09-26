@@ -71,7 +71,7 @@ business_create_pitch_input_example = {
         "GreenThumb made it so easy for me to start my own balcony garden. - Jane D.",
         "I love the community feature where I can share my progress and get tips from others. - John S."
     ],
-    "pitch_type": "investor_pitch",
+    "pitch_type": "elevator_pitch",
     "pitch_type_other_use_case": None
 }
 
@@ -91,14 +91,7 @@ class BusinessCreatePitchOutput(BaseModel):
     pitch_type_other_use_case: Optional[str] = Field(None, description="If 'other' was selected, describes for what use case the pitch is being used.")
 
 business_create_pitch_output_example = {
-    "pitch": (
-        "GreenThumb is transforming urban living by making it easy for city dwellers to grow their own vegetables in small spaces. "
-        "Our mobile app provides step-by-step guides, personalized tips, and a supportive community platform for urban gardeners. "
-        "With a user-friendly interface and tailored advice based on location and season, GreenThumb empowers beginners to succeed in urban gardening. "
-        "We have already seen a strong interest in our app, with users praising its ease of use and community features. "
-        "We are seeking $200,000 in seed funding to enhance our app features, expand our user base, and promote sustainable living in urban areas. "
-        "Join us in our mission to bring the joy of gardening to city residents and promote a healthier, more sustainable lifestyle."
-    ),
-    "pitch_type": "investor_pitch",
+    "pitch": "**Elevator Pitch for GreenThumb**\n\nImagine transforming your small balcony, rooftop, or even windowsill into a thriving vegetable garden, all while embracing a sustainable lifestyle. Introducing **GreenThumb**, the revolutionary mobile app designed specifically for urban dwellers who want to grow their own food in limited spaces.\n\nWith our user-friendly interface, GreenThumb guides you step-by-step through the gardening process, offering personalized tips tailored to your location and the current season. Whether you're a complete beginner or looking to refine your skills, our app empowers you to cultivate fresh vegetables right at home.\n\nBut we don’t stop there! GreenThumb fosters a vibrant community of urban gardeners, allowing users to share their progress, exchange tips, and celebrate each other's successes. Our platform is the perfect blend of education and social interaction, making gardening not just a hobby, but a shared experience.\n\nThe urban gardening market is booming, and with a projected revenue of $500,000 within our first two years, we are poised to make a significant impact. Our goal is to acquire 50,000 users in our first year and secure $200,000 in seed funding to enhance our features and expand our reach globally.\n\nJoin us in our mission to empower urban residents to grow their own food, promote sustainability, and lead healthier lives. With GreenThumb, you’re not just planting seeds; you’re cultivating a movement. Let’s grow together!",
+    "pitch_type": "elevator_pitch",
     "pitch_type_other_use_case": None
 }
