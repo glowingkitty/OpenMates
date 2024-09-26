@@ -1,5 +1,8 @@
 from server.api.models.skills.business.skills_business_create_pitch import BusinessCreatePitchOutput
 from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def create_pitch(
         what: str,
@@ -23,8 +26,10 @@ async def create_pitch(
         pitch_type: str,
         pitch_type_other_use_case: str
 ) -> BusinessCreatePitchOutput:
+    logger.debug(f"Creating pitch")
     pitch = ""
 
+    logger.debug(f"Pitch created")
     return BusinessCreatePitchOutput(
         pitch=pitch,
         pitch_type=pitch_type,

@@ -19,7 +19,6 @@ def count_tokens(
         message_history: list = None,
         model_name: str = "gpt-3.5-turbo") -> int:
     try:
-        logger.debug(f"Counting the tokens ...")
 
         if message_history and not message:
             message = ""
@@ -39,8 +38,6 @@ def count_tokens(
             model_name = "gpt-3.5-turbo"
         encoding = tiktoken.encoding_for_model(model_name)
         tokens = len(encoding.encode(message))
-
-        logger.debug(f"Successfully counted the tokens: {tokens}")
 
         return tokens
 

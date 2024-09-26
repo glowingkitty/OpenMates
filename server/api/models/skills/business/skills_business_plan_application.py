@@ -13,8 +13,10 @@ class BusinessPlanApplicationOutput(BaseModel):
     recommendations: str = Field(..., description="Specific recommendations for improving the business plan")
 
 business_plan_application_input_example = {
+    "name": "GreenThumb",
 }
 
 business_plan_application_output_example = {
-
+    "requirements": "The requirements for the application",
+    "recommendations": "The recommendations for improving the business plan"
 }

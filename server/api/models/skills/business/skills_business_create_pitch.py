@@ -45,20 +45,6 @@ class BusinessCreatePitchInput(BaseModel):
     pitch_type_other_use_case: Optional[str] = Field(None, description="If you selected 'other', describe for what use case you are using the pitch.")
 
 
-class BusinessCreatePitchOutput(BaseModel):
-    pitch: str = Field(..., description="The pitch for the project or company")
-    pitch_type: Literal[
-        "elevator_pitch",
-        "one_liner_pitch",
-        "executive_summary_pitch",
-        "investor_pitch",
-        "sales_pitch",
-        "product_demo_pitch",
-        "visionary_pitch",
-        "other"
-    ] = Field(..., description="The type of pitch that was created")
-    pitch_type_other_use_case: Optional[str] = Field(None, description="If 'other' was selected, describes for what use case the pitch is being used.")
-
 business_create_pitch_input_example = {
     "what": "project",
     "name": "GreenThumb",
@@ -88,6 +74,21 @@ business_create_pitch_input_example = {
     "pitch_type": "investor_pitch",
     "pitch_type_other_use_case": None
 }
+
+
+class BusinessCreatePitchOutput(BaseModel):
+    pitch: str = Field(..., description="The pitch for the project or company")
+    pitch_type: Literal[
+        "elevator_pitch",
+        "one_liner_pitch",
+        "executive_summary_pitch",
+        "investor_pitch",
+        "sales_pitch",
+        "product_demo_pitch",
+        "visionary_pitch",
+        "other"
+    ] = Field(..., description="The type of pitch that was created")
+    pitch_type_other_use_case: Optional[str] = Field(None, description="If 'other' was selected, describes for what use case the pitch is being used.")
 
 business_create_pitch_output_example = {
     "pitch": (

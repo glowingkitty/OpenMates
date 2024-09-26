@@ -13,8 +13,10 @@ class BusinessCreateApplicationOutput(BaseModel):
     application: str = Field(..., description="The application for the project or company")
 
 business_create_application_input_example = {
+    "requirements": "The requirements for the application",
+    "recommendations": "The recommendations for improving the application"
 }
 
 business_create_application_output_example = {
-
+    "application": "The application for the project or company"
 }

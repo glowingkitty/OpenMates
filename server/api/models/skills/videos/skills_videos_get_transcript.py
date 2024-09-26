@@ -1,6 +1,5 @@
-
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-
+import re
 
 # POST /{team_slug}/skills/video/transcript (get transcript of a video)
 
@@ -15,9 +14,10 @@ class VideosGetTranscriptInput(BaseModel):
     @field_validator('url')
     @classmethod
     def url_must_be_youtube_url(cls, v):
-        if not re.search(r"youtube\.com/watch\?v=[a-zA-Z0-9_-]+$", v):
+        match = re.search(r"(youtube\.com/watch\?v=[a-zA-Z0-9_-]+)", v)
+        if not match:
             raise ValueError('URL must be a valid YouTube video URL')
-        return v
+        return f"https://www.{match.group(1)}"
 
 
 videos_get_transcript_input_example = {
