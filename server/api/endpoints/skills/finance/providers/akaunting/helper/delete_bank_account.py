@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 import os
 from dotenv import load_dotenv
 import requests

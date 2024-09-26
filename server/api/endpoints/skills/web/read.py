@@ -7,10 +7,12 @@ import os
 # Set up logger
 logger = logging.getLogger(__name__)
 
+# TODO add processing in seperate docker container for every web request
 
 async def read(
         url: str,
-        include_images: bool = True
+        include_images: bool = True,
+        ai_optimization: bool = False
     ) -> WebReadOutput:
     """
     Read a web page and return the content in markdown format.
@@ -28,6 +30,8 @@ async def read(
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail="Failed to fetch content from web_browser")
                 data = await response.json()
+
+        # TODO: Add AI optimization (clean up markdown via LLM)
 
         web_read_output: WebReadOutput = WebReadOutput(
             url=data.get("url", ""),

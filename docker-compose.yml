@@ -52,6 +52,7 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
+      PYTHONPATH: "/usr/src/OpenMates"
       REST_API_PORT: ${REST_API_PORT}
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
@@ -75,10 +76,10 @@ services:
       dockerfile: task_management/Dockerfile
     env_file: .env
     environment:
+      PYTHONPATH: "/usr/src/OpenMates"
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
-      PYTHONPATH: "/usr/src/OpenMates"
     command: celery -A server.task_management.task_management worker --loglevel=info --uid=nobody
     volumes:
       - .:/usr/src/OpenMates
@@ -94,10 +95,10 @@ services:
       dockerfile: task_management/Dockerfile
     env_file: .env
     environment:
+      PYTHONPATH: "/usr/src/OpenMates"
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
-      PYTHONPATH: "/usr/src/OpenMates"
     command: celery -A server.task_management.task_management beat --loglevel=info --uid=nobody
     volumes:
       - .:/usr/src/OpenMates

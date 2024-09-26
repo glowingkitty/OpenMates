@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from server.api.models.skills.finance.skills_finance_get_transactions import FinanceGetTransactionsInput,FinanceGetTransactionsOutput, Transaction
 from server.api.endpoints.skills.finance.providers.revolut_business.get_transactions import get_transactions as get_transactions_revolut_business
 

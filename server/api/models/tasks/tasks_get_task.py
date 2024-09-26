@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 tasks_get_task_output_example = {
     "id": "153e0027-e34d-27i7-9a9c-14a6375b1c97",
     "url": "/v1/openmatesdevs/tasks/153e0027-e34d-27i7-9a9c-14a6375b1c97",

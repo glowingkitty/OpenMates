@@ -1,18 +1,3 @@
-################
-# Default Imports
-################
-import sys
-import os
-import re
-
-# Fix import path
-full_current_path = os.path.realpath(__file__)
-main_directory = re.sub('server.*', '', full_current_path)
-sys.path.append(main_directory)
-
-from server.api import *
-################
-
 from fastapi import HTTPException
 from celery.result import AsyncResult
 from server.memory.memory import get_task_from_memory, save_task_to_memory

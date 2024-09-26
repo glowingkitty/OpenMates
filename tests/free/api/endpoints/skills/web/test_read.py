@@ -5,9 +5,6 @@ import time
 import json
 from dotenv import load_dotenv
 from pydantic import ValidationError
-import markdown
-import re
-from urllib.parse import quote
 from server.api.models.skills.web.skills_web_read import WebReadOutput, web_read_input_examples
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -26,7 +23,8 @@ def test_read():
         "Authorization": f"Bearer {api_token}"
     }
 
-    urls = web_read_input_examples
+    # urls = web_read_input_examples
+    urls = ["https://nlnet.nl/propose/"]
     request_times = []  # List to store request times
 
     # Create 'hidden' directory if it doesn't exist
