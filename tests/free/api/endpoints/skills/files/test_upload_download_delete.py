@@ -1,13 +1,5 @@
 # TODOimport pytest
 import os
-import base64
-from fastapi.testclient import TestClient
-from server.api.endpoints.skills.files.upload import upload
-from server.api.endpoints.skills.files.download import download
-from server.api.endpoints.skills.files.delete import delete
-from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
-from server.api.models.skills.files.skills_files_delete import FilesDeleteOutput
-from fastapi.responses import StreamingResponse
 import pytest
 import requests
 from datetime import datetime, timedelta
