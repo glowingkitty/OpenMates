@@ -22,80 +22,78 @@ import uvicorn
 
 # Import models
 from server.api.models.billing.billing_get_balance import (
-    BillingBalanceOutput, BillingGetBalanceInput, billing_get_balance_input_example, billing_get_balance_output_example
+    BillingBalanceOutput, BillingGetBalanceInput
 )
 from server.api.models.mates.mates_ask import (
-    MatesAskInput, mates_ask_input_example, mates_ask_output_example
+    MatesAskInput
 )
 from server.api.models.mates.mates_create import (
-    MatesCreateInput, mates_create_input_example, mates_create_output_example
+    MatesCreateInput
 )
 from server.api.models.mates.mates_delete import mates_delete_output_example
 from server.api.models.mates.mates_get_all import mates_get_all_output_example
 from server.api.models.mates.mates_get_one import mates_get_one_output_example
 from server.api.models.mates.mates_update import (
-    MatesUpdateInput, mates_update_input_example, mates_update_output_example
+    MatesUpdateInput
 )
 from server.api.models.skills.ai.skills_ai_ask import (
-    AiAskInput, AiAskOutput, AiAskOutputStream, ai_ask_input_example, ai_ask_input_example_2, ai_ask_input_example_3,
-    ai_ask_input_example_4, ai_ask_input_example_5, ai_ask_output_example, ai_ask_output_example_2, ai_ask_output_example_3,
-    ai_ask_output_example_4, ai_ask_output_example_5
+    AiAskInput, AiAskOutput, AiAskOutputStream
 )
 from server.api.models.skills.ai.skills_ai_estimate_cost import (
-    AiEstimateCostInput, AiEstimateCostOutput, ai_estimate_cost_input_example, ai_estimate_cost_output_example
+    AiEstimateCostInput, AiEstimateCostOutput
 )
 from server.api.models.skills.code.skills_code_plan import (
-    CodePlanInput, CodePlanOutput, code_plan_input_example, code_plan_input_example_2, code_plan_output_example, code_plan_output_example_2
+    CodePlanInput, CodePlanOutput
 )
 from server.api.models.skills.code.skills_code_write import (
-    CodeWriteInput, CodeWriteOutput, code_write_input_example, code_write_output_example
+    CodeWriteInput, CodeWriteOutput
 )
 from server.api.models.skills.docs.skills_docs_create import (
-    DocsCreateInput, docs_create_input_example, docs_create_output_example
+    DocsCreateInput
 )
 from server.api.models.skills.finance.skills_finance_get_report import (
-    FinanceGetReportInput, FinanceGetReportOutput, finance_get_report_input_example, finance_get_report_output_example
+    FinanceGetReportInput, FinanceGetReportOutput
 )
 from server.api.models.skills.finance.skills_finance_get_transactions import (
-    FinanceGetTransactionsInput, FinanceGetTransactionsOutput, finance_get_transactions_input_example, finance_get_transactions_output_example
+    FinanceGetTransactionsInput, FinanceGetTransactionsOutput
 )
 from server.api.models.skills.files.skills_files_delete import (
-    FilesDeleteOutput, files_delete_output_example
+    FilesDeleteOutput
 )
 from server.api.models.skills.files.skills_files_upload import (
-    FilesUploadOutput, files_upload_output_example
+    FilesUploadOutput
 )
 from server.api.models.skills.messages.skills_connect_server import (
-    MessagesConnectInput, MessagesConnectOutput, messages_connect_input_example, messages_connect_output_example
+    MessagesConnectInput, MessagesConnectOutput
 )
 from server.api.models.skills.messages.skills_send_message import (
-    MessagesSendInput, MessagesSendOutput, skills_send_message_input_example, skills_send_message_output_example
+    MessagesSendInput, MessagesSendOutput
 )
 from server.api.models.skills.photos.skills_photos_resize_image import photos_resize_output_example
 from server.api.models.skills.skills_get_one import skills_get_one_output_example
 from server.api.models.skills.videos.skills_videos_get_transcript import (
-    VideosGetTranscriptInput, VideosGetTranscriptOutput, videos_get_transcript_input_example, videos_get_transcript_output_example
+    VideosGetTranscriptInput, VideosGetTranscriptOutput
 )
 from server.api.models.skills.web.skills_web_read import (
-    WebReadInput, WebReadOutput, web_read_input_example, web_read_output_example
+    WebReadInput, WebReadOutput
 )
 from server.api.models.skills.web.skills_web_view import (
-    WebViewInput, WebViewOutput, web_view_input_example, web_view_output_example
+    WebViewInput, WebViewOutput
 )
 from server.api.models.tasks.tasks_cancel import (
-    TasksCancelOutput, tasks_cancel_output_example
+    TasksCancelOutput
 )
 from server.api.models.tasks.tasks_create import (
-    Task, task_create_output_example
+    Task
 )
 from server.api.models.tasks.tasks_get_task import tasks_get_task_output_example
 from server.api.models.teams.teams_get_all import teams_get_all_output_example
 from server.api.models.teams.teams_get_one import teams_get_one_output_example
 from server.api.models.users.users_create import (
-    UsersCreateInput, UsersCreateOutput, users_create_input_example, users_create_output_example
+    UsersCreateInput, UsersCreateOutput
 )
 from server.api.models.users.users_create_new_api_token import (
-    UsersCreateNewApiTokenInput, users_create_new_api_token_input_example, users_create_new_api_token_output_example
+    UsersCreateNewApiTokenInput
 )
 from server.api.models.users.users_get_all import users_get_all_output_example
 from server.api.models.users.users_get_one import User, users_get_one_output_example
@@ -142,11 +140,11 @@ from server.api.security.validation.validate_invite_code import validate_invite_
 from server.api.security.validation.validate_permissions import validate_permissions
 
 # Import parameters and metadata
-from server.api.parameters import (
-    billing_endpoints, input_parameter_descriptions, mates_endpoints, server_endpoints, set_example, skills_ai_endpoints,
+from server.api.docs.parameters import (
+    billing_endpoints, input_parameter_descriptions, mates_endpoints, server_endpoints, skills_ai_endpoints,
     skills_books_endpoints, skills_code_endpoints, skills_docs_endpoints, skills_endpoints, skills_files_endpoints,
     skills_finance_endpoints, skills_messages_endpoints, skills_photos_endpoints, skills_videos_endpoints, skills_web_endpoints,
-    tags_metadata, tasks_endpoints, teams_endpoints, users_endpoints
+    tasks_endpoints, teams_endpoints, users_endpoints
 )
 
 # Import Celery tasks
