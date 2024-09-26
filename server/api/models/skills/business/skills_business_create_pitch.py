@@ -7,12 +7,12 @@ class BusinessCreatePitchInput(BaseModel):
     what: Literal["project", "company"] = Field(..., description="Is the pitch for a project or a company?")
     name: str = Field(..., description="What is the name of the project or company?")
     existing_pitch: Optional[str] = Field(None, description="If you already have a pitch, you can paste it here. Otherwise, leave it blank.")
+    pitch_audience: Optional[str] = Field(None, description="Who is the target audience for the pitch?")
     short_description: Optional[str] = Field(None, description="Provide a brief description of the project or company in one or two sentences.")
     in_depth_description: Optional[str] = Field(None, description="Provide an in-depth description of the project or company.")
     highlights: Optional[List[str]] = Field(None, description="List the highlights of the project or company that you are excited about.")
     impact: Optional[str] = Field(None, description="What is the impact of the project or company?")
     potential_future: Optional[str] = Field(None, description="What is the potential future of the project or company?")
-    target_audience: Optional[str] = Field(None, description="Who is the target audience for the pitch?")
     unique_selling_proposition: Optional[str] = Field(None, description="What makes the project or company unique?")
     goals: Optional[str] = Field(None, description="What are the goals of the pitch? What should the audience do after hearing the pitch or take away?")
     market_analysis: Optional[str] = Field(None, description="Provide an analysis of the market, including size, trends, and competitive landscape.")
@@ -49,6 +49,7 @@ business_create_pitch_input_example = {
     "what": "project",
     "name": "GreenThumb",
     "existing_pitch": None,
+    "pitch_audience": "Potential investors, interested in investing in green technology.",
     "short_description": "GreenThumb is a mobile app that helps urban dwellers grow their own vegetables in small spaces.",
     "in_depth_description": "GreenThumb provides step-by-step guides, personalized tips, and a community platform for urban gardeners. Our app helps users maximize their small spaces, whether it's a balcony, rooftop, or windowsill, to grow their own fresh vegetables.",
     "highlights": [
@@ -58,7 +59,6 @@ business_create_pitch_input_example = {
     ],
     "impact": "GreenThumb aims to empower urban residents to grow their own food, promoting sustainability and healthy living.",
     "potential_future": "We plan to introduce premium features, such as advanced gardening techniques and exclusive content, and expand our user base globally.",
-    "target_audience": "Urban residents with limited space who are interested in gardening and sustainable living.",
     "unique_selling_proposition": "GreenThumb's personalized tips and community support make it easier for beginners to start and succeed in urban gardening.",
     "goals": "We aim to acquire 50,000 users within the first year and secure $200,000 in seed funding to enhance app features and marketing efforts.",
     "market_analysis": "The urban gardening market is growing as more people seek sustainable living options. Our research shows a significant interest in gardening among urban residents, with few apps offering comprehensive support for small-space gardening.",
