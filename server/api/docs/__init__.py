@@ -67,6 +67,9 @@ from server.api.models.skills.web.skills_web_read import (
 from server.api.models.skills.web.skills_web_view import (
     web_view_input_example, web_view_output_example
 )
+from server.api.models.skills.business.skills_business_create_pitch import (
+    create_pitch_input_example, create_pitch_output_example
+)
 from server.api.models.tasks.tasks_cancel import (
     tasks_cancel_output_example
 )

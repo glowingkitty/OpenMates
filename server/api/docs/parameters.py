@@ -1,5 +1,4 @@
 
-
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
 )
@@ -63,6 +62,15 @@ from server.api.models.skills.web.skills_web_read import (
 )
 from server.api.models.skills.web.skills_web_view import (
     WebViewOutput
+)
+from server.api.models.skills.business.skills_business_create_pitch import (
+    BusinessCreatePitchOutput
+)
+from server.api.models.skills.business.skills_business_plan_application import (
+    BusinessPlanApplicationOutput
+)
+from server.api.models.skills.business.skills_business_create_application import (
+    BusinessCreateApplicationOutput
 )
 from server.api.models.users.users_create import (
     UsersCreateOutput
@@ -371,6 +379,27 @@ skills_photos_endpoints = {
     }
 }
 
+skills_business_endpoints = {
+    "create_pitch":{
+        "response_model":BusinessCreatePitchOutput,
+        "summary": "Create pitch",
+        "description": "<img src='docs/images/skills/business/create_pitch.png' alt='Asks you multiple rounds of questions, and based on the answers it creates a pitch to help you communicate your idea or project, making it compelling and exciting to potential stakeholders.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "plan_application":{
+        "response_model":BusinessPlanApplicationOutput,
+        "summary": "Plan application",
+        "description": "<img src='docs/images/skills/business/plan_application.png' alt='Based on website URLs, documents, and requirement details,  you will be asked multiple questions and receive detailed requirements and recommendations for writing the application.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "create_application":{
+        "response_model":BusinessCreateApplicationOutput,
+        "summary": "Create application",
+        "description": "<img src='docs/images/skills/business/create_application.png' alt='Write an application based on detailed requirements and recommendations. For example, a funding application.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 users_endpoints = {
     "get_all_users":{
         "response_model":UsersGetAllOutput,
@@ -516,6 +545,10 @@ tags_metadata = [
     {
         "name": "Skills | Videos",
         "description": "<img src='docs/images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
+    },
+    {
+        "name": "Skills | Business",
+        "description": "<img src='docs/images/skills/business.png' alt='Manage your businesses, get recommendations and more.'>"
     },
     {
         "name": "Skills | Web",
