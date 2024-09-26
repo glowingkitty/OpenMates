@@ -805,26 +805,7 @@ async def skill_business_create_pitch(
     return await skill_business_create_pitch_processing(
         user_api_token=token,
         team_slug=team_slug,
-        what=parameters.what,
-        name=parameters.name,
-        existing_pitch=parameters.existing_pitch,
-        short_description=parameters.short_description,
-        in_depth_description=parameters.in_depth_description,
-        highlights=parameters.highlights,
-        impact=parameters.impact,
-        potential_future=parameters.potential_future,
-        target_audience=parameters.target_audience,
-        unique_selling_proposition=parameters.unique_selling_proposition,
-        goals=parameters.goals,
-        market_analysis=parameters.market_analysis,
-        users=parameters.users,
-        problems=parameters.problems,
-        solutions=parameters.solutions,
-        team_information=parameters.team_information,
-        financial_projections=parameters.financial_projections,
-        customer_testimonials=parameters.customer_testimonials,
-        pitch_type=parameters.pitch_type,
-        pitch_type_other_use_case=parameters.pitch_type_other_use_case
+        pitch_input=parameters
     )
 
 
