@@ -281,19 +281,28 @@ def setup_docs(app: FastAPI):
             <meta charset="utf-8">
             <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
             <style>
+                rapi-doc {
+                    max-width: 100%;
+                }
                 rapi-doc::part(section-operation-response),
                 rapi-doc::part(section-request-body),
                 rapi-doc::part(section-response-body),
                 rapi-doc::part(section-response-headers) {
-                    white-space: pre-wrap !important;
+                    white-space: normal !important;
                     word-wrap: break-word !important;
                     overflow-wrap: break-word !important;
                     max-width: 100% !important;
+                    overflow: auto; /* Allow scrolling if necessary */
                 }
                 rapi-doc::part(textarea) {
                     white-space: pre-wrap !important;
                     word-wrap: break-word !important;
                     overflow-wrap: break-word !important;
+                }
+                /* Additional rule for response content */
+                rapi-doc::part(section-response-body) {
+                    max-height: 300px; /* Set a max height for the response area */
+                    overflow-y: auto; /* Enable vertical scrolling */
                 }
             </style>
         </head>
