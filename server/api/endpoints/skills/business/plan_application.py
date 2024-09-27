@@ -3,6 +3,7 @@ from server.api.models.skills.business.skills_business_create_application import
 from typing import Optional, List
 import json
 import logging
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +11,19 @@ def generate_json_structure(cls):
     def get_structure(typ):
         if hasattr(typ, '__annotations__'):
             return {k: get_structure(v) for k, v in typ.__annotations__.items()}
-        elif hasattr(typ, '__origin__') and typ.__origin__ is list:
-            return [get_structure(typ.__args__[0])]
+        elif hasattr(typ, '__origin__'):
+            if typ.__origin__ is list:
+                return [get_structure(typ.__args__[0])]
+            elif typ.__origin__ is Optional:
+                inner_type = get_structure(typ.__args__[0])
+                return f"{inner_type} (optional)"
+            elif typ.__origin__ is Union:
+                # Handle Union types excluding NoneType
+                types = [get_structure(arg) for arg in typ.__args__ if arg is not type(None)]
+                if len(types) == 1:
+                    return f"{types[0]} (optional)"
+                else:
+                    return " | ".join(types)
         else:
             return typ.__name__
 
