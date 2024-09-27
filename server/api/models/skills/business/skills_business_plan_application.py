@@ -9,7 +9,7 @@ class BusinessPlanApplicationInput(BaseModel):
     recipient_website_urls: Optional[List[str]] = Field(None, description="Website URLs of recipient/programs.")
     recipient_pdf_documents: Optional[List[HttpUrl]] = Field(None, description="Links to PDF documents for of recipient/programs.")
     recipient_description: Optional[str] = Field(None, description="Description of the recipient")
-    programs_description: Optional[str] = Field(None, description="Description of the programs")
+    recipient_programs_description: Optional[str] = Field(None, description="Description of the programs")
 
 
 class BusinessPlanApplicationOutput(BaseModel):
@@ -46,7 +46,7 @@ business_plan_application_input_example = {
     "recipient_pdf_documents": [
         "https://www.techinnovatorsfund.com/documents/report.pdf"
     ],
-    "recipient_description": "Tech Innovators Fund is a venture capital firm that invests in early-stage startups focused on technology and innovation.",
+    "recipient_programs_description": "Tech Innovators Fund is a venture capital firm that invests in early-stage startups focused on technology and innovation.",
     "programs_description": "Startup Seed Funding is a program that provides funding to early-stage startups with high growth potential."
 }
 

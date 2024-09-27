@@ -34,7 +34,7 @@ async def create_pitch(
         team_slug=team_slug,
         system=system,
         message=message,
-        provider={"name": "chatgpt", "model": "gpt-4o"},
+        provider={"name": "chatgpt", "model": "gpt-4o-mini"},
         stream=False
     )
     if response.content:

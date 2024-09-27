@@ -3,6 +3,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from server.api.models.skills.business.skills_business_create_pitch import business_create_pitch_input_example
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,10 +19,18 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 @pytest.mark.api_dependent
 def test_business_create_pitch():
+    input_file_path = "tests/paid/api/endpoints/skills/business/hidden/input.json"
+
+    if os.path.exists(input_file_path):
+        with open(input_file_path, "r") as input_file:
+            input_data = json.load(input_file)
+    else:
+        input_data = business_create_pitch_input_example
+
     response = requests.post(
         f"{BASE_URL}/v1/{TEAM_SLUG}/skills/business/create_pitch",
         headers=HEADERS,
-        json=business_create_pitch_input_example
+        json=input_data
     )
 
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
