@@ -19,7 +19,7 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 @pytest.mark.api_dependent
 def test_business_create_pitch():
-    input_file_path = "tests/paid/api/endpoints/skills/business/hidden/input.json"
+    input_file_path = "tests/paid/api/endpoints/skills/business/hidden/test_business_create_pitch_input.json"
 
     if os.path.exists(input_file_path):
         with open(input_file_path, "r") as input_file:
@@ -43,7 +43,7 @@ def test_business_create_pitch():
     # make sure the folder exists
     if not os.path.exists("tests/paid/api/endpoints/skills/business/hidden"):
         os.makedirs("tests/paid/api/endpoints/skills/business/hidden")
-    with open("tests/paid/api/endpoints/skills/business/hidden/created_pitch.md", "w") as md_file:
+    with open("tests/paid/api/endpoints/skills/business/hidden/test_business_create_pitch_output.md", "w") as md_file:
         md_file.write(pitch_data)
 
-    print(f"Created pitch saved 'created_pitch.md'")
+    print(f"Created pitch saved 'tests/paid/api/endpoints/skills/business/hidden/test_business_create_pitch_output.md'")
