@@ -166,7 +166,7 @@ class AiAskInput(BaseModel):
 
 class AiAskOutput(BaseModel):
     """This is the model for the output of POST /{team_slug}/skills/ai/ask"""
-    content: Union[str, List[ContentItem]] = Field(..., title="Content", description="The response content from the AI to the question.")
+    content: List[ContentItem] = Field(..., title="Content", description="The response content from the AI to the question.")
     cost_credits: Optional[int] = Field(None, title="Cost in credits", description="Total cost of the request in credits")
 
 
