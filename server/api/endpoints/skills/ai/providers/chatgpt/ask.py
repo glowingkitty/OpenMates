@@ -13,6 +13,7 @@ from server.api.models.skills.ai.skills_ai_ask import (
     AiAskOutput,
     ContentItem,
     AiAskInput,
+    Tool,
     ToolUse,
     AiAskOutputStream
 )
@@ -46,17 +47,8 @@ class SimpleRateLimiter:
 rate_limiter = SimpleRateLimiter(max_calls=5000, period=60)  # 5000 calls per minute
 
 async def ask(
+        input: AiAskInput,
         api_token: str = os.getenv("OPENAI_API_KEY"),
-        system: str = "You are a helpful assistant. Keep your answers concise.",
-        message: str = None,
-        message_history: List[Dict[str, Any]] = None,
-        provider: dict = {"name":"chatgpt", "model":"gpt-4o"},
-        temperature: float = 0.5,
-        stream: bool = False,
-        cache: bool = False,
-        max_tokens: int = 1000,
-        stop_sequence: str = None,
-        tools: List[dict] = None,
         retries: int = 3  # Add a retries parameter with a default value
     ) -> Union[AiAskOutput, StreamingResponse]:
     """
@@ -65,20 +57,6 @@ async def ask(
 
     # Wait for rate limit to allow the call
     await rate_limiter.acquire()
-
-    # Create an AiAskInput object with the provided parameters
-    input = AiAskInput(
-        system=system,
-        message=message,
-        message_history=message_history,
-        provider=provider,
-        temperature=temperature,
-        stream=stream,
-        cache=cache,
-        max_tokens=max_tokens,
-        stop_sequence=stop_sequence,
-        tools=tools
-    )
 
     logger.info("Asking ChatGPT ...")
 
@@ -90,49 +68,48 @@ async def ask(
 
     if input.message_history:
         for msg in input.message_history:
-            msg_dict = msg.model_dump()
-            if isinstance(msg_dict['content'], list):
+            if isinstance(msg.content, list):
                 # Handle complex message input_content (text, images, tool uses, tool results)
                 input_content = []
-                for item in msg_dict['content']:
-                    if item['type'] == 'text':
+                for item in msg.content:
+                    if item.type == 'text':
                         # Add text content
-                        input_content.append({"type": "text", "text": item['text']})
-                    elif item['type'] == 'image':
+                        input_content.append({"type": "text", "text": item.text})
+                    elif item.type == 'image':
                         # Add image content
                         input_content.append({
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:{item['source']['media_type']};base64,{item['source']['data']}"
+                                "url": f"data:{item.source.media_type};base64,{item.source.data}"
                             }
                         })
-                    elif item['type'] == 'tool_use':
+                    elif item.type == 'tool_use':
                         # Handle tool use
                         tool_call = {
                             "role": "assistant",
                             "content": None,
                             "function_call": {
-                                "name": item['name'],
-                                "arguments": json.dumps(item['input'])
+                                "name": item.name,
+                                "arguments": json.dumps(item.input)
                             }
                         }
                         messages.append(tool_call)
-                        tool_use_map[item['id']] = item['name']
-                    elif item['type'] == 'tool_result':
+                        tool_use_map[item.id] = item.name
+                    elif item.type == 'tool_result':
                         # Handle tool result
-                        if item['tool_use_id'] in tool_use_map:
+                        if item.tool_use_id in tool_use_map:
                             messages.append({
                                 "role": "function",
-                                "name": tool_use_map[item['tool_use_id']],
-                                "content": item['content']
+                                "name": tool_use_map[item.tool_use_id],
+                                "content": item.content
                             })
                         else:
-                            logger.warning(f"Warning: tool_result without corresponding tool_use (ID: {item['tool_use_id']})")
+                            logger.warning(f"Warning: tool_result without corresponding tool_use (ID: {item.tool_use_id})")
                 if input_content:
-                    messages.append({"role": msg_dict['role'], "content": input_content})
+                    messages.append({"role": msg.role, "content": input_content})
             else:
                 # Add simple message content
-                messages.append(msg_dict)
+                messages.append(msg.model_dump())
     elif input.message:
         # Add single message if no history is provided
         messages.append({"role": "user", "content": input.message})
@@ -151,9 +128,9 @@ async def ask(
     if input.tools:
         chat_config["functions"] = [
             {
-                "name": tool["name"],
-                "description": tool["description"],
-                "parameters": tool["input_schema"]
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": tool.input_schema.model_dump()
             }
             for tool in input.tools
         ]

@@ -319,16 +319,7 @@ async def skill_ai_ask(
     return await skill_ai_ask_processing(
         user_api_token=token,
         team_slug=team_slug,
-        system=parameters.system,
-        message=parameters.message,
-        message_history=parameters.message_history,
-        provider=parameters.provider,
-        temperature=parameters.temperature,
-        stream=parameters.stream,
-        cache=parameters.cache,
-        max_tokens=parameters.max_tokens,
-        stop_sequence=parameters.stop_sequence,
-        tools=parameters.tools
+        input=parameters
     )
 
 

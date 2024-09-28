@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from server.api.models.skills.code.skills_code_plan import CodePlanInput, CodePlanOutput, FileContext
 # from server.utils.code_extractor import extract_file_tree  # Assuming you have a utility to extract file trees
 from server.api.endpoints.skills.ai.ask import ask
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
 import json
 from server.api.models.skills.code.skills_code_plan import code_plan_output_example, code_plan_processing_output_example
 from server.api.endpoints.skills.ai.utils import load_prompt
@@ -62,17 +63,19 @@ async def plan(
 
         # TODO clean up the code (seperate functions)
 
-        response = await ask(
+        response: AiAskOutput = await ask(
             user_api_token=token,
             team_slug=team_slug,
-            system=system_prompt,
-            message=message,
-            provider={"name": "claude", "model": "claude-3.5-sonnet"},
-            temperature=0.2
+            input=AiAskInput(
+                system=system_prompt,
+                message=message,
+                provider={"name": "claude", "model": "claude-3.5-sonnet"},
+                temperature=0.2
+            )
         )
         try:
             # TODO: use tool processing instead of JSON parsing?
-            q_and_a_followup = json.loads(response["content"][0]["text"])
+            q_and_a_followup = json.loads(response.content[0].text)
         except Exception as e:
             logger.error(f"LLM did not return valid JSON: {e}")
             raise Exception("LLM did not return valid JSON")

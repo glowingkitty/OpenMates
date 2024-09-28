@@ -48,36 +48,12 @@ def chunk_text(text):
     return [chunk.strip() for chunk in chunks if chunk.strip()]
 
 async def ask(
+        input: AiAskInput,
         api_token: str = os.getenv("ANTHROPIC_API_KEY"),
-        system: str = "You are a helpful assistant. Keep your answers concise.",
-        message: str = None,
-        message_history: List[Dict[str, Any]] = None,
-        provider: dict = {"name":"claude", "model":"claude-3.5-sonnet"},
-        temperature: float = 0.5,
-        stream: bool = False,
-        cache: bool = False,
-        max_tokens: int = 1000,
-        stop_sequence: str = None,
-        tools: List[Tool] = None
     ) -> Union[AiAskOutput, StreamingResponse]:
     """
     Ask a question to Claude
     """
-
-    input = AiAskInput(
-        system=system,
-        message=message,
-        message_history=message_history,
-        provider=provider,
-        temperature=temperature,
-        stream=stream,
-        cache=cache,
-        max_tokens=max_tokens,
-        stop_sequence=stop_sequence,
-        tools=tools
-    )
-
-    logger.info("Asking Claude ...")
 
     # Select a more specific model
     if input.provider.model == "claude-3.5-sonnet":

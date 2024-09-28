@@ -1,5 +1,5 @@
 from server.api.models.skills.business.skills_business_create_pitch import BusinessCreatePitchOutput, BusinessCreatePitchInput
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
 from server.api.endpoints.skills.ai.ask import ask
 from typing import List
 import logging
@@ -32,10 +32,12 @@ async def create_pitch(
     response: AiAskOutput = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
-        system=system,
-        message=message,
-        provider={"name": "chatgpt", "model": "gpt-4o-mini"},
-        stream=False
+        input=AiAskInput(
+            system=system,
+            message=message,
+            provider={"name": "chatgpt", "model": "gpt-4o-mini"},
+            stream=False
+        )
     )
     if response.content:
         pitch = response.content[0].text

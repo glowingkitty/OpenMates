@@ -3,7 +3,7 @@ from server.api.models.skills.business.skills_business_create_application import
 from server.api.endpoints.skills.web.read import read as read_website
 from server.api.models.skills.web.skills_web_read import WebReadOutput
 from server.api.endpoints.skills.ai.ask import ask
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
 from typing import Optional, List, get_origin, get_args, Union
 import json
 import logging
@@ -77,12 +77,12 @@ async def plan_application(
     recipient_writing_style = ""
     recipient_programs = []
 
+
     # generate the system prompt for the LLM
     system = f"""
-    You are an expert in planning applications for funding programs. Your output will be extensive and highly relevant, so based on your output someone can write a successful application.
-    Based on the information provided, you will output a valid json in the following format and nothing else:
-
-    {generate_json_structure(BusinessPlanApplicationOutput)}
+    You are an expert in planning applications for funding programs.
+    Your output will be extensive and highly relevant, so based on your output someone can write a successful application.
+    Make sure to consider the information provided and always output a valid tool call.
     """
 
     # TODO add processing pdf documents as well
@@ -111,13 +111,18 @@ async def plan_application(
         message += f"\nRecipient programs description:\n{recipient_programs_description}"
 
     # send the prompt to the LLM
+    tool = Recipient.to_tool()
+    logger.debug(f"Tool: {tool}")
     response: AiAskOutput = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
-        system=system,
-        message=message,
-        provider={"name": "chatgpt", "model": "gpt-4o"},
-        stream=False
+        input=AiAskInput(
+            system=system,
+            message=message,
+            provider={"name": "chatgpt", "model": "gpt-4o-mini"},
+            stream=False,
+            tools=[tool]
+        )
     )
     if response.content:
         recipient_json = response.content[0].text

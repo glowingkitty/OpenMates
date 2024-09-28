@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Literal, List, Optional
+from typing import Literal, List, Optional, Dict, Any
+from server.api.models.skills.ai.skills_ai_ask import Tool, ToolInputSchema
 
 # POST /{team_slug}/skills/business/create_application
 
@@ -15,6 +16,26 @@ class Recipient(BaseModel):
     name: str = Field(..., description="What is the name of the recipient / organization?")
     writing_style: Optional[str] = Field(None, description="What writing style would be best for the recipient? Considering who is likely reading the application, what background / skills they have, etc.")
     programs: List[Program] = Field(..., description="What programs does the recipient offer?")
+
+    @classmethod
+    def to_tool(cls) -> Tool:
+        schema = cls.model_json_schema()
+        properties = schema.get('properties', {})
+        required = schema.get('required', [])
+
+        # Ensure the Program schema is included correctly
+        program_schema = Program.model_json_schema()
+        properties['programs']['items'] = program_schema
+
+        return Tool(
+            name="recipient_tool",
+            description="Tool for recipient information",
+            input_schema=ToolInputSchema(
+                type="object",
+                properties=properties,
+                required=required
+            )
+        )
 
 class TeamMember(BaseModel):
     name: str = Field(..., description="What is the name of the team member?")

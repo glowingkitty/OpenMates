@@ -12,6 +12,7 @@ from server.api.models.skills.ai.skills_ai_estimate_cost import AiEstimateCostOu
 from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
 from server.api.endpoints.skills.files.upload import upload
 from server.api.endpoints.skills.ai.ask import ask
+from server.api.models.skills.ai.skills_ai_ask import AiAskInput, AiAskOutput
 from datetime import datetime, timedelta
 from ebooklib import epub
 from urllib.parse import quote
@@ -34,15 +35,20 @@ async def translate_text(
         output_language: str
 ) -> str:
     logger.debug(f"Translating text to {output_language}")
-    response = await ask(
+    response: AiAskOutput = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
-        system=f"You are an expert translator. Translate the given text to {output_language} and output nothing else except the translation output (and make sure to keep the original formatting/html structure).",
-        message=text,
-        provider=translation_provider,
-        temperature=0
+        input=AiAskInput(
+            system=f"You are an expert translator. Translate the given text to {output_language} and output nothing else except the translation output (and make sure to keep the original formatting/html structure).",
+            message=text,
+            provider=translation_provider,
+            temperature=0
+        )
     )
-    translated_text = response["content"][0]["text"]
+    if response.content:
+        translated_text = response.content[0].text
+    else:
+        raise ValueError("No content in the response")
     logger.debug(f"Translation complete")
     return translated_text
 
