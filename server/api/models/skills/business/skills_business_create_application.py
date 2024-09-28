@@ -6,14 +6,14 @@ from typing import Literal, List, Optional
 class Program(BaseModel):
     name: str = Field(..., description="What is the name of the program?")
     description: str = Field(..., description="What is this program about?")
-    requirements: Optional[str] = Field(None, description="What are the requirements for applying to this program?")
-    evaluation_criteria: Optional[str] = Field(None, description="Based on what criteria will the applications be evaluated?")
-    examples: Optional[str] = Field(None, description="Any good examples of successful applications from other applicants?")
-    avoid: Optional[str] = Field(None, description="Any don'ts or things to avoid in the application?")
+    requirements: Optional[str] = Field(None, description="What are the requirements for applying to this program? Write a list that covers all requirements for applicants.")
+    evaluation_criteria: Optional[str] = Field(None, description="Based on what criteria will the applications be evaluated? Write a list that covers all evaluation criteria.")
+    examples: Optional[str] = Field(None, description="Any good examples of successful applications from other applicants? Write a list with various great examples.")
+    avoid: Optional[str] = Field(None, description="Any don'ts or things to avoid in the application? Write a list that covers all the important donts.")
 
 class Recipient(BaseModel):
     name: str = Field(..., description="What is the name of the recipient / organization?")
-    writing_style: Optional[str] = Field(None, description="Any specific writing style that the recipient prefers?")
+    writing_style: Optional[str] = Field(None, description="What writing style would be best for the recipient? Considering who is likely reading the application, what background / skills they have, etc.")
     programs: List[Program] = Field(..., description="What programs does the recipient offer?")
 
 class TeamMember(BaseModel):

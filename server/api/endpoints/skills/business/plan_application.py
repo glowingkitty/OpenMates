@@ -32,7 +32,7 @@ def generate_json_structure(cls):
     def add_description(structure, field=None, optional=False):
         description = f" # {field.description}" if field and field.description else ""
         optional_str = " (optional)" if optional or (field and field.default is None) else ""
-        
+
         if isinstance(structure, list):
             return structure  # Return the list as is, we'll format it later
         elif isinstance(structure, dict):
@@ -85,51 +85,49 @@ async def plan_application(
     {generate_json_structure(BusinessPlanApplicationOutput)}
     """
 
-    logger.debug(f"System prompt: {system}")
-
     # TODO add processing pdf documents as well
 
-    # # get the text from the website urls
-    # website_text = ""
-    # if recipient_website_urls:
-    #     for url in recipient_website_urls:
-    #         website_text += f"Website:\n`{url}`\n"
-    #         website_read_output: WebReadOutput = await read_website(url)
-    #         website_text += f"Content:\n```\n{website_read_output.content}\n```\n"
+    # get the text from the website urls
+    website_text = ""
+    if recipient_website_urls:
+        for url in recipient_website_urls:
+            website_text += f"Website:\n`{url}`\n"
+            website_read_output: WebReadOutput = await read_website(url)
+            website_text += f"Content:\n```\n{website_read_output.content}\n```\n"
 
-    # # generate the message for the LLM
-    # message = f"""
-    # Applicant:
-    # {applicant.model_dump_json(indent=4)}
-    # """
+    # generate the message for the LLM
+    message = f"""
+    Applicant:
+    {applicant.model_dump_json(indent=4)}
+    """
 
-    # if website_text:
-    #     message += f"\nRecipient websites:\n{website_text}"
+    if website_text:
+        message += f"\nRecipient websites:\n{website_text}"
 
-    # if recipient_description:
-    #     message += f"\nRecipient description:\n{recipient_description}"
+    if recipient_description:
+        message += f"\nRecipient description:\n{recipient_description}"
 
-    # if recipient_programs_description:
-    #     message += f"\nRecipient programs description:\n{recipient_programs_description}"
+    if recipient_programs_description:
+        message += f"\nRecipient programs description:\n{recipient_programs_description}"
 
-    # # send the prompt to the LLM
-    # response: AiAskOutput = await ask(
-    #     user_api_token=user_api_token,
-    #     team_slug=team_slug,
-    #     system=system,
-    #     message=message,
-    #     provider={"name": "chatgpt", "model": "gpt-4o-mini"},
-    #     stream=False
-    # )
-    # if response.content:
-    #     recipient_json = response.content[0].text
-    #     recipient_json = json.loads(recipient_json)
-    #     # Extract the 'recipient' key from the parsed JSON
-    #     recipient_data = recipient_json.get('recipient', {})
-    # else:
-    #     raise ValueError("No content in the response")
+    # send the prompt to the LLM
+    response: AiAskOutput = await ask(
+        user_api_token=user_api_token,
+        team_slug=team_slug,
+        system=system,
+        message=message,
+        provider={"name": "chatgpt", "model": "gpt-4o-mini"},
+        stream=False
+    )
+    if response.content:
+        recipient_json = response.content[0].text
+        recipient_json = json.loads(recipient_json)
+        # Extract the 'recipient' key from the parsed JSON
+        recipient_data = recipient_json.get('recipient', {})
+    else:
+        raise ValueError("No content in the response")
 
-    # recipient = Recipient(**recipient_data)
+    recipient = Recipient(**recipient_data)
 
     logger.debug(f"Application planned")
     return BusinessPlanApplicationOutput(
