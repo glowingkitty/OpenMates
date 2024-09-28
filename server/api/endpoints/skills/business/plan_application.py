@@ -86,6 +86,7 @@ async def plan_application(
     """
 
     # TODO add processing pdf documents as well
+    # TODO add processing via task, not waiting for the response
 
     # get the text from the website urls
     website_text = ""
@@ -118,12 +119,12 @@ async def plan_application(
         input=AiAskInput(
             system=system,
             message=message,
-            provider={"name": "chatgpt", "model": "gpt-4o-mini"},
+            provider={"name": "chatgpt", "model": "gpt-4o"},
             stream=False,
             tools=[tool]
         )
     )
-    logger.info(f"Response: {response}")
+    logger.debug(f"Response received")
     if response.content:
         tool_use = response.content[0].tool_use
         if tool_use and tool_use.input:
