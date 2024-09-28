@@ -46,8 +46,8 @@ business_plan_application_input_example = {
     "recipient_pdf_documents": [
         "https://www.techinnovatorsfund.com/documents/report.pdf"
     ],
-    "recipient_programs_description": "Tech Innovators Fund is a venture capital firm that invests in early-stage startups focused on technology and innovation.",
-    "programs_description": "Startup Seed Funding is a program that provides funding to early-stage startups with high growth potential."
+    "recipient_description": "Tech Innovators Fund is a venture capital firm that invests in early-stage startups focused on technology and innovation.",
+    "recipient_programs_description": "Startup Seed Funding is a program that provides funding to early-stage startups with high growth potential."
 }
 
 business_plan_application_output_example = {

@@ -824,6 +824,8 @@ async def skill_business_plan_application(
         user_api_token=token
     )
     return await skill_business_plan_application_processing(
+        user_api_token=token,
+        team_slug=team_slug,
         applicant=parameters.applicant,
         recipient_website_urls=parameters.recipient_website_urls,
         recipient_pdf_documents=parameters.recipient_pdf_documents,
