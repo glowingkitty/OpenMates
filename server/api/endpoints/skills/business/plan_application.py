@@ -32,9 +32,9 @@ def generate_json_structure(cls):
     def add_description(structure, field=None, optional=False):
         description = f" # {field.description}" if field and field.description else ""
         optional_str = " (optional)" if optional or (field and field.default is None) else ""
-
+        
         if isinstance(structure, list):
-            return f"[{structure[0]}{optional_str}]{description}"
+            return structure  # Return the list as is, we'll format it later
         elif isinstance(structure, dict):
             return structure  # Don't modify nested structures
         else:
@@ -44,13 +44,21 @@ def generate_json_structure(cls):
         if isinstance(structure, dict):
             lines = ["{"]
             for k, v in structure.items():
-                lines.append(f'    {"    " * indent}"{k}": {format_output(v, indent + 1)},')
+                if isinstance(v, list) and v and isinstance(v[0], dict):
+                    lines.append(f'{"    " * (indent + 1)}"{k}": [')
+                    lines.extend(format_output(item, indent + 2) for item in v)
+                    lines.append(f'{"    " * (indent + 1)}],')
+                else:
+                    lines.append(f'{"    " * (indent + 1)}"{k}": {format_output(v, indent + 1)},')
             lines.append("    " * indent + "}")
             return "\n".join(lines)
         elif isinstance(structure, list):
-            return json.dumps(structure)
+            if structure and isinstance(structure[0], dict):
+                return "{\n" + ",\n".join(f'{"    " * (indent + 1)}"{k}": {v}' for k, v in structure[0].items()) + "\n" + "    " * indent + "}"
+            else:
+                return json.dumps(structure)
         else:
-            return f'{structure}'
+            return str(structure)
 
     result = get_structure(cls)
     return format_output(result)
