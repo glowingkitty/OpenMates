@@ -27,6 +27,8 @@ class Recipient(BaseModel):
         program_schema = Program.model_json_schema()
         properties['programs']['items'] = program_schema
 
+        # TODO make function more generic and reusable - check every sub key and export model_json_schema()
+
         return Tool(
             name="recipient_tool",
             description="Tool for recipient information",
