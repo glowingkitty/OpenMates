@@ -1,9 +1,9 @@
-from server.api.models.skills.business.skills_business_plan_application import BusinessPlanApplicationOutput
-from server.api.models.skills.business.skills_business_create_application import Applicant, Recipient
+from server.api.models.skills.business.skills_business_plan_application import BusinessPlanApplicationOutput, BusinessPlanApplicationInput
+from server.api.models.skills.business.skills_business_create_application import Recipient
 from server.api.endpoints.skills.web.read import read as read_website
 from server.api.models.skills.web.skills_web_read import WebReadOutput
 from server.api.endpoints.skills.ai.ask import ask
-from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput
+from server.api.models.skills.ai.skills_ai_ask import AiAskOutput, AiAskInput, Tool
 from typing import Optional, List, get_origin, get_args, Union
 import json
 import logging
@@ -66,11 +66,7 @@ def generate_json_structure(cls):
 async def plan_application(
         user_api_token: str,
         team_slug: str,
-        applicant: Applicant,
-        recipient_website_urls: Optional[List[str]],
-        recipient_pdf_documents: Optional[List[str]],
-        recipient_description: Optional[str],
-        recipient_programs_description: Optional[str]
+        input: BusinessPlanApplicationInput
 ) -> BusinessPlanApplicationOutput:
     logger.debug(f"Planning application")
     recipient_name = ""
@@ -83,7 +79,7 @@ async def plan_application(
     You are an expert in planning applications for funding programs.
     Your output will be extensive and highly relevant, so based on your output someone can write a successful application.
     Only output the single program that is most relevant to the applicant.
-    Make sure to consider the information provided and always output a valid tool call.
+    Make sure to consider the information provided and only output a tool call and nothing else.
     """
 
     # TODO add processing pdf documents as well
@@ -91,8 +87,8 @@ async def plan_application(
 
     # get the text from the website urls
     website_text = ""
-    if recipient_website_urls:
-        for url in recipient_website_urls:
+    if input.recipient_website_urls:
+        for url in input.recipient_website_urls:
             website_text += f"Website:\n`{url}`\n"
             website_read_output: WebReadOutput = await read_website(url)
             website_text += f"Content:\n```\n{website_read_output.content}\n```\n"
@@ -100,20 +96,20 @@ async def plan_application(
     # generate the message for the LLM
     message = f"""
     Applicant:
-    {applicant.model_dump_json(indent=4)}
+    {input.applicant.model_dump_json(indent=4)}
     """
 
     if website_text:
         message += f"\nRecipient websites:\n{website_text}"
 
-    if recipient_description:
-        message += f"\nRecipient description:\n{recipient_description}"
+    if input.recipient_description:
+        message += f"\nRecipient description:\n{input.recipient_description}"
 
-    if recipient_programs_description:
-        message += f"\nRecipient programs description:\n{recipient_programs_description}"
+    if input.recipient_programs_description:
+        message += f"\nRecipient programs description:\n{input.recipient_programs_description}"
 
     # send the prompt to the LLM
-    tool = Recipient.to_tool()
+    tool: Tool = Recipient.to_tool()
     response: AiAskOutput = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
@@ -127,10 +123,15 @@ async def plan_application(
     )
     logger.debug(f"Response received")
     if response.content:
-        tool_use = response.content[0].tool_use
-        if tool_use and tool_use.input:
-            recipient_data = tool_use.input
+        # go over every content item up to the first tool use
+        for content_item in response.content:
+            if content_item.type == "tool_use":
+                tool_use = content_item.tool_use
+                if tool_use and tool_use.input:
+                    recipient_data = tool_use.input
+                    break
         else:
+            logger.error(f"No tool use input in the response: {response.content}")
             raise ValueError("No tool use input in the response")
     else:
         raise ValueError("No content in the response")

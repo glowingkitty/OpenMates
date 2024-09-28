@@ -147,7 +147,8 @@ async def ask(
         return AiAskOutput(
             content=content,
             cost_credits=cost_credits
-        ).model_dump(exclude_none=True)
+        )
+        # ).model_dump(exclude_none=True)
 
 def determine_tool_name(parsed_json: Dict[str, Any], tools: List[Tool]) -> Optional[str]:
     for tool in tools:

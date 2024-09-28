@@ -57,106 +57,112 @@ def replace_relative_urls(html, base_url):
 
 
 async def read(url: str, include_images: bool, browser: BrowserContext):
-    article: Article = Article(url)
-    try:
-        article.download()
-        article.parse()
-        logger.debug(f"Newspaper parsed the web page.")
-    except ArticleException as e:
-        logger.warning(f"Newspaper failed to parse the web page.")
-        article = None
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            article: Article = Article(url)
+            try:
+                article.download()
+                article.parse()
+                logger.debug(f"Newspaper parsed the web page.")
+            except ArticleException as e:
+                logger.warning(f"Newspaper failed to parse the web page.")
+                article = None
 
-    if article and article.authors:
-        logger.debug("Article has authors, processing as news article.")
-        full_content = process_content(article=article, base_url=url, include_images=include_images)
-        return {
-            "url": url,
-            "title": article.title,
-            "text": full_content,
-            "description": article.meta_description,
-            "keywords": article.keywords,
-            "authors": article.authors,
-            "publish_date": article.publish_date,
-            "html": article.html
-        }
-    else:
-        logger.debug("Article has no authors or failed to parse, processing as regular web page.")
-
-        # Open the page
-        logger.debug("Loading web page with Playwright")
-        page: Page = await browser.new_page()
-
-        response = await page.goto(url, wait_until='domcontentloaded', timeout=15000)
-
-        # Check if the final URL is different from the initial URL (indicating a redirect)
-        if response.url != url:
-            logger.debug(f"Redirected to: {response.url}")
-
-        # Wait for a specific element to ensure the page is fully loaded
-        await page.wait_for_selector("body", state="attached")
-
-        content: str = await page.content()
-        logger.debug("Playwright loaded the web page.")
-
-        if content.strip() == "":
-            logger.warning(f"Page is empty")
-            raise Exception("Page is empty")
-        else:
-            logger.debug(f"Page is not empty")
-
-        main_content: ElementHandle = await page.query_selector("article")
-        if main_content:
-            text_content = await main_content.inner_text()
-            if not text_content.strip():
-                main_content = None
+            if article and article.authors:
+                logger.debug("Article has authors, processing as news article.")
+                full_content = process_content(article=article, base_url=url, include_images=include_images)
+                return {
+                    "url": url,
+                    "title": article.title,
+                    "text": full_content,
+                    "description": article.meta_description,
+                    "keywords": article.keywords,
+                    "authors": article.authors,
+                    "publish_date": article.publish_date,
+                    "html": article.html
+                }
             else:
-                logger.debug("Article tag found")
+                logger.debug("Article has no authors or failed to parse, processing as regular web page.")
 
-        if not main_content:
-            logger.debug("No article tag found or it is empty, trying main")
-            main_content: ElementHandle = await page.query_selector("main")
-            if main_content:
-                text_content = await main_content.inner_text()
-                if not text_content.strip():
-                    main_content = None
+                # Open the page
+                logger.debug("Loading web page with Playwright")
+                page: Page = await browser.new_page()
+
+                response = await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+
+                # Check if the final URL is different from the initial URL (indicating a redirect)
+                if response.url != url:
+                    logger.debug(f"Redirected to: {response.url}")
+
+                # Wait for a specific element to ensure the page is fully loaded
+                await page.wait_for_selector("body", state="attached")
+
+                content: str = await page.content()
+                logger.debug("Playwright loaded the web page.")
+
+                if content.strip() == "":
+                    logger.warning(f"Page is empty")
+                    raise Exception("Page is empty")
                 else:
-                    logger.debug("Main tag found")
+                    logger.debug(f"Page is not empty")
 
-        if main_content:
-            main_html: str = await main_content.inner_html()
-        else:
-            logger.debug("No main tag found, using the entire page content")
-            main_html: str = content  # Fallback to the entire page content if no specific tag is found
+                main_content: ElementHandle = await page.query_selector("article")
+                if main_content:
+                    text_content = await main_content.inner_text()
+                    if not text_content.strip():
+                        main_content = None
+                    else:
+                        logger.debug("Article tag found")
 
-        main_html: str = replace_relative_urls(main_html, url)
-        await page.close()
-        logger.debug("Playwright closed the web page.")
-        markdown_content: str = md(main_html)
+                if not main_content:
+                    logger.debug("No article tag found or it is empty, trying main")
+                    main_content: ElementHandle = await page.query_selector("main")
+                    if main_content:
+                        text_content = await main_content.inner_text()
+                        if not text_content.strip():
+                            main_content = None
+                        else:
+                            logger.debug("Main tag found")
 
-        # Remove duplicate headlines and images
-        markdown_content: str = remove_duplicates(markdown_content)
+                if main_content:
+                    main_html: str = await main_content.inner_html()
+                else:
+                    logger.debug("No main tag found, using the entire page content")
+                    main_html: str = content  # Fallback to the entire page content if no specific tag is found
 
-        if not include_images:
-            markdown_content = re.sub(r'!\[.*?\]\(.*?\)', '', markdown_content)
+                main_html: str = replace_relative_urls(main_html, url)
+                await page.close()
+                logger.debug("Playwright closed the web page.")
+                markdown_content: str = md(main_html)
 
-        # Replace multiple empty lines with a single empty line
-        markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
-        markdown_content = re.sub(r'\n{2,}', '\n', markdown_content)
-        markdown_content = re.sub(r'\n +', '\n', markdown_content)  # Replace lines with only spaces with a single newline
-        markdown_content = re.sub(r' +', ' ', markdown_content)  # Replace multiple spaces with a single space
-        markdown_content = re.sub(r' *\n', '\n', markdown_content)  # Remove trailing spaces at the end of lines
+                # Remove duplicate headlines and images
+                markdown_content: str = remove_duplicates(markdown_content)
 
+                if not include_images:
+                    markdown_content = re.sub(r'!\[.*?\]\(.*?\)', '', markdown_content)
 
-        # if not markdown_content.strip():
-        #     logger.warning(f"Page is empty: {url}")
-        #     raise Exception("Page is empty")
+                # Replace multiple empty lines with a single empty line
+                markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
+                markdown_content = re.sub(r'\n{2,}', '\n', markdown_content)
+                markdown_content = re.sub(r'\n +', '\n', markdown_content)  # Replace lines with only spaces with a single newline
+                markdown_content = re.sub(r' +', ' ', markdown_content)  # Replace multiple spaces with a single space
+                markdown_content = re.sub(r' *\n', '\n', markdown_content)  # Remove trailing spaces at the end of lines
 
-        return {
-            "url": url,
-            "title": article.title if article else "No Title",
-            "text": markdown_content,
-            "html": content
-        }
+                return {
+                    "url": url,
+                    "title": article.title if article else "No Title",
+                    "text": markdown_content,
+                    "html": content
+                }
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1} failed: {e}")
+            if attempt == max_retries - 1:
+                raise
+            else:
+                logger.info(f"Retrying... ({attempt + 1}/{max_retries})")
+                await asyncio.sleep(2)  # Optional: wait before retrying
+
 
 def remove_duplicates(content: str) -> str:
     lines: list[str] = content.split('\n')
