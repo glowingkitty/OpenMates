@@ -28,11 +28,9 @@ async def ask(
 
     if input.provider.name == "claude":
         return await ask_claude(
-            input=input,
-            api_token=user_api_token
+            input=input
         )
     elif input.provider.name == "chatgpt":
         return await ask_chatgpt(
-            input=input,
-            api_token=user_api_token
+            input=input
         )

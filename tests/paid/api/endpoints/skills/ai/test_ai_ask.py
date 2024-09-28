@@ -90,7 +90,7 @@ def test_ai_ask(ai_provider):
         pytest.fail(f"Response does not match the AiAskOutput model: {e}")
 
     assert result.content, "No response received from AI"
-    assert any("Berlin" in item.get("text", "") for item in result.content if item.get("type", "") == "text"), "Expected 'Berlin' to be in the response"
+    assert any("Berlin" in item.text for item in result.content if item.type == "text"), "Expected 'Berlin' to be in the response"
 
 
 @pytest.mark.api_dependent
