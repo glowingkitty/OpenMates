@@ -4,35 +4,56 @@ from server.api.endpoints.skills.web.read import read as read_website
 from server.api.models.skills.web.skills_web_read import WebReadOutput
 from server.api.endpoints.skills.ai.ask import ask
 from server.api.models.skills.ai.skills_ai_ask import AiAskOutput
-from typing import Optional, List
+from typing import Optional, List, get_origin, get_args, Union
 import json
 import logging
 from typing import Union
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 def generate_json_structure(cls):
     def get_structure(typ):
-        if hasattr(typ, '__annotations__'):
-            return {k: get_structure(v) for k, v in typ.__annotations__.items()}
-        elif hasattr(typ, '__origin__'):
-            if typ.__origin__ is list:
-                return [get_structure(typ.__args__[0])]
-            elif typ.__origin__ is Optional:
-                inner_type = get_structure(typ.__args__[0])
-                return f"{inner_type} (optional)"
-            elif typ.__origin__ is Union:
-                # Handle Union types excluding NoneType
-                types = [get_structure(arg) for arg in typ.__args__ if arg is not type(None)]
-                if len(types) == 1:
-                    return f"{types[0]} (optional)"
-                else:
-                    return " | ".join(types)
+        if isinstance(typ, type) and issubclass(typ, BaseModel):
+            return {
+                k: add_description(get_structure(v.annotation), v)
+                for k, v in typ.model_fields.items()
+            }
+        elif get_origin(typ) is list:
+            return [get_structure(get_args(typ)[0])]
+        elif get_origin(typ) is Union:
+            types = [get_structure(arg) for arg in get_args(typ) if arg is not type(None)]
+            return " | ".join(map(str, types))
+        elif get_origin(typ) is Optional:
+            return add_description(get_structure(get_args(typ)[0]), None, True)
         else:
-            return typ.__name__
+            return typ.__name__.lower()
 
-    return json.dumps(get_structure(cls), indent=4)
+    def add_description(structure, field=None, optional=False):
+        description = f" # {field.description}" if field and field.description else ""
+        optional_str = " (optional)" if optional or (field and field.default is None) else ""
 
+        if isinstance(structure, list):
+            return f"[{structure[0]}{optional_str}]{description}"
+        elif isinstance(structure, dict):
+            return structure  # Don't modify nested structures
+        else:
+            return f"{structure}{optional_str}{description}"
+
+    def format_output(structure, indent=0):
+        if isinstance(structure, dict):
+            lines = ["{"]
+            for k, v in structure.items():
+                lines.append(f'    {"    " * indent}"{k}": {format_output(v, indent + 1)},')
+            lines.append("    " * indent + "}")
+            return "\n".join(lines)
+        elif isinstance(structure, list):
+            return json.dumps(structure)
+        else:
+            return f'{structure}'
+
+    result = get_structure(cls)
+    return format_output(result)
 
 async def plan_application(
         user_api_token: str,
@@ -56,49 +77,51 @@ async def plan_application(
     {generate_json_structure(BusinessPlanApplicationOutput)}
     """
 
+    logger.debug(f"System prompt: {system}")
+
     # TODO add processing pdf documents as well
 
-    # get the text from the website urls
-    website_text = ""
-    if recipient_website_urls:
-        for url in recipient_website_urls:
-            website_text += f"Website:\n`{url}`\n"
-            website_read_output: WebReadOutput = await read_website(url)
-            website_text += f"Content:\n```\n{website_read_output.content}\n```\n"
+    # # get the text from the website urls
+    # website_text = ""
+    # if recipient_website_urls:
+    #     for url in recipient_website_urls:
+    #         website_text += f"Website:\n`{url}`\n"
+    #         website_read_output: WebReadOutput = await read_website(url)
+    #         website_text += f"Content:\n```\n{website_read_output.content}\n```\n"
 
-    # generate the message for the LLM
-    message = f"""
-    Applicant:
-    {applicant.model_dump_json(indent=4)}
-    """
+    # # generate the message for the LLM
+    # message = f"""
+    # Applicant:
+    # {applicant.model_dump_json(indent=4)}
+    # """
 
-    if website_text:
-        message += f"\nRecipient websites:\n{website_text}"
+    # if website_text:
+    #     message += f"\nRecipient websites:\n{website_text}"
 
-    if recipient_description:
-        message += f"\nRecipient description:\n{recipient_description}"
+    # if recipient_description:
+    #     message += f"\nRecipient description:\n{recipient_description}"
 
-    if recipient_programs_description:
-        message += f"\nRecipient programs description:\n{recipient_programs_description}"
+    # if recipient_programs_description:
+    #     message += f"\nRecipient programs description:\n{recipient_programs_description}"
 
-    # send the prompt to the LLM
-    response: AiAskOutput = await ask(
-        user_api_token=user_api_token,
-        team_slug=team_slug,
-        system=system,
-        message=message,
-        provider={"name": "chatgpt", "model": "gpt-4o-mini"},
-        stream=False
-    )
-    if response.content:
-        recipient_json = response.content[0].text
-        recipient_json = json.loads(recipient_json)
-        # Extract the 'recipient' key from the parsed JSON
-        recipient_data = recipient_json.get('recipient', {})
-    else:
-        raise ValueError("No content in the response")
+    # # send the prompt to the LLM
+    # response: AiAskOutput = await ask(
+    #     user_api_token=user_api_token,
+    #     team_slug=team_slug,
+    #     system=system,
+    #     message=message,
+    #     provider={"name": "chatgpt", "model": "gpt-4o-mini"},
+    #     stream=False
+    # )
+    # if response.content:
+    #     recipient_json = response.content[0].text
+    #     recipient_json = json.loads(recipient_json)
+    #     # Extract the 'recipient' key from the parsed JSON
+    #     recipient_data = recipient_json.get('recipient', {})
+    # else:
+    #     raise ValueError("No content in the response")
 
-    recipient = Recipient(**recipient_data)
+    # recipient = Recipient(**recipient_data)
 
     logger.debug(f"Application planned")
     return BusinessPlanApplicationOutput(
