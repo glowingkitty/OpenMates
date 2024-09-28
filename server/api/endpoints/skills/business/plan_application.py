@@ -69,10 +69,6 @@ async def plan_application(
         input: BusinessPlanApplicationInput
 ) -> BusinessPlanApplicationOutput:
     logger.debug(f"Planning application")
-    recipient_name = ""
-    recipient_writing_style = ""
-    recipient_programs = []
-
 
     # generate the system prompt for the LLM
     system = f"""
