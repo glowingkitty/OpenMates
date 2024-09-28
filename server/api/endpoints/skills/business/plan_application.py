@@ -82,6 +82,7 @@ async def plan_application(
     system = f"""
     You are an expert in planning applications for funding programs.
     Your output will be extensive and highly relevant, so based on your output someone can write a successful application.
+    Only output the single program that is most relevant to the applicant.
     Make sure to consider the information provided and always output a valid tool call.
     """
 
