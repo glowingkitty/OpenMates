@@ -116,7 +116,7 @@ async def plan_application(
         team_slug=team_slug,
         system=system,
         message=message,
-        provider={"name": "chatgpt", "model": "gpt-4o-mini"},
+        provider={"name": "chatgpt", "model": "gpt-4o"},
         stream=False
     )
     if response.content:

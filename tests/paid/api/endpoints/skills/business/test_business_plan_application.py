@@ -39,11 +39,26 @@ def test_business_plan_application():
     recipient_data = json_response.get("recipient")
     assert recipient_data, "No recipient found in the response"
 
-    # Save the JSON response as a file
-    # make sure the folder exists
-    if not os.path.exists("tests/paid/api/endpoints/skills/business/hidden"):
-        os.makedirs("tests/paid/api/endpoints/skills/business/hidden")
-    with open("tests/paid/api/endpoints/skills/business/hidden/test_business_plan_application_output.json", "w") as json_file:
-        json.dump(json_response, json_file, indent=4)
+    # Save the response as a markdown file
+    output_folder = "tests/paid/api/endpoints/skills/business/hidden"
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
-    print(f"Created JSON saved 'tests/paid/api/endpoints/skills/business/hidden/test_business_plan_application_output.json'")
+    output_file = os.path.join(output_folder, "test_business_plan_application_output.md")
+
+    def write_markdown(file, data, level=1):
+        if isinstance(data, dict):
+            for key, value in data.items():
+                file.write(f"{'#' * level} {key.capitalize()}\n\n")
+                write_markdown(file, value, level + 1)
+        elif isinstance(data, list):
+            for item in data:
+                write_markdown(file, item, level)
+        else:
+            file.write(f"{data}\n\n")
+
+    with open(output_file, "w") as md_file:
+        md_file.write("# Business Plan Application Output\n\n")
+        write_markdown(md_file, json_response)
+
+    print(f"Created markdown file saved '{output_file}'")
