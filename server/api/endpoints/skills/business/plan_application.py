@@ -112,7 +112,6 @@ async def plan_application(
 
     # send the prompt to the LLM
     tool = Recipient.to_tool()
-    logger.debug(f"Tool: {tool}")
     response: AiAskOutput = await ask(
         user_api_token=user_api_token,
         team_slug=team_slug,
@@ -124,11 +123,13 @@ async def plan_application(
             tools=[tool]
         )
     )
+    logger.info(f"Response: {response}")
     if response.content:
-        recipient_json = response.content[0].text
-        recipient_json = json.loads(recipient_json)
-        # Extract the 'recipient' key from the parsed JSON
-        recipient_data = recipient_json.get('recipient', {})
+        tool_use = response.content[0].tool_use
+        if tool_use and tool_use.input:
+            recipient_data = tool_use.input
+        else:
+            raise ValueError("No tool use input in the response")
     else:
         raise ValueError("No content in the response")
 

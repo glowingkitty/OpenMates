@@ -232,6 +232,7 @@ async def ask(
                 content.append(ContentItem(
                     type="tool_use",
                     tool_use=ToolUse(
+                        id=str(uuid.uuid4()),
                         name=tool_call['name'],
                         input=json.loads(tool_call['arguments'])
                     )
