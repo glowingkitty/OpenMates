@@ -65,8 +65,6 @@ async def create_application(
 
     application = [ApplicationFormQuestion(**application_item) for application_item in application_data["application"]]
 
-    logger.debug(f"Application message: {message}")
-
     logger.debug(f"Application created")
     return BusinessCreateApplicationOutput(
         selected_program=input.recipient.programs[0].name,

@@ -36,8 +36,8 @@ def test_business_create_application():
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}: {response.text}"
 
     json_response = response.json()
-    recipient_data = json_response.get("recipient")
-    assert recipient_data, "No recipient found in the response"
+    application = json_response.get("application")
+    assert application, "No application found in the response"
 
     # Save the response as a markdown file
     output_folder = "tests/paid/api/endpoints/skills/business/hidden"
@@ -53,7 +53,10 @@ def test_business_create_application():
                 write_markdown(file, value, level + 1)
         elif isinstance(data, list):
             for item in data:
-                write_markdown(file, item, level)
+                if isinstance(item, dict):
+                    write_markdown(file, item, level)
+                else:
+                    file.write(f"{item}\n\n")
         else:
             file.write(f"{data}\n\n")
 
