@@ -67,6 +67,6 @@ async def create_application(
 
     logger.debug(f"Application created")
     return BusinessCreateApplicationOutput(
-        selected_program=input.recipient.programs[0].name,
+        selected_program=application_data["selected_program"],
         application=application
     )
