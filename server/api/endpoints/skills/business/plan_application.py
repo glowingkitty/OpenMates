@@ -1,5 +1,4 @@
-from server.api.models.skills.business.skills_business_plan_application import BusinessPlanApplicationOutput, BusinessPlanApplicationInput
-from server.api.models.skills.business.skills_business_create_application import Recipient
+from server.api.models.skills.business.skills_business_plan_application import BusinessPlanApplicationOutput, BusinessPlanApplicationInput, Recipient
 from server.api.endpoints.skills.web.read import read as read_website
 from server.api.models.skills.web.skills_web_read import WebReadOutput
 from server.api.endpoints.skills.ai.ask import ask
@@ -73,9 +72,13 @@ async def plan_application(
     # generate the system prompt for the LLM
     system = f"""
     You are an expert in planning applications for funding programs.
-    Your output will be extensive and highly relevant, so based on your output someone can write a successful application.
-    Only output the single program that is most relevant to the applicant.
-    Make sure to consider the information provided and only output a tool call and nothing else.
+    Your output will be used to write a successful application.
+    In your response, follow these rules strictly:
+    - output a valid tool call
+    - be extensive and detailed in your response
+    - the recipient is the organization that will receive the application
+    - fill out all fields!
+    - under 'programs', only fill out one program - the one which you think is most relevant to the applicant
     """
 
     # TODO add processing pdf documents as well
@@ -124,7 +127,7 @@ async def plan_application(
             if content_item.type == "tool_use":
                 tool_use = content_item.tool_use
                 if tool_use and tool_use.input:
-                    recipient_data = tool_use.input
+                    recipient = tool_use.input
                     break
         else:
             logger.error(f"No tool use input in the response: {response.content}")
@@ -132,7 +135,7 @@ async def plan_application(
     else:
         raise ValueError("No content in the response")
 
-    recipient = Recipient(**recipient_data)
+    recipient = Recipient(**recipient)
 
     logger.debug(f"Application planned")
     return BusinessPlanApplicationOutput(

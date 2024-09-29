@@ -836,8 +836,9 @@ async def skill_business_create_application(
         user_api_token=token
     )
     return await skill_business_create_application_processing(
-        requirements=parameters.requirements,
-        recommendations=parameters.recommendations
+        user_api_token=token,
+        team_slug=team_slug,
+        input=parameters
     )
 
 

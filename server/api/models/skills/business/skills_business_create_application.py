@@ -31,7 +31,7 @@ class Recipient(BaseModel):
 
         return Tool(
             name="recipient_tool",
-            description="Tool for recipient information",
+            description="Tool for extracting recipient information.",
             input_schema=ToolInputSchema(
                 type="object",
                 properties=properties,
@@ -128,6 +128,28 @@ class BusinessCreateApplicationOutput(BaseModel):
     selected_program: str = Field(..., description="The program that the application is for")
     application: List[ApplicationFormQuestion] = Field(..., description="The application for the project or company")
 
+    @classmethod
+    def to_tool(cls) -> Tool:
+        schema = cls.model_json_schema()
+        properties = schema.get('properties', {})
+        required = schema.get('required', [])
+
+        # Ensure the ApplicationFormQuestion schema is included correctly
+        application_schema = ApplicationFormQuestion.model_json_schema()
+        properties['application'] = {
+            "type": "array",
+            "items": application_schema
+        }
+
+        return Tool(
+            name="business_create_application_tool",
+            description="Tool for creating an application, for example for funding.",
+            input_schema=ToolInputSchema(
+                type="object",
+                properties=properties,
+                required=required
+            )
+        )
 
 business_create_application_output_example = {
     "selected_program": "Startup Seed Funding",

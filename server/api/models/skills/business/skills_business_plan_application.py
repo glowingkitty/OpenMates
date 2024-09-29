@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Literal, List, Optional
 from server.api.models.skills.business.skills_business_create_application import Applicant, Recipient
+from server.api.models.skills.ai.skills_ai_ask import Tool, ToolInputSchema
 
 # POST /{team_slug}/skills/business/plan_application
 
