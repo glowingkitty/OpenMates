@@ -1,5 +1,8 @@
 from server.api import *
 from server.api.docs.docs import setup_docs, bearer_scheme
+from server.api.endpoints.ai_call import router as ai_call_router
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -67,16 +70,29 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 @app.exception_handler(RateLimitExceeded)
-async def ratelimit_handler(request, exc):
-    raise HTTPException(
+async def ratelimit_handler(request: Request, exc):
+    return JSONResponse(
         status_code=HTTP_429_TOO_MANY_REQUESTS,
-        detail="Too Many Requests"
+        content={"detail": "Too Many Requests"}
     )
 
 
 # Setup custom documentation
 setup_docs(app)
+
+# Mount the static files directory
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(base_dir.split('server')[0], 'server', 'frontend', 'static')
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 ##################################
 ######### Web interface ##########
@@ -1184,6 +1200,7 @@ async def generate_new_user_api_token(
 
 
 # Include the routers in your FastAPI application
+app.include_router(ai_call_router, tags=["AI Call"])
 app.include_router(files_router,                    tags=["Files"])
 app.include_router(mates_router,                    tags=["Mates"])
 app.include_router(skills_router,                   tags=["Skills"])

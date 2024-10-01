@@ -3,7 +3,7 @@ FROM python:3.11-slim
 
 # Install dependencies
 RUN apt-get update && \
-    apt-get install -y wget xz-utils libegl1 libopengl0 libxcb-cursor0 && \
+    apt-get install -y wget xz-utils libegl1 libopengl0 libxcb-cursor0 portaudio19-dev gcc g++ && \
     wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

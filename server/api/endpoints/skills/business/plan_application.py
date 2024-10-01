@@ -11,6 +11,9 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# TODO consider rewriting process:
+# - rewrite as focus instead of skill (change system prompt of conversation, make it more flexible with Q&A and tool calling)
+
 def generate_json_structure(cls):
     def get_structure(typ):
         if isinstance(typ, type) and issubclass(typ, BaseModel):
