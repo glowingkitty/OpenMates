@@ -25,24 +25,25 @@ async function startRecording() {
 
         socket.onopen = () => {
             console.log('WebSocket connection opened.');
+
+            // Set the onmessage handler after the connection is opened
+            socket.onmessage = async (event) => {
+                if (typeof event.data === 'string') {
+                    const response = JSON.parse(event.data);
+                    if (response.type === 'response.audio.delta' && response.audio) {
+                        const audioData = base64ToArrayBuffer(response.audio);
+                        await playAudio(audioData);
+                    }
+                } else {
+                    await playAudio(event.data);
+                }
+            };
         };
 
         socket.onerror = (error) => {
             console.error('WebSocket error:', error);
             alert('WebSocket connection error. Check console for details.');
             stopRecording();
-        };
-
-        socket.onmessage = async (event) => {
-            if (typeof event.data === 'string') {
-                const response = JSON.parse(event.data);
-                if (response.type === 'response.audio.delta' && response.audio) {
-                    const audioData = base64ToArrayBuffer(response.audio);
-                    await playAudio(audioData);
-                }
-            } else {
-                await playAudio(event.data);
-            }
         };
 
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });

@@ -129,16 +129,13 @@ async def call_custom_processing(
                                         delta = choice['delta']
                                         if 'content' in delta:
                                             accumulated_text += delta['content']
-                                            # Check if accumulated text ends with a punctuation mark
                                             if re.search(r'[.!?]$', accumulated_text):
                                                 logger.debug(f"Sending to ElevenLabs: {accumulated_text}")
-                                                # Send the accumulated text to ElevenLabs
                                                 voice_id = "pMsXgVXv3BLzUgSXRplE"
-                                                # Update output_format to a valid format
                                                 for audio_chunk in elevenlabs_client.text_to_speech.convert_as_stream(
                                                     voice_id=voice_id,
                                                     optimize_streaming_latency="0",
-                                                    output_format="mp3_44100_128",  # Changed to a valid format
+                                                    output_format="mp3_44100_128",
                                                     text=accumulated_text,
                                                     voice_settings=VoiceSettings(
                                                         stability=0.1,
@@ -147,7 +144,7 @@ async def call_custom_processing(
                                                     ),
                                                 ):
                                                     await websocket.send_bytes(audio_chunk)
-                                                accumulated_text = ""  # Reset accumulated text after processing
+                                                accumulated_text = ""
                             except json.JSONDecodeError:
                                 break
             except asyncio.CancelledError:
