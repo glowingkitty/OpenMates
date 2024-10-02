@@ -9,6 +9,8 @@ import base64
 
 logger = logging.getLogger(__name__)
 
+logging.getLogger('websockets').setLevel(logging.WARNING)
+
 async def call_custom_processing(
         websocket: WebSocket,
         team_slug: str
@@ -40,7 +42,7 @@ async def call_custom_processing(
         logger.info("Transcription session closed.")
 
     transcriber = aai.RealtimeTranscriber(
-        sample_rate=16000,
+        sample_rate=48000,
         on_data=on_data,
         on_error=on_error,
         on_open=on_open,

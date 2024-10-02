@@ -44,7 +44,7 @@ async function startRecording() {
 
         // Get user audio
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
         const source = audioContext.createMediaStreamSource(mediaStream);
         processor = audioContext.createScriptProcessor(4096, 1, 1);
 
