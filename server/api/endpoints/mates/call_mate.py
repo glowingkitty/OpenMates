@@ -41,22 +41,29 @@ async def call_custom_processing(
     def on_data(transcript: aai.RealtimePartialTranscript):
         nonlocal current_task
         if transcript.text:
-            if isinstance(transcript, aai.RealtimeFinalTranscript):
-                logger.info("User stopped talking.")
-                logger.info(f"Full transcribed text: {transcript.text}")
-                message_history.append({"role": "user", "content": transcript.text})
-                if current_task:
-                    current_task.cancel()
-                # Schedule the async task using run_coroutine_threadsafe
-                future = asyncio.run_coroutine_threadsafe(
-                    send_to_gpt4o_mini(message_history),
-                    loop
-                )
-                try:
-                    # Optionally handle the result or exceptions
-                    future.result()
-                except Exception as e:
-                    logger.error(f"Error scheduling send_to_gpt4o_mini: {e}")
+            # Cancel the existing task regardless of transcript type
+            if current_task and not current_task.done():
+                current_task.cancel()
+                logger.info("Cancelled existing send_to_gpt4o_mini task due to new transcript.")
+
+        if isinstance(transcript, aai.RealtimeFinalTranscript):
+            logger.info("User stopped talking.")
+            logger.info(f"Full transcribed text: {transcript.text}")
+            message_history.append({"role": "user", "content": transcript.text})
+            # Schedule the async task using run_coroutine_threadsafe
+            current_task = asyncio.run_coroutine_threadsafe(
+                send_to_gpt4o_mini(message_history),
+                loop
+            )
+            current_task.add_done_callback(handle_task_result)
+
+    def handle_task_result(task):
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            logger.info("send_to_gpt4o_mini task was cancelled.")
+        except Exception as e:
+            logger.error(f"Error in send_to_gpt4o_mini task: {e}")
 
     def on_error(error: aai.RealtimeError):
         logger.error(f"Transcription error: {error}")
@@ -125,9 +132,6 @@ async def call_custom_processing(
     try:
         while True:
             data = await websocket.receive_bytes()
-            # Cancel any ongoing request to OpenAI if the user starts talking again
-            if current_task:
-                current_task.cancel()
             # Send audio data to AssemblyAI for transcription
             await asyncio.to_thread(transcriber.stream, data)
     except WebSocketDisconnect:
