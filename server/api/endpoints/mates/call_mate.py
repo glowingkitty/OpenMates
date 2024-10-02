@@ -7,6 +7,7 @@ import websockets
 import json
 import base64
 import asyncio
+import httpx  # New asynchronous HTTP client
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ async def call_custom_processing(
     await websocket.accept()
     logger.info("WebSocket connection accepted for transcription.")
 
+    # Obtain the current running event loop
+    loop = asyncio.get_running_loop()
+
     # Initialize AssemblyAI API key
     ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
     if not ASSEMBLYAI_API_KEY:
@@ -27,14 +31,31 @@ async def call_custom_processing(
 
     aai.settings.api_key = ASSEMBLYAI_API_KEY
 
+    message_history = []
+    current_task = None
+
     def on_open(session_opened: aai.RealtimeSessionOpened):
         logger.info(f"Transcription session opened: {session_opened.session_id}")
 
     def on_data(transcript: aai.RealtimePartialTranscript):
+        nonlocal current_task
         if transcript.text:
             if isinstance(transcript, aai.RealtimeFinalTranscript):
                 logger.info("User stopped talking.")
                 logger.info(f"Full transcribed text: {transcript.text}")
+                message_history.append({"role": "user", "content": transcript.text})
+                if current_task:
+                    current_task.cancel()
+                # Schedule the async task using run_coroutine_threadsafe
+                future = asyncio.run_coroutine_threadsafe(
+                    send_to_gpt4o_mini(message_history),
+                    loop
+                )
+                try:
+                    # Optionally handle the result or exceptions
+                    future.result()
+                except Exception as e:
+                    logger.error(f"Error scheduling send_to_gpt4o_mini: {e}")
 
     def on_error(error: aai.RealtimeError):
         logger.error(f"Transcription error: {error}")
@@ -44,7 +65,7 @@ async def call_custom_processing(
 
     transcriber = aai.RealtimeTranscriber(
         sample_rate=48000,
-        on_data=on_data,
+        on_data=on_data,  # Changed to synchronous
         on_error=on_error,
         on_open=on_open,
         on_close=on_close,
@@ -52,9 +73,49 @@ async def call_custom_processing(
 
     await asyncio.to_thread(transcriber.connect)
 
+    async def send_to_gpt4o_mini(history):
+        url = "https://api.openai.com/v1/chat/completions"
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            logger.error("OPENAI_API_KEY is not set.")
+            raise Exception("OPENAI_API_KEY not set in environment variables.")
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "gpt-4o-mini",
+            "system": "You are a helpful assistant. Keep your response concise and to the point.",
+            "messages": history,
+            "stream": True
+        }
+
+        async with httpx.AsyncClient() as client:
+            try:
+                async with client.stream("POST", url, headers=headers, json=payload) as response:
+                    accumulated_text = ""
+                    async for chunk in response.aiter_text():
+                        data = json.loads(chunk)
+                        if 'choices' in data:
+                            choice = data['choices'][0]
+                            if 'delta' in choice:
+                                delta = choice['delta']
+                                if 'content' in delta:
+                                    accumulated_text += delta['content']
+                                    logger.debug(f"Accumulated text: {accumulated_text}")
+            except asyncio.CancelledError:
+                logger.info("Request to OpenAI was cancelled.")
+            except Exception as e:
+                logger.error(f"Error during OpenAI request: {e}")
+
     try:
         while True:
             data = await websocket.receive_bytes()
+            # Cancel any ongoing request to OpenAI if the user starts talking again
+            if current_task:
+                current_task.cancel()
             # Send audio data to AssemblyAI for transcription
             await asyncio.to_thread(transcriber.stream, data)
     except WebSocketDisconnect:
@@ -62,7 +123,9 @@ async def call_custom_processing(
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")
     finally:
+        # Correctly close the transcriber without awaiting
         await asyncio.to_thread(transcriber.close)
+        # Removed the incorrect await transcriber.close()
 
 
 async def call_chatgpt_processing(
