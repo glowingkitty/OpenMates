@@ -34,9 +34,17 @@ async function startRecording() {
             stopRecording();
         };
 
+        socket.onmessage = async (event) => {
+            const response = JSON.parse(event.data);
+            if (response.type === 'response.audio.delta' && response.audio) {
+                const audioData = base64ToArrayBuffer(response.audio);
+                await playAudio(audioData);
+            }
+        };
+
         // Get user audio
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
         const source = audioContext.createMediaStreamSource(mediaStream);
         processor = audioContext.createScriptProcessor(4096, 1, 1);
 
@@ -93,4 +101,24 @@ function convertFloat32ToInt16(float32Array) {
         int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
     return int16Array;
+}
+
+// Helper function to convert base64 to ArrayBuffer
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// Helper function to play audio from ArrayBuffer
+async function playAudio(arrayBuffer) {
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    source.start(0);
 }
