@@ -31,7 +31,8 @@ async def call_custom_processing(
 
     aai.settings.api_key = ASSEMBLYAI_API_KEY
 
-    message_history = []
+    # Add system message to message history
+    message_history = [{"role": "system", "content": "You are a helpful assistant. Keep your responses concise."}]
     current_task = None
 
     def on_open(session_opened: aai.RealtimeSessionOpened):
@@ -74,7 +75,6 @@ async def call_custom_processing(
     await asyncio.to_thread(transcriber.connect)
 
     async def send_to_gpt4o_mini(history):
-        url = "https://api.openai.com/v1/chat/completions"
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
             logger.error("OPENAI_API_KEY is not set.")
@@ -87,24 +87,36 @@ async def call_custom_processing(
 
         payload = {
             "model": "gpt-4o-mini",
-            "system": "You are a helpful assistant. Keep your response concise and to the point.",
+            "temperature": 0.5,
             "messages": history,
+            "max_tokens": 1000,
             "stream": True
         }
 
+        logger.debug(f"Sending payload to OpenAI: {payload}")
+        logger.debug(f"With headers: {headers}")
+
         async with httpx.AsyncClient() as client:
             try:
-                async with client.stream("POST", url, headers=headers, json=payload) as response:
+                async with client.stream("POST", "https://api.openai.com/v1/chat/completions", headers=headers, json=payload) as response:
                     accumulated_text = ""
+                    buffer = ""
                     async for chunk in response.aiter_text():
-                        data = json.loads(chunk)
-                        if 'choices' in data:
-                            choice = data['choices'][0]
-                            if 'delta' in choice:
-                                delta = choice['delta']
-                                if 'content' in delta:
-                                    accumulated_text += delta['content']
-                                    logger.debug(f"Accumulated text: {accumulated_text}")
+                        buffer += chunk.strip().replace("data: ", "")
+                        while buffer:
+                            try:
+                                data, index = json.JSONDecoder().raw_decode(buffer)
+                                buffer = buffer[index:].strip()  # Remove the processed part from the buffer
+                                if 'choices' in data:
+                                    choice = data['choices'][0]
+                                    if 'delta' in choice:
+                                        delta = choice['delta']
+                                        if 'content' in delta:
+                                            accumulated_text += delta['content']
+                                            logger.debug(f"Accumulated text: {accumulated_text}")
+                            except json.JSONDecodeError:
+                                # Incomplete JSON, continue accumulating
+                                break
             except asyncio.CancelledError:
                 logger.info("Request to OpenAI was cancelled.")
             except Exception as e:
