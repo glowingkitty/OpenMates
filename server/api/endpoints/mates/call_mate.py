@@ -9,21 +9,6 @@ import base64
 
 logger = logging.getLogger(__name__)
 
-
-def on_open(session_opened: aai.RealtimeSessionOpened):
-    logger.info(f"Transcription session opened: {session_opened.session_id}")
-
-def on_data(transcript: aai.RealtimeTranscript):
-    if transcript.text:
-        logger.debug(f"Transcribed text: {transcript.text}")
-
-def on_error(error: aai.RealtimeError):
-    logger.error(f"Transcription error: {error}")
-
-def on_close():
-    logger.info("Transcription session closed.")
-
-
 async def call_custom_processing(
         websocket: WebSocket,
         team_slug: str
@@ -38,6 +23,21 @@ async def call_custom_processing(
         raise Exception("ASSEMBLYAI_API_KEY not set in environment variables.")
 
     aai.settings.api_key = ASSEMBLYAI_API_KEY
+
+    def on_open(session_opened: aai.RealtimeSessionOpened):
+        logger.info(f"Transcription session opened: {session_opened.session_id}")
+
+    def on_data(transcript: aai.RealtimePartialTranscript):
+        if transcript.text:
+            if isinstance(transcript, aai.RealtimeFinalTranscript):
+                logger.info("User stopped talking.")
+                logger.info(f"Full transcribed text: {transcript.text}")
+
+    def on_error(error: aai.RealtimeError):
+        logger.error(f"Transcription error: {error}")
+
+    def on_close():
+        logger.info("Transcription session closed.")
 
     transcriber = aai.RealtimeTranscriber(
         sample_rate=16000,
