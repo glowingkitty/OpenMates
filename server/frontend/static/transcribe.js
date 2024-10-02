@@ -18,7 +18,6 @@ async function startRecording() {
     statusDiv.textContent = 'Recording...';
 
     try {
-        // Initialize WebSocket connection
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         socket = new WebSocket(`${protocol}://${window.location.host}/v1/${team_slug}/mates/call`);
 
@@ -35,14 +34,17 @@ async function startRecording() {
         };
 
         socket.onmessage = async (event) => {
-            const response = JSON.parse(event.data);
-            if (response.type === 'response.audio.delta' && response.audio) {
-                const audioData = base64ToArrayBuffer(response.audio);
-                await playAudio(audioData);
+            if (typeof event.data === 'string') {
+                const response = JSON.parse(event.data);
+                if (response.type === 'response.audio.delta' && response.audio) {
+                    const audioData = base64ToArrayBuffer(response.audio);
+                    await playAudio(audioData);
+                }
+            } else {
+                await playAudio(event.data);
             }
         };
 
-        // Get user audio
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
         const source = audioContext.createMediaStreamSource(mediaStream);
@@ -54,7 +56,7 @@ async function startRecording() {
         processor.onaudioprocess = (e) => {
             const inputData = e.inputBuffer.getChannelData(0);
             const int16Data = convertFloat32ToInt16(inputData);
-            if (socket.readyState === WebSocket.OPEN) {
+            if (socket && socket.readyState === WebSocket.OPEN) {  // Added null check for socket
                 socket.send(int16Data.buffer);
             }
         };
@@ -72,7 +74,6 @@ function stopRecording() {
     stopBtn.disabled = true;
     statusDiv.textContent = 'Not Recording';
 
-    // Stop audio processing
     if (processor) {
         processor.disconnect();
         processor = null;
@@ -86,14 +87,12 @@ function stopRecording() {
         mediaStream = null;
     }
 
-    // Close WebSocket connection
     if (socket) {
         socket.close();
         socket = null;
     }
 }
 
-// Helper function to convert Float32Array to Int16Array
 function convertFloat32ToInt16(float32Array) {
     const int16Array = new Int16Array(float32Array.length);
     for (let i = 0; i < float32Array.length; i++) {
@@ -103,7 +102,6 @@ function convertFloat32ToInt16(float32Array) {
     return int16Array;
 }
 
-// Helper function to convert base64 to ArrayBuffer
 function base64ToArrayBuffer(base64) {
     const binaryString = window.atob(base64);
     const len = binaryString.length;
@@ -114,11 +112,17 @@ function base64ToArrayBuffer(base64) {
     return bytes.buffer;
 }
 
-// Helper function to play audio from ArrayBuffer
 async function playAudio(arrayBuffer) {
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
-    source.start(0);
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    try {
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.start(0);
+    } catch (error) {
+        console.error('Error decoding audio data:', error);
+    }
 }

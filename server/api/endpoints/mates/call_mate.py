@@ -8,10 +8,19 @@ import json
 import base64
 import asyncio
 import httpx  # New asynchronous HTTP client
+from elevenlabs import ElevenLabs, VoiceSettings
+import re
 
 logger = logging.getLogger(__name__)
 
 logging.getLogger('websockets').setLevel(logging.WARNING)
+
+# Initialize ElevenLabs client
+elevenlabs_client = ElevenLabs(api_key=os.getenv('ELEVENLABS_API_KEY'))
+
+def split_text_by_punctuation(text):
+    # Split text by punctuation marks (., !, ?, :)
+    return re.split(r'([.!?])', text)
 
 async def call_custom_processing(
         websocket: WebSocket,
@@ -32,7 +41,7 @@ async def call_custom_processing(
     aai.settings.api_key = ASSEMBLYAI_API_KEY
 
     # Add system message to message history
-    message_history = [{"role": "system", "content": "You are a helpful assistant. Keep your responses concise."}]
+    message_history = [{"role": "system", "content": "You are a helpful assistant that talks like a human. In your response, only use '.', ',', '!', '?', ':'  for punctuation. Keep your responses concise."}]
     current_task = None
 
     def on_open(session_opened: aai.RealtimeSessionOpened):
@@ -113,16 +122,33 @@ async def call_custom_processing(
                         while buffer:
                             try:
                                 data, index = json.JSONDecoder().raw_decode(buffer)
-                                buffer = buffer[index:].strip()  # Remove the processed part from the buffer
+                                buffer = buffer[index:].strip()
                                 if 'choices' in data:
                                     choice = data['choices'][0]
                                     if 'delta' in choice:
                                         delta = choice['delta']
                                         if 'content' in delta:
                                             accumulated_text += delta['content']
-                                            logger.debug(f"Accumulated text: {accumulated_text}")
+                                            # Check if accumulated text ends with a punctuation mark
+                                            if re.search(r'[.!?]$', accumulated_text):
+                                                logger.debug(f"Sending to ElevenLabs: {accumulated_text}")
+                                                # Send the accumulated text to ElevenLabs
+                                                voice_id = "pMsXgVXv3BLzUgSXRplE"
+                                                # Update output_format to a valid format
+                                                for audio_chunk in elevenlabs_client.text_to_speech.convert_as_stream(
+                                                    voice_id=voice_id,
+                                                    optimize_streaming_latency="0",
+                                                    output_format="mp3_44100_128",  # Changed to a valid format
+                                                    text=accumulated_text,
+                                                    voice_settings=VoiceSettings(
+                                                        stability=0.1,
+                                                        similarity_boost=0.3,
+                                                        style=0.2,
+                                                    ),
+                                                ):
+                                                    await websocket.send_bytes(audio_chunk)
+                                                accumulated_text = ""  # Reset accumulated text after processing
                             except json.JSONDecodeError:
-                                # Incomplete JSON, continue accumulating
                                 break
             except asyncio.CancelledError:
                 logger.info("Request to OpenAI was cancelled.")
