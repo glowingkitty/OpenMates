@@ -1,6 +1,5 @@
 from server.api import *
 from server.api.docs.docs import setup_docs, bearer_scheme
-from server.api.endpoints.ai_call import router as ai_call_router
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 
@@ -15,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 # Create new routers
+router = APIRouter()
 files_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
@@ -69,22 +69,6 @@ app.add_middleware(
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
-
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-
-@app.exception_handler(HTTPException)
-async def custom_http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-
-@app.exception_handler(RateLimitExceeded)
-async def ratelimit_handler(request: Request, exc):
-    return JSONResponse(
-        status_code=HTTP_429_TOO_MANY_REQUESTS,
-        content={"detail": "Too Many Requests"}
-    )
-
 
 # Setup custom documentation
 setup_docs(app)
@@ -147,6 +131,28 @@ async def ask_mate(
         task_url=f"/v1/{team_slug}/tasks/{task.id}",
         task_id=task.id
     )
+
+
+# GET /mates/call (get the call.html file)
+@app.get("/mates/call", include_in_schema=False)
+@limiter.limit("20/minute")
+def read_mates_call(request: Request):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    new_base_dir = os.path.join(base_dir.split('api')[0], 'frontend', 'static')
+    return FileResponse(os.path.join(new_base_dir, 'call.html'))
+
+
+# WEBSOCKET /mates/call (call a mate)
+@router.websocket("/v1/{team_slug}/mates/call")
+async def call_mate(
+    websocket: WebSocket,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
+    ):
+    await call_mate_processing(
+        team_slug=team_slug,
+        websocket=websocket
+    )
+
 
 # GET /mates (get all mates)
 @mates_router.get("/v1/{team_slug}/mates/", **mates_endpoints["get_all_mates"])
@@ -1200,7 +1206,7 @@ async def generate_new_user_api_token(
 
 
 # Include the routers in your FastAPI application
-app.include_router(ai_call_router, tags=["AI Call"])
+app.include_router(router, tags=["AI Call"])
 app.include_router(files_router,                    tags=["Files"])
 app.include_router(mates_router,                    tags=["Mates"])
 app.include_router(skills_router,                   tags=["Skills"])

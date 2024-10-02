@@ -1,22 +1,43 @@
-<!-- frontend/static/call.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Assistant Call</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Audio Transcription</title>
+    <style>
+        /* Minimal styling */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>AI Assistant Call</h1>
-    <div id="videoContainer">
-        <video id="localVideo" autoplay muted></video>
-        <div id="recordIndicator"></div>
-    </div>
-    <div class="controls">
-        <button id="toggleVideo">Turn Video Off</button>
-        <button id="recordButton">Start Recording</button>
-    </div>
+    <h1>Audio Transcription</h1>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <div id="status">Not Recording</div>
 
-    <script src="/static/call.js"></script>
+    <script src="/static/transcribe.js"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@ import tempfile
 
 from ebooklib import epub
 from fastapi import (
-    APIRouter, Depends, FastAPI, File, Form, HTTPException, Path, Query, Request, UploadFile
+    APIRouter, Depends, FastAPI, File, Form, HTTPException, Path, Query, Request, UploadFile, WebSocket
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
@@ -111,6 +111,7 @@ from server.api.models.users.users_replace_profile_picture import users_replace_
 # Import endpoints
 from server.api.endpoints.billing.get_balance import get_balance as billing_get_balance_processing
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
+from server.api.endpoints.mates.call_mate import call_mate as call_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate as create_mate_processing
 from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_processing
 from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
