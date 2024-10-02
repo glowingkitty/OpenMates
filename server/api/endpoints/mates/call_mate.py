@@ -6,6 +6,7 @@ import os
 import websockets
 import json
 import base64
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -49,19 +50,19 @@ async def call_custom_processing(
         on_close=on_close,
     )
 
-    transcriber.connect()
+    await asyncio.to_thread(transcriber.connect)
 
     try:
         while True:
             data = await websocket.receive_bytes()
             # Send audio data to AssemblyAI for transcription
-            transcriber.stream(data)
+            await asyncio.to_thread(transcriber.stream, data)
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected.")
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")
     finally:
-        transcriber.close()
+        await asyncio.to_thread(transcriber.close)
 
 
 async def call_chatgpt_processing(
