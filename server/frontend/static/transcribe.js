@@ -12,6 +12,11 @@ stopBtn.addEventListener('click', stopRecording);
 
 const team_slug = 'test';
 
+let isResponsePlaying = false;
+let shouldStopProcessing = false;
+
+// voice call still isn't working properly. Ignores when the user is interrupting the AI voice.
+
 async function startRecording() {
     startBtn.disabled = true;
     stopBtn.disabled = false;
@@ -32,10 +37,21 @@ async function startRecording() {
                     const response = JSON.parse(event.data);
                     if (response.type === 'response.audio.delta' && response.audio) {
                         const audioData = base64ToArrayBuffer(response.audio);
-                        await playAudio(audioData);
+                        if (!shouldStopProcessing) {
+                            isResponsePlaying = true;
+                            await playAudio(audioData);
+                        }
+                    } else if (response.type === 'stop_audio') {
+                        await stopAudioPlayback();
+                    } else if (response.type === 'end_of_response') {
+                        isResponsePlaying = false;
+                        shouldStopProcessing = false;
                     }
                 } else {
-                    await playAudio(event.data);
+                    if (!shouldStopProcessing) {
+                        isResponsePlaying = true;
+                        await playAudio(event.data);
+                    }
                 }
             };
         };
@@ -57,7 +73,12 @@ async function startRecording() {
         processor.onaudioprocess = (e) => {
             const inputData = e.inputBuffer.getChannelData(0);
             const int16Data = convertFloat32ToInt16(inputData);
-            if (socket && socket.readyState === WebSocket.OPEN) {  // Added null check for socket
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                if (isResponsePlaying) {
+                    socket.send(JSON.stringify({ type: 'interrupt' }));
+                    stopAudioPlayback();
+                    shouldStopProcessing = true;
+                }
                 socket.send(int16Data.buffer);
             }
         };
@@ -115,6 +136,8 @@ function base64ToArrayBuffer(base64) {
 
 let audioQueue = [];
 let isPlaying = false;
+let currentSource = null;  // Track the current audio source
+let playbackAudioContext = null;  // Separate audio context for playback
 
 async function playAudio(arrayBuffer) {
     audioQueue.push(arrayBuffer);
@@ -124,7 +147,7 @@ async function playAudio(arrayBuffer) {
 }
 
 async function playNextInQueue() {
-    if (audioQueue.length === 0) {
+    if (audioQueue.length === 0 || shouldStopProcessing) {
         isPlaying = false;
         return;
     }
@@ -132,19 +155,43 @@ async function playNextInQueue() {
     isPlaying = true;
     const arrayBuffer = audioQueue.shift();
 
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (!playbackAudioContext || playbackAudioContext.state === 'closed') {
+        playbackAudioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
 
     try {
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        const source = audioContext.createBufferSource();
+        const audioBuffer = await playbackAudioContext.decodeAudioData(arrayBuffer);
+        const source = playbackAudioContext.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
-        source.onended = playNextInQueue;
+        source.connect(playbackAudioContext.destination);
+        source.onended = () => {
+            currentSource = null;  // Clear the current source when playback ends
+            if (!shouldStopProcessing) {
+                playNextInQueue();
+            }
+        };
+        currentSource = source;  // Track the current source
         source.start(0);
     } catch (error) {
         console.error('Error decoding audio data:', error);
-        playNextInQueue();
+        if (!shouldStopProcessing) {
+            playNextInQueue();
+        }
+    }
+}
+
+async function stopAudioPlayback() {
+    console.log('Stopping audio playback');
+    audioQueue = [];
+    isPlaying = false;
+    isResponsePlaying = false;
+    if (currentSource) {
+        currentSource.stop();  // Stop the current audio source
+        currentSource.disconnect();
+        currentSource = null;
+    }
+    if (playbackAudioContext) {
+        await playbackAudioContext.close();
+        playbackAudioContext = null;
     }
 }
