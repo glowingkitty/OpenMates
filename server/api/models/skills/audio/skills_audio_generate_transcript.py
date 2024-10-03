@@ -4,7 +4,7 @@ from typing import Literal, Optional, AsyncGenerator
 
 # POST /skill/audio/generate_transcript (generate transcript from audio file)
 
-class AiProvider(BaseModel):
+class AudioTranscriptAiProvider(BaseModel):
     name: Literal["openai","assemblyai"] = Field(..., title="Provider Name", description="Name of the AI provider")
     model: Literal["whisper-1","whisper-large-v3-turbo", "assemblyai"] = Field(..., title="Model", description="Specific model of the AI provider")
 
@@ -23,7 +23,7 @@ class AiProvider(BaseModel):
 
 class AudioGenerateTranscriptInput(BaseModel):
     audio_data: bytes = Field(..., description="The audio data to generate a transcript for")
-    provider: AiProvider = Field(..., description="The provider to use for generating the transcript")
+    provider: AudioTranscriptAiProvider = Field(..., description="The provider to use for generating the transcript")
     stream: bool = Field(False, description="Whether to stream the transcript")
 
 

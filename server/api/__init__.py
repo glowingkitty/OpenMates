@@ -75,7 +75,7 @@ from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput, VideosGetTranscriptOutput
 )
 from server.api.models.skills.audio.skills_audio_generate_transcript import (
-    AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput
+    AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput, AudioTranscriptAiProvider
 )
 from server.api.models.skills.web.skills_web_read import (
     WebReadInput, WebReadOutput

@@ -648,17 +648,35 @@ async def skill_files_delete(
 @limiter.limit("20/minute")
 async def skill_audio_generate_transcript(
     request: Request,
-    parameters: AudioGenerateTranscriptInput,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    provider: str = Form(..., description="The provider to use for generating the transcript"),
+    model: str = Form(..., description="The model to use for generating the transcript"),
+    stream: bool = Form(False, description="Whether to stream the transcript"),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
 ) -> AudioGenerateTranscriptOutput:
+    # TODO output task instead of result, if not asking for streaming
     await validate_permissions(
         endpoint="/skills/audio/generate_transcript",
         team_slug=team_slug,
         user_api_token=token
     )
+
+    audio_data = await file.read()
+    if len(audio_data) == 0:
+        raise HTTPException(status_code=400, detail="No audio data provided")
+    if len(audio_data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio size exceeds 10MB limit")
+
     return await skill_audio_generate_transcript_processing(
-        input=parameters
+        input=AudioGenerateTranscriptInput(
+            audio_data=audio_data,
+            provider=AudioTranscriptAiProvider(
+                name=provider,
+                model=model
+            ),
+            stream=stream
+        )
     )
 
 
