@@ -113,17 +113,38 @@ function base64ToArrayBuffer(base64) {
     return bytes.buffer;
 }
 
+let audioQueue = [];
+let isPlaying = false;
+
 async function playAudio(arrayBuffer) {
+    audioQueue.push(arrayBuffer);
+    if (!isPlaying) {
+        playNextInQueue();
+    }
+}
+
+async function playNextInQueue() {
+    if (audioQueue.length === 0) {
+        isPlaying = false;
+        return;
+    }
+
+    isPlaying = true;
+    const arrayBuffer = audioQueue.shift();
+
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
+
     try {
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContext.destination);
+        source.onended = playNextInQueue;  // Play the next chunk when this one ends
         source.start(0);
     } catch (error) {
         console.error('Error decoding audio data:', error);
+        playNextInQueue();  // Ensure the queue continues even if there's an error
     }
 }
