@@ -655,7 +655,7 @@ async def skill_audio_generate_transcript(
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
 ) -> AudioGenerateTranscriptOutput:
-    # TODO output task instead of result, if not asking for streaming
+    # TODO output either StreamingResponse or Task
     await validate_permissions(
         endpoint="/skills/audio/generate_transcript",
         team_slug=team_slug,
