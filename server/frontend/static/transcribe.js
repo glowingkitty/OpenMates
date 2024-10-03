@@ -141,10 +141,10 @@ async function playNextInQueue() {
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContext.destination);
-        source.onended = playNextInQueue;  // Play the next chunk when this one ends
+        source.onended = playNextInQueue;
         source.start(0);
     } catch (error) {
         console.error('Error decoding audio data:', error);
-        playNextInQueue();  // Ensure the queue continues even if there's an error
+        playNextInQueue();
     }
 }

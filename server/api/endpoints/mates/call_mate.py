@@ -135,7 +135,7 @@ async def call_custom_processing(
                                                 for audio_chunk in elevenlabs_client.text_to_speech.convert_as_stream(
                                                     voice_id=voice_id,
                                                     optimize_streaming_latency="0",
-                                                    output_format="mp3_44100_128",
+                                                    output_format="mp3_22050_32",
                                                     text=accumulated_text,
                                                     voice_settings=VoiceSettings(
                                                         stability=0.1,
