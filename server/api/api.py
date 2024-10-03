@@ -680,6 +680,31 @@ async def skill_audio_generate_transcript(
     )
 
 
+# # POST /skills/audio/generate_speech (generate speech)
+# @skills_audio_router.post("/v1/{team_slug}/skills/audio/generate_speech", **skills_audio_endpoints["generate_speech"])
+# @limiter.limit("20/minute")
+# async def skill_audio_generate_speech(
+#     request: Request,
+#     parameters: AudioGenerateSpeechInput,
+#     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+#     token: str = Depends(get_credentials)
+# ) -> AudioGenerateSpeechOutput:
+#     # TODO output either StreamingResponse or Task.
+#     await validate_permissions(
+#         endpoint="/skills/audio/generate_speech",
+#         team_slug=team_slug,
+#         user_api_token=token
+#     )
+
+#     return await skill_audio_generate_speech_processing(
+#         input=parameters
+#     )
+
+
+# TODO add websocket endpoint for generate_transcript
+# TODO add websocket endpoint for generate_speech
+
+
 # POST /skills/videos/transcript (get the transcript of a video)
 @skills_videos_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
