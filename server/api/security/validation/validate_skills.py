@@ -25,7 +25,7 @@ async def validate_skills(
             "slug"
         ]
         populate = [
-            "software.slug"
+            "app.slug"
         ]
 
         output_skills = []
@@ -55,7 +55,7 @@ async def validate_skills(
                 logger.debug(f"Skill with ID {skill} exists.")
 
                 skill_data["description"] = get_nested(skill_json_response, "description")
-                skill_data["api_endpoint"] = f"/v1/{team_slug}/skills/{get_nested(skill_json_response, 'software.slug')}/{get_nested(skill_json_response, 'slug')}"
+                skill_data["api_endpoint"] = f"/v1/{team_slug}/apps/{get_nested(skill_json_response, 'app.slug')}/{get_nested(skill_json_response, 'slug')}"
 
                 output_skills.append(skill_data)
 

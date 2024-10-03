@@ -128,121 +128,121 @@ def custom_openapi(app: FastAPI):
     set_example(openapi_schema, "/v1/{team_slug}/users/", "post", "responses", {
         "Example 1": users_create_output_example
     }, "201")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/{software_slug}/{skill_slug}", "get", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/{app_slug}/{skill_slug}", "get", "responses", {
         "Example 1": skills_get_one_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/send", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/messages/send", "post", "requestBody", {
         "Example 1": skills_send_message_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/send", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/messages/send", "post", "responses", {
         "Example 1": skills_send_message_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/connect", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/messages/connect", "post", "requestBody", {
         "Example 1": messages_connect_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/messages/connect", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/messages/connect", "post", "responses", {
         "Example 1": messages_connect_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/ai/ask", "post", "requestBody", {
         "Ask question": ai_ask_input_example,
         "Select a tool": ai_ask_input_example_2,
         "Process tool response": ai_ask_input_example_3,
         "Process image": ai_ask_input_example_4,
         "Ask question (stream)": ai_ask_input_example_5
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/ai/ask", "post", "responses", {
         "Ask question": ai_ask_output_example,
         "Select a tool": ai_ask_output_example_2,
         "Process tool response": ai_ask_output_example_3,
         "Process image": ai_ask_output_example_4,
     }, "200", "application/json")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/ask", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/ai/ask", "post", "responses", {
         "Stream response": ai_ask_output_example_5
     }, "200", "text/event-stream")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/ai/estimate_cost", "post", "requestBody", {
         "Example 1": ai_estimate_cost_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/ai/estimate_cost", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/ai/estimate_cost", "post", "responses", {
         "Example 1": ai_estimate_cost_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/code/plan", "post", "requestBody", {
         "Q&A Round 1": code_plan_input_example,
         "Q&A Round 2": code_plan_input_example_2
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/plan", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/code/plan", "post", "responses", {
         "Q&A Round 1": code_plan_output_example,
         "Q&A Round 2": code_plan_output_example_2
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/code/write", "post", "requestBody", {
         "Example 1": code_write_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/code/write", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/code/write", "post", "responses", {
         "Example 1": code_write_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/finance/get_report", "post", "requestBody", {
         "Example 1": finance_get_report_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_report", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/finance/get_report", "post", "responses", {
         "Example 1": finance_get_report_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/finance/get_transactions", "post", "requestBody", {
         "Example 1": finance_get_transactions_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/finance/get_transactions", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/finance/get_transactions", "post", "responses", {
         "Example 1": finance_get_transactions_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/docs/create", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/docs/create", "post", "requestBody", {
         "Example 1": docs_create_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/docs/create", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/docs/create", "post", "responses", {
         "Example 1": docs_create_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/web/read", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/web/read", "post", "requestBody", {
         "Example 1": web_read_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/web/read", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/web/read", "post", "responses", {
         "Example 1": web_read_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/web/view", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/web/view", "post", "requestBody", {
         "Example 1": web_view_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/web/view", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/web/view", "post", "responses", {
         "Example 1": web_view_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_pitch", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/business/create_pitch", "post", "requestBody", {
         "Example 1": business_create_pitch_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_pitch", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/business/create_pitch", "post", "responses", {
         "Example 1": business_create_pitch_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/business/plan_application", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/business/plan_application", "post", "requestBody", {
         "Example 1": business_plan_application_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/business/plan_application", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/business/plan_application", "post", "responses", {
         "Example 1": business_plan_application_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_application", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/business/create_application", "post", "requestBody", {
         "Example 1": business_create_application_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/business/create_application", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/business/create_application", "post", "responses", {
         "Example 1": business_create_application_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/files/upload", "post", "responses", {
         "Example 1": files_upload_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/files/{provider}/{file_path}", "delete", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/files/{provider}/{file_path}", "delete", "responses", {
         "Example 1": files_delete_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/books/translate", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/books/translate", "post", "responses", {
         "Example 1": task_create_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "requestBody", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/videos/transcript", "post", "requestBody", {
         "Example 1": videos_get_transcript_input_example
     })
-    set_example(openapi_schema, "/v1/{team_slug}/skills/videos/transcript", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/videos/transcript", "post", "responses", {
         "Example 1": videos_get_transcript_output_example
     }, "200")
-    set_example(openapi_schema, "/v1/{team_slug}/skills/photos/resize", "post", "responses", {
+    set_example(openapi_schema, "/v1/{team_slug}/apps/photos/resize", "post", "responses", {
         "Example 1": photos_resize_output_example
     }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/tasks/{task_id}", "get", "responses", {
@@ -260,7 +260,7 @@ def custom_openapi(app: FastAPI):
 
 
     # Ensure AiAskOutput schema is correctly referenced
-    openapi_schema["paths"]["/v1/{team_slug}/skills/ai/ask"]["post"]["responses"]["200"]["content"]["application/json"]["schema"] = {
+    openapi_schema["paths"]["/v1/{team_slug}/apps/ai/ask"]["post"]["responses"]["200"]["content"]["application/json"]["schema"] = {
         "$ref": "#/components/schemas/AiAskOutput"
     }
 

@@ -16,7 +16,7 @@ assert API_TOKEN, "TEST_API_TOKEN not found in .env file"
 assert TEAM_SLUG, "TEST_TEAM_SLUG not found in .env file"
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
-ebook_path = "tests/paid/api/endpoints/skills/books/test_ebook.epub"
+ebook_path = "tests/paid/api/endpoints/apps/books/test_ebook.epub"
 
 # TODO add test for cancel task (and start it again)
 
@@ -28,7 +28,7 @@ def test_books_translate():
         data = {"output_language": "german", "output_format": "pdf"}
 
         response = requests.post(
-            f"{BASE_URL}/v1/{TEAM_SLUG}/skills/books/translate",
+            f"{BASE_URL}/v1/{TEAM_SLUG}/apps/books/translate",
             headers=HEADERS,
             files=files,
             data=data
@@ -61,7 +61,7 @@ def test_books_translate():
     assert "url" in task_json["output"], "No url found in the task output"
 
     # Save task output details as JSON
-    with open("tests/paid/api/endpoints/skills/books/task_output.json", "w") as json_file:
+    with open("tests/paid/api/endpoints/apps/books/task_output.json", "w") as json_file:
         json.dump(task_json, json_file, indent=2)
 
     # Get the translated ebook
@@ -72,7 +72,7 @@ def test_books_translate():
     assert translated_ebook_response.content, "No content received from the translated ebook URL"
 
     # Optionally, save the translated ebook to a file for further inspection
-    with open(f"tests/paid/api/endpoints/skills/books/{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.{data['output_format']}", "wb") as translated_file:
+    with open(f"tests/paid/api/endpoints/apps/books/{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.{data['output_format']}", "wb") as translated_file:
         translated_file.write(translated_ebook_response.content)
 
     print(f"Translated ebook saved as '{ebook_path.split('/')[-1].split('.')[0]}_{data['output_language']}.{data['output_format']}'")

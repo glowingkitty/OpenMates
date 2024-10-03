@@ -2,7 +2,7 @@ import pytest
 import requests
 import os
 from dotenv import load_dotenv
-from server.api.models.skills.business.skills_business_create_application import business_create_application_input_example
+from server.api.models.apps.business.skills_business_create_application import business_create_application_input_example
 import json
 
 # Load environment variables from .env file
@@ -19,7 +19,7 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 @pytest.mark.api_dependent
 def test_business_create_application():
-    input_file_path = "tests/paid/api/endpoints/skills/business/hidden/test_business_create_application_input.json"
+    input_file_path = "tests/paid/api/endpoints/apps/business/hidden/test_business_create_application_input.json"
 
     if os.path.exists(input_file_path):
         with open(input_file_path, "r") as input_file:
@@ -28,7 +28,7 @@ def test_business_create_application():
         input_data = business_create_application_input_example
 
     response = requests.post(
-        f"{BASE_URL}/v1/{TEAM_SLUG}/skills/business/create_application",
+        f"{BASE_URL}/v1/{TEAM_SLUG}/apps/business/create_application",
         headers=HEADERS,
         json=input_data
     )
@@ -40,7 +40,7 @@ def test_business_create_application():
     assert application, "No application found in the response"
 
     # Save the response as a markdown file
-    output_folder = "tests/paid/api/endpoints/skills/business/hidden"
+    output_folder = "tests/paid/api/endpoints/apps/business/hidden"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 

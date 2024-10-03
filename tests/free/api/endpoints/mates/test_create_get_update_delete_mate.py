@@ -62,7 +62,7 @@ def test_create_update_delete_mate_basic(api_config):
         "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
         "default_skills": [1],
-        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
+        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/apps/chatgpt/ask",
         "default_llm_model": "gpt-4o-mini"
     }
 
@@ -86,8 +86,8 @@ def test_create_update_delete_mate_with_youtube_skill(api_config):
         "description": "Mate with YouTube skill",
         "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a YouTube content expert.",
-        "default_skills": [f'/v1/{api_config["team_slug"]}/skills/youtube/transcript'],
-        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
+        "default_skills": [f'/v1/{api_config["team_slug"]}/apps/youtube/transcript'],
+        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/apps/chatgpt/ask",
         "default_llm_model": "gpt-4o-mini"
     }
 
@@ -110,7 +110,7 @@ def test_create_update_delete_mate_multiple_updates(api_config):
         "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a versatile AI assistant.",
         "default_skills": [1],
-        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
+        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/apps/chatgpt/ask",
         "default_llm_model": "gpt-4o-mini"
     }
 
@@ -120,7 +120,7 @@ def test_create_update_delete_mate_multiple_updates(api_config):
         {"description": "Updated description"},
         {"default_systemprompt": "You are an expert in multiple domains."},
         {"default_skills": [1, 2, 3]},
-        {"default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/claude/ask", "default_llm_model": "claude-3.5-sonnet"},
+        {"default_llm_endpoint": f"/v1/{api_config['team_slug']}/apps/claude/ask", "default_llm_model": "claude-3.5-sonnet"},
         {"allowed_to_access_user_name": True, "allowed_to_access_user_projects": True}
     ]
 
@@ -174,7 +174,7 @@ def test_update_mate_validation_error(api_config):
         "profile_image": f"/v1/{api_config['team_slug']}/uploads/burton_03ba7afff9.jpeg",
         "default_systemprompt": "You are a test mate.",
         "default_skills": [1],
-        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/skills/chatgpt/ask",
+        "default_llm_endpoint": f"/v1/{api_config['team_slug']}/apps/chatgpt/ask",
         "default_llm_model": "gpt-4o"
     }
 

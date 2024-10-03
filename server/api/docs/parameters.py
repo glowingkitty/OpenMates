@@ -1,4 +1,3 @@
-
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
 )
@@ -20,59 +19,59 @@ from server.api.models.users.users_get_all import (
 from server.api.models.users.users_get_one import (
     User
 )
-from server.api.models.skills.skills_get_one import (
+from server.api.models.apps.skills_get_one import (
     Skill
 )
-from server.api.models.skills.messages.skills_send_message import (
+from server.api.models.apps.messages.skills_send_message import (
     MessagesSendOutput
 )
-from server.api.models.skills.messages.skills_connect_server import (
+from server.api.models.apps.messages.skills_connect_server import (
     MessagesConnectOutput
 )
-from server.api.models.skills.ai.skills_ai_ask import (
+from server.api.models.apps.ai.skills_ai_ask import (
     AiAskOutput,
     AiAskOutputStream
 )
-from server.api.models.skills.ai.skills_ai_estimate_cost import (
+from server.api.models.apps.ai.skills_ai_estimate_cost import (
     AiEstimateCostOutput
 )
-from server.api.models.skills.files.skills_files_upload import (
+from server.api.models.apps.files.skills_files_upload import (
     FilesUploadOutput
 )
-from server.api.models.skills.files.skills_files_delete import (
+from server.api.models.apps.files.skills_files_delete import (
     FilesDeleteOutput
 )
-from server.api.models.skills.code.skills_code_plan import (
+from server.api.models.apps.code.skills_code_plan import (
     CodePlanOutput
 )
-from server.api.models.skills.code.skills_code_write import (
+from server.api.models.apps.code.skills_code_write import (
     CodeWriteOutput
 )
-from server.api.models.skills.finance.skills_finance_get_report import (
+from server.api.models.apps.finance.skills_finance_get_report import (
     FinanceGetReportOutput
 )
-from server.api.models.skills.finance.skills_finance_get_transactions import (
+from server.api.models.apps.finance.skills_finance_get_transactions import (
     FinanceGetTransactionsOutput
 )
-from server.api.models.skills.videos.skills_videos_get_transcript import (
+from server.api.models.apps.videos.skills_videos_get_transcript import (
     VideosGetTranscriptOutput
 )
-from server.api.models.skills.audio.skills_audio_generate_transcript import (
+from server.api.models.apps.audio.skills_audio_generate_transcript import (
     AudioGenerateTranscriptOutput
 )
-from server.api.models.skills.web.skills_web_read import (
+from server.api.models.apps.web.skills_web_read import (
     WebReadOutput
 )
-from server.api.models.skills.web.skills_web_view import (
+from server.api.models.apps.web.skills_web_view import (
     WebViewOutput
 )
-from server.api.models.skills.business.skills_business_create_pitch import (
+from server.api.models.apps.business.skills_business_create_pitch import (
     BusinessCreatePitchOutput
 )
-from server.api.models.skills.business.skills_business_plan_application import (
+from server.api.models.apps.business.skills_business_plan_application import (
     BusinessPlanApplicationOutput
 )
-from server.api.models.skills.business.skills_business_create_application import (
+from server.api.models.apps.business.skills_business_create_application import (
     BusinessCreateApplicationOutput
 )
 from server.api.models.users.users_create import (
@@ -195,7 +194,7 @@ skills_endpoints = {
     "get_skill":{
         "response_model":Skill,
         "summary": "Get skill",
-        "description": "<img src='docs/images/skills/get_skill.png' alt='Get all details about a specific skill.'>",
+        "description": "<img src='docs/images/apps/get_skill.png' alt='Get all details about a specific skill.'>",
         "responses": generate_responses([200, 401, 403, 404, 422, 500])
     }
 }
@@ -203,8 +202,8 @@ skills_endpoints = {
 skills_ai_endpoints = {
     "ask":{
         "response_model": Union[AiAskOutput, AiAskOutputStream],
-        "summary": "Ask",
-        "description": "<img src='docs/images/skills/ai/ask.png' alt='Ask your AI a question using text & docs/images, and it will answer it based on its knowledge.'>",
+        "summary": "Skill | Ask",
+        "description": "<img src='docs/images/apps/ai/ask.png' alt='Ask your AI a question using text & docs/images, and it will answer it based on its knowledge.'>",
         "responses": {
             200: {
                 "description": "Successful Response",
@@ -225,8 +224,8 @@ skills_ai_endpoints = {
     },
     "estimate_cost":{
         "response_model":AiEstimateCostOutput,
-        "summary": "Estimate Cost",
-        "description": "<img src='docs/images/skills/ai/estimate_cost.png' alt='Get the estimated cost of a request to your AI.'>",
+        "summary": "Skill | Estimate Cost",
+        "description": "<img src='docs/images/apps/ai/estimate_cost.png' alt='Get the estimated cost of a request to your AI.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -234,14 +233,14 @@ skills_ai_endpoints = {
 skills_messages_endpoints = {
     "send":{
         "response_model":MessagesSendOutput,
-        "summary": "Send",
-        "description": "<img src='docs/images/skills/messages/send.png' alt='Send a new message to a channel or thread.'>",
+        "summary": "Skill | Send",
+        "description": "<img src='docs/images/apps/messages/send.png' alt='Send a new message to a channel or thread.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "connect":{
         "response_model":MessagesConnectOutput,
-        "summary": "Connect",
-        "description": "<img src='docs/images/skills/messages/connect.png' alt='Connect a third party messenger. Allows you to chat with your AI team mates in that messenger.'>",
+        "summary": "Skill | Connect",
+        "description": "<img src='docs/images/apps/messages/connect.png' alt='Connect a third party messenger. Allows you to chat with your AI team mates in that messenger.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -249,14 +248,14 @@ skills_messages_endpoints = {
 skills_code_endpoints = {
     "plan":{
         "response_model":CodePlanOutput,
-        "summary": "Plan",
-        "description": "<img src='docs/images/skills/code/plan.png' alt='Plan coding requirements based on two rounds of questions.'>",
+        "summary": "Skill | Plan",
+        "description": "<img src='docs/images/apps/code/plan.png' alt='Plan coding requirements based on two rounds of questions.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "write":{
         "response_model":CodeWriteOutput,
-        "summary": "Write",
-        "description": "<img src='docs/images/skills/code/write.png' alt='Write code based on your requirements, for an existing project or a new one.'>",
+        "summary": "Skill | Write",
+        "description": "<img src='docs/images/apps/code/write.png' alt='Write code based on your requirements, for an existing project or a new one.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -264,14 +263,14 @@ skills_code_endpoints = {
 skills_finance_endpoints = {
     "get_report":{
         "response_model":FinanceGetReportOutput,
-        "summary": "Get report",
-        "description": "<img src='docs/images/skills/finance/get_report.png' alt='Get a report about your transactions. You can choose from various kinds of reports.'>",
+        "summary": "Skill | Get report",
+        "description": "<img src='docs/images/apps/finance/get_report.png' alt='Get a report about your transactions. You can choose from various kinds of reports.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "get_transactions":{
         "response_model":FinanceGetTransactionsOutput,
-        "summary": "Get Transactions",
-        "description": "<img src='docs/images/skills/finance/get_transactions.png' alt='Get all or specific bank transactions from any of your bank accounts in your accounting software.'>",
+        "summary": "Skill | Get Transactions",
+        "description": "<img src='docs/images/apps/finance/get_transactions.png' alt='Get all or specific bank transactions from any of your bank accounts in your accounting software.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -279,8 +278,8 @@ skills_finance_endpoints = {
 skills_docs_endpoints = {
     "create":{
         "response_model":FilesUploadOutput,
-        "summary": "Create",
-        "description": "<img src='docs/images/skills/docs/create.png' alt='Create a new document. Including paragraphs, docs/images, tables and more.'>",
+        "summary": "Skill | Create",
+        "description": "<img src='docs/images/apps/docs/create.png' alt='Create a new document. Including paragraphs, docs/images, tables and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -288,22 +287,22 @@ skills_docs_endpoints = {
 skills_web_endpoints = {
     "read":{
         "response_model":WebReadOutput,
-        "summary": "Read",
-        "description": "<img src='docs/images/skills/web/read.png' alt='Return the content of a website as easy to read text plus docs/images. Great for news articles and blogs.'>",
+        "summary": "Skill | Read",
+        "description": "<img src='docs/images/apps/web/read.png' alt='Return the content of a website as easy to read text plus docs/images. Great for news articles and blogs.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "view":{
         "response_model":WebViewOutput,
-        "summary": "View",
-        "description": "<img src='docs/images/skills/web/view.png' alt='Return a website in its full form, including content that loads with scripts. Great for more complex websites.'>",
+        "summary": "Skill | View",
+        "description": "<img src='docs/images/apps/web/view.png' alt='Return a website in its full form, including content that loads with scripts. Great for more complex websites.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
 
 skills_files_endpoints = {
     "download": {
-        "summary": "Download",
-        "description": "<img src='docs/images/skills/files/download.png' alt='Download a file or folder from the OpenMates server or from a cloud storage account.'>",
+        "summary": "Skill | Download",
+        "description": "<img src='docs/images/apps/files/download.png' alt='Download a file or folder from the OpenMates server or from a cloud storage account.'>",
         "responses": {
             "200": {
                 "description": "Successful Response",
@@ -326,14 +325,14 @@ skills_files_endpoints = {
     },
     "upload": {
         "response_model": FilesUploadOutput,
-        "summary": "Upload",
-        "description": "<img src='docs/images/skills/files/upload.png' alt='Upload a file or folder to the OpenMates server or to a cloud storage account.'>",
+        "summary": "Skill | Upload",
+        "description": "<img src='docs/images/apps/files/upload.png' alt='Upload a file or folder to the OpenMates server or to a cloud storage account.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "delete": {
         "response_model": FilesDeleteOutput,
-        "summary": "Delete",
-        "description": "<img src='docs/images/skills/files/delete.png' alt='Delete a file or folder from the OpenMates server or from a cloud storage account.'>",
+        "summary": "Skill | Delete",
+        "description": "<img src='docs/images/apps/files/delete.png' alt='Delete a file or folder from the OpenMates server or from a cloud storage account.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -341,8 +340,8 @@ skills_files_endpoints = {
 skills_books_endpoints = {
     "translate": {
         "response_model": Task,
-        "summary": "Translate",
-        "description": "<img src='docs/images/skills/books/translate.png' alt='Translate a book that was written by you to another language.'>",
+        "summary": "Skill | Translate",
+        "description": "<img src='docs/images/apps/books/translate.png' alt='Translate a book that was written by you to another language.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
 }
@@ -350,8 +349,8 @@ skills_books_endpoints = {
 skills_videos_endpoints = {
     "get_transcript":{
         "response_model":VideosGetTranscriptOutput,
-        "summary": "Get transcript",
-        "description": "<img src='docs/images/skills/videos/transcript.png' alt='Get the full transcript of a video.'>",
+        "summary": "Skill | Get transcript",
+        "description": "<img src='docs/images/apps/videos/transcript.png' alt='Get the full transcript of a video.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -359,16 +358,16 @@ skills_videos_endpoints = {
 skills_audio_endpoints = {
     "generate_transcript": {
         "response_model": AudioGenerateTranscriptOutput,
-        "summary": "Generate transcript",
-        "description": "<img src='docs/images/skills/audio/generate_transcript.png' alt='Transform spoken audio to text.'>",
+        "summary": "Skill | Generate transcript",
+        "description": "<img src='docs/images/apps/audio/generate_transcript.png' alt='Transform spoken audio to text.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
 
 skills_photos_endpoints = {
      "resize_image":{
-        "summary": "Resize",
-        "description": "<img src='docs/images/skills/photos/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
+        "summary": "Skill | Resize",
+        "description": "<img src='docs/images/apps/photos/resize.png' alt='Scale or crop an existing image to a higher or lower resolution. Can also use AI upscaling for even better results.'>",
         "responses": {
             "200": {
                 "description": "Successful Response",
@@ -394,20 +393,20 @@ skills_photos_endpoints = {
 skills_business_endpoints = {
     "create_pitch":{
         "response_model":BusinessCreatePitchOutput,
-        "summary": "Create pitch",
-        "description": "<img src='docs/images/skills/business/create_pitch.png' alt='Asks you multiple rounds of questions, and based on the answers it creates a pitch to help you communicate your idea or project, making it compelling and exciting to potential stakeholders.'>",
+        "summary": "Skill | Create pitch",
+        "description": "<img src='docs/images/apps/business/create_pitch.png' alt='Asks you multiple rounds of questions, and based on the answers it creates a pitch to help you communicate your idea or project, making it compelling and exciting to potential stakeholders.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "plan_application":{
         "response_model":BusinessPlanApplicationOutput,
-        "summary": "Plan application",
-        "description": "<img src='docs/images/skills/business/plan_application.png' alt='Based on website URLs, documents, and requirement details,  you will be asked multiple questions and receive detailed requirements and recommendations for writing the application.'>",
+        "summary": "Skill | Plan application",
+        "description": "<img src='docs/images/apps/business/plan_application.png' alt='Based on website URLs, documents, and requirement details,  you will be asked multiple questions and receive detailed requirements and recommendations for writing the application.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "create_application":{
         "response_model":BusinessCreateApplicationOutput,
-        "summary": "Create application",
-        "description": "<img src='docs/images/skills/business/create_application.png' alt='Write an application based on detailed requirements and recommendations. For example, a funding application.'>",
+        "summary": "Skill | Create application",
+        "description": "<img src='docs/images/apps/business/create_application.png' alt='Write an application based on detailed requirements and recommendations. For example, a funding application.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
@@ -516,63 +515,63 @@ tags_metadata = [
         "description": "<img src='docs/images/mates.png' alt='Mates are your AI team members. They can help you with various tasks. Each mate is specialized in a different area.'>"
     },
     {
-        "name": "Software",
-        "description": "<img src='docs/images/software.png' alt='Your team mates can interact with a wide range of software, on your behalf. For example: ChatGPT, Notion, RSS, SevDesk, YouTube, Claude, StableDiffusion, Firefox, Dropbox.'>"
+        "name": "Apps",
+        "description": "<img src='docs/images/apps.png' alt='Your team mates can interact with a wide range of apps, on your behalf. For example: ChatGPT, Notion, RSS, SevDesk, YouTube, Claude, StableDiffusion, Firefox, Dropbox.'>"
     },
     {
         "name": "Skills",
-        "description": "<img src='docs/images/skills.png' alt='Your team mate can use a wide range of software skills. Or, you can call them directly via the API.'>"
+        "description": "<img src='docs/images/skills.png' alt='Your team mate can use a wide range of app skills. Or, you can call them directly via the API.'>"
     },
     {
-        "name": "Skills | AI",
-        "description": "<img src='docs/images/skills/ai.png' alt='Use generative AI to answer questions, brainstorm ideas, create docs/images and more. \
+        "name": "Apps | AI",
+        "description": "<img src='docs/images/apps/ai.png' alt='Use generative AI to answer questions, brainstorm ideas, create docs/images and more. \
             Providers: Claude, ChatGPT\
             Models: claude-3.5-sonnet, claude-3-haiku, gpt-4o, gpt-4o-mini'>"
     },
     {
-        "name": "Skills | Messages",
-        "description": "<img src='docs/images/skills/messages.png' alt='Send messages, create threads and more. \
+        "name": "Apps | Messages",
+        "description": "<img src='docs/images/apps/messages.png' alt='Send messages, create threads and more. \
             Providers: Discord, Slack, Mattermost'>"
     },
     {
-        "name": "Skills | Code",
-        "description": "<img src='docs/images/skills/code.png' alt='Write, test, improve and execute code.'>"
+        "name": "Apps | Code",
+        "description": "<img src='docs/images/apps/code.png' alt='Write, test, improve and execute code.'>"
     },
     {
-        "name": "Skills | Finance",
-        "description": "<img src='docs/images/skills/finance.png' alt='Keep track of your finances and build a stable income. Providers: Akaunting, Revolut Business'>"
+        "name": "Apps | Finance",
+        "description": "<img src='docs/images/apps/finance.png' alt='Keep track of your finances and build a stable income. Providers: Akaunting, Revolut Business'>"
     },
     {
-        "name": "Skills | Docs",
-        "description": "<img src='docs/images/skills/docs.png' alt='Create documents for everything from contracts to CVs and more. Providers: Google Docs, Microsoft Word, OnlyOffice'>"
+        "name": "Apps | Docs",
+        "description": "<img src='docs/images/apps/docs.png' alt='Create documents for everything from contracts to CVs and more. Providers: Google Docs, Microsoft Word, OnlyOffice'>"
     },
     {
-        "name": "Skills | Files",
-        "description": "<img src='docs/images/skills/files.png' alt='Manage your files, regardless of where they are. Providers: OpenMates, Dropbox'>"
+        "name": "Apps | Files",
+        "description": "<img src='docs/images/apps/files.png' alt='Manage your files, regardless of where they are. Providers: OpenMates, Dropbox'>"
     },
     {
-        "name": "Skills | Books",
-        "description": "<img src='docs/images/skills/books.png' alt='Manage your ebooks, translate them and more. Providers: Amazon Kindle'>"
+        "name": "Apps | Books",
+        "description": "<img src='docs/images/apps/books.png' alt='Manage your ebooks, translate them and more. Providers: Amazon Kindle'>"
     },
     {
-        "name": "Skills | Videos",
-        "description": "<img src='docs/images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
+        "name": "Apps | Videos",
+        "description": "<img src='docs/images/apps/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
     },
     {
-        "name": "Skills | Audio",
-        "description": "<img src='docs/images/skills/audio.png' alt='Generate, modify and transcribe audio and more. Providers: OpenAI, AssemblyAI, ElevenLabs'>"
+        "name": "Apps | Audio",
+        "description": "<img src='docs/images/apps/audio.png' alt='Generate, modify and transcribe audio and more. Providers: OpenAI, AssemblyAI, ElevenLabs'>"
     },
     {
-        "name": "Skills | Business",
-        "description": "<img src='docs/images/skills/business.png' alt='Manage your businesses, get recommendations and more.'>"
+        "name": "Apps | Business",
+        "description": "<img src='docs/images/apps/business.png' alt='Manage your businesses, get recommendations and more.'>"
     },
     {
-        "name": "Skills | Web",
-        "description": "<img src='docs/images/skills/web.png' alt='Browse the web, researches topics and more.'>"
+        "name": "Apps | Web",
+        "description": "<img src='docs/images/apps/web.png' alt='Browse the web, researches topics and more.'>"
     },
     {
-        "name": "Skills | Photos",
-        "description": "<img src='docs/images/skills/photos.png' alt='Modify docs/images, resize them and more.'>"
+        "name": "Apps | Photos",
+        "description": "<img src='docs/images/apps/photos.png' alt='Modify docs/images, resize them and more.'>"
     },
     {
         "name": "Workflows",
@@ -625,7 +624,7 @@ input_parameter_descriptions = {
     "file": {
         "description": "The bytes of the file to upload"
     },
-    "software_slug": {
+    "app_slug": {
         "description": "The slug of the software",
         "examples": ["claude"]
     },

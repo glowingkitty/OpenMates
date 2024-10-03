@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List
 from urllib.parse import quote
 from typing import Optional
-from server.api.models.skills.skills_get_one import SkillMini
+from server.api.models.apps.skills_get_one import SkillMini
 from server.api.models.mates.validators import validate_llm_model, validate_llm_endpoint
 
 # GET /mates/{mate_username} (get a mate)
@@ -70,15 +70,15 @@ mates_get_one_output_example = {
     "id": 1,
     "name": "Sophia",
     "username": "sophia",
-    "description": "Software development expert",
+    "description": "App development expert",
     "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
-    "llm_endpoint": "/v1/ai-sales-team/skills/chatgpt/ask",
+    "llm_endpoint": "/v1/ai-sales-team/apps/chatgpt/ask",
     "llm_model":"gpt-4o",
     "systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "skills": [
         {
             "id": 3,
-            "api_endpoint": "/v1/ai-sales-team/skills/vs_code/write_and_test_code",
+            "api_endpoint": "/v1/ai-sales-team/apps/vs_code/write_and_test_code",
             "description": "Writes and tests code based on the given requirements."
         }
     ],

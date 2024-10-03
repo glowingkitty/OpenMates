@@ -5,7 +5,7 @@ import base64
 from dotenv import load_dotenv
 import time
 from pydantic import ValidationError
-from server.api.models.skills.messages.skills_send_message import MessagesSendInput, MessagesSendOutput, Target, Attachment
+from server.api.models.apps.messages.skills_send_message import MessagesSendInput, MessagesSendOutput, Target, Attachment
 
 # Load environment variables from .env file
 load_dotenv()
@@ -153,7 +153,7 @@ def test_send_discord_messages():
 
     for test_name, payload in test_cases:
         response = requests.post(
-            f"http://0.0.0.0:8000/v1/{team_slug}/skills/messages/send",
+            f"http://0.0.0.0:8000/v1/{team_slug}/apps/messages/send",
             headers=headers,
             json=payload.model_dump()
         )

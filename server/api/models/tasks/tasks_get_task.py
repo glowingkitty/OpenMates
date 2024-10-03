@@ -1,7 +1,7 @@
 tasks_get_task_output_example = {
     "id": "153e0027-e34d-27i7-9a9c-14a6375b1c97",
     "url": "/v1/openmatesdevs/tasks/153e0027-e34d-27i7-9a9c-14a6375b1c97",
-    "api_endpoint": "/v1/openmatesdevs/skills/books/translate",
+    "api_endpoint": "/v1/openmatesdevs/apps/books/translate",
     "title": "Translate a book",
     "status": "success",
     "progress": 100,
@@ -13,7 +13,7 @@ tasks_get_task_output_example = {
     "total_credits_cost_real": 720,
     "output": {
         "name": "book_translated.epub",
-        "url": "/v1/openmatesdevs/skills/files/books/book_translated.epub",
+        "url": "/v1/openmatesdevs/apps/files/books/book_translated.epub",
         "expiration_datetime": "2023-05-17T12:36:01.030Z",
         "access_public": False,
         "read_access_limited_to_teams": [],

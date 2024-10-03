@@ -4,7 +4,7 @@ from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
 import json
 import logging
-from server.api.models.skills.skills_get_one import SkillMini
+from server.api.models.apps.skills_get_one import SkillMini
 
 logger = logging.getLogger(__name__)
 

@@ -36,60 +36,60 @@ from server.api.models.mates.mates_get_one import mates_get_one_output_example
 from server.api.models.mates.mates_update import (
     MatesUpdateInput
 )
-from server.api.models.skills.ai.skills_ai_ask import (
+from server.api.models.apps.ai.skills_ai_ask import (
     AiAskInput, AiAskOutput, AiAskOutputStream
 )
-from server.api.models.skills.ai.skills_ai_estimate_cost import (
+from server.api.models.apps.ai.skills_ai_estimate_cost import (
     AiEstimateCostInput, AiEstimateCostOutput
 )
-from server.api.models.skills.code.skills_code_plan import (
+from server.api.models.apps.code.skills_code_plan import (
     CodePlanInput, CodePlanOutput
 )
-from server.api.models.skills.code.skills_code_write import (
+from server.api.models.apps.code.skills_code_write import (
     CodeWriteInput, CodeWriteOutput
 )
-from server.api.models.skills.docs.skills_docs_create import (
+from server.api.models.apps.docs.skills_docs_create import (
     DocsCreateInput
 )
-from server.api.models.skills.finance.skills_finance_get_report import (
+from server.api.models.apps.finance.skills_finance_get_report import (
     FinanceGetReportInput, FinanceGetReportOutput
 )
-from server.api.models.skills.finance.skills_finance_get_transactions import (
+from server.api.models.apps.finance.skills_finance_get_transactions import (
     FinanceGetTransactionsInput, FinanceGetTransactionsOutput
 )
-from server.api.models.skills.files.skills_files_delete import (
+from server.api.models.apps.files.skills_files_delete import (
     FilesDeleteOutput
 )
-from server.api.models.skills.files.skills_files_upload import (
+from server.api.models.apps.files.skills_files_upload import (
     FilesUploadOutput
 )
-from server.api.models.skills.messages.skills_connect_server import (
+from server.api.models.apps.messages.skills_connect_server import (
     MessagesConnectInput, MessagesConnectOutput
 )
-from server.api.models.skills.messages.skills_send_message import (
+from server.api.models.apps.messages.skills_send_message import (
     MessagesSendInput, MessagesSendOutput
 )
-from server.api.models.skills.photos.skills_photos_resize_image import photos_resize_output_example
-from server.api.models.skills.skills_get_one import skills_get_one_output_example
-from server.api.models.skills.videos.skills_videos_get_transcript import (
+from server.api.models.apps.photos.skills_photos_resize_image import photos_resize_output_example
+from server.api.models.apps.skills_get_one import skills_get_one_output_example
+from server.api.models.apps.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput, VideosGetTranscriptOutput
 )
-from server.api.models.skills.audio.skills_audio_generate_transcript import (
+from server.api.models.apps.audio.skills_audio_generate_transcript import (
     AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput, AudioTranscriptAiProvider
 )
-from server.api.models.skills.web.skills_web_read import (
+from server.api.models.apps.web.skills_web_read import (
     WebReadInput, WebReadOutput
 )
-from server.api.models.skills.web.skills_web_view import (
+from server.api.models.apps.web.skills_web_view import (
     WebViewInput, WebViewOutput
 )
-from server.api.models.skills.business.skills_business_create_pitch import (
+from server.api.models.apps.business.skills_business_create_pitch import (
     BusinessCreatePitchInput, BusinessCreatePitchOutput
 )
-from server.api.models.skills.business.skills_business_create_application import (
+from server.api.models.apps.business.skills_business_create_application import (
     BusinessCreateApplicationInput, BusinessCreateApplicationOutput
 )
-from server.api.models.skills.business.skills_business_plan_application import (
+from server.api.models.apps.business.skills_business_plan_application import (
     BusinessPlanApplicationInput, BusinessPlanApplicationOutput
 )
 from server.api.models.tasks.tasks_cancel import (
@@ -120,27 +120,27 @@ from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_pr
 from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
 from server.api.endpoints.mates.get_mates import get_mates as get_mates_processing
 from server.api.endpoints.mates.update_mate import update_mate as update_mate_processing
-from server.api.endpoints.skills.ai.ask import ask as skill_ai_ask_processing
-from server.api.endpoints.skills.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
-from server.api.endpoints.skills.code.plan import plan as skill_code_plan_processing
-from server.api.endpoints.skills.code.write import write as skill_code_write_processing
-from server.api.endpoints.skills.docs.create import create as skill_docs_create_processing
-from server.api.endpoints.skills.files.delete import delete as skill_files_delete_processing
-from server.api.endpoints.skills.files.download import download as skill_files_download_processing
-from server.api.endpoints.skills.files.upload import upload as skill_files_upload_processing
-from server.api.endpoints.skills.finance.get_report import get_report as skill_finance_get_report_processing
-from server.api.endpoints.skills.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
-from server.api.endpoints.skills.get_skill import get_skill as get_skill_processing
-from server.api.endpoints.skills.messages.connect import connect as skill_messages_connect_processing
-from server.api.endpoints.skills.messages.send import send as skill_messages_send_processing
-from server.api.endpoints.skills.photos.resize_image import resize_image as skill_photos_resize_image_processing
-from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
-from server.api.endpoints.skills.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
-from server.api.endpoints.skills.web.read import read as skill_web_read_processing
-from server.api.endpoints.skills.web.view import view as skill_web_view_processing
-from server.api.endpoints.skills.business.create_pitch import create_pitch as skill_business_create_pitch_processing
-from server.api.endpoints.skills.business.plan_application import plan_application as skill_business_plan_application_processing
-from server.api.endpoints.skills.business.create_application import create_application as skill_business_create_application_processing
+from server.api.endpoints.apps.ai.ask import ask as skill_ai_ask_processing
+from server.api.endpoints.apps.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
+from server.api.endpoints.apps.code.plan import plan as skill_code_plan_processing
+from server.api.endpoints.apps.code.write import write as skill_code_write_processing
+from server.api.endpoints.apps.docs.create import create as skill_docs_create_processing
+from server.api.endpoints.apps.files.delete import delete as skill_files_delete_processing
+from server.api.endpoints.apps.files.download import download as skill_files_download_processing
+from server.api.endpoints.apps.files.upload import upload as skill_files_upload_processing
+from server.api.endpoints.apps.finance.get_report import get_report as skill_finance_get_report_processing
+from server.api.endpoints.apps.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
+from server.api.endpoints.apps.get_skill import get_skill as get_skill_processing
+from server.api.endpoints.apps.messages.connect import connect as skill_messages_connect_processing
+from server.api.endpoints.apps.messages.send import send as skill_messages_send_processing
+from server.api.endpoints.apps.photos.resize_image import resize_image as skill_photos_resize_image_processing
+from server.api.endpoints.apps.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
+from server.api.endpoints.apps.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
+from server.api.endpoints.apps.web.read import read as skill_web_read_processing
+from server.api.endpoints.apps.web.view import view as skill_web_view_processing
+from server.api.endpoints.apps.business.create_pitch import create_pitch as skill_business_create_pitch_processing
+from server.api.endpoints.apps.business.plan_application import plan_application as skill_business_plan_application_processing
+from server.api.endpoints.apps.business.create_application import create_application as skill_business_create_application_processing
 from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
 from server.api.endpoints.tasks.create import create as tasks_create_processing
 from server.api.endpoints.tasks.get_task import get as tasks_get_task_processing

@@ -3,7 +3,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from server.api.models.skills.skills_get_one import Skill
+from server.api.models.apps.skills_get_one import Skill
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,9 +21,9 @@ def test_get_skill():
         "Authorization": f"Bearer {api_token}"
     }
 
-    response = requests.get(f"http://0.0.0.0:8000/v1/{team_slug}/skills/{endpoint}", headers=headers)
+    response = requests.get(f"http://0.0.0.0:8000/v1/{team_slug}/apps/{endpoint}", headers=headers)
 
-    assert response.status_code == 200, f"Unexpected status code: {response.status_code} for API endpoint 'http://0.0.0.0:8000/v1/{team_slug}/skills/{endpoint}'"
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code} for API endpoint 'http://0.0.0.0:8000/v1/{team_slug}/apps/{endpoint}'"
 
     json_response = response.json()
 

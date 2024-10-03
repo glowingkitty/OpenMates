@@ -57,7 +57,7 @@ async def on_message(message):
     # # Send the message to the API
     # async with aiohttp.ClientSession() as session:
     #     try:
-    #         api_endpoint = f'http://rest-api:8000/v1/{team_slug}/skills/messages/process'
+    #         api_endpoint = f'http://rest-api:8000/v1/{team_slug}/apps/messages/process'
     #         logger.info(f"Sending message to API: {api_endpoint}")
 
     #         message_data = {

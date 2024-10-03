@@ -48,7 +48,7 @@ async def create_user(
             }
         ],
         "balance_in_EUR": 0.0,
-        "software_settings": {},
+        "app_settings": {},
         "other_settings": {},
         "projects": [],
         "goals": [],

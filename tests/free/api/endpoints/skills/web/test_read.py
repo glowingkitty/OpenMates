@@ -5,7 +5,7 @@ import time
 import json
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from server.api.models.skills.web.skills_web_read import WebReadOutput, web_read_input_examples
+from server.api.models.apps.web.skills_web_read import WebReadOutput, web_read_input_examples
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load environment variables from .env file
@@ -28,7 +28,7 @@ def test_read():
     request_times = []  # List to store request times
 
     # Create 'hidden' directory if it doesn't exist
-    hidden_dir = "tests/free/api/endpoints/skills/web/hidden"
+    hidden_dir = "tests/free/api/endpoints/apps/web/hidden"
     os.makedirs(hidden_dir, exist_ok=True)
 
     def make_request(url, include_images):
@@ -37,7 +37,7 @@ def test_read():
             "include_images": include_images
         }
         start_time = time.time()  # Start timing
-        response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/web/read", headers=headers, json=params)
+        response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/apps/web/read", headers=headers, json=params)
         end_time = time.time()  # End timing
 
         request_time_ms = (end_time - start_time) * 1000  # Calculate time in ms

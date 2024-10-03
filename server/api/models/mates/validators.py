@@ -3,9 +3,9 @@ def validate_llm_endpoint(v: str) -> str:
         raise ValueError("LLM endpoint cannot be None")
 
     valid_endpoints = [
-        '/skills/chatgpt/ask',
-        '/skills/claude/ask',
-        '/skills/gemini/ask'
+        '/apps/chatgpt/ask',
+        '/apps/claude/ask',
+        '/apps/gemini/ask'
     ]
 
     # Check if the input ends with one of the valid endpoints
@@ -21,9 +21,9 @@ def validate_llm_model(v: str, endpoint: str) -> str:
         raise ValueError("LLM endpoint cannot be None")
 
     valid_models = {
-        '/skills/chatgpt/ask': ['gpt-4o', 'gpt-4o-mini'],
-        '/skills/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],
-        '/skills/gemini/ask': ['gemini-1.5-pro', 'gemini-1.5-flash']
+        '/apps/chatgpt/ask': ['gpt-4o', 'gpt-4o-mini'],
+        '/apps/claude/ask': ['claude-3.5-sonnet', 'claude-3-haiku'],
+        '/apps/gemini/ask': ['gemini-1.5-pro', 'gemini-1.5-flash']
     }
 
     # Ensure the endpoint starts with a slash

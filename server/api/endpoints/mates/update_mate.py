@@ -8,7 +8,7 @@ from server.api.security.validation.validate_mate_username import validate_mate_
 from server.api.security.validation.validate_skills import validate_skills
 from server.api.endpoints.mates.get_mate import get_mate
 from server.api.endpoints.mates.update_or_create_config import update_or_create_config
-from server.api.endpoints.skills.get_skill import get_skill
+from server.api.endpoints.apps.get_skill import get_skill
 import logging
 
 # Set up logger
@@ -65,7 +65,7 @@ async def update_mate(
                     new_default_skills_ids.append(skill)
                 elif isinstance(skill, str):
                     # Fetch skill ID based on the API endpoint
-                    skill_data = await get_skill(skill_slug=skill.split('/')[-1], software_slug=skill.split('/')[-2])
+                    skill_data = await get_skill(skill_slug=skill.split('/')[-1], app_slug=skill.split('/')[-2])
                     if isinstance(skill_data, dict) and 'id' in skill_data:
                         new_default_skills_ids.append(skill_data['id'])
                     else:
@@ -106,17 +106,17 @@ async def update_mate(
         if new_default_llm_endpoint is not None:
             endpoint_parts = new_default_llm_endpoint.split('/')
 
-            if len(endpoint_parts) == 4:  # Format: /skills/{software_slug}/ask
-                software_slug = endpoint_parts[2]
+            if len(endpoint_parts) == 4:  # Format: /apps/{app_slug}/ask
+                app_slug = endpoint_parts[2]
                 skill_slug = endpoint_parts[3]
-            elif len(endpoint_parts) >= 5 and endpoint_parts[1] == 'v1':  # Format: /v1/{team_slug}/skills/{software_slug}/ask
-                software_slug = endpoint_parts[-2]
+            elif len(endpoint_parts) >= 5 and endpoint_parts[1] == 'v1':  # Format: /v1/{team_slug}/apps/{app_slug}/ask
+                app_slug = endpoint_parts[-2]
                 skill_slug = endpoint_parts[-1]
             else:
                 raise ValueError("Invalid default_llm_endpoint format")
 
             default_llm_endpoint_skill = await get_skill(
-                software_slug=software_slug,
+                app_slug=app_slug,
                 skill_slug=skill_slug,
                 output_raw_data=True
             )

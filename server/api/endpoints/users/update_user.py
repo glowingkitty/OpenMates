@@ -20,7 +20,7 @@ async def update_user(
         mates_default_privacy_settings__allowed_to_access_likes: bool = None,
         mates_default_privacy_settings__allowed_to_access_dislikes: bool = None,
         mate_configs: list[int] = None,
-        software_settings: dict = None,
+        app_settings: dict = None,
         other_settings: dict = None,
         projects: list[int] = None
 

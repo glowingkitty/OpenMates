@@ -27,10 +27,10 @@ def test_get_nested():
                             "data": {
                                 "attributes": {
                                     "slug": "test-slug",
-                                    "software": {
+                                    "app": {
                                         "data": {
                                             "attributes": {
-                                                "slug": "software-slug"
+                                                "slug": "app-slug"
                                             }
                                         }
                                     }
@@ -81,7 +81,7 @@ def test_get_nested():
     
     assert get_nested(example_data, "name") == "Test Mate"
     assert get_nested(example_data, "config.llm_endpoint.slug") == "test-slug"
-    assert get_nested(example_data, "config.llm_endpoint.software.slug") == "software-slug"
+    assert get_nested(example_data, "config.llm_endpoint.app.slug") == "app-slug"
     assert get_nested(example_data, "nonexistent") is None
     assert get_nested(example_data, "config.nonexistent") is None
 

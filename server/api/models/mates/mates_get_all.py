@@ -52,7 +52,7 @@ mates_get_all_output_example = {
             "id": 2,
             "name": "Sophia",
             "username": "sophia",
-            "description": "Software development expert",
+            "description": "App development expert",
             "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg"
         }
     ],

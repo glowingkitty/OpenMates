@@ -3,8 +3,8 @@ import requests
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from server.api.models.skills.files.skills_files_upload import FilesUploadOutput
-from server.api.models.skills.docs.skills_docs_create import docs_create_input_example
+from server.api.models.apps.files.skills_files_upload import FilesUploadOutput
+from server.api.models.apps.docs.skills_docs_create import docs_create_input_example
 from io import BytesIO
 from docx import Document
 
@@ -23,9 +23,9 @@ def test_create_download_delete_doc():
         "Authorization": f"Bearer {api_token}"
     }
 
-    response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/skills/docs/create", headers=headers, json=docs_create_input_example)
+    response = requests.post(f"http://0.0.0.0:8000/v1/{team_slug}/apps/docs/create", headers=headers, json=docs_create_input_example)
 
-    assert response.status_code == 200, f"Unexpected status code: {response.status_code} for API endpoint 'http://0.0.0.0:8000/v1/{team_slug}/skills/docs/create'"
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code} for API endpoint 'http://0.0.0.0:8000/v1/{team_slug}/apps/docs/create'"
 
     json_response = response.json()
 

@@ -3,7 +3,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from server.api.models.skills.ai.skills_ai_ask import (
+from server.api.models.apps.ai.skills_ai_ask import (
     AiAskInput,
     AiAskOutput,
     AiAskOutputStream,
@@ -40,7 +40,7 @@ def ai_provider(request):
     return request.param
 
 def make_request(**kwargs):
-    return requests.post(f"{BASE_URL}/v1/{TEAM_SLUG}/skills/ai/ask", headers=HEADERS, json=kwargs)
+    return requests.post(f"{BASE_URL}/v1/{TEAM_SLUG}/apps/ai/ask", headers=HEADERS, json=kwargs)
 
 
 @pytest.mark.api_dependent
@@ -116,9 +116,9 @@ def test_ai_ask_with_message_history(ai_provider):
 
 
 @pytest.mark.api_dependent
-@pytest.mark.skipif(not os.path.exists("tests/api/endpoints/skills/ai/test_ai_ask_example_image.jpg"), reason="Test image not found")
+@pytest.mark.skipif(not os.path.exists("tests/api/endpoints/apps/ai/test_ai_ask_example_image.jpg"), reason="Test image not found")
 def test_ai_ask_with_image(ai_provider):
-    image_path = "tests/api/endpoints/skills/ai/test_ai_ask_example_image.jpg"
+    image_path = "tests/api/endpoints/apps/ai/test_ai_ask_example_image.jpg"
     with open(image_path, "rb") as image_file:
         image_data = base64.b64encode(image_file.read()).decode('utf-8')
 

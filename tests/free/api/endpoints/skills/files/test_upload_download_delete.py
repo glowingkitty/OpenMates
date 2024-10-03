@@ -18,7 +18,7 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 @pytest.fixture
 def test_file_path():
-    return "tests/free/api/endpoints/skills/files/test_file.docx"
+    return "tests/free/api/endpoints/apps/files/test_file.docx"
 
 @pytest.fixture
 def test_file_data(test_file_path):
@@ -31,7 +31,7 @@ def test_upload_download_delete_file(test_file_data, test_file_path):
 
     # upload file
     response = requests.post(
-        f"{BASE_URL}/v1/{TEAM_SLUG}/skills/files/upload",
+        f"{BASE_URL}/v1/{TEAM_SLUG}/apps/files/upload",
         headers=HEADERS,
         files={"file": ("test_file.docx", test_file_data)},
         data={

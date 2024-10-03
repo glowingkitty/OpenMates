@@ -1,10 +1,10 @@
 from server.task_management.task_management import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
-from server.api.endpoints.skills.books.translate import translate as book_translate_processing
+from server.api.endpoints.apps.books.translate import translate as book_translate_processing
 from celery import shared_task
 from datetime import datetime
 from server.cms.cms import make_strapi_request
-from server.api.endpoints.skills.files.providers.openmates.delete import delete as openmates_delete
+from server.api.endpoints.apps.files.providers.openmates.delete import delete as openmates_delete
 from server.api.endpoints.tasks.update import update as update_task
 import asyncio
 import traceback

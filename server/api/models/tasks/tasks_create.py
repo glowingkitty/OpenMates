@@ -30,7 +30,7 @@ task_create_output_example = {
     "id": "153e0027-e34d-27i7-9a9c-14a6375b1c97",
     "team_slug": "openmatesdevs",
     "url": "/v1/openmatesdevs/tasks/153e0027-e34d-27i7-9a9c-14a6375b1c97",
-    "api_endpoint": "/v1/openmatesdevs/skills/books/translate",
+    "api_endpoint": "/v1/openmatesdevs/apps/books/translate",
     "title": "Translate a book",
     "status": "scheduled",
     "progress": 0,

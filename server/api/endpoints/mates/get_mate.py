@@ -35,7 +35,7 @@ async def get_mate(
         if include_populated_data:
             populate = [
                 "default_llm_endpoint.slug",
-                "default_llm_endpoint.software.slug",
+                "default_llm_endpoint.app.slug",
                 "profile_picture.file.url",
                 "default_skills.name",
                 "default_skills.description",
@@ -44,25 +44,25 @@ async def get_mate(
                 "default_skills.is_llm_endpoint",
                 "default_skills.is_llm_endpoint_and_supports_tool_selection",
                 "default_skills.icon.file.url",
-                "default_skills.software.name",
-                "default_skills.software.slug",
-                "default_skills.software.icon.file.url",
+                "default_skills.app.name",
+                "default_skills.app.slug",
+                "default_skills.app.icon.file.url",
                 "configs.systemprompt",
                 "configs.llm_endpoint.slug",
-                "configs.llm_endpoint.software.slug",
+                "configs.llm_endpoint.app.slug",
                 "configs.llm_model",
                 "configs.user.api_token",
                 "configs.team.slug",
-                "configs.skills.name",
-                "configs.skills.description",
-                "configs.skills.slug",
-                "configs.skills.requires_cloud_to_run",
-                "configs.skills.is_llm_endpoint",
-                "configs.skills.is_llm_endpoint_and_supports_tool_selection",
-                "configs.skills.icon.file.url",
-                "configs.skills.software.name",
-                "configs.skills.software.slug",
-                "configs.skills.software.icon.file.url",
+                "configs.apps.name",
+                "configs.apps.description",
+                "configs.apps.slug",
+                "configs.apps.requires_cloud_to_run",
+                "configs.apps.is_llm_endpoint",
+                "configs.apps.is_llm_endpoint_and_supports_tool_selection",
+                "configs.apps.icon.file.url",
+                "configs.apps.app.name",
+                "configs.apps.app.slug",
+                "configs.apps.app.icon.file.url",
                 "configs.allowed_to_access_user_name",
                 "configs.allowed_to_access_user_username",
                 "configs.allowed_to_access_user_projects",
@@ -127,7 +127,7 @@ async def get_mate(
                     mate["attributes"]["config"] = None
 
                 llm_skill_slug = get_nested(mate, "config.llm_endpoint.slug") or get_nested(mate, "default_llm_endpoint.slug")
-                llm_skill_software_slug = get_nested(mate, "config.llm_endpoint.software.slug") or get_nested(mate, "default_llm_endpoint.software.slug")
+                llm_skill_app_slug = get_nested(mate, "config.llm_endpoint.app.slug") or get_nested(mate, "default_llm_endpoint.app.slug")
 
                 mate = {
                         "id": get_nested(mate, "id"),
@@ -135,7 +135,7 @@ async def get_mate(
                         "username": get_nested(mate, "name").lower().replace(" ", "_"),
                         "description": get_nested(mate, "description"),
                         "profile_image": f"/v1/{team_slug}{get_nested(mate, 'profile_picture.file.url')}" if get_nested(mate, "profile_picture") else None,
-                        "llm_endpoint": f"/v1/{team_slug}/skills/{llm_skill_software_slug}/{llm_skill_slug}",
+                        "llm_endpoint": f"/v1/{team_slug}/apps/{llm_skill_app_slug}/{llm_skill_slug}",
                         "llm_model": get_nested(mate, "config.llm_model") or get_nested(mate, "default_llm_model"),
                         "systemprompt": get_nested(mate, "config.systemprompt") or get_nested(mate, "default_systemprompt"),
                         "skills": [
@@ -148,12 +148,12 @@ async def get_mate(
                                 "is_llm_endpoint": get_nested(skill, "is_llm_endpoint"),
                                 "is_llm_endpoint_and_supports_tool_selection": get_nested(skill, "is_llm_endpoint_and_supports_tool_selection"),
                                 "icon_url": f"/v1/{team_slug}{get_nested(skill, 'icon.file.url')}" if get_nested(skill, "icon") else None,
-                                "api_endpoint": f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}",
-                                "software":{
-                                    "id": get_nested(skill, "software.id"),
-                                    "name": get_nested(skill, "software.name"),
-                                    "slug": get_nested(skill, "software.slug"),
-                                    "icon_url": f"/v1/{team_slug}{get_nested(skill, 'software.icon.file.url')}" if get_nested(skill, "software.icon") else None,
+                                "api_endpoint": f"/v1/{team_slug}/apps/{get_nested(skill, 'app.slug')}/{get_nested(skill, 'slug')}",
+                                "app":{
+                                    "id": get_nested(skill, "app.id"),
+                                    "name": get_nested(skill, "app.name"),
+                                    "slug": get_nested(skill, "app.slug"),
+                                    "icon_url": f"/v1/{team_slug}{get_nested(skill, 'app.icon.file.url')}" if get_nested(skill, "app.icon") else None,
                                 }
                             } for skill in (get_nested(mate, "config.skills") or get_nested(mate, "default_skills"))
                         ],

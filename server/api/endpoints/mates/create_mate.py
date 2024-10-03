@@ -3,7 +3,7 @@ from server.api.models.mates.mates_create import MatesCreateOutput
 from server.cms.cms import make_strapi_request
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.endpoints.skills.get_skill import get_skill
+from server.api.endpoints.apps.get_skill import get_skill
 from server.api.security.validation.validate_permissions import validate_permissions
 from server.api.security.validation.validate_mate_username import validate_mate_username
 from server.api.security.validation.validate_skills import validate_skills
@@ -51,7 +51,7 @@ async def create_mate(
                     default_skills_ids.append(skill)
                 elif isinstance(skill, str):
                     # Fetch skill ID based on the API endpoint
-                    skill_data = await get_skill(skill_slug=skill.split('/')[-1], software_slug=skill.split('/')[-2])
+                    skill_data = await get_skill(skill_slug=skill.split('/')[-1], app_slug=skill.split('/')[-2])
                     if isinstance(skill_data, dict) and 'id' in skill_data:
                         default_skills_ids.append(skill_data['id'])
                     else:
@@ -83,18 +83,18 @@ async def create_mate(
         # Split the endpoint to handle both formats
         endpoint_parts = default_llm_endpoint.split('/')
 
-        # Determine the software_slug and skill_slug based on the format
-        if len(endpoint_parts) == 4:  # Format: /skills/{software_slug}/ask
-            software_slug = endpoint_parts[2]
+        # Determine the app_slug and skill_slug based on the format
+        if len(endpoint_parts) == 4:  # Format: /apps/{app_slug}/ask
+            app_slug = endpoint_parts[2]
             skill_slug = endpoint_parts[3]
-        elif len(endpoint_parts) >= 5 and endpoint_parts[1] == 'v1':  # Format: /v1/{team_slug}/skills/{software_slug}/ask
-            software_slug = endpoint_parts[-2]  # second last part
+        elif len(endpoint_parts) >= 5 and endpoint_parts[1] == 'v1':  # Format: /v1/{team_slug}/apps/{app_slug}/ask
+            app_slug = endpoint_parts[-2]  # second last part
             skill_slug = endpoint_parts[-1]      # last part
         else:
             raise ValueError("Invalid default_llm_endpoint format")
 
         default_llm_endpoint_skill = await get_skill(
-            software_slug=software_slug,
+            app_slug=app_slug,
             skill_slug=skill_slug,
             output_raw_data=True
         )

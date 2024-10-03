@@ -28,7 +28,7 @@ skills_audio_router = APIRouter()
 skills_photos_router = APIRouter()
 skills_web_router = APIRouter()
 skills_business_router = APIRouter()
-software_router = APIRouter()
+apps_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
 billing_router = APIRouter()
@@ -298,24 +298,24 @@ async def delete_mate(
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
 
 
-# GET /skills/{software_slug}/{skill_slug} (get a skill)
-@skills_router.get("/v1/{team_slug}/skills/{software_slug}/{skill_slug}", **skills_endpoints["get_skill"])
+# GET /apps/{app_slug}/{skill_slug} (get a skill)
+@skills_router.get("/v1/{team_slug}/apps/{app_slug}/{skill_slug}", **skills_endpoints["get_skill"])
 @limiter.limit("20/minute")
 async def get_skill(
     request: Request,
-    software_slug: str = Path(..., **input_parameter_descriptions["software_slug"]),
+    app_slug: str = Path(..., **input_parameter_descriptions["app_slug"]),
     skill_slug: str = Path(..., **input_parameter_descriptions["skill_slug"]),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
     ):
     await validate_permissions(
-        endpoint=f"/skills/{software_slug}/{skill_slug}",
+        endpoint=f"/apps/{app_slug}/{skill_slug}",
         team_slug=team_slug,
         user_api_token=token
     )
     return await get_skill_processing(
         team_slug=team_slug,
-        software_slug=software_slug,
+        app_slug=app_slug,
         skill_slug=skill_slug,
         include_populated_data=True,
         output_raw_data=False,
@@ -323,8 +323,8 @@ async def get_skill(
     )
 
 
-# POST /skills/ai/ask (ask a question to an AI)
-@skills_ai_router.post("/v1/{team_slug}/skills/ai/ask", **skills_ai_endpoints["ask"])
+# POST /apps/ai/ask (ask a question to an AI)
+@skills_ai_router.post("/v1/{team_slug}/apps/ai/ask", **skills_ai_endpoints["ask"])
 @limiter.limit("20/minute")
 async def skill_ai_ask(
     request: Request,
@@ -333,7 +333,7 @@ async def skill_ai_ask(
     token: str = Depends(get_credentials)
 ) -> Union[AiAskOutput, StreamingResponse]:
     await validate_permissions(
-        endpoint="/skills/ai/ask",
+        endpoint="/apps/ai/ask",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -344,8 +344,8 @@ async def skill_ai_ask(
     )
 
 
-# POST /skills/ai/estimate_cost (estimate the cost of an AI call)
-@skills_ai_router.post("/v1/{team_slug}/skills/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
+# POST /apps/ai/estimate_cost (estimate the cost of an AI call)
+@skills_ai_router.post("/v1/{team_slug}/apps/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
 @limiter.limit("20/minute")
 async def skill_ai_estimate_cost(
     request: Request,
@@ -354,7 +354,7 @@ async def skill_ai_estimate_cost(
     token: str = Depends(get_credentials)
 ) -> AiEstimateCostOutput:
     await validate_permissions(
-        endpoint="/skills/ai/estimate_cost",
+        endpoint="/apps/ai/estimate_cost",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -373,8 +373,8 @@ async def skill_ai_estimate_cost(
     )
 
 
-# POST /skills/messages/send (send a message)
-@skills_messages_router.post("/v1/{team_slug}/skills/messages/send", **skills_messages_endpoints["send"])
+# POST /apps/messages/send (send a message)
+@skills_messages_router.post("/v1/{team_slug}/apps/messages/send", **skills_messages_endpoints["send"])
 @limiter.limit("20/minute")
 async def skill_messages_send(
     request: Request,
@@ -383,7 +383,7 @@ async def skill_messages_send(
     token: str = Depends(get_credentials)
 ) -> MessagesSendOutput:
     await validate_permissions(
-        endpoint="/skills/messages/send",
+        endpoint="/apps/messages/send",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -395,8 +395,8 @@ async def skill_messages_send(
     )
 
 
-# POST /skills/messages/connect (connect to a server)
-@skills_messages_router.post("/v1/{team_slug}/skills/messages/connect", **skills_messages_endpoints["connect"])
+# POST /apps/messages/connect (connect to a server)
+@skills_messages_router.post("/v1/{team_slug}/apps/messages/connect", **skills_messages_endpoints["connect"])
 @limiter.limit("20/minute")
 async def skill_messages_connect(
     request: Request,
@@ -405,7 +405,7 @@ async def skill_messages_connect(
     token: str = Depends(get_credentials)
 ) -> MessagesConnectOutput:
     await validate_permissions(
-        endpoint="/skills/messages/connect",
+        endpoint="/apps/messages/connect",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -416,8 +416,8 @@ async def skill_messages_connect(
     )
 
 
-# POST /skills/code/plan (plan code requirements and logic)
-@skills_code_router.post("/v1/{team_slug}/skills/code/plan", **skills_code_endpoints["plan"])
+# POST /apps/code/plan (plan code requirements and logic)
+@skills_code_router.post("/v1/{team_slug}/apps/code/plan", **skills_code_endpoints["plan"])
 @limiter.limit("10/minute")
 async def skill_code_plan(
     request: Request,
@@ -426,7 +426,7 @@ async def skill_code_plan(
     token: str = Depends(get_credentials)
 ) -> CodePlanOutput:
     await validate_permissions(
-        endpoint="/skills/code/plan",
+        endpoint="/apps/code/plan",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -442,8 +442,8 @@ async def skill_code_plan(
     )
 
 
-# POST /skills/code/write (generate or update code based on requirements)
-@skills_code_router.post("/v1/{team_slug}/skills/code/write", **skills_code_endpoints["write"])
+# POST /apps/code/write (generate or update code based on requirements)
+@skills_code_router.post("/v1/{team_slug}/apps/code/write", **skills_code_endpoints["write"])
 @limiter.limit("5/minute")
 async def skill_code_write(
     request: Request,
@@ -452,7 +452,7 @@ async def skill_code_write(
     token: str = Depends(get_credentials)
 ) -> CodeWriteOutput:
     await validate_permissions(
-        endpoint="/skills/code/write",
+        endpoint="/apps/code/write",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -466,8 +466,8 @@ async def skill_code_write(
     )
 
 
-# POST /skills/finance/get_report (get a finance report)
-@skills_finance_router.post("/v1/{team_slug}/skills/finance/get_report", **skills_finance_endpoints["get_report"])
+# POST /apps/finance/get_report (get a finance report)
+@skills_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **skills_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
 async def skill_finance_get_report(
     request: Request,
@@ -476,7 +476,7 @@ async def skill_finance_get_report(
     token: str = Depends(get_credentials)
 ) -> FinanceGetReportOutput:
     await validate_permissions(
-        endpoint="/skills/finance/get_report",
+        endpoint="/apps/finance/get_report",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -489,8 +489,8 @@ async def skill_finance_get_report(
     )
 
 
-# POST /skills/finance/get_transactions (get transactions)
-@skills_finance_router.post("/v1/{team_slug}/skills/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
+# POST /apps/finance/get_transactions (get transactions)
+@skills_finance_router.post("/v1/{team_slug}/apps/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
 async def skill_finance_get_transactions(
     request: Request,
@@ -499,7 +499,7 @@ async def skill_finance_get_transactions(
     token: str = Depends(get_credentials)
 ) -> FinanceGetTransactionsOutput:
     await validate_permissions(
-        endpoint="/skills/finance/get_transactions",
+        endpoint="/apps/finance/get_transactions",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -514,8 +514,8 @@ async def skill_finance_get_transactions(
     )
 
 
-# POST /skills/docs/create (create a new document)
-@skills_docs_router.post("/v1/{team_slug}/skills/docs/create", **skills_docs_endpoints["create"])
+# POST /apps/docs/create (create a new document)
+@skills_docs_router.post("/v1/{team_slug}/apps/docs/create", **skills_docs_endpoints["create"])
 @limiter.limit("20/minute")
 async def skill_docs_create(
     request: Request,
@@ -524,7 +524,7 @@ async def skill_docs_create(
     token: str = Depends(get_credentials)
 ) -> FilesUploadOutput:
     await validate_permissions(
-        endpoint="/skills/docs/create",
+        endpoint="/apps/docs/create",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -536,8 +536,8 @@ async def skill_docs_create(
     )
 
 
-# POST /skills/files/upload (upload a file)
-@skills_files_router.post("/v1/{team_slug}/skills/files/upload", **skills_files_endpoints["upload"])
+# POST /apps/files/upload (upload a file)
+@skills_files_router.post("/v1/{team_slug}/apps/files/upload", **skills_files_endpoints["upload"])
 @limiter.limit("20/minute")
 async def skill_files_upload(
     request: Request,
@@ -555,7 +555,7 @@ async def skill_files_upload(
     write_access_limited_to_users: Optional[List[str]] = Form(None, description="List of users with write access")
 ) -> FilesUploadOutput:
     await validate_permissions(
-        endpoint="/skills/files/upload",
+        endpoint="/apps/files/upload",
         team_slug=team_slug,
         user_api_token=token,
         required_permissions=["files:upload"]
@@ -585,8 +585,8 @@ async def skill_files_upload(
 
 
 # TODO add endpoint for shared files
-# # GET /skills/files/{provider}/shared/{file_path} (download a shared file)
-# @skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/shared/{file_path:path}", **skills_files_endpoints["download_shared"])
+# # GET /apps/files/{provider}/shared/{file_path} (download a shared file)
+# @skills_files_router.get("/v1/{team_slug}/apps/files/{provider}/shared/{file_path:path}", **skills_files_endpoints["download_shared"])
 # @limiter.limit("20/minute")
 # async def skill_files_download_shared(
 #     request: Request,
@@ -600,8 +600,8 @@ async def skill_files_upload(
 #     )
 
 
-# GET /skills/files/{provider}/{file_path} (download a file)
-@skills_files_router.get("/v1/{team_slug}/skills/files/{provider}/{file_path:path}", **skills_files_endpoints["download"])
+# GET /apps/files/{provider}/{file_path} (download a file)
+@skills_files_router.get("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **skills_files_endpoints["download"])
 @limiter.limit("20/minute")
 async def skill_files_download(
     request: Request,
@@ -611,7 +611,7 @@ async def skill_files_download(
     token: str = Depends(get_credentials)
 ) -> StreamingResponse:
     await validate_permissions(
-        endpoint=f"/skills/files/{provider}/{file_path}",
+        endpoint=f"/apps/files/{provider}/{file_path}",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -622,8 +622,8 @@ async def skill_files_download(
     )
 
 
-# DELETE /skills/files/{provider}/{file_path} (delete a file)
-@skills_files_router.delete("/v1/{team_slug}/skills/files/{provider}/{file_path:path}", **skills_files_endpoints["delete"])
+# DELETE /apps/files/{provider}/{file_path} (delete a file)
+@skills_files_router.delete("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **skills_files_endpoints["delete"])
 @limiter.limit("20/minute")
 async def skill_files_delete(
     request: Request,
@@ -633,7 +633,7 @@ async def skill_files_delete(
     token: str = Depends(get_credentials)
 ) -> FilesDeleteOutput:
     await validate_permissions(
-        endpoint=f"/skills/files/{provider}/{file_path}",
+        endpoint=f"/apps/files/{provider}/{file_path}",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -643,8 +643,8 @@ async def skill_files_delete(
     )
 
 
-# POST /skills/audio/generate_transcript (generate transcript)
-@skills_audio_router.post("/v1/{team_slug}/skills/audio/generate_transcript", **skills_audio_endpoints["generate_transcript"])
+# POST /apps/audio/generate_transcript (generate transcript)
+@skills_audio_router.post("/v1/{team_slug}/apps/audio/generate_transcript", **skills_audio_endpoints["generate_transcript"])
 @limiter.limit("20/minute")
 async def skill_audio_generate_transcript(
     request: Request,
@@ -657,7 +657,7 @@ async def skill_audio_generate_transcript(
 ) -> AudioGenerateTranscriptOutput:
     # TODO output either StreamingResponse or Task
     await validate_permissions(
-        endpoint="/skills/audio/generate_transcript",
+        endpoint="/apps/audio/generate_transcript",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -680,8 +680,8 @@ async def skill_audio_generate_transcript(
     )
 
 
-# # POST /skills/audio/generate_speech (generate speech)
-# @skills_audio_router.post("/v1/{team_slug}/skills/audio/generate_speech", **skills_audio_endpoints["generate_speech"])
+# # POST /apps/audio/generate_speech (generate speech)
+# @skills_audio_router.post("/v1/{team_slug}/apps/audio/generate_speech", **skills_audio_endpoints["generate_speech"])
 # @limiter.limit("20/minute")
 # async def skill_audio_generate_speech(
 #     request: Request,
@@ -691,7 +691,7 @@ async def skill_audio_generate_transcript(
 # ) -> AudioGenerateSpeechOutput:
 #     # TODO output either StreamingResponse or Task.
 #     await validate_permissions(
-#         endpoint="/skills/audio/generate_speech",
+#         endpoint="/apps/audio/generate_speech",
 #         team_slug=team_slug,
 #         user_api_token=token
 #     )
@@ -705,8 +705,8 @@ async def skill_audio_generate_transcript(
 # TODO add websocket endpoint for generate_speech
 
 
-# POST /skills/videos/transcript (get the transcript of a video)
-@skills_videos_router.post("/v1/{team_slug}/skills/videos/transcript", **skills_videos_endpoints["get_transcript"])
+# POST /apps/videos/transcript (get the transcript of a video)
+@skills_videos_router.post("/v1/{team_slug}/apps/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_videos_get_transcript(
     request: Request,
@@ -715,7 +715,7 @@ async def skill_videos_get_transcript(
     token: str = Depends(get_credentials)
 ) -> VideosGetTranscriptOutput:
     await validate_permissions(
-        endpoint="/skills/videos/transcript",
+        endpoint="/apps/videos/transcript",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -725,8 +725,8 @@ async def skill_videos_get_transcript(
     )
 
 
-# POST /skills/web/read (read a web page)
-@skills_web_router.post("/v1/{team_slug}/skills/web/read", **skills_web_endpoints["read"])
+# POST /apps/web/read (read a web page)
+@skills_web_router.post("/v1/{team_slug}/apps/web/read", **skills_web_endpoints["read"])
 @limiter.limit("20/minute")
 async def skill_web_read(
     request: Request,
@@ -735,7 +735,7 @@ async def skill_web_read(
     token: str = Depends(get_credentials)
 ) -> WebReadOutput:
     await validate_permissions(
-        endpoint="/skills/web/read",
+        endpoint="/apps/web/read",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -745,8 +745,8 @@ async def skill_web_read(
     )
 
 
-# POST /skills/web/view (view a web page)
-@skills_web_router.post("/v1/{team_slug}/skills/web/view", **skills_web_endpoints["view"])
+# POST /apps/web/view (view a web page)
+@skills_web_router.post("/v1/{team_slug}/apps/web/view", **skills_web_endpoints["view"])
 @limiter.limit("20/minute")
 async def skill_web_view(
     request: Request,
@@ -755,7 +755,7 @@ async def skill_web_view(
     token: str = Depends(get_credentials)
 ) -> WebViewOutput:
     await validate_permissions(
-        endpoint="/skills/web/view",
+        endpoint="/apps/web/view",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -765,8 +765,8 @@ async def skill_web_view(
 
 
 # TODO add test
-# POST /skills/photos/resize (resize an image)
-@skills_photos_router.post("/v1/{team_slug}/skills/photos/resize", **skills_photos_endpoints["resize_image"])
+# POST /apps/photos/resize (resize an image)
+@skills_photos_router.post("/v1/{team_slug}/apps/photos/resize", **skills_photos_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_photos_resize(
     request: Request,
@@ -781,7 +781,7 @@ async def skill_photos_resize(
     output_square: bool = Form(False, description="If set to True, the output image will be square")
 ) -> StreamingResponse:
     await validate_permissions(
-        endpoint="/skills/photos/resize",
+        endpoint="/apps/photos/resize",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -804,8 +804,8 @@ async def skill_photos_resize(
     )
 
 
-# POST /skills/books/translate
-@skills_books_router.post("/v1/{team_slug}/skills/books/translate", **skills_books_endpoints["translate"])
+# POST /apps/books/translate
+@skills_books_router.post("/v1/{team_slug}/apps/books/translate", **skills_books_endpoints["translate"])
 @limiter.limit("20/minute")
 async def skill_books_translate(
     request: Request,
@@ -816,7 +816,7 @@ async def skill_books_translate(
     output_format: Literal["epub", "pdf"] = Form("epub", description="The output format of the ebook.")
 ) -> Task:
     await validate_permissions(
-        endpoint="/skills/books/translate",
+        endpoint="/apps/books/translate",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -842,8 +842,8 @@ async def skill_books_translate(
 
     task = await tasks_create_processing(
         team_slug=team_slug,
-        title="Skills/Books/Translate",
-        api_endpoint="/skills/books/translate"
+        title="apps/Books/Translate",
+        api_endpoint="/apps/books/translate"
     )
 
     # Create the task
@@ -862,8 +862,8 @@ async def skill_books_translate(
     return task
 
 
-# POST /skills/business/create_pitch
-@skills_business_router.post("/v1/{team_slug}/skills/business/create_pitch", **skills_business_endpoints["create_pitch"])
+# POST /apps/business/create_pitch
+@skills_business_router.post("/v1/{team_slug}/apps/business/create_pitch", **skills_business_endpoints["create_pitch"])
 @limiter.limit("20/minute")
 async def skill_business_create_pitch(
     request: Request,
@@ -872,7 +872,7 @@ async def skill_business_create_pitch(
     token: str = Depends(get_credentials)
 ) -> BusinessCreatePitchOutput:
     await validate_permissions(
-        endpoint="/skills/business/create_pitch",
+        endpoint="/apps/business/create_pitch",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -883,8 +883,8 @@ async def skill_business_create_pitch(
     )
 
 
-# POST /skills/business/plan_application
-@skills_business_router.post("/v1/{team_slug}/skills/business/plan_application", **skills_business_endpoints["plan_application"])
+# POST /apps/business/plan_application
+@skills_business_router.post("/v1/{team_slug}/apps/business/plan_application", **skills_business_endpoints["plan_application"])
 @limiter.limit("20/minute")
 async def skill_business_plan_application(
     request: Request,
@@ -893,7 +893,7 @@ async def skill_business_plan_application(
     token: str = Depends(get_credentials)
 ) -> BusinessPlanApplicationOutput:
     await validate_permissions(
-        endpoint="/skills/business/plan_application",
+        endpoint="/apps/business/plan_application",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -904,8 +904,8 @@ async def skill_business_plan_application(
     )
 
 
-# POST /skills/business/create_application
-@skills_business_router.post("/v1/{team_slug}/skills/business/create_application", **skills_business_endpoints["create_application"])
+# POST /apps/business/create_application
+@skills_business_router.post("/v1/{team_slug}/apps/business/create_application", **skills_business_endpoints["create_application"])
 @limiter.limit("20/minute")
 async def skill_business_create_application(
     request: Request,
@@ -914,7 +914,7 @@ async def skill_business_create_application(
     token: str = Depends(get_credentials)
 ) -> BusinessCreateApplicationOutput:
     await validate_permissions(
-        endpoint="/skills/business/create_application",
+        endpoint="/apps/business/create_application",
         team_slug=team_slug,
         user_api_token=token
     )
@@ -926,7 +926,7 @@ async def skill_business_create_application(
 
 
 ##################################
-######### Software ###############
+######### App ###############
 ##################################
 
 # Explaination:
@@ -1270,20 +1270,20 @@ async def generate_new_user_api_token(
 app.include_router(router, tags=["AI Call"])
 app.include_router(files_router,                    tags=["Files"])
 app.include_router(mates_router,                    tags=["Mates"])
+app.include_router(apps_router,                     tags=["Apps"])
 app.include_router(skills_router,                   tags=["Skills"])
-app.include_router(skills_ai_router,                tags=["Skills | AI"])
-app.include_router(skills_messages_router,          tags=["Skills | Messages"])
-app.include_router(skills_code_router,              tags=["Skills | Code"])
-app.include_router(skills_finance_router,           tags=["Skills | Finance"])
-app.include_router(skills_docs_router,              tags=["Skills | Docs"])
-app.include_router(skills_files_router,             tags=["Skills | Files"])
-app.include_router(skills_books_router,             tags=["Skills | Books"])
-app.include_router(skills_videos_router,            tags=["Skills | Videos"])
-app.include_router(skills_audio_router,             tags=["Skills | Audio"])
-app.include_router(skills_photos_router,            tags=["Skills | Photos"])
-app.include_router(skills_web_router,               tags=["Skills | Web"])
-app.include_router(skills_business_router,          tags=["Skills | Business"])
-app.include_router(software_router,                 tags=["software"])
+app.include_router(skills_ai_router,                tags=["Apps | AI"])
+app.include_router(skills_messages_router,          tags=["Apps | Messages"])
+app.include_router(skills_code_router,              tags=["Apps | Code"])
+app.include_router(skills_finance_router,           tags=["Apps | Finance"])
+app.include_router(skills_docs_router,              tags=["Apps | Docs"])
+app.include_router(skills_files_router,             tags=["Apps | Files"])
+app.include_router(skills_books_router,             tags=["Apps | Books"])
+app.include_router(skills_videos_router,            tags=["Apps | Videos"])
+app.include_router(skills_audio_router,             tags=["Apps | Audio"])
+app.include_router(skills_photos_router,            tags=["Apps | Photos"])
+app.include_router(skills_web_router,               tags=["Apps | Web"])
+app.include_router(skills_business_router,          tags=["Apps | Business"])
 app.include_router(workflows_router,                tags=["Workflows"])
 app.include_router(tasks_router,                    tags=["Tasks"])
 app.include_router(billing_router,                  tags=["Billing"])

@@ -108,7 +108,7 @@ def sample_data():
                     }
                 }
             },
-            'software': {
+            'app': {
                 'data': {
                     'id': 1,
                     'attributes': {
@@ -188,16 +188,16 @@ def test_get_nested(sample_data):
     assert get_nested(sample_data, "is_llm_endpoint") == False
     assert get_nested(sample_data, "is_llm_endpoint_and_supports_tool_selection") == False
     assert get_nested(sample_data, "icon.file.url") == "/uploads/transcript_651ca40516.png"
-    assert get_nested(sample_data, "software.id") == 1
-    assert get_nested(sample_data, "software.name") == "YouTube"
-    assert get_nested(sample_data, "software.icon.file.url") == "/uploads/youtube_501c194d2d.png"
-    assert get_nested(sample_data, "software.slug") == "youtube"
+    assert get_nested(sample_data, "app.id") == 1
+    assert get_nested(sample_data, "app.name") == "YouTube"
+    assert get_nested(sample_data, "app.icon.file.url") == "/uploads/youtube_501c194d2d.png"
+    assert get_nested(sample_data, "app.slug") == "youtube"
 
 def test_get_nested_nonexistent_key(sample_data):
     assert get_nested(sample_data, "nonexistent.key") is None
 
 def test_get_nested_partial_path(sample_data):
-    assert get_nested(sample_data, "software") == sample_data['data'][0]['attributes']['software']
+    assert get_nested(sample_data, "app") == sample_data['data'][0]['attributes']['app']
 
 def test_get_nested_empty_path(sample_data):
     assert get_nested(sample_data, "") == sample_data

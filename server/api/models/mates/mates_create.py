@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Union
-from server.api.models.skills.skills_get_one import SkillMini
+from server.api.models.apps.skills_get_one import SkillMini
 from urllib.parse import quote
 from server.api.models.mates.validators import validate_llm_endpoint, validate_llm_model
 
@@ -55,11 +55,11 @@ class MatesCreateInput(BaseModel):
 mates_create_input_example = {
     "name": "Sophia",
     "username": "sophia",
-    "description": "Software development expert",
+    "description": "App development expert",
     "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
-    "default_skills": ['/v1/ai-sales-team/skills/vs_code/write_and_test_code'],
-    "default_llm_endpoint": "/v1/ai-sales-team/skills/claude/ask",
+    "default_skills": ['/v1/ai-sales-team/apps/vs_code/write_and_test_code'],
+    "default_llm_endpoint": "/v1/ai-sales-team/apps/claude/ask",
     "default_llm_model": "claude-3.5-sonnet"
 }
 
@@ -75,16 +75,16 @@ mates_create_output_example = {
     "id": 2,
     "name": "Sophia",
     "username": "sophia",
-    "description": "Software development expert",
+    "description": "App development expert",
     "profile_image": "/v1/ai-sales-team/uploads/sophia_image.jpeg",
     "default_systemprompt": "You are a software development expert. Keep your answers clear and concise.",
     "default_skills": [
         {
             "id": 3,
-            "api_endpoint": "/v1/ai-sales-team/skills/vs_code/write_and_test_code",
+            "api_endpoint": "/v1/ai-sales-team/apps/vs_code/write_and_test_code",
             "description": "Writes and tests code based on the given requirements."
         }
     ],
-    "default_llm_endpoint": "/v1/ai-sales-team/skills/claude/ask",
+    "default_llm_endpoint": "/v1/ai-sales-team/apps/claude/ask",
     "default_llm_model": "claude-3.5-sonnet"
 }

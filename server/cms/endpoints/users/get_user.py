@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from typing import List
 from server.api.models.users.users_get_one import User, DefaultPrivacySettings, MateConfig, MyTeam
 from server.api.models.projects.projects_get_one import Project
-from server.api.models.skills.skills_get_one import SkillMini
+from server.api.models.apps.skills_get_one import SkillMini
 import logging
 from server.api.models.users.users_get_one import UserEncrypted
 
@@ -70,8 +70,8 @@ async def get_user(
                 "mate_configs.team.slug",
                 "mate_configs.ai_endpoint",
                 "mate_configs.ai_model",
-                "mate_configs.skills.slug",
-                "mate_configs.skills.software.slug",
+                "mate_configs.apps.slug",
+                "mate_configs.apps.app.slug",
                 "mate_configs.allowed_to_access_user_name",
                 "mate_configs.allowed_to_access_user_username",
                 "mate_configs.allowed_to_access_user_projects",
@@ -183,8 +183,8 @@ async def get_user(
                         skills=[
                             SkillMini(
                                 id=get_nested(skill, "id"),
-                                software_slug=get_nested(skill, "software.slug"),
-                                api_endpoint=f"/v1/{team_slug}/skills/{get_nested(skill, 'software.slug')}/{get_nested(skill, 'slug')}"
+                                app_slug=get_nested(skill, "app.slug"),
+                                api_endpoint=f"/v1/{team_slug}/apps/{get_nested(skill, 'app.slug')}/{get_nested(skill, 'slug')}"
                             ) for skill in get_nested(config, "skills") or []
                         ],
                         allowed_to_access_user_name=get_nested(config, "allowed_to_access_user_name"),
