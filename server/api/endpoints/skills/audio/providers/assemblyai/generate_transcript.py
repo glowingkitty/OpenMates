@@ -67,12 +67,12 @@ async def generate_transcript(
             return SkillsAudioGenerateTranscriptOutput(stream=stream_generator())
         else:
             logger.debug("Processing full response...")
-            # Use the create method to get the full response
-            response = await aai.Transcription.create(
-                file=input.audio_data,
-                model=input.provider.model,
-                response_format="text"
-            )
+
+            # Initialize the Transcriber with the API key
+            transcriber = aai.Transcriber(client=aai._client.Client(api_key=ASSEMBLYAI_API_KEY))
+
+            # Use the transcribe method to get the full response
+            response = transcriber.transcribe(data=input.audio_data)
 
             return SkillsAudioGenerateTranscriptOutput(text=response.text)
 
