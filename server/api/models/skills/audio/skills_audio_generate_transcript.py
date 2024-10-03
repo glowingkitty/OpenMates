@@ -29,4 +29,3 @@ class AudioGenerateTranscriptInput(BaseModel):
 
 class AudioGenerateTranscriptOutput(BaseModel):
     text: Optional[str] = Field(None, description="The transcript of the audio data")
-    stream: Optional[AsyncGenerator[str, None]] = Field(None, description="The streaming transcript of the audio data")
