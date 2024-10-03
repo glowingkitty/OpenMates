@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import List, Optional, Union, Literal
 import re
 
