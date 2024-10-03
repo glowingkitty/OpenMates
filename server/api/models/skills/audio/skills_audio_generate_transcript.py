@@ -21,12 +21,12 @@ class AiProvider(BaseModel):
         return self
 
 
-class SkillsAudioGenerateTranscriptInput(BaseModel):
+class AudioGenerateTranscriptInput(BaseModel):
     audio_data: bytes = Field(..., description="The audio data to generate a transcript for")
     provider: AiProvider = Field(..., description="The provider to use for generating the transcript")
     stream: bool = Field(False, description="Whether to stream the transcript")
 
 
-class SkillsAudioGenerateTranscriptOutput(BaseModel):
+class AudioGenerateTranscriptOutput(BaseModel):
     text: Optional[str] = Field(None, description="The transcript of the audio data")
     stream: Optional[AsyncGenerator[str, None]] = Field(None, description="The streaming transcript of the audio data")

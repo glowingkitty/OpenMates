@@ -1,5 +1,5 @@
 import logging
-from server.api.models.skills.audio.skills_audio_generate_transcript import SkillsAudioGenerateTranscriptInput, SkillsAudioGenerateTranscriptOutput
+from server.api.models.skills.audio.skills_audio_generate_transcript import AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput
 from server.api.endpoints.skills.audio.providers.openai.generate_transcript import generate_transcript as generate_transcript_openai
 from server.api.endpoints.skills.audio.providers.assemblyai.generate_transcript import generate_transcript as generate_transcript_assemblyai
 
@@ -8,16 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 async def generate_transcript(
-        input: SkillsAudioGenerateTranscriptInput
-    ) -> SkillsAudioGenerateTranscriptOutput:
+        input: AudioGenerateTranscriptInput
+    ) -> AudioGenerateTranscriptOutput:
     """
     Generate a transcript based on the provided input.
 
     Args:
-        input (SkillsAudioGenerateTranscriptInput): The input data containing audio and provider information.
+        input (AudioGenerateTranscriptInput): The input data containing audio and provider information.
 
     Returns:
-        SkillsAudioGenerateTranscriptOutput: The output data containing the generated transcript.
+        AudioGenerateTranscriptOutput: The output data containing the generated transcript.
     """
     logger.debug("Starting transcript generation process.")
 

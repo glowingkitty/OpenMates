@@ -1,19 +1,19 @@
 import logging
 from openai.resources.audio.transcriptions import AsyncTranscriptions, Transcription
-from server.api.models.skills.audio.skills_audio_generate_transcript import SkillsAudioGenerateTranscriptInput, SkillsAudioGenerateTranscriptOutput
+from server.api.models.skills.audio.skills_audio_generate_transcript import AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput
 logger = logging.getLogger(__name__)
 
 async def generate_transcript(
-        input: SkillsAudioGenerateTranscriptInput
-    ) -> SkillsAudioGenerateTranscriptOutput:
+        input: AudioGenerateTranscriptInput
+    ) -> AudioGenerateTranscriptOutput:
     """
     Asynchronously generates a transcript for the given audio bytes.
 
     Args:
-        input (SkillsAudioGenerateTranscriptInput): Input data for transcript generation.
+        input (AudioGenerateTranscriptInput): Input data for transcript generation.
 
     Returns:
-        SkillsAudioGenerateTranscriptOutput: Output data for transcript generation.
+        AudioGenerateTranscriptOutput: Output data for transcript generation.
     """
     logger.debug("Starting OpenAI transcript generation for audio data")
 
@@ -34,7 +34,7 @@ async def generate_transcript(
                 async for chunk in streamed_response.aiter_content():
                     yield chunk
 
-            return SkillsAudioGenerateTranscriptOutput(stream=stream_generator())
+            return AudioGenerateTranscriptOutput(stream=stream_generator())
         else:
             logger.debug("Processing full response...")
             # Use the create method to get the full response
@@ -44,7 +44,7 @@ async def generate_transcript(
                 response_format="text"
             )
 
-            return SkillsAudioGenerateTranscriptOutput(text=full_response.text)
+            return AudioGenerateTranscriptOutput(text=full_response.text)
 
     except Exception:
         logger.exception("An error occurred during transcript generation")

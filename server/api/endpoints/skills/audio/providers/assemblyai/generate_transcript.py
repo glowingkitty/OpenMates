@@ -1,21 +1,21 @@
 import logging
 import assemblyai as aai
 import asyncio
-from server.api.models.skills.audio.skills_audio_generate_transcript import SkillsAudioGenerateTranscriptInput, SkillsAudioGenerateTranscriptOutput
+from server.api.models.skills.audio.skills_audio_generate_transcript import AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput
 
 logger = logging.getLogger(__name__)
 
 async def generate_transcript(
-        input: SkillsAudioGenerateTranscriptInput
-    ) -> SkillsAudioGenerateTranscriptOutput:
+        input: AudioGenerateTranscriptInput
+    ) -> AudioGenerateTranscriptOutput:
     """
     Asynchronously generates a transcript for the given audio bytes using AssemblyAI.
 
     Args:
-        input (SkillsAudioGenerateTranscriptInput): Input data for transcript generation.
+        input (AudioGenerateTranscriptInput): Input data for transcript generation.
 
     Returns:
-        SkillsAudioGenerateTranscriptOutput: Output data for transcript generation.
+        AudioGenerateTranscriptOutput: Output data for transcript generation.
     """
     logger.debug("Starting AssemblyAI transcript generation for audio data")
 
@@ -64,7 +64,7 @@ async def generate_transcript(
                     # Ensure the connection is closed
                     transcriber.close()
 
-            return SkillsAudioGenerateTranscriptOutput(stream=stream_generator())
+            return AudioGenerateTranscriptOutput(stream=stream_generator())
         else:
             logger.debug("Processing full response...")
 
@@ -74,7 +74,7 @@ async def generate_transcript(
             # Use the transcribe method to get the full response
             response = transcriber.transcribe(data=input.audio_data)
 
-            return SkillsAudioGenerateTranscriptOutput(text=response.text)
+            return AudioGenerateTranscriptOutput(text=response.text)
 
     except Exception:
         logger.exception("An error occurred during transcript generation")

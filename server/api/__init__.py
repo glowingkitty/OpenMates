@@ -74,6 +74,9 @@ from server.api.models.skills.skills_get_one import skills_get_one_output_exampl
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput, VideosGetTranscriptOutput
 )
+from server.api.models.skills.audio.skills_audio_generate_transcript import (
+    AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput
+)
 from server.api.models.skills.web.skills_web_read import (
     WebReadInput, WebReadOutput
 )
@@ -132,6 +135,7 @@ from server.api.endpoints.skills.messages.connect import connect as skill_messag
 from server.api.endpoints.skills.messages.send import send as skill_messages_send_processing
 from server.api.endpoints.skills.photos.resize_image import resize_image as skill_photos_resize_image_processing
 from server.api.endpoints.skills.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
+from server.api.endpoints.skills.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
 from server.api.endpoints.skills.web.read import read as skill_web_read_processing
 from server.api.endpoints.skills.web.view import view as skill_web_view_processing
 from server.api.endpoints.skills.business.create_pitch import create_pitch as skill_business_create_pitch_processing
@@ -157,7 +161,7 @@ from server.api.docs.parameters import (
     billing_endpoints, input_parameter_descriptions, mates_endpoints, server_endpoints, skills_ai_endpoints,
     skills_books_endpoints, skills_code_endpoints, skills_docs_endpoints, skills_endpoints, skills_files_endpoints,
     skills_finance_endpoints, skills_messages_endpoints, skills_photos_endpoints, skills_videos_endpoints, skills_web_endpoints,
-    skills_business_endpoints, tasks_endpoints, teams_endpoints, users_endpoints
+    skills_business_endpoints, tasks_endpoints, teams_endpoints, users_endpoints, skills_audio_endpoints
 )
 
 # Import Celery tasks

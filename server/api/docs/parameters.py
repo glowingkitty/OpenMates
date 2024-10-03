@@ -57,6 +57,9 @@ from server.api.models.skills.finance.skills_finance_get_transactions import (
 from server.api.models.skills.videos.skills_videos_get_transcript import (
     VideosGetTranscriptOutput
 )
+from server.api.models.skills.audio.skills_audio_generate_transcript import (
+    AudioGenerateTranscriptOutput
+)
 from server.api.models.skills.web.skills_web_read import (
     WebReadOutput
 )
@@ -353,6 +356,15 @@ skills_videos_endpoints = {
     }
 }
 
+skills_audio_endpoints = {
+    "generate_transcript": {
+        "response_model": AudioGenerateTranscriptOutput,
+        "summary": "Generate transcript",
+        "description": "<img src='docs/images/skills/audio/generate_transcript.png' alt='Transform spoken audio to text.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 skills_photos_endpoints = {
      "resize_image":{
         "summary": "Resize",
@@ -545,6 +557,10 @@ tags_metadata = [
     {
         "name": "Skills | Videos",
         "description": "<img src='docs/images/skills/videos.png' alt='Search for videos, get their transcript and more. Providers: YouTube'>"
+    },
+    {
+        "name": "Skills | Audio",
+        "description": "<img src='docs/images/skills/audio.png' alt='Generate, modify and transcribe audio and more. Providers: OpenAI, AssemblyAI, ElevenLabs'>"
     },
     {
         "name": "Skills | Business",

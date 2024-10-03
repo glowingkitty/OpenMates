@@ -1,7 +1,5 @@
 from server.api import *
 from server.api.docs.docs import setup_docs, bearer_scheme
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +24,7 @@ skills_docs_router = APIRouter()
 skills_files_router = APIRouter()
 skills_books_router = APIRouter()
 skills_videos_router = APIRouter()
+skills_audio_router = APIRouter()
 skills_photos_router = APIRouter()
 skills_web_router = APIRouter()
 skills_business_router = APIRouter()
@@ -641,6 +640,25 @@ async def skill_files_delete(
     return await skill_files_delete_processing(
         provider=provider,
         file_path=file_path
+    )
+
+
+# POST /skills/audio/generate_transcript (generate transcript)
+@skills_audio_router.post("/v1/{team_slug}/skills/audio/generate_transcript", **skills_audio_endpoints["generate_transcript"])
+@limiter.limit("20/minute")
+async def skill_audio_generate_transcript(
+    request: Request,
+    parameters: AudioGenerateTranscriptInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> AudioGenerateTranscriptOutput:
+    await validate_permissions(
+        endpoint="/skills/audio/generate_transcript",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_audio_generate_transcript_processing(
+        input=parameters
     )
 
 
