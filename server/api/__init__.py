@@ -83,6 +83,21 @@ from server.api.models.apps.web.skills_web_read import (
 from server.api.models.apps.web.skills_web_view import (
     WebViewInput, WebViewOutput
 )
+from server.api.models.apps.home.skills_home_add_device import (
+    HomeAddDeviceInput, HomeAddDeviceOutput
+)
+from server.api.models.apps.home.skills_home_set_scene import (
+    HomeSetSceneInput, HomeSetSceneOutput
+)
+from server.api.models.apps.home.skills_home_set_device import (
+    HomeSetDeviceInput, HomeSetDeviceOutput
+)
+from server.api.models.apps.home.skills_home_get_temperature import (
+    HomeGetTemperatureInput, HomeGetTemperatureOutput
+)
+from server.api.models.apps.home.skills_home_get_power_consumption import (
+    HomeGetPowerConsumptionInput, HomeGetPowerConsumptionOutput
+)
 from server.api.models.apps.business.skills_business_create_pitch import (
     BusinessCreatePitchInput, BusinessCreatePitchOutput
 )
@@ -138,6 +153,11 @@ from server.api.endpoints.apps.videos.get_transcript import get_transcript as sk
 from server.api.endpoints.apps.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
 from server.api.endpoints.apps.web.read import read as skill_web_read_processing
 from server.api.endpoints.apps.web.view import view as skill_web_view_processing
+from server.api.endpoints.apps.home.add_device import add_device as skill_home_add_device_processing
+from server.api.endpoints.apps.home.set_scene import set_scene as skill_home_set_scene_processing
+from server.api.endpoints.apps.home.set_device import set_device as skill_home_set_device_processing
+from server.api.endpoints.apps.home.get_temperature import get_temperature as skill_home_get_temperature_processing
+from server.api.endpoints.apps.home.get_power_consumption import get_power_consumption as skill_home_get_power_consumption_processing
 from server.api.endpoints.apps.business.create_pitch import create_pitch as skill_business_create_pitch_processing
 from server.api.endpoints.apps.business.plan_application import plan_application as skill_business_plan_application_processing
 from server.api.endpoints.apps.business.create_application import create_application as skill_business_create_application_processing
@@ -161,7 +181,7 @@ from server.api.docs.parameters import (
     billing_endpoints, input_parameter_descriptions, mates_endpoints, server_endpoints, skills_ai_endpoints,
     skills_books_endpoints, skills_code_endpoints, skills_docs_endpoints, skills_endpoints, skills_files_endpoints,
     skills_finance_endpoints, skills_messages_endpoints, skills_photos_endpoints, skills_videos_endpoints, skills_web_endpoints,
-    skills_business_endpoints, tasks_endpoints, teams_endpoints, users_endpoints, skills_audio_endpoints
+    skills_business_endpoints, tasks_endpoints, teams_endpoints, users_endpoints, skills_audio_endpoints, skills_home_endpoints
 )
 
 # Import Celery tasks

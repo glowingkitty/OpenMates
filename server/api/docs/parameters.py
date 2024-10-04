@@ -299,6 +299,34 @@ skills_web_endpoints = {
     }
 }
 
+skills_home_endpoints = {
+    "add_device":{
+        "summary": "Skill | Add device",
+        "description": "<img src='docs/images/apps/home/add_device.png' alt='Add a device to your smart home.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "set_scene":{
+        "summary": "Skill | Set scene",
+        "description": "<img src='docs/images/apps/home/set_scene.png' alt='Set a scene at your home. For example to turn on/off certain lights or devices.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "set_device":{
+        "summary": "Skill | Set device",
+        "description": "<img src='docs/images/apps/home/set_device.png' alt='Turn a device on or off, change the brightness of an LED lamp or set a certain temperature for your heating.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "get_temperature":{
+        "summary": "Skill | Get temperature",
+        "description": "<img src='docs/images/apps/home/get_temperature.png' alt='Get the current temperature from a sensor at home.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "get_power_consumption":{
+        "summary": "Skill | Get power consumption",
+        "description": "<img src='docs/images/apps/home/get_power_consumption.png' alt='Get power consumption data from a device.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    }
+}
+
 skills_files_endpoints = {
     "download": {
         "summary": "Skill | Download",
@@ -564,6 +592,10 @@ tags_metadata = [
     {
         "name": "Apps | Business",
         "description": "<img src='docs/images/apps/business.png' alt='Manage your businesses, get recommendations and more.'>"
+    },
+    {
+        "name": "Apps | Home",
+        "description": "<img src='docs/images/apps/home.png' alt='Control your smart home, organize daily tasks and more.'>"
     },
     {
         "name": "Apps | Web",

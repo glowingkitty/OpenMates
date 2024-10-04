@@ -27,6 +27,7 @@ skills_videos_router = APIRouter()
 skills_audio_router = APIRouter()
 skills_photos_router = APIRouter()
 skills_web_router = APIRouter()
+skills_home_router = APIRouter()
 skills_business_router = APIRouter()
 apps_router = APIRouter()
 workflows_router = APIRouter()
@@ -764,6 +765,112 @@ async def skill_web_view(
     )
 
 
+# POST /apps/home/add_device (add a device to the smart home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/add_device", **skills_home_endpoints["add_device"])
+@limiter.limit("20/minute")
+async def skill_home_add_device(
+    request: Request,
+    parameters: HomeAddDeviceInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeAddDeviceOutput:
+    await validate_permissions(
+        endpoint="/apps/home/add_device",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_add_device_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
+# POST /apps/home/set_scene (set a scene at home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/set_scene", **skills_home_endpoints["set_scene"])
+@limiter.limit("20/minute")
+async def skill_home_set_scene(
+    request: Request,
+    parameters: HomeSetSceneInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeSetSceneOutput:
+    await validate_permissions(
+        endpoint="/apps/home/set_scene",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_set_scene_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
+# POST /apps/home/set_device (set a device at home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/set_device", **skills_home_endpoints["set_device"])
+@limiter.limit("20/minute")
+async def skill_home_set_device(
+    request: Request,
+    parameters: HomeSetDeviceInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeSetDeviceOutput:
+    await validate_permissions(
+        endpoint="/apps/home/set_device",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_set_device_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
+# POST /apps/home/get_temperature (get the temperature at home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/get_temperature", **skills_home_endpoints["get_temperature"])
+@limiter.limit("20/minute")
+async def skill_home_get_temperature(
+    request: Request,
+    parameters: HomeGetTemperatureInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeGetTemperatureOutput:
+    await validate_permissions(
+        endpoint="/apps/home/get_temperature",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_get_temperature_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
+# POST /apps/home/get_power_consumption (get the power consumption at home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/get_power_consumption", **skills_home_endpoints["get_power_consumption"])
+@limiter.limit("20/minute")
+async def skill_home_get_power_consumption(
+    request: Request,
+    parameters: HomeGetPowerConsumptionInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeGetPowerConsumptionOutput:
+    await validate_permissions(
+        endpoint="/apps/home/get_power_consumption",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_get_power_consumption_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
+
 # TODO add test
 # POST /apps/photos/resize (resize an image)
 @skills_photos_router.post("/v1/{team_slug}/apps/photos/resize", **skills_photos_endpoints["resize_image"])
@@ -1283,6 +1390,7 @@ app.include_router(skills_videos_router,            tags=["Apps | Videos"])
 app.include_router(skills_audio_router,             tags=["Apps | Audio"])
 app.include_router(skills_photos_router,            tags=["Apps | Photos"])
 app.include_router(skills_web_router,               tags=["Apps | Web"])
+app.include_router(skills_home_router,              tags=["Apps | Home"])
 app.include_router(skills_business_router,          tags=["Apps | Business"])
 app.include_router(workflows_router,                tags=["Workflows"])
 app.include_router(tasks_router,                    tags=["Tasks"])
