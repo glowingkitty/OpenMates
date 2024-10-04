@@ -48,6 +48,12 @@ class MQTT(BaseModel):
 class HomeAddDeviceInput(BaseModel):
     id: str = Field(..., description="The id of the device")
     name: str = Field(..., description="The name of the device")
+    type: Literal[
+        'light',
+        'switch',
+        'thermostat',
+        'sensor'
+    ] = Field(..., description="The type of the device")
     description: Optional[str] = Field(None, description="The description of the device")
     room: Room = Field(..., description="The room to add the device to")
     mqtt: MQTT = Field(..., description="The MQTT details of the device")
@@ -55,6 +61,7 @@ class HomeAddDeviceInput(BaseModel):
 home_add_device_input_example = {
     "id": "1234567890",
     "name": "Living Room LED lamp",
+    "type": "light",
     "description": "A smart LED lamp in the living room.",
     "room": {
         "id": "1",
