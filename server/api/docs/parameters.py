@@ -83,6 +83,9 @@ from server.api.models.apps.home.skills_home_get_power_consumption import (
 from server.api.models.apps.home.skills_home_get_all_devices import (
     HomeGetAllDevicesOutput
 )
+from server.api.models.apps.home.skills_home_get_all_scenes import (
+    HomeGetAllScenesOutput
+)
 from server.api.models.apps.home.skills_home_add_scene import (
     HomeAddSceneOutput
 )
@@ -362,6 +365,12 @@ skills_home_endpoints = {
         "summary": "Skill | Get all devices",
         "description": "<img src='docs/images/apps/home/get_all_devices.png' alt='Get a list of all devices in your home. You can also filter for device categories or rooms.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "get_all_scenes":{
+        "response_model":HomeGetAllScenesOutput,
+        "summary": "Skill | Get all scenes",
+        "description": "<img src='docs/images/apps/home/get_all_scenes.png' alt='Get a list of all scenes in your home.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }
 
@@ -633,7 +642,7 @@ tags_metadata = [
     },
     {
         "name": "Apps | Home",
-        "description": "<img src='docs/images/apps/home.png' alt='Control your smart home, organize daily tasks and more.'>"
+        "description": "<img src='docs/images/apps/home.png' alt='Control your smart home, organize daily tasks and more. Providers: Home Assistant, Tasmota'>"
     },
     {
         "name": "Apps | Web",

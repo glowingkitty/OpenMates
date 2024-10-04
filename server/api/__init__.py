@@ -101,6 +101,9 @@ from server.api.models.apps.home.skills_home_get_power_consumption import (
 from server.api.models.apps.home.skills_home_get_all_devices import (
     HomeGetAllDevicesInput, HomeGetAllDevicesOutput
 )
+from server.api.models.apps.home.skills_home_get_all_scenes import (
+    HomeGetAllScenesInput, HomeGetAllScenesOutput
+)
 from server.api.models.apps.home.skills_home_add_scene import (
     HomeAddSceneInput, HomeAddSceneOutput
 )
@@ -160,6 +163,7 @@ from server.api.endpoints.apps.audio.generate_transcript import generate_transcr
 from server.api.endpoints.apps.web.read import read as skill_web_read_processing
 from server.api.endpoints.apps.web.view import view as skill_web_view_processing
 from server.api.endpoints.apps.home.get_all_devices import get_all_devices as skill_home_get_all_devices_processing
+from server.api.endpoints.apps.home.get_all_scenes import get_all_scenes as skill_home_get_all_scenes_processing
 from server.api.endpoints.apps.home.add_device import add_device as skill_home_add_device_processing
 from server.api.endpoints.apps.home.add_scene import add_scene as skill_home_add_scene_processing
 from server.api.endpoints.apps.home.set_scene import set_scene as skill_home_set_scene_processing

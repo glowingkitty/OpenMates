@@ -209,6 +209,54 @@ def custom_openapi(app: FastAPI):
     set_example(openapi_schema, "/v1/{team_slug}/apps/web/view", "post", "responses", {
         "Example 1": web_view_output_example
     }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_all_devices", "post", "requestBody", {
+        "Example 1": home_get_all_devices_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_all_devices", "post", "responses", {
+        "Example 1": home_get_all_devices_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_all_scenes", "post", "requestBody", {
+        "Example 1": home_get_all_scenes_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_all_scenes", "post", "responses", {
+        "Example 1": home_get_all_scenes_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_temperature", "post", "requestBody", {
+        "Example 1": home_get_temperature_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_temperature", "post", "responses", {
+        "Example 1": home_get_temperature_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/add_device", "post", "requestBody", {
+        "Example 1": home_add_device_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/add_device", "post", "responses", {
+        "Example 1": home_add_device_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/add_scene", "post", "requestBody", {
+        "Example 1": home_add_scene_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/add_scene", "post", "responses", {
+        "Example 1": home_add_scene_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/set_device", "post", "requestBody", {
+        "Example 1": home_set_device_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/set_device", "post", "responses", {
+        "Example 1": home_set_device_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/set_scene", "post", "requestBody", {
+        "Example 1": home_set_scene_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/set_scene", "post", "responses", {
+        "Example 1": home_set_scene_output_example
+    }, "200")
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_power_consumption", "post", "requestBody", {
+        "Example 1": home_get_power_consumption_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_power_consumption", "post", "responses", {
+        "Example 1": home_get_power_consumption_output_example
+    }, "200")
     set_example(openapi_schema, "/v1/{team_slug}/apps/business/create_pitch", "post", "requestBody", {
         "Example 1": business_create_pitch_input_example
     })

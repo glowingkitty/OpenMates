@@ -67,6 +67,30 @@ from server.api.models.apps.web.skills_web_read import (
 from server.api.models.apps.web.skills_web_view import (
     web_view_input_example, web_view_output_example
 )
+from server.api.models.apps.home.skills_home_add_device import (
+    home_add_device_input_example, home_add_device_output_example
+)
+from server.api.models.apps.home.skills_home_add_scene import (
+    home_add_scene_input_example, home_add_scene_output_example
+)
+from server.api.models.apps.home.skills_home_get_all_devices import (
+    home_get_all_devices_input_example, home_get_all_devices_output_example
+)
+from server.api.models.apps.home.skills_home_get_all_scenes import (
+    home_get_all_scenes_input_example, home_get_all_scenes_output_example
+)
+from server.api.models.apps.home.skills_home_get_temperature import (
+    home_get_temperature_input_example, home_get_temperature_output_example
+)
+from server.api.models.apps.home.skills_home_get_power_consumption import (
+    home_get_power_consumption_input_example, home_get_power_consumption_output_example
+)
+from server.api.models.apps.home.skills_home_set_device import (
+    home_set_device_input_example, home_set_device_output_example
+)
+from server.api.models.apps.home.skills_home_set_scene import (
+    home_set_scene_input_example, home_set_scene_output_example
+)
 from server.api.models.apps.business.skills_business_create_pitch import (
     business_create_pitch_input_example, business_create_pitch_output_example
 )

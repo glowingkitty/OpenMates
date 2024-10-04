@@ -786,6 +786,27 @@ async def skill_home_get_all_devices(
     )
 
 
+# POST /apps/home/get_all_scenes (get all scenes at home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/get_all_scenes", **skills_home_endpoints["get_all_scenes"])
+@limiter.limit("20/minute")
+async def skill_home_get_all_scenes(
+    request: Request,
+    parameters: HomeGetAllScenesInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeGetAllScenesOutput:
+    await validate_permissions(
+        endpoint="/apps/home/get_all_scenes",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_get_all_scenes_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
 # POST /apps/home/add_device (add a device to the smart home)
 @skills_home_router.post("/v1/{team_slug}/apps/home/add_device", **skills_home_endpoints["add_device"])
 @limiter.limit("20/minute")

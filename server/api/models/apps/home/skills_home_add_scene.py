@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Literal
-from skills_home_set_device import HomeSetDeviceInput
+from typing import Optional, List
+from server.api.models.apps.home.skills_home_set_device import HomeSetDeviceInput
 
 
 class HomeAddSceneInput(BaseModel):
