@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from datetime import datetime
+
+
 class Device(BaseModel):
     id: Optional[str] = Field(None, description="The id of the device")
     name: Optional[str] = Field(None, description="The name of the device")
