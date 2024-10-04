@@ -765,6 +765,27 @@ async def skill_web_view(
     )
 
 
+# POST /apps/home/get_all_devices (get all devices at home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/get_all_devices", **skills_home_endpoints["get_all_devices"])
+@limiter.limit("20/minute")
+async def skill_home_get_all_devices(
+    request: Request,
+    parameters: HomeGetAllDevicesInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeGetAllDevicesOutput:
+    await validate_permissions(
+        endpoint="/apps/home/get_all_devices",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_get_all_devices_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
 # POST /apps/home/add_device (add a device to the smart home)
 @skills_home_router.post("/v1/{team_slug}/apps/home/add_device", **skills_home_endpoints["add_device"])
 @limiter.limit("20/minute")
@@ -780,6 +801,27 @@ async def skill_home_add_device(
         user_api_token=token
     )
     return await skill_home_add_device_processing(
+        team_slug=team_slug,
+        api_token=token,
+        input=parameters
+    )
+
+
+# POST /apps/home/add_scene (add a scene to the smart home)
+@skills_home_router.post("/v1/{team_slug}/apps/home/add_scene", **skills_home_endpoints["add_scene"])
+@limiter.limit("20/minute")
+async def skill_home_add_scene(
+    request: Request,
+    parameters: HomeAddSceneInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HomeAddSceneOutput:
+    await validate_permissions(
+        endpoint="/apps/home/add_scene",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_home_add_scene_processing(
         team_slug=team_slug,
         api_token=token,
         input=parameters

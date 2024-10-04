@@ -65,6 +65,27 @@ from server.api.models.apps.web.skills_web_read import (
 from server.api.models.apps.web.skills_web_view import (
     WebViewOutput
 )
+from server.api.models.apps.home.skills_home_add_device import (
+    HomeAddDeviceOutput
+)
+from server.api.models.apps.home.skills_home_set_scene import (
+    HomeSetSceneOutput
+)
+from server.api.models.apps.home.skills_home_set_device import (
+    HomeSetDeviceOutput
+)
+from server.api.models.apps.home.skills_home_get_temperature import (
+    HomeGetTemperatureOutput
+)
+from server.api.models.apps.home.skills_home_get_power_consumption import (
+    HomeGetPowerConsumptionOutput
+)
+from server.api.models.apps.home.skills_home_get_all_devices import (
+    HomeGetAllDevicesOutput
+)
+from server.api.models.apps.home.skills_home_add_scene import (
+    HomeAddSceneOutput
+)
 from server.api.models.apps.business.skills_business_create_pitch import (
     BusinessCreatePitchOutput
 )
@@ -301,28 +322,45 @@ skills_web_endpoints = {
 
 skills_home_endpoints = {
     "add_device":{
+        "response_model":HomeAddDeviceOutput,
         "summary": "Skill | Add device",
         "description": "<img src='docs/images/apps/home/add_device.png' alt='Add a device to your smart home.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
+    "add_scene":{
+        "response_model":HomeAddSceneOutput,
+        "summary": "Skill | Add scene",
+        "description": "<img src='docs/images/apps/home/add_scene.png' alt='Add a scene at your home. For example to turn on/off certain lights or devices.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
     "set_scene":{
+        "response_model":HomeSetSceneOutput,
         "summary": "Skill | Set scene",
         "description": "<img src='docs/images/apps/home/set_scene.png' alt='Set a scene at your home. For example to turn on/off certain lights or devices.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "set_device":{
+        "response_model":HomeSetDeviceOutput,
         "summary": "Skill | Set device",
-        "description": "<img src='docs/images/apps/home/set_device.png' alt='Turn a device on or off, change the brightness of an LED lamp or set a certain temperature for your heating.'>",
+        "description": "<img src='docs/images/apps/home/set_device.png' alt='Turn a device on or off, change the brightness, color or effect of an LED lamp or set a certain temperature for your heating.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "get_temperature":{
+        "response_model":HomeGetTemperatureOutput,
         "summary": "Skill | Get temperature",
-        "description": "<img src='docs/images/apps/home/get_temperature.png' alt='Get the current temperature from a sensor at home.'>",
+        "description": "<img src='docs/images/apps/home/get_temperature.png' alt='Get the current temperature from a specific sensor, all sensors in a room or all sensors in your home.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     },
     "get_power_consumption":{
+        "response_model":HomeGetPowerConsumptionOutput,
         "summary": "Skill | Get power consumption",
-        "description": "<img src='docs/images/apps/home/get_power_consumption.png' alt='Get power consumption data from a device.'>",
+        "description": "<img src='docs/images/apps/home/get_power_consumption.png' alt='Get power consumption data from a device, for your room or your home.'>",
+        "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
+    },
+    "get_all_devices":{
+        "response_model":HomeGetAllDevicesOutput,
+        "summary": "Skill | Get all devices",
+        "description": "<img src='docs/images/apps/home/get_all_devices.png' alt='Get a list of all devices in your home. You can also filter for device categories or rooms.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 422, 500])
     }
 }

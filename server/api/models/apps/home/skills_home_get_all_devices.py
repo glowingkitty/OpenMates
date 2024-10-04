@@ -3,6 +3,14 @@ from pydantic import BaseModel, Field, model_validator
 from typing import Literal
 
 class Home(BaseModel):
+    """
+    The home details of the device.
+
+    Attributes:
+        id (str): The id of the home.
+        name (str): The name of the home.
+        description (str): The description of the home.
+    """
     id: Optional[str] = Field(None, description="The id of the home")
     name: Optional[str] = Field(None, description="The name of the home")
 
@@ -13,6 +21,14 @@ class Home(BaseModel):
         return v
 
 class Room(BaseModel):
+    """
+    The room details of the device.
+
+    Attributes:
+        id (str): The id of the room.
+        name (str): The name of the room.
+        home (Home): The home that the room belongs to.
+    """
     id: Optional[str] = Field(None, description="The id of the room")
     name: Optional[str] = Field(None, description="The name of the room")
     home: Home = Field(..., description="The home that the room belongs to")
@@ -24,6 +40,19 @@ class Room(BaseModel):
         return v
 
 class HomeGetAllDevicesInput(BaseModel):
+    """
+    The input of the home get all devices skill.
+
+    Attributes:
+        home (Home): The home to get the devices from.
+        rooms (List[Room]): The rooms for which to get the devices from.
+        types (List[Literal[
+            'light',
+            'switch',
+            'thermostat',
+            'sensor'
+        ]]): The types of the devices to get.
+    """
     home: Optional[Home] = Field(None, description="The home to get the devices from")
     rooms: Optional[List[Room]] = Field(None, description="The rooms for which to get the devices from")
     types: Optional[List[Literal[
@@ -42,6 +71,16 @@ home_get_all_devices_input_example = {
 }
 
 class Device(BaseModel):
+    """
+    The device details.
+
+    Attributes:
+        id (str): The id of the device.
+        name (str): The name of the device.
+        type (str): The type of the device.
+        description (str): The description of the device.
+        room (Room): The room that the device belongs to.
+    """
     id: str = Field(..., description="The id of the device")
     name: str = Field(..., description="The name of the device")
     type: Literal[
@@ -54,6 +93,12 @@ class Device(BaseModel):
     room: Room = Field(..., description="The room that the device belongs to")
 
 class HomeGetAllDevicesOutput(BaseModel):
+    """
+    The output of the home get all devices skill.
+
+    Attributes:
+        devices (List[Device]): The list of devices in the home.
+    """
     devices: List[Device] = Field(..., description="The list of devices in the home")
 
 home_get_all_devices_output_example = {

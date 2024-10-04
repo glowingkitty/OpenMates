@@ -98,6 +98,12 @@ from server.api.models.apps.home.skills_home_get_temperature import (
 from server.api.models.apps.home.skills_home_get_power_consumption import (
     HomeGetPowerConsumptionInput, HomeGetPowerConsumptionOutput
 )
+from server.api.models.apps.home.skills_home_get_all_devices import (
+    HomeGetAllDevicesInput, HomeGetAllDevicesOutput
+)
+from server.api.models.apps.home.skills_home_add_scene import (
+    HomeAddSceneInput, HomeAddSceneOutput
+)
 from server.api.models.apps.business.skills_business_create_pitch import (
     BusinessCreatePitchInput, BusinessCreatePitchOutput
 )
@@ -153,7 +159,9 @@ from server.api.endpoints.apps.videos.get_transcript import get_transcript as sk
 from server.api.endpoints.apps.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
 from server.api.endpoints.apps.web.read import read as skill_web_read_processing
 from server.api.endpoints.apps.web.view import view as skill_web_view_processing
+from server.api.endpoints.apps.home.get_all_devices import get_all_devices as skill_home_get_all_devices_processing
 from server.api.endpoints.apps.home.add_device import add_device as skill_home_add_device_processing
+from server.api.endpoints.apps.home.add_scene import add_scene as skill_home_add_scene_processing
 from server.api.endpoints.apps.home.set_scene import set_scene as skill_home_set_scene_processing
 from server.api.endpoints.apps.home.set_device import set_device as skill_home_set_device_processing
 from server.api.endpoints.apps.home.get_temperature import get_temperature as skill_home_get_temperature_processing

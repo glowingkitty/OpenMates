@@ -4,6 +4,13 @@ from datetime import datetime
 
 
 class Device(BaseModel):
+    """
+    The device details.
+
+    Attributes:
+        id (str): The id of the device.
+        name (str): The name of the device.
+    """
     id: Optional[str] = Field(None, description="The id of the device")
     name: Optional[str] = Field(None, description="The name of the device")
 
@@ -14,6 +21,13 @@ class Device(BaseModel):
         return v
 
 class Home(BaseModel):
+    """
+    The home details.
+
+    Attributes:
+        id (str): The id of the home.
+        name (str): The name of the home.
+    """
     id: Optional[str] = Field(None, description="The id of the home")
     name: Optional[str] = Field(None, description="The name of the home")
 
@@ -24,6 +38,13 @@ class Home(BaseModel):
         return v
 
 class Room(BaseModel):
+    """
+    The room details.
+
+    Attributes:
+        id (str): The id of the room.
+        name (str): The name of the room.
+    """
     id: Optional[str] = Field(None, description="The id of the room")
     name: Optional[str] = Field(None, description="The name of the room")
     home: Optional[Home] = Field(None, description="The home that the room belongs to")
@@ -35,6 +56,14 @@ class Room(BaseModel):
 
 
 class HomeGetPowerConsumptionInput(BaseModel):
+    """
+    The input of the home get power consumption skill.
+
+    Attributes:
+        devices (List[Device]): The devices to get the power consumption for.
+        rooms (List[Room]): The rooms to get the power consumption for.
+        home (Home): The home to get the power consumption for.
+    """
     devices: Optional[List[Device]] = Field(None, description="The devices to get the power consumption for")
     rooms: Optional[List[Room]] = Field(None, description="The rooms to get the power consumption for")
     home: Optional[Home] = Field(None, description="The home to get the power consumption for")
@@ -56,13 +85,34 @@ home_get_power_consumption_input_example = {
 
 
 class PowerConsumption(BaseModel):
+    """
+    The power consumption details.
+
+    Attributes:
+        kwh (float): The power consumption in kWh.
+    """
     kwh: float = Field(..., description="The power consumption in kWh")
 
 class HomeGetPowerConsumptionOutput(BaseModel):
+    """
+    The output of the home get power consumption skill.
+
+    Attributes:
+        today (PowerConsumption): The power consumption for today.
+        yesterday (PowerConsumption): The power consumption for yesterday.
+        last_week (PowerConsumption): The power consumption for the last week.
+        last_month (PowerConsumption): The power consumption for the last month.
+        last_year (PowerConsumption): The power consumption for the last year.
+        all_time (PowerConsumption): The power consumption for all time.
+        recording_start (str): The start date and time of the power consumption recording, in ISO 8601 format.
+    """
     today: PowerConsumption = Field(..., description="The power consumption for today")
     yesterday: PowerConsumption = Field(..., description="The power consumption for yesterday")
+    this_week: PowerConsumption = Field(..., description="The power consumption for this week")
     last_week: PowerConsumption = Field(..., description="The power consumption for the last week")
+    this_month: PowerConsumption = Field(..., description="The power consumption for this month")
     last_month: PowerConsumption = Field(..., description="The power consumption for the last month")
+    this_year: PowerConsumption = Field(..., description="The power consumption for this year")
     last_year: PowerConsumption = Field(..., description="The power consumption for the last year")
     all_time: PowerConsumption = Field(..., description="The power consumption for all time")
     recording_start: str = Field(..., description="The start date and time of the power consumption recording, in ISO 8601 format")
@@ -82,11 +132,20 @@ home_get_power_consumption_output_example = {
     "yesterday": {
         "kwh": 0.42  # Slightly less usage than today
     },
+    "this_week": {
+        "kwh": 3.03  # Average daily consumption * 7 days
+    },
     "last_week": {
         "kwh": 3.36  # Average daily consumption * 7 days
     },
+    "this_month": {
+        "kwh": 12.4  # Average daily consumption * 30 days
+    },
     "last_month": {
         "kwh": 14.4  # Average daily consumption * 30 days
+    },
+    "this_year": {
+        "kwh": 150.2  # Average daily consumption * 365 days
     },
     "last_year": {
         "kwh": 175.2  # Average daily consumption * 365 days

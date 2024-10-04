@@ -4,6 +4,13 @@ from pydantic import model_validator
 import re
 
 class Command(BaseModel):
+    """
+    The command details.
+
+    Attributes:
+        state (Literal['power', 'brightness', 'color', 'effect', 'temperature_celsius', 'temperature_fahrenheit']): The state to set.
+        value (str): The value to set the state to.
+    """
     state: Literal[
         'power',
         'brightness',
@@ -16,7 +23,9 @@ class Command(BaseModel):
 
     @model_validator(mode='after')
     def validate_state(self):
-
+        """
+        Validate the state and value.
+        """
         if self.state == 'power':
             if self.value not in ['on', 'off']:
                 raise ValueError("Invalid power value")
@@ -41,6 +50,13 @@ class Command(BaseModel):
         return self
 
 class HomeSetDeviceInput(BaseModel):
+    """
+    The input of the home set device skill.
+
+    Attributes:
+        id (str): The id of the device to set.
+        command (Command): The command to send to the device.
+    """
     id: str = Field(..., description="What is the id of the device to set?")
     command: Command = Field(..., description="What command should be sent to the device?")
 
@@ -53,7 +69,13 @@ home_set_device_input_example = {
 }
 
 class HomeSetDeviceOutput(BaseModel):
-    success: bool
+    """
+    The output of the home set device skill.
+
+    Attributes:
+        success (bool): Whether the device was set successfully.
+    """
+    success: bool = Field(..., description="Was the request sent successfully?")
 
 home_set_device_output_example = {
     "success": True

@@ -3,6 +3,13 @@ from typing import Optional, List
 
 
 class Device(BaseModel):
+    """
+    The device details.
+
+    Attributes:
+        id (str): The id of the device.
+        name (str): The name of the device.
+    """
     id: Optional[str] = Field(None, description="The id of the device")
     name: Optional[str] = Field(None, description="The name of the device")
 
@@ -13,6 +20,13 @@ class Device(BaseModel):
         return v
 
 class Home(BaseModel):
+    """
+    The home details.
+
+    Attributes:
+        id (str): The id of the home.
+        name (str): The name of the home.
+    """
     id: Optional[str] = Field(None, description="The id of the home")
     name: Optional[str] = Field(None, description="The name of the home")
 
@@ -23,6 +37,13 @@ class Home(BaseModel):
         return v
 
 class Room(BaseModel):
+    """
+    The room details.
+
+    Attributes:
+        id (str): The id of the room.
+        name (str): The name of the room.
+    """
     id: Optional[str] = Field(None, description="The id of the room")
     name: Optional[str] = Field(None, description="The name of the room")
     home: Optional[Home] = Field(None, description="The home that the room belongs to")
@@ -34,6 +55,14 @@ class Room(BaseModel):
 
 
 class HomeGetTemperatureInput(BaseModel):
+    """
+    The input of the home get temperature skill.
+
+    Attributes:
+        devices (List[Device]): The sensors to get the temperature from.
+        rooms (List[Room]): The rooms to get the temperature from.
+        home (Home): The home to get the temperature from.
+    """
     devices: Optional[List[Device]] = Field(None, description="The sensors to get the temperature from")
     rooms: Optional[List[Room]] = Field(None, description="The rooms to get the temperature from")
     home: Optional[Home] = Field(None, description="The home to get the temperature from")
@@ -52,6 +81,16 @@ home_get_temperature_input_example = {
 
 
 class Temperature(BaseModel):
+    """
+    The temperature details.
+
+    Attributes:
+        device (Device): The device that the temperature is from.
+        room (Room): The room that the temperature is from.
+        celsius (float): The temperature in degrees Celsius.
+        fahrenheit (float): The temperature in degrees Fahrenheit.
+        humidity (float): The humidity in percent.
+    """
     device: Device = Field(..., description="The device that the temperature is from")
     room: Room = Field(..., description="The room that the temperature is from")
     celsius: float = Field(..., description="The temperature in degrees Celsius")
@@ -59,6 +98,12 @@ class Temperature(BaseModel):
     humidity: float = Field(..., description="The humidity in percent")
 
 class HomeGetTemperatureOutput(BaseModel):
+    """
+    The output of the home get temperature skill.
+
+    Attributes:
+        temperatures (List[Temperature]): The temperatures from the devices.
+    """
     temperatures: List[Temperature] = Field(..., description="The temperatures from the devices")
 
 home_get_temperature_output_example = {
