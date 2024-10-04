@@ -849,8 +849,8 @@ async def skill_home_add_scene(
     )
 
 
-# POST /apps/home/set_scene (set a scene at home)
-@skills_home_router.post("/v1/{team_slug}/apps/home/set_scene", **skills_home_endpoints["set_scene"])
+# PUT /apps/home/set_scene (set a scene at home)
+@skills_home_router.put("/v1/{team_slug}/apps/home/set_scene", **skills_home_endpoints["set_scene"])
 @limiter.limit("20/minute")
 async def skill_home_set_scene(
     request: Request,
@@ -870,8 +870,8 @@ async def skill_home_set_scene(
     )
 
 
-# POST /apps/home/set_device (set a device at home)
-@skills_home_router.post("/v1/{team_slug}/apps/home/set_device", **skills_home_endpoints["set_device"])
+# PUT /apps/home/set_device (set a device at home)
+@skills_home_router.put("/v1/{team_slug}/apps/home/set_device", **skills_home_endpoints["set_device"])
 @limiter.limit("20/minute")
 async def skill_home_set_device(
     request: Request,
