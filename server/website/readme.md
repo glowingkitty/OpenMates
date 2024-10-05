@@ -1,0 +1,1 @@
+Here comes the static website that will be deployed via github pages or vercel. Its for promotion only and has no access to the web app or rest api.

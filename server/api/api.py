@@ -75,7 +75,7 @@ setup_docs(app)
 
 # Mount the static files directory
 base_dir = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(base_dir.split('server')[0], 'server', 'frontend', 'static')
+static_dir = os.path.join(base_dir.split('server')[0], 'server', 'web_app', 'static')
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 ##################################
@@ -138,7 +138,7 @@ async def ask_mate(
 @limiter.limit("20/minute")
 def read_mates_call(request: Request):
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    new_base_dir = os.path.join(base_dir.split('api')[0], 'frontend', 'static')
+    new_base_dir = os.path.join(base_dir.split('api')[0], 'web_app', 'static')
     return FileResponse(os.path.join(new_base_dir, 'call.html'))
 
 

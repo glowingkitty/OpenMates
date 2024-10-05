@@ -56,7 +56,7 @@ async def call_custom_processing(
             if current_task and not current_task.done():
                 current_task.cancel()
                 logger.info("Cancelled existing send_to_gpt4o_mini task due to new transcript.")
-                # Send stop signal to frontend
+                # Send stop signal to web_app
                 asyncio.run_coroutine_threadsafe(
                     websocket.send_json({"type": "stop_audio"}),
                     loop

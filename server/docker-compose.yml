@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  ###########################################################################################
+  ##### REST API
+  ###########################################################################################
+
+  # The REST API, used by the web application, the task management, the apps and external developers using the OpenMates API
+  rest-api:
+    container_name: openmates-rest-api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      PYTHONPATH: "/usr/src/OpenMates"
+      REST_API_PORT: ${REST_API_PORT}
+      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
+      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
+      WEB_BROWSER_URL: "http://app_web:${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+    command: >
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
+    ports:
+      - "${REST_API_PORT}:${REST_API_PORT}"
+    volumes:
+      - ..:/usr/src/OpenMates
+    networks:
+      - openmates
+    depends_on:
+      - cms
+      - in_memory_database
+      - app_web
+
+
+  ###########################################################################################
+  ##### Web application
+  ###########################################################################################
+
+  # The web application for OpenMates, which will be used by the users and connects to the REST API
+  # TODO
+
+
+  ###########################################################################################
+  ##### Website
+  ###########################################################################################
+
+  # The website for OpenMates, which will be used to promote the OpenMates project and explain what it is
+  # TODO
+
+
+  ###########################################################################################
+  ##### Task management
+  ###########################################################################################
+
+  # The task worker (for processing tasks that take longer then just milliseconds)
+  task_worker:
+    container_name: openmates-task-worker
+    build:
+      context: .
+      dockerfile: task_management/Dockerfile
+    env_file: .env
+    environment:
+      PYTHONPATH: "/usr/src/OpenMates"
+      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
+      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
+    command: >
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_management.task_management worker --loglevel=info --uid=nobody"
+    volumes:
+      - ..:/usr/src/OpenMates
+    networks:
+      - openmates
+    depends_on:
+      - rest-api
+      - in_memory_database
+
+  # The task scheduler (for scheduling tasks into the future)
+  task_scheduler:
+    container_name: openmates-task-scheduler
+    build:
+      context: .
+      dockerfile: task_management/Dockerfile
+    env_file: .env
+    environment:
+      PYTHONPATH: "/usr/src/OpenMates"
+      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
+      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
+    command: >
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_management.task_management beat --loglevel=info --uid=nobody"
+    volumes:
+      - ..:/usr/src/OpenMates
+    networks:
+      - openmates
+    depends_on:
+      - rest-api
+      - in_memory_database
+
+
+  ###########################################################################################
+  ##### Apps
+  ###########################################################################################
+
+  # App: Web (needed to use the Web app endpoint in the REST API)
+  app_web:
+    container_name: openmates-web-browser
+    build:
+      context: ./app_web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      WEB_BROWSER_PORT: ${WEB_BROWSER_PORT}
+      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+    volumes:
+      - ./app_web:/usr/src/app_web
+    networks:
+      - openmates
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+  ###########################################################################################
+  ##### Databases & Data management
+  ###########################################################################################
+
+  # The content management system (CMS)
+  cms:
+    container_name: openmates-cms
+    build:
+      context: ./cms/strapi
+      dockerfile: Dockerfile
+    image: strapi:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_CLIENT: ${DATABASE_CLIENT}
+      DATABASE_HOST: cms_database
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      APP_KEYS: ${APP_KEYS}
+      NODE_ENV: ${NODE_ENV}
+    volumes:
+      - ./cms/strapi/config:/opt/app/config
+      - ./cms/strapi/src:/opt/app/src
+      - ./cms/strapi/package.json:/opt/package.json
+      - ./cms/strapi/yarn.lock:/opt/yarn.lock
+      - ./cms/strapi/.env:/opt/app/.env
+      - ./cms/strapi/public/uploads:/opt/app/public/uploads
+    ports:
+      - "${STRAPI_PORT}:${STRAPI_PORT}"
+    networks:
+      - openmates
+    depends_on:
+      - cms_database
+
+  # The database for the content management system (CMS)
+  cms_database:
+    container_name: openmates-cms-database
+    restart: unless-stopped
+    env_file: .env
+    image: postgres:12.0-alpine
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - cms-data:/var/lib/postgresql/data/
+    networks:
+      - openmates
+
+  # The in-memory database (for storing data that needs to be accessed very quickly)
+  in_memory_database:
+    container_name: openmates-in-memory-database
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    ulimits:
+      memlock: -1
+    ports:
+      - "${DRAGONFLY_PORT}:${DRAGONFLY_PORT}"
+    volumes:
+      - in-memory-data:/data
+    command:
+      - "--maxmemory"
+      - "3000mb"
+    deploy:
+      resources:
+        limits:
+          memory: 2.5G
+    networks:
+      - openmates
+
+networks:
+  openmates:
+
+volumes:
+  cms-data:
+  in-memory-data:

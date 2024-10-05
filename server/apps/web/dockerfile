@@ -9,7 +9,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the working directory
-WORKDIR /usr/src/web_browser
+WORKDIR /usr/src/app_web
 
 # Copy the entrypoint script
 COPY entrypoint.sh /entrypoint.sh
