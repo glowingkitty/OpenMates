@@ -19,6 +19,38 @@ default_expiration_time = 86400 # 24 hours
 
 
 ########################################################
+# Server Config
+########################################################
+
+def save_server_config_to_memory(config: dict) -> bool:
+    """
+    Save the server configuration to Redis (Dragonfly).
+    """
+    logger.debug(f"Saving server configuration to memory")
+
+    client = Redis.from_url(redis_url)
+    client.set("server_config", json.dumps(config))
+
+    logger.info("Server configuration saved to memory")
+    return True
+
+def get_server_config_from_memory() -> dict:
+    """
+    Retrieve the server configuration from Redis (Dragonfly).
+    """
+    logger.debug(f"Getting server configuration from memory")
+
+    client = Redis.from_url(redis_url)
+    config = client.get("server_config")
+    if config:
+        logger.info("Server configuration retrieved from memory")
+        return json.loads(config)
+
+    logger.error("Failed to get server configuration from memory")
+    return None
+
+
+########################################################
 # Users
 ########################################################
 

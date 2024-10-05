@@ -1,9 +1,24 @@
 import os
 import logging
 import sys
+import yaml
+from redis import Redis
+import json
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:     %(message)s')
 logger = logging.getLogger(__name__)
+
+# Reuse the redis_url from memory.py
+redis_url = f"redis://{os.getenv('DRAGONFLY_URL', 'dragonfly:6379')}/0"
+
+# Check if the server.yaml file exists
+script_dir = os.path.dirname(__file__)
+yaml_path = os.path.join(script_dir, "server.yaml")
+env_path = os.path.join(script_dir.split("/server")[0], ".env")
+
+logger.info(f"server.yaml path: {yaml_path}")
+logger.info(f".env path: {env_path}")
 
 # List of required environment variables
 required_env_variables = [
@@ -14,6 +29,45 @@ required_env_variables = [
     "JWT_SECRET", "DRAGONFLY_PORT", "WEB_BROWSER_SECRET_KEY",
     "WEB_BROWSER_PORT", "REST_API_PORT"
 ]
+
+def save_server_config_to_memory(config: dict) -> bool:
+    """
+    Save the server configuration to Redis (Dragonfly).
+    """
+    logger.debug("Saving server configuration to memory")
+    client = Redis.from_url(redis_url)
+    client.set("server_config", json.dumps(config))
+    logger.info("Server configuration saved to memory")
+    return True
+
+def get_server_config_from_memory() -> dict:
+    """
+    Retrieve the server configuration from Redis (Dragonfly).
+    """
+    logger.debug("Getting server configuration from memory")
+    client = Redis.from_url(redis_url)
+    config = client.get("server_config")
+    if config:
+        logger.info("Server configuration retrieved from memory")
+        return json.loads(config)
+    logger.info("Failed to get server configuration from memory")
+    return None
+
+def load_server_config():
+    """
+    Load server configuration from a YAML file into memory.
+    """
+    try:
+        with open(yaml_path, 'r') as file:
+            config = yaml.safe_load(file)
+            logger.info("Configuration loaded successfully.")
+            return config
+    except FileNotFoundError:
+        logger.error("Configuration file not found.")
+        return None
+    except yaml.YAMLError as exc:
+        logger.error(f"Error parsing YAML file: {exc}")
+        return None
 
 def check_env_variables():
     """
@@ -41,11 +95,29 @@ def check_env_variables():
         return True
 
 if __name__ == "__main__":
+    if not os.path.exists(yaml_path):
+        logger.error("Configuration file server.yaml not found.")
+        sys.exit(1)
+
     # Run the environment variable check
     logger.info("Starting environment variable check...")
     all_vars_present = check_env_variables()
 
-    # Log the final result
+    # If any environment variables are missing, exit
     if not all_vars_present:
-        logger.info("Closing REST API server...")
+        logger.info("Closing REST API server due to missing environment variables...")
         sys.exit(1)
+
+    # Attempt to load the server configuration from memory
+    logger.info("Attempting to load server configuration from memory...")
+    server_config = get_server_config_from_memory()
+
+    # If loading from memory fails, load from YAML and save to memory
+    if not server_config:
+        logger.info("Loading server configuration from YAML file...")
+        server_config = load_server_config()
+        if server_config:
+            save_server_config_to_memory(server_config)
+        else:
+            logger.error("Failed to load server configuration.")
+            sys.exit(1)

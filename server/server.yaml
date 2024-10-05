@@ -1,0 +1,9 @@
+# TODO add configs here for the server, including keys from .env
+
+# OpenAI API configuration
+openai:
+  api_key: ${OPENAI_API_KEY}  # The API key for OpenAI, sourced from the .env file
+
+# Anthropic API configuration
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}  # The API key for Anthropic, sourced from the .env file
