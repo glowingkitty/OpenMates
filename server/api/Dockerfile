@@ -17,10 +17,3 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # At runtime, the current directory will be mounted, so no need to COPY it
-
-# Copy the entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Use the entrypoint script to start Uvicorn
-ENTRYPOINT ["/entrypoint.sh"]

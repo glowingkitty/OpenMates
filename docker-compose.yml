@@ -59,6 +59,8 @@ services:
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
       WEB_BROWSER_URL: "http://web_browser:${WEB_BROWSER_PORT}"
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+    command: >
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
@@ -80,7 +82,8 @@ services:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
-    command: celery -A server.task_management.task_management worker --loglevel=info --uid=nobody
+    command: >
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_management.task_management worker --loglevel=info --uid=nobody"
     volumes:
       - .:/usr/src/OpenMates
     networks:
@@ -99,7 +102,8 @@ services:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "dragonfly:${DRAGONFLY_PORT}"
-    command: celery -A server.task_management.task_management beat --loglevel=info --uid=nobody
+    command: >
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_management.task_management beat --loglevel=info --uid=nobody"
     volumes:
       - .:/usr/src/OpenMates
     networks:

@@ -12,12 +12,14 @@ async def clear_all_memory():
     """
     Clear all data from Redis (Dragonfly).
     """
+    logger.info("Clearing all data from memory...")
     await redis_client.flushall()
     logger.info("Cleared all data from memory")
 
 
 async def api_startup():
-    # Existing startup code
+    # server_config_check already checks if all config files are present
+
     logger.info("Processing startup events...")
 
     await clear_all_memory()
