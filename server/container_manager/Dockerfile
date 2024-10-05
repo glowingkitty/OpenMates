@@ -1,15 +1,12 @@
-# Dockerfile
-FROM mcr.microsoft.com/playwright:v1.47.0-focal
-
-# Install pip
-RUN apt-get update && apt-get install -y python3-pip
+# Use an official Python runtime as a parent image
+FROM python:3.11-slim
 
 # Install dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the working directory
-WORKDIR /usr/src/app-web
+WORKDIR /usr/src/container_manager
 
 # Copy the entrypoint script
 COPY entrypoint.sh /entrypoint.sh

@@ -1,6 +1,7 @@
 version: '3.8'
 
-# TODO add web app and website
+# TODO add container manager docker (to start/stop apps containers, receiving api calls from the rest api, so rest api has no access to docker socket)
+# TODO add web app and website dockers
 # TODO get updated structure to work again
 # TODO add improved security (no root user, seperate networks, no linux commands that aren't needed, no internet if not needed, only read access to files if possible, limit cpu/memory usage, etc.)
 
@@ -22,8 +23,10 @@ services:
       STRAPI_URL: "http://strapi:${STRAPI_PORT}"
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
-      WEB_BROWSER_URL: "http://app_web:${WEB_BROWSER_PORT}"
+      WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+      CONTAINER_MANAGER_URL: "http://container-manager:${CONTAINER_MANAGER_PORT}"
+      CONTAINER_MANAGER_SECRET_KEY: ${CONTAINER_MANAGER_SECRET_KEY}
     command: >
       sh -c "python /usr/src/OpenMates/server/server_config_check.py && uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
     ports:
@@ -35,7 +38,7 @@ services:
     depends_on:
       - cms
       - in_memory_database
-      - app_web
+      - app-web
 
 
   ###########################################################################################
@@ -55,15 +58,36 @@ services:
 
 
   ###########################################################################################
+  ##### Container manager
+  ###########################################################################################
+
+  # The container manager, which will be used to manage the "Apps" containers (Web, Mosquitto, Discord Listener, etc.)
+  container-manager:
+    container_name: openmates-container-manager
+    build:
+      context: ./container_manager
+      dockerfile: Dockerfile
+    volumes:
+      - ./container_manager:/usr/src/container_manager
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file: .env
+    environment:
+      CONTAINER_MANAGER_SECRET_KEY: ${CONTAINER_MANAGER_SECRET_KEY}
+      CONTAINER_MANAGER_PORT: ${CONTAINER_MANAGER_PORT}
+    networks:
+      - openmates
+
+
+  ###########################################################################################
   ##### Task management
   ###########################################################################################
 
   # The task worker (for processing tasks that take longer then just milliseconds)
-  task_worker:
+  task-worker:
     container_name: openmates-task-worker
     build:
       context: .
-      dockerfile: task_management/Dockerfile
+      dockerfile: task_manager/Dockerfile
     env_file: .env
     environment:
       PYTHONPATH: "/usr/src/OpenMates"
@@ -71,7 +95,7 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_management.task_management worker --loglevel=info --uid=nobody"
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
     volumes:
       - ..:/usr/src/OpenMates
     networks:
@@ -81,11 +105,11 @@ services:
       - in_memory_database
 
   # The task scheduler (for scheduling tasks into the future)
-  task_scheduler:
+  task-scheduler:
     container_name: openmates-task-scheduler
     build:
       context: .
-      dockerfile: task_management/Dockerfile
+      dockerfile: task_manager/Dockerfile
     env_file: .env
     environment:
       PYTHONPATH: "/usr/src/OpenMates"
@@ -93,7 +117,7 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_management.task_management beat --loglevel=info --uid=nobody"
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
     volumes:
       - ..:/usr/src/OpenMates
     networks:
@@ -107,18 +131,20 @@ services:
   ##### Apps
   ###########################################################################################
 
+  # TODO remove this part later, since container manager will be used instead
+
   # App: Web (needed to use the Web app endpoint in the REST API)
-  app_web:
+  app-web:
     container_name: openmates-web-browser
     build:
-      context: ./app_web
+      context: ./app-web
       dockerfile: Dockerfile
     env_file: .env
     environment:
       WEB_BROWSER_PORT: ${WEB_BROWSER_PORT}
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
     volumes:
-      - ./app_web:/usr/src/app_web
+      - ./apps/web:/usr/src/app-web
     networks:
       - openmates
     extra_hosts:
