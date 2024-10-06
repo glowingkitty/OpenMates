@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 # Reuse the redis_url from memory.py
 redis_url = f"redis://{os.getenv('DRAGONFLY_URL', 'dragonfly:6379')}/0"
 
-# Check if the server.yaml file exists
+# Check if the server.yml file exists
 script_dir = os.path.dirname(__file__)
-yaml_path = os.path.join(script_dir, "server.yaml")
+yaml_path = os.path.join(script_dir, "server.yml")
 env_path = os.path.join(script_dir.split("/server")[0], ".env")
 
-logger.info(f"server.yaml path: {yaml_path}")
+logger.info(f"server.yml path: {yaml_path}")
 logger.info(f".env path: {env_path}")
 
 # List of required environment variables
@@ -96,7 +96,7 @@ def check_env_variables():
 
 if __name__ == "__main__":
     if not os.path.exists(yaml_path):
-        logger.error("Configuration file server.yaml not found.")
+        logger.error("Configuration file server.yml not found.")
         sys.exit(1)
 
     # Run the environment variable check

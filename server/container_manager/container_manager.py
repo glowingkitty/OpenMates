@@ -1,5 +1,6 @@
 import os
 import docker
+import sys
 import logging
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import APIKeyHeader
@@ -21,9 +22,24 @@ app = FastAPI()
 API_KEY = os.environ.get("CONTAINER_MANAGER_SECRET_KEY")
 api_key_header = APIKeyHeader(name="X-API-Key")
 
+# Construct the path to app_docker_containers.json
+current_dir = os.path.dirname(os.path.abspath(__file__))
+server_dir = os.path.dirname(current_dir)
+json_path = os.path.join(server_dir, 'apps', 'app_docker_containers.json')
+
 # Load app docker container configs
-with open('apps/app_docker_containers.json', 'r') as f:
-    app_docker_containers = json.load(f)
+try:
+    with open(json_path, 'r') as f:
+        app_docker_containers = json.load(f)
+    logger.info(f"Successfully loaded app_docker_containers.json from {json_path}")
+except FileNotFoundError:
+    logger.error(f"app_docker_containers.json not found at {json_path}")
+    logger.error("Exiting container manager...")
+    sys.exit(1)
+except json.JSONDecodeError:
+    logger.error(f"Error decoding app_docker_containers.json at {json_path}")
+    logger.error("Exiting container manager...")
+    sys.exit(1)
 
 class ContainerRequest(BaseModel):
     name: str
@@ -42,17 +58,38 @@ def build_predefined_containers():
     logger.info("Checking and building predefined containers...")
     for container in app_docker_containers:
         try:
+            # Try to get the image
             client.images.get(container['image'])
             logger.info(f"Image {container['image']} already exists")
         except docker.errors.ImageNotFound:
-            logger.info(f"Building image {container['image']}...")
-            build_args = {
-                'path': os.path.dirname(container['dockerfile']),
-                'dockerfile': os.path.basename(container['dockerfile']),
-                'tag': container['image']
-            }
-            client.images.build(**build_args)
-            logger.info(f"Image {container['image']} built successfully")
+            logger.info(f"Image {container['image']} not found. Attempting to build...")
+            try:
+                # Construct the build path
+                build_path = os.path.join(server_dir, os.path.dirname(container['dockerfile']))
+                if not os.path.isdir(build_path):
+                    raise ValueError(f"Invalid build path: {build_path}")
+                
+                # Construct build arguments
+                build_args = {
+                    'path': build_path,
+                    'dockerfile': os.path.basename(container['dockerfile']),
+                    'tag': container['image']
+                }
+                
+                # Log the build arguments for debugging
+                logger.debug(f"Build arguments: {build_args}")
+                
+                # Attempt to build the image
+                client.images.build(**build_args)
+                logger.info(f"Image {container['image']} built successfully")
+            except ValueError as ve:
+                logger.error(f"Error building image {container['image']}: {str(ve)}")
+            except docker.errors.BuildError as be:
+                logger.error(f"Docker build error for {container['image']}: {str(be)}")
+            except Exception as e:
+                logger.error(f"Unexpected error building image {container['image']}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error checking image {container['image']}: {str(e)}")
 
 @app.on_event("startup")
 async def startup_event():

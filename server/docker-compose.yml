@@ -1,3 +1,4 @@
+name: openmates-server
 version: '3.8'
 
 # TODO add container manager docker (to start/stop apps containers, receiving api calls from the rest api, so rest api has no access to docker socket)
@@ -39,7 +40,6 @@ services:
     depends_on:
       - cms
       - in_memory_database
-      - app-web
 
 
   ###########################################################################################
@@ -70,7 +70,7 @@ services:
       context: ./container_manager
       dockerfile: Dockerfile
     volumes:
-      - ./container_manager:/usr/src/container_manager
+      - ./:/usr/src/server
       - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file: .env
     environment:
