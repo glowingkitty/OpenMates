@@ -62,7 +62,8 @@ services:
   ##### Container manager
   ###########################################################################################
 
-  # The container manager, which will be used to manage the "Apps" containers (Web, Mosquitto, Discord Listener, etc.)
+  # The container manager, which will be used to manage the "Apps" containers (Web, Discord Listener, Mosquitto, etc.)
+  # TODO try to limit this container manager to access only the dockers it created itself, not the other dockers in the docker compose setup
   container-manager:
     container_name: openmates-container-manager
     build:
@@ -126,30 +127,6 @@ services:
     depends_on:
       - rest-api
       - in_memory_database
-
-
-  ###########################################################################################
-  ##### Apps
-  ###########################################################################################
-
-  # TODO remove this part later, since container manager will be used instead
-
-  # App: Web (needed to use the Web app endpoint in the REST API)
-  app-web:
-    container_name: openmates-web-browser
-    build:
-      context: ./app-web
-      dockerfile: Dockerfile
-    env_file: .env
-    environment:
-      WEB_BROWSER_PORT: ${WEB_BROWSER_PORT}
-      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
-    volumes:
-      - ./apps/web:/usr/src/app-web
-    networks:
-      - openmates
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 
   ###########################################################################################

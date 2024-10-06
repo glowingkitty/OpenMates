@@ -1,0 +1,23 @@
+[
+    {
+        "name": "openmates-app-web",
+        "image": "openmates-app-web:latest",
+        "dockerfile": "../apps/web/Dockerfile",
+        "environment": {
+            "WEB_BROWSER_PORT": "${WEB_BROWSER_PORT}",
+            "WEB_BROWSER_SECRET_KEY": "${WEB_BROWSER_SECRET_KEY}"
+        },
+        "volumes": {
+            "./apps/web": "/usr/src/app-web"
+        },
+        "network": "openmates",
+        "extra_hosts": {
+            "host.docker.internal": "host-gateway"
+        }
+    },
+    {
+        "name": "openmates-app-messages-discord-listener",
+        "image": "openmates-app-messages-discord-listener:latest",
+        "dockerfile": "./apps/messages/discord/listener/Dockerfile"
+    }
+]
