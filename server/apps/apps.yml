@@ -1,0 +1,34 @@
+
+# These apps will be build via docker and then managed by the container manager,
+# the Docker Python package and the REST API.
+apps:
+  web:
+    container_name: app-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
+    volumes:
+      - ./apps/web:/usr/src/app-web
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
+  messages-discord-listener:
+    container_name: app-messages-discord-listener
+    build:
+      context: ./apps/messages/discord/listener
+      dockerfile: Dockerfile
+    env_file: .env
+    volumes:
+      - ./apps/messages/discord/listener:/usr/src/app-messages-discord-listener
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
+  # TODO add apps for Mattermost server, Mosquitto broker, Appflowy server, etc.
