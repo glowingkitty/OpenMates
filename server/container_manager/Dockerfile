@@ -6,7 +6,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the working directory
-WORKDIR /usr/src/container_manager
+WORKDIR /usr/src/app/server/container_manager
 
 # Copy the entrypoint script
 COPY entrypoint.sh /entrypoint.sh

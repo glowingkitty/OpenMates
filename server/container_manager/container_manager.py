@@ -68,17 +68,17 @@ def build_predefined_containers():
                 build_path = os.path.join(server_dir, os.path.dirname(container['dockerfile']))
                 if not os.path.isdir(build_path):
                     raise ValueError(f"Invalid build path: {build_path}")
-                
+
                 # Construct build arguments
                 build_args = {
                     'path': build_path,
                     'dockerfile': os.path.basename(container['dockerfile']),
                     'tag': container['image']
                 }
-                
+
                 # Log the build arguments for debugging
                 logger.debug(f"Build arguments: {build_args}")
-                
+
                 # Attempt to build the image
                 client.images.build(**build_args)
                 logger.info(f"Image {container['image']} built successfully")

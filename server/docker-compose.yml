@@ -4,7 +4,7 @@ version: '3.8'
 # TODO add container manager docker (to start/stop apps containers, receiving api calls from the rest api, so rest api has no access to docker socket)
 # TODO add web app and website dockers
 # TODO get updated structure to work again
-# TODO add improved security (no root user, seperate networks, no linux commands that aren't needed, no internet if not needed,
+# TODO add improved security (no root user, only access to folders they really need, seperate networks, no linux commands that aren't needed, no internet if not needed,
 # only read access to files if possible, limit cpu/memory usage, strapi input parameterized, turn off strapi interface (except when in development mode) etc. etc.)
 
 services:
@@ -72,7 +72,7 @@ services:
       context: ./container_manager
       dockerfile: Dockerfile
     volumes:
-      - ./:/usr/src/server
+      - ./:/usr/src/app/server
       - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file: .env
     environment:
