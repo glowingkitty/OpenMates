@@ -1,8 +1,9 @@
 [
     {
         "name": "openmates-app-web",
+        "description": "Will start a web browser that OpenMates can interact with, to browse the internet.",
         "image": "openmates-app-web:latest",
-        "dockerfile": "../apps/web/Dockerfile",
+        "dockerfile": "apps/web/Dockerfile",
         "environment": {
             "WEB_BROWSER_PORT": "${WEB_BROWSER_PORT}",
             "WEB_BROWSER_SECRET_KEY": "${WEB_BROWSER_SECRET_KEY}"
@@ -17,7 +18,8 @@
     },
     {
         "name": "openmates-app-messages-discord-listener",
+        "description": "Will listen for new messages on a specific discord server. Once a new message is detected, an API call is made to the REST API, to notify it.",
         "image": "openmates-app-messages-discord-listener:latest",
-        "dockerfile": "./apps/messages/discord/listener/Dockerfile"
+        "dockerfile": "apps/messages/discord/listener/Dockerfile"
     }
 ]
