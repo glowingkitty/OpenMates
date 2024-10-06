@@ -22,7 +22,7 @@ logger.info(f".env path: {env_path}")
 
 # List of required environment variables
 required_env_variables = [
-    "HOST", "STRAPI_PORT", "STRAPI_TOKEN", "API_TOKEN_SALT",
+    "HOST", "CMS_PORT", "CMS_TOKEN", "API_TOKEN_SALT",
     "APP_KEYS", "ADMIN_JWT_SECRET", "TRANSFER_TOKEN_SALT",
     "NODE_ENV", "DATABASE_CLIENT", "DATABASE_NAME",
     "DATABASE_FILENAME", "DATABASE_USERNAME", "DATABASE_PASSWORD",

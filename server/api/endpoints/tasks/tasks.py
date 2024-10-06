@@ -1,4 +1,4 @@
-from server.task_management.task_management import celery
+from server.task_manager.task_manager import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.endpoints.apps.books.translate import translate as book_translate_processing
 from celery import shared_task

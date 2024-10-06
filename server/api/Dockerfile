@@ -9,7 +9,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
-WORKDIR /usr/src/OpenMates/server/api
+WORKDIR /usr/src/app/server/api
 
 # Install any needed packages specified in requirements.txt
 # Note: You will need to ensure that requirements.txt is available at build time

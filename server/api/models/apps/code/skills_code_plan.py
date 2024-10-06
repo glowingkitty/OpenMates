@@ -186,7 +186,7 @@ code_plan_input_example_2 = {
         "other_requirements": {"answer": "Accessibility compliance (WCAG 2.1)"}
     },
     "q_and_a_followup": {
-        "task_management_features": {"question": "What specific task management features are required?", "answer": "Task creation, assignment, due dates, priority levels, and status tracking"},
+        "task_manager_features": {"question": "What specific task management features are required?", "answer": "Task creation, assignment, due dates, priority levels, and status tracking"},
         "real_time_updates": {"question": "How should real-time updates be implemented?", "answer": "Use WebSockets for instant task updates and notifications"},
         "authentication_method": {"question": "What authentication method should be used for user login?", "answer": "Email/password login with option for OAuth 2.0 (Google and GitHub)"},
         "data_model": {"question": "What data model should be used for tasks and users?", "answer": "Tasks should have fields for title, description, assignee, due date, priority, and status. Users should have fields for name, email, role, and associated tasks."},
@@ -197,7 +197,7 @@ code_plan_input_example_2 = {
 
 code_plan_output_example = {
     "q_and_a_followup": {
-        "task_management_features": {"question": "What specific task management features are required?"},
+        "task_manager_features": {"question": "What specific task management features are required?"},
         "real_time_updates": {"question": "How should real-time updates be implemented?"},
         "authentication_method": {"question": "What authentication method should be used for user login?"},
         "data_model": {"question": "What data model should be used for tasks and users?"},

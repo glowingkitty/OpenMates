@@ -20,23 +20,23 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      PYTHONPATH: "/usr/src/OpenMates"
+      PYTHONPATH: "/usr/src/app"
       REST_API_PORT: ${REST_API_PORT}
-      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
-      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
       WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
       CONTAINER_MANAGER_URL: "http://container-manager:${CONTAINER_MANAGER_PORT}"
       CONTAINER_MANAGER_SECRET_KEY: ${CONTAINER_MANAGER_SECRET_KEY}
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && 
+      sh -c "python /usr/src/app/server/server_config_check.py && 
              python -c 'import sys; print(sys.path)' &&  # Debug print
              uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
-      - ../..:/usr/src/OpenMates
+      - .:/usr/src/app/server
     networks:
       - openmates
     depends_on:
@@ -94,15 +94,15 @@ services:
       dockerfile: task_manager/Dockerfile
     env_file: .env
     environment:
-      PYTHONPATH: "/usr/src/OpenMates"
-      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
-      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      PYTHONPATH: "/usr/src/app"
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && 
+      sh -c "python /usr/src/app/server/server_config_check.py && 
              celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
     volumes:
-      - ../..:/usr/src/OpenMates
+      - .:/usr/src/app/server
     networks:
       - openmates
     depends_on:
@@ -117,15 +117,15 @@ services:
       dockerfile: task_manager/Dockerfile
     env_file: .env
     environment:
-      PYTHONPATH: "/usr/src/OpenMates"
-      STRAPI_URL: "http://strapi:${STRAPI_PORT}"
-      STRAPI_TOKEN: ${STRAPI_TOKEN}
+      PYTHONPATH: "/usr/src/app"
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && 
+      sh -c "python /usr/src/app/server/server_config_check.py && 
              celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
     volumes:
-      - ../..:/usr/src/OpenMates
+      - .:/usr/src/app/server
     networks:
       - openmates
     depends_on:
@@ -143,7 +143,7 @@ services:
     build:
       context: ./cms/strapi
       dockerfile: Dockerfile
-    image: strapi:latest
+    image: cms:latest
     restart: unless-stopped
     env_file: .env
     environment:
@@ -165,7 +165,7 @@ services:
       - ./cms/strapi/.env:/opt/app/.env
       - ./cms/strapi/public/uploads:/opt/app/public/uploads
     ports:
-      - "${STRAPI_PORT}:${STRAPI_PORT}"
+      - "${CMS_PORT}:${CMS_PORT}"
     networks:
       - openmates
     depends_on:

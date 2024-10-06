@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 # Load the .env file
 load_dotenv()
 
-STRAPI_URL = os.getenv('STRAPI_URL')
-STRAPI_TOKEN = os.getenv('STRAPI_TOKEN')
+CMS_URL = os.getenv('CMS_URL')
+CMS_TOKEN = os.getenv('CMS_TOKEN')
 
 def add_params(params, populate) -> str:
     for field in populate:
@@ -120,9 +120,9 @@ async def make_strapi_request(
             else:
                 params = ""
 
-            strapi_url = f"{STRAPI_URL}/api/{endpoint}{params}"
+            strapi_url = f"{CMS_URL}/api/{endpoint}{params}"
 
-            strapi_headers = {"Authorization": f"Bearer {STRAPI_TOKEN}"}
+            strapi_headers = {"Authorization": f"Bearer {CMS_TOKEN}"}
             if method.lower() == 'get':
                 strapi_response = await client.get(strapi_url, headers=strapi_headers)
             elif method.lower() == 'post':
@@ -149,7 +149,7 @@ async def make_strapi_request(
 async def get_strapi_upload(url: str) -> Response:
     async with httpx.AsyncClient() as client:
         try:
-            strapi_response = await client.get(f"{STRAPI_URL}/uploads/{url}")
+            strapi_response = await client.get(f"{CMS_URL}/uploads/{url}")
             strapi_response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 401:
@@ -169,11 +169,11 @@ async def upload_file_to_strapi(file_data: bytes, file_name: str) -> Dict:
             files = {'files': (file_name, file, 'application/octet-stream')}
 
             headers = {
-                "Authorization": f"Bearer {STRAPI_TOKEN}"
+                "Authorization": f"Bearer {CMS_TOKEN}"
             }
 
             strapi_response = await client.post(
-                f"{STRAPI_URL}/api/upload",
+                f"{CMS_URL}/api/upload",
                 headers=headers,
                 files=files
             )
@@ -188,11 +188,11 @@ async def delete_file_from_strapi(strapi_file_id: int) -> Dict:
     async with httpx.AsyncClient() as client:
         try:
             headers = {
-                "Authorization": f"Bearer {STRAPI_TOKEN}"
+                "Authorization": f"Bearer {CMS_TOKEN}"
             }
 
             strapi_response = await client.delete(
-                f"{STRAPI_URL}/api/upload/files/{strapi_file_id}",
+                f"{CMS_URL}/api/upload/files/{strapi_file_id}",
                 headers=headers
             )
             strapi_response.raise_for_status()
@@ -213,8 +213,8 @@ async def create_uploaded_file_entry(file_id: str, filename: str, additional_dat
                 }
             }
             strapi_response = await client.post(
-                f"{STRAPI_URL}/uploaded-files",
-                headers={"Authorization": f"Bearer {STRAPI_TOKEN}"},
+                f"{CMS_URL}/uploaded-files",
+                headers={"Authorization": f"Bearer {CMS_TOKEN}"},
                 json=data
             )
             strapi_response.raise_for_status()
