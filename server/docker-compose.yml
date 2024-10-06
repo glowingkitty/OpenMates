@@ -14,7 +14,7 @@ services:
 
   # The REST API, used by the web application, the task management, the apps and external developers using the OpenMates API
   rest-api:
-    container_name: openmates-rest-api
+    container_name: rest-api
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -30,11 +30,13 @@ services:
       CONTAINER_MANAGER_URL: "http://container-manager:${CONTAINER_MANAGER_PORT}"
       CONTAINER_MANAGER_SECRET_KEY: ${CONTAINER_MANAGER_SECRET_KEY}
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && 
+             python -c 'import sys; print(sys.path)' &&  # Debug print
+             uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
-      - ..:/usr/src/OpenMates
+      - ../..:/usr/src/OpenMates
     networks:
       - openmates
     depends_on:
@@ -65,7 +67,7 @@ services:
   # The container manager, which will be used to manage the "Apps" containers (Web, Discord Listener, Mosquitto, etc.)
   # TODO try to limit this container manager to access only the dockers it created itself, not the other dockers in the docker compose setup
   container-manager:
-    container_name: openmates-container-manager
+    container_name: container-manager
     build:
       context: ./container_manager
       dockerfile: Dockerfile
@@ -86,7 +88,7 @@ services:
 
   # The task worker (for processing tasks that take longer then just milliseconds)
   task-worker:
-    container_name: openmates-task-worker
+    container_name: task-worker
     build:
       context: .
       dockerfile: task_manager/Dockerfile
@@ -97,9 +99,10 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && 
+             celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
     volumes:
-      - ..:/usr/src/OpenMates
+      - ../..:/usr/src/OpenMates
     networks:
       - openmates
     depends_on:
@@ -108,7 +111,7 @@ services:
 
   # The task scheduler (for scheduling tasks into the future)
   task-scheduler:
-    container_name: openmates-task-scheduler
+    container_name: task-scheduler
     build:
       context: .
       dockerfile: task_manager/Dockerfile
@@ -119,9 +122,10 @@ services:
       STRAPI_TOKEN: ${STRAPI_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
     command: >
-      sh -c "python /usr/src/OpenMates/server/server_config_check.py && celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
+      sh -c "python /usr/src/OpenMates/server/server_config_check.py && 
+             celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
     volumes:
-      - ..:/usr/src/OpenMates
+      - ../..:/usr/src/OpenMates
     networks:
       - openmates
     depends_on:
@@ -135,7 +139,7 @@ services:
 
   # The content management system (CMS)
   cms:
-    container_name: openmates-cms
+    container_name: cms
     build:
       context: ./cms/strapi
       dockerfile: Dockerfile
@@ -169,7 +173,7 @@ services:
 
   # The database for the content management system (CMS)
   cms_database:
-    container_name: openmates-cms-database
+    container_name: cms-database
     restart: unless-stopped
     env_file: .env
     image: postgres:12.0-alpine
@@ -184,7 +188,7 @@ services:
 
   # The in-memory database (for storing data that needs to be accessed very quickly)
   in_memory_database:
-    container_name: openmates-in-memory-database
+    container_name: in-memory-database
     image: docker.dragonflydb.io/dragonflydb/dragonfly
     ulimits:
       memlock: -1
