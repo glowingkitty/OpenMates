@@ -103,14 +103,16 @@ apps:
         company_id: ${AKAUNTING_COMPANY_ID}
 
 
-##########################################################################################
-# Rest API
-##########################################################################################
+###########################################################################################
+##### REST API
+###########################################################################################
 
+# The REST API, used by the web application, the task management, the apps and external developers using the OpenMates API
 rest-api:
   port: ${REST_API_PORT}
   crypto_key: ${CRYPTO_KEY}
   crypto_salt: ${CRYPTO_SALT}
+
 
 ##########################################################################################
 # CMS for managing user data
