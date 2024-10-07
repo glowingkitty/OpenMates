@@ -1,118 +1,63 @@
-import discord
+from discord.ext import commands
 import asyncio
-import os
 import logging
-import aiohttp
-from dotenv import load_dotenv
+import yaml
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+# Define a function to start a bot instance
+async def start_bot(bot_config):
+    # Extract token, name, and description from the bot configuration
+    token = bot_config['token']
+    name = bot_config['name']
+    description = bot_config['description']
 
-# Get environment variables
-BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+    # Log the bot's name and description
+    logger.info(f'Starting bot: {name} - {description}')
 
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)
+    bot = commands.Bot(command_prefix=commands.when_mentioned)  # Use when_mentioned to handle @botusername
 
-@client.event
-async def on_ready():
-    logger.info(f'{client.user} has connected to Discord!')
+    @bot.event
+    async def on_ready():
+        # Log when the bot is connected
+        logger.info(f'Bot {name} is connected as {bot.user}')
 
-@client.event
-async def on_message(message):
-    # Make sure the message is not from the bot itself
-    if message.author == client.user:
-        return
+    @bot.event
+    async def on_message(message):
+        # Ignore messages from the bot itself
+        if message.author == bot.user:
+            return
 
-    # Make sure the bot was mentioned
-    if client.user not in message.mentions:
-        return
+        # Check if the bot is mentioned in the message
+        if bot.user in message.mentions:
+            guild = message.guild
+            if guild:
+                # Log the message received from a user mentioning the bot
+                logger.info(f'Message mentioning {name} from {guild.name}: {message.content}')
 
-    logger.info("Bot was mentioned. Processing message...")
+            # Example response to the user
+            await message.channel.send(f"You mentioned {name}!")
 
-    # # Get the team slug from the API
-    # async with aiohttp.ClientSession() as session:
-    #     try:
-    #         api_endpoint = 'http://rest-api:8000/v1/teamslug'
-    #         logger.info(f"Getting team slug from API: {api_endpoint}")
+    # Run the bot using its token
+    await bot.start(token)
 
-    #         payload = {'discord_guild_id': message.guild.id}
-    #         async with session.post(api_endpoint, json=payload) as response:
-    #             if response.status == 200:
-    #                 response = await response.json()
-    #                 team_slug = response.get('team_slug')
-    #                 logger.info(f"Team slug: {team_slug}")
-    #             else:
-    #                 logger.error(f"Failed to get team slug. Status: {response.status}")
-    #                 # TODO send message to discord chat with url to login and connect team
+# Load bot configuration from a YAML file
+def load_config(file_path='config.yaml'):
+    with open(file_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
 
-    #     except Exception as e:
-    #         logger.error(f"Error sending message to API: {e}")
-
-    # # Send the message to the API
-    # async with aiohttp.ClientSession() as session:
-    #     try:
-    #         api_endpoint = f'http://rest-api:8000/v1/{team_slug}/apps/messages/process'
-    #         logger.info(f"Sending message to API: {api_endpoint}")
-
-    #         message_data = {
-    #             'content': message.content,
-    #             'author': message.author.name,
-    #             'channel_id': message.channel.id
-    #         }
-    #         # async with session.post(api_endpoint, json=message_data) as response:
-    #         #     if response.status == 200:
-    #         #         logger.info(f"Successfully sent message to API: {message_data}")
-    #         #     else:
-    #         #         logger.error(f"Failed to send message to API. Status: {response.status}")
-    #     except Exception as e:
-    #         logger.error(f"Error sending message to API: {e}")
-
-@client.event
-async def on_guild_join(guild):
-    logger.info(f'Bot has joined a new guild: {guild.name} (ID: {guild.id})')
-
-    # Check if the guild is registered in your software
-    async with aiohttp.ClientSession() as session:
-        try:
-            api_endpoint = 'http://rest-api:8000/v1/teamslug'
-            payload = {'discord_guild_id': guild.id}
-            async with session.post(api_endpoint, json=payload) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    team_slug = data.get('team_slug')
-                    if not team_slug:
-                        # Send a message to the server owner or a specific channel
-                        owner = guild.owner
-                        await owner.send(
-                            "Your Discord guild is not connected to your OpenMates team."
-                            "Visit the OpenMates website to connect your Discord guild to your team."
-                        )
-                        # Optionally, leave the guild
-                        await guild.leave()
-                        logger.info(f'Left guild: {guild.name} (ID: {guild.id}) because it is not registered.')
-                    else:
-                        logger.info(f'Guild {guild.name} (ID: {guild.id}) is registered with team slug: {team_slug}')
-                else:
-                    logger.error(f"Failed to get team slug. Status: {response.status}")
-        except Exception as e:
-            logger.error(f"Error checking guild registration: {e}")
-
+# Main function to start all bots concurrently
 async def main():
-    if not BOT_TOKEN:
-        raise ValueError("DISCORD_BOT_TOKEN not found in environment variables")
+    # Load configuration
+    config = load_config()
 
-    try:
-        await client.start(BOT_TOKEN)
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-    finally:
-        await client.close()
+    # Run all bots concurrently using their configurations
+    await asyncio.gather(
+        *[start_bot(bot) for bot in config['bots']]
+    )
 
-if __name__ == "__main__":
-    asyncio.run(main())
+# Run the main function using asyncio
+asyncio.run(main())

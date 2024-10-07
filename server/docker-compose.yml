@@ -43,6 +43,45 @@ services:
       - cms
       - in_memory_database
 
+  ###########################################################################################
+  ##### Apps
+  ###########################################################################################
+
+  # Apps used by OpenMates, which need their own docker container
+
+  # 'Web' app
+  # Will start a web browser to interact with websites.
+  app-web:
+    container_name: app-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
+    volumes:
+      - ./apps/web:/usr/src/app-web
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
+  # 'Messages | Discord Listener' app
+  # Will listen to new messages to the OpenMates bots on Discord.
+  app-messages-discord-listener:
+    container_name: app-messages-discord-listener
+    build:
+      context: ./apps/messages/discord/listener
+      dockerfile: Dockerfile
+    env_file: .env
+    volumes:
+      - ./apps/messages/discord/listener:/usr/src/app-messages-discord-listener
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
 
   ###########################################################################################
   ##### Web application
