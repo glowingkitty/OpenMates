@@ -2,6 +2,7 @@ from discord.ext import commands
 import asyncio
 import logging
 import yaml
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Define a function to start a bot instance
 async def start_bot(bot_config):
     # Extract token, name, and description from the bot configuration
-    token = bot_config['token']
+    token = bot_config['messenger_bots']['discord']['token']
     name = bot_config['name']
     description = bot_config['description']
 
@@ -44,7 +45,7 @@ async def start_bot(bot_config):
     await bot.start(token)
 
 # Load bot configuration from a YAML file
-def load_config(file_path='config.yaml'):
+def load_config(file_path='server/server.yml'):
     with open(file_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
@@ -54,9 +55,10 @@ async def main():
     # Load configuration
     config = load_config()
 
-    # Run all bots concurrently using their configurations
+    # Filter active bots and run them concurrently
+    active_bots = [bot for bot in config['bots'] if bot['active']]
     await asyncio.gather(
-        *[start_bot(bot) for bot in config['bots']]
+        *[start_bot(bot) for bot in active_bots]
     )
 
 # Run the main function using asyncio

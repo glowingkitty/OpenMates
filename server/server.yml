@@ -1,9 +1,146 @@
-# TODO add configs here for the server, including keys from .env
+#  _____________________________________________________________________
+# |                                                                     |
+# |         ____                  __  __        _                       |
+# |        / __ \                |  \/   |     | |                      |
+# |       | |  | |_ __   ___ _ __| \  /  | __ _| |_ ___  ___            |
+# |       | |  | | '_ \ / _ \ '_ \ |\/ | |/ _` | __/ _ \/ __|           |
+# |       | |__| | |_) |  __/ | | | |  | | (_| | ||  __/\__ \           |
+# |        \____/| .__/ \___|_| |_|_|  |_|\__,_|\__\___||___/           |
+# |              | |                                                    |
+# |              |_|                                                    |
+# |                                                                     |
+# |_____________________________________________________________________|
+#                       Your AI team mates.
 
-# OpenAI API configuration
-openai:
-  api_key: ${OPENAI_API_KEY}  # The API key for OpenAI, sourced from the .env file
+##########################################################################################
+# Testing settings
+##########################################################################################
 
-# Anthropic API configuration
-anthropic:
-  api_key: ${ANTHROPIC_API_KEY}  # The API key for Anthropic, sourced from the .env file
+testing:
+  api_token: ${TEST_API_TOKEN}
+  team_slug: ${TEST_TEAM_SLUG}
+  discord_channel_name: ${TEST_DISCORD_CHANNEL_NAME}
+  ai_mate_username: ${TEST_AI_MATE_USERNAME}
+
+
+##########################################################################################
+# Basic server settings
+##########################################################################################
+
+server:
+  host: ${SERVER_HOST}
+  # Ngrok can be used to expose the server to the internet, for development purposes
+  ngrok:
+    auth_token: ${NGROK_AUTHTOKEN}
+
+
+##########################################################################################
+# AI team mates and their default settings
+##########################################################################################
+
+mates:
+
+  - username: 'sophia'
+    description: 'Your software development expert'
+    active: True
+    messenger_bots:
+      discord:
+        token: ${AI_MATE_SOPHIA_DISCORD_TOKEN}
+      slack:
+        token: ${AI_MATE_SOPHIA_SLACK_TOKEN}
+
+  - username: 'mark'
+    description: 'Your marketing expert'
+    active: True
+    messenger_bots:
+      discord:
+        token: ${AI_MATE_MARK_DISCORD_TOKEN}
+      slack:
+        token: ${AI_MATE_MARK_SLACK_TOKEN}
+
+
+##########################################################################################
+# Apps and their default settings
+##########################################################################################
+
+apps:
+
+  - name: 'AI'
+    description: 'Use generative AI to answer questions, brainstorm ideas and more.'
+    active: True
+    providers:
+      - name: 'OpenAI'
+        api_key: ${OPENAI_API_KEY}
+      - name: 'Anthropic'
+        api_key: ${ANTHROPIC_API_KEY}
+
+  - name: 'Audio'
+    description: 'Generate, modify and transcribe audio and more.'
+    active: True
+    providers:
+      - name: 'AssemblyAI'
+        api_key: ${ASSEMBLYAI_API_KEY}
+      - name: 'OpenAI'
+        api_key: ${OPENAI_API_KEY}
+      - name: 'ElevenLabs'
+        api_key: ${ELEVENLABS_API_KEY}
+
+  - name: 'Web'
+    description: 'Browse the web, research topics and more.'
+    active: True
+    settings:
+      secret_key: ${WEB_BROWSER_SECRET_KEY}
+      port: ${WEB_BROWSER_PORT}
+
+  - name: 'Finance'
+    description: 'Keep track of your finances and build a stable income.'
+    active: True
+    providers:
+      - name: 'Akaunting'
+        api_url: ${AKAUNTING_API_URL}
+        username: ${AKAUNTING_USERNAME}
+        password: ${AKAUNTING_PASSWORD}
+        company_id: ${AKAUNTING_COMPANY_ID}
+
+
+##########################################################################################
+# Rest API
+##########################################################################################
+
+rest-api:
+  port: ${REST_API_PORT}
+  crypto_key: ${CRYPTO_KEY}
+  crypto_salt: ${CRYPTO_SALT}
+
+##########################################################################################
+# CMS for managing user data
+##########################################################################################
+
+cms:
+  node_env: ${NODE_ENV}
+  port: ${CMS_PORT}
+  token: ${CMS_TOKEN}
+  api_token_salt: ${API_TOKEN_SALT}
+  api_keys: ${API_KEYS}
+  admin_jwt_secret: ${ADMIN_JWT_SECRET}
+  transfer_token_salt: ${TRANSFER_TOKEN_SALT}
+
+
+##########################################################################################
+# CMS database for storing user data
+##########################################################################################
+
+cms-database:
+  client: ${DATABASE_CLIENT}
+  name: ${DATABASE_NAME}
+  filename: ${DATABASE_FILENAME}
+  username: ${DATABASE_USERNAME}
+  password: ${DATABASE_PASSWORD}
+
+
+##########################################################################################
+# In-memory database for temporarly storing frequently accessed data
+##########################################################################################
+
+in-memory-database:
+  port: ${IN_MEMORY_DATABASE_PORT}

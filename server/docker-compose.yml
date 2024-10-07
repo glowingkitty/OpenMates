@@ -1,8 +1,8 @@
 name: openmates-server
 version: '3.8'
 
-# TODO add container manager docker (to start/stop apps containers, receiving api calls from the rest api, so rest api has no access to docker socket)
-# TODO add web app and website dockers
+# TODO add docker for MQTT broker (Mosquitto)
+# TODO add web app and website dockers and docker for file storage (MinIO)
 # TODO get updated structure to work again
 # TODO add improved security (no root user, only access to folders they really need, seperate networks, no linux commands that aren't needed, no internet if not needed,
 # only read access to files if possible, limit cpu/memory usage, strapi input parameterized, turn off strapi interface (except when in development mode) etc. etc.)
@@ -24,7 +24,7 @@ services:
       REST_API_PORT: ${REST_API_PORT}
       CMS_URL: "http://cms:${CMS_PORT}"
       CMS_TOKEN: ${CMS_TOKEN}
-      DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
       WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
       CONTAINER_MANAGER_URL: "http://container-manager:${CONTAINER_MANAGER_PORT}"
@@ -32,7 +32,7 @@ services:
     command: >
       sh -c "python /usr/src/app/server/server_config_check.py && 
              python -c 'import sys; print(sys.path)' &&  # Debug print
-             uvicorn api:app --host 0.0.0.0 --port ${REST_API_PORT}"
+             uvicorn api:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
@@ -100,28 +100,6 @@ services:
 
 
   ###########################################################################################
-  ##### Container manager
-  ###########################################################################################
-
-  # The container manager, which will be used to manage the "Apps" containers (Web, Discord Listener, Mosquitto, etc.)
-  # TODO try to limit this container manager to access only the dockers it created itself, not the other dockers in the docker compose setup
-  container-manager:
-    container_name: container-manager
-    build:
-      context: ./container_manager
-      dockerfile: Dockerfile
-    volumes:
-      - ./:/usr/src/app/server
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    env_file: .env
-    environment:
-      CONTAINER_MANAGER_SECRET_KEY: ${CONTAINER_MANAGER_SECRET_KEY}
-      CONTAINER_MANAGER_PORT: ${CONTAINER_MANAGER_PORT}
-    networks:
-      - openmates
-
-
-  ###########################################################################################
   ##### Task management
   ###########################################################################################
 
@@ -136,7 +114,7 @@ services:
       PYTHONPATH: "/usr/src/app"
       CMS_URL: "http://cms:${CMS_PORT}"
       CMS_TOKEN: ${CMS_TOKEN}
-      DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
     command: >
       sh -c "python /usr/src/app/server/server_config_check.py && 
              celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
@@ -159,7 +137,7 @@ services:
       PYTHONPATH: "/usr/src/app"
       CMS_URL: "http://cms:${CMS_PORT}"
       CMS_TOKEN: ${CMS_TOKEN}
-      DRAGONFLY_URL: "in_memory_database:${DRAGONFLY_PORT}"
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
     command: >
       sh -c "python /usr/src/app/server/server_config_check.py && 
              celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
@@ -187,7 +165,7 @@ services:
     env_file: .env
     environment:
       DATABASE_CLIENT: ${DATABASE_CLIENT}
-      DATABASE_HOST: cms_database
+      DATABASE_SERVER_HOST: cms_database
       DATABASE_PORT: ${DATABASE_PORT}
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_USERNAME: ${DATABASE_USERNAME}
@@ -232,7 +210,7 @@ services:
     ulimits:
       memlock: -1
     ports:
-      - "${DRAGONFLY_PORT}:${DRAGONFLY_PORT}"
+      - "${IN_MEMORY_DATABASE_PORT}:${IN_MEMORY_DATABASE_PORT}"
     volumes:
       - in-memory-data:/data
     command:
