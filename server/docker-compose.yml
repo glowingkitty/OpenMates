@@ -16,14 +16,14 @@
 ##############          Docker Compose Settings          ################
 #########################################################################
 
-name: openmates-server
-version: '3.8'
-
 # TODO add docker for MQTT broker (Mosquitto)
 # TODO add web app and website dockers and docker for file storage (MinIO)
 # TODO get updated structure to work again
 # TODO add improved security (no root user, only access to folders they really need, seperate networks, no linux commands that aren't needed, no internet if not needed,
 # only read access to files if possible, limit cpu/memory usage, strapi input parameterized, turn off strapi interface (except when in development mode) etc. etc.)
+
+name: openmates-server
+version: '3.8'
 
 services:
   #########################################################################
