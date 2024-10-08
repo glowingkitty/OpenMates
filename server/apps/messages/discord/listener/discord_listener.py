@@ -3,7 +3,7 @@ import asyncio
 import logging
 import yaml
 import os
-
+import sys
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,8 +45,16 @@ async def start_bot(bot_config):
     await bot.start(token)
 
 # Load bot configuration from a YAML file
-def load_config(file_path='server/server.yml'):
-    with open(file_path, 'r') as file:
+def load_config():
+    # Get the current script directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Split the path at 'server' and construct the new path
+    base_path = current_dir.split('server')[0] + 'server/server/server.yml'
+
+    # Log the path being used for the configuration file
+    logger.debug(f"Loading configuration from: {base_path}")
+
+    with open(base_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
 
@@ -55,11 +63,26 @@ async def main():
     # Load configuration
     config = load_config()
 
-    # Filter active bots and run them concurrently
-    active_bots = [bot for bot in config['bots'] if bot['active']]
-    await asyncio.gather(
-        *[start_bot(bot) for bot in active_bots]
-    )
+    # Check if the Discord provider is active
+    discord_config = config['settings']['apps']['messages']['providers']['discord']
+    if discord_config['active']:
+        # Extract bot configurations
+        bots = discord_config['bots']
+        active_bots = [
+            {'name': bot_name, 'token': bot_info['token'], 'description': config['settings']['mates'][bot_name]['description']}
+            for bot_name, bot_info in bots.items()
+        ]
+
+        # Log the number of active bots
+        logger.info(f"Starting {len(active_bots)} active Discord bots.")
+
+        # Run all active bots concurrently
+        await asyncio.gather(
+            *[start_bot(bot) for bot in active_bots]
+        )
+    else:
+        logger.info("Discord provider is not active. Exiting...")
+        sys.exit(0)
 
 # Run the main function using asyncio
 asyncio.run(main())

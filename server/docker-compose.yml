@@ -35,7 +35,7 @@ services:
   # 'Messages' app
   # Send messages, create threads and more.
 
-  # / Discord listener
+  # / Discord / Listener
   # Will listen to new messages to the OpenMates bots on Discord.
   app-messages-discord-listener:
     container_name: app-messages-discord-listener
@@ -88,8 +88,6 @@ services:
       DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
       WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
-      CONTAINER_MANAGER_URL: "http://container-manager:${CONTAINER_MANAGER_PORT}"
-      CONTAINER_MANAGER_SECRET_KEY: ${CONTAINER_MANAGER_SECRET_KEY}
     command: >
       sh -c "python /usr/src/app/server/server_config_check.py && 
              python -c 'import sys; print(sys.path)' &&  # Debug print
