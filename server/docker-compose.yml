@@ -27,6 +27,49 @@ version: '3.8'
 
 services:
   #########################################################################
+  ##### Apps
+  #########################################################################
+
+  # Apps used by OpenMates
+
+  # 'Messages' app
+  # Send messages, create threads and more.
+
+  # / Discord listener
+  # Will listen to new messages to the OpenMates bots on Discord.
+  app-messages-discord-listener:
+    container_name: app-messages-discord-listener
+    build:
+      context: ./apps/messages/discord/listener
+      dockerfile: Dockerfile
+    env_file: .env
+    volumes:
+      - ./apps/messages/discord/listener:/usr/src/app-messages-discord-listener
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
+  # 'Web' app
+  # Browse the web, research topics and more.
+  app-web:
+    container_name: app-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
+    volumes:
+      - ./apps/web:/usr/src/app-web
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
+
+  #########################################################################
   ##### REST API
   #########################################################################
 
@@ -61,45 +104,6 @@ services:
       - cms
       - in_memory_database
 
-  #########################################################################
-  ##### Apps
-  #########################################################################
-
-  # Apps used by OpenMates
-
-  # 'Web' app
-  # Browse the web, research topics and more.
-  app-web:
-    container_name: app-web
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-    env_file: .env
-    environment:
-      WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
-      WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
-    volumes:
-      - ./apps/web:/usr/src/app-web
-    networks:
-      - openmates
-    extra_hosts:
-      host.docker.internal: host-gateway
-
-  # 'Messages | Discord Listener' app
-  # Will listen to new messages to the OpenMates bots on Discord.
-  app-messages-discord-listener:
-    container_name: app-messages-discord-listener
-    build:
-      context: ./apps/messages/discord/listener
-      dockerfile: Dockerfile
-    env_file: .env
-    volumes:
-      - ./apps/messages/discord/listener:/usr/src/app-messages-discord-listener
-    networks:
-      - openmates
-    extra_hosts:
-      host.docker.internal: host-gateway
-
 
   #########################################################################
   ##### Web application
@@ -120,6 +124,8 @@ services:
   #########################################################################
   ##### Task management
   #########################################################################
+
+  # Manages tasks that take longer then just milliseconds to complete or that need to be scheduled.
 
   # The task worker (for processing tasks that take longer then just milliseconds)
   task-worker:
@@ -169,10 +175,10 @@ services:
 
 
   #########################################################################
-  ##### Databases & Data management
+  ##### CMS
   #########################################################################
 
-  # The content management system (CMS)
+  # The content management system (CMS) for managing user data
   cms:
     container_name: cms
     build:
@@ -206,6 +212,11 @@ services:
     depends_on:
       - cms_database
 
+
+  #########################################################################
+  ##### CMS database
+  #########################################################################
+
   # The database for the content management system (CMS)
   cms_database:
     container_name: cms-database
@@ -221,7 +232,12 @@ services:
     networks:
       - openmates
 
-  # The in-memory database (for storing data that needs to be accessed very quickly)
+
+  #########################################################################
+  ##### In-memory database
+  #########################################################################
+
+  # The in-memory database for temporarly storing frequently accessed data
   in_memory_database:
     container_name: in-memory-database
     image: docker.dragonflydb.io/dragonflydb/dragonfly

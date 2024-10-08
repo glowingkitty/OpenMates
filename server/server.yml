@@ -19,10 +19,9 @@
 name: openmates-server
 
 settings:
-
-  ##########################################################################################
-  # Testing settings
-  ##########################################################################################
+  #########################################################################
+  ##### Testing settings
+  #########################################################################
 
   testing:
     api_token: ${TEST_API_TOKEN}
@@ -31,9 +30,9 @@ settings:
     ai_mate_username: ${TEST_AI_MATE_USERNAME}
 
 
-  ##########################################################################################
-  # Basic server settings
-  ##########################################################################################
+  #########################################################################
+  ##### Basic server settings
+  #########################################################################
 
   server:
     host: ${SERVER_HOST}
@@ -42,48 +41,70 @@ settings:
       auth_token: ${NGROK_AUTHTOKEN}
 
 
-  ##########################################################################################
-  # AI team mates and their default settings
-  ##########################################################################################
+  #########################################################################
+  ##### AI team mates and their default settings
+  #########################################################################
 
   mates:
 
-    - username: 'sophia'
+    sophia:
       description: 'Your software development expert'
       active: True
-      messenger_bots:
-        discord:
-          token: ${AI_MATE_SOPHIA_DISCORD_TOKEN}
-        slack:
-          token: ${AI_MATE_SOPHIA_SLACK_TOKEN}
 
-    - username: 'mark'
+    mark:
       description: 'Your marketing expert'
       active: True
-      messenger_bots:
-        discord:
-          token: ${AI_MATE_MARK_DISCORD_TOKEN}
-        slack:
-          token: ${AI_MATE_MARK_SLACK_TOKEN}
 
 
-  ##########################################################################################
-  # Apps and their default settings
-  ##########################################################################################
+  #########################################################################
+  ##### Apps
+  #########################################################################
+
+  # Apps used by OpenMates
 
   apps:
 
-    - name: 'AI'
-      description: 'Use generative AI to answer questions, brainstorm ideas and more.'
+    # 'AI' app
+    # Use generative AI to answer questions, brainstorm ideas and more.
+    ai:
       active: True
       providers:
-        - name: 'OpenAI'
+        openai:
           api_key: ${OPENAI_API_KEY}
-        - name: 'Anthropic'
+        anthropic:
           api_key: ${ANTHROPIC_API_KEY}
 
-    - name: 'Audio'
-      description: 'Generate, modify and transcribe audio and more.'
+    # 'Messages' app
+    # Send messages, create threads and more.
+    messages:
+      active: True
+      providers:
+        discord:
+          active: True
+          bots:
+            sophia:
+              token: ${AI_MATE_SOPHIA_DISCORD_TOKEN}
+            mark:
+              token: ${AI_MATE_MARK_DISCORD_TOKEN}
+        slack:
+          active: True
+          bots:
+            sophia:
+              token: ${AI_MATE_SOPHIA_SLACK_TOKEN}
+            mark:
+              token: ${AI_MATE_MARK_SLACK_TOKEN}
+
+    # 'Web' app
+    # Browse the web, research topics and more.
+    web:
+      active: True
+      settings:
+        secret_key: ${WEB_BROWSER_SECRET_KEY}
+        port: ${WEB_BROWSER_PORT}
+
+    # 'Audio' app
+    # Generate, modify and transcribe audio and more.
+    audio:
       active: True
       providers:
         - name: 'AssemblyAI'
@@ -93,15 +114,9 @@ settings:
         - name: 'ElevenLabs'
           api_key: ${ELEVENLABS_API_KEY}
 
-    - name: 'Web'
-      description: 'Browse the web, research topics and more.'
-      active: True
-      settings:
-        secret_key: ${WEB_BROWSER_SECRET_KEY}
-        port: ${WEB_BROWSER_PORT}
-
-    - name: 'Finance'
-      description: 'Keep track of your finances and build a stable income.'
+    # 'Finance' app
+    # Keep track of your finances and build a stable income.
+    finance:
       active: True
       providers:
         - name: 'Akaunting'
@@ -122,10 +137,35 @@ settings:
     crypto_salt: ${CRYPTO_SALT}
 
 
-  ##########################################################################################
-  # CMS for managing user data
-  ##########################################################################################
+  #########################################################################
+  ##### Web application
+  #########################################################################
 
+  # The web application for OpenMates, which will be used by the users and connects to the REST API
+  # no settings yet. See docker-compose.yml for the default setup.
+
+
+  #########################################################################
+  ##### Website
+  #########################################################################
+
+  # The website for OpenMates, which will be used to promote the OpenMates project and explain what it is
+  # no settings yet. See docker-compose.yml for the default setup.
+
+
+  #########################################################################
+  ##### Task management
+  #########################################################################
+
+  # Manages tasks that take longer then just milliseconds to complete or that need to be scheduled.
+  # no settings yet. See docker-compose.yml for the default setup.
+
+
+  #########################################################################
+  ##### CMS
+  #########################################################################
+
+  # The content management system (CMS) for managing user data
   cms:
     node_env: ${NODE_ENV}
     port: ${CMS_PORT}
@@ -136,10 +176,11 @@ settings:
     transfer_token_salt: ${TRANSFER_TOKEN_SALT}
 
 
-  ##########################################################################################
-  # CMS database for storing user data
-  ##########################################################################################
+  #########################################################################
+  ##### CMS database
+  #########################################################################
 
+  # The database for the content management system (CMS)
   cms-database:
     client: ${DATABASE_CLIENT}
     name: ${DATABASE_NAME}
@@ -148,9 +189,10 @@ settings:
     password: ${DATABASE_PASSWORD}
 
 
-  ##########################################################################################
-  # In-memory database for temporarly storing frequently accessed data
-  ##########################################################################################
+  #########################################################################
+  ##### In-memory database
+  #########################################################################
 
+  # The in-memory database for temporarly storing frequently accessed data
   in-memory-database:
     port: ${IN_MEMORY_DATABASE_PORT}
