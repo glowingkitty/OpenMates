@@ -6,6 +6,7 @@ import os
 import sys
 from discord import Intents, File, DMChannel  # Import the Intents and File classes
 from dotenv import load_dotenv
+import re  # Import the regular expression module
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Define a function to start a bot instance
-async def start_bot(token: str, name: str):
+async def start_bot(token: str, name: str, bot_ids: dict):
     # Log the bot's name and description
     logger.info(f'Starting bot: {name}')
 
@@ -29,6 +30,16 @@ async def start_bot(token: str, name: str):
     # Create the bot instance with the specified intents
     bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)  # Use when_mentioned to handle @botusername
 
+    def replace_ids_with_usernames(content):
+        # Define a function to replace IDs with usernames
+        def replace(match):
+            user_id = match.group(1)
+            # Get the username from bot_ids, capitalize it, or return the original ID if not found
+            return bot_ids.get(user_id, f"<@{user_id}>").capitalize()
+
+        # Use regex to find all user mentions and replace them
+        return re.sub(r'<@(\d+)>', replace, content)
+
     @bot.event
     async def on_ready():
         # Log when the bot is connected
@@ -36,50 +47,65 @@ async def start_bot(token: str, name: str):
 
     @bot.event
     async def on_message(message):
-        # Ignore messages from the bot itself
-        if message.author == bot.user:
+        # Ignore messages from bots
+        if message.author.bot:
+            logger.debug(f"Ignoring message from bot: {message.author}")
             return
 
         # Check if the message is a DM
         if isinstance(message.channel, DMChannel):
+            # Replace IDs with usernames in the message content
+            message_content = replace_ids_with_usernames(message.content)
+
             # Process direct messages
-            logger.info(f"Received DM from {message.author}: {message.content}")
+            logger.debug(f"Received DM from {message.author}: {message_content}")
             await message.channel.send("Thanks for your DM!")
 
         # Check if the bot is mentioned in the message
         elif bot.user in message.mentions:
+            # Replace IDs with usernames in the message content
+            message_content = replace_ids_with_usernames(message.content)
+
             guild = message.guild
             if guild:
                 # Log the message received from a user mentioning the bot
-                logger.info(f'Message mentioning {name} from {guild.name}: {message.content}')
+                logger.debug(f'Message mentioning {name} from {guild.name}: {message_content}')
 
                 if message.attachments:
                     for attachment in message.attachments:
-                        logger.info(f"Attachment: {attachment.filename}")
+                        logger.debug(f"Attachment: {attachment.filename}")
 
             # Example response to the user
             await message.channel.send(f"You mentioned {name}!")
 
     @bot.event
     async def on_message_edit(before, after):
+        # Ignore edits from bots
+        if after.author.bot:
+            logger.debug(f"Ignoring edit from bot: {after.author}")
+            return
+
         # Check if the bot is mentioned in the edited message
         if bot.user in after.mentions:
             guild = after.guild
             if guild:
-                # Log the edited message mentioning the bot
-                logger.info(f'Edited message mentioning {name} from {guild.name}: {after.content}')
+                # Replace IDs with usernames in the edited message content
+                edited_message_content = replace_ids_with_usernames(after.content)
+
+                # Log the edited message with replaced usernames
+                logger.debug(f'Edited message mentioning {name} from {guild.name}: {edited_message_content}')
 
                 if after.attachments:
                     for attachment in after.attachments:
-                        logger.info(f"Attachment in edited message: {attachment.filename}")
+                        logger.debug(f"Attachment in edited message: {attachment.filename}")
 
             # Example response to the user
             await after.channel.send(f"You mentioned {name} in an edited message!")
 
     @bot.event
     async def on_guild_join(guild):
-        # Log the event of joining a new guild
-        logger.info(f"Bot has joined the guild: {guild.name}")
+        # Log the event of joining a new guild, including the bot's name
+        logger.info(f"Bot {name} has joined the guild: {guild.name}")
 
         # Send a hello message to the system channel if available
         if guild.system_channel:
@@ -103,19 +129,23 @@ async def main():
         active_bots = [
             {
                 'name': bot_name,
-                'token': os.getenv(bot_info['token'].strip('${}'))  # Get the token from environment variables
+                'token': os.getenv(bot_info['token'].strip('${}')),
+                'client_id': os.getenv(bot_info['client_id'].strip('${}'))
             }
             for bot_name, bot_info in bots.items()
         ]
         # remove bots with no token
         active_bots = [bot for bot in active_bots if bot['token']]
 
+        # define all bot ids and what usernames they correspond to
+        bot_ids = {bot['client_id']: bot['name'] for bot in active_bots}
+
         # Log the number of active bots
         logger.info(f"Starting {len(active_bots)} active Discord bots.")
 
         # Run all active bots concurrently
         await asyncio.gather(
-            *[start_bot(token=bot['token'], name=bot['name']) for bot in active_bots]
+            *[start_bot(token=bot['token'], name=bot['name'], bot_ids=bot_ids) for bot in active_bots]
         )
     else:
         logger.info("Discord provider is not active. Exiting...")
