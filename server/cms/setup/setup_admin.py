@@ -129,16 +129,27 @@ def create_admin_user():
 
         if response.status_code == 200:
             logger.info("Admin user created successfully.")
-            # Save the admin credentials to the .env file
-            set_key_preserve_format(dotenv_path, "ADMIN_EMAIL", admin_data["email"])
-            set_key_preserve_format(dotenv_path, "ADMIN_PASSWORD", admin_data["password"])
-            logger.info("Admin credentials saved to .env file.")
 
             # Verify the admin account by attempting to log in
-            if verify_admin_login(admin_email, admin_password):
+            if verify_admin_login(admin_data["email"], admin_data["password"]):
                 logger.info("Admin account verified successfully.")
             else:
                 logger.error("Admin account creation successful, but login verification failed.")
+
+            # Output the admin credentials using logger
+            logger.info(" ")
+            logger.info("="*50)
+            logger.info("IMPORTANT: Update the following credentials to your .env file")
+            logger.info("="*50)
+            logger.info(f"ADMIN_EMAIL={admin_data['email']}")
+            logger.info(f"ADMIN_PASSWORD={admin_data['password']}")
+            logger.info(f"CMS_TOKEN={response.json()['data']['token']}")
+            logger.info("="*50)
+            logger.info("After updating the .env file, execute:")
+            logger.info("docker-compose -f server/docker-compose.yml down && docker-compose -f server/docker-compose.yml up --build -d")
+            logger.info("="*50)
+            logger.info(" ")
+
         elif response.status_code == 400 and "You cannot register a new super admin" in response.text:
             logger.info("Admin already setup. Attempting to verify existing account.")
             if verify_admin_login(admin_email, admin_password):
