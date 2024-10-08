@@ -187,7 +187,7 @@ services:
     env_file: .env
     environment:
       DATABASE_CLIENT: ${DATABASE_CLIENT}
-      DATABASE_SERVER_HOST: cms_database
+      DATABASE_HOST: cms_database
       DATABASE_PORT: ${DATABASE_PORT}
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_USERNAME: ${DATABASE_USERNAME}
@@ -196,6 +196,9 @@ services:
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
       APP_KEYS: ${APP_KEYS}
       NODE_ENV: ${NODE_ENV}
+      ADMIN_PATH: ${ADMIN_PATH}
+      STRAPI_ADMIN_BACKEND_URL: http://cms:${CMS_PORT}
+      STRAPI_TELEMETRY_DISABLED: ${STRAPI_TELEMETRY_DISABLED}
     volumes:
       - ./cms/strapi/config:/opt/app/config
       - ./cms/strapi/src:/opt/app/src
@@ -209,7 +212,6 @@ services:
       - openmates
     depends_on:
       - cms_database
-
 
   #########################################################################
   ##### CMS database
