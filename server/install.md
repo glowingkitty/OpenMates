@@ -25,3 +25,7 @@
 ## Add all missing secrets to .env, based on env.example
 
 ## Start Docker Compose
+
+Once you start the docker compose setup via `docker-compose -f server/docker-compose.yml up --build -d`, OpenMates will start.
+The first time you start the server, it will take longer as it needs to install all the dependencies and initialize the database and cms.
+Your CMS admin user will also be automatically created.

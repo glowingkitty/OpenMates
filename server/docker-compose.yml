@@ -215,6 +215,28 @@ services:
       - cms_database
 
   #########################################################################
+  ##### CMS Admin Setup
+  #########################################################################
+
+  # The admin setup for the content management system (CMS)
+  cms_admin_setup:
+    container_name: cms-admin-setup
+    build:
+      context: ./cms/setup
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+    volumes:
+      - ./cms/setup:/usr/src/app
+    networks:
+      - openmates
+    depends_on:
+      - cms
+
+  #########################################################################
   ##### CMS database
   #########################################################################
 
