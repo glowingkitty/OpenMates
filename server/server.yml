@@ -36,6 +36,7 @@ settings:
 
   server:
     host: ${SERVER_HOST}
+    environment: ${SERVER_ENVIRONMENT}
     # Ngrok can be used to expose the server to the internet, for development purposes
     ngrok:
       auth_token: ${NGROK_AUTHTOKEN}
@@ -45,24 +46,86 @@ settings:
   ##### AI team mates and their default settings
   #########################################################################
 
+  # All these settings can be overwritten via the OpenMates REST API or web app.
   mates:
+
+    burton:
+      description: 'Your business development expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/burton_profile.png
 
     sophia:
       description: 'Your software development expert'
       active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/sophia_profile.png
 
     mark:
       description: 'Your marketing expert'
       active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/mark_profile.png
 
     elton:
       description: 'Your electrical engineering expert'
       active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/elton_profile.png
 
     finn:
       description: 'Your financial expert'
       active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/finn_profile.png
 
+    grace:
+      description: 'Your graphic designer & photography expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/grace_profile.png
+
+    leon:
+      description: 'Your law / legal expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/leon_profile.png
+
+    priscilla:
+      description: 'Your product design and UI/UX design expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/priscilla_profile.png
+
+    selma:
+      description: 'Your sewing and clothing design expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/selma_profile.png
+
+    makani:
+      description: 'A maker. Your expert in CNC machining, wood working, 3d printing and more.'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/makani_profile.png
+
+    monika:
+      description: 'Your movie and TV series expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/monika_profile.png
+
+    melvin:
+      description: 'Your medical and health expert'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/melvin_profile.png
+
+    lisa:
+      description: 'Your life coach and psychologist'
+      active: True
+      prompt: /api/endpoints/mates/prompts/default.md
+      profile_image: /api/endpoints/mates/images/lisa_profile.png
 
   #########################################################################
   ##### Apps
@@ -90,6 +153,8 @@ settings:
         discord:
           active: True
           bots:
+            burton:
+              token: ${AI_MATE_BURTON_DISCORD_TOKEN}
             sophia:
               token: ${AI_MATE_SOPHIA_DISCORD_TOKEN}
             mark:
@@ -98,6 +163,22 @@ settings:
               token: ${AI_MATE_ELTON_DISCORD_TOKEN}
             finn:
               token: ${AI_MATE_FINN_DISCORD_TOKEN}
+            grace:
+              token: ${AI_MATE_GRACE_DISCORD_TOKEN}
+            leon:
+              token: ${AI_MATE_LEON_DISCORD_TOKEN}
+            priscilla:
+              token: ${AI_MATE_PRISCILLA_DISCORD_TOKEN}
+            selma:
+              token: ${AI_MATE_SELMA_DISCORD_TOKEN}
+            makani:
+              token: ${AI_MATE_MAKANI_DISCORD_TOKEN}
+            monika:
+              token: ${AI_MATE_MONIKA_DISCORD_TOKEN}
+            melvin:
+              token: ${AI_MATE_MELVIN_DISCORD_TOKEN}
+            lisa:
+              token: ${AI_MATE_LISA_DISCORD_TOKEN}
         slack:
           active: True
           bots:
@@ -105,6 +186,26 @@ settings:
               token: ${AI_MATE_SOPHIA_SLACK_TOKEN}
             mark:
               token: ${AI_MATE_MARK_SLACK_TOKEN}
+            elton:
+              token: ${AI_MATE_ELTON_SLACK_TOKEN}
+            finn:
+              token: ${AI_MATE_FINN_SLACK_TOKEN}
+            grace:
+              token: ${AI_MATE_GRACE_SLACK_TOKEN}
+            leon:
+              token: ${AI_MATE_LEON_SLACK_TOKEN}
+            priscilla:
+              token: ${AI_MATE_PRISCILLA_SLACK_TOKEN}
+            selma:
+              token: ${AI_MATE_SELMA_SLACK_TOKEN}
+            makani:
+              token: ${AI_MATE_MAKANI_SLACK_TOKEN}
+            monika:
+              token: ${AI_MATE_MONIKA_SLACK_TOKEN}
+            melvin:
+              token: ${AI_MATE_MELVIN_SLACK_TOKEN}
+            lisa:
+              token: ${AI_MATE_LISA_SLACK_TOKEN}
 
     # 'Web' app
     # Browse the web, research topics and more.
