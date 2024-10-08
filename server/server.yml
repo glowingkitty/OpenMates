@@ -53,79 +53,79 @@ settings:
       description: 'Your business development expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/burton_profile.png
+      profile_image: /api/endpoints/mates/images/burton_profile.jpg
 
     sophia:
       description: 'Your software development expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/sophia_profile.png
+      profile_image: /api/endpoints/mates/images/sophia_profile.jpg
 
     mark:
       description: 'Your marketing expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/mark_profile.png
+      profile_image: /api/endpoints/mates/images/mark_profile.jpg
 
     elton:
       description: 'Your electrical engineering expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/elton_profile.png
+      profile_image: /api/endpoints/mates/images/elton_profile.jpg
 
     finn:
       description: 'Your financial expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/finn_profile.png
+      profile_image: /api/endpoints/mates/images/finn_profile.jpg
 
     grace:
       description: 'Your graphic designer & photography expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/grace_profile.png
+      profile_image: /api/endpoints/mates/images/grace_profile.jpg
 
     leon:
       description: 'Your law / legal expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/leon_profile.png
+      profile_image: /api/endpoints/mates/images/leon_profile.jpg
 
     priscilla:
       description: 'Your product design and UI/UX design expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/priscilla_profile.png
+      profile_image: /api/endpoints/mates/images/priscilla_profile.jpg
 
     selma:
       description: 'Your sewing and clothing design expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/selma_profile.png
+      profile_image: /api/endpoints/mates/images/selma_profile.jpg
 
     makani:
       description: 'A maker. Your expert in CNC machining, wood working, 3d printing and more.'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/makani_profile.png
+      profile_image: /api/endpoints/mates/images/makani_profile.jpg
 
     monika:
       description: 'Your movie and TV series expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/monika_profile.png
+      profile_image: /api/endpoints/mates/images/monika_profile.jpg
 
     melvin:
       description: 'Your medical and health expert'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/melvin_profile.png
+      profile_image: /api/endpoints/mates/images/melvin_profile.jpg
 
     lisa:
       description: 'Your life coach and psychologist'
       active: True
       prompt: /api/endpoints/mates/prompts/default.md
-      profile_image: /api/endpoints/mates/images/lisa_profile.png
+      profile_image: /api/endpoints/mates/images/lisa_profile.jpg
 
   #########################################################################
   ##### Apps

@@ -1,1 +1,0 @@
-You are a helpful assistant, powered by OpenMates. You keep your answers concise.
