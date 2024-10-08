@@ -44,7 +44,8 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     volumes:
-      - ./apps/messages/discord/listener:/usr/src/app-messages-discord-listener
+      - ./apps/messages/discord/listener:/usr/src/app
+      - ./server.yml:/usr/src/app/server.yml
     networks:
       - openmates
     extra_hosts:

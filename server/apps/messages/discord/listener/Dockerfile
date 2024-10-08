@@ -6,7 +6,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the working directory
-WORKDIR /usr/src/app-messages-discord-listener
+WORKDIR /usr/src/app
 
 # Run discord_listener.py when the container launches
 CMD ["python", "discord_listener.py"]

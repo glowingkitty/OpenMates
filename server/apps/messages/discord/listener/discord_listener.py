@@ -4,21 +4,30 @@ import logging
 import yaml
 import os
 import sys
+from discord import Intents, File, DMChannel  # Import the Intents and File classes
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Define a function to start a bot instance
-async def start_bot(bot_config):
-    # Extract token, name, and description from the bot configuration
-    token = bot_config['messenger_bots']['discord']['token']
-    name = bot_config['name']
-    description = bot_config['description']
-
+async def start_bot(token: str, name: str):
     # Log the bot's name and description
-    logger.info(f'Starting bot: {name} - {description}')
+    logger.info(f'Starting bot: {name}')
 
-    bot = commands.Bot(command_prefix=commands.when_mentioned)  # Use when_mentioned to handle @botusername
+    # Create an instance of Intents with default settings
+    intents = Intents.default()
+    # Enable the intents you need
+    intents.messages = True  # To receive message events
+    intents.guilds = True    # To receive guild events
+    intents.dm_messages = True  # To receive direct message events
+
+    # Create the bot instance with the specified intents
+    bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)  # Use when_mentioned to handle @botusername
 
     @bot.event
     async def on_ready():
@@ -31,54 +40,73 @@ async def start_bot(bot_config):
         if message.author == bot.user:
             return
 
+        # Check if the message is a DM
+        if isinstance(message.channel, DMChannel):
+            # Process direct messages
+            logger.info(f"Received DM from {message.author}: {message.content}")
+            await message.channel.send("Thanks for your DM!")
+
         # Check if the bot is mentioned in the message
-        if bot.user in message.mentions:
+        elif bot.user in message.mentions:
             guild = message.guild
             if guild:
                 # Log the message received from a user mentioning the bot
                 logger.info(f'Message mentioning {name} from {guild.name}: {message.content}')
 
+                if message.attachments:
+                    for attachment in message.attachments:
+                        logger.info(f"Attachment: {attachment.filename}")
+
             # Example response to the user
             await message.channel.send(f"You mentioned {name}!")
+
+    @bot.event
+    async def on_message_edit(before, after):
+        # Check if the bot is mentioned in the edited message
+        if bot.user in after.mentions:
+            guild = after.guild
+            if guild:
+                # Log the edited message mentioning the bot
+                logger.info(f'Edited message mentioning {name} from {guild.name}: {after.content}')
+
+                if after.attachments:
+                    for attachment in after.attachments:
+                        logger.info(f"Attachment in edited message: {attachment.filename}")
+
+            # Example response to the user
+            await after.channel.send(f"You mentioned {name} in an edited message!")
 
     # Run the bot using its token
     await bot.start(token)
 
-# Load bot configuration from a YAML file
-def load_config():
-    # Get the current script directory
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Split the path at 'server' and construct the new path
-    base_path = current_dir.split('server')[0] + 'server/server/server.yml'
-
-    # Log the path being used for the configuration file
-    logger.debug(f"Loading configuration from: {base_path}")
-
-    with open(base_path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config
 
 # Main function to start all bots concurrently
 async def main():
     # Load configuration
-    config = load_config()
+    with open("server.yml", 'r') as file:
+        config = yaml.safe_load(file)
 
     # Check if the Discord provider is active
     discord_config = config['settings']['apps']['messages']['providers']['discord']
     if discord_config['active']:
-        # Extract bot configurations
+        # Extract bot configurations and replace placeholders with actual tokens
         bots = discord_config['bots']
         active_bots = [
-            {'name': bot_name, 'token': bot_info['token'], 'description': config['settings']['mates'][bot_name]['description']}
+            {
+                'name': bot_name,
+                'token': os.getenv(bot_info['token'].strip('${}'))  # Get the token from environment variables
+            }
             for bot_name, bot_info in bots.items()
         ]
+        # remove bots with no token
+        active_bots = [bot for bot in active_bots if bot['token']]
 
         # Log the number of active bots
         logger.info(f"Starting {len(active_bots)} active Discord bots.")
 
         # Run all active bots concurrently
         await asyncio.gather(
-            *[start_bot(bot) for bot in active_bots]
+            *[start_bot(token=bot['token'], name=bot['name']) for bot in active_bots]
         )
     else:
         logger.info("Discord provider is not active. Exiting...")
