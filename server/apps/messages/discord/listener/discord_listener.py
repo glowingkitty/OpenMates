@@ -76,6 +76,15 @@ async def start_bot(token: str, name: str):
             # Example response to the user
             await after.channel.send(f"You mentioned {name} in an edited message!")
 
+    @bot.event
+    async def on_guild_join(guild):
+        # Log the event of joining a new guild
+        logger.info(f"Bot has joined the guild: {guild.name}")
+
+        # Send a hello message to the system channel if available
+        if guild.system_channel:
+            await guild.system_channel.send("Hello! I'm your new bot. Thanks for inviting me!")
+
     # Run the bot using its token
     await bot.start(token)
 

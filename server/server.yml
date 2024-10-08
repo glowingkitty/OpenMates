@@ -55,6 +55,14 @@ settings:
       description: 'Your marketing expert'
       active: True
 
+    elton:
+      description: 'Your electrical engineering expert'
+      active: True
+
+    finn:
+      description: 'Your financial expert'
+      active: True
+
 
   #########################################################################
   ##### Apps
@@ -86,6 +94,10 @@ settings:
               token: ${AI_MATE_SOPHIA_DISCORD_TOKEN}
             mark:
               token: ${AI_MATE_MARK_DISCORD_TOKEN}
+            elton:
+              token: ${AI_MATE_ELTON_DISCORD_TOKEN}
+            finn:
+              token: ${AI_MATE_FINN_DISCORD_TOKEN}
         slack:
           active: True
           bots:
