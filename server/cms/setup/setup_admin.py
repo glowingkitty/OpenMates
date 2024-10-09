@@ -1,7 +1,7 @@
 import requests
 import os
 import logging
-from dotenv import load_dotenv, set_key
+from dotenv import load_dotenv
 import secrets
 import string
 import time
@@ -17,39 +17,7 @@ logger = logging.getLogger(__name__)
 # Update the Strapi admin user creation endpoint
 cms_url = f"http://cms:{os.getenv('CMS_PORT')}"
 admin_register_url = f"{cms_url}/admin/register-admin"
-
-def set_key_preserve_format(filename, key, value):
-    """
-    Update or add a key-value pair in the .env file while preserving its format.
-
-    Args:
-    filename (str): Path to the .env file
-    key (str): The key to set or update
-    value (str): The value to set
-    """
-    # Read the current contents of the file
-    with open(filename, 'r') as file:
-        lines = file.readlines()
-
-    # Flag to check if the key was found and updated
-    key_updated = False
-
-    # Update the file contents
-    for i, line in enumerate(lines):
-        if line.strip().startswith(f"{key}="):
-            lines[i] = f"{key}={value}\n"
-            key_updated = True
-            break
-
-    # If the key wasn't found, add it to the end of the file
-    if not key_updated:
-        lines.append(f"{key}={value}\n")
-
-    # Write the updated contents back to the file
-    with open(filename, 'w') as file:
-        file.writelines(lines)
-
-    logger.debug(f"Updated {key} in {filename}")
+create_api_token_url = f"{cms_url}/admin/api-tokens"
 
 # Function to generate a random email
 def generate_random_email():
@@ -103,69 +71,35 @@ def is_cms_online():
     except requests.RequestException:
         return False
 
-def create_admin_user():
+def create_super_admin():
     """
-    Attempt to create an admin user in the Strapi CMS and verify the account.
+    Create a super admin account in the Strapi CMS.
     """
+    admin_email = os.getenv("ADMIN_EMAIL")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    admin_data = {
+        "email": admin_email if admin_email and admin_email != "" else generate_random_email(),
+        "password": admin_password if admin_password and admin_password != "" else generate_random_password(),
+        "firstname": "Super",
+        "lastname": "Admin",
+    }
+
     try:
-        # Load the current .env file
-        dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-        load_dotenv(dotenv_path)
-
-        # Admin user details
-        admin_email = os.getenv("ADMIN_EMAIL")
-        admin_password = os.getenv("ADMIN_PASSWORD")
-        admin_data = {
-            "email": admin_email if admin_email and admin_email != "" else generate_random_email(),
-            "password": admin_password if admin_password and admin_password != "" else generate_random_password(),
-            "firstname": "Admin",
-            "lastname": "User",
-        }
-
-        logger.debug("Attempting to create admin user")
-        logger.debug(f"Admin register URL: {admin_register_url}")
-
         response = requests.post(admin_register_url, json=admin_data)
-
-        if response.status_code == 200:
-            logger.info("Admin user created successfully.")
-
-            # Verify the admin account by attempting to log in
-            if verify_admin_login(admin_data["email"], admin_data["password"]):
-                logger.info("Admin account verified successfully.")
-            else:
-                logger.error("Admin account creation successful, but login verification failed.")
-
-            # Output the admin credentials using logger
-            logger.info(" ")
-            logger.info("="*50)
-            logger.info("IMPORTANT: Update the following credentials to your .env file")
-            logger.info("="*50)
-            logger.info(f"ADMIN_EMAIL={admin_data['email']}")
-            logger.info(f"ADMIN_PASSWORD={admin_data['password']}")
-            logger.info(f"CMS_TOKEN={response.json()['data']['token']}")
-            logger.info("="*50)
-            logger.info("After updating the .env file, execute:")
-            logger.info("docker-compose -f server/docker-compose.yml down && docker-compose -f server/docker-compose.yml up --build -d")
-            logger.info("="*50)
-            logger.info(" ")
-
-        elif response.status_code == 400 and "You cannot register a new super admin" in response.text:
-            logger.info("Admin already setup. Attempting to verify existing account.")
-            if verify_admin_login(admin_email, admin_password):
-                logger.info("Existing admin account verified successfully.")
-            else:
-                logger.error("Existing admin account verification failed.")
+        if response.status_code == 200 or response.status_code == 201:
+            logger.info("Super admin created successfully.")
+            return admin_email, admin_password
         else:
-            logger.error(f"Failed to create admin user. Status code: {response.status_code}")
+            logger.error(f"Failed to create super admin. Status code: {response.status_code}")
             logger.error(f"Error message: {response.text}")
+            return None, None
     except Exception as e:
-        logger.error(f"Error in create_admin_user: {e}")
-        logger.exception("Full traceback:")
+        logger.error(f"Error in create_super_admin: {e}")
+        return None, None
 
-def verify_admin_login(email, password):
+def login_admin(email, password):
     """
-    Verify admin login by attempting to authenticate with the Strapi API.
+    Log in as admin and return the JWT token.
     """
     login_url = f"{cms_url}/admin/login"
     login_data = {
@@ -175,43 +109,86 @@ def verify_admin_login(email, password):
     try:
         response = requests.post(login_url, json=login_data)
         if response.status_code == 200:
-            logger.info("Admin login successful.")
-            return True
+            return response.json().get('data', {}).get('token')
         else:
             logger.error(f"Admin login failed. Status code: {response.status_code}")
-            logger.error(f"Error message: {response.text}")
-            return False
+            return None
     except Exception as e:
-        logger.error(f"Error during admin login verification: {e}")
-        return False
+        logger.error(f"Error during admin login: {e}")
+        return None
+
+def create_api_token(admin_token):
+    """
+    Create an API token for the Strapi user.
+    """
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "Content-Type": "application/json"
+    }
+    token_data = {
+        "name": "API User Token",
+        "description": "Token for API access",
+        "type": "full-access"
+    }
+
+    try:
+        response = requests.post(create_api_token_url, json=token_data, headers=headers)
+        if response.status_code == 201:
+            logger.info("API token created successfully.")
+            return response.json()["data"]["accessKey"]
+        else:
+            logger.error(f"Failed to create API token. Status code: {response.status_code}")
+            logger.error(f"Error message: {response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"Error creating API token: {e}")
+        return None
 
 def main():
     """
-    Main function to check CMS availability and create admin user if necessary.
+    Main function to set up Strapi CMS with super admin and API token.
     """
     logger.info("Waiting for Strapi CMS to come online...")
 
-    # Initialize attempt counter
     attempts = 0
     max_attempts = 30
 
-    # Wait for the CMS to be online
     while not is_cms_online():
         attempts += 1
         if attempts > max_attempts:
             logger.error(f"CMS not online after {max_attempts} attempts. Exiting with error.")
             sys.exit(1)
-
         logger.debug(f"CMS not yet online. Attempt {attempts}/{max_attempts}. Retrying in 5 seconds...")
         time.sleep(5)
 
     logger.info("Strapi CMS is online and accessible.")
 
-    # Directly attempt to create an admin user
-    logger.info("Attempting to create admin user...")
-    create_admin_user()
+    # Create super admin
+    admin_email, admin_password = create_super_admin()
+    if not admin_email or not admin_password:
+        logger.error("Failed to create super admin. Exiting.")
+        sys.exit(1)
 
+    # Login as super admin
+    admin_token = login_admin(admin_email, admin_password)
+    if not admin_token:
+        logger.error("Failed to login as super admin. Exiting.")
+        sys.exit(1)
 
+    # Create API token
+    api_token = create_api_token(admin_token)
+    if not api_token:
+        logger.error("Failed to create API token. Exiting.")
+        sys.exit(1)
+
+    # Log credentials and token
+    logger.info("="*50)
+    logger.info("IMPORTANT: Save the following credentials and token")
+    logger.info("="*50)
+    logger.info(f"ADMIN_EMAIL={admin_email}")
+    logger.info(f"ADMIN_PASSWORD={admin_password}")
+    logger.info(f"CMS_TOKEN={api_token}")
+    logger.info("="*50)
 
 if __name__ == "__main__":
     main()
