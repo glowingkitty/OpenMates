@@ -13,16 +13,14 @@
 #                       Your AI team mates.
 
 #########################################################################
-####################          'AI' app          #########################
+####################          'Web' app          ########################
 #########################################################################
 
 app:
-  name: 'AI'
-  slug: 'ai'
-  description: 'Use generative AI to answer questions, brainstorm ideas and more.'
+  name: 'Web'
+  slug: 'web'
+  description: 'Browse the web, research topics and more.'
   active: True
-  providers:
-    openai:
-      api_key: ${OPENAI_API_KEY}
-    anthropic:
-      api_key: ${ANTHROPIC_API_KEY}
+  settings:
+    secret_key: ${WEB_BROWSER_SECRET_KEY}
+    port: ${WEB_BROWSER_PORT}

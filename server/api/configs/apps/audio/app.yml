@@ -13,16 +13,18 @@
 #                       Your AI team mates.
 
 #########################################################################
-####################          'AI' app          #########################
+####################          'Audio' app          ######################
 #########################################################################
 
 app:
-  name: 'AI'
-  slug: 'ai'
-  description: 'Use generative AI to answer questions, brainstorm ideas and more.'
+  name: 'Audio'
+  slug: 'audio'
+  description: 'Generate, modify and transcribe audio and more.'
   active: True
   providers:
-    openai:
+    - name: 'AssemblyAI'
+      api_key: ${ASSEMBLYAI_API_KEY}
+    - name: 'OpenAI'
       api_key: ${OPENAI_API_KEY}
-    anthropic:
-      api_key: ${ANTHROPIC_API_KEY}
+    - name: 'ElevenLabs'
+      api_key: ${ELEVENLABS_API_KEY}

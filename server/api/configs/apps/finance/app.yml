@@ -13,16 +13,17 @@
 #                       Your AI team mates.
 
 #########################################################################
-####################          'AI' app          #########################
+####################          'Finance' app          ####################
 #########################################################################
 
 app:
-  name: 'AI'
-  slug: 'ai'
-  description: 'Use generative AI to answer questions, brainstorm ideas and more.'
+  name: 'Finance'
+  slug: 'finance'
+  description: 'Keep track of your finances and build a stable income.'
   active: True
   providers:
-    openai:
-      api_key: ${OPENAI_API_KEY}
-    anthropic:
-      api_key: ${ANTHROPIC_API_KEY}
+    - name: 'Akaunting'
+      api_url: ${AKAUNTING_API_URL}
+      username: ${AKAUNTING_USERNAME}
+      password: ${AKAUNTING_PASSWORD}
+      company_id: ${AKAUNTING_COMPANY_ID}
