@@ -21,79 +21,105 @@
 mates:
 
   burton:
+    name: 'Burton'
+    username: 'burton'
     description: 'Your business development expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/burton_profile.jpg
 
   sophia:
+    name: 'Sophia'
+    username: 'sophia'
     description: 'Your software development expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/sophia_profile.jpg
 
   mark:
+    name: 'Mark'
+    username: 'mark'
     description: 'Your marketing expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/mark_profile.jpg
 
   elton:
+    name: 'Elton'
+    username: 'elton'
     description: 'Your electrical engineering expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/elton_profile.jpg
 
   finn:
+    name: 'Finn'
+    username: 'finn'
     description: 'Your financial expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/finn_profile.jpg
 
   grace:
+    name: 'Grace'
+    username: 'grace'
     description: 'Your graphic designer & photography expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/grace_profile.jpg
 
   leon:
+    name: 'Leon'
+    username: 'leon'
     description: 'Your law / legal expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/leon_profile.jpg
 
   priscilla:
+    name: 'Priscilla'
+    username: 'priscilla'
     description: 'Your product design and UI/UX design expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/priscilla_profile.jpg
 
   selma:
+    name: 'Selma'
+    username: 'selma'
     description: 'Your sewing and clothing design expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/selma_profile.jpg
 
   makani:
+    name: 'Makani'
+    username: 'makani'
     description: 'A maker. Your expert in CNC machining, wood working, 3d printing and more.'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/makani_profile.jpg
 
   monika:
+    name: 'Monika'
+    username: 'monika'
     description: 'Your movie and TV series expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/monika_profile.jpg
 
   melvin:
+    name: 'Melvin'
+    username: 'melvin'
     description: 'Your medical and health expert'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/melvin_profile.jpg
 
   lisa:
+    name: 'Lisa'
+    username: 'lisa'
     description: 'Your life coach and psychologist'
     allowed: True
-    prompt: /api/configs/mates/prompts/default.md
+    prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/lisa_profile.jpg

@@ -30,6 +30,9 @@ required_env_variables = [
     "WEB_BROWSER_PORT", "REST_API_PORT"
 ]
 
+# Add a new global variable to store cached file contents
+file_cache = {}
+
 def save_server_config_to_memory(config: dict) -> bool:
     """
     Save the server configuration to Redis (Dragonfly).
@@ -56,13 +59,22 @@ def get_server_config_from_memory() -> dict:
 def load_yaml_file(file_path: str) -> dict:
     """
     Load a YAML file and return its content as a dictionary.
+    Uses a cache to avoid loading the same file multiple times.
     """
     # Construct the full path based on the script's directory
     full_path = os.path.join(script_dir, file_path.lstrip('/'))
+
+    # Check if the file content is already in the cache
+    if full_path in file_cache:
+        logger.debug(f"Retrieved cached content for: {full_path}")
+        return file_cache[full_path]
+
     try:
         with open(full_path, 'r') as file:
             content = yaml.safe_load(file)
             logger.info(f"Loaded YAML file: {full_path}")
+            # Cache the content
+            file_cache[full_path] = content
             return content
     except FileNotFoundError:
         logger.error(f"YAML file not found: {full_path}")
@@ -71,18 +83,24 @@ def load_yaml_file(file_path: str) -> dict:
         logger.error(f"Error parsing YAML file {full_path}: {exc}")
         return None
 
-def replace_file_paths_with_content(config: dict) -> dict:
+def replace_file_paths_with_content(config):
     """
-    Recursively replace file paths ending with .yml or .yaml in the config dictionary
-    with the content of those YAML files, including nested files.
+    Recursively replace file paths ending with .yml, .yaml, or .md in the config dictionary
+    with the content of those files, including nested files.
     """
+    logger.debug(f"Processing config: {type(config)}")
+
     def process_value(value):
-        if isinstance(value, str) and (value.endswith('.yml') or value.endswith('.yaml')):
-            # Load the YAML file and replace the path with its content
-            file_content = load_yaml_file(value)
-            if file_content is not None:
-                # Recursively process the loaded content
-                return replace_file_paths_with_content(file_content)
+        if isinstance(value, str):
+            if value.endswith(('.yml', '.yaml')):
+                # Load the YAML file and replace the path with its content
+                file_content = load_yaml_file(value)
+                if file_content is not None:
+                    # Recursively process the loaded content
+                    return replace_file_paths_with_content(file_content)
+            elif value.endswith('.md'):
+                # Load the MD file and return its content as a string
+                return load_md_file(value)
             return value
         elif isinstance(value, dict):
             # Recursively process nested dictionaries
@@ -92,7 +110,41 @@ def replace_file_paths_with_content(config: dict) -> dict:
             return [process_value(item) for item in value]
         return value
 
-    return {key: process_value(value) for key, value in config.items()}
+    if isinstance(config, dict):
+        return {key: process_value(value) for key, value in config.items()}
+    elif isinstance(config, str):
+        # If the input is a string (e.g., MD file content), return it as is
+        return config
+    else:
+        logger.warning(f"Unexpected config type: {type(config)}")
+        return config
+
+def load_md_file(file_path: str) -> str:
+    """
+    Load an MD file and return its content as a string.
+    Uses a cache to avoid loading the same file multiple times.
+    """
+    # Construct the full path based on the script's directory
+    full_path = os.path.join(script_dir, file_path.lstrip('/'))
+
+    # Check if the file content is already in the cache
+    if full_path in file_cache:
+        logger.debug(f"Retrieved cached content for: {full_path}")
+        return file_cache[full_path]
+
+    try:
+        with open(full_path, 'r') as file:
+            content = file.read()
+            logger.info(f"Loaded MD file: {full_path}")
+            # Cache the content
+            file_cache[full_path] = content
+            return content
+    except FileNotFoundError:
+        logger.error(f"MD file not found: {full_path}")
+        return None
+    except Exception as exc:
+        logger.error(f"Error reading MD file {full_path}: {exc}")
+        return None
 
 def load_server_config():
     """
@@ -160,6 +212,7 @@ if __name__ == "__main__":
     if not server_config:
         logger.info("Loading server configuration from YAML file...")
         server_config = load_server_config()
+        logger.info(f"Server configuration loaded from YAML file: {server_config}")
         if server_config:
             save_server_config_to_memory(server_config)
         else:
