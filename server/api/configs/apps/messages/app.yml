@@ -20,10 +20,12 @@ app:
   name: 'Messages'
   slug: 'messages'
   description: 'Send messages, create threads and more.'
-  active: True
+  icon: /images/icons/apps/messages.svg
+  allowed: True
   providers:
     discord:
-      active: True
+      name: 'Discord'
+      allowed: True
       bots:
         burton:
           client_id: ${AI_MATE_BURTON_DISCORD_CLIENT_ID}
@@ -78,7 +80,8 @@ app:
           oauth_url: ${AI_MATE_LISA_DISCORD_OAUTH_URL}
           token: ${AI_MATE_LISA_DISCORD_TOKEN}
     slack:
-      active: True
+      name: 'Slack'
+      allowed: True
       bots:
         sophia:
           token: ${AI_MATE_SOPHIA_SLACK_TOKEN}

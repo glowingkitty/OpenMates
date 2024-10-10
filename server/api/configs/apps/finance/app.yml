@@ -20,9 +20,12 @@ app:
   name: 'Finance'
   slug: 'finance'
   description: 'Keep track of your finances and build a stable income.'
-  active: True
+  icon: /images/icons/apps/finance.svg
+  allowed: True
   providers:
-    - name: 'Akaunting'
+    akaunting:
+      name: 'Akaunting'
+      allowed: True
       api_url: ${AKAUNTING_API_URL}
       username: ${AKAUNTING_USERNAME}
       password: ${AKAUNTING_PASSWORD}

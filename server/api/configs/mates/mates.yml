@@ -22,78 +22,78 @@ mates:
 
   burton:
     description: 'Your business development expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/burton_profile.jpg
 
   sophia:
     description: 'Your software development expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/sophia_profile.jpg
 
   mark:
     description: 'Your marketing expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/mark_profile.jpg
 
   elton:
     description: 'Your electrical engineering expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/elton_profile.jpg
 
   finn:
     description: 'Your financial expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/finn_profile.jpg
 
   grace:
     description: 'Your graphic designer & photography expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/grace_profile.jpg
 
   leon:
     description: 'Your law / legal expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/leon_profile.jpg
 
   priscilla:
     description: 'Your product design and UI/UX design expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/priscilla_profile.jpg
 
   selma:
     description: 'Your sewing and clothing design expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/selma_profile.jpg
 
   makani:
     description: 'A maker. Your expert in CNC machining, wood working, 3d printing and more.'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/makani_profile.jpg
 
   monika:
     description: 'Your movie and TV series expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/monika_profile.jpg
 
   melvin:
     description: 'Your medical and health expert'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/melvin_profile.jpg
 
   lisa:
     description: 'Your life coach and psychologist'
-    active: True
+    allowed: True
     prompt: /api/configs/mates/prompts/default.md
     profile_image: /api/images/mates/profile_images/lisa_profile.jpg

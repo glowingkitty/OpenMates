@@ -20,9 +20,14 @@ app:
   name: 'AI'
   slug: 'ai'
   description: 'Use generative AI to answer questions, brainstorm ideas and more.'
-  active: True
+  icon: /images/icons/apps/ai.svg
+  allowed: True
   providers:
     openai:
+      name: 'OpenAI'
+      allowed: True
       api_key: ${OPENAI_API_KEY}
     anthropic:
+      name: 'Anthropic'
+      allowed: True
       api_key: ${ANTHROPIC_API_KEY}
