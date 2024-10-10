@@ -4,9 +4,10 @@ import sys
 import yaml
 from redis import Redis
 import json
+import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s:     %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:     %(message)s')
 logger = logging.getLogger(__name__)
 
 # Reuse the redis_url from memory.py
@@ -30,29 +31,45 @@ required_env_variables = [
     "WEB_BROWSER_PORT", "REST_API_PORT"
 ]
 
+# TODO replace every {fieldname} in the markdown files with the actual fieldname from the yaml file (on the same level)
+# TODO save file_cache in redis (?)
+# TODO is client.set the best method to save the whole config while still being able to retrieve individual sub values instead of loading the whole thing?
+
 # Add a new global variable to store cached file contents
 file_cache = {}
 
 def save_server_config_to_memory(config: dict) -> bool:
     """
-    Save the server configuration to Redis (Dragonfly).
+    Save the server configuration to Redis (Dragonfly) using hash.
     """
     logger.debug("Saving server configuration to memory")
     client = Redis.from_url(redis_url)
-    client.set("server_config", json.dumps(config))
+
+    # Convert all values to strings
+    string_config = {k: json.dumps(v) for k, v in config.items()}
+
+    # Use HSET to store the configuration as a hash
+    client.hset("server_config", mapping=string_config)
+
     logger.info("Server configuration saved to memory")
     return True
 
 def get_server_config_from_memory() -> dict:
     """
-    Retrieve the server configuration from Redis (Dragonfly).
+    Retrieve the server configuration from Redis (Dragonfly) using hash.
     """
     logger.debug("Getting server configuration from memory")
     client = Redis.from_url(redis_url)
-    config = client.get("server_config")
+
+    # Use HGETALL to retrieve the entire hash
+    config = client.hgetall("server_config")
+
     if config:
+        # Convert the values back from strings to their original types
+        parsed_config = {k.decode(): json.loads(v.decode()) for k, v in config.items()}
         logger.info("Server configuration retrieved from memory")
-        return json.loads(config)
+        return parsed_config
+
     logger.info("Failed to get server configuration from memory")
     return None
 
@@ -88,7 +105,7 @@ def replace_file_paths_with_content(config):
     Recursively replace file paths ending with .yml, .yaml, or .md in the config dictionary
     with the content of those files, including nested files.
     """
-    logger.debug(f"Processing config: {type(config)}")
+    # logger.debug(f"Processing config")
 
     def process_value(value):
         if isinstance(value, str):
@@ -156,7 +173,7 @@ def load_server_config():
             logger.info("Configuration loaded successfully.")
             # Replace file paths with their content
             config = replace_file_paths_with_content(config)
-            logger.debug(f"Processed configuration: {json.dumps(config, indent=2)}")
+            logger.debug(f"Processed configuration.")
             return config
     except FileNotFoundError:
         logger.error("Configuration file not found.")
@@ -190,6 +207,29 @@ def check_env_variables():
         logger.info("All required environment variables are set.")
         return True
 
+def save_file_cache_to_redis():
+    """
+    Save the file_cache to Redis.
+    """
+    logger.debug("Saving file_cache to Redis")
+    client = Redis.from_url(redis_url)
+    client.set("file_cache", json.dumps(file_cache))
+    logger.info("file_cache saved to Redis")
+
+def load_file_cache_from_redis():
+    """
+    Load the file_cache from Redis.
+    """
+    logger.debug("Loading file_cache from Redis")
+    client = Redis.from_url(redis_url)
+    cached_data = client.get("file_cache")
+    if cached_data:
+        global file_cache
+        file_cache = json.loads(cached_data)
+        logger.info("file_cache loaded from Redis")
+    else:
+        logger.info("No file_cache found in Redis")
+
 if __name__ == "__main__":
     if not os.path.exists(yaml_path):
         logger.error("Configuration file server.yml not found.")
@@ -208,13 +248,20 @@ if __name__ == "__main__":
     logger.info("Attempting to load server configuration from memory...")
     server_config = get_server_config_from_memory()
 
+    # Load file_cache from Redis
+    load_file_cache_from_redis()
+
     # If loading from memory fails, load from YAML and save to memory
     if not server_config:
         logger.info("Loading server configuration from YAML file...")
         server_config = load_server_config()
-        logger.info(f"Server configuration loaded from YAML file: {server_config}")
+        logger.info(f"Server configuration loaded from YAML file")
         if server_config:
+            # Save the updated configuration to memory
             save_server_config_to_memory(server_config)
+
+            # Save file_cache to Redis
+            save_file_cache_to_redis()
         else:
             logger.error("Failed to load server configuration.")
             sys.exit(1)
