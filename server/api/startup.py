@@ -24,16 +24,16 @@ async def api_startup():
 
     await clear_all_memory()
 
-    # TODO not needed to load all into memory! only load team into memory once a request from team is made (like with users), else request data from cms
+    # TODO check if an admin user exists in strapi, if not create it
+    await check_admin()
 
-    # TODO lets simplify testing
-    # 2. update database model to include discord server data in user model
-    # 3. then implement the logic to start the discord listener for each user
-    # 4. test / implement webhooks to receive messages from slack, mattermost, etc.
+    # TODO check if the apps exist in strapi, if not create them (based on server/configs/apps/ - check each folder for an app.yml file and for every app.yml file, make sure the app is in strapi)
+    await check_apps()
 
-    logger.info("Check if all bots have defined invite links in the database, else create them...")
+    # TODO check if the mates exist in strapi, if not create them
+    await check_mates()
 
-    # Check which users have a Discord connection and start an instance to check for new messages
-    logger.info("Start listening for Discord messages for users with a Discord connection...")
+    # TODO if no teams exist, show in log and ask user to create one via the webapp
+    await check_teams()
 
     logger.info("API startup complete.")

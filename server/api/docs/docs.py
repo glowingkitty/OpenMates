@@ -368,5 +368,5 @@ def setup_docs(app: FastAPI):
         </html>
         """)
 
-    # GET /docs/images/{file_path} (get an image for the docs)
-    app.mount("/docs/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'images')), name="images")
+    # GET /images/{file_path} (get an image for the docs)
+    app.mount("/images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'images')), name="images")
