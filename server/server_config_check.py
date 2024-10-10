@@ -53,6 +53,47 @@ def get_server_config_from_memory() -> dict:
     logger.info("Failed to get server configuration from memory")
     return None
 
+def load_yaml_file(file_path: str) -> dict:
+    """
+    Load a YAML file and return its content as a dictionary.
+    """
+    # Construct the full path based on the script's directory
+    full_path = os.path.join(script_dir, file_path.lstrip('/'))
+    try:
+        with open(full_path, 'r') as file:
+            content = yaml.safe_load(file)
+            logger.info(f"Loaded YAML file: {full_path}")
+            return content
+    except FileNotFoundError:
+        logger.error(f"YAML file not found: {full_path}")
+        return None
+    except yaml.YAMLError as exc:
+        logger.error(f"Error parsing YAML file {full_path}: {exc}")
+        return None
+
+def replace_file_paths_with_content(config: dict) -> dict:
+    """
+    Recursively replace file paths ending with .yml or .yaml in the config dictionary
+    with the content of those YAML files, including nested files.
+    """
+    def process_value(value):
+        if isinstance(value, str) and (value.endswith('.yml') or value.endswith('.yaml')):
+            # Load the YAML file and replace the path with its content
+            file_content = load_yaml_file(value)
+            if file_content is not None:
+                # Recursively process the loaded content
+                return replace_file_paths_with_content(file_content)
+            return value
+        elif isinstance(value, dict):
+            # Recursively process nested dictionaries
+            return replace_file_paths_with_content(value)
+        elif isinstance(value, list):
+            # If the value is a list, iterate through each item
+            return [process_value(item) for item in value]
+        return value
+
+    return {key: process_value(value) for key, value in config.items()}
+
 def load_server_config():
     """
     Load server configuration from a YAML file into memory.
@@ -61,6 +102,9 @@ def load_server_config():
         with open(yaml_path, 'r') as file:
             config = yaml.safe_load(file)
             logger.info("Configuration loaded successfully.")
+            # Replace file paths with their content
+            config = replace_file_paths_with_content(config)
+            logger.debug(f"Processed configuration: {json.dumps(config, indent=2)}")
             return config
     except FileNotFoundError:
         logger.error("Configuration file not found.")
