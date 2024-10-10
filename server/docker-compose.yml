@@ -26,151 +26,151 @@ name: openmates-server
 version: '3.8'
 
 services:
-  # #########################################################################
-  # ##### Apps
-  # #########################################################################
+  #########################################################################
+  ##### Apps
+  #########################################################################
 
-  # # Apps used by OpenMates
+  # Apps used by OpenMates
 
-  # # 'Messages' app
-  # # Send messages, create threads and more.
+  # 'Messages' app
+  # Send messages, create threads and more.
 
-  # # / Discord / Listener
-  # # Will listen to new messages to the OpenMates bots on Discord.
-  # app-messages-discord-listener:
-  #   container_name: app-messages-discord-listener
-  #   build:
-  #     context: ./apps/messages/discord/listener
-  #     dockerfile: Dockerfile
-  #   env_file: .env
-  #   volumes:
-  #     - ./apps/messages/discord/listener:/usr/src/app
-  #     - ./server.yml:/usr/src/app/server.yml
-  #   networks:
-  #     - openmates
-  #   extra_hosts:
-  #     host.docker.internal: host-gateway
+  # / Discord / Listener
+  # Will listen to new messages to the OpenMates bots on Discord.
+  app-messages-discord-listener:
+    container_name: app-messages-discord-listener
+    build:
+      context: ./apps/messages/discord/listener
+      dockerfile: Dockerfile
+    env_file: .env
+    volumes:
+      - ./apps/messages/discord/listener:/usr/src/app
+      - ./server.yml:/usr/src/app/server.yml
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
 
-  # # 'Web' app
-  # # Browse the web, research topics and more.
-  # app-web:
-  #   container_name: app-web
-  #   build:
-  #     context: ./apps/web
-  #     dockerfile: Dockerfile
-  #   env_file: .env
-  #   environment:
-  #     WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
-  #     WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
-  #   volumes:
-  #     - ./apps/web:/usr/src/app-web
-  #   networks:
-  #     - openmates
-  #   extra_hosts:
-  #     host.docker.internal: host-gateway
-
-
-  # #########################################################################
-  # ##### REST API
-  # #########################################################################
-
-  # # The REST API, used by the web application, the task management, the apps and external developers using the OpenMates API
-  # rest-api:
-  #   container_name: rest-api
-  #   build:
-  #     context: ./api
-  #     dockerfile: Dockerfile
-  #   env_file: .env
-  #   environment:
-  #     PYTHONPATH: "/usr/src/app"
-  #     REST_API_PORT: ${REST_API_PORT}
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
-  #     DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
-  #     WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
-  #     WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
-  #   command: >
-  #     sh -c "python /usr/src/app/server/server_config_check.py && 
-  #            python -c 'import sys; print(sys.path)' &&  # Debug print
-  #            uvicorn api:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
-  #   ports:
-  #     - "${REST_API_PORT}:${REST_API_PORT}"
-  #   volumes:
-  #     - .:/usr/src/app/server
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - cms
-  #     - in_memory_database
+  # 'Web' app
+  # Browse the web, research topics and more.
+  app-web:
+    container_name: app-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
+    volumes:
+      - ./apps/web:/usr/src/app-web
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
 
 
-  # #########################################################################
-  # ##### Web application
-  # #########################################################################
+  #########################################################################
+  ##### REST API
+  #########################################################################
 
-  # # The web application for OpenMates, which will be used by the users and connects to the REST API
-  # # TODO
+  # The REST API, used by the web application, the task management, the apps and external developers using the OpenMates API
+  rest-api:
+    container_name: rest-api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      PYTHONPATH: "/usr/src/app"
+      REST_API_PORT: ${REST_API_PORT}
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
+      WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
+      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+    command: >
+      sh -c "python /usr/src/app/server/server_config_check.py && 
+             python -c 'import sys; print(sys.path)' &&  # Debug print
+             uvicorn api:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
+    ports:
+      - "${REST_API_PORT}:${REST_API_PORT}"
+    volumes:
+      - .:/usr/src/app/server
+    networks:
+      - openmates
+    depends_on:
+      - cms
+      - in_memory_database
 
 
-  # #########################################################################
-  # ##### Website
-  # #########################################################################
+  #########################################################################
+  ##### Web application
+  #########################################################################
 
-  # # The website for OpenMates, which will be used to promote the OpenMates project and explain what it is
-  # # TODO
+  # The web application for OpenMates, which will be used by the users and connects to the REST API
+  # TODO
 
 
-  # #########################################################################
-  # ##### Task management
-  # #########################################################################
+  #########################################################################
+  ##### Website
+  #########################################################################
 
-  # # Manages tasks that take longer then just milliseconds to complete or that need to be scheduled.
+  # The website for OpenMates, which will be used to promote the OpenMates project and explain what it is
+  # TODO
 
-  # # The task worker (for processing tasks that take longer then just milliseconds)
-  # task-worker:
-  #   container_name: task-worker
-  #   build:
-  #     context: .
-  #     dockerfile: task_manager/Dockerfile
-  #   env_file: .env
-  #   environment:
-  #     PYTHONPATH: "/usr/src/app"
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
-  #     DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
-  #   command: >
-  #     sh -c "python /usr/src/app/server/server_config_check.py && 
-  #            celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
-  #   volumes:
-  #     - .:/usr/src/app/server
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - rest-api
-  #     - in_memory_database
 
-  # # The task scheduler (for scheduling tasks into the future)
-  # task-scheduler:
-  #   container_name: task-scheduler
-  #   build:
-  #     context: .
-  #     dockerfile: task_manager/Dockerfile
-  #   env_file: .env
-  #   environment:
-  #     PYTHONPATH: "/usr/src/app"
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
-  #     DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
-  #   command: >
-  #     sh -c "python /usr/src/app/server/server_config_check.py && 
-  #            celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
-  #   volumes:
-  #     - .:/usr/src/app/server
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - rest-api
-  #     - in_memory_database
+  #########################################################################
+  ##### Task management
+  #########################################################################
+
+  # Manages tasks that take longer then just milliseconds to complete or that need to be scheduled.
+
+  # The task worker (for processing tasks that take longer then just milliseconds)
+  task-worker:
+    container_name: task-worker
+    build:
+      context: .
+      dockerfile: task_manager/Dockerfile
+    env_file: .env
+    environment:
+      PYTHONPATH: "/usr/src/app"
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
+    command: >
+      sh -c "python /usr/src/app/server/server_config_check.py && 
+             celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
+    volumes:
+      - .:/usr/src/app/server
+    networks:
+      - openmates
+    depends_on:
+      - rest-api
+      - in_memory_database
+
+  # The task scheduler (for scheduling tasks into the future)
+  task-scheduler:
+    container_name: task-scheduler
+    build:
+      context: .
+      dockerfile: task_manager/Dockerfile
+    env_file: .env
+    environment:
+      PYTHONPATH: "/usr/src/app"
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
+    command: >
+      sh -c "python /usr/src/app/server/server_config_check.py && 
+             celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
+    volumes:
+      - .:/usr/src/app/server
+    networks:
+      - openmates
+    depends_on:
+      - rest-api
+      - in_memory_database
 
 
   #########################################################################
@@ -266,29 +266,29 @@ services:
       - openmates
 
 
-  # #########################################################################
-  # ##### In-memory database
-  # #########################################################################
+  #########################################################################
+  ##### In-memory database
+  #########################################################################
 
-  # # The in-memory database for temporarly storing frequently accessed data
-  # in_memory_database:
-  #   container_name: in-memory-database
-  #   image: docker.dragonflydb.io/dragonflydb/dragonfly
-  #   ulimits:
-  #     memlock: -1
-  #   ports:
-  #     - "${IN_MEMORY_DATABASE_PORT}:${IN_MEMORY_DATABASE_PORT}"
-  #   volumes:
-  #     - in-memory-data:/data
-  #   command:
-  #     - "--maxmemory"
-  #     - "3000mb"
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 2.5G
-  #   networks:
-  #     - openmates
+  # The in-memory database for temporarly storing frequently accessed data
+  in_memory_database:
+    container_name: in-memory-database
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    ulimits:
+      memlock: -1
+    ports:
+      - "${IN_MEMORY_DATABASE_PORT}:${IN_MEMORY_DATABASE_PORT}"
+    volumes:
+      - in-memory-data:/data
+    command:
+      - "--maxmemory"
+      - "3000mb"
+    deploy:
+      resources:
+        limits:
+          memory: 2.5G
+    networks:
+      - openmates
 
 ##########################################################################################
 # Networks
