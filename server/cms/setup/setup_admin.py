@@ -144,10 +144,49 @@ def create_api_token(admin_token):
         logger.error(f"Error creating API token: {e}")
         return None
 
+def get_user_account_entries(api_token):
+    """
+    Retrieve entries from the 'user-account' collection type using an editor API token.
+
+    Args:
+        api_token (str): The editor's API token for authentication.
+
+    Returns:
+        list: A list of 'user-account' entries, or an empty list if no entries exist.
+    """
+    # Define the URL for the 'user-account' collection type
+    entries_url = f"{cms_url}/api/user-accounts"
+
+    # Set up the headers with the editor API token for authentication
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # Make a GET request to retrieve 'user-account' entries
+        response = requests.get(entries_url, headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            logger.debug("Successfully retrieved 'user-account' entries.")
+            return True
+        else:
+            # Log an error if the request was not successful
+            logger.error(f"Failed to retrieve 'user-account' entries. Status code: {response.status_code}")
+            logger.error(f"Error message: {response.text}")
+            return False
+    except Exception as e:
+        # Log any exceptions that occur during the request
+        logger.error(f"Error retrieving 'user-account' entries: {e}")
+        return False
+
+
 def main():
     """
     Main function to set up Strapi CMS with super admin and API token.
     """
+
     logger.info("Waiting for Strapi CMS to come online...")
 
     attempts = 0
@@ -162,6 +201,31 @@ def main():
         time.sleep(5)
 
     logger.info("Strapi CMS is online and accessible.")
+
+    # Check if environment variables for admin credentials and CMS token are set
+    admin_email = os.getenv("ADMIN_EMAIL")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    cms_token = os.getenv("CMS_TOKEN")
+
+    if admin_email and admin_password and cms_token:
+        logger.info("Admin credentials and CMS token found. Verifying...")
+
+        # Test admin login
+        admin_token = login_admin(admin_email, admin_password)
+        if admin_token:
+            logger.info("Admin login successful.")
+
+            # Test CMS token by retrieving 'user-account' entries
+            user_account_entries = get_user_account_entries(cms_token)
+            if user_account_entries:
+                logger.info(f"CMS token exists and is valid. Exiting setup...")
+                sys.exit(0)
+            else:
+                logger.warning(f"Failed to retrieve user account entries using the CMS token. Creating new super admin and API token...")
+        else:
+            logger.warning("Creating new super admin and API token.")
+    else:
+        logger.info("Admin credentials or CMS token not found. Creating new super admin and API token...")
 
     # Create super admin
     admin_email, admin_password = create_super_admin()
@@ -180,6 +244,16 @@ def main():
     if not api_token:
         logger.error("Failed to create API token. Exiting.")
         sys.exit(1)
+
+    # Retrieve 'user-account' entries
+    user_account_entries = get_user_account_entries(api_token)
+    if user_account_entries is not None:
+        if not user_account_entries:
+            logger.info("No 'user-account' entries found as expected.")
+        else:
+            logger.warning("'user-account' entries exist when none were expected.")
+    else:
+        logger.error("Failed to retrieve 'user-account' entries using the API token.")
 
     # Log credentials and token
     logger.info("="*50)
