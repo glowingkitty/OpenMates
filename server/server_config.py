@@ -31,47 +31,72 @@ required_env_variables = [
     "WEB_BROWSER_PORT", "REST_API_PORT"
 ]
 
-# TODO replace every {fieldname} in the markdown files with the actual fieldname from the yaml file (on the same level)
-# TODO save file_cache in redis (?)
-# TODO is client.set the best method to save the whole config while still being able to retrieve individual sub values instead of loading the whole thing?
-
 # Add a new global variable to store cached file contents
 file_cache = {}
 
 def save_server_config_to_memory(config: dict) -> bool:
     """
     Save the server configuration to Redis (Dragonfly) using hash.
+    Each top-level key is stored separately.
     """
     logger.debug("Saving server configuration to memory")
     client = Redis.from_url(redis_url)
 
-    # Convert all values to strings
-    string_config = {k: json.dumps(v) for k, v in config.items()}
-
-    # Use HSET to store the configuration as a hash
-    client.hset("server_config", mapping=string_config)
+    # Iterate through top-level keys and store each separately
+    for key, value in config.items():
+        # Convert the value to a JSON string
+        json_value = json.dumps(value)
+        # Store in Redis
+        client.hset("server_config", key, json_value)
 
     logger.info("Server configuration saved to memory")
     return True
 
-def get_server_config_from_memory() -> dict:
+def get_server_config(config_path: str = None) -> dict:
     """
-    Retrieve the server configuration from Redis (Dragonfly) using hash.
+    Retrieve configuration from the server config in memory.
+    If config_path is None, return the entire config.
+    If config_path is provided, search inside the 'settings' key.
+    If not found, return None.
+
+    Args:
+        config_path (str, optional): Dot-separated path to the desired configuration.
+
+    Returns:
+        dict: The requested configuration, or None if not found.
     """
-    logger.debug("Getting server configuration from memory")
+    logger.debug(f"Getting server configuration for path: {config_path}")
     client = Redis.from_url(redis_url)
 
-    # Use HGETALL to retrieve the entire hash
-    config = client.hgetall("server_config")
+    if config_path is None:
+        # Retrieve the entire configuration
+        config = client.hgetall("server_config")
+        if not config:
+            logger.info("No server configuration found in memory")
+            return None
+        return {k.decode(): json.loads(v.decode()) for k, v in config.items()}
 
-    if config:
-        # Convert the values back from strings to their original types
-        parsed_config = {k.decode(): json.loads(v.decode()) for k, v in config.items()}
-        logger.info("Server configuration retrieved from memory")
+    # Always start the search from the 'settings' key
+    config = client.hget("server_config", "settings")
+    if not config:
+        logger.info("No 'settings' key found in server configuration")
+        return None
+
+    try:
+        parsed_config = json.loads(config.decode())
+        # Navigate through the path
+        for key in config_path.split('.'):
+            if isinstance(parsed_config, dict) and key in parsed_config:
+                parsed_config = parsed_config[key]
+            else:
+                logger.info(f"Configuration not found for path: {config_path}")
+                return None
+
+        logger.info(f"Configuration retrieved for path: {config_path}")
         return parsed_config
-
-    logger.info("Failed to get server configuration from memory")
-    return None
+    except json.JSONDecodeError:
+        logger.error(f"Error decoding JSON for 'settings' key")
+        return None
 
 def load_yaml_file(file_path: str) -> dict:
     """
@@ -246,7 +271,7 @@ if __name__ == "__main__":
 
     # Attempt to load the server configuration from memory
     logger.info("Attempting to load server configuration from memory...")
-    server_config = get_server_config_from_memory()
+    server_config = get_server_config()
 
     # Load file_cache from Redis
     load_file_cache_from_redis()

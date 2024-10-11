@@ -16,12 +16,11 @@
 ####################          'Web' app          ########################
 #########################################################################
 
-app:
-  name: 'Web'
-  slug: 'web'
-  description: 'Browse the web, research topics and more.'
-  icon: /images/icons/apps/web.svg
-  allowed: True
-  settings:
-    secret_key: ${WEB_BROWSER_SECRET_KEY}
-    port: ${WEB_BROWSER_PORT}
+name: 'Web'
+slug: 'web'
+description: 'Browse the web, research topics and more.'
+icon: /images/icons/apps/web.svg
+allowed: True
+settings:
+  secret_key: ${WEB_BROWSER_SECRET_KEY}
+  port: ${WEB_BROWSER_PORT}

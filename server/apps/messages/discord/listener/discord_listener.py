@@ -7,6 +7,7 @@ import sys
 from discord import Intents, File, DMChannel  # Import the Intents and File classes
 from dotenv import load_dotenv
 import re  # Import the regular expression module
+from server_config import get_server_config
 
 # Load environment variables from .env file
 load_dotenv()
@@ -117,39 +118,38 @@ async def start_bot(token: str, name: str, bot_ids: dict):
 
 # Main function to start all bots concurrently
 async def main():
-    # Load configuration
-    with open("server.yml", 'r') as file:
-        config = yaml.safe_load(file)
-
     # Check if the Discord provider is active
-    discord_config = config['settings']['apps']['messages']['providers']['discord']
-    if discord_config['active']:
+    discord_config = get_server_config('apps.messages.providers.discord')
+    if discord_config.get('allowed', False):  # Changed 'active' to 'allowed'
         # Extract bot configurations and replace placeholders with actual tokens
         bots = discord_config['bots']
-        active_bots = [
-            {
-                'name': bot_name,
-                'token': os.getenv(bot_info['token'].strip('${}')),
-                'client_id': os.getenv(bot_info['client_id'].strip('${}'))
-            }
-            for bot_name, bot_info in bots.items()
-        ]
-        # remove bots with no token
-        active_bots = [bot for bot in active_bots if bot['token']]
+        active_bots = []
+        bot_ids = {}
 
-        # define all bot ids and what usernames they correspond to
-        bot_ids = {bot['client_id']: bot['name'] for bot in active_bots}
+        for bot_name, bot_info in bots.items():
+            token = os.getenv(bot_info['token'].strip('${}'))
+            client_id = os.getenv(bot_info['client_id'].strip('${}'))
+
+            if token and client_id:
+                active_bots.append({
+                    'name': bot_name,
+                    'token': token,
+                    'client_id': client_id
+                })
+                bot_ids[client_id] = bot_name
 
         # Log the number of active bots
         logger.info(f"Starting {len(active_bots)} active Discord bots.")
+        logger.debug(f"Active bots: {', '.join([bot['name'] for bot in active_bots])}")
 
         # Run all active bots concurrently
         await asyncio.gather(
             *[start_bot(token=bot['token'], name=bot['name'], bot_ids=bot_ids) for bot in active_bots]
         )
     else:
-        logger.info("Discord provider is not active. Exiting...")
+        logger.info("Discord provider is not allowed. Exiting...")
         sys.exit(0)
 
 # Run the main function using asyncio
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -18,7 +18,7 @@ async def clear_all_memory():
 
 
 async def api_startup():
-    # server_config_check already checks if all config files are present
+    # server_config already checks if all config files are present
 
     logger.info("Processing startup events...")
 

@@ -16,22 +16,21 @@
 ####################          'Audio' app          ######################
 #########################################################################
 
-app:
-  name: 'Audio'
-  slug: 'audio'
-  description: 'Generate, modify and transcribe audio and more.'
-  icon: /images/icons/apps/audio.svg
-  allowed: True
-  providers:
-    assemblyai:
-      name: 'AssemblyAI'
-      allowed: True
-      api_key: ${ASSEMBLYAI_API_KEY}
-    openai:
-      name: 'OpenAI'
-      allowed: True
-      api_key: ${OPENAI_API_KEY}
-    elevenlabs:
-      name: 'ElevenLabs'
-      allowed: True
-      api_key: ${ELEVENLABS_API_KEY}
+name: 'Audio'
+slug: 'audio'
+description: 'Generate, modify and transcribe audio and more.'
+icon: /images/icons/apps/audio.svg
+allowed: True
+providers:
+  assemblyai:
+    name: 'AssemblyAI'
+    allowed: True
+    api_key: ${ASSEMBLYAI_API_KEY}
+  openai:
+    name: 'OpenAI'
+    allowed: True
+    api_key: ${OPENAI_API_KEY}
+  elevenlabs:
+    name: 'ElevenLabs'
+    allowed: True
+    api_key: ${ELEVENLABS_API_KEY}

@@ -18,24 +18,22 @@
 
 # Apps used by OpenMates
 
-apps:
+# 'AI' app
+# Use generative AI to answer questions, brainstorm ideas and more.
+ai: /api/configs/apps/ai/app.yml
 
-  # 'AI' app
-  # Use generative AI to answer questions, brainstorm ideas and more.
-  ai: /api/configs/apps/ai/app.yml
+# 'Messages' app
+# Send messages, create threads and more.
+messages: /api/configs/apps/messages/app.yml
 
-  # 'Messages' app
-  # Send messages, create threads and more.
-  messages: /api/configs/apps/messages/app.yml
+# 'Web' app
+# Browse the web, research topics and more.
+web: /api/configs/apps/web/app.yml
 
-  # 'Web' app
-  # Browse the web, research topics and more.
-  web: /api/configs/apps/web/app.yml
+# 'Audio' app
+# Generate, modify and transcribe audio and more.
+audio: /api/configs/apps/audio/app.yml
 
-  # 'Audio' app
-  # Generate, modify and transcribe audio and more.
-  audio: /api/configs/apps/audio/app.yml
-
-  # 'Finance' app
-  # Keep track of your finances and build a stable income.
-  finance: /api/configs/apps/finance/app.yml
+# 'Finance' app
+# Keep track of your finances and build a stable income.
+finance: /api/configs/apps/finance/app.yml

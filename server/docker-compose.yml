@@ -90,7 +90,7 @@ services:
       WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
       WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
     command: >
-      sh -c "python /usr/src/app/server/server_config_check.py && 
+      sh -c "python /usr/src/app/server/server_config.py && 
              python -c 'import sys; print(sys.path)' &&  # Debug print
              uvicorn api:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
@@ -139,7 +139,7 @@ services:
       CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
     command: >
-      sh -c "python /usr/src/app/server/server_config_check.py && 
+      sh -c "python /usr/src/app/server/server_config.py && 
              celery -A server.task_manager.task_manager worker --loglevel=info --uid=nobody"
     volumes:
       - .:/usr/src/app/server
@@ -162,7 +162,7 @@ services:
       CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
     command: >
-      sh -c "python /usr/src/app/server/server_config_check.py && 
+      sh -c "python /usr/src/app/server/server_config.py && 
              celery -A server.task_manager.task_manager beat --loglevel=info --uid=nobody"
     volumes:
       - .:/usr/src/app/server
