@@ -87,7 +87,6 @@ services:
     image: eclipse-mosquitto:latest
     ports:
       - "1883:1883"  # MQTT port
-      - "9001:9001"  # WebSocket port (optional)
     volumes:
       - app-home-mosquitto-data:/mosquitto/data
       - app-home-mosquitto-log:/mosquitto/log
@@ -213,8 +212,6 @@ services:
   ##### CMS
   #########################################################################
 
-  # TODO deactivate admin panel in gui
-
   # The content management system (CMS) for managing user data
   cms:
     container_name: cms
@@ -245,8 +242,9 @@ services:
       - ./cms/strapi/yarn.lock:/opt/yarn.lock
       - ./cms/strapi/.env:/opt/app/.env
       - ./cms/strapi/public/uploads:/opt/app/public/uploads
-    ports:
-      - "${CMS_PORT}:${CMS_PORT}"
+    # uncomment, if you want to access the CMS web interface via http://localhost:${CMS_PORT} on the host machine
+    # ports:
+    #   - "${CMS_PORT}:${CMS_PORT}"
     networks:
       - openmates
     depends_on:
@@ -312,8 +310,8 @@ services:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
     ulimits:
       memlock: -1
-    ports:
-      - "${IN_MEMORY_DATABASE_PORT}:${IN_MEMORY_DATABASE_PORT}"
+    expose:
+      - "${IN_MEMORY_DATABASE_PORT}"
     volumes:
       - in-memory-data:/data
     command:
