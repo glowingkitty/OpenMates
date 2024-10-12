@@ -16,7 +16,7 @@
 ##############          Docker Compose Settings          ################
 #########################################################################
 
-# TODO add docker for MQTT broker (Mosquitto)
+# TODO switch from mounting files to copying into dockers
 # TODO add web app docker
 # TODO add website docker
 # TODO add docker for file storage (MinIO)
@@ -74,6 +74,27 @@ services:
       - openmates
     extra_hosts:
       host.docker.internal: host-gateway
+
+  # 'Home' app
+  # Control your smart home, organize daily tasks and more.
+
+  # TODO properly integrate Mosquitto / home app, including authentication
+
+  # / Mosquitto
+  # MQTT broker for handling MQTT messages
+  app-home-mosquitto:
+    container_name: app-home-mosquitto
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"  # MQTT port
+      - "9001:9001"  # WebSocket port (optional)
+    volumes:
+      - app-home-mosquitto-data:/mosquitto/data
+      - app-home-mosquitto-log:/mosquitto/log
+      - ./apps/home/mosquitto/config:/mosquitto/config
+    networks:
+      - openmates
+    restart: unless-stopped
 
   # 'Design' app
   # Design interfaces, get feedback and more.
@@ -323,3 +344,7 @@ volumes:
   cms-data:
   # The data for the in-memory database
   in-memory-data:
+  # The data for the Mosquitto MQTT broker
+  app-home-mosquitto-data:
+  # The log for the Mosquitto MQTT broker
+  app-home-mosquitto-log:
