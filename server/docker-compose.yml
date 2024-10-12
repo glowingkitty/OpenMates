@@ -17,7 +17,10 @@
 #########################################################################
 
 # TODO add docker for MQTT broker (Mosquitto)
-# TODO add web app and website dockers and docker for file storage (MinIO)
+# TODO add web app docker
+# TODO add website docker
+# TODO add docker for file storage (MinIO)
+# TODO add docker for Grafana (+ Prometheus? for monitoring)
 # TODO get updated structure to work again
 # TODO add improved security (no root user, only access to folders they really need, seperate networks, no linux commands that aren't needed, no internet if not needed,
 # only read access to files if possible, limit cpu/memory usage, strapi input parameterized, turn off strapi interface (except when in development mode) etc. etc.)
@@ -40,16 +43,19 @@ services:
   app-messages-discord-listener:
     container_name: app-messages-discord-listener
     build:
-      context: ./apps/messages/discord/listener
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: apps/messages/discord/listener/Dockerfile
     env_file: .env
-    volumes:
-      - ./apps/messages/discord/listener:/usr/src/app
-      - ./server.yml:/usr/src/app/server.yml
+    environment:
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
     networks:
       - openmates
     extra_hosts:
       host.docker.internal: host-gateway
+    depends_on:
+      - rest-api
+    security_opt:
+      - no-new-privileges:true
 
   # 'Web' app
   # Browse the web, research topics and more.
@@ -68,6 +74,15 @@ services:
       - openmates
     extra_hosts:
       host.docker.internal: host-gateway
+
+  # 'Design' app
+  # Design interfaces, get feedback and more.
+
+  # / Penpot
+  # Will start a Penpot server.
+  # Use ./apps/design/penpot/docker-compose.yml to modify settings
+  # and to run, use:
+  # docker-compose -p penpot -f server/apps/design/penpot/docker-compose.yml up -d
 
 
   #########################################################################

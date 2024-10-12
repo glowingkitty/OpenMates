@@ -2,3 +2,4 @@ discord==2.3.2
 python-dotenv==1.0.0
 aiohttp==3.10.5
 PyYAML==6.0.1
+redis==5.0.1
