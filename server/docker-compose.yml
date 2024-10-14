@@ -16,6 +16,8 @@
 ##############          Docker Compose Settings          ################
 #########################################################################
 
+# TODO add docker for Akaunting (for finance app)
+# TODO add docker for Appflowy (for notes app)
 # TODO switch from mounting files to copying into dockers
 # TODO add web app docker
 # TODO add website docker
