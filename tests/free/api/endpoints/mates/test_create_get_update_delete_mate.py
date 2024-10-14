@@ -6,7 +6,7 @@ from server.api.models.mates.mates_create import MatesCreateOutput
 from server.api.models.mates.mates_update import MatesUpdateOutput
 from server.api.models.mates.mates_delete import MatesDeleteOutput
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 @pytest.fixture(scope="module")
 def api_config():

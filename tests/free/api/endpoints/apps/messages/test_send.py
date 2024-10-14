@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from server.api.models.apps.messages.skills_send_message import MessagesSendInput, MessagesSendOutput, Target, Attachment
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 def load_file_as_base64(file_path):
     with open(file_path, "rb") as file:

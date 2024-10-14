@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from server.api.models.users.users_get_all import UsersGetAllOutput
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 @pytest.mark.api_dependent
 def test_get_users():

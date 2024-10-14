@@ -20,7 +20,7 @@ import base64
 import json
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 API_TOKEN = os.getenv('TEST_API_TOKEN')
 TEAM_SLUG = os.getenv('TEST_TEAM_SLUG')

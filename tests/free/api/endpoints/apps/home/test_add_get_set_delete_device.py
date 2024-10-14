@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from server.api.models.apps.home.skills_home_add_device import home_add_device_input_example
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 @pytest.mark.api_dependent
 def test_add_get_set_delete_device():

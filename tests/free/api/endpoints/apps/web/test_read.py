@@ -9,7 +9,7 @@ from server.api.models.apps.web.skills_web_read import WebReadOutput, web_read_i
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 @pytest.mark.api_dependent
 def test_read():

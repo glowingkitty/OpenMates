@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 @pytest.fixture(scope="module")
 def setup_crypto():

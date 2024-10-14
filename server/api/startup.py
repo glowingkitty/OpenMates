@@ -24,16 +24,13 @@ async def api_startup():
 
     await clear_all_memory()
 
-    # # TODO check if an admin user exists in strapi, if not create it
-    # await check_admin()
-
     # # TODO check if the apps exist in strapi, if not create them (based on server/configs/apps/apps.yml - check each app, make sure the app is allowed and if so, it is in strapi)
-    # await check_apps()
+    # await check_for_apps()
 
     # # TODO check if the mates exist in strapi, if not create them
-    # await check_mates()
+    # await check_for_mates()
 
-    # # TODO if no teams exist, show in log and ask user to create one via the webapp
-    # await check_teams()
+    # # TODO if no user with server admin rights exists, show in log and ask user to create one via the webapp
+    # await check_for_admin()
 
     logger.info("API startup complete.")

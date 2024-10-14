@@ -9,7 +9,7 @@ from io import BytesIO
 from docx import Document
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join('server', '.env'))
 
 @pytest.mark.api_dependent
 def test_create_download_delete_doc():
