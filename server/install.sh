@@ -2,6 +2,8 @@
 
 
 # TODO script is just a draft. Make it work better.
+# TODO ask the user to update the .env file and once done, user should enter 'Done' and press enter
+# TODO once .env file is updated, start the docker compose setup
 
 # Function to print messages in bold
 bold() {
@@ -16,6 +18,24 @@ color() {
     echo "$2"
     tput sgr0
 }
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    color 1 "Docker is not installed. Please install Docker first."
+    exit 1
+else
+    bold "Docker is installed."
+fi
+
+# Check if Docker Compose is installed
+if ! command -v docker-compose &> /dev/null; then
+    color 1 "Docker Compose is not installed. Please install Docker Compose first."
+    exit 1
+else
+    bold "Docker Compose is installed."
+fi
+
+
 
 # Function to print the ASCII art logo
 print_logo() {
