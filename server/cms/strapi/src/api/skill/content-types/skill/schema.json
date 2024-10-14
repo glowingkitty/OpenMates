@@ -31,10 +31,10 @@
       "target": "api::workflow.workflow",
       "mappedBy": "skills"
     },
-    "software": {
+    "app": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::software.software",
+      "target": "api::app.app",
       "inversedBy": "skills"
     },
     "icon": {
