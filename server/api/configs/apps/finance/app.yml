@@ -20,12 +20,13 @@ name: 'Finance'
 slug: 'finance'
 description: 'Keep track of your finances and build a stable income.'
 icon: /images/icons/apps/finance.svg
-allowed: True
+allowed: ${APP_FINANCE_ALLOWED}
 providers:
   akaunting:
     name: 'Akaunting'
-    allowed: True
-    api_url: ${AKAUNTING_API_URL}
-    username: ${AKAUNTING_USERNAME}
-    password: ${AKAUNTING_PASSWORD}
-    company_id: ${AKAUNTING_COMPANY_ID}
+    slug: 'akaunting'
+    description: 'Akaunting is an open-source accounting software that runs in the web browser.'
+    icon: /images/icons/providers/akaunting.svg
+    allowed: ${APP_FINANCE_PROVIDER_AKAUNTING_ALLOWED}
+    install_server: ${APP_FINANCE_PROVIDER_AKAUNTING_INSTALL_SERVER}
+    api_url: ${APP_FINANCE_PROVIDER_AKAUNTING_API_URL}

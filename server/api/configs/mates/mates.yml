@@ -24,7 +24,7 @@ mates:
     name: 'Burton'
     username: 'burton'
     description: 'Your business development expert'
-    allowed: True
+    allowed: ${MATE_BURTON_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/burton_profile.jpg
 
@@ -32,7 +32,7 @@ mates:
     name: 'Sophia'
     username: 'sophia'
     description: 'Your software development expert'
-    allowed: True
+    allowed: ${MATE_SOPHIA_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/sophia_profile.jpg
 
@@ -40,7 +40,7 @@ mates:
     name: 'Mark'
     username: 'mark'
     description: 'Your marketing expert'
-    allowed: True
+    allowed: ${MATE_MARK_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/mark_profile.jpg
 
@@ -48,7 +48,7 @@ mates:
     name: 'Elton'
     username: 'elton'
     description: 'Your electrical engineering expert'
-    allowed: True
+    allowed: ${MATE_ELTON_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/elton_profile.jpg
 
@@ -56,7 +56,7 @@ mates:
     name: 'Finn'
     username: 'finn'
     description: 'Your financial expert'
-    allowed: True
+    allowed: ${MATE_FINN_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/finn_profile.jpg
 
@@ -64,7 +64,7 @@ mates:
     name: 'Grace'
     username: 'grace'
     description: 'Your graphic designer & photography expert'
-    allowed: True
+    allowed: ${MATE_GRACE_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/grace_profile.jpg
 
@@ -72,7 +72,7 @@ mates:
     name: 'Leon'
     username: 'leon'
     description: 'Your law / legal expert'
-    allowed: True
+    allowed: ${MATE_LEON_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/leon_profile.jpg
 
@@ -80,7 +80,7 @@ mates:
     name: 'Priscilla'
     username: 'priscilla'
     description: 'Your product design and UI/UX design expert'
-    allowed: True
+    allowed: ${MATE_PRISCILLA_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/priscilla_profile.jpg
 
@@ -88,7 +88,7 @@ mates:
     name: 'Selma'
     username: 'selma'
     description: 'Your sewing and clothing design expert'
-    allowed: True
+    allowed: ${MATE_SELMA_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/selma_profile.jpg
 
@@ -96,7 +96,7 @@ mates:
     name: 'Makani'
     username: 'makani'
     description: 'A maker. Your expert in CNC machining, wood working, 3d printing and more.'
-    allowed: True
+    allowed: ${MATE_MAKANI_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/makani_profile.jpg
 
@@ -104,7 +104,7 @@ mates:
     name: 'Monika'
     username: 'monika'
     description: 'Your movie and TV series expert'
-    allowed: True
+    allowed: ${MATE_MONIKA_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/monika_profile.jpg
 
@@ -112,7 +112,7 @@ mates:
     name: 'Melvin'
     username: 'melvin'
     description: 'Your medical and health expert'
-    allowed: True
+    allowed: ${MATE_MELVIN_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/melvin_profile.jpg
 
@@ -120,6 +120,6 @@ mates:
     name: 'Lisa'
     username: 'lisa'
     description: 'Your life coach and psychologist'
-    allowed: True
+    allowed: ${MATE_LISA_ALLOWED}
     prompt: /api/configs/mates/prompts/_default.md
     profile_image: /api/images/mates/profile_images/lisa_profile.jpg

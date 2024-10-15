@@ -13,14 +13,19 @@
 #                       Your AI team mates.
 
 #########################################################################
-####################          'Web' app          ########################
+####################          'Home' app          ####################
 #########################################################################
 
-name: 'Web'
-slug: 'web'
-description: 'Browse the web, research topics and more.'
-icon: /images/icons/apps/web.svg
-allowed: ${APP_WEB_ALLOWED}
-settings:
-  secret_key: ${APP_WEB_SECRET_KEY}
-  port: ${APP_WEB_PORT}
+name: 'Home'
+slug: 'home'
+description: 'Control your smart home, organize daily tasks and more.'
+icon: /images/icons/apps/home.svg
+allowed: ${APP_HOME_ALLOWED}
+providers:
+  mosquitto:
+    name: 'Mosquitto'
+    slug: 'mosquitto'
+    description: 'Mosquitto is an open-source message broker for MQTT - to control your smart home devices.'
+    icon: /images/icons/providers/mosquitto.svg
+    allowed: ${APP_HOME_PROVIDER_MOSQUITTO_ALLOWED}
+    install_server: ${APP_HOME_PROVIDER_MOSQUITTO_INSTALL_SERVER}

@@ -20,17 +20,26 @@ name: 'Audio'
 slug: 'audio'
 description: 'Generate, modify and transcribe audio and more.'
 icon: /images/icons/apps/audio.svg
-allowed: True
+allowed: ${APP_AUDIO_ALLOWED}
 providers:
   assemblyai:
     name: 'AssemblyAI'
-    allowed: True
-    api_key: ${ASSEMBLYAI_API_KEY}
+    slug: 'assemblyai'
+    description: 'AssemblyAI offers powerful AI transcription and speech-to-text services.'
+    icon: /images/icons/providers/assemblyai.svg
+    allowed: ${APP_AUDIO_PROVIDER_ASSEMBLYAI_ALLOWED}
+    api_key: ${APP_AUDIO_PROVIDER_ASSEMBLYAI_API_KEY}
   openai:
     name: 'OpenAI'
-    allowed: True
-    api_key: ${OPENAI_API_KEY}
+    slug: 'openai'
+    description: 'OpenAI offers powerful AI transcription and speech-to-text services.'
+    icon: /images/icons/providers/openai.svg
+    allowed: ${APP_AUDIO_PROVIDER_OPENAI_ALLOWED}
+    api_key: ${APP_AUDIO_PROVIDER_OPENAI_API_KEY}
   elevenlabs:
     name: 'ElevenLabs'
-    allowed: True
-    api_key: ${ELEVENLABS_API_KEY}
+    slug: 'elevenlabs'
+    description: 'ElevenLabs offers powerful AI text-to-speech services.'
+    icon: /images/icons/providers/elevenlabs.svg
+    allowed: ${APP_AUDIO_PROVIDER_ELEVENLABS_ALLOWED}
+    api_key: ${APP_AUDIO_PROVIDER_ELEVENLABS_API_KEY}

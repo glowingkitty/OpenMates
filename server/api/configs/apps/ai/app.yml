@@ -20,13 +20,19 @@ name: 'AI'
 slug: 'ai'
 description: 'Use generative AI to answer questions, brainstorm ideas and more.'
 icon: /images/icons/apps/ai.svg
-allowed: True
+allowed: ${APP_AI_ALLOWED}
 providers:
   openai:
     name: 'OpenAI'
-    allowed: True
-    api_key: ${OPENAI_API_KEY}
+    slug: 'openai'
+    description: 'OpenAI the company behind powerful AI models like GPT-4o / ChatGPT.'
+    icon: /images/icons/providers/openai.svg
+    allowed: ${APP_AI_PROVIDER_OPENAI_ALLOWED}
+    api_key: ${APP_AI_PROVIDER_OPENAI_API_KEY}
   anthropic:
     name: 'Anthropic'
-    allowed: True
-    api_key: ${ANTHROPIC_API_KEY}
+    slug: 'anthropic'
+    description: 'Anthropic is the company behind powerful AI models like Claude 3.5 Sonnet.'
+    icon: /images/icons/providers/anthropic.svg
+    allowed: ${APP_AI_PROVIDER_ANTHROPIC_ALLOWED}
+    api_key: ${APP_AI_PROVIDER_ANTHROPIC_API_KEY}

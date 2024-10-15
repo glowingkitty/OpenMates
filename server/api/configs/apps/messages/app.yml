@@ -21,89 +21,95 @@ name: 'Messages'
 slug: 'messages'
 description: 'Send messages, create threads and more.'
 icon: /images/icons/apps/messages.svg
-allowed: True
+allowed: ${APP_MESSAGES_ALLOWED}
 providers:
   discord:
     name: 'Discord'
-    allowed: True
+    slug: 'discord'
+    description: 'Discord is a communication platform that runs in the web browser.'
+    icon: /images/icons/providers/discord.svg
+    allowed: ${APP_MESSAGES_PROVIDER_DISCORD_ALLOWED}
     bots:
       burton:
-        client_id: ${AI_MATE_BURTON_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_BURTON_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_BURTON_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_BURTON_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_BURTON_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_BURTON_TOKEN}
       sophia:
-        client_id: ${AI_MATE_SOPHIA_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_SOPHIA_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_SOPHIA_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_SOPHIA_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_SOPHIA_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_SOPHIA_TOKEN}
       mark:
-        client_id: ${AI_MATE_MARK_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_MARK_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_MARK_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MARK_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MARK_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MARK_TOKEN}
       elton:
-        client_id: ${AI_MATE_ELTON_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_ELTON_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_ELTON_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_ELTON_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_ELTON_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_ELTON_TOKEN}
       finn:
-        client_id: ${AI_MATE_FINN_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_FINN_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_FINN_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_FINN_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_FINN_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_FINN_TOKEN}
       grace:
-        client_id: ${AI_MATE_GRACE_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_GRACE_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_GRACE_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_GRACE_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_GRACE_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_GRACE_TOKEN}
       leon:
-        client_id: ${AI_MATE_LEON_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_LEON_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_LEON_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_LEON_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_LEON_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_LEON_TOKEN}
       priscilla:
-        client_id: ${AI_MATE_PRISCILLA_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_PRISCILLA_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_PRISCILLA_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_PRISCILLA_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_PRISCILLA_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_PRISCILLA_TOKEN}
       selma:
-        client_id: ${AI_MATE_SELMA_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_SELMA_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_SELMA_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_SELMA_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_SELMA_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_SELMA_TOKEN}
       makani:
-        client_id: ${AI_MATE_MAKANI_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_MAKANI_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_MAKANI_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MAKANI_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MAKANI_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MAKANI_TOKEN}
       monika:
-        client_id: ${AI_MATE_MONIKA_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_MONIKA_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_MONIKA_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MONIKA_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MONIKA_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MONIKA_TOKEN}
       melvin:
-        client_id: ${AI_MATE_MELVIN_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_MELVIN_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_MELVIN_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MELVIN_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MELVIN_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_MELVIN_TOKEN}
       lisa:
-        client_id: ${AI_MATE_LISA_DISCORD_CLIENT_ID}
-        oauth_url: ${AI_MATE_LISA_DISCORD_OAUTH_URL}
-        token: ${AI_MATE_LISA_DISCORD_TOKEN}
+        client_id: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_LISA_CLIENT_ID}
+        oauth_url: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_LISA_OAUTH_URL}
+        token: ${APP_MESSAGES_PROVIDER_DISCORD_BOTS_LISA_TOKEN}
   slack:
     name: 'Slack'
-    allowed: True
+    slug: 'slack'
+    description: 'Slack is a communication platform that runs in the web browser.'
+    icon: /images/icons/providers/slack.svg
+    allowed: ${APP_MESSAGES_PROVIDER_SLACK_ALLOWED}
     bots:
       sophia:
-        token: ${AI_MATE_SOPHIA_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_SOPHIA_TOKEN}
       mark:
-        token: ${AI_MATE_MARK_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_MARK_TOKEN}
       elton:
-        token: ${AI_MATE_ELTON_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_ELTON_TOKEN}
       finn:
-        token: ${AI_MATE_FINN_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_FINN_TOKEN}
       grace:
-        token: ${AI_MATE_GRACE_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_GRACE_TOKEN}
       leon:
-        token: ${AI_MATE_LEON_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_LEON_TOKEN}
       priscilla:
-        token: ${AI_MATE_PRISCILLA_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_PRISCILLA_TOKEN}
       selma:
-        token: ${AI_MATE_SELMA_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_SELMA_TOKEN}
       makani:
-        token: ${AI_MATE_MAKANI_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_MAKANI_TOKEN}
       monika:
-        token: ${AI_MATE_MONIKA_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_MONIKA_TOKEN}
       melvin:
-        token: ${AI_MATE_MELVIN_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_MELVIN_TOKEN}
       lisa:
-        token: ${AI_MATE_LISA_SLACK_TOKEN}
+        token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_LISA_TOKEN}
