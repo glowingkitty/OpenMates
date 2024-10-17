@@ -1,0 +1,53 @@
+#  _____________________________________________________________________
+# |                                                                     |
+# |         ____                  __  __        _                       |
+# |        / __ \                |  \/   |     | |                      |
+# |       | |  | |_ __   ___ _ __| \  /  | __ _| |_ ___  ___            |
+# |       | |  | | '_ \ / _ \ '_ \ |\/ | |/ _` | __/ _ \/ __|           |
+# |       | |__| | |_) |  __/ | | | |  | | (_| | ||  __/\__ \           |
+# |        \____/| .__/ \___|_| |_|_|  |_|\__,_|\__\___||___/           |
+# |              | |                                                    |
+# |              |_|                                                    |
+# |                                                                     |
+# |_____________________________________________________________________|
+#                       Your AI team mates.
+
+#########################################################################
+####################          'Docs' app          ######################
+#########################################################################
+
+name: 'Docs'
+slug: 'docs'
+description: |
+  Create documents for everything from contracts to CVs and more.
+icon: /images/icons/apps/docs.svg
+allowed: ${APP_FINANCE_ALLOWED}
+providers:
+  onlyoffice:
+    name: 'OnlyOffice'
+    slug: 'onlyoffice'
+    description: |
+      OnlyOffice is an open-source office suite, that can also run in the web browser.
+    icon: /images/icons/providers/onlyoffice.svg
+    allowed: ${APP_DOCS_PROVIDER_ONLYOFFICE_ALLOWED}
+    install_server: ${APP_DOCS_PROVIDER_ONLYOFFICE_INSTALL_SERVER}
+    api_url: ${APP_DOCS_PROVIDER_ONLYOFFICE_API_URL}
+  google_docs:
+    name: 'Google Docs'
+    slug: 'google_docs'
+    description: |
+      Google Docs is a free web-based word processor.
+    icon: /images/icons/providers/google_docs.svg
+    allowed: ${APP_DOCS_PROVIDER_GOOGLE_DOCS_ALLOWED}
+    api_url: ${APP_DOCS_PROVIDER_GOOGLE_DOCS_API_URL}
+skills:
+  create_document:
+    name: 'Create document'
+    slug: 'create_document'
+    description: |
+      Create a new document.
+      Including paragraphs, images, tables and more.
+    icon: /images/icons/skills/create.svg
+    allowed: ${APP_DOCS_SKILL_CREATE_DOCUMENT_ALLOWED}
+    default_provider_slug: ${APP_DOCS_SKILL_CREATE_DOCUMENT_DEFAULT_PROVIDER_SLUG}
+# focuses:

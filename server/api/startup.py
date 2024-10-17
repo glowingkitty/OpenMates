@@ -24,8 +24,16 @@ async def api_startup():
 
     await clear_all_memory()
 
+    # TODO move to loading API docs from yaml instead of hardcoded dict
+
     # # TODO check if the apps exist in strapi, if not create them (based on server/configs/apps/apps.yml - check each app, make sure the app is allowed and if so, it is in strapi)
     # await check_for_apps()
+
+    # TODO check if the skills exist in strapi, if not create them
+    # await check_for_skills()
+
+    # TODO check if the focuses exist in strapi, if not create them
+    # await check_for_focuses()
 
     # # TODO check if the mates exist in strapi, if not create them
     # await check_for_mates()

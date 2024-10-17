@@ -26,9 +26,29 @@ ai: /api/configs/apps/ai/app.yml
 # Generate, modify and transcribe audio and more.
 audio: /api/configs/apps/audio/app.yml
 
+# 'Books' app
+# Manage your ebooks, translate them and more.
+books: /api/configs/apps/books/app.yml
+
+# 'Business' app
+# Manage your businesses, get recommendations and more.
+business: /api/configs/apps/business/app.yml
+
+# 'Code' app
+# Write, test, improve and execute code.
+code: /api/configs/apps/code/app.yml
+
 # 'Design' app
 # Design interfaces, get feedback and more.
 design: /api/configs/apps/design/app.yml
+
+# 'Docs' app
+# Create documents for everything from contracts to CVs and more.
+docs: /api/configs/apps/docs/app.yml
+
+# 'Files' app
+# Upload, download, delete and manage files.
+files: /api/configs/apps/files/app.yml
 
 # 'Finance' app
 # Keep track of your finances and build a stable income.
@@ -41,6 +61,14 @@ home: /api/configs/apps/home/app.yml
 # 'Messages' app
 # Send messages, create threads and more.
 messages: /api/configs/apps/messages/app.yml
+
+# 'Photos' app
+# Generate images, modify and resize them and more.
+photos: /api/configs/apps/photos/app.yml
+
+# 'Videos' app
+# Create and generate videos, search for videos, get their transcript and more.
+videos: /api/configs/apps/videos/app.yml
 
 # 'Web' app
 # Browse the web, research topics and more.

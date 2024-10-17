@@ -18,28 +18,50 @@
 
 name: 'Audio'
 slug: 'audio'
-description: 'Generate, modify and transcribe audio and more.'
+description: |
+  Generate, modify and transcribe audio and more.
 icon: /images/icons/apps/audio.svg
 allowed: ${APP_AUDIO_ALLOWED}
 providers:
   assemblyai:
     name: 'AssemblyAI'
     slug: 'assemblyai'
-    description: 'AssemblyAI offers powerful AI transcription and speech-to-text services.'
+    description: |
+      AssemblyAI offers powerful AI transcription and speech-to-text services.
     icon: /images/icons/providers/assemblyai.svg
     allowed: ${APP_AUDIO_PROVIDER_ASSEMBLYAI_ALLOWED}
     api_key: ${APP_AUDIO_PROVIDER_ASSEMBLYAI_API_KEY}
   openai:
     name: 'OpenAI'
     slug: 'openai'
-    description: 'OpenAI offers powerful AI transcription and speech-to-text services.'
+    description: |
+      OpenAI offers powerful AI transcription and speech-to-text services.
     icon: /images/icons/providers/openai.svg
     allowed: ${APP_AUDIO_PROVIDER_OPENAI_ALLOWED}
     api_key: ${APP_AUDIO_PROVIDER_OPENAI_API_KEY}
   elevenlabs:
     name: 'ElevenLabs'
     slug: 'elevenlabs'
-    description: 'ElevenLabs offers powerful AI text-to-speech services.'
+    description: |
+      ElevenLabs offers powerful AI text-to-speech services.
     icon: /images/icons/providers/elevenlabs.svg
     allowed: ${APP_AUDIO_PROVIDER_ELEVENLABS_ALLOWED}
     api_key: ${APP_AUDIO_PROVIDER_ELEVENLABS_API_KEY}
+skills:
+  generate_speech:
+    name: 'Generate speech'
+    slug: 'generate_speech'
+    description: |
+      Transform text into spoken audio.
+    icon: /images/icons/skills/generate_speech.svg
+    allowed: ${APP_AUDIO_SKILL_GENERATE_SPEECH_ALLOWED}
+    default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_SPEECH_DEFAULT_PROVIDER_SLUG}
+  generate_transcription:
+    name: 'Generate transcription'
+    slug: 'generate_transcription'
+    description: |
+      Transform spoken audio to text.
+    icon: /images/icons/skills/generate_transcription.svg
+    allowed: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPTION_ALLOWED}
+    default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPTION_DEFAULT_PROVIDER_SLUG}
+# focuses:

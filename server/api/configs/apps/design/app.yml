@@ -18,16 +18,20 @@
 
 name: 'Design'
 slug: 'design'
-description: 'Design interfaces, get feedback and more.'
+description: |
+  Design interfaces, get feedback and more.
 icon: /images/icons/apps/design.svg
 allowed: ${APP_DESIGN_ALLOWED}
 providers:
   penpot:
     name: 'Penpot'
     slug: 'penpot'
-    description: 'Penpot is an open-source UI/UX design tool that runs in the web browser.'
+    description: |
+      Penpot is an open-source UI/UX design tool that runs in the web browser.
     icon: /images/icons/providers/penpot.svg
     allowed: ${APP_DESIGN_PROVIDER_PENPOT_ALLOWED}
     install_server: ${APP_DESIGN_PROVIDER_PENPOT_INSTALL_SERVER}
     api_url: ${APP_DESIGN_PROVIDER_PENPOT_API_URL}
     api_key: ${APP_DESIGN_PROVIDER_PENPOT_API_KEY}
+# skills:
+# focuses:

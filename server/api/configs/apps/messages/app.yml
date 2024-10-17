@@ -113,3 +113,19 @@ providers:
         token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_MELVIN_TOKEN}
       lisa:
         token: ${APP_MESSAGES_PROVIDER_SLACK_BOTS_LISA_TOKEN}
+skills:
+  send:
+    name: 'Send'
+    slug: 'send'
+    description: 'Send a new message to a channel or thread.'
+    icon: /images/icons/skills/create.svg
+    allowed: ${APP_MESSAGES_SKILL_SEND_ALLOWED}
+    default_provider_slug: ${APP_MESSAGES_SKILL_SEND_DEFAULT_PROVIDER_SLUG}
+  connect:
+    name: 'Connect'
+    slug: 'connect'
+    description: 'Connect a third party messenger. Allows you to chat with your AI team mates in that messenger.'
+    icon: /images/icons/skills/connect.svg
+    allowed: ${APP_MESSAGES_SKILL_CONNECT_ALLOWED}
+    default_provider_slug: ${APP_MESSAGES_SKILL_CONNECT_DEFAULT_PROVIDER_SLUG}
+# focuses:

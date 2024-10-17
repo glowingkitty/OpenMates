@@ -1,0 +1,58 @@
+#  _____________________________________________________________________
+# |                                                                     |
+# |         ____                  __  __        _                       |
+# |        / __ \                |  \/   |     | |                      |
+# |       | |  | |_ __   ___ _ __| \  /  | __ _| |_ ___  ___            |
+# |       | |  | | '_ \ / _ \ '_ \ |\/ | |/ _` | __/ _ \/ __|           |
+# |       | |__| | |_) |  __/ | | | |  | | (_| | ||  __/\__ \           |
+# |        \____/| .__/ \___|_| |_|_|  |_|\__,_|\__\___||___/           |
+# |              | |                                                    |
+# |              |_|                                                    |
+# |                                                                     |
+# |_____________________________________________________________________|
+#                       Your AI team mates.
+
+#########################################################################
+####################          'Videos' app          #####################
+#########################################################################
+
+name: 'Videos'
+slug: 'videos'
+description: |
+  Create and generate videos, search for videos, get their transcript and more.
+icon: /images/icons/apps/videos.svg
+allowed: ${APP_VIDEOS_ALLOWED}
+providers:
+  youtube:
+    name: 'YouTube'
+    slug: 'youtube'
+    description: |
+      YouTube is a video-sharing platform that allows users to upload, view, and share videos.
+    icon: /images/icons/providers/youtube.svg
+    allowed: ${APP_VIDEOS_PROVIDER_YOUTUBE_ALLOWED}
+  lumalabs:
+    name: 'LumaLabs'
+    slug: 'lumalabs'
+    description: |
+      LumaLabs is an AI company with video generation models.
+    icon: /images/icons/providers/lumalabs.svg
+    allowed: ${APP_VIDEOS_PROVIDER_LUMALABS_ALLOWED}
+  assemblyai:
+    name: 'AssemblyAI'
+    slug: 'assemblyai'
+    description: |
+      AssemblyAI is a platform that provides various AI powered services, like transcription.
+    icon: /images/icons/providers/assemblyai.svg
+    allowed: ${APP_VIDEOS_PROVIDER_ASSEMBLYAI_ALLOWED}
+skills:
+  get_transcript:
+    name: 'Get transcript'
+    slug: 'get_transcript'
+    description: |
+      Get the full transcript of a video.
+      Either an available transcript from YouTube,
+      or create a high quality transcript from scratch.
+    icon: /images/icons/skills/transcript.svg
+    allowed: ${APP_VIDEOS_SKILL_GET_TRANSCRIPT_ALLOWED}
+    default_provider_slug: ${APP_VIDEOS_SKILL_GET_TRANSCRIPT_DEFAULT_PROVIDER_SLUG}
+# focuses:

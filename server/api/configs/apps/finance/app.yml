@@ -18,15 +18,44 @@
 
 name: 'Finance'
 slug: 'finance'
-description: 'Keep track of your finances and build a stable income.'
+description: |
+  Keep track of your finances and build a stable income.
 icon: /images/icons/apps/finance.svg
 allowed: ${APP_FINANCE_ALLOWED}
 providers:
   akaunting:
     name: 'Akaunting'
     slug: 'akaunting'
-    description: 'Akaunting is an open-source accounting software that runs in the web browser.'
+    description: |
+      Akaunting is an open-source accounting software that runs in the web browser.
     icon: /images/icons/providers/akaunting.svg
     allowed: ${APP_FINANCE_PROVIDER_AKAUNTING_ALLOWED}
     install_server: ${APP_FINANCE_PROVIDER_AKAUNTING_INSTALL_SERVER}
     api_url: ${APP_FINANCE_PROVIDER_AKAUNTING_API_URL}
+skills:
+  get_report:
+    name: 'Get report'
+    slug: 'get_report'
+    description: |
+      Get a report about your transactions.
+      You can choose from various kinds of reports.
+    icon: /images/icons/skills/get_report.svg
+    allowed: ${APP_FINANCE_SKILL_GET_REPORT_ALLOWED}
+    default_provider_slug: ${APP_FINANCE_SKILL_GET_REPORT_DEFAULT_PROVIDER_SLUG}
+  get_transactions:
+    name: 'Get transactions'
+    slug: 'get_transactions'
+    description: |
+      Get all or specific bank transactions from any of your bank accounts in your accounting software.
+    icon: /images/icons/skills/get_all.svg
+    allowed: ${APP_FINANCE_SKILL_GET_TRANSACTIONS_ALLOWED}
+    default_provider_slug: ${APP_FINANCE_SKILL_GET_TRANSACTIONS_DEFAULT_PROVIDER_SLUG}
+focuses:
+  financial_insights:
+    name: 'Financial insights'
+    slug: 'financial_insights'
+    description: |
+      Help the user with gaining better financial insights.
+    icon: /images/icons/focuses/insights.svg
+    allowed: ${APP_FINANCE_FOCUS_FINANCIAL_INSIGHTS_ALLOWED}
+    prompt: /api/configs/apps/finance/prompts/financial_insights.md
