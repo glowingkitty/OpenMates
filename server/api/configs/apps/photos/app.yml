@@ -30,8 +30,6 @@ providers:
       Black Forest Labs is an AI company that models for image and video generation - some of them open source.
     icon: /images/icons/providers/black_forest_labs.svg
     allowed: ${APP_FINANCE_PROVIDER_AKAUNTING_ALLOWED}
-    install_server: ${APP_FINANCE_PROVIDER_AKAUNTING_INSTALL_SERVER}
-    api_url: ${APP_FINANCE_PROVIDER_AKAUNTING_API_URL}
 skills:
   generate:
     name: 'Generate'

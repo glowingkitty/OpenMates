@@ -65,5 +65,4 @@ skills:
       Get the estimated cost of a request to your AI.
     icon: /images/icons/skills/estimate_price.svg
     allowed: ${APP_AI_SKILL_ESTIMATE_COST_ALLOWED}
-    default_provider_slug: ${APP_AI_SKILL_ESTIMATE_COST_DEFAULT_PROVIDER_SLUG}
 # focuses:

@@ -54,5 +54,4 @@ skills:
       or create a high quality transcript from scratch.
     icon: /images/icons/skills/transcript.svg
     allowed: ${APP_VIDEOS_SKILL_GET_TRANSCRIPT_ALLOWED}
-    default_provider_slug: ${APP_VIDEOS_SKILL_GET_TRANSCRIPT_DEFAULT_PROVIDER_SLUG}
 # focuses:

@@ -15,7 +15,7 @@
 #########################################################################
 ####################          'Business' app          ###################
 #########################################################################
-
+# TODO add secrets to the env  (from this and other apps)
 name: 'Business'
 slug: 'business'
 description: 'Manage your businesses, get recommendations and more.'

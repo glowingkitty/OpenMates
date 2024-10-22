@@ -39,7 +39,6 @@ providers:
       Google Docs is a free web-based word processor.
     icon: /images/icons/providers/google_docs.svg
     allowed: ${APP_DOCS_PROVIDER_GOOGLE_DOCS_ALLOWED}
-    api_url: ${APP_DOCS_PROVIDER_GOOGLE_DOCS_API_URL}
 skills:
   create_document:
     name: 'Create document'
