@@ -40,7 +40,6 @@ skills:
       You can also filter for device categories or rooms.
     icon: /images/icons/skills/get_all.svg
     allowed: ${APP_HOME_SKILL_GET_ALL_DEVICES_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_GET_ALL_DEVICES_DEFAULT_PROVIDER_SLUG}
   get_all_scenes:
     name: 'Get all scenes'
     slug: 'get_all_scenes'
@@ -48,7 +47,6 @@ skills:
       Get a list of all scenes in your home.
     icon: /images/icons/skills/get_all.svg
     allowed: ${APP_HOME_SKILL_GET_ALL_SCENES_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_GET_ALL_SCENES_DEFAULT_PROVIDER_SLUG}
   add_device:
     name: 'Add device'
     slug: 'add_device'
@@ -56,7 +54,6 @@ skills:
       Add a new device to your smart home.
     icon: /images/icons/skills/create.svg
     allowed: ${APP_HOME_SKILL_ADD_DEVICE_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_ADD_DEVICE_DEFAULT_PROVIDER_SLUG}
   add_scene:
     name: 'Add scene'
     slug: 'add_scene'
@@ -65,7 +62,6 @@ skills:
       For example to turn on/off certain lights or devices.
     icon: /images/icons/skills/create.svg
     allowed: ${APP_HOME_SKILL_ADD_SCENE_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_ADD_SCENE_DEFAULT_PROVIDER_SLUG}
   set_scene:
     name: 'Set scene'
     slug: 'set_scene'
@@ -74,7 +70,6 @@ skills:
       For example to turn on/off certain lights or devices.
     icon: /images/icons/skills/set_scene.svg
     allowed: ${APP_HOME_SKILL_SET_SCENE_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_SET_SCENE_DEFAULT_PROVIDER_SLUG}
   set_device:
     name: 'Set device'
     slug: 'set_device'
@@ -83,7 +78,6 @@ skills:
       of an LED lamp or set a certain temperature for your heating.
     icon: /images/icons/skills/set_device.svg
     allowed: ${APP_HOME_SKILL_SET_DEVICE_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_SET_DEVICE_DEFAULT_PROVIDER_SLUG}
   get_temperature:
     name: 'Get temperature'
     slug: 'get_temperature'
@@ -92,7 +86,6 @@ skills:
       all sensors in a room or all sensors in your home.
     icon: /images/icons/skills/get_temperature.svg
     allowed: ${APP_HOME_SKILL_GET_TEMPERATURE_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_GET_TEMPERATURE_DEFAULT_PROVIDER_SLUG}
   get_power_consumption:
     name: 'Get power consumption'
     slug: 'get_power_consumption'
@@ -100,5 +93,4 @@ skills:
       Get power consumption data from a device, for your room or your home.
     icon: /images/icons/skills/get_power_consumption.svg
     allowed: ${APP_HOME_SKILL_GET_POWER_CONSUMPTION_ALLOWED}
-    default_provider_slug: ${APP_HOME_SKILL_GET_POWER_CONSUMPTION_DEFAULT_PROVIDER_SLUG}
 # focuses:
