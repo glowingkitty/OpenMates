@@ -84,6 +84,7 @@ def get_server_config(config_path: str = None) -> dict:
 
     try:
         parsed_config = json.loads(config.decode())
+
         # Navigate through the path
         for key in config_path.split('.'):
             if isinstance(parsed_config, dict) and key in parsed_config:
