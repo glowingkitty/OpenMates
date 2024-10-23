@@ -118,8 +118,8 @@ services:
   rest-api:
     container_name: rest-api
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     env_file: .env
     environment:
       PYTHONPATH: "/usr/src/app"
@@ -134,7 +134,7 @@ services:
              uvicorn api:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
-    volumes:
+    volumes: # mount folder, during development
       - .:/usr/src/app/server
     networks:
       - openmates
@@ -350,3 +350,4 @@ volumes:
   app-home-mosquitto-data:
   # The log for the Mosquitto MQTT broker
   app-home-mosquitto-log:
+

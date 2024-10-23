@@ -11,7 +11,18 @@ RUN apt-get update && \
 # Set the working directory in the container
 WORKDIR /usr/src/app/server/api
 
+# # COPY (for deployment)
+# # Copy the server_config.py file
+# COPY server_config.py /usr/src/app/server/
+
+# # Copy the server config
+# COPY server.yml /usr/src/app/server/
+
+# # Copy the API code
+# COPY api/ .
+
 # Install any needed packages specified in requirements.txt
 # Note: You will need to ensure that requirements.txt is available at build time
-COPY requirements.txt ./
+# COPY (for testing)
+COPY api/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
