@@ -1,12 +1,51 @@
 from server.api import *
 from server.api.docs.docs import setup_docs, bearer_scheme
+from server.server_config import get_server_config
 
 logger = logging.getLogger(__name__)
-
 
 ##################################
 ######### Setup FastAPI ##########
 ##################################
+
+def register_app_router(
+    app: FastAPI,
+    router: APIRouter,
+    app_name: str,
+    config_path: str,
+    tags: List[str]
+) -> None:
+    """
+    Register an app router if it's enabled in the server config.
+
+    Args:
+        app: FastAPI application instance
+        router: Router to include
+        app_name: Name of the app for logging
+        config_path: Path to the config setting (e.g., 'settings.apps.ai.allowed')
+        tags: List of tags for the router
+    """
+    logger.debug(f"Checking if app '{app_name}' is enabled...")
+
+    if get_server_config(config_path):
+        app.include_router(router, tags=tags)
+        logger.info(f"Routes for app '{app_name}' included")
+    else:
+        logger.info(f"Routes for app '{app_name}' excluded (disabled in config)")
+
+def require_feature(config_path: str):
+    """
+    Decorator to check if a feature is enabled before executing the endpoint.
+
+    Args:
+        config_path: Path to the config setting
+    """
+    def decorator(func):
+        if not get_server_config(config_path):
+            logger.debug(f"Endpoint disabled: {config_path} is not enabled")
+            return None
+        return func
+    return decorator
 
 # TODO dynamically load skill API endpoints, depending on which are in strapi database
 
@@ -16,8 +55,8 @@ router = APIRouter()
 files_router = APIRouter()
 mates_router = APIRouter()
 skills_router = APIRouter()
-skills_ai_router = APIRouter()
-skills_messages_router = APIRouter()
+apps_ai_router = APIRouter()
+apps_messages_router = APIRouter()
 skills_code_router = APIRouter()
 skills_finance_router = APIRouter()
 skills_docs_router = APIRouter()
@@ -325,7 +364,8 @@ async def get_skill(
 
 
 # POST /apps/ai/ask (ask a question to an AI)
-@skills_ai_router.post("/v1/{team_slug}/apps/ai/ask", **skills_ai_endpoints["ask"])
+@require_feature('settings.apps.ai.skills.ask.allowed')
+@apps_ai_router.post("/v1/{team_slug}/apps/ai/ask", **skills_ai_endpoints["ask"])
 @limiter.limit("20/minute")
 async def skill_ai_ask(
     request: Request,
@@ -346,7 +386,8 @@ async def skill_ai_ask(
 
 
 # POST /apps/ai/estimate_cost (estimate the cost of an AI call)
-@skills_ai_router.post("/v1/{team_slug}/apps/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
+@require_feature('settings.apps.ai.skills.estimate_cost.allowed')
+@apps_ai_router.post("/v1/{team_slug}/apps/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
 @limiter.limit("20/minute")
 async def skill_ai_estimate_cost(
     request: Request,
@@ -375,7 +416,8 @@ async def skill_ai_estimate_cost(
 
 
 # POST /apps/messages/send (send a message)
-@skills_messages_router.post("/v1/{team_slug}/apps/messages/send", **skills_messages_endpoints["send"])
+@require_feature('settings.apps.messages.skills.send.allowed')
+@apps_messages_router.post("/v1/{team_slug}/apps/messages/send", **skills_messages_endpoints["send"])
 @limiter.limit("20/minute")
 async def skill_messages_send(
     request: Request,
@@ -397,7 +439,8 @@ async def skill_messages_send(
 
 
 # POST /apps/messages/connect (connect to a server)
-@skills_messages_router.post("/v1/{team_slug}/apps/messages/connect", **skills_messages_endpoints["connect"])
+@require_feature('settings.apps.messages.skills.connect.allowed')
+@apps_messages_router.post("/v1/{team_slug}/apps/messages/connect", **skills_messages_endpoints["connect"])
 @limiter.limit("20/minute")
 async def skill_messages_connect(
     request: Request,
@@ -418,6 +461,7 @@ async def skill_messages_connect(
 
 
 # POST /apps/code/plan (plan code requirements and logic)
+@require_feature('settings.apps.code.skills.plan.allowed')
 @skills_code_router.post("/v1/{team_slug}/apps/code/plan", **skills_code_endpoints["plan"])
 @limiter.limit("10/minute")
 async def skill_code_plan(
@@ -444,6 +488,7 @@ async def skill_code_plan(
 
 
 # POST /apps/code/write (generate or update code based on requirements)
+@require_feature('settings.apps.code.skills.write.allowed')
 @skills_code_router.post("/v1/{team_slug}/apps/code/write", **skills_code_endpoints["write"])
 @limiter.limit("5/minute")
 async def skill_code_write(
@@ -468,6 +513,7 @@ async def skill_code_write(
 
 
 # POST /apps/finance/get_report (get a finance report)
+@require_feature('settings.apps.finance.skills.get_report.allowed')
 @skills_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **skills_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
 async def skill_finance_get_report(
@@ -491,6 +537,7 @@ async def skill_finance_get_report(
 
 
 # POST /apps/finance/get_transactions (get transactions)
+@require_feature('settings.apps.finance.skills.get_transactions.allowed')
 @skills_finance_router.post("/v1/{team_slug}/apps/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
 async def skill_finance_get_transactions(
@@ -516,6 +563,7 @@ async def skill_finance_get_transactions(
 
 
 # POST /apps/docs/create (create a new document)
+@require_feature('settings.apps.docs.skills.create.allowed')
 @skills_docs_router.post("/v1/{team_slug}/apps/docs/create", **skills_docs_endpoints["create"])
 @limiter.limit("20/minute")
 async def skill_docs_create(
@@ -538,6 +586,7 @@ async def skill_docs_create(
 
 
 # POST /apps/files/upload (upload a file)
+@require_feature('settings.apps.files.skills.upload.allowed')
 @skills_files_router.post("/v1/{team_slug}/apps/files/upload", **skills_files_endpoints["upload"])
 @limiter.limit("20/minute")
 async def skill_files_upload(
@@ -645,6 +694,7 @@ async def skill_files_delete(
 
 
 # POST /apps/audio/generate_transcript (generate transcript)
+@require_feature('settings.apps.audio.skills.generate_transcript.allowed')
 @skills_audio_router.post("/v1/{team_slug}/apps/audio/generate_transcript", **skills_audio_endpoints["generate_transcript"])
 @limiter.limit("20/minute")
 async def skill_audio_generate_transcript(
@@ -682,6 +732,7 @@ async def skill_audio_generate_transcript(
 
 
 # # POST /apps/audio/generate_speech (generate speech)
+# @require_feature('settings.apps.audio.skills.generate_speech.allowed')
 # @skills_audio_router.post("/v1/{team_slug}/apps/audio/generate_speech", **skills_audio_endpoints["generate_speech"])
 # @limiter.limit("20/minute")
 # async def skill_audio_generate_speech(
@@ -707,6 +758,7 @@ async def skill_audio_generate_transcript(
 
 
 # POST /apps/videos/transcript (get the transcript of a video)
+@require_feature('settings.apps.videos.skills.get_transcript.allowed')
 @skills_videos_router.post("/v1/{team_slug}/apps/videos/transcript", **skills_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_videos_get_transcript(
@@ -727,6 +779,7 @@ async def skill_videos_get_transcript(
 
 
 # POST /apps/web/read (read a web page)
+@require_feature('settings.apps.web.skills.read.allowed')
 @skills_web_router.post("/v1/{team_slug}/apps/web/read", **skills_web_endpoints["read"])
 @limiter.limit("20/minute")
 async def skill_web_read(
@@ -747,6 +800,7 @@ async def skill_web_read(
 
 
 # POST /apps/web/view (view a web page)
+@require_feature('settings.apps.web.skills.view.allowed')
 @skills_web_router.post("/v1/{team_slug}/apps/web/view", **skills_web_endpoints["view"])
 @limiter.limit("20/minute")
 async def skill_web_view(
@@ -766,6 +820,7 @@ async def skill_web_view(
 
 
 # POST /apps/home/get_all_devices (get all devices at home)
+@require_feature('settings.apps.home.skills.get_all_devices.allowed')
 @skills_home_router.post("/v1/{team_slug}/apps/home/get_all_devices", **skills_home_endpoints["get_all_devices"])
 @limiter.limit("20/minute")
 async def skill_home_get_all_devices(
@@ -787,6 +842,7 @@ async def skill_home_get_all_devices(
 
 
 # POST /apps/home/get_all_scenes (get all scenes at home)
+@require_feature('settings.apps.home.skills.get_all_scenes.allowed')
 @skills_home_router.post("/v1/{team_slug}/apps/home/get_all_scenes", **skills_home_endpoints["get_all_scenes"])
 @limiter.limit("20/minute")
 async def skill_home_get_all_scenes(
@@ -808,6 +864,7 @@ async def skill_home_get_all_scenes(
 
 
 # POST /apps/home/add_device (add a device to the smart home)
+@require_feature('settings.apps.home.skills.add_device.allowed')
 @skills_home_router.post("/v1/{team_slug}/apps/home/add_device", **skills_home_endpoints["add_device"])
 @limiter.limit("20/minute")
 async def skill_home_add_device(
@@ -829,6 +886,7 @@ async def skill_home_add_device(
 
 
 # POST /apps/home/add_scene (add a scene to the smart home)
+@require_feature('settings.apps.home.skills.add_scene.allowed')
 @skills_home_router.post("/v1/{team_slug}/apps/home/add_scene", **skills_home_endpoints["add_scene"])
 @limiter.limit("20/minute")
 async def skill_home_add_scene(
@@ -850,6 +908,7 @@ async def skill_home_add_scene(
 
 
 # PUT /apps/home/set_scene (set a scene at home)
+@require_feature('settings.apps.home.skills.set_scene.allowed')
 @skills_home_router.put("/v1/{team_slug}/apps/home/set_scene", **skills_home_endpoints["set_scene"])
 @limiter.limit("20/minute")
 async def skill_home_set_scene(
@@ -871,6 +930,7 @@ async def skill_home_set_scene(
 
 
 # PUT /apps/home/set_device (set a device at home)
+@require_feature('settings.apps.home.skills.set_device.allowed')
 @skills_home_router.put("/v1/{team_slug}/apps/home/set_device", **skills_home_endpoints["set_device"])
 @limiter.limit("20/minute")
 async def skill_home_set_device(
@@ -892,6 +952,7 @@ async def skill_home_set_device(
 
 
 # POST /apps/home/get_temperature (get the temperature at home)
+@require_feature('settings.apps.home.skills.get_temperature.allowed')
 @skills_home_router.post("/v1/{team_slug}/apps/home/get_temperature", **skills_home_endpoints["get_temperature"])
 @limiter.limit("20/minute")
 async def skill_home_get_temperature(
@@ -913,6 +974,7 @@ async def skill_home_get_temperature(
 
 
 # POST /apps/home/get_power_consumption (get the power consumption at home)
+@require_feature('settings.apps.home.skills.get_power_consumption.allowed')
 @skills_home_router.post("/v1/{team_slug}/apps/home/get_power_consumption", **skills_home_endpoints["get_power_consumption"])
 @limiter.limit("20/minute")
 async def skill_home_get_power_consumption(
@@ -936,6 +998,7 @@ async def skill_home_get_power_consumption(
 
 # TODO add test
 # POST /apps/photos/resize (resize an image)
+@require_feature('settings.apps.photos.skills.resize_image.allowed')
 @skills_photos_router.post("/v1/{team_slug}/apps/photos/resize", **skills_photos_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_photos_resize(
@@ -975,6 +1038,7 @@ async def skill_photos_resize(
 
 
 # POST /apps/books/translate
+@require_feature('settings.apps.books.skills.translate.allowed')
 @skills_books_router.post("/v1/{team_slug}/apps/books/translate", **skills_books_endpoints["translate"])
 @limiter.limit("20/minute")
 async def skill_books_translate(
@@ -1033,6 +1097,7 @@ async def skill_books_translate(
 
 
 # POST /apps/business/create_pitch
+@require_feature('settings.apps.business.skills.create_pitch.allowed')
 @skills_business_router.post("/v1/{team_slug}/apps/business/create_pitch", **skills_business_endpoints["create_pitch"])
 @limiter.limit("20/minute")
 async def skill_business_create_pitch(
@@ -1054,6 +1119,7 @@ async def skill_business_create_pitch(
 
 
 # POST /apps/business/plan_application
+@require_feature('settings.apps.business.skills.plan_application.allowed')
 @skills_business_router.post("/v1/{team_slug}/apps/business/plan_application", **skills_business_endpoints["plan_application"])
 @limiter.limit("20/minute")
 async def skill_business_plan_application(
@@ -1075,6 +1141,7 @@ async def skill_business_plan_application(
 
 
 # POST /apps/business/create_application
+@require_feature('settings.apps.business.skills.create_application.allowed')
 @skills_business_router.post("/v1/{team_slug}/apps/business/create_application", **skills_business_endpoints["create_application"])
 @limiter.limit("20/minute")
 async def skill_business_create_application(
@@ -1436,28 +1503,45 @@ async def generate_new_user_api_token(
 
 
 
-# Include the routers in your FastAPI application
-app.include_router(router, tags=["AI Call"])
-app.include_router(files_router,                    tags=["Files"])
-app.include_router(mates_router,                    tags=["Mates"])
-app.include_router(apps_router,                     tags=["Apps"])
-app.include_router(skills_router,                   tags=["Skills"])
-app.include_router(skills_ai_router,                tags=["Apps | AI"])
-app.include_router(skills_messages_router,          tags=["Apps | Messages"])
-app.include_router(skills_code_router,              tags=["Apps | Code"])
-app.include_router(skills_finance_router,           tags=["Apps | Finance"])
-app.include_router(skills_docs_router,              tags=["Apps | Docs"])
-app.include_router(skills_files_router,             tags=["Apps | Files"])
-app.include_router(skills_books_router,             tags=["Apps | Books"])
-app.include_router(skills_videos_router,            tags=["Apps | Videos"])
-app.include_router(skills_audio_router,             tags=["Apps | Audio"])
-app.include_router(skills_photos_router,            tags=["Apps | Photos"])
-app.include_router(skills_web_router,               tags=["Apps | Web"])
-app.include_router(skills_home_router,              tags=["Apps | Home"])
-app.include_router(skills_business_router,          tags=["Apps | Business"])
-app.include_router(workflows_router,                tags=["Workflows"])
-app.include_router(tasks_router,                    tags=["Tasks"])
-app.include_router(billing_router,                  tags=["Billing"])
-app.include_router(server_router,                   tags=["Server"])
-app.include_router(teams_router,                    tags=["Teams"])
-app.include_router(users_router,                    tags=["Users"])
+# Register base routers that are always enabled
+CORE_ROUTERS = [
+    (router, ["AI Call"]),
+    (files_router, ["Files"]),
+    (mates_router, ["Mates"]),
+    (apps_router, ["Apps"]),
+    (skills_router, ["Skills"]),
+    (workflows_router, ["Workflows"]),
+    (tasks_router, ["Tasks"]),
+    (billing_router, ["Billing"]),
+    (server_router, ["Server"]),
+    (teams_router, ["Teams"]),
+    (users_router, ["Users"])
+]
+
+# Register optional app routers
+APP_ROUTERS = [
+    (apps_ai_router, "AI", "settings.apps.ai.allowed", ["Apps | AI"]),
+    (apps_messages_router, "Messages", "settings.apps.messages.allowed", ["Apps | Messages"]),
+    (skills_code_router, "Code", "settings.apps.code.allowed", ["Apps | Code"]),
+    (skills_docs_router, "Docs", "settings.apps.docs.allowed", ["Apps | Docs"]),
+    (skills_files_router, "Files", "settings.apps.files.allowed", ["Apps | Files"]),
+    (skills_books_router, "Books", "settings.apps.books.allowed", ["Apps | Books"]),
+    (skills_audio_router, "Audio", "settings.apps.audio.allowed", ["Apps | Audio"]),
+    (skills_photos_router, "Photos", "settings.apps.photos.allowed", ["Apps | Photos"]),
+    (skills_web_router, "Web", "settings.apps.web.allowed", ["Apps | Web"]),
+    (skills_business_router, "Business", "settings.apps.business.allowed", ["Apps | Business"])
+]
+
+# Register all routers
+def register_all_routers(app: FastAPI) -> None:
+    """Register all routers with the FastAPI application."""
+    logger.debug("Registering core routers...")
+    for router, tags in CORE_ROUTERS:
+        app.include_router(router, tags=tags)
+
+    logger.debug("Registering app routers...")
+    for router, name, config_path, tags in APP_ROUTERS:
+        register_app_router(app, router, name, config_path, tags)
+
+# Register all routers
+register_all_routers(app)

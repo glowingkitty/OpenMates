@@ -15,5 +15,3 @@ WORKDIR /usr/src/app/server/api
 # Note: You will need to ensure that requirements.txt is available at build time
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-
-# At runtime, the current directory will be mounted, so no need to COPY it

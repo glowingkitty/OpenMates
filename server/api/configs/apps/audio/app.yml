@@ -56,12 +56,12 @@ skills:
     icon: /images/icons/skills/generate_speech.svg
     allowed: ${APP_AUDIO_SKILL_GENERATE_SPEECH_ALLOWED}
     default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_SPEECH_DEFAULT_PROVIDER_SLUG}
-  generate_transcription:
-    name: 'Generate transcription'
-    slug: 'generate_transcription'
+  generate_transcript:
+    name: 'Generate transcript'
+    slug: 'generate_transcript'
     description: |
       Transform spoken audio to text.
-    icon: /images/icons/skills/generate_transcription.svg
-    allowed: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPTION_ALLOWED}
-    default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPTION_DEFAULT_PROVIDER_SLUG}
+    icon: /images/icons/skills/generate_transcript.svg
+    allowed: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPT_ALLOWED}
+    default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPT_DEFAULT_PROVIDER_SLUG}
 # focuses:

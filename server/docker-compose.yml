@@ -50,6 +50,9 @@ services:
     env_file: .env
     environment:
       DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
+    command: >
+      sh -c "python /usr/src/app/server_config.py && 
+             python discord_listener.py"
     networks:
       - openmates
     extra_hosts:
@@ -68,8 +71,8 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      WEB_BROWSER_PORT: "${WEB_BROWSER_PORT}"
-      WEB_BROWSER_SECRET_KEY: "${WEB_BROWSER_SECRET_KEY}"
+      APP_WEB_PORT: "${APP_WEB_PORT}"
+      APP_WEB_SECRET_KEY: "${APP_WEB_SECRET_KEY}"
     volumes:
       - ./apps/web:/usr/src/app-web
     networks:
@@ -124,11 +127,10 @@ services:
       CMS_URL: "http://cms:${CMS_PORT}"
       CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
-      WEB_BROWSER_URL: "http://app-web:${WEB_BROWSER_PORT}"
-      WEB_BROWSER_SECRET_KEY: ${WEB_BROWSER_SECRET_KEY}
+      WEB_BROWSER_URL: "http://app-web:${APP_WEB_PORT}"
+      APP_WEB_SECRET_KEY: ${APP_WEB_SECRET_KEY}
     command: >
       sh -c "python /usr/src/app/server/server_config.py && 
-             python -c 'import sys; print(sys.path)' &&  # Debug print
              uvicorn api:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"

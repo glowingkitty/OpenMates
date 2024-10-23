@@ -23,9 +23,9 @@ async def read(
         # Call the web_browser service
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"http://web_browser:{os.getenv('WEB_BROWSER_PORT')}/read",
+                f"http://web_browser:{os.getenv('APP_WEB_PORT')}/read",
                 json={"url": url, "include_images": include_images},
-                headers={"Authorization": f"Bearer {os.getenv('WEB_BROWSER_SECRET_KEY')}"}
+                headers={"Authorization": f"Bearer {os.getenv('APP_WEB_SECRET_KEY')}"}
             ) as response:
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail="Failed to fetch content from web_browser")

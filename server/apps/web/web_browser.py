@@ -10,7 +10,7 @@ from context import new_context
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-WEB_BROWSER_SECRET_KEY = os.getenv("WEB_BROWSER_SECRET_KEY")
+APP_WEB_SECRET_KEY = os.getenv("APP_WEB_SECRET_KEY")
 
 async def api_startup():
     global playwright, browser
@@ -43,7 +43,7 @@ async def view_page(request: URLRequest, req: Request):
     try:
         logger.debug(f"Received request to view page: {request.url}")
         auth_header = req.headers.get("Authorization")
-        if auth_header != f"Bearer {WEB_BROWSER_SECRET_KEY}":
+        if auth_header != f"Bearer {APP_WEB_SECRET_KEY}":
             logger.warning("Unauthorized access attempt")
             raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -77,7 +77,7 @@ async def read_page(request: URLRequest, req: Request):
     try:
         logger.debug(f"Received request to read page.")
         auth_header = req.headers.get("Authorization")
-        if auth_header != f"Bearer {WEB_BROWSER_SECRET_KEY}":
+        if auth_header != f"Bearer {APP_WEB_SECRET_KEY}":
             logger.warning("Unauthorized access attempt")
             raise HTTPException(status_code=403, detail="Forbidden")
 

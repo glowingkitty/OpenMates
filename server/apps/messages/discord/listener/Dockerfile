@@ -11,7 +11,5 @@ WORKDIR /usr/src/app
 # Copy only the necessary files
 COPY apps/messages/discord/listener /usr/src/app
 COPY server.yml /usr/src/app/server.yml
+COPY api/configs/apps/messages/app.yml /usr/src/app/api/configs/apps/messages/app.yml
 COPY server_config.py /usr/src/app/server_config.py
-
-# Run discord_listener.py when the container launches
-CMD ["python", "discord_listener.py"]

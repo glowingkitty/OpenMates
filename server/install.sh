@@ -70,7 +70,7 @@ read -p "Enter app names separated by spaces: " apps
 bold "Creating .env file..."
 cat <<EOL > .env
 # Add your environment variables here
-WEB_BROWSER_PORT=8080
+APP_WEB_PORT=8080
 REST_API_PORT=5000
 # Add more default variables as needed
 EOL

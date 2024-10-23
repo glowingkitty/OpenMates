@@ -27,8 +27,8 @@ required_env_variables = [
     "APP_KEYS", "ADMIN_JWT_SECRET", "TRANSFER_TOKEN_SALT",
     "NODE_ENV", "DATABASE_CLIENT", "DATABASE_NAME",
     "DATABASE_FILENAME", "DATABASE_USERNAME", "DATABASE_PASSWORD",
-    "JWT_SECRET", "IN_MEMORY_DATABASE_PORT", "WEB_BROWSER_SECRET_KEY",
-    "WEB_BROWSER_PORT", "REST_API_PORT"
+    "JWT_SECRET", "IN_MEMORY_DATABASE_PORT", "APP_WEB_SECRET_KEY",
+    "APP_WEB_PORT", "REST_API_PORT"
 ]
 
 # Add a new global variable to store cached file contents
@@ -266,7 +266,7 @@ if __name__ == "__main__":
 
     # If any environment variables are missing, exit
     if not all_vars_present:
-        logger.info("Closing REST API server due to missing environment variables...")
+        logger.info("Exiting due to missing environment variables...")
         sys.exit(1)
 
     # Attempt to load the server configuration from memory

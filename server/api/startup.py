@@ -1,7 +1,7 @@
 import logging
 import os
 import redis.asyncio as redis
-
+from server.server_config import get_server_config
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,8 @@ async def api_startup():
 
     await clear_all_memory()
 
-    # TODO move to loading API docs from yaml instead of hardcoded dict
+    # get server config
+    server_config = get_server_config()
 
     # # TODO check if the apps exist in strapi, if not create them (based on server/configs/apps/apps.yml - check each app, make sure the app is allowed and if so, it is in strapi)
     # await check_for_apps()
