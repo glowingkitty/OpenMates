@@ -168,70 +168,89 @@ def main(from_date_str: str = None, to_date_str: str = None):
         logger.info(f"Searching for appointments between {from_date.date()} and {to_date.date()}")
 
         page = 1
-        closest_appointment = None
+        closest_appointments = []
         total_checked = 0
+        max_doctors = 100  # Limit to the first 100 doctors
 
-        while True:
-            doctors = get_doctors_list(page)
-            if not doctors:
-                break
+        while total_checked < max_doctors:
+            try:
+                doctors = get_doctors_list(page)
+                if not doctors:
+                    break
 
-            # Random delay between pages to prevent rate limiting
-            time.sleep(random.uniform(3, 5))
+                # Random delay between pages to prevent rate limiting
+                time.sleep(random.uniform(3, 5))
 
-            for i, doctor in enumerate(doctors, 1):
-                total_checked += 1
-                # Create initial status line
-                status_line = f"\rChecking doctor {total_checked}: {doctor['name_with_title']:<50}"
-                sys.stdout.write(status_line)
-                sys.stdout.flush()
+                for i, doctor in enumerate(doctors, 1):
+                    total_checked += 1
+                    if total_checked > max_doctors:
+                        break
 
-                appointment_info = get_next_available_slot(doctor, from_date, to_date)
-
-                if appointment_info:
-                    slot_date = appointment_info['next_slot']
-
-                    # Update status line with success and date
-                    status_line += f" ✓ (next appointment: {slot_date.strftime('%Y-%m-%d %H:%M')})"
-                    sys.stdout.write(status_line + "\n")
+                    # Create initial status line
+                    status_line = f"\rChecking doctor {total_checked}: {doctor['name_with_title']:<50}"
+                    sys.stdout.write(status_line)
                     sys.stdout.flush()
 
-                    # Check if this slot is within the desired date range
-                    if from_date <= slot_date <= to_date:
-                        logger.info("\nFound matching appointment!")
-                        logger.info(f"Doctor: {appointment_info['name_with_title']}")
-                        logger.info(f"Next available: {slot_date.strftime('%Y-%m-%d %H:%M')}")
-                        logger.info(f"Profile: https://www.doctolib.de{appointment_info['profile_path']}")
-                        return appointment_info
+                    appointment_info = get_next_available_slot(doctor, from_date, to_date)
+
+                    if appointment_info:
+                        slot_date = appointment_info['next_slot']
+
+                        # Update status line with success and date
+                        status_line += f" ✓ (next appointment: {slot_date.strftime('%Y-%m-%d %H:%M')})"
+                        sys.stdout.write(status_line + "\n")
+                        sys.stdout.flush()
+
+                        # Check if this slot is within the desired date range
+                        if from_date <= slot_date <= to_date:
+                            logger.info("\nFound matching appointment!")
+                            logger.info(f"Doctor: {appointment_info['name_with_title']}")
+                            logger.info(f"Next available: {slot_date.strftime('%Y-%m-%d %H:%M')}")
+                            logger.info(f"Profile: https://www.doctolib.de{appointment_info['profile_path']}")
+                            return appointment_info
+                        else:
+                            # Add to closest appointments list
+                            closest_appointments.append(appointment_info)
+                            # Sort and keep only top 3 closest appointments
+                            closest_appointments.sort(key=lambda x: abs((x['next_slot'] - from_date).days))
+                            closest_appointments = closest_appointments[:3]
                     else:
-                        # Determine if this slot is closer to the from_date than the current closest
-                        days_difference = abs((slot_date - from_date).days)
-                        if (closest_appointment is None) or (days_difference < abs((closest_appointment['next_slot'] - from_date).days)):
-                            closest_appointment = appointment_info
-                            logger.info(f"New closest appointment found: {slot_date.strftime('%Y-%m-%d %H:%M')} with {appointment_info['name_with_title']}")
-                else:
-                    # Update status line with failure
-                    status_line += " ✗ (no appointments available)"
-                    sys.stdout.write(status_line + "\n")
-                    sys.stdout.flush()
+                        # Update status line with failure
+                        status_line += " ✗ (no appointments available)"
+                        sys.stdout.write(status_line + "\n")
+                        sys.stdout.flush()
 
-            page += 1
-            time.sleep(random.uniform(1, 2))
+                page += 1
+                time.sleep(random.uniform(1, 2))
+
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request failed: {str(e)}")
+                break
 
         # Final summary if no appointments found within range
         sys.stdout.write("\n")
         logger.info("No appointments found within the specified date range")
 
-        if closest_appointment:
-            logger.info("\nBest available appointment found:")
-            logger.info(f"Doctor: {closest_appointment['name_with_title']}")
-            logger.info(f"Date: {closest_appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
-            logger.info(f"Profile: https://www.doctolib.de{closest_appointment['profile_path']}")
+        if closest_appointments:
+            logger.info("\nTop 3 closest available appointments found:")
+            for appointment in closest_appointments:
+                logger.info(f"Doctor: {appointment['name_with_title']}")
+                logger.info(f"Date: {appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
+                logger.info(f"Profile: https://www.doctolib.de{appointment['profile_path']}")
 
-        return closest_appointment
+        return closest_appointments
 
     except ValueError as e:
         logger.error(f"Date parsing error: {str(e)}")
+        return None
+    except KeyboardInterrupt:
+        logger.info("Search canceled by user.")
+        if closest_appointments:
+            logger.info("\nTop 3 closest available appointments found before cancellation:")
+            for appointment in closest_appointments:
+                logger.info(f"Doctor: {appointment['name_with_title']}")
+                logger.info(f"Date: {appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
+                logger.info(f"Profile: https://www.doctolib.de{appointment['profile_path']}")
         return None
 
 if __name__ == "__main__":
