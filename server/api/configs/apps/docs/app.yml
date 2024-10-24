@@ -21,7 +21,7 @@ slug: 'docs'
 description: |
   Create documents for everything from contracts to CVs and more.
 icon: /images/icons/apps/docs.svg
-allowed: ${APP_FINANCE_ALLOWED}
+allowed: ${APP_DOCS_ALLOWED}
 providers:
   onlyoffice:
     name: 'OnlyOffice'
@@ -40,9 +40,9 @@ providers:
     icon: /images/icons/providers/google_docs.svg
     allowed: ${APP_DOCS_PROVIDER_GOOGLE_DOCS_ALLOWED}
 skills:
-  create_document:
+  create:
     name: 'Create document'
-    slug: 'create_document'
+    slug: 'create'
     description: |
       Create a new document.
       Including paragraphs, images, tables and more.

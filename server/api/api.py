@@ -33,15 +33,19 @@ def register_app_router(
     else:
         logger.info(f"Routes for app '{app_name}' excluded (disabled in config)")
 
-def require_feature(config_path: str):
+def require_feature(config_path: str | None = None):
     """
     Decorator to check if a feature is enabled before executing the endpoint.
+    If config_path is None, the endpoint will be included without checking.
 
     Args:
-        config_path: Path to the config setting
+        config_path: Path to the config setting, or None to skip checking
     """
     def decorator(func):
-        if not get_server_config(config_path):
+        # Store the config path on the function for later reference
+        func._config_path = config_path
+
+        if config_path and not get_server_config(config_path):
             logger.debug(f"Endpoint disabled: {config_path} is not enabled")
             return None
         return func
@@ -460,58 +464,6 @@ async def skill_messages_connect(
     )
 
 
-# POST /apps/code/plan (plan code requirements and logic)
-@require_feature('apps.code.skills.plan.allowed')
-@skills_code_router.post("/v1/{team_slug}/apps/code/plan", **skills_code_endpoints["plan"])
-@limiter.limit("10/minute")
-async def skill_code_plan(
-    request: Request,
-    parameters: CodePlanInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> CodePlanOutput:
-    await validate_permissions(
-        endpoint="/apps/code/plan",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_code_plan_processing(
-        token=token,
-        team_slug=team_slug,
-        q_and_a_basics=parameters.q_and_a_basics,
-        q_and_a_followup=parameters.q_and_a_followup,
-        code_git_url=parameters.code_git_url,
-        code_zip=parameters.code_zip,
-        code_file=parameters.code_file,
-        other_context_files=parameters.other_context_files
-    )
-
-
-# POST /apps/code/write (generate or update code based on requirements)
-@require_feature('apps.code.skills.write.allowed')
-@skills_code_router.post("/v1/{team_slug}/apps/code/write", **skills_code_endpoints["write"])
-@limiter.limit("5/minute")
-async def skill_code_write(
-    request: Request,
-    parameters: CodeWriteInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> CodeWriteOutput:
-    await validate_permissions(
-        endpoint="/apps/code/write",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_code_write_processing(
-        token=token,
-        team_slug=team_slug,
-        requirements=parameters.requirements,
-        coding_guidelines=parameters.coding_guidelines,
-        files_for_context=parameters.files_for_context,
-        file_tree_for_context=parameters.file_tree_for_context
-    )
-
-
 # POST /apps/finance/get_report (get a finance report)
 @require_feature('apps.finance.skills.get_report.allowed')
 @skills_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **skills_finance_endpoints["get_report"])
@@ -651,6 +603,7 @@ async def skill_files_upload(
 
 
 # GET /apps/files/{provider}/{file_path} (download a file)
+@require_feature('apps.files.skills.download.allowed')
 @skills_files_router.get("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **skills_files_endpoints["download"])
 @limiter.limit("20/minute")
 async def skill_files_download(
@@ -998,7 +951,7 @@ async def skill_home_get_power_consumption(
 
 # TODO add test
 # POST /apps/photos/resize (resize an image)
-@require_feature('apps.photos.skills.resize_image.allowed')
+@require_feature('apps.photos.skills.resize.allowed')
 @skills_photos_router.post("/v1/{team_slug}/apps/photos/resize", **skills_photos_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_photos_resize(
@@ -1094,81 +1047,6 @@ async def skill_books_translate(
     )
 
     return task
-
-
-# POST /apps/business/create_pitch
-@require_feature('apps.business.skills.create_pitch.allowed')
-@skills_business_router.post("/v1/{team_slug}/apps/business/create_pitch", **skills_business_endpoints["create_pitch"])
-@limiter.limit("20/minute")
-async def skill_business_create_pitch(
-    request: Request,
-    parameters: BusinessCreatePitchInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> BusinessCreatePitchOutput:
-    await validate_permissions(
-        endpoint="/apps/business/create_pitch",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_business_create_pitch_processing(
-        user_api_token=token,
-        team_slug=team_slug,
-        pitch_input=parameters
-    )
-
-
-# POST /apps/business/plan_application
-@require_feature('apps.business.skills.plan_application.allowed')
-@skills_business_router.post("/v1/{team_slug}/apps/business/plan_application", **skills_business_endpoints["plan_application"])
-@limiter.limit("20/minute")
-async def skill_business_plan_application(
-    request: Request,
-    parameters: BusinessPlanApplicationInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> BusinessPlanApplicationOutput:
-    await validate_permissions(
-        endpoint="/apps/business/plan_application",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_business_plan_application_processing(
-        user_api_token=token,
-        team_slug=team_slug,
-        input=parameters
-    )
-
-
-# POST /apps/business/create_application
-@require_feature('apps.business.skills.create_application.allowed')
-@skills_business_router.post("/v1/{team_slug}/apps/business/create_application", **skills_business_endpoints["create_application"])
-@limiter.limit("20/minute")
-async def skill_business_create_application(
-    request: Request,
-    parameters: BusinessCreateApplicationInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> BusinessCreateApplicationOutput:
-    await validate_permissions(
-        endpoint="/apps/business/create_application",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_business_create_application_processing(
-        user_api_token=token,
-        team_slug=team_slug,
-        input=parameters
-    )
-
-
-##################################
-######### App ###############
-##################################
-
-# Explaination:
-# A software can be interacted with using skills. For example, Notion, Figma, YouTube or Google Calendar.
-
 
 
 
@@ -1501,7 +1379,8 @@ async def generate_new_user_api_token(
         password=parameters.password
     )
 
-
+# TODO fix script, so it excludes apps if they not allowed in env.
+# also define app_routers based on apps.yml file, instead of hardcoding them
 
 # Register base routers that are always enabled
 CORE_ROUTERS = [
@@ -1539,9 +1418,61 @@ def register_all_routers(app: FastAPI) -> None:
     for router, tags in CORE_ROUTERS:
         app.include_router(router, tags=tags)
 
+    # Track connected and disconnected apps/skills
+    connected_apps = []
+    disconnected_apps = []
+    connected_skills = []
+    disconnected_skills = []
+
+    # Check all skills first
+    logger.debug("Checking skill endpoints...")
+    for router, name, config_path, tags in APP_ROUTERS:
+        # Check each skill endpoint for this app
+        skill_endpoints = [route for route in router.routes]
+        for endpoint in skill_endpoints:
+            skill_name = endpoint.path.split('/')[-1]
+
+            # Check if endpoint has a config path defined
+            config_path = getattr(endpoint.endpoint, '_config_path', None)
+            if config_path is None:
+                # If no config path, automatically include it
+                connected_skills.append(f"{name} | {skill_name}")
+                continue
+
+            # Check if the skill is enabled
+            if get_server_config(config_path):
+                connected_skills.append(f"{name} | {skill_name}")
+            else:
+                disconnected_skills.append(f"{name} | {skill_name}")
+
     logger.debug("Registering app routers...")
     for router, name, config_path, tags in APP_ROUTERS:
-        register_app_router(app, router, name, config_path, tags)
+        if get_server_config(config_path):
+            app.include_router(router, tags=tags)
+            connected_apps.append(name)
+        else:
+            disconnected_apps.append(name)
+
+    # Log summary
+    if len(connected_apps) > 0:
+        logger.info("=== Connected Apps ===")
+        for app_name in sorted(connected_apps):
+            logger.info(f"✓ {app_name}")
+
+    if len(disconnected_apps) > 0:
+        logger.info("\n=== Disconnected Apps ===")
+        for app_name in sorted(disconnected_apps):
+            logger.info(f"✗ {app_name}")
+
+    if len(connected_skills) > 0:
+        logger.info("\n=== Connected Skills ===")
+        for skill in sorted(connected_skills):
+            logger.info(f"✓ {skill}")
+
+    if len(disconnected_skills) > 0:
+        logger.info("\n=== Disconnected Skills ===")
+        for skill in sorted(disconnected_skills):
+            logger.info(f"✗ {skill}")
 
 # Register all routers
 register_all_routers(app)
