@@ -1,19 +1,53 @@
 import requests
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 import json
 import time
 import random
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_doctors_list() -> List[Dict]:
-    """Fetch the list of HNO doctors in Berlin with pagination support"""
+def parse_date(date_str: str = None) -> datetime:
+    """
+    Parse date string in YYYY-MM-DD format to timezone-aware datetime object
+    
+    Args:
+        date_str (str, optional): Date string in YYYY-MM-DD format
+        
+    Returns:
+        datetime: Parsed datetime object with time set to 00:00:00 UTC
+    """
+    try:
+        if date_str:
+            # Parse the date and make it timezone-aware (UTC)
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+        else:
+            dt = datetime.now()
+        
+        # Make timezone-aware if it isn't already
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError as e:
+        logger.error(f"Invalid date format. Please use YYYY-MM-DD. Error: {str(e)}")
+        raise ValueError("Invalid date format. Please use YYYY-MM-DD")
+
+def get_doctors_list(page: int = 1) -> List[Dict]:
+    """
+    Fetch a single page of HNO doctors in Berlin
+    
+    Args:
+        page (int): Page number to fetch
+        
+    Returns:
+        List[Dict]: List of doctors from the requested page
+    """
     base_url = "https://www.doctolib.de"
-    doctors_url = f"{base_url}/facharzt-fur-hno/berlin.json"  # Note the .json extension added
+    doctors_url = f"{base_url}/facharzt-fur-hno/berlin.json"
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -24,44 +58,41 @@ def get_doctors_list() -> List[Dict]:
         'Referer': 'https://www.doctolib.de/',
     }
 
-    all_doctors = []
-    page = 1
-
     try:
-        while len(all_doctors) < 50:  # Continue until we have at least 50 doctors
-            params = {
-                'page': page,
-                'limit': 20  # Maximum allowed per page
-            }
+        params = {
+            'page': page,
+            'limit': 20  # Maximum allowed per page
+        }
 
-            logger.info(f"Fetching page {page} of doctors...")
-            response = requests.get(doctors_url, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
+        logger.info(f"Fetching page {page} of doctors...")
+        response = requests.get(doctors_url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
 
-            doctors_on_page = data.get('data', {}).get('doctors', [])
-            if not doctors_on_page:  # No more doctors available
-                break
-
-            all_doctors.extend(doctors_on_page)
-            page += 1
-
-            # Add a small delay between pagination requests
-            time.sleep(random.uniform(1, 2))
-
-        logger.info(f"Total doctors fetched: {len(all_doctors)}")
-        return all_doctors[:50]  # Return only the first 50 doctors
+        doctors = data.get('data', {}).get('doctors', [])
+        logger.info(f"Found {len(doctors)} doctors on page {page}")
+        return doctors
 
     except Exception as e:
         logger.error(f"Error fetching doctors list: {str(e)}")
         return []
 
-def get_next_available_slot(doctor: Dict) -> tuple:
+def get_next_available_slot(doctor: Dict, from_date: datetime, to_date: datetime) -> Dict:
     """
-    Fetch the next available slot for a specific doctor
-    Includes random delay to simulate human behavior
+    Fetch the next available slot for a specific doctor.
+    
+    This function retrieves the next available appointment slot for the given doctor,
+    regardless of whether it falls within the specified date range.
+
+    Args:
+        doctor (Dict): Doctor information dictionary
+        from_date (datetime): Start date for appointment search
+        to_date (datetime): End date for appointment search
+
+    Returns:
+        Dict: Appointment information if found, None otherwise
     """
-    # Add random delay between 1 and 3 seconds
+    # Add random delay between 1 and 3 seconds to avoid rate limiting
     delay = random.uniform(1, 3)
     time.sleep(delay)
     logger.debug(f"Waiting for {delay:.2f} seconds before requesting data for {doctor['name_with_title']}")
@@ -89,46 +120,122 @@ def get_next_available_slot(doctor: Dict) -> tuple:
 
         next_slot = data.get('next_slot')
         if next_slot:
-            return (
-                datetime.fromisoformat(next_slot.replace('Z', '+00:00')),
-                doctor['profile_path'],
-                doctor['name_with_title']
-            )
+            # Parse the ISO format datetime and ensure it's timezone-aware
+            slot_date = datetime.fromisoformat(next_slot.replace('Z', '+00:00'))
+
+            # Ensure from_date and to_date are timezone-aware
+            if from_date.tzinfo is None:
+                from_date = from_date.replace(tzinfo=timezone.utc)
+            if to_date.tzinfo is None:
+                to_date = to_date.replace(tzinfo=timezone.utc)
+
+            return {
+                'address': doctor.get('address', 'N/A'),
+                'city': doctor.get('city', 'N/A'),
+                'zipcode': doctor.get('zipcode', 'N/A'),
+                'profile_path': doctor.get('profile_path', 'N/A'),
+                'name_with_title': doctor.get('name_with_title', 'N/A'),
+                'position': doctor.get('position', 'N/A'),
+                'next_slot': slot_date
+            }
         return None
     except Exception as e:
         logger.error(f"Error fetching slots for doctor {doctor['name_with_title']}: {str(e)}")
         return None
 
-def main():
-    # Get all doctors
-    logger.info("Fetching list of doctors...")
-    doctors = get_doctors_list()
-    logger.info(f"Found {len(doctors)} doctors")
+def main(from_date_str: str = None, to_date_str: str = None):
+    """
+    Main function to find the first available appointment within a date range
 
-    # Add initial random delay before starting individual requests
-    initial_delay = random.uniform(2, 4)
-    logger.debug(f"Initial waiting period: {initial_delay:.2f} seconds")
-    time.sleep(initial_delay)
+    Args:
+        from_date_str (str, optional): Start date for appointment search (YYYY-MM-DD)
+        to_date_str (str, optional): End date for appointment search (YYYY-MM-DD)
+    """
+    try:
+        # Convert string dates to timezone-aware datetime objects
+        from_date = parse_date(from_date_str)
 
-    # Get available slots for each doctor
-    available_slots = []
-    for i, doctor in enumerate(doctors, 1):
-        logger.info(f"Checking availability for {doctor['name_with_title']} ({i}/{len(doctors)})")
-        slot_info = get_next_available_slot(doctor)
-        if slot_info:
-            available_slots.append(slot_info)
+        # If to_date not provided, set to 5 days from from_date
+        if not to_date_str:
+            to_date = from_date + timedelta(days=5)
+        else:
+            to_date = parse_date(to_date_str)
 
-    # Sort by date and get top 5
-    available_slots.sort(key=lambda x: x[0])
-    top_5 = available_slots[:5]
+        # Set time to start of day for from_date and end of day for to_date
+        from_date = from_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        to_date = to_date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    # Print results
-    logger.info("\nTop 5 earliest available appointments:")
-    for date, profile_path, doctor_name in top_5:
-        logger.info(f"Doctor: {doctor_name}")
-        logger.info(f"Next available: {date.strftime('%Y-%m-%d %H:%M')}")
-        logger.info(f"Profile: https://www.doctolib.de{profile_path}")
-        logger.info("---")
+        logger.info(f"Searching for appointments between {from_date.date()} and {to_date.date()}")
+
+        page = 1
+        closest_appointment = None
+        total_checked = 0
+
+        while True:
+            doctors = get_doctors_list(page)
+            if not doctors:
+                break
+
+            # Random delay between pages to prevent rate limiting
+            time.sleep(random.uniform(3, 5))
+
+            for i, doctor in enumerate(doctors, 1):
+                total_checked += 1
+                # Create initial status line
+                status_line = f"\rChecking doctor {total_checked}: {doctor['name_with_title']:<50}"
+                sys.stdout.write(status_line)
+                sys.stdout.flush()
+
+                appointment_info = get_next_available_slot(doctor, from_date, to_date)
+
+                if appointment_info:
+                    slot_date = appointment_info['next_slot']
+
+                    # Update status line with success and date
+                    status_line += f" ✓ (next appointment: {slot_date.strftime('%Y-%m-%d %H:%M')})"
+                    sys.stdout.write(status_line + "\n")
+                    sys.stdout.flush()
+
+                    # Check if this slot is within the desired date range
+                    if from_date <= slot_date <= to_date:
+                        logger.info("\nFound matching appointment!")
+                        logger.info(f"Doctor: {appointment_info['name_with_title']}")
+                        logger.info(f"Next available: {slot_date.strftime('%Y-%m-%d %H:%M')}")
+                        logger.info(f"Profile: https://www.doctolib.de{appointment_info['profile_path']}")
+                        return appointment_info
+                    else:
+                        # Determine if this slot is closer to the from_date than the current closest
+                        days_difference = abs((slot_date - from_date).days)
+                        if (closest_appointment is None) or (days_difference < abs((closest_appointment['next_slot'] - from_date).days)):
+                            closest_appointment = appointment_info
+                            logger.info(f"New closest appointment found: {slot_date.strftime('%Y-%m-%d %H:%M')} with {appointment_info['name_with_title']}")
+                else:
+                    # Update status line with failure
+                    status_line += " ✗ (no appointments available)"
+                    sys.stdout.write(status_line + "\n")
+                    sys.stdout.flush()
+
+            page += 1
+            time.sleep(random.uniform(1, 2))
+
+        # Final summary if no appointments found within range
+        sys.stdout.write("\n")
+        logger.info("No appointments found within the specified date range")
+
+        if closest_appointment:
+            logger.info("\nBest available appointment found:")
+            logger.info(f"Doctor: {closest_appointment['name_with_title']}")
+            logger.info(f"Date: {closest_appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
+            logger.info(f"Profile: https://www.doctolib.de{closest_appointment['profile_path']}")
+
+        return closest_appointment
+
+    except ValueError as e:
+        logger.error(f"Date parsing error: {str(e)}")
+        return None
 
 if __name__ == "__main__":
+    # Example usage with date strings
+    # main(from_date_str="2024-10-20", to_date_str="2024-03-25")
+    # Or use defaults (today to 5 days from today)
     main()
