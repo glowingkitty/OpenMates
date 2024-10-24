@@ -6,6 +6,8 @@ import json
 import time
 import random
 import sys
+from server.api.endpoints.apps.maps.providers.google_maps.search_place import get_place_details
+from server.api.endpoints.apps.travel.providers.google_maps.get_connections import get_connections
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,10 +16,10 @@ logger = logging.getLogger(__name__)
 def parse_date(date_str: str = None) -> datetime:
     """
     Parse date string in YYYY-MM-DD format to timezone-aware datetime object
-    
+
     Args:
         date_str (str, optional): Date string in YYYY-MM-DD format
-        
+
     Returns:
         datetime: Parsed datetime object with time set to 00:00:00 UTC
     """
@@ -27,7 +29,7 @@ def parse_date(date_str: str = None) -> datetime:
             dt = datetime.strptime(date_str, "%Y-%m-%d")
         else:
             dt = datetime.now()
-        
+
         # Make timezone-aware if it isn't already
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
@@ -39,10 +41,10 @@ def parse_date(date_str: str = None) -> datetime:
 def get_doctors_list(page: int = 1) -> List[Dict]:
     """
     Fetch a single page of HNO doctors in Berlin
-    
+
     Args:
         page (int): Page number to fetch
-        
+
     Returns:
         List[Dict]: List of doctors from the requested page
     """
@@ -80,7 +82,7 @@ def get_doctors_list(page: int = 1) -> List[Dict]:
 def get_next_available_slot(doctor: Dict, from_date: datetime, to_date: datetime) -> Dict:
     """
     Fetch the next available slot for a specific doctor.
-    
+
     This function retrieves the next available appointment slot for the given doctor,
     regardless of whether it falls within the specified date range.
 
@@ -95,7 +97,7 @@ def get_next_available_slot(doctor: Dict, from_date: datetime, to_date: datetime
     # Add random delay between 1 and 3 seconds to avoid rate limiting
     delay = random.uniform(1, 3)
     time.sleep(delay)
-    logger.debug(f"Waiting for {delay:.2f} seconds before requesting data for {doctor['name_with_title']}")
+    logger.info(f"Waiting for {delay:.2f} seconds before requesting data for {doctor['name_with_title']}")
 
     url = f"https://www.doctolib.de/search_results/{doctor['id']}.json"
     params = {
@@ -143,13 +145,10 @@ def get_next_available_slot(doctor: Dict, from_date: datetime, to_date: datetime
         logger.error(f"Error fetching slots for doctor {doctor['name_with_title']}: {str(e)}")
         return None
 
-def main(from_date_str: str = None, to_date_str: str = None):
+def main(patient_address: str, from_date_str: str = None, to_date_str: str = None):
     """
-    Main function to find the first available appointment within a date range
-
-    Args:
-        from_date_str (str, optional): Start date for appointment search (YYYY-MM-DD)
-        to_date_str (str, optional): End date for appointment search (YYYY-MM-DD)
+    Main function to find available appointments within a date range,
+    filtered by Google Maps ratings and travel time.
     """
     try:
         # Convert string dates to timezone-aware datetime objects
@@ -211,9 +210,9 @@ def main(from_date_str: str = None, to_date_str: str = None):
                         else:
                             # Add to closest appointments list
                             closest_appointments.append(appointment_info)
-                            # Sort and keep only top 3 closest appointments
-                            closest_appointments.sort(key=lambda x: abs((x['next_slot'] - from_date).days))
-                            closest_appointments = closest_appointments[:3]
+                            # Sort and keep only top 20 closest appointments based on travel time
+                            closest_appointments.sort(key=lambda x: x.get('travel_time_minutes', 0))
+                            closest_appointments = closest_appointments[:20]
                     else:
                         # Update status line with failure
                         status_line += " ✗ (no appointments available)"
@@ -232,25 +231,141 @@ def main(from_date_str: str = None, to_date_str: str = None):
         logger.info("No appointments found within the specified date range")
 
         if closest_appointments:
-            logger.info("\nTop 3 closest available appointments found:")
+            logger.info("\nFetching ratings and travel times for closest appointments...")
             for appointment in closest_appointments:
-                logger.info(f"Doctor: {appointment['name_with_title']}")
-                logger.info(f"Date: {appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
-                logger.info(f"Profile: https://www.doctolib.de{appointment['profile_path']}")
+                # Fetch place details to get ratings
+                place_details = get_place_details(
+                    name=appointment['name_with_title'],
+                    street=appointment.get('address', ''),
+                    city=appointment.get('city', ''),
+                    zip_code=appointment.get('zipcode', '')
+                )
 
-        return closest_appointments
+                logger.info(f"Place details: {place_details}")
+
+                if place_details:
+                    appointment['rating'] = place_details.get('rating', 0)
+                    appointment['user_ratings_total'] = place_details.get('user_ratings_total', 0)
+                    logger.info(f"Found rating {appointment['rating']} for {appointment['name_with_title']}")
+                else:
+                    appointment['rating'] = 0
+                    appointment['user_ratings_total'] = 0
+                    logger.info(f"No rating found for {appointment['name_with_title']}")
+
+                # Calculate travel time using get_connections
+                connections = get_connections(
+                    origin=patient_address,
+                    destination=f"{appointment.get('address', '')}, {appointment.get('zipcode', '')} {appointment.get('city', '')}",
+                    departure_time=datetime.now()
+                )
+
+                if connections and connections['connections']:
+                    # Assuming the first connection has the shortest travel time
+                    travel_time = connections['connections'][0]['duration']['minutes']
+                    appointment['travel_time_minutes'] = travel_time
+                    logger.info(f"Travel time to {appointment['name_with_title']}: {travel_time} minutes")
+                else:
+                    appointment['travel_time_minutes'] = "N/A"
+                    logger.info(f"Could not calculate travel time to {appointment['name_with_title']}")
+
+            # Filter for ratings above 3.5 and exclude doctors with no ratings
+            rated_appointments = [
+                apt for apt in closest_appointments 
+                if apt.get('rating', 0) is not None  # Ensure rating exists
+                and apt.get('user_ratings_total', 0) > 0  # Ensure there are reviews
+                and apt.get('rating', 0) >= 3.5  # Check rating threshold
+            ]
+
+            # Sort appointments based on travel time
+            rated_appointments.sort(key=lambda x: x.get('travel_time_minutes', 0) if isinstance(x.get('travel_time_minutes'), int) else float('inf'))
+            top_rated_appointments = rated_appointments[:10]  # Get top 10
+
+            # Final summary
+            sys.stdout.write("\n")
+            logger.info(f"Found {len(closest_appointments)} closest appointments")
+            logger.info(f"Found {len(rated_appointments)} appointments with rating above 3.5")
+
+            if top_rated_appointments:
+                logger.info("\nTop 10 closest available appointments with ratings above 3.5:")
+                for appointment in top_rated_appointments:
+                    logger.info("----------------------------------------")
+                    logger.info(f"Doctor: {appointment['name_with_title']}")
+                    logger.info(f"Date: {appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
+                    logger.info(f"Rating: {appointment.get('rating', 'N/A')} ({appointment.get('user_ratings_total', 0)} reviews)")
+                    logger.info(f"Travel Time: {appointment.get('travel_time_minutes', 'N/A')} minutes")
+                    logger.info(f"Address: {appointment['address']}, {appointment['zipcode']} {appointment['city']}")
+                    logger.info(f"Profile: https://www.doctolib.de{appointment['profile_path']}")
+            else:
+                logger.info("\nNo appointments found with ratings above 3.5")
+
+            return top_rated_appointments
 
     except ValueError as e:
         logger.error(f"Date parsing error: {str(e)}")
         return None
     except KeyboardInterrupt:
-        logger.info("Search canceled by user.")
+        logger.info("\nSearch canceled by user.")
+        # If we already collected appointments, still try to get ratings and show results
         if closest_appointments:
-            logger.info("\nTop 3 closest available appointments found before cancellation:")
+            logger.info("Processing collected appointments before exit...")
+            # Reuse the same rating fetching and filtering logic
             for appointment in closest_appointments:
-                logger.info(f"Doctor: {appointment['name_with_title']}")
-                logger.info(f"Date: {appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
-                logger.info(f"Profile: https://www.doctolib.de{appointment['profile_path']}")
+                # Fetch place details to get ratings
+                place_details = get_place_details(
+                    name=appointment['name_with_title'],
+                    street=appointment.get('address', ''),
+                    city=appointment.get('city', ''),
+                    zip_code=appointment.get('zipcode', '')
+                )
+
+                if place_details:
+                    appointment['rating'] = place_details.get('rating', 0)
+                    appointment['user_ratings_total'] = place_details.get('user_ratings_total', 0)
+                    logger.info(f"Found rating {appointment['rating']} for {appointment['name_with_title']}")
+                else:
+                    appointment['rating'] = 0
+                    appointment['user_ratings_total'] = 0
+                    logger.info(f"No rating found for {appointment['name_with_title']}")
+
+                # Calculate travel time using get_connections
+                connections = get_connections(
+                    origin=patient_address,
+                    destination=f"{appointment.get('address', '')}, {appointment.get('zipcode', '')} {appointment.get('city', '')}",
+                    departure_time=datetime.now()
+                )
+
+                if connections and connections['connections']:
+                    travel_time = connections['connections'][0]['duration']['minutes']
+                    appointment['travel_time_minutes'] = travel_time
+                    logger.info(f"Travel time to {appointment['name_with_title']}: {travel_time} minutes")
+                else:
+                    appointment['travel_time_minutes'] = "N/A"
+                    logger.info(f"Could not calculate travel time to {appointment['name_with_title']}")
+
+            # Filter for ratings above 3.5 and exclude doctors with no ratings
+            rated_appointments = [
+                apt for apt in closest_appointments 
+                if apt.get('rating', 0) is not None  # Ensure rating exists
+                and apt.get('user_ratings_total', 0) > 0  # Ensure there are reviews
+                and apt.get('rating', 0) >= 3.5  # Check rating threshold
+            ]
+
+            # Sort appointments based on travel time
+            rated_appointments.sort(key=lambda x: x.get('travel_time_minutes', 0) if isinstance(x.get('travel_time_minutes'), int) else float('inf'))
+            top_rated_appointments = rated_appointments[:10]
+
+            if top_rated_appointments:
+                logger.info("\nTop 10 closest available appointments with ratings above 3.5 before cancellation:")
+                for appointment in top_rated_appointments:
+                    logger.info("----------------------------------------")
+                    logger.info(f"Doctor: {appointment['name_with_title']}")
+                    logger.info(f"Date: {appointment['next_slot'].strftime('%Y-%m-%d %H:%M')}")
+                    logger.info(f"Rating: {appointment.get('rating', 'N/A')} ({appointment.get('user_ratings_total', 0)} reviews)")
+                    logger.info(f"Travel Time: {appointment.get('travel_time_minutes', 'N/A')} minutes")
+                    logger.info(f"Address: {appointment['address']}, {appointment['zipcode']} {appointment['city']}")
+                    logger.info(f"Profile: https://www.doctolib.de{appointment['profile_path']}")
+            else:
+                logger.info("\nNo appointments found with ratings above 3.5 before cancellation")
         return None
 
 if __name__ == "__main__":
