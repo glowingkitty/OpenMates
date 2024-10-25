@@ -190,10 +190,10 @@ from server.api.security.validation.validate_permissions import validate_permiss
 
 # Import parameters and metadata
 from server.api.docs.parameters import (
-    billing_endpoints, input_parameter_descriptions, mates_endpoints, server_endpoints, skills_ai_endpoints,
-    skills_books_endpoints, skills_code_endpoints, skills_docs_endpoints, skills_endpoints, skills_files_endpoints,
-    skills_finance_endpoints, skills_messages_endpoints, skills_photos_endpoints, skills_videos_endpoints, skills_web_endpoints,
-    skills_business_endpoints, tasks_endpoints, teams_endpoints, users_endpoints, skills_audio_endpoints, skills_home_endpoints
+    billing_endpoints, input_parameter_descriptions, mates_endpoints, skills_endpoints, server_endpoints, apps_ai_endpoints,
+    apps_books_endpoints, apps_code_endpoints, apps_docs_endpoints, apps_files_endpoints,
+    apps_finance_endpoints, apps_messages_endpoints, apps_photos_endpoints, apps_videos_endpoints, apps_web_endpoints,
+    apps_business_endpoints, tasks_endpoints, teams_endpoints, users_endpoints, apps_audio_endpoints, apps_home_endpoints
 )
 
 # Import Celery tasks

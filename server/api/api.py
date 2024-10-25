@@ -61,17 +61,17 @@ mates_router = APIRouter()
 skills_router = APIRouter()
 apps_ai_router = APIRouter()
 apps_messages_router = APIRouter()
-skills_code_router = APIRouter()
-skills_finance_router = APIRouter()
-skills_docs_router = APIRouter()
-skills_files_router = APIRouter()
-skills_books_router = APIRouter()
-skills_videos_router = APIRouter()
-skills_audio_router = APIRouter()
-skills_photos_router = APIRouter()
-skills_web_router = APIRouter()
-skills_home_router = APIRouter()
-skills_business_router = APIRouter()
+apps_code_router = APIRouter()
+apps_finance_router = APIRouter()
+apps_docs_router = APIRouter()
+apps_files_router = APIRouter()
+apps_books_router = APIRouter()
+apps_videos_router = APIRouter()
+apps_audio_router = APIRouter()
+apps_photos_router = APIRouter()
+apps_web_router = APIRouter()
+apps_home_router = APIRouter()
+apps_business_router = APIRouter()
 apps_router = APIRouter()
 workflows_router = APIRouter()
 tasks_router = APIRouter()
@@ -369,7 +369,7 @@ async def get_skill(
 
 # POST /apps/ai/ask (ask a question to an AI)
 @require_feature('apps.ai.skills.ask.allowed')
-@apps_ai_router.post("/v1/{team_slug}/apps/ai/ask", **skills_ai_endpoints["ask"])
+@apps_ai_router.post("/v1/{team_slug}/apps/ai/ask", **apps_ai_endpoints["ask"])
 @limiter.limit("20/minute")
 async def skill_ai_ask(
     request: Request,
@@ -391,7 +391,7 @@ async def skill_ai_ask(
 
 # POST /apps/ai/estimate_cost (estimate the cost of an AI call)
 @require_feature('apps.ai.skills.estimate_cost.allowed')
-@apps_ai_router.post("/v1/{team_slug}/apps/ai/estimate_cost", **skills_ai_endpoints["estimate_cost"])
+@apps_ai_router.post("/v1/{team_slug}/apps/ai/estimate_cost", **apps_ai_endpoints["estimate_cost"])
 @limiter.limit("20/minute")
 async def skill_ai_estimate_cost(
     request: Request,
@@ -421,7 +421,7 @@ async def skill_ai_estimate_cost(
 
 # POST /apps/messages/send (send a message)
 @require_feature('apps.messages.skills.send.allowed')
-@apps_messages_router.post("/v1/{team_slug}/apps/messages/send", **skills_messages_endpoints["send"])
+@apps_messages_router.post("/v1/{team_slug}/apps/messages/send", **apps_messages_endpoints["send"])
 @limiter.limit("20/minute")
 async def skill_messages_send(
     request: Request,
@@ -444,7 +444,7 @@ async def skill_messages_send(
 
 # POST /apps/messages/connect (connect to a server)
 @require_feature('apps.messages.skills.connect.allowed')
-@apps_messages_router.post("/v1/{team_slug}/apps/messages/connect", **skills_messages_endpoints["connect"])
+@apps_messages_router.post("/v1/{team_slug}/apps/messages/connect", **apps_messages_endpoints["connect"])
 @limiter.limit("20/minute")
 async def skill_messages_connect(
     request: Request,
@@ -466,7 +466,7 @@ async def skill_messages_connect(
 
 # POST /apps/finance/get_report (get a finance report)
 @require_feature('apps.finance.skills.get_report.allowed')
-@skills_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **skills_finance_endpoints["get_report"])
+@apps_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **apps_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
 async def skill_finance_get_report(
     request: Request,
@@ -490,7 +490,7 @@ async def skill_finance_get_report(
 
 # POST /apps/finance/get_transactions (get transactions)
 @require_feature('apps.finance.skills.get_transactions.allowed')
-@skills_finance_router.post("/v1/{team_slug}/apps/finance/get_transactions", **skills_finance_endpoints["get_transactions"])
+@apps_finance_router.post("/v1/{team_slug}/apps/finance/get_transactions", **apps_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
 async def skill_finance_get_transactions(
     request: Request,
@@ -516,7 +516,7 @@ async def skill_finance_get_transactions(
 
 # POST /apps/docs/create (create a new document)
 @require_feature('apps.docs.skills.create.allowed')
-@skills_docs_router.post("/v1/{team_slug}/apps/docs/create", **skills_docs_endpoints["create"])
+@apps_docs_router.post("/v1/{team_slug}/apps/docs/create", **apps_docs_endpoints["create"])
 @limiter.limit("20/minute")
 async def skill_docs_create(
     request: Request,
@@ -539,7 +539,7 @@ async def skill_docs_create(
 
 # POST /apps/files/upload (upload a file)
 @require_feature('apps.files.skills.upload.allowed')
-@skills_files_router.post("/v1/{team_slug}/apps/files/upload", **skills_files_endpoints["upload"])
+@apps_files_router.post("/v1/{team_slug}/apps/files/upload", **apps_files_endpoints["upload"])
 @limiter.limit("20/minute")
 async def skill_files_upload(
     request: Request,
@@ -588,7 +588,7 @@ async def skill_files_upload(
 
 # TODO add endpoint for shared files
 # # GET /apps/files/{provider}/shared/{file_path} (download a shared file)
-# @skills_files_router.get("/v1/{team_slug}/apps/files/{provider}/shared/{file_path:path}", **skills_files_endpoints["download_shared"])
+# @apps_files_router.get("/v1/{team_slug}/apps/files/{provider}/shared/{file_path:path}", **apps_files_endpoints["download_shared"])
 # @limiter.limit("20/minute")
 # async def skill_files_download_shared(
 #     request: Request,
@@ -604,7 +604,7 @@ async def skill_files_upload(
 
 # GET /apps/files/{provider}/{file_path} (download a file)
 @require_feature('apps.files.skills.download.allowed')
-@skills_files_router.get("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **skills_files_endpoints["download"])
+@apps_files_router.get("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **apps_files_endpoints["download"])
 @limiter.limit("20/minute")
 async def skill_files_download(
     request: Request,
@@ -626,7 +626,7 @@ async def skill_files_download(
 
 
 # DELETE /apps/files/{provider}/{file_path} (delete a file)
-@skills_files_router.delete("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **skills_files_endpoints["delete"])
+@apps_files_router.delete("/v1/{team_slug}/apps/files/{provider}/{file_path:path}", **apps_files_endpoints["delete"])
 @limiter.limit("20/minute")
 async def skill_files_delete(
     request: Request,
@@ -648,7 +648,7 @@ async def skill_files_delete(
 
 # POST /apps/audio/generate_transcript (generate transcript)
 @require_feature('apps.audio.skills.generate_transcript.allowed')
-@skills_audio_router.post("/v1/{team_slug}/apps/audio/generate_transcript", **skills_audio_endpoints["generate_transcript"])
+@apps_audio_router.post("/v1/{team_slug}/apps/audio/generate_transcript", **apps_audio_endpoints["generate_transcript"])
 @limiter.limit("20/minute")
 async def skill_audio_generate_transcript(
     request: Request,
@@ -686,7 +686,7 @@ async def skill_audio_generate_transcript(
 
 # # POST /apps/audio/generate_speech (generate speech)
 # @require_feature('apps.audio.skills.generate_speech.allowed')
-# @skills_audio_router.post("/v1/{team_slug}/apps/audio/generate_speech", **skills_audio_endpoints["generate_speech"])
+# @apps_audio_router.post("/v1/{team_slug}/apps/audio/generate_speech", **apps_audio_endpoints["generate_speech"])
 # @limiter.limit("20/minute")
 # async def skill_audio_generate_speech(
 #     request: Request,
@@ -712,7 +712,7 @@ async def skill_audio_generate_transcript(
 
 # POST /apps/videos/transcript (get the transcript of a video)
 @require_feature('apps.videos.skills.get_transcript.allowed')
-@skills_videos_router.post("/v1/{team_slug}/apps/videos/transcript", **skills_videos_endpoints["get_transcript"])
+@apps_videos_router.post("/v1/{team_slug}/apps/videos/transcript", **apps_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
 async def skill_videos_get_transcript(
     request: Request,
@@ -733,7 +733,7 @@ async def skill_videos_get_transcript(
 
 # POST /apps/web/read (read a web page)
 @require_feature('apps.web.skills.read.allowed')
-@skills_web_router.post("/v1/{team_slug}/apps/web/read", **skills_web_endpoints["read"])
+@apps_web_router.post("/v1/{team_slug}/apps/web/read", **apps_web_endpoints["read"])
 @limiter.limit("20/minute")
 async def skill_web_read(
     request: Request,
@@ -754,7 +754,7 @@ async def skill_web_read(
 
 # POST /apps/web/view (view a web page)
 @require_feature('apps.web.skills.view.allowed')
-@skills_web_router.post("/v1/{team_slug}/apps/web/view", **skills_web_endpoints["view"])
+@apps_web_router.post("/v1/{team_slug}/apps/web/view", **apps_web_endpoints["view"])
 @limiter.limit("20/minute")
 async def skill_web_view(
     request: Request,
@@ -774,7 +774,7 @@ async def skill_web_view(
 
 # POST /apps/home/get_all_devices (get all devices at home)
 @require_feature('apps.home.skills.get_all_devices.allowed')
-@skills_home_router.post("/v1/{team_slug}/apps/home/get_all_devices", **skills_home_endpoints["get_all_devices"])
+@apps_home_router.post("/v1/{team_slug}/apps/home/get_all_devices", **apps_home_endpoints["get_all_devices"])
 @limiter.limit("20/minute")
 async def skill_home_get_all_devices(
     request: Request,
@@ -796,7 +796,7 @@ async def skill_home_get_all_devices(
 
 # POST /apps/home/get_all_scenes (get all scenes at home)
 @require_feature('apps.home.skills.get_all_scenes.allowed')
-@skills_home_router.post("/v1/{team_slug}/apps/home/get_all_scenes", **skills_home_endpoints["get_all_scenes"])
+@apps_home_router.post("/v1/{team_slug}/apps/home/get_all_scenes", **apps_home_endpoints["get_all_scenes"])
 @limiter.limit("20/minute")
 async def skill_home_get_all_scenes(
     request: Request,
@@ -818,7 +818,7 @@ async def skill_home_get_all_scenes(
 
 # POST /apps/home/add_device (add a device to the smart home)
 @require_feature('apps.home.skills.add_device.allowed')
-@skills_home_router.post("/v1/{team_slug}/apps/home/add_device", **skills_home_endpoints["add_device"])
+@apps_home_router.post("/v1/{team_slug}/apps/home/add_device", **apps_home_endpoints["add_device"])
 @limiter.limit("20/minute")
 async def skill_home_add_device(
     request: Request,
@@ -840,7 +840,7 @@ async def skill_home_add_device(
 
 # POST /apps/home/add_scene (add a scene to the smart home)
 @require_feature('apps.home.skills.add_scene.allowed')
-@skills_home_router.post("/v1/{team_slug}/apps/home/add_scene", **skills_home_endpoints["add_scene"])
+@apps_home_router.post("/v1/{team_slug}/apps/home/add_scene", **apps_home_endpoints["add_scene"])
 @limiter.limit("20/minute")
 async def skill_home_add_scene(
     request: Request,
@@ -862,7 +862,7 @@ async def skill_home_add_scene(
 
 # PUT /apps/home/set_scene (set a scene at home)
 @require_feature('apps.home.skills.set_scene.allowed')
-@skills_home_router.put("/v1/{team_slug}/apps/home/set_scene", **skills_home_endpoints["set_scene"])
+@apps_home_router.put("/v1/{team_slug}/apps/home/set_scene", **apps_home_endpoints["set_scene"])
 @limiter.limit("20/minute")
 async def skill_home_set_scene(
     request: Request,
@@ -884,7 +884,7 @@ async def skill_home_set_scene(
 
 # PUT /apps/home/set_device (set a device at home)
 @require_feature('apps.home.skills.set_device.allowed')
-@skills_home_router.put("/v1/{team_slug}/apps/home/set_device", **skills_home_endpoints["set_device"])
+@apps_home_router.put("/v1/{team_slug}/apps/home/set_device", **apps_home_endpoints["set_device"])
 @limiter.limit("20/minute")
 async def skill_home_set_device(
     request: Request,
@@ -906,7 +906,7 @@ async def skill_home_set_device(
 
 # POST /apps/home/get_temperature (get the temperature at home)
 @require_feature('apps.home.skills.get_temperature.allowed')
-@skills_home_router.post("/v1/{team_slug}/apps/home/get_temperature", **skills_home_endpoints["get_temperature"])
+@apps_home_router.post("/v1/{team_slug}/apps/home/get_temperature", **apps_home_endpoints["get_temperature"])
 @limiter.limit("20/minute")
 async def skill_home_get_temperature(
     request: Request,
@@ -928,7 +928,7 @@ async def skill_home_get_temperature(
 
 # POST /apps/home/get_power_consumption (get the power consumption at home)
 @require_feature('apps.home.skills.get_power_consumption.allowed')
-@skills_home_router.post("/v1/{team_slug}/apps/home/get_power_consumption", **skills_home_endpoints["get_power_consumption"])
+@apps_home_router.post("/v1/{team_slug}/apps/home/get_power_consumption", **apps_home_endpoints["get_power_consumption"])
 @limiter.limit("20/minute")
 async def skill_home_get_power_consumption(
     request: Request,
@@ -952,7 +952,7 @@ async def skill_home_get_power_consumption(
 # TODO add test
 # POST /apps/photos/resize (resize an image)
 @require_feature('apps.photos.skills.resize.allowed')
-@skills_photos_router.post("/v1/{team_slug}/apps/photos/resize", **skills_photos_endpoints["resize_image"])
+@apps_photos_router.post("/v1/{team_slug}/apps/photos/resize", **apps_photos_endpoints["resize_image"])
 @limiter.limit("20/minute")
 async def skill_photos_resize(
     request: Request,
@@ -992,7 +992,7 @@ async def skill_photos_resize(
 
 # POST /apps/books/translate
 @require_feature('apps.books.skills.translate.allowed')
-@skills_books_router.post("/v1/{team_slug}/apps/books/translate", **skills_books_endpoints["translate"])
+@apps_books_router.post("/v1/{team_slug}/apps/books/translate", **apps_books_endpoints["translate"])
 @limiter.limit("20/minute")
 async def skill_books_translate(
     request: Request,
@@ -1401,14 +1401,14 @@ CORE_ROUTERS = [
 APP_ROUTERS = [
     (apps_ai_router, "AI", "apps.ai.allowed", ["Apps | AI"]),
     (apps_messages_router, "Messages", "apps.messages.allowed", ["Apps | Messages"]),
-    (skills_code_router, "Code", "apps.code.allowed", ["Apps | Code"]),
-    (skills_docs_router, "Docs", "apps.docs.allowed", ["Apps | Docs"]),
-    (skills_files_router, "Files", "apps.files.allowed", ["Apps | Files"]),
-    (skills_books_router, "Books", "apps.books.allowed", ["Apps | Books"]),
-    (skills_audio_router, "Audio", "apps.audio.allowed", ["Apps | Audio"]),
-    (skills_photos_router, "Photos", "apps.photos.allowed", ["Apps | Photos"]),
-    (skills_web_router, "Web", "apps.web.allowed", ["Apps | Web"]),
-    (skills_business_router, "Business", "apps.business.allowed", ["Apps | Business"])
+    (apps_code_router, "Code", "apps.code.allowed", ["Apps | Code"]),
+    (apps_docs_router, "Docs", "apps.docs.allowed", ["Apps | Docs"]),
+    (apps_files_router, "Files", "apps.files.allowed", ["Apps | Files"]),
+    (apps_books_router, "Books", "apps.books.allowed", ["Apps | Books"]),
+    (apps_audio_router, "Audio", "apps.audio.allowed", ["Apps | Audio"]),
+    (apps_photos_router, "Photos", "apps.photos.allowed", ["Apps | Photos"]),
+    (apps_web_router, "Web", "apps.web.allowed", ["Apps | Web"]),
+    (apps_business_router, "Business", "apps.business.allowed", ["Apps | Business"])
 ]
 
 # Register all routers

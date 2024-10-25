@@ -18,6 +18,43 @@ bearer_scheme = HTTPBearer(
     """
 )
 
+def set_example(
+        openapi_schema: dict,
+        path: str,
+        method: str,
+        request_or_response: str,
+        examples: dict,
+        response_code: str = None,
+        content_type: str = "application/json"
+):
+    if path not in openapi_schema["paths"]:
+        openapi_schema["paths"][path] = {}
+    if method not in openapi_schema["paths"][path]:
+        openapi_schema["paths"][path][method] = {}
+    if request_or_response not in openapi_schema["paths"][path][method]:
+        openapi_schema["paths"][path][method][request_or_response] = {}
+
+    if request_or_response == "responses":
+        if response_code not in openapi_schema["paths"][path][method][request_or_response]:
+            openapi_schema["paths"][path][method][request_or_response][response_code] = {}
+        if "content" not in openapi_schema["paths"][path][method][request_or_response][response_code]:
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"] = {}
+        if content_type not in openapi_schema["paths"][path][method][request_or_response][response_code]["content"]:
+            openapi_schema["paths"][path][method][request_or_response][response_code]["content"][content_type] = {}
+        target = openapi_schema["paths"][path][method][request_or_response][response_code]["content"][content_type]
+    else:
+        if "content" not in openapi_schema["paths"][path][method][request_or_response]:
+            openapi_schema["paths"][path][method][request_or_response]["content"] = {}
+        if content_type not in openapi_schema["paths"][path][method][request_or_response]["content"]:
+            openapi_schema["paths"][path][method][request_or_response]["content"][content_type] = {}
+        target = openapi_schema["paths"][path][method][request_or_response]["content"][content_type]
+
+    if "examples" not in target:
+        target["examples"] = {}
+
+    for example_name, example_value in examples.items():
+        target["examples"][example_name] = {"value": example_value}
+
 def generate_python_example(method, path, params=None, body=None):
     example = f"""
 import requests
@@ -142,16 +179,16 @@ def custom_openapi(app: FastAPI):
     set_example(openapi_schema, "/v1/{team_slug}/users/{username}", "get", "responses", {
         "Example 1": users_get_one_output_example
     }, "200")
+    # /v1/{team_slug}/users/{username}/profile_picture
+    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", {
+        "Example 1": users_replace_profile_picture_output_example
+    }, "200")
     # /v1/api_token
     set_example(openapi_schema, "/v1/api_token", "patch", "requestBody", {
         "Example 1": users_create_new_api_token_input_example
     })
     set_example(openapi_schema, "/v1/api_token", "patch", "responses", {
         "Example 1": users_create_new_api_token_output_example
-    }, "200")
-    # /v1/{team_slug}/users/{username}/profile_picture
-    set_example(openapi_schema, "/v1/{team_slug}/users/{username}/profile_picture", "patch", "responses", {
-        "Example 1": users_replace_profile_picture_output_example
     }, "200")
 
 
@@ -219,7 +256,7 @@ def custom_openapi(app: FastAPI):
     }, "200")
 
     # Audio
-    # will be placed here...
+    # will be placed here..
 
     # Books
     # /v1/{team_slug}/apps/books/translate
@@ -293,13 +330,6 @@ def custom_openapi(app: FastAPI):
     set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_all_scenes", "post", "responses", {
         "Example 1": home_get_all_scenes_output_example
     }, "200")
-    # /v1/{team_slug}/apps/home/get_temperature
-    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_temperature", "post", "requestBody", {
-        "Example 1": home_get_temperature_input_example
-    })
-    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_temperature", "post", "responses", {
-        "Example 1": home_get_temperature_output_example
-    }, "200")
     # /v1/{team_slug}/apps/home/add_device
     set_example(openapi_schema, "/v1/{team_slug}/apps/home/add_device", "post", "requestBody", {
         "Example 1": home_add_device_input_example
@@ -328,6 +358,13 @@ def custom_openapi(app: FastAPI):
     set_example(openapi_schema, "/v1/{team_slug}/apps/home/set_scene", "post", "responses", {
         "Example 1": home_set_scene_output_example
     }, "200")
+    # /v1/{team_slug}/apps/home/get_temperature
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_temperature", "post", "requestBody", {
+        "Example 1": home_get_temperature_input_example
+    })
+    set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_temperature", "post", "responses", {
+        "Example 1": home_get_temperature_output_example
+    }, "200")
     # /v1/{team_slug}/apps/home/get_power_consumption
     set_example(openapi_schema, "/v1/{team_slug}/apps/home/get_power_consumption", "post", "requestBody", {
         "Example 1": home_get_power_consumption_input_example
@@ -348,10 +385,10 @@ def custom_openapi(app: FastAPI):
     # Messages
     # /v1/{team_slug}/apps/messages/send
     set_example(openapi_schema, "/v1/{team_slug}/apps/messages/send", "post", "requestBody", {
-        "Example 1": skills_send_message_input_example
+        "Example 1": messages_send_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/messages/send", "post", "responses", {
-        "Example 1": skills_send_message_output_example
+        "Example 1": messages_send_output_example
     }, "200")
     # /v1/{team_slug}/apps/messages/connect
     set_example(openapi_schema, "/v1/{team_slug}/apps/messages/connect", "post", "requestBody", {
@@ -362,7 +399,7 @@ def custom_openapi(app: FastAPI):
     }, "200")
 
     # PDF Editor
-    # will be placed here...
+    # TODO
 
     # Photos
     # /v1/{team_slug}/apps/photos/resize
