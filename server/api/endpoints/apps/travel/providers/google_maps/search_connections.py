@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # TODO add more filters
 # TODO integrate to API
 
-def get_connections(
+def search_connections(
         origin: Union[str, Tuple[float, float]],
         destination: Union[str, Tuple[float, float]],
         departure_time: datetime = None,

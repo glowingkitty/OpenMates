@@ -1,3 +1,5 @@
+from server.api.docs import *
+
 from server.api.models.mates.mates_ask import (
     MatesAskOutput
 )

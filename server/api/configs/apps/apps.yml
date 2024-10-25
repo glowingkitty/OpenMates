@@ -54,9 +54,17 @@ files: /api/configs/apps/files/app.yml
 # Keep track of your finances and build a stable income.
 finance: /api/configs/apps/finance/app.yml
 
+# 'Health' app
+# Everything to improve your health and well being.
+health: /api/configs/apps/health/app.yml
+
 # 'Home' app
 # Control your smart home, organize daily tasks and more.
 home: /api/configs/apps/home/app.yml
+
+# 'Maps' app
+# Find restaurants, bars and so much more - nearby and around the world.
+maps: /api/configs/apps/maps/app.yml
 
 # 'Messages' app
 # Send messages, create threads and more.
@@ -65,6 +73,10 @@ messages: /api/configs/apps/messages/app.yml
 # 'Photos' app
 # Generate images, modify and resize them and more.
 photos: /api/configs/apps/photos/app.yml
+
+# 'Travel' app
+# Plan your next trip with ease.
+travel: /api/configs/apps/travel/app.yml
 
 # 'Videos' app
 # Create and generate videos, search for videos, get their transcript and more.
