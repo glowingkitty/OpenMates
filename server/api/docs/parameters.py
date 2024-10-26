@@ -526,7 +526,7 @@ tags_metadata = [
     {
         "name": "Users",
         "description": "<img src='images/users.png' alt='Manage user accounts of a team. A user can get personalized responses from mates and access to the OpenMates API.'>"
-    }
+    },
     {
         "name": "Skills",
         "description": "<img src='images/skills.png' alt='Your team mate can use a wide range of app skills. Or, you can call them directly via the API.'>"

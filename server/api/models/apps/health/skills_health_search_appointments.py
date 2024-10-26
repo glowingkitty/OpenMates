@@ -3,13 +3,25 @@ from typing import Optional, List, Literal
 from datetime import datetime
 
 
+class Address(BaseModel):
+    """Model for structured address data"""
+    street: str = Field(..., description="Street name and number")
+    city: str = Field(..., description="City name")
+    zip_code: str = Field(..., description="Postal/ZIP code")
+    country: str = Field("Deutschland", description="Country name")
+
+    def __str__(self) -> str:
+        """Returns formatted address string"""
+        return f"{self.street}, {self.zip_code} {self.city}, {self.country}"
+
+
 class HealthSearchAppointmentsInput(BaseModel):
     databases: List[Literal["doctolib"]] = Field(["doctolib"], description="The databases to search for appointments in")
     doctor_speciality: str = Field(..., description="The speciality of the doctor")
     from_date_str: Optional[str] = Field(None, description="The start date of the search in YYYY-MM-DD format")
     to_date_str: Optional[str] = Field(None, description="The end date of the search in YYYY-MM-DD format")
     patient_insurance: Literal["public", "private"] = Field("public", description="Whether the patient has public or private insurance")
-    patient_address: Optional[str] = Field(None, description="The address of the patient")
+    patient_address: Optional[Address] = Field(None, description="The structured address of the patient")
     city: Optional[str] = Field(None, description="The city where to search for available appointments")
     travel_method: Optional[Literal["car", "public_transport"]] = Field("public_transport", description="The method of travel for calculating the travel time")
     minimum_rating: float = Field(0, description="The minimum rating of the doctor. If set to 0, ratings will not be checked.")
@@ -65,7 +77,7 @@ class HealthSearchAppointmentsInput(BaseModel):
             raise ValueError("max_appointments_to_return must be less than or equal to max_doctors_to_check")
         return values
 
-    # make sure that either patient_address or city is provided
+    # Updated validator for address/city check
     @model_validator(mode="after")
     def check_address_or_city(cls, values):
         patient_address = values.get('patient_address')
@@ -82,12 +94,17 @@ health_search_appointments_input_example = {
     "from_date_str": "2024-10-25",
     "to_date_str": "2024-10-31",
     "patient_insurance": "public",
-    "patient_address": "Friedrichstraße 123, 10117 Berlin, Deutschland",
+    "patient_address": {
+        "street": "Friedrichstraße 123",
+        "city": "Berlin",
+        "zip_code": "10117"
+    },
     "travel_method": "public_transport",
     "calculate_travel_time": True,
     "max_doctors_to_check": 100,
     "max_appointments_to_return": 5
 }
+
 
 # API endpoint will return a task. But once the task is complete,
 # the following details will be added to the task output
@@ -95,7 +112,7 @@ health_search_appointments_input_example = {
 class Doctor(BaseModel):
     name: str = Field(..., description="The name of the doctor")
     speciality: str = Field(..., description="The speciality of the doctor")
-    address: str = Field(..., description="The address of the doctor")
+    address: Address = Field(..., description="The structured address of the doctor")
     link: str = Field(..., description="The link to the doctor's profile, to book an appointment")
     rating: float = Field(..., description="The rating of the doctor")
     travel_time_minutes: int = Field(..., description="The travel time in minutes from the patient's address to the doctor's address")
@@ -104,6 +121,16 @@ class Doctor(BaseModel):
 class AvailableAppointment(BaseModel):
     doctor: Doctor = Field(..., description="The doctor")
     next_available_appointment: str = Field(..., description="The date and time of the next available appointment, ISO 8601 format")
+
+    # make sure next_available_appointment is a valid ISO 8601 date string
+    @model_validator(mode="after")
+    def check_next_available_appointment(cls, values):
+        next_available_appointment = values.get('next_available_appointment')
+        try:
+            datetime.fromisoformat(next_available_appointment)
+        except ValueError:
+            raise ValueError("next_available_appointment must be a valid ISO 8601 date string")
+        return values
 
 class HealthSearchAppointmentsOutput(BaseModel):
     appointments: List[AvailableAppointment] = Field(..., description="The list of appointments")
@@ -115,25 +142,17 @@ health_search_appointments_output_example = {
             "doctor": {
                 "name": "Dr. Müller",
                 "speciality": "Kardiologe",
-                "address": "Friedrichstraße 123, 10117 Berlin, Deutschland",
+                "address": {
+                    "street": "Friedrichstraße 123",
+                    "city": "Berlin",
+                    "zip_code": "10117"
+                },
                 "link": "https://www.doctolib.de/kardiologe/berlin/dr-mueller",
                 "rating": 4.5,
                 "travel_time_minutes": 30,
                 "travel_method": "public_transport"
             },
             "next_available_appointment": "2024-10-26T10:00:00"
-        },
-        {
-            "doctor": {
-                "name": "Dr. Schmidt",
-                "speciality": "Kardiologe",
-                "address": "Unter den Linden 1, 10117 Berlin, Deutschland",
-                "link": "https://www.doctolib.de/kardiologe/berlin/dr-schmidt",
-                "rating": 4.2,
-                "travel_time_minutes": 25,
-                "travel_method": "public_transport"
-            },
-            "next_available_appointment": "2024-10-27T10:00:00"
         }
     ]
 }
