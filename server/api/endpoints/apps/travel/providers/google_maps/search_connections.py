@@ -2,106 +2,109 @@ import googlemaps
 import logging
 from datetime import datetime
 import os
-from typing import Union, Dict, Tuple
+from typing import Union, Tuple, Optional, List
+from server.api.models.apps.travel.skills_travel_search_connections import (
+    Connection,
+    Step,
+    TransitDetails,
+    TravelSearchConnectionsInput,
+    TravelSearchConnectionsOutput
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# TODO add more filters
-# TODO integrate to API
-
 def search_connections(
-        origin: Union[str, Tuple[float, float]],
-        destination: Union[str, Tuple[float, float]],
-        departure_time: datetime = None,
-        api_key: str = os.getenv('APP_MAPS_PROVIDER_GOOGLE_MAPS_API_KEY')
-    ) -> Dict:
+        input: TravelSearchConnectionsInput
+    ) -> TravelSearchConnectionsOutput:
     """
     Fetches top 3 transit connections between two locations using Google Maps Directions API.
+    Returns structured Connection objects with detailed transit information.
     """
-    # Initialize the Google Maps client
-    logger.debug("Initializing Google Maps client")
+    logger.debug("Processing search_connections request with input: %s", input)
+
+    # Extract values from input model
+    origin = input.origin
+    destination = input.destination
+    departure_time = datetime.fromisoformat(input.departure_time)
+
     try:
-        gmaps = googlemaps.Client(key=api_key)
+        gmaps = googlemaps.Client(key=os.getenv('APP_TRAVEL_PROVIDER_GOOGLE_MAPS_API_KEY'))
     except Exception as e:
-        logger.error(f"Failed to initialize Google Maps client: {e}")
-        return None
+        logger.error("Failed to initialize Google Maps client: %s", e)
+        return TravelSearchConnectionsOutput(connections=[])
 
-    # Set departure time to now if not specified
-    if departure_time is None:
-        departure_time = datetime.now()
-
-    logger.info(f"Calculating transit connections from {origin} to {destination}")
+    logger.info("Calculating transit connections from %s to %s", origin, destination)
 
     try:
-        # Request directions using transit mode with alternatives
         directions_result = gmaps.directions(
             origin,
             destination,
             mode="transit",
             departure_time=departure_time,
-            alternatives=True
+            alternatives=True,
+            transit_mode=['bus', 'subway', 'train', 'tram', 'rail']
         )
 
         logger.debug(f"Received {len(directions_result)} alternative routes")
-
         if not directions_result:
             logger.info("No transit routes found")
-            return None
+            return TravelSearchConnectionsOutput(connections=[])
 
-        # Initialize result dictionary with connections array
-        result = {
-            'connections': []
-        }
-
-        # Process up to 3 alternative routes
+        connections = []
         for route in directions_result[:3]:
-            connection = {
-                'duration': {
-                    'text': route['legs'][0]['duration']['text'],
-                    'minutes': route['legs'][0]['duration']['value'] // 60
-                },
-                'distance': {
-                    'text': route['legs'][0]['distance']['text'],
-                    'meters': route['legs'][0]['distance']['value']
-                },
-                'departure_time': route['legs'][0].get('departure_time', {}).get('text'),
-                'arrival_time': route['legs'][0].get('arrival_time', {}).get('text'),
-                'steps': []
-            }
+            leg = route['legs'][0]
 
-            # Extract step-by-step instructions
-            for step in route['legs'][0]['steps']:
-                step_info = {
-                    'mode': step['travel_mode'],
-                    'instruction': step['html_instructions'],
-                    'duration': step['duration']['text']
+            # Process steps
+            steps = []
+            for step in leg['steps']:
+                step_model = {
+                    'travel_mode': step['travel_mode'],
+                    'duration_minutes': step['duration']['value'] // 60,
+                    'distance_meters': step['distance']['value'],
+                    'instructions': step['html_instructions'],
+                    'polyline': step['polyline']['points']
                 }
 
-                # Add transit-specific details if available
                 if step['travel_mode'] == 'TRANSIT':
-                    transit_details = step['transit_details']
-                    step_info.update({
-                        'line': transit_details['line'].get('short_name', transit_details['line'].get('name')),
-                        'departure_stop': transit_details['departure_stop']['name'],
-                        'arrival_stop': transit_details['arrival_stop']['name'],
-                        'num_stops': transit_details['num_stops']
-                    })
+                    transit = step['transit_details']
+                    step_model['transit_details'] = TransitDetails(
+                        line=transit['line'].get('short_name', transit['line'].get('name')),
+                        vehicle_type=transit['line']['vehicle']['type'],
+                        departure_stop=transit['departure_stop']['name'],
+                        arrival_stop=transit['arrival_stop']['name'],
+                        departure_time=transit['departure_time']['text'],
+                        arrival_time=transit['arrival_time']['text'],
+                        num_stops=transit['num_stops'],
+                        headsign=transit['headsign'] if 'headsign' in transit else None
+                    )
 
-                connection['steps'].append(step_info)
+                steps.append(Step(**step_model))
 
-            result['connections'].append(connection)
+            # Create Connection object
+            connection = Connection(
+                total_duration_minutes=leg['duration']['value'] // 60,
+                total_distance_meters=leg['distance']['value'],
+                departure_time=datetime.fromtimestamp(leg['departure_time']['value']),
+                arrival_time=datetime.fromtimestamp(leg['arrival_time']['value']),
+                steps=steps,
+                polyline=route['overview_polyline']['points'],
+                fare=route.get('fare', {}).get('value'),
+                fare_currency=route.get('fare', {}).get('currency')
+            )
 
-        logger.info(f"Found {len(result['connections'])} alternative connections")
-        return result
+            connections.append(connection)
+
+        logger.info("Successfully processed %d connections", len(connections))
+        return TravelSearchConnectionsOutput(connections=connections)
 
     except googlemaps.exceptions.ApiError as e:
-        logger.error(f"Google Maps API error: {e}")
-        return None
+        logger.error("Google Maps API error: %s", e)
+        return TravelSearchConnectionsOutput(connections=[])
     except googlemaps.exceptions.TransportError as e:
-        logger.error(f"Transport error: {e}")
-        return None
+        logger.error("Transport error: %s", e)
+        return TravelSearchConnectionsOutput(connections=[])
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        return None
+        logger.error("An unexpected error occurred: %s", e)
+        return TravelSearchConnectionsOutput(connections=[])
