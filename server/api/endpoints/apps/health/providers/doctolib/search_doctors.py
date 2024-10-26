@@ -2,6 +2,12 @@ import requests
 import logging
 from typing import List, Dict
 from urllib.parse import quote
+from server.api.models.apps.health.skills_health_search_doctors import (
+    HealthSearchDoctorsInput,
+    HealthSearchDoctorsOutput,
+    Doctor
+)
+from server.api.models.apps.health.skills_health_search_appointments import Address
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -11,26 +17,26 @@ class NoDoctorsFoundError(Exception):
     """Custom exception for when no doctors are found"""
     pass
 
-def search_doctors(speciality: str, city: str, page: int = 1) -> List[Dict]:
+def search_doctors(
+    input: HealthSearchDoctorsInput
+) -> HealthSearchDoctorsOutput:
     """
     Search for doctors for given speciality and city
 
     Args:
-        page (int): Page number to fetch
-        speciality (str): Medical speciality (e.g., "Facharzt für HNO")
-        city (str): City name (e.g., "München")
+        input (HealthSearchDoctorsInput): Input model containing search parameters
 
     Returns:
-        List[Dict]: List of doctors from the requested page
+        HealthSearchDoctorsOutput: Output model containing list of doctors
 
     Raises:
         NoDoctorsFoundError: When no doctors are found for the given criteria
     """
     base_url = "https://www.doctolib.de"
 
-    # Convert to lowercase and URL encode the parameters
-    speciality_safe = quote(speciality.lower().replace(" ", "-"))
-    city_safe = quote(city.lower())
+    # Extract values from input model
+    speciality_safe = quote(input.speciality.lower().replace(" ", "-"))
+    city_safe = quote(input.city.lower())
 
     doctors_url = f"{base_url}/{speciality_safe}/{city_safe}.json"
 
@@ -47,26 +53,42 @@ def search_doctors(speciality: str, city: str, page: int = 1) -> List[Dict]:
 
     try:
         params = {
-            'page': page,
+            'page': input.page,
             'limit': 20  # Maximum allowed per page
         }
 
-        logger.debug(f"Fetching page {page} of doctors...")
+        logger.debug(f"Fetching page {input.page} of doctors...")
         response = requests.get(doctors_url, headers=headers, params=params)
         response.raise_for_status()
         data = response.json()
 
-        doctors = data.get('data', {}).get('doctors', [])
-        logger.info(f"Found {len(doctors)} doctors on page {page}")
+        raw_doctors = data.get('data', {}).get('doctors', [])
+        logger.info(f"Found {len(raw_doctors)} doctors on page {input.page}")
 
-        if page == 1 and not doctors:
-            logger.error(f"No doctors found for speciality '{speciality}' in {city}")
-            raise NoDoctorsFoundError(f"No doctors found for speciality '{speciality}' in {city}")
+        if input.page == 1 and not raw_doctors:
+            logger.error(f"No doctors found for speciality '{input.speciality}' in {input.city}")
+            raise NoDoctorsFoundError(f"No doctors found for speciality '{input.speciality}' in {input.city}")
 
-        return doctors
+        # Convert raw doctors data to Doctor models
+        doctors = [Doctor(
+            name=doctor.get('name_with_title'),
+            speciality=doctor.get('speciality'),
+            address=Address(
+                street=doctor.get('address'),
+                city=doctor.get('city'),
+                zip_code=doctor.get('zip_code'),
+                lat=doctor.get('position').get('lat') if doctor.get('position') else None,
+                lng=doctor.get('position').get('lng') if doctor.get('position') else None,
+            ),
+            link=doctor.get('link'),
+            doctor_id=doctor.get('id'),
+            practice_id=doctor.get('practice_id'),
+            speciality_id=doctor.get('speciality_id')
+        ) for doctor in raw_doctors]
+        return HealthSearchDoctorsOutput(doctors=doctors)
 
     except Exception as e:
         logger.error(f"Error searching for doctors: {str(e)}")
         if isinstance(e, NoDoctorsFoundError):
             raise
-        return []
+        return HealthSearchDoctorsOutput(doctors=[])

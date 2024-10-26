@@ -9,6 +9,8 @@ class Address(BaseModel):
     city: str = Field(..., description="City name")
     zip_code: str = Field(..., description="Postal/ZIP code")
     country: str = Field("Deutschland", description="Country name")
+    lat: Optional[float] = Field(None, description="Latitude of the address")
+    lng: Optional[float] = Field(None, description="Longitude of the address")
 
     def __str__(self) -> str:
         """Returns formatted address string"""
@@ -16,6 +18,9 @@ class Address(BaseModel):
 
 
 class HealthSearchAppointmentsInput(BaseModel):
+    """
+    Input model for searching for available doctor appointments
+    """
     databases: List[Literal["doctolib"]] = Field(["doctolib"], description="The databases to search for appointments in")
     doctor_speciality: str = Field(..., description="The speciality of the doctor")
     from_date_str: Optional[str] = Field(None, description="The start date of the search in YYYY-MM-DD format")
@@ -114,13 +119,19 @@ class Doctor(BaseModel):
     speciality: str = Field(..., description="The speciality of the doctor")
     address: Address = Field(..., description="The structured address of the doctor")
     link: str = Field(..., description="The link to the doctor's profile, to book an appointment")
-    rating: float = Field(..., description="The rating of the doctor")
-    travel_time_minutes: int = Field(..., description="The travel time in minutes from the patient's address to the doctor's address")
-    travel_method: Literal["car", "public_transport"] = Field(..., description="The method of travel for calculating the travel time")
+    rating: Optional[float] = Field(None, description="The rating of the doctor")
+    travel_time_minutes: Optional[int] = Field(None, description="The travel time in minutes from the patient's address to the doctor's address")
+    travel_method: Optional[Literal["car", "public_transport"]] = Field(None, description="The method of travel for calculating the travel time")
+    doctor_id: str = Field(..., description="The ID of the doctor")
+    practice_id: Optional[str] = Field(None, description="The ID of the practice, where the doctor works")
+    speciality_id: Optional[str] = Field(None, description="The ID of the speciality, the doctor is specialized in")
 
 class AvailableAppointment(BaseModel):
     doctor: Doctor = Field(..., description="The doctor")
     next_available_appointment: str = Field(..., description="The date and time of the next available appointment, ISO 8601 format")
+    doctor_id: str = Field(..., description="The ID of the doctor")
+    practice_id: Optional[str] = Field(None, description="The ID of the practice, where the doctor works")
+    speciality_id: Optional[str] = Field(None, description="The ID of the speciality, the doctor is specialized in")
 
     # make sure next_available_appointment is a valid ISO 8601 date string
     @model_validator(mode="after")
@@ -133,6 +144,9 @@ class AvailableAppointment(BaseModel):
         return values
 
 class HealthSearchAppointmentsOutput(BaseModel):
+    """
+    Output model for searching for available doctor appointments
+    """
     appointments: List[AvailableAppointment] = Field(..., description="The list of appointments")
 
 
@@ -150,7 +164,10 @@ health_search_appointments_output_example = {
                 "link": "https://www.doctolib.de/kardiologe/berlin/dr-mueller",
                 "rating": 4.5,
                 "travel_time_minutes": 30,
-                "travel_method": "public_transport"
+                "travel_method": "public_transport",
+                "doctor_id": "1234567890",
+                "practice_id": "1234567891",
+                "speciality_id": "1234567892"
             },
             "next_available_appointment": "2024-10-26T10:00:00"
         }

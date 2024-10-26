@@ -13,9 +13,9 @@ from server.api.models.apps.health.skills_health_search_appointments import (
     HealthSearchAppointmentsInput,
     HealthSearchAppointmentsOutput,
     Doctor,
-    AvailableAppointment,
-    Address
+    AvailableAppointment
 )
+from server.api.models.apps.health.skills_health_search_doctors import HealthSearchDoctorsInput
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,54 +45,45 @@ def parse_date(date_str: str = None) -> datetime:
         raise ValueError("Invalid date format. Please use YYYY-MM-DD")
 
 def process_doctor_appointments(
-    doctors: List[Dict],
+    doctors: List[Doctor],
     from_date: datetime,
     to_date: datetime,
     total_checked: int
-) -> List[Dict]:
+) -> List[AvailableAppointment]:
     """
     Process a list of doctors and get their next available appointments
 
     Args:
-        doctors (List[Dict]): List of doctors to process
+        doctors (List[Doctor]): List of doctors to process
         from_date (datetime): Start date for appointment search
         to_date (datetime): End date for appointment search
         total_checked (int): Counter for total doctors checked
 
     Returns:
-        List[Dict]: List of appointments found
+        List[AvailableAppointment]: List of available appointments with doctor details
     """
     appointments = []
 
     for doctor in doctors:
         total_checked += 1
-        logger.debug(f"Checking doctor {total_checked}: {doctor['name_with_title']}")
+        logger.debug(f"Checking doctor {total_checked}: {doctor.name}")
 
         next_slot = get_next_available_appointment(doctor)
-        if next_slot:
-            # Create structured address for the doctor
-            doctor_address = Address(
-                street=doctor.get('address', ''),
-                city=doctor.get('city', ''),
-                zip_code=doctor.get('zipcode', '')
+        if next_slot and from_date <= next_slot <= to_date:
+            # Create AvailableAppointment directly
+            appointment = AvailableAppointment(
+                doctor=doctor,
+                next_available_appointment=next_slot.isoformat(),
+                doctor_id=doctor.doctor_id,
+                practice_id=doctor.practice_id,
+                speciality_id=doctor.speciality_id
             )
-
-            appointment_info = {
-                'address': doctor_address,
-                'name': doctor.get('name_with_title', 'N/A'),
-                'speciality': doctor.get('position', 'N/A'),
-                'link': f"https://www.doctolib.de{doctor.get('profile_path', '')}",
-                'next_slot': next_slot
-            }
-
-            logger.info(f"Found appointment for {doctor['name_with_title']} at {next_slot.strftime('%Y-%m-%d %H:%M')}")
-
-            if from_date <= next_slot <= to_date:
-                appointments.append(appointment_info)
+            appointments.append(appointment)
+            logger.info(f"Found appointment for {doctor.name} at {next_slot.strftime('%Y-%m-%d %H:%M')}")
         else:
-            logger.debug(f"No appointments available for {doctor['name_with_title']}")
+            logger.debug(f"No appointments available for {doctor.name}")
 
-        time.sleep(random.uniform(1, 2))  # Random delay between doctors
+        time.sleep(random.uniform(1, 2))
 
     return appointments
 
@@ -125,27 +116,31 @@ def search_appointments(
         # Initialize variables
         page = 1
         total_checked = 0
-        all_appointments = []
+        all_appointments: List[AvailableAppointment] = []
 
         # Fetch and process doctors page by page
         while total_checked < input.max_doctors_to_check:
-            doctors = search_doctors(
-                speciality=input.doctor_speciality,
-                city=search_city,
-                page=page
+            # Now using the new search_doctors function that returns Doctor models
+            search_result = search_doctors(
+                HealthSearchDoctorsInput(
+                    speciality=input.doctor_speciality,
+                    city=search_city,
+                    page=page
+                )
             )
-            if not doctors:
+
+            if not search_result.doctors:
                 break
 
             appointments = process_doctor_appointments(
-                doctors=doctors,
+                doctors=search_result.doctors,
                 from_date=from_date,
                 to_date=to_date,
                 total_checked=total_checked
             )
             all_appointments.extend(appointments)
 
-            total_checked += len(doctors)
+            total_checked += len(search_result.doctors)
             if total_checked >= input.max_doctors_to_check:
                 break
 
@@ -153,73 +148,50 @@ def search_appointments(
             time.sleep(random.uniform(3, 5))  # Random delay between pages
 
         # Process appointments with ratings and travel times
-        formatted_appointments = []
-        logger.info("Fetching ratings and travel times for appointments...")
+        logger.info("Updating appointments with ratings and travel times...")
 
         for appointment in all_appointments:
-            rating = 0
             # Only fetch ratings if minimum_rating is set and greater than 0
             if input.minimum_rating and input.minimum_rating > 0:
-                # Get place details and ratings
+                logger.debug(f"Fetching ratings for {appointment.doctor.name}")
                 place_details = get_place_details(
-                    name=appointment['name'],
-                    street=str(appointment['address'])  # Use Address.__str__ method
+                    name=appointment.doctor.name,
+                    street=str(appointment.doctor.address)
                 )
-                rating = place_details.get('rating', 0) if place_details else 0
+                appointment.doctor.rating = place_details.get('rating', 0) if place_details else 0
 
                 # Skip if rating is below minimum
-                if rating < input.minimum_rating:
-                    logger.debug(f"Skipping doctor {appointment['name']} due to low rating: {rating}")
+                if appointment.doctor.rating < input.minimum_rating:
+                    logger.debug(f"Skipping doctor {appointment.doctor.name} due to low rating: {appointment.doctor.rating}")
                     continue
 
             # Calculate travel time if requested
-            travel_time = 0
             if input.calculate_travel_time and input.patient_address:
+                logger.debug(f"Calculating travel time for {appointment.doctor.name}")
                 connections = get_connections(
-                    origin=str(input.patient_address),  # Use Address.__str__ method
-                    destination=str(appointment['address']),
+                    origin=str(input.patient_address),
+                    destination=str(appointment.doctor.address),
                     departure_time=datetime.now()
                 )
 
-                travel_time = (
+                appointment.doctor.travel_time_minutes = (
                     connections['connections'][0]['duration']['minutes']
                     if connections and connections['connections']
                     else float('inf')
                 )
+                appointment.doctor.travel_method = input.travel_method
 
-            # Create Doctor model
-            doctor = Doctor(
-                name=appointment['name'],
-                speciality=input.doctor_speciality,
-                address=appointment['address'],  # Already an Address model
-                link=appointment['link'],
-                rating=rating,
-                travel_time_minutes=travel_time,
-                travel_method=input.travel_method
-            )
-
-            # Create AvailableAppointment model
-            available_appointment = AvailableAppointment(
-                doctor=doctor,
-                next_available_appointment=appointment['next_slot'].isoformat()
-            )
-
-            formatted_appointments.append(available_appointment)
-
-        # Sort appointments by:
-        # 1. earliest appointment date
-        # 2. highest rating
-        # 3. shortest travel time
-        formatted_appointments.sort(
+        # Sort appointments
+        all_appointments.sort(
             key=lambda x: (
                 datetime.fromisoformat(x.next_available_appointment),
-                -x.doctor.rating,
-                x.doctor.travel_time_minutes
+                -(x.doctor.rating or 0),
+                x.doctor.travel_time_minutes or float('inf')
             )
         )
 
         return HealthSearchAppointmentsOutput(
-            appointments=formatted_appointments[:input.max_appointments_to_return]
+            appointments=all_appointments[:input.max_appointments_to_return]
         )
 
     except KeyboardInterrupt:
