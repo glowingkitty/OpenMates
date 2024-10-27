@@ -5,10 +5,12 @@ import sys
 import time
 import random
 
-from server.api.endpoints.apps.maps.providers.google_maps.search_place import get_place_details
-from server.api.endpoints.apps.travel.providers.google_maps.search_connections import get_connections
+from server.api.endpoints.apps.maps.providers.google_maps.search_places import search_places
+from server.api.endpoints.apps.travel.providers.google_maps.search_connections import search_connections
 from server.api.endpoints.apps.health.providers.doctolib.search_doctors import search_doctors
 from server.api.endpoints.apps.health.providers.doctolib.get_next_available_appointment import get_next_available_appointment
+from server.api.models.apps.maps.skills_maps_search import MapsSearchInput
+from server.api.models.apps.travel.skills_travel_search_connections import TravelSearchConnectionsInput
 from server.api.models.apps.health.skills_health_search_appointments import (
     HealthSearchAppointmentsInput,
     HealthSearchAppointmentsOutput,
@@ -44,7 +46,7 @@ def parse_date(date_str: str = None) -> datetime:
         logger.error(f"Invalid date format. Please use YYYY-MM-DD. Error: {str(e)}")
         raise ValueError("Invalid date format. Please use YYYY-MM-DD")
 
-def process_doctor_appointments(
+async def process_doctor_appointments(
     doctors: List[Doctor],
     from_date: datetime,
     to_date: datetime,
@@ -87,7 +89,7 @@ def process_doctor_appointments(
 
     return appointments
 
-def search_appointments(
+async def search_appointments(
     input: HealthSearchAppointmentsInput
 ) -> HealthSearchAppointmentsOutput:
     """
@@ -132,7 +134,7 @@ def search_appointments(
             if not search_result.doctors:
                 break
 
-            appointments = process_doctor_appointments(
+            appointments = await process_doctor_appointments(
                 doctors=search_result.doctors,
                 from_date=from_date,
                 to_date=to_date,
@@ -154,10 +156,12 @@ def search_appointments(
             # Only fetch ratings if minimum_rating is set and greater than 0
             if input.minimum_rating and input.minimum_rating > 0:
                 logger.debug(f"Fetching ratings for {appointment.doctor.name}")
-                place_details = get_place_details(
-                    name=appointment.doctor.name,
-                    street=str(appointment.doctor.address)
+                places = await search_places(
+                    input=MapsSearchInput(
+                        query=appointment.doctor.name + " " + str(appointment.doctor.address)
+                    )
                 )
+                place_details = places.results[0] if places.results else None
                 appointment.doctor.rating = place_details.get('rating', 0) if place_details else 0
 
                 # Skip if rating is below minimum
@@ -168,10 +172,12 @@ def search_appointments(
             # Calculate travel time if requested
             if input.calculate_travel_time and input.patient_address:
                 logger.debug(f"Calculating travel time for {appointment.doctor.name}")
-                connections = get_connections(
-                    origin=str(input.patient_address),
-                    destination=str(appointment.doctor.address),
-                    departure_time=datetime.now()
+                connections = search_connections(
+                    input=TravelSearchConnectionsInput(
+                        origin=str(input.patient_address),
+                        destination=str(appointment.doctor.address),
+                        departure_time=datetime.now().isoformat()
+                    )
                 )
 
                 appointment.doctor.travel_time_minutes = (

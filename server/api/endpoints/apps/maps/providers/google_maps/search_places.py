@@ -7,11 +7,11 @@ from server.api.models.apps.maps.skills_maps_search import MapsSearchInput, Maps
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def search_place(
+async def search_places(
         input: MapsSearchInput
     ) -> MapsSearchOutput:
     """
-    Fetches the place details from Google Maps API based on the provided query string.
+    Fetches the places details from Google Maps API based on the provided query string.
 
     :param input: MapsSearchInput object containing the search query
     :return: MapsSearchOutput object containing a list of found places
@@ -19,11 +19,11 @@ def search_place(
     # Initialize the Google Maps client
     gmaps = googlemaps.Client(key=os.getenv('APP_MAPS_PROVIDER_GOOGLE_MAPS_API_KEY'))
 
-    logger.info(f"Searching for place with query: {input.query}")
+    logger.info(f"Searching for places with query: {input.query}")
 
     # Perform a text search for the place
     try:
-        results = gmaps.places(query=input.query)
+        results = await gmaps.places(query=input.query)
         logger.debug(f"API response: {results}")
 
         if results['status'] == 'OK' and results['results']:
@@ -34,7 +34,8 @@ def search_place(
                 logger.info(f"Found place: {place['name']} with place_id: {place_id}")
 
                 # Get detailed information about the place
-                place_details = gmaps.place(place_id=place_id)
+                # TODO: check if details are even requested, else skip
+                place_details = await gmaps.place(place_id=place_id)
 
                 if place_details['status'] == 'OK':
                     details = place_details['result']
