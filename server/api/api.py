@@ -56,29 +56,81 @@ def require_feature(config_path: str | None = None):
 
 # Create new routers
 router = APIRouter()
-files_router = APIRouter()
+
+##########################################################
+# Mates
+##########################################################
 mates_router = APIRouter()
-skills_router = APIRouter()
-apps_ai_router = APIRouter()
-apps_messages_router = APIRouter()
-apps_code_router = APIRouter()
-apps_finance_router = APIRouter()
-apps_docs_router = APIRouter()
-apps_files_router = APIRouter()
-apps_books_router = APIRouter()
-apps_videos_router = APIRouter()
-apps_audio_router = APIRouter()
-apps_photos_router = APIRouter()
-apps_web_router = APIRouter()
-apps_home_router = APIRouter()
-apps_business_router = APIRouter()
-apps_router = APIRouter()
-workflows_router = APIRouter()
-tasks_router = APIRouter()
-billing_router = APIRouter()
-server_router = APIRouter()
+
+##########################################################
+# Teams
+##########################################################
 teams_router = APIRouter()
+
+##########################################################
+# Users
+##########################################################
 users_router = APIRouter()
+
+##########################################################
+# Skills
+##########################################################
+skills_router = APIRouter()
+
+##########################################################
+# Tasks
+##########################################################
+tasks_router = APIRouter()
+
+##########################################################
+# Billing
+##########################################################
+billing_router = APIRouter()
+
+##########################################################
+# Server
+##########################################################
+server_router = APIRouter()
+
+##########################################################
+# Workflows
+##########################################################
+workflows_router = APIRouter()
+
+##########################################################
+# Apps
+##########################################################
+apps_router = APIRouter()
+# AI
+apps_ai_router = APIRouter()
+# Audio
+apps_audio_router = APIRouter()
+# Books
+apps_books_router = APIRouter()
+# Docs
+apps_docs_router = APIRouter()
+# Files
+apps_files_router = APIRouter()
+# Finance
+apps_finance_router = APIRouter()
+# Health
+apps_health_router = APIRouter()
+# Home
+apps_home_router = APIRouter()
+# Maps
+apps_maps_router = APIRouter()
+# Messages
+apps_messages_router = APIRouter()
+# PDF Editor
+apps_pdf_editor_router = APIRouter()
+# Photos
+apps_photos_router = APIRouter()
+# Travel
+apps_travel_router = APIRouter()
+# Videos
+apps_videos_router = APIRouter()
+# Web
+apps_web_router = APIRouter()
 
 
 async def get_credentials(bearer: HTTPBearer = Depends(bearer_scheme)):
@@ -132,9 +184,9 @@ def read_root(request: Request):
     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
 
 
-##################################
-######### Mates ##################
-##################################
+##########################################################
+# Mates
+##########################################################
 
 # POST /mates/ask (Send a message to an AI team mate and you receive the response)
 @mates_router.post("/v1/{team_slug}/mates/ask", **mates_endpoints["ask_mate"])
@@ -333,10 +385,214 @@ async def delete_mate(
         )
 
 
+##########################################################
+# Teams
+##########################################################
 
-##################################
-######### Skills #################
-##################################
+# Explaination:
+# A server can have multiple teams. Each team can have multiple users and multiple mates. Teams can be used to separate different work environments, departments or companies.
+
+# TODO implement
+# TODO add test
+# GET /teams (get all teams)
+@teams_router.get("/v1/teams", **teams_endpoints["get_all_teams"])
+@limiter.limit("20/minute")
+async def get_teams(
+    request: Request,
+    token: str = Depends(get_credentials),
+    page: int = 1,
+    pageSize: int = 25
+    ):
+    await validate_permissions(
+        endpoint="/teams",# TODO need to make function compatible with this endpoint
+        user_api_token=token,
+        required_permissions=["teams:get_all"]
+    )
+    return await get_teams_processing(
+        page=page,
+        pageSize=pageSize
+    )
+
+
+# TODO implement
+# TODO add test
+# GET /teams/{team_slug} (get a team)
+@teams_router.get("/v1/{team_slug}", **teams_endpoints["get_team"])
+@limiter.limit("20/minute")
+async def get_team(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/team/{team_slug}", # TODO need to make function compatible with this endpoint
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await get_team_processing(
+        team_slug=team_slug,
+        user_api_token=token
+    )
+
+
+##########################################################
+# Users
+##########################################################
+
+# Explaination:
+# User accounts are used to store user data like what projects the user is working on, what they are interested in, what their goals are, etc.
+# The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
+
+# GET /users (get all users on a team)
+@users_router.get("/v1/{team_slug}/users/", **users_endpoints["get_all_users"])
+@limiter.limit("20/minute")
+async def get_users(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    page: int = 1,
+    pageSize: int = 25
+    ):
+    user_access: str = await validate_permissions(
+        endpoint="/users",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await get_users_processing(
+        user_access=user_access,
+        team_slug=team_slug,
+        page=page,
+        pageSize=pageSize
+        )
+
+
+# TODO add test
+# POST /users (create a new user)
+@users_router.post("/v1/{team_slug}/users/", **users_endpoints["create_user"])
+@limiter.limit("20/minute")
+async def create_user(
+    request: Request,
+    parameters: UsersCreateInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
+    ) -> UsersCreateOutput:
+    await validate_invite_code(
+        team_slug=team_slug,
+        invite_code=parameters.invite_code
+        )
+    return await create_user_processing(
+        name=parameters.name,
+        username=parameters.username,
+        email=parameters.email,
+        password=parameters.password,
+        team_slug=team_slug
+        )
+
+
+# TODO add test
+# GET /users/{username} (get a user)
+@users_router.get("/v1/{team_slug}/users/{username}", **users_endpoints["get_user"])
+@limiter.limit("20/minute")
+async def get_user(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"]),
+    fields: Optional[List[str]] = Query(None, description="Which fields to include in the response. If not specified, all fields are returned.")
+) -> dict:
+    user_access: str = await validate_permissions(
+        endpoint=f"/users/{username}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    user: User = await get_user_processing(
+        team_slug=team_slug,
+        api_token=token,
+        username=username,
+        user_access=user_access,
+        fields=fields
+        )
+
+    return user.to_api_output(fields)
+
+
+# TODO add test
+# PATCH /users/{username} (update a user)
+@users_router.patch("/v1/{team_slug}/users/{username}", **users_endpoints["update_user"])
+@limiter.limit("20/minute")
+async def update_user(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"])
+    ):
+    await validate_permissions(
+        endpoint=f"/users/{username}",
+        team_slug=team_slug,
+        user_api_token=token,
+        required_permissions=["users:update"]
+    )
+    return {"info": "endpoint still needs to be implemented"}
+
+
+# TODO add test
+# PATCH /users/{username}/profile_picture (replace a user's profile picture)
+@users_router.patch("/v1/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
+@limiter.limit("5/minute")
+async def replace_user_profile_picture(
+    request: Request,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials),
+    username: str = Path(..., **input_parameter_descriptions["user_username"]),
+    visibility: Literal["public", "team", "server"] = Form("server", description="Who can see the profile picture? Public means everyone on the internet can see it, team means only team members can see it, server means every user on the server can see it.")
+    ):
+    access = await validate_permissions(
+        endpoint=f"/users/{username}/profile_picture",
+        user_api_token=token,
+        team_slug=team_slug,
+        required_permissions=["users:replace_profile_picture"]
+    )
+
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if len(contents) > 3 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
+
+    return await replace_profile_picture_processing(
+        team_slug=team_slug,
+        api_token=token,
+        username=username,
+        user_access=access,
+        file=contents,
+        visibility=visibility
+    )
+
+
+# TODO add test
+# PATCH /api_token (generate a new API token for a user)
+@users_router.patch("/v1/api_token", **users_endpoints["create_new_api_token"])
+@limiter.limit("5/minute")
+async def generate_new_user_api_token(
+    request: Request,
+    parameters: UsersCreateNewApiTokenInput
+    ):
+    await validate_permissions(
+        endpoint="/api_token",
+        user_username=parameters.username,
+        user_password=parameters.password,
+        required_permissions=["api_token:create"]
+    )
+    return await create_new_api_token_processing(
+        username=parameters.username,
+        password=parameters.password
+    )
+
+
+##########################################################
+# Skills
+##########################################################
 
 # Explaination:
 # A skill is a single piece of functionality that a mate can use to help you. For example, ChatGPT, StableDiffusion, Notion or Figma.
@@ -366,6 +622,129 @@ async def get_skill(
         output_format="JSONResponse"
     )
 
+
+##########################################################
+# Tasks
+##########################################################
+
+# Explaination:
+# A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.
+@tasks_router.get("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["get_task"])
+@limiter.limit("30/minute")
+async def get_task(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    task_id: str = Path(..., description="The ID of the task"),
+    token: str = Depends(get_credentials)
+) -> Task:
+    await validate_permissions(
+        endpoint="/tasks/{task_id}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+
+    return await tasks_get_task_processing(task_id)
+
+
+@tasks_router.delete("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["cancel"])
+@limiter.limit("20/minute")
+async def cancel_task(
+    request: Request,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    task_id: str = Path(..., description="The ID of the task to cancel"),
+    token: str = Depends(get_credentials)
+) -> TasksCancelOutput:
+    await validate_permissions(
+        endpoint="/tasks/{task_id}",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+
+    return await tasks_cancel_processing(task_id)
+
+
+##########################################################
+# Billing
+##########################################################
+
+# Explaination:
+# The billing endpoints allow users or team owners to manage their billing settings, download invoices and more.
+
+# POST /billing/get_balance (get the balance of the user or the team)
+@billing_router.post("/v1/{team_slug}/billing/get_balance", **billing_endpoints["get_balance"])
+@limiter.limit("20/minute")
+async def get_balance(
+    request: Request,
+    parameters: BillingGetBalanceInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> BillingBalanceOutput:
+    await validate_permissions(
+        endpoint="/billing/get_balance",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await billing_get_balance_processing(
+        team_slug=team_slug,
+        api_token=token,
+        for_team=parameters.for_team
+    )
+
+
+##########################################################
+# Server
+##########################################################
+
+# Explaination:
+# The server is the core software that runs OpenMates.
+
+# TODO add test
+# GET /server/status (get server status)
+@server_router.get("/v1/server/status", **server_endpoints["get_status"])
+@limiter.limit("20/minute")
+async def get_status(
+    request: Request,
+    token: str = Depends(get_credentials)
+    ):
+    await validate_permissions(
+        endpoint="/server/status",
+        user_api_token=token
+    )
+    return {"status": "online"}
+
+# TODO add test
+# GET /server/settings (get server settings)
+@server_router.get("/v1/server/settings", **server_endpoints["get_settings"])
+@limiter.limit("20/minute")
+async def get_settings(
+    request: Request,
+    token: str = Depends(get_credentials)
+    ):
+    return {"info": "endpoint still needs to be implemented"}
+
+
+# TODO add test
+# PATCH /server/settings (update server settings)
+@server_router.patch("/v1/server/settings", **server_endpoints["update_settings"])
+@limiter.limit("20/minute")
+async def update_settings(
+    request: Request,
+    token: str = Depends(get_credentials)
+    ):
+    return {"info": "endpoint still needs to be implemented"}
+
+
+##########################################################
+# Workflows
+##########################################################
+# will be placed here...
+
+
+##########################################################
+# Apps
+##########################################################
+
+# AI
 
 # POST /apps/ai/ask (ask a question to an AI)
 @require_feature('apps.ai.skills.ask.allowed')
@@ -419,100 +798,134 @@ async def skill_ai_estimate_cost(
     )
 
 
-# POST /apps/messages/send (send a message)
-@require_feature('apps.messages.skills.send.allowed')
-@apps_messages_router.post("/v1/{team_slug}/apps/messages/send", **apps_messages_endpoints["send"])
+# Audio
+
+# POST /apps/audio/generate_transcript (generate transcript)
+@require_feature('apps.audio.skills.generate_transcript.allowed')
+@apps_audio_router.post("/v1/{team_slug}/apps/audio/generate_transcript", **apps_audio_endpoints["generate_transcript"])
 @limiter.limit("20/minute")
-async def skill_messages_send(
+async def skill_audio_generate_transcript(
     request: Request,
-    parameters: MessagesSendInput,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
+    provider: str = Form(..., description="The provider to use for generating the transcript"),
+    model: str = Form(..., description="The model to use for generating the transcript"),
+    stream: bool = Form(False, description="Whether to stream the transcript"),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> MessagesSendOutput:
+) -> AudioGenerateTranscriptOutput:
+    # TODO output either StreamingResponse or Task
     await validate_permissions(
-        endpoint="/apps/messages/send",
+        endpoint="/apps/audio/generate_transcript",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_messages_send_processing(
-        message=parameters.message,
-        ai_mate_username=parameters.ai_mate_username,
-        target=parameters.target,
-        attachments=parameters.attachments
+
+    audio_data = await file.read()
+    if len(audio_data) == 0:
+        raise HTTPException(status_code=400, detail="No audio data provided")
+    if len(audio_data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio size exceeds 10MB limit")
+
+    return await skill_audio_generate_transcript_processing(
+        input=AudioGenerateTranscriptInput(
+            audio_data=audio_data,
+            provider=AudioTranscriptAiProvider(
+                name=provider,
+                model=model
+            ),
+            stream=stream
+        )
     )
 
 
-# POST /apps/messages/connect (connect to a server)
-@require_feature('apps.messages.skills.connect.allowed')
-@apps_messages_router.post("/v1/{team_slug}/apps/messages/connect", **apps_messages_endpoints["connect"])
+# # POST /apps/audio/generate_speech (generate speech)
+# @require_feature('apps.audio.skills.generate_speech.allowed')
+# @apps_audio_router.post("/v1/{team_slug}/apps/audio/generate_speech", **apps_audio_endpoints["generate_speech"])
+# @limiter.limit("20/minute")
+# async def skill_audio_generate_speech(
+#     request: Request,
+#     parameters: AudioGenerateSpeechInput,
+#     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+#     token: str = Depends(get_credentials)
+# ) -> AudioGenerateSpeechOutput:
+#     # TODO output either StreamingResponse or Task.
+#     await validate_permissions(
+#         endpoint="/apps/audio/generate_speech",
+#         team_slug=team_slug,
+#         user_api_token=token
+#     )
+
+#     return await skill_audio_generate_speech_processing(
+#         input=parameters
+#     )
+
+
+# TODO add websocket endpoint for generate_transcript
+# TODO add websocket endpoint for generate_speech
+
+
+# Books
+
+# POST /apps/books/translate
+@require_feature('apps.books.skills.translate.allowed')
+@apps_books_router.post("/v1/{team_slug}/apps/books/translate", **apps_books_endpoints["translate"])
 @limiter.limit("20/minute")
-async def skill_messages_connect(
+async def skill_books_translate(
     request: Request,
-    parameters: MessagesConnectInput,
+    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> MessagesConnectOutput:
+    token: str = Depends(get_credentials),
+    output_language: str = Form(None, description="The output language of the ebook."),
+    output_format: Literal["epub", "pdf"] = Form("epub", description="The output format of the ebook.")
+) -> Task:
     await validate_permissions(
-        endpoint="/apps/messages/connect",
+        endpoint="/apps/books/translate",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_messages_connect_processing(
-        team_name=parameters.team_name,
-        include_all_bots=parameters.include_all_bots,
-        bots=parameters.bots
-    )
 
+    ebook_data = await file.read()
+    if len(ebook_data) == 0:
+        raise HTTPException(status_code=400, detail="No epub file provided")
 
-# POST /apps/finance/get_report (get a finance report)
-@require_feature('apps.finance.skills.get_report.allowed')
-@apps_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **apps_finance_endpoints["get_report"])
-@limiter.limit("20/minute")
-async def skill_finance_get_report(
-    request: Request,
-    parameters: FinanceGetReportInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> FinanceGetReportOutput:
-    await validate_permissions(
-        endpoint="/apps/finance/get_report",
+    if len(ebook_data) > 40 * 1024 * 1024:  # Example size limit of 40MB
+        raise HTTPException(status_code=413, detail="Ebook size exceeds 40MB limit")
+
+    # Save the bytes to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".epub") as temp_file:
+        temp_file.write(ebook_data)
+        temp_file_path = temp_file.name
+
+    try:
+        epub.read_epub(temp_file_path)  # Pass the file path to read_epub
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid EPUB file: {str(e)}")
+    finally:
+        os.remove(temp_file_path)  # Clean up the temporary file
+
+    task = await tasks_create_processing(
         team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_finance_get_report_processing(
-        report=parameters.report,
-        date_from=parameters.date_from,
-        date_to=parameters.date_to,
-        format=parameters.format,
-        include_attachments=parameters.include_attachments
+        title="apps/Books/Translate",
+        api_endpoint="/apps/books/translate"
     )
 
-
-# POST /apps/finance/get_transactions (get transactions)
-@require_feature('apps.finance.skills.get_transactions.allowed')
-@apps_finance_router.post("/v1/{team_slug}/apps/finance/get_transactions", **apps_finance_endpoints["get_transactions"])
-@limiter.limit("20/minute")
-async def skill_finance_get_transactions(
-    request: Request,
-    parameters: FinanceGetTransactionsInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> FinanceGetTransactionsOutput:
-    await validate_permissions(
-        endpoint="/apps/finance/get_transactions",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_finance_get_transactions_processing(
-        token=token,
-        from_date=parameters.from_date,
-        to_date=parameters.to_date,
-        bank=parameters.bank,
-        account=parameters.account,
-        count=parameters.count,
-        type=parameters.type
+    # Create the task
+    book_translate_task.apply_async(
+        args=[
+            task.id,
+            team_slug,
+            token,
+            ebook_data,
+            output_language,
+            output_format
+        ],
+        task_id=task.id
     )
 
+    return task
+
+
+# Docs
 
 # POST /apps/docs/create (create a new document)
 @require_feature('apps.docs.skills.create.allowed')
@@ -536,6 +949,8 @@ async def skill_docs_create(
         elements=parameters.elements
     )
 
+
+# Files
 
 # POST /apps/files/upload (upload a file)
 @require_feature('apps.files.skills.upload.allowed')
@@ -646,131 +1061,63 @@ async def skill_files_delete(
     )
 
 
-# POST /apps/audio/generate_transcript (generate transcript)
-@require_feature('apps.audio.skills.generate_transcript.allowed')
-@apps_audio_router.post("/v1/{team_slug}/apps/audio/generate_transcript", **apps_audio_endpoints["generate_transcript"])
+# Finance
+
+# POST /apps/finance/get_report (get a finance report)
+@require_feature('apps.finance.skills.get_report.allowed')
+@apps_finance_router.post("/v1/{team_slug}/apps/finance/get_report", **apps_finance_endpoints["get_report"])
 @limiter.limit("20/minute")
-async def skill_audio_generate_transcript(
+async def skill_finance_get_report(
     request: Request,
-    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
-    provider: str = Form(..., description="The provider to use for generating the transcript"),
-    model: str = Form(..., description="The model to use for generating the transcript"),
-    stream: bool = Form(False, description="Whether to stream the transcript"),
+    parameters: FinanceGetReportInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> AudioGenerateTranscriptOutput:
-    # TODO output either StreamingResponse or Task
+) -> FinanceGetReportOutput:
     await validate_permissions(
-        endpoint="/apps/audio/generate_transcript",
+        endpoint="/apps/finance/get_report",
         team_slug=team_slug,
         user_api_token=token
     )
-
-    audio_data = await file.read()
-    if len(audio_data) == 0:
-        raise HTTPException(status_code=400, detail="No audio data provided")
-    if len(audio_data) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Audio size exceeds 10MB limit")
-
-    return await skill_audio_generate_transcript_processing(
-        input=AudioGenerateTranscriptInput(
-            audio_data=audio_data,
-            provider=AudioTranscriptAiProvider(
-                name=provider,
-                model=model
-            ),
-            stream=stream
-        )
+    return await skill_finance_get_report_processing(
+        report=parameters.report,
+        date_from=parameters.date_from,
+        date_to=parameters.date_to,
+        format=parameters.format,
+        include_attachments=parameters.include_attachments
     )
 
 
-# # POST /apps/audio/generate_speech (generate speech)
-# @require_feature('apps.audio.skills.generate_speech.allowed')
-# @apps_audio_router.post("/v1/{team_slug}/apps/audio/generate_speech", **apps_audio_endpoints["generate_speech"])
-# @limiter.limit("20/minute")
-# async def skill_audio_generate_speech(
-#     request: Request,
-#     parameters: AudioGenerateSpeechInput,
-#     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-#     token: str = Depends(get_credentials)
-# ) -> AudioGenerateSpeechOutput:
-#     # TODO output either StreamingResponse or Task.
-#     await validate_permissions(
-#         endpoint="/apps/audio/generate_speech",
-#         team_slug=team_slug,
-#         user_api_token=token
-#     )
-
-#     return await skill_audio_generate_speech_processing(
-#         input=parameters
-#     )
-
-
-# TODO add websocket endpoint for generate_transcript
-# TODO add websocket endpoint for generate_speech
-
-
-# POST /apps/videos/transcript (get the transcript of a video)
-@require_feature('apps.videos.skills.get_transcript.allowed')
-@apps_videos_router.post("/v1/{team_slug}/apps/videos/transcript", **apps_videos_endpoints["get_transcript"])
+# POST /apps/finance/get_transactions (get transactions)
+@require_feature('apps.finance.skills.get_transactions.allowed')
+@apps_finance_router.post("/v1/{team_slug}/apps/finance/get_transactions", **apps_finance_endpoints["get_transactions"])
 @limiter.limit("20/minute")
-async def skill_videos_get_transcript(
+async def skill_finance_get_transactions(
     request: Request,
-    parameters: VideosGetTranscriptInput,
+    parameters: FinanceGetTransactionsInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> VideosGetTranscriptOutput:
+) -> FinanceGetTransactionsOutput:
     await validate_permissions(
-        endpoint="/apps/videos/transcript",
+        endpoint="/apps/finance/get_transactions",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_videos_get_transcript_processing(
-        url=parameters.url,
-        block_token_limit=parameters.block_token_limit
+    return await skill_finance_get_transactions_processing(
+        token=token,
+        from_date=parameters.from_date,
+        to_date=parameters.to_date,
+        bank=parameters.bank,
+        account=parameters.account,
+        count=parameters.count,
+        type=parameters.type
     )
 
 
-# POST /apps/web/read (read a web page)
-@require_feature('apps.web.skills.read.allowed')
-@apps_web_router.post("/v1/{team_slug}/apps/web/read", **apps_web_endpoints["read"])
-@limiter.limit("20/minute")
-async def skill_web_read(
-    request: Request,
-    parameters: WebReadInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> WebReadOutput:
-    await validate_permissions(
-        endpoint="/apps/web/read",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_web_read_processing(
-        url=parameters.url,
-        include_images=parameters.include_images
-    )
+# Health
+# will be placed here...
 
 
-# POST /apps/web/view (view a web page)
-@require_feature('apps.web.skills.view.allowed')
-@apps_web_router.post("/v1/{team_slug}/apps/web/view", **apps_web_endpoints["view"])
-@limiter.limit("20/minute")
-async def skill_web_view(
-    request: Request,
-    parameters: WebViewInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials)
-) -> WebViewOutput:
-    await validate_permissions(
-        endpoint="/apps/web/view",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await skill_web_view_processing(
-        url=parameters.url
-    )
-
+# Home
 
 # POST /apps/home/get_all_devices (get all devices at home)
 @require_feature('apps.home.skills.get_all_devices.allowed')
@@ -948,6 +1295,62 @@ async def skill_home_get_power_consumption(
     )
 
 
+# Maps
+# will be placed here...
+
+
+# Messages
+
+# POST /apps/messages/send (send a message)
+@require_feature('apps.messages.skills.send.allowed')
+@apps_messages_router.post("/v1/{team_slug}/apps/messages/send", **apps_messages_endpoints["send"])
+@limiter.limit("20/minute")
+async def skill_messages_send(
+    request: Request,
+    parameters: MessagesSendInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> MessagesSendOutput:
+    await validate_permissions(
+        endpoint="/apps/messages/send",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_messages_send_processing(
+        message=parameters.message,
+        ai_mate_username=parameters.ai_mate_username,
+        target=parameters.target,
+        attachments=parameters.attachments
+    )
+
+
+# POST /apps/messages/connect (connect to a server)
+@require_feature('apps.messages.skills.connect.allowed')
+@apps_messages_router.post("/v1/{team_slug}/apps/messages/connect", **apps_messages_endpoints["connect"])
+@limiter.limit("20/minute")
+async def skill_messages_connect(
+    request: Request,
+    parameters: MessagesConnectInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> MessagesConnectOutput:
+    await validate_permissions(
+        endpoint="/apps/messages/connect",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_messages_connect_processing(
+        team_name=parameters.team_name,
+        include_all_bots=parameters.include_all_bots,
+        bots=parameters.bots
+    )
+
+
+# PDF Editor
+# will be placed here...
+
+
+# Photos
 
 # TODO add test
 # POST /apps/photos/resize (resize an image)
@@ -990,394 +1393,75 @@ async def skill_photos_resize(
     )
 
 
-# POST /apps/books/translate
-@require_feature('apps.books.skills.translate.allowed')
-@apps_books_router.post("/v1/{team_slug}/apps/books/translate", **apps_books_endpoints["translate"])
+# Travel
+# will be placed here...
+
+
+# Videos
+
+# POST /apps/videos/transcript (get the transcript of a video)
+@require_feature('apps.videos.skills.get_transcript.allowed')
+@apps_videos_router.post("/v1/{team_slug}/apps/videos/transcript", **apps_videos_endpoints["get_transcript"])
 @limiter.limit("20/minute")
-async def skill_books_translate(
+async def skill_videos_get_transcript(
     request: Request,
-    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    output_language: str = Form(None, description="The output language of the ebook."),
-    output_format: Literal["epub", "pdf"] = Form("epub", description="The output format of the ebook.")
-) -> Task:
-    await validate_permissions(
-        endpoint="/apps/books/translate",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-
-    ebook_data = await file.read()
-    if len(ebook_data) == 0:
-        raise HTTPException(status_code=400, detail="No epub file provided")
-
-    if len(ebook_data) > 40 * 1024 * 1024:  # Example size limit of 40MB
-        raise HTTPException(status_code=413, detail="Ebook size exceeds 40MB limit")
-
-    # Save the bytes to a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".epub") as temp_file:
-        temp_file.write(ebook_data)
-        temp_file_path = temp_file.name
-
-    try:
-        epub.read_epub(temp_file_path)  # Pass the file path to read_epub
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid EPUB file: {str(e)}")
-    finally:
-        os.remove(temp_file_path)  # Clean up the temporary file
-
-    task = await tasks_create_processing(
-        team_slug=team_slug,
-        title="apps/Books/Translate",
-        api_endpoint="/apps/books/translate"
-    )
-
-    # Create the task
-    book_translate_task.apply_async(
-        args=[
-            task.id,
-            team_slug,
-            token,
-            ebook_data,
-            output_language,
-            output_format
-        ],
-        task_id=task.id
-    )
-
-    return task
-
-
-
-
-##################################
-######### Workflows ##############
-##################################
-
-# Explaination:
-# A workflow is a sequence of skills that are executed in a specific order, to fullfill a task.
-
-
-
-
-##################################
-######### Tasks ##################
-##################################
-
-# Explaination:
-# A task is a scheduled run of a single skill or a whole workflow. It can happen once, or repeated.
-@tasks_router.get("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["get_task"])
-@limiter.limit("30/minute")
-async def get_task(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    task_id: str = Path(..., description="The ID of the task"),
-    token: str = Depends(get_credentials)
-) -> Task:
-    await validate_permissions(
-        endpoint="/tasks/{task_id}",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-
-    return await tasks_get_task_processing(task_id)
-
-
-@tasks_router.delete("/v1/{team_slug}/tasks/{task_id}", **tasks_endpoints["cancel"])
-@limiter.limit("20/minute")
-async def cancel_task(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    task_id: str = Path(..., description="The ID of the task to cancel"),
-    token: str = Depends(get_credentials)
-) -> TasksCancelOutput:
-    await validate_permissions(
-        endpoint="/tasks/{task_id}",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-
-    return await tasks_cancel_processing(task_id)
-
-
-##################################
-######### Billing ################
-##################################
-
-# Explaination:
-# The billing endpoints allow users or team owners to manage their billing settings, download invoices and more.
-
-# POST /billing/get_balance (get the balance of the user or the team)
-@billing_router.post("/v1/{team_slug}/billing/get_balance", **billing_endpoints["get_balance"])
-@limiter.limit("20/minute")
-async def get_balance(
-    request: Request,
-    parameters: BillingGetBalanceInput,
+    parameters: VideosGetTranscriptInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-) -> BillingBalanceOutput:
+) -> VideosGetTranscriptOutput:
     await validate_permissions(
-        endpoint="/billing/get_balance",
+        endpoint="/apps/videos/transcript",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await billing_get_balance_processing(
-        team_slug=team_slug,
-        api_token=token,
-        for_team=parameters.for_team
+    return await skill_videos_get_transcript_processing(
+        url=parameters.url,
+        block_token_limit=parameters.block_token_limit
     )
 
 
+# Web
 
-##################################
-######### Server #################
-##################################
-
-# Explaination:
-# The server is the core software that runs OpenMates.
-
-# TODO add test
-# GET /server/status (get server status)
-@server_router.get("/v1/server/status", **server_endpoints["get_status"])
+# POST /apps/web/read (read a web page)
+@require_feature('apps.web.skills.read.allowed')
+@apps_web_router.post("/v1/{team_slug}/apps/web/read", **apps_web_endpoints["read"])
 @limiter.limit("20/minute")
-async def get_status(
+async def skill_web_read(
     request: Request,
-    token: str = Depends(get_credentials)
-    ):
-    await validate_permissions(
-        endpoint="/server/status",
-        user_api_token=token
-    )
-    return {"status": "online"}
-
-# TODO add test
-# GET /server/settings (get server settings)
-@server_router.get("/v1/server/settings", **server_endpoints["get_settings"])
-@limiter.limit("20/minute")
-async def get_settings(
-    request: Request,
-    token: str = Depends(get_credentials)
-    ):
-    return {"info": "endpoint still needs to be implemented"}
-
-
-# TODO add test
-# PATCH /server/settings (update server settings)
-@server_router.patch("/v1/server/settings", **server_endpoints["update_settings"])
-@limiter.limit("20/minute")
-async def update_settings(
-    request: Request,
-    token: str = Depends(get_credentials)
-    ):
-    return {"info": "endpoint still needs to be implemented"}
-
-
-
-##################################
-######### Teams ##################
-##################################
-
-# Explaination:
-# A server can have multiple teams. Each team can have multiple users and multiple mates. Teams can be used to separate different work environments, departments or companies.
-
-# TODO implement
-# TODO add test
-# GET /teams (get all teams)
-@teams_router.get("/v1/teams", **teams_endpoints["get_all_teams"])
-@limiter.limit("20/minute")
-async def get_teams(
-    request: Request,
-    token: str = Depends(get_credentials),
-    page: int = 1,
-    pageSize: int = 25
-    ):
-    await validate_permissions(
-        endpoint="/teams",# TODO need to make function compatible with this endpoint
-        user_api_token=token,
-        required_permissions=["teams:get_all"]
-    )
-    return await get_teams_processing(
-        page=page,
-        pageSize=pageSize
-    )
-
-
-# TODO implement
-# TODO add test
-# GET /teams/{team_slug} (get a team)
-@teams_router.get("/v1/{team_slug}", **teams_endpoints["get_team"])
-@limiter.limit("20/minute")
-async def get_team(
-    request: Request,
+    parameters: WebReadInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
     token: str = Depends(get_credentials)
-    ):
+) -> WebReadOutput:
     await validate_permissions(
-        endpoint="/team/{team_slug}", # TODO need to make function compatible with this endpoint
+        endpoint="/apps/web/read",
         team_slug=team_slug,
         user_api_token=token
     )
-    return await get_team_processing(
-        team_slug=team_slug,
-        user_api_token=token
+    return await skill_web_read_processing(
+        url=parameters.url,
+        include_images=parameters.include_images
     )
 
 
-
-##################################
-########## Users #################
-##################################
-
-# Explaination:
-# User accounts are used to store user data like what projects the user is working on, what they are interested in, what their goals are, etc.
-# The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
-
-# GET /users (get all users on a team)
-@users_router.get("/v1/{team_slug}/users/", **users_endpoints["get_all_users"])
+# POST /apps/web/view (view a web page)
+@require_feature('apps.web.skills.view.allowed')
+@apps_web_router.post("/v1/{team_slug}/apps/web/view", **apps_web_endpoints["view"])
 @limiter.limit("20/minute")
-async def get_users(
+async def skill_web_view(
     request: Request,
+    parameters: WebViewInput,
     team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    page: int = 1,
-    pageSize: int = 25
-    ):
-    user_access: str = await validate_permissions(
-        endpoint="/users",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    return await get_users_processing(
-        user_access=user_access,
-        team_slug=team_slug,
-        page=page,
-        pageSize=pageSize
-        )
-
-
-# TODO add test
-# POST /users (create a new user)
-@users_router.post("/v1/{team_slug}/users/", **users_endpoints["create_user"])
-@limiter.limit("20/minute")
-async def create_user(
-    request: Request,
-    parameters: UsersCreateInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
-    ) -> UsersCreateOutput:
-    await validate_invite_code(
-        team_slug=team_slug,
-        invite_code=parameters.invite_code
-        )
-    return await create_user_processing(
-        name=parameters.name,
-        username=parameters.username,
-        email=parameters.email,
-        password=parameters.password,
-        team_slug=team_slug
-        )
-
-
-# TODO add test
-# GET /users/{username} (get a user)
-@users_router.get("/v1/{team_slug}/users/{username}", **users_endpoints["get_user"])
-@limiter.limit("20/minute")
-async def get_user(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    username: str = Path(..., **input_parameter_descriptions["user_username"]),
-    fields: Optional[List[str]] = Query(None, description="Which fields to include in the response. If not specified, all fields are returned.")
-) -> dict:
-    user_access: str = await validate_permissions(
-        endpoint=f"/users/{username}",
-        team_slug=team_slug,
-        user_api_token=token
-    )
-    user: User = await get_user_processing(
-        team_slug=team_slug,
-        api_token=token,
-        username=username,
-        user_access=user_access,
-        fields=fields
-        )
-
-    return user.to_api_output(fields)
-
-
-# TODO add test
-# PATCH /users/{username} (update a user)
-@users_router.patch("/v1/{team_slug}/users/{username}", **users_endpoints["update_user"])
-@limiter.limit("20/minute")
-async def update_user(
-    request: Request,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    username: str = Path(..., **input_parameter_descriptions["user_username"])
-    ):
+    token: str = Depends(get_credentials)
+) -> WebViewOutput:
     await validate_permissions(
-        endpoint=f"/users/{username}",
+        endpoint="/apps/web/view",
         team_slug=team_slug,
-        user_api_token=token,
-        required_permissions=["users:update"]
+        user_api_token=token
     )
-    return {"info": "endpoint still needs to be implemented"}
-
-
-# TODO add test
-# PATCH /users/{username}/profile_picture (replace a user's profile picture)
-@users_router.patch("/v1/{team_slug}/users/{username}/profile_picture", **users_endpoints["replace_profile_picture"])
-@limiter.limit("5/minute")
-async def replace_user_profile_picture(
-    request: Request,
-    file: UploadFile = File(..., **input_parameter_descriptions["file"]),
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
-    token: str = Depends(get_credentials),
-    username: str = Path(..., **input_parameter_descriptions["user_username"]),
-    visibility: Literal["public", "team", "server"] = Form("server", description="Who can see the profile picture? Public means everyone on the internet can see it, team means only team members can see it, server means every user on the server can see it.")
-    ):
-    access = await validate_permissions(
-        endpoint=f"/users/{username}/profile_picture",
-        user_api_token=token,
-        team_slug=team_slug,
-        required_permissions=["users:replace_profile_picture"]
+    return await skill_web_view_processing(
+        url=parameters.url
     )
 
-    contents = await file.read()
-    if len(contents) == 0:
-        raise HTTPException(status_code=400, detail="No file provided")
-
-    if len(contents) > 3 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File size exceeds 3MB limit")
-
-    return await replace_profile_picture_processing(
-        team_slug=team_slug,
-        api_token=token,
-        username=username,
-        user_access=access,
-        file=contents,
-        visibility=visibility
-    )
-
-
-# TODO add test
-# PATCH /api_token (generate a new API token for a user)
-@users_router.patch("/v1/api_token", **users_endpoints["create_new_api_token"])
-@limiter.limit("5/minute")
-async def generate_new_user_api_token(
-    request: Request,
-    parameters: UsersCreateNewApiTokenInput
-    ):
-    await validate_permissions(
-        endpoint="/api_token",
-        user_username=parameters.username,
-        user_password=parameters.password,
-        required_permissions=["api_token:create"]
-    )
-    return await create_new_api_token_processing(
-        username=parameters.username,
-        password=parameters.password
-    )
 
 # TODO fix script, so it excludes apps if they not allowed in env.
 # also define app_routers based on apps.yml file, instead of hardcoding them
@@ -1385,7 +1469,6 @@ async def generate_new_user_api_token(
 # Register base routers that are always enabled
 CORE_ROUTERS = [
     (router, ["AI Call"]),
-    (files_router, ["Files"]),
     (mates_router, ["Mates"]),
     (apps_router, ["Apps"]),
     (skills_router, ["Skills"]),
@@ -1400,15 +1483,20 @@ CORE_ROUTERS = [
 # Register optional app routers
 APP_ROUTERS = [
     (apps_ai_router, "AI", "apps.ai.allowed", ["Apps | AI"]),
-    (apps_messages_router, "Messages", "apps.messages.allowed", ["Apps | Messages"]),
-    (apps_code_router, "Code", "apps.code.allowed", ["Apps | Code"]),
+    (apps_audio_router, "Audio", "apps.audio.allowed", ["Apps | Audio"]),
+    (apps_books_router, "Books", "apps.books.allowed", ["Apps | Books"]),
     (apps_docs_router, "Docs", "apps.docs.allowed", ["Apps | Docs"]),
     (apps_files_router, "Files", "apps.files.allowed", ["Apps | Files"]),
-    (apps_books_router, "Books", "apps.books.allowed", ["Apps | Books"]),
-    (apps_audio_router, "Audio", "apps.audio.allowed", ["Apps | Audio"]),
+    (apps_finance_router, "Finance", "apps.finance.allowed", ["Apps | Finance"]),
+    (apps_health_router, "Health", "apps.health.allowed", ["Apps | Health"]),
+    (apps_home_router, "Home", "apps.home.allowed", ["Apps | Home"]),
+    (apps_maps_router, "Maps", "apps.maps.allowed", ["Apps | Maps"]),
+    (apps_messages_router, "Messages", "apps.messages.allowed", ["Apps | Messages"]),
+    (apps_pdf_editor_router, "PDF Editor", "apps.pdf_editor.allowed", ["Apps | PDF Editor"]),
     (apps_photos_router, "Photos", "apps.photos.allowed", ["Apps | Photos"]),
-    (apps_web_router, "Web", "apps.web.allowed", ["Apps | Web"]),
-    (apps_business_router, "Business", "apps.business.allowed", ["Apps | Business"])
+    (apps_travel_router, "Travel", "apps.travel.allowed", ["Apps | Travel"]),
+    (apps_videos_router, "Videos", "apps.videos.allowed", ["Apps | Videos"]),
+    (apps_web_router, "Web", "apps.web.allowed", ["Apps | Web"])
 ]
 
 # Register all routers
