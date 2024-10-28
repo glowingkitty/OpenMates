@@ -1,4 +1,6 @@
 import logging
+logger = logging.getLogger(__name__)
+
 import os
 import tempfile
 
@@ -24,13 +26,9 @@ import uvicorn
 from server.api.security.validation.validate_invite_code import validate_invite_code
 from server.api.security.validation.validate_permissions import validate_permissions
 
-# Import parameters and metadata
-from server.api.docs.parameters import input_parameter_descriptions
-
 # Import startup and shutdown functions
 from server.api.startup import api_startup
 from server.api.shutdown import api_shutdown
-
 
 ##########################################################
 # Mates
@@ -55,8 +53,6 @@ from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_pr
 from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
 from server.api.endpoints.mates.get_mates import get_mates as get_mates_processing
 from server.api.endpoints.mates.update_mate import update_mate as update_mate_processing
-from server.api.docs.parameters import mates_endpoints
-
 
 ##########################################################
 # Teams
@@ -65,8 +61,6 @@ from server.api.models.teams.teams_get_all import teams_get_all_output_example
 from server.api.models.teams.teams_get_one import teams_get_one_output_example
 from server.api.endpoints.teams.get_team import get_team as get_team_processing
 from server.api.endpoints.teams.get_teams import get_teams as get_teams_processing
-from server.api.docs.parameters import teams_endpoints
-
 
 ##########################################################
 # Users
@@ -85,16 +79,12 @@ from server.api.endpoints.users.create_user import create_user as create_user_pr
 from server.api.endpoints.users.get_user import get_user as get_user_processing
 from server.api.endpoints.users.get_users import get_users as get_users_processing
 from server.api.endpoints.users.replace_profile_picture import replace_profile_picture as replace_profile_picture_processing
-from server.api.docs.parameters import users_endpoints
-
 
 ##########################################################
 # Skills
 ##########################################################
 from server.api.models.apps.skills_get_one import skills_get_one_output_example
 from server.api.endpoints.apps.get_skill import get_skill as get_skill_processing
-from server.api.docs.parameters import skills_endpoints
-
 
 ##########################################################
 # Tasks
@@ -109,8 +99,6 @@ from server.api.models.tasks.tasks_get_task import tasks_get_task_output_example
 from server.api.endpoints.tasks.cancel import cancel as tasks_cancel_processing
 from server.api.endpoints.tasks.create import create as tasks_create_processing
 from server.api.endpoints.tasks.get_task import get as tasks_get_task_processing
-from server.api.docs.parameters import tasks_endpoints
-
 
 ##########################################################
 # Billing
@@ -119,14 +107,10 @@ from server.api.models.billing.billing_get_balance import (
     BillingBalanceOutput, BillingGetBalanceInput
 )
 from server.api.endpoints.billing.get_balance import get_balance as billing_get_balance_processing
-from server.api.docs.parameters import billing_endpoints
-
 
 ##########################################################
 # Server
 ##########################################################
-from server.api.docs.parameters import server_endpoints
-
 
 ##########################################################
 # Apps
@@ -141,25 +125,21 @@ from server.api.models.apps.ai.skills_ai_estimate_cost import (
 )
 from server.api.endpoints.apps.ai.ask import ask as skill_ai_ask_processing
 from server.api.endpoints.apps.ai.estimate_cost import estimate_cost as skill_ai_estimate_cost_processing
-from server.api.docs.parameters import apps_ai_endpoints
 
 # Audio
 from server.api.models.apps.audio.skills_audio_generate_transcript import (
     AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput, AudioTranscriptAiProvider
 )
 from server.api.endpoints.apps.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
-from server.api.docs.parameters import apps_audio_endpoints
 
 # Books
 from server.api.endpoints.tasks.tasks import book_translate_task
-from server.api.docs.parameters import apps_books_endpoints
 
 # Docs
 from server.api.models.apps.docs.skills_docs_create import (
     DocsCreateInput
 )
 from server.api.endpoints.apps.docs.create import create as skill_docs_create_processing
-from server.api.docs.parameters import apps_docs_endpoints
 
 # Files
 from server.api.models.apps.files.skills_files_delete import (
@@ -171,7 +151,6 @@ from server.api.models.apps.files.skills_files_upload import (
 from server.api.endpoints.apps.files.delete import delete as skill_files_delete_processing
 from server.api.endpoints.apps.files.download import download as skill_files_download_processing
 from server.api.endpoints.apps.files.upload import upload as skill_files_upload_processing
-from server.api.docs.parameters import apps_files_endpoints
 
 # Finance
 from server.api.models.apps.finance.skills_finance_get_report import (
@@ -182,7 +161,6 @@ from server.api.models.apps.finance.skills_finance_get_transactions import (
 )
 from server.api.endpoints.apps.finance.get_report import get_report as skill_finance_get_report_processing
 from server.api.endpoints.apps.finance.get_transactions import get_transactions as skill_finance_get_transactions_processing
-from server.api.docs.parameters import apps_finance_endpoints
 
 # Health
 from server.api.models.apps.health.skills_health_search_appointments import (
@@ -193,7 +171,6 @@ from server.api.models.apps.health.skills_health_search_doctors import (
 )
 from server.api.endpoints.apps.health.search_appointments import search_appointments as skill_health_search_appointments_processing
 from server.api.endpoints.apps.health.search_doctors import search_doctors as skill_health_search_doctors_processing
-from server.api.docs.parameters import apps_health_endpoints
 
 # Home
 from server.api.models.apps.home.skills_home_add_device import (
@@ -228,14 +205,12 @@ from server.api.endpoints.apps.home.set_scene import set_scene as skill_home_set
 from server.api.endpoints.apps.home.set_device import set_device as skill_home_set_device_processing
 from server.api.endpoints.apps.home.get_temperature import get_temperature as skill_home_get_temperature_processing
 from server.api.endpoints.apps.home.get_power_consumption import get_power_consumption as skill_home_get_power_consumption_processing
-from server.api.docs.parameters import apps_home_endpoints
 
 # Maps
 from server.api.models.apps.maps.skills_maps_search_places import (
     MapsSearchInput, MapsSearchOutput
 )
 from server.api.endpoints.apps.maps.search_places import search_places as skill_maps_search_processing
-from server.api.docs.parameters import apps_maps_endpoints
 
 # Messages
 from server.api.models.apps.messages.skills_connect_server import (
@@ -246,7 +221,6 @@ from server.api.models.apps.messages.skills_send_message import (
 )
 from server.api.endpoints.apps.messages.connect import connect as skill_messages_connect_processing
 from server.api.endpoints.apps.messages.send import send as skill_messages_send_processing
-from server.api.docs.parameters import apps_messages_endpoints
 
 # PDF Editor
 # will be placed here...
@@ -254,22 +228,18 @@ from server.api.docs.parameters import apps_messages_endpoints
 # Photos
 from server.api.models.apps.photos.skills_photos_resize_image import photos_resize_output_example
 from server.api.endpoints.apps.photos.resize_image import resize_image as skill_photos_resize_image_processing
-from server.api.docs.parameters import apps_photos_endpoints
 
 # Travel
 from server.api.models.apps.travel.skills_travel_search_connections import (
     TravelSearchConnectionsInput, TravelSearchConnectionsOutput
 )
 from server.api.endpoints.apps.travel.search_connections import search_connections as skill_travel_search_connections_processing
-from server.api.docs.parameters import apps_travel_endpoints
-
 
 # Videos
 from server.api.models.apps.videos.skills_videos_get_transcript import (
     VideosGetTranscriptInput, VideosGetTranscriptOutput
 )
 from server.api.endpoints.apps.videos.get_transcript import get_transcript as skill_videos_get_transcript_processing
-from server.api.docs.parameters import apps_videos_endpoints
 
 # Web
 from server.api.models.apps.web.skills_web_read import (
@@ -280,4 +250,29 @@ from server.api.models.apps.web.skills_web_view import (
 )
 from server.api.endpoints.apps.web.read import read as skill_web_read_processing
 from server.api.endpoints.apps.web.view import view as skill_web_view_processing
-from server.api.docs.parameters import apps_web_endpoints
+
+# Import parameters and metadata
+from server.api.docs.parameters import (
+    mates_endpoints,
+    teams_endpoints,
+    users_endpoints,
+    skills_endpoints,
+    tasks_endpoints,
+    billing_endpoints,
+    server_endpoints,
+    apps_ai_endpoints,
+    apps_audio_endpoints,
+    apps_books_endpoints,
+    apps_docs_endpoints,
+    apps_files_endpoints,
+    apps_finance_endpoints,
+    apps_health_endpoints,
+    apps_home_endpoints,
+    apps_maps_endpoints,
+    apps_messages_endpoints,
+    apps_photos_endpoints,
+    apps_travel_endpoints,
+    apps_videos_endpoints,
+    apps_web_endpoints,
+    input_parameter_descriptions
+)

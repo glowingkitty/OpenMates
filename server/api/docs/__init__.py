@@ -112,12 +112,7 @@ from server.api.models.tasks.tasks_create import (
 from server.api.models.tasks.tasks_get_task import tasks_get_task_output_example
 
 
-##########################################################
-# Parameters
-##########################################################
-from server.api.docs.parameters import (
-    tags_metadata
-)
+
 
 
 ##########################################################
@@ -257,4 +252,12 @@ from server.api.models.apps.web.skills_web_read import (
 from server.api.models.apps.web.skills_web_view import (
     WebViewOutput,
     web_view_input_example, web_view_output_example
+)
+
+
+##########################################################
+# Parameters
+##########################################################
+from server.api.docs.parameters import (
+    tags_metadata
 )

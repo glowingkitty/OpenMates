@@ -62,7 +62,7 @@ class MessagesSendOutput(BaseModel):
     error: Optional[str] = Field(None, description="Error message")
 
 
-skills_send_message_input_example = {
+messages_send_input_example = {
     "message": "Hey there, do you have any coding related questions?",
     "ai_mate_username": "sophia",
     "target": {
@@ -77,7 +77,7 @@ skills_send_message_input_example = {
     ]
 }
 
-skills_send_message_output_example = {
+messages_send_output_example = {
     "message_id": "1234567890123456789",
     "channel_id": "987654321098765432",
     "thread_id": None
