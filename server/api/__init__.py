@@ -171,6 +171,8 @@ from server.api.models.apps.health.skills_health_search_doctors import (
 )
 from server.api.endpoints.apps.health.search_appointments import search_appointments as skill_health_search_appointments_processing
 from server.api.endpoints.apps.health.search_doctors import search_doctors as skill_health_search_doctors_processing
+from server.api.endpoints.tasks.tasks import health_search_appointments_task
+from server.api.endpoints.tasks.tasks import health_search_doctors_task
 
 # Home
 from server.api.models.apps.home.skills_home_add_device import (
@@ -211,6 +213,7 @@ from server.api.models.apps.maps.skills_maps_search_places import (
     MapsSearchInput, MapsSearchOutput
 )
 from server.api.endpoints.apps.maps.search_places import search_places as skill_maps_search_processing
+from server.api.endpoints.tasks.tasks import maps_search_places_task
 
 # Messages
 from server.api.models.apps.messages.skills_connect_server import (
@@ -234,6 +237,7 @@ from server.api.models.apps.travel.skills_travel_search_connections import (
     TravelSearchConnectionsInput, TravelSearchConnectionsOutput
 )
 from server.api.endpoints.apps.travel.search_connections import search_connections as skill_travel_search_connections_processing
+from server.api.endpoints.tasks.tasks import travel_search_connections_task
 
 # Videos
 from server.api.models.apps.videos.skills_videos_get_transcript import (

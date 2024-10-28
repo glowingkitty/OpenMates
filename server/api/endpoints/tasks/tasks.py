@@ -1,6 +1,10 @@
 from server.task_manager.task_manager import celery
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
 from server.api.endpoints.apps.books.translate import translate as book_translate_processing
+from server.api.endpoints.apps.health.search_doctors import search_doctors as health_search_doctors_processing
+from server.api.endpoints.apps.health.search_appointments import search_appointments as health_search_appointments_processing
+from server.api.endpoints.apps.maps.search_places import search_places as maps_search_places_processing
+from server.api.endpoints.apps.travel.search_connections import search_connections as travel_search_connections_processing
 from celery import shared_task
 from datetime import datetime
 from server.cms.cms import make_strapi_request
@@ -15,7 +19,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
+# Mates
+# /mates/ask
 @celery.task(bind=True)
 def ask_mate_task(self, team_slug, message, mate_username, task_info):
     logger.debug(f"Starting ask mate task for task_id: {task_info['id']}")
@@ -67,6 +72,8 @@ def ask_mate_task(self, team_slug, message, mate_username, task_info):
         raise
 
 
+# Books
+# /apps/books/translate
 @celery.task(bind=True)
 def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_language, output_format):
     try:
@@ -130,6 +137,221 @@ def book_translate_task(self, task_id, team_slug, api_token, ebook_data, output_
         raise
 
 
+# Health
+
+# /apps/health/search_doctors
+@celery.task(bind=True)
+def health_search_doctors_task(self, task_id, team_slug, api_token, parameters):
+    try:
+        logger.debug(f"Starting health search doctors task for task_id: {task_id}")
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='in_progress'
+        ))
+        response = loop.run_until_complete(health_search_doctors_processing(
+            team_slug=team_slug,
+            api_token=api_token,
+            parameters=parameters
+        ))
+        response = response.model_dump()
+
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='completed',
+            output=response
+        ))
+
+        logger.debug(f"Health search doctors task for task_id: {task_id} completed")
+
+        # TODO: how to implement notifying user via chatbot about task completion, if the task was created in chat? (but don't notify if task was created via api call by default)
+
+    # except InsufficientCreditsException as e:
+    #     loop.run_until_complete(update_task(
+    #         task_id=task_id,
+    #         status='failed',
+    #         error='Insufficient credits'
+    #     ))
+    #     notify_user(
+    #         team_slug=team_slug,
+    #         user_id=task_info['user_id'],
+    #         message='Insufficient credits'
+    #     )
+    #     raise
+
+    except Exception as e:
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='failed',
+            error=str(e)
+        ))
+        # notify_user(
+        #     team_slug=team_slug,
+        #     user_id=task_info['user_id'],
+        #     message=str(e)
+        # )
+        raise
+
+
+# /apps/health/search_appointments
+@celery.task(bind=True)
+def health_search_appointments_task(self, task_id, team_slug, api_token, parameters):
+    try:
+        logger.debug(f"Starting health search appointments task for task_id: {task_id}")
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='in_progress'
+        ))
+        response = loop.run_until_complete(health_search_appointments_processing(
+            team_slug=team_slug,
+            api_token=api_token,
+            parameters=parameters
+        ))
+        response = response.model_dump()
+
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='completed',
+            output=response
+        ))
+
+        logger.debug(f"Health search appointments task for task_id: {task_id} completed")
+
+    # except InsufficientCreditsException as e:
+    #     loop.run_until_complete(update_task(
+    #         task_id=task_id,
+    #         status='failed',
+    #         error='Insufficient credits'
+    #     ))
+    #     notify_user(
+    #         team_slug=team_slug,
+    #         user_id=task_info['user_id'],
+    #         message='Insufficient credits'
+    #     )
+    #     raise
+
+    except Exception as e:
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='failed',
+            error=str(e)
+        ))
+        # notify_user(
+        #     team_slug=team_slug,
+        #     user_id=task_info['user_id'],
+        #     message=str(e)
+        # )
+        raise
+
+
+# Maps
+# /apps/maps/search_places
+@celery.task(bind=True)
+def maps_search_places_task(self, task_id, team_slug, api_token, parameters):
+    try:
+        logger.debug(f"Starting maps search places task for task_id: {task_id}")
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='in_progress'
+        ))
+        response = loop.run_until_complete(maps_search_places_processing(
+            team_slug=team_slug,
+            api_token=api_token,
+            parameters=parameters
+        ))
+        response = response.model_dump()
+
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='completed',
+            output=response
+        ))
+
+        logger.debug(f"Maps search places task for task_id: {task_id} completed")
+
+    # except InsufficientCreditsException as e:
+    #     loop.run_until_complete(update_task(
+    #         task_id=task_id,
+    #         status='failed',
+    #         error='Insufficient credits'
+    #     ))
+    #     notify_user(
+    #         team_slug=team_slug,
+    #         user_id=task_info['user_id'],
+    #         message='Insufficient credits'
+    #     )
+    #     raise
+
+    except Exception as e:
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='failed',
+            error=str(e)
+        ))
+        # notify_user(
+        #     team_slug=team_slug,
+        #     user_id=task_info['user_id'],
+        #     message=str(e)
+        # )
+        raise
+
+
+# Travel
+# /apps/travel/search_connections
+@celery.task(bind=True)
+def travel_search_connections_task(self, task_id, team_slug, api_token, parameters):
+    try:
+        logger.debug(f"Starting travel search connections task for task_id: {task_id}")
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='in_progress'
+        ))
+        response = loop.run_until_complete(travel_search_connections_processing(
+            team_slug=team_slug,
+            api_token=api_token,
+            parameters=parameters
+        ))
+        response = response.model_dump()
+
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='completed',
+            output=response
+        ))
+
+        logger.debug(f"Travel search connections task for task_id: {task_id} completed")
+
+    # except InsufficientCreditsException as e:
+    #     loop.run_until_complete(update_task(
+    #         task_id=task_id,
+    #         status='failed',
+    #         error='Insufficient credits'
+    #     ))
+    #     notify_user(
+    #         team_slug=team_slug,
+    #         user_id=task_info['user_id'],
+    #         message='Insufficient credits'
+    #     )
+    #     raise
+
+    except Exception as e:
+        loop.run_until_complete(update_task(
+            task_id=task_id,
+            status='failed',
+            error=str(e)
+        ))
+        # notify_user(
+        #     team_slug=team_slug,
+        #     user_id=task_info['user_id'],
+        #     message=str(e)
+        # )
+        raise
+
+
+# Files
 @shared_task
 def delete_expired_files():
     logger.info("Deleting expired files...")

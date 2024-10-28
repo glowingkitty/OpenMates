@@ -1130,9 +1130,24 @@ async def skill_health_search_doctors(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_health_search_doctors_processing(
-        input=parameters
+
+    task = await tasks_create_processing(
+        team_slug=team_slug,
+        title="apps/Health/SearchDoctors",
+        api_endpoint="/apps/health/search_doctors"
     )
+
+    # Create the task
+    health_search_doctors_task.apply_async(
+        args=[
+            task.id,
+            team_slug,
+            token,
+            parameters
+        ],
+        task_id=task.id
+    )
+    return task
 
 
 # POST /apps/health/search_appointments (search for appointments)
@@ -1150,9 +1165,24 @@ async def skill_health_search_appointments(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_health_search_appointments_processing(
-        input=parameters
+
+    task = await tasks_create_processing(
+        team_slug=team_slug,
+        title="apps/Health/SearchAppointments",
+        api_endpoint="/apps/health/search_appointments"
     )
+
+    # Create the task
+    health_search_appointments_task.apply_async(
+        args=[
+            task.id,
+            team_slug,
+            token,
+            parameters
+        ],
+        task_id=task.id
+    )
+    return task
 
 
 # Home
@@ -1334,7 +1364,7 @@ async def skill_home_get_power_consumption(
 
 
 # Maps
-# will be placed here...
+
 # POST /apps/maps/search_places (search for places)
 @require_feature('apps.maps.skills.search_places.allowed')
 @apps_maps_router.post("/v1/{team_slug}/apps/maps/search_places", **apps_maps_endpoints["search_places"])
@@ -1350,9 +1380,24 @@ async def skill_maps_search_places(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_maps_search_places_processing(
-        input=parameters
+
+    task = await tasks_create_processing(
+        team_slug=team_slug,
+        title="apps/Maps/SearchPlaces",
+        api_endpoint="/apps/maps/search_places"
     )
+
+    # Create the task
+    maps_search_places_task.apply_async(
+        args=[
+            task.id,
+            team_slug,
+            token,
+            parameters
+        ],
+        task_id=task.id
+    )
+    return task
 
 
 # Messages
@@ -1450,7 +1495,7 @@ async def skill_photos_resize(
 
 
 # Travel
-# will be placed here...
+
 # POST /apps/travel/search_connections (search for connections)
 @require_feature('apps.travel.skills.search_connections.allowed')
 @apps_travel_router.post("/v1/{team_slug}/apps/travel/search_connections", **apps_travel_endpoints["search_connections"])
@@ -1466,9 +1511,24 @@ async def skill_travel_search_connections(
         team_slug=team_slug,
         user_api_token=token
     )
-    return await skill_travel_search_connections_processing(
-        input=parameters
+
+    task = await tasks_create_processing(
+        team_slug=team_slug,
+        title="apps/Travel/SearchConnections",
+        api_endpoint="/apps/travel/search_connections"
     )
+
+    # Create the task
+    travel_search_connections_task.apply_async(
+        args=[
+            task.id,
+            team_slug,
+            token,
+            parameters
+        ],
+        task_id=task.id
+    )
+    return task
 
 
 # Videos

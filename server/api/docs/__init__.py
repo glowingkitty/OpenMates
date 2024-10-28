@@ -139,7 +139,9 @@ from server.api.models.apps.audio.skills_audio_generate_transcript import (
 )
 
 # Books
-# will be placed here...
+from server.api.models.apps.books.skills_books_translate import (
+    books_translate_output_task_example
+)
 
 # Docs
 from server.api.models.apps.docs.skills_docs_create import (
@@ -169,11 +171,11 @@ from server.api.models.apps.finance.skills_finance_get_transactions import (
 # Health
 from server.api.models.apps.health.skills_health_search_appointments import (
     HealthSearchAppointmentsOutput,
-    health_search_appointments_input_example, health_search_appointments_output_example
+    health_search_appointments_input_example, health_search_appointments_output_task_example
 )
 from server.api.models.apps.health.skills_health_search_doctors import (
     HealthSearchDoctorsOutput,
-    health_search_doctors_input_example, health_search_doctors_output_example
+    health_search_doctors_input_example, health_search_doctors_output_task_example
 )
 
 # Home
@@ -213,7 +215,7 @@ from server.api.models.apps.home.skills_home_set_scene import (
 # Maps
 from server.api.models.apps.maps.skills_maps_search_places import (
     MapsSearchOutput,
-    maps_search_input_example, maps_search_output_example
+    maps_search_input_example, maps_search_output_task_example
 )
 
 # Messages
@@ -235,7 +237,7 @@ from server.api.models.apps.photos.skills_photos_resize_image import photos_resi
 # Travel
 from server.api.models.apps.travel.skills_travel_search_connections import (
     TravelSearchConnectionsOutput,
-    travel_search_connections_input_example, travel_search_connections_output_example
+    travel_search_connections_input_example, travel_search_connections_output_task_example
 )
 
 # Videos

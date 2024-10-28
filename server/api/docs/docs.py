@@ -261,7 +261,7 @@ def custom_openapi(app: FastAPI):
     # Books
     # /v1/{team_slug}/apps/books/translate
     set_example(openapi_schema, "/v1/{team_slug}/apps/books/translate", "post", "responses", {
-        "Example 1": task_create_output_example
+        "Example 1": books_translate_output_task_example
     }, "200")
 
     # Docs
@@ -305,14 +305,14 @@ def custom_openapi(app: FastAPI):
         "Example 1": health_search_doctors_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/health/search_doctors", "post", "responses", {
-        "Example 1": health_search_doctors_output_example
+        "Example 1": health_search_doctors_output_task_example
     }, "200")
     # /v1/{team_slug}/apps/health/search_appointments
     set_example(openapi_schema, "/v1/{team_slug}/apps/health/search_appointments", "post", "requestBody", {
         "Example 1": health_search_appointments_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/health/search_appointments", "post", "responses", {
-        "Example 1": health_search_appointments_output_example
+        "Example 1": health_search_appointments_output_task_example
     }, "200")
 
     # Home
@@ -379,7 +379,7 @@ def custom_openapi(app: FastAPI):
         "Example 1": maps_search_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/maps/search", "post", "responses", {
-        "Example 1": maps_search_output_example
+        "Example 1": maps_search_output_task_example
     }, "200")
 
     # Messages
@@ -413,7 +413,7 @@ def custom_openapi(app: FastAPI):
         "Example 1": travel_search_connections_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/travel/search_connections", "post", "responses", {
-        "Example 1": travel_search_connections_output_example
+        "Example 1": travel_search_connections_output_task_example
     }, "200")
 
     # Videos
