@@ -1,4 +1,4 @@
-from server.api.models.apps.maps.skills_maps_search import MapsSearchInput, MapsSearchOutput
+from server.api.models.apps.maps.skills_maps_search_places import MapsSearchInput, MapsSearchOutput
 from server.api.endpoints.apps.maps.providers.google_maps.search_places import search_places as search_places_google_maps
 
 

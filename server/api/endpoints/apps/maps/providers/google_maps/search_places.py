@@ -1,7 +1,7 @@
 import googlemaps
 import logging
 import os
-from server.api.models.apps.maps.skills_maps_search import MapsSearchInput, MapsSearchOutput, Place
+from server.api.models.apps.maps.skills_maps_search_places import MapsSearchInput, MapsSearchOutput, Place
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

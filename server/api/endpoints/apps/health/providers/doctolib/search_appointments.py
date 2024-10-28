@@ -9,7 +9,7 @@ from server.api.endpoints.apps.maps.providers.google_maps.search_places import s
 from server.api.endpoints.apps.travel.providers.google_maps.search_connections import search_connections
 from server.api.endpoints.apps.health.providers.doctolib.search_doctors import search_doctors
 from server.api.endpoints.apps.health.providers.doctolib.get_next_available_appointment import get_next_available_appointment
-from server.api.models.apps.maps.skills_maps_search import MapsSearchInput
+from server.api.models.apps.maps.skills_maps_search_places import MapsSearchInput
 from server.api.models.apps.travel.skills_travel_search_connections import TravelSearchConnectionsInput
 from server.api.models.apps.health.skills_health_search_appointments import (
     HealthSearchAppointmentsInput,

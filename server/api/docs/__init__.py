@@ -216,7 +216,7 @@ from server.api.models.apps.home.skills_home_set_scene import (
 )
 
 # Maps
-from server.api.models.apps.maps.skills_maps_search import (
+from server.api.models.apps.maps.skills_maps_search_places import (
     MapsSearchOutput,
     maps_search_input_example, maps_search_output_example
 )

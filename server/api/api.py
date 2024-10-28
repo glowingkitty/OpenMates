@@ -1114,7 +1114,45 @@ async def skill_finance_get_transactions(
 
 
 # Health
-# will be placed here...
+
+# POST /apps/health/search_doctors (search for doctors)
+@require_feature('apps.health.skills.search_doctors.allowed')
+@apps_health_router.post("/v1/{team_slug}/apps/health/search_doctors", **apps_health_endpoints["search_doctors"])
+@limiter.limit("20/minute")
+async def skill_health_search_doctors(
+    request: Request,
+    parameters: HealthSearchDoctorsInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HealthSearchDoctorsOutput:
+    await validate_permissions(
+        endpoint="/apps/health/search_doctors",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_health_search_doctors_processing(
+        input=parameters
+    )
+
+
+# POST /apps/health/search_appointments (search for appointments)
+@require_feature('apps.health.skills.search_appointments.allowed')
+@apps_health_router.post("/v1/{team_slug}/apps/health/search_appointments", **apps_health_endpoints["search_appointments"])
+@limiter.limit("20/minute")
+async def skill_health_search_appointments(
+    request: Request,
+    parameters: HealthSearchAppointmentsInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> HealthSearchAppointmentsOutput:
+    await validate_permissions(
+        endpoint="/apps/health/search_appointments",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_health_search_appointments_processing(
+        input=parameters
+    )
 
 
 # Home
@@ -1297,6 +1335,24 @@ async def skill_home_get_power_consumption(
 
 # Maps
 # will be placed here...
+# POST /apps/maps/search_places (search for places)
+@require_feature('apps.maps.skills.search_places.allowed')
+@apps_maps_router.post("/v1/{team_slug}/apps/maps/search_places", **apps_maps_endpoints["search_places"])
+@limiter.limit("20/minute")
+async def skill_maps_search_places(
+    request: Request,
+    parameters: MapsSearchInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> MapsSearchOutput:
+    await validate_permissions(
+        endpoint="/apps/maps/search_places",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_maps_search_places_processing(
+        input=parameters
+    )
 
 
 # Messages
@@ -1395,6 +1451,24 @@ async def skill_photos_resize(
 
 # Travel
 # will be placed here...
+# POST /apps/travel/search_connections (search for connections)
+@require_feature('apps.travel.skills.search_connections.allowed')
+@apps_travel_router.post("/v1/{team_slug}/apps/travel/search_connections", **apps_travel_endpoints["search_connections"])
+@limiter.limit("20/minute")
+async def skill_travel_search_connections(
+    request: Request,
+    parameters: TravelSearchConnectionsInput,
+    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"]),
+    token: str = Depends(get_credentials)
+) -> TravelSearchConnectionsOutput:
+    await validate_permissions(
+        endpoint="/apps/travel/search_connections",
+        team_slug=team_slug,
+        user_api_token=token
+    )
+    return await skill_travel_search_connections_processing(
+        input=parameters
+    )
 
 
 # Videos
