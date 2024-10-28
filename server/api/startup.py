@@ -2,7 +2,9 @@ import logging
 import os
 import redis.asyncio as redis
 from server.server_config import get_server_config
-from server.cms.endpoints.users.check_for_admin_user import check_for_admin_user
+from server.api.endpoints.users.check_for_admin_user import check_for_admin_user
+from server.api.endpoints.users.create_server_admin_user import create_server_admin_user
+from server.api.models.users.users_create import UsersCreateInput
 import requests
 import sys
 import time
@@ -43,8 +45,14 @@ async def check_for_admin():
     if await check_for_admin_user() == False:
         # create a new user with server admin rights
         logger.info("No OpenMates server admin user found. Creating one...")
-        # await create_user()
-        pass
+        await create_server_admin_user(
+            input=UsersCreateInput(
+                username=os.getenv("DEFAULT_ADMIN_USERNAME"),
+                email=os.getenv("DEFAULT_ADMIN_EMAIL"),
+                password=os.getenv("DEFAULT_ADMIN_PASSWORD"),
+            ),
+            team_name=os.getenv("DEFAULT_ADMIN_TEAM_NAME")
+        )
 
 
 async def clear_all_memory():
