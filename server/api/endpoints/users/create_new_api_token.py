@@ -1,9 +1,10 @@
 from typing import List, Optional, Union, Dict, Literal
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.models.users.users_create_new_api_token import UsersCreateNewApiTokenOutput
+from server.api.models.users.users_create_new_api_token import UsersCreateNewApiTokenInput, UsersCreateNewApiTokenOutput
 from server.api.endpoints.users.get_user import get_user
 from server.api.security.validation.validate_api_token import validate_api_token
+from server.api.models.users.users_get_one import User
 import secrets
 import logging
 
@@ -12,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def create_new_api_token(
-        username: Optional[str] = None,
-        password: Optional[str] = None
+        input: UsersCreateNewApiTokenInput
     ) -> UsersCreateNewApiTokenOutput:
     """
     Create a new API token for the user
@@ -38,10 +38,10 @@ async def create_new_api_token(
 
     # try to find the user in the database, if it already exists, replace the existing API token
     # else, only create a new API token (but don't update any user data)
-    if username and password:
-        user = await get_user(
-            username=username,
-            password=password,
+    if input.username and input.password:
+        user: User = await get_user(
+            username=input.username,
+            password=input.password,
             output_format="dict",
             output_raw_data=True
         )

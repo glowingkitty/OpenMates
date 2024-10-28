@@ -2,17 +2,13 @@ from typing import List, Optional, Union, Dict, Literal
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from server.api.models.users.users_create import UsersCreateOutput
+from server.api.models.users.users_create import UsersCreateOutput, UsersCreateInput
 from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.security.crypto import encrypt, hashing
 
 
 async def create_user(
-        name: str,
-        username: str,
-        email: str,
-        password: str,
-        team_slug: str
+        input: UsersCreateInput
     ) -> UsersCreateOutput:
     """
     Create a new user on the team
@@ -25,9 +21,9 @@ async def create_user(
     api_token = create_new_token_output["api_token"][32:]
 
     # TODO encrypt data before sending to strapi
-    name_encrypted = encrypt(name)
-    email_encrypted = encrypt(email)
-    password_hash = hashing(password)
+    name_encrypted = encrypt(input.name)
+    email_encrypted = encrypt(input.email)
+    password_hash = hashing(input.password)
     api_token_hash = hashing(api_token)
 
     # TODO send data to strapi to create the user

@@ -4,7 +4,7 @@ from urllib.parse import quote
 from typing import List, Optional
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.teams.teams_get_one import Team
-
+import re
 
 
 # POST /users (create a new user)
