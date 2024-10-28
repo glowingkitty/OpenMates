@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 import logging
 from datetime import datetime, timezone
 import time
@@ -8,7 +8,7 @@ import random
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_next_available_appointment(doctor: dict) -> datetime:
+async def get_next_available_appointment(doctor: dict) -> datetime:
     """
     Fetch the next available appointment datetime for a specific doctor.
 
@@ -40,9 +40,11 @@ def get_next_available_appointment(doctor: dict) -> datetime:
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                # Check status before reading json
+                response.raise_for_status()
+                data = await response.json()
 
         next_slot = data.get('next_slot')
         if next_slot:

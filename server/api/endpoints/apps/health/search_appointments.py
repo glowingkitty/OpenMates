@@ -10,3 +10,5 @@ async def search_appointments(
     """
     if input.provider.name == "doctolib":
         return await search_appointments_doctolib(input)
+    else:
+        raise ValueError(f"Provider {input.provider.name} not supported")

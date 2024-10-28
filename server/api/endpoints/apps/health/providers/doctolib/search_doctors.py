@@ -1,5 +1,6 @@
 import requests
 import logging
+import aiohttp
 from typing import List, Dict
 from urllib.parse import quote
 from server.api.models.apps.health.skills_health_search_doctors import (
@@ -17,7 +18,7 @@ class NoDoctorsFoundError(Exception):
     """Custom exception for when no doctors are found"""
     pass
 
-def search_doctors(
+async def search_doctors(
     input: HealthSearchDoctorsInput
 ) -> HealthSearchDoctorsOutput:
     """
@@ -58,9 +59,11 @@ def search_doctors(
         }
 
         logger.debug(f"Fetching page {input.page} of doctors...")
-        response = requests.get(doctors_url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(doctors_url, headers=headers, params=params) as response:
+                # Check status before reading json
+                response.raise_for_status()
+                data = await response.json()
 
         raw_doctors = data.get('data', {}).get('doctors', [])
         logger.info(f"Found {len(raw_doctors)} doctors on page {input.page}")

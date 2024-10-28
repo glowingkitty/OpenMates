@@ -70,7 +70,7 @@ async def process_doctor_appointments(
         total_checked += 1
         logger.debug(f"Checking doctor {total_checked}: {doctor.name}")
 
-        next_slot = get_next_available_appointment(doctor)
+        next_slot = await get_next_available_appointment(doctor)
         if next_slot and from_date <= next_slot <= to_date:
             # Create AvailableAppointment directly
             appointment = AvailableAppointment(
@@ -123,7 +123,7 @@ async def search_appointments(
         # Fetch and process doctors page by page
         while total_checked < input.max_doctors_to_check:
             # Now using the new search_doctors function that returns Doctor models
-            search_result = search_doctors(
+            search_result = await search_doctors(
                 HealthSearchDoctorsInput(
                     speciality=input.doctor_speciality,
                     city=search_city,
@@ -156,7 +156,7 @@ async def search_appointments(
             # Only fetch ratings if minimum_rating is set and greater than 0
             if input.minimum_rating and input.minimum_rating > 0:
                 logger.debug(f"Fetching ratings for {appointment.doctor.name}")
-                places = await search_places(
+                places = search_places(
                     input=MapsSearchInput(
                         query=appointment.doctor.name + " " + str(appointment.doctor.address)
                     )
