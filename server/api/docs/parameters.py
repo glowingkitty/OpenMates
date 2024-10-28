@@ -415,7 +415,7 @@ apps_home_endpoints = {
 # Maps
 apps_maps_endpoints = {
     # /v1/{team_slug}/apps/maps/search
-    "search_places":{
+    "search":{
         "response_model":MapsSearchOutput,
         "summary": "Skill | Search",
         "description": "<img src='images/apps/maps/search.png' alt='Search for places.'>",

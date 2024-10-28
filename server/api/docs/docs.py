@@ -379,7 +379,7 @@ def custom_openapi(app: FastAPI):
         "Example 1": maps_search_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/maps/search", "post", "responses", {
-        "Example 1": maps_search_output_task_example
+        "Example 1": maps_search_output_example
     }, "200")
 
     # Messages
@@ -413,7 +413,7 @@ def custom_openapi(app: FastAPI):
         "Example 1": travel_search_connections_input_example
     })
     set_example(openapi_schema, "/v1/{team_slug}/apps/travel/search_connections", "post", "responses", {
-        "Example 1": travel_search_connections_output_task_example
+        "Example 1": travel_search_connections_output_example
     }, "200")
 
     # Videos

@@ -215,7 +215,7 @@ from server.api.models.apps.home.skills_home_set_scene import (
 # Maps
 from server.api.models.apps.maps.skills_maps_search_places import (
     MapsSearchOutput,
-    maps_search_input_example, maps_search_output_task_example
+    maps_search_input_example, maps_search_output_example
 )
 
 # Messages
@@ -237,7 +237,7 @@ from server.api.models.apps.photos.skills_photos_resize_image import photos_resi
 # Travel
 from server.api.models.apps.travel.skills_travel_search_connections import (
     TravelSearchConnectionsOutput,
-    travel_search_connections_input_example, travel_search_connections_output_task_example
+    travel_search_connections_input_example, travel_search_connections_output_example
 )
 
 # Videos

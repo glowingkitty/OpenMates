@@ -1366,8 +1366,8 @@ async def skill_home_get_power_consumption(
 # Maps
 
 # POST /apps/maps/search_places (search for places)
-@require_feature('apps.maps.skills.search_places.allowed')
-@apps_maps_router.post("/v1/{team_slug}/apps/maps/search_places", **apps_maps_endpoints["search_places"])
+@require_feature('apps.maps.skills.search.allowed')
+@apps_maps_router.post("/v1/{team_slug}/apps/maps/search", **apps_maps_endpoints["search"])
 @limiter.limit("20/minute")
 async def skill_maps_search_places(
     request: Request,
@@ -1376,28 +1376,16 @@ async def skill_maps_search_places(
     token: str = Depends(get_credentials)
 ) -> MapsSearchOutput:
     await validate_permissions(
-        endpoint="/apps/maps/search_places",
+        endpoint="/apps/maps/search",
         team_slug=team_slug,
         user_api_token=token
     )
 
-    task = await tasks_create_processing(
+    return await skill_maps_search_processing(
         team_slug=team_slug,
-        title="apps/Maps/SearchPlaces",
-        api_endpoint="/apps/maps/search_places"
+        api_token=token,
+        input=parameters
     )
-
-    # Create the task
-    maps_search_places_task.apply_async(
-        args=[
-            task.id,
-            team_slug,
-            token,
-            parameters
-        ],
-        task_id=task.id
-    )
-    return task
 
 
 # Messages
@@ -1512,23 +1500,11 @@ async def skill_travel_search_connections(
         user_api_token=token
     )
 
-    task = await tasks_create_processing(
+    return await skill_travel_search_connections_processing(
         team_slug=team_slug,
-        title="apps/Travel/SearchConnections",
-        api_endpoint="/apps/travel/search_connections"
+        api_token=token,
+        input=parameters
     )
-
-    # Create the task
-    travel_search_connections_task.apply_async(
-        args=[
-            task.id,
-            team_slug,
-            token,
-            parameters
-        ],
-        task_id=task.id
-    )
-    return task
 
 
 # Videos

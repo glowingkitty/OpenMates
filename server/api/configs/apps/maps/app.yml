@@ -37,5 +37,5 @@ skills:
     description: |
       Search for places.
     icon: /images/icons/skills/search.svg
-    allowed: ${APP_MAPS_SKILL_SEARCH_PLACES_ALLOWED}
+    allowed: ${APP_MAPS_SKILL_SEARCH_ALLOWED}
 # focuses:
