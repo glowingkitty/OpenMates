@@ -47,6 +47,8 @@ async def check_for_admin():
         logger.info("No OpenMates server admin user found. Creating one...")
         await create_server_admin_user(
             input=UsersCreateInput(
+                invite_code='0000000000000000000', # for now, invite code is not used for admin user
+                name=os.getenv("DEFAULT_ADMIN_NAME"),
                 username=os.getenv("DEFAULT_ADMIN_USERNAME"),
                 email=os.getenv("DEFAULT_ADMIN_EMAIL"),
                 password=os.getenv("DEFAULT_ADMIN_PASSWORD"),
@@ -70,6 +72,11 @@ async def api_startup():
     logger.info("Processing startup events...")
 
     await clear_all_memory()
+
+    # check if CMS token is set, else exit
+    if os.getenv("CMS_TOKEN") is None:
+        logger.error("CMS_TOKEN is not set. Exiting.")
+        sys.exit(1)
 
     # get server config
     server_config = get_server_config()

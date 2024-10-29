@@ -10,6 +10,7 @@ import logging
 
 # Set up logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 async def create_new_api_token(
@@ -31,7 +32,7 @@ async def create_new_api_token(
             uid = secrets.token_hex(16)
             api_token = secrets.token_hex(16)
     except HTTPException as e:
-        if e.status_code == 403:
+        if e.status_code == 403 or e.status_code == 404 or e.status_code == 401:
             logger.debug("The token does not exist yet. Continuing ...")
         else:
             raise e
@@ -39,6 +40,7 @@ async def create_new_api_token(
     # try to find the user in the database, if it already exists, replace the existing API token
     # else, only create a new API token (but don't update any user data)
     if input.username and input.password:
+        logger.debug(f"Trying to find user with username: {input.username} and password: {input.password}")
         user: User = await get_user(
             username=input.username,
             password=input.password,
@@ -54,7 +56,7 @@ async def create_new_api_token(
         else:
             raise HTTPException(status_code=404, detail="Could not find the requested user.")
 
-
+    logger.debug(f"Successfully created a new API token.")
     return {
         "api_token": uid+api_token
     }

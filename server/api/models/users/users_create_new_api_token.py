@@ -1,14 +1,14 @@
 
 from pydantic import BaseModel, Field, field_validator
 import re
-
+from typing import Optional
 
 # PATCH /api_token (Create a new API token)
 
 class UsersCreateNewApiTokenInput(BaseModel):
     """This is the model for the incoming parameters for PATCH /{team_slug}/users/{username}/api_token"""
-    username: str = Field(..., description="Your username")
-    password: str = Field(..., description="Your password", min_length=8, max_length=100)
+    username: Optional[str] = Field(None, description="Your username")
+    password: Optional[str] = Field(None, description="Your password", min_length=8, max_length=100)
 
     @field_validator('password')
     @classmethod

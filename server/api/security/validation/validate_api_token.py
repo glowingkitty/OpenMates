@@ -28,6 +28,10 @@ async def validate_api_token(
         except UserNotFoundError:
             raise InvalidAPITokenError(log_message="The user does not exist.")
 
+        except Exception as e:
+            logger.error(f"Unexpected error during get_user: {e}")
+            raise
+
         # verify that the user is a member of the team
         if team_slug and user.teams and (team_slug in [team.slug for team in user.teams]):
             logger.debug("The user is a member of the team.")
