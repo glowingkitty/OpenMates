@@ -23,15 +23,6 @@ description: |
 icon: /images/icons/apps/docs.svg
 allowed: ${APP_DOCS_ALLOWED}
 providers:
-  onlyoffice:
-    name: 'OnlyOffice'
-    slug: 'onlyoffice'
-    description: |
-      OnlyOffice is an open-source office suite, that can also run in the web browser.
-    icon: /images/icons/providers/onlyoffice.svg
-    allowed: ${APP_DOCS_PROVIDER_ONLYOFFICE_ALLOWED}
-    install_server: ${APP_DOCS_PROVIDER_ONLYOFFICE_INSTALL_SERVER}
-    api_url: ${APP_DOCS_PROVIDER_ONLYOFFICE_API_URL}
   google_docs:
     name: 'Google Docs'
     slug: 'google_docs'
