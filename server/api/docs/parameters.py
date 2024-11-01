@@ -107,7 +107,7 @@ users_endpoints = {
         "status_code": 201
     },
     "update_user":{
-        "response_model":User,
+        "response_model":UserGetOneOutput,
         "summary": "Update",
         "description": "<img src='images/users/update.png' alt='Update your user account details. Change privacy settings, email address and more.'>",
         "responses": generate_responses([200, 400, 401, 403, 404, 409, 422, 500])

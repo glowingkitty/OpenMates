@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from server.api.models.users.users_create_new_api_token import UsersCreateNewApiTokenInput, UsersCreateNewApiTokenOutput
 from server.api.endpoints.users.get_user import get_user
 from server.api.security.validation.validate_api_token import validate_api_token
-from server.api.models.users.users_get_one import User
+from server.api.models.users.users_get_one import UserGetOneOutput, UserGetOneInput
 import secrets
 import logging
 
@@ -41,11 +41,11 @@ async def create_new_api_token(
     # else, only create a new API token (but don't update any user data)
     if input.username and input.password:
         logger.debug(f"Trying to find user with username: {input.username} and password: {input.password}")
-        user: User = await get_user(
-            username=input.username,
-            password=input.password,
-            output_format="dict",
-            output_raw_data=True
+        user: UserGetOneOutput = await get_user(
+            input=UserGetOneInput(
+                username=input.username,
+                password=input.password
+            )
         )
 
         if user and "id" in user:

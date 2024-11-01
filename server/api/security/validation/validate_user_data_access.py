@@ -1,6 +1,6 @@
 from typing import Literal
 from server.api.endpoints.users.get_user import get_user
-from server.api.models.users.users_get_one import User
+from server.api.models.users.users_get_one import UserGetOneOutput, UserGetOneInput
 from fastapi import HTTPException
 import logging
 
@@ -21,11 +21,13 @@ async def validate_user_data_access(
     try:
         logger.debug("Validating if the user has access to the user data ...")
 
-        user: User = await get_user(
-            team_slug=team_slug,
-            username=username,
-            api_token=token,
-            fields=["is_server_admin","username","teams"]
+        user: UserGetOneOutput = await get_user(
+            input=UserGetOneInput(
+                team_slug=team_slug,
+                username=username,
+                api_token=token,
+                fields=["is_server_admin","username","teams"]
+            )
         )
 
         if request_endpoint == "get_one_user":

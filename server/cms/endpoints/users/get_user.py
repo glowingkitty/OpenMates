@@ -2,32 +2,34 @@ from typing import Optional
 from server.cms.cms import make_strapi_request, get_nested
 from fastapi import HTTPException
 from typing import List
-from server.api.models.users.users_get_one import User, DefaultPrivacySettings, MateConfig, MyTeam
+from server.api.models.users.users_get_one import DefaultPrivacySettings, MateConfig, MyTeam
 from server.api.models.projects.projects_get_one import Project
 from server.api.models.apps.skills_get_one import SkillMini
 import logging
-from server.api.models.users.users_get_one import UserEncrypted
+from server.api.models.users.users_get_one import UserGetOneOutputEncrypted, UserGetOneInput
 
 # Set up logger
 logger = logging.getLogger(__name__)
 
 
 async def get_user(
-        team_slug: str,
-        user_id: str,
-        user_access: str,
-        username: Optional[str] = None,
-        fields: Optional[List[str]] = None,
-    ) -> User:
+        input: UserGetOneInput
+    ) -> UserGetOneOutputEncrypted:
     """
     Get a specific user.
     """
     try:
-        if not user_id and not username:
+        if not input.user_id and not input.username:
             raise HTTPException(status_code=400, detail="You need to provide either an api token or username.")
+    
+        logger.debug(f"Getting user:")
+        logger.debug(f"User ID: {input.user_id}")
+        logger.debug(f"Username: {input.username}")
+        logger.debug(f"User access: {input.user_access}")
+        logger.debug(f"Fields: {input.fields}")
 
-        if user_access == "admin_access":
-            user_access = "basic_access"
+        if input.user_access == "admin_access":
+            input.user_access = "basic_access"
 
         fields_dict = {
             "full_access": [
@@ -88,15 +90,15 @@ async def get_user(
         }
 
         # Process fields and match with their cms names
-        if fields:
+        if input.fields:
             # make sure uid and username are always included (but check if they are in the fields list)
             always_include_fields = ["uid", "username", "api_token", "is_server_admin", "teams"]
-            fields = [x for x in fields if x not in always_include_fields]
-            fields = always_include_fields + fields
+            input.fields = [x for x in input.fields if x not in always_include_fields]
+            input.fields = always_include_fields + input.fields
 
             # if user requests teams, then also request teams_where_user_is_admin
-            if "teams" in fields:
-                fields.append("teams_where_user_is_admin")
+            if "teams" in input.fields:
+                input.fields.append("teams_where_user_is_admin")
 
             # replace field names which have different names in cms
             allowed_to_access_fields = ["name", "username", "projects", "goals", "todos", "recent_topics", "recent_emails", "calendar", "likes", "dislikes"]
@@ -104,37 +106,37 @@ async def get_user(
             alternative_field_names = {
                 "mates_default_privacy_settings": [f"mate_privacy_config_default__{field}" for field in allowed_to_access_fields]
             }
-            for field in fields:
+            for field in input.fields:
                 if field in alternative_field_names:
                     if type(alternative_field_names[field]) == list:
-                        fields.extend(alternative_field_names[field])
+                        input.fields.extend(alternative_field_names[field])
                     else:
-                        fields.append(alternative_field_names[field])
+                        input.fields.append(alternative_field_names[field])
 
-            logger.debug(f"Loading user from cms with fields: {fields}")
+            logger.debug(f"Loading user from cms with fields: {input.fields}")
             # Filter fields and populate based on user input
             fields_dict = {
-                access: [f for f in fields_list if f in fields]
+                access: [f for f in fields_list if f in input.fields]
                 for access, fields_list in fields_dict.items()
             }
 
             populate_dict = {
-                access: [p for p in populate_list if p.split('.')[0] in fields]
+                access: [p for p in populate_list if p.split('.')[0] in input.fields]
                 for access, populate_list in populate_dict.items()
             }
 
         filters = [
-            {"field": "username", "operator": "$eq", "value": username}
-        ] if username else [
-            {"field": "uid", "operator": "$eq", "value": user_id}
+            {"field": "username", "operator": "$eq", "value": input.username}
+        ] if input.username else [
+            {"field": "uid", "operator": "$eq", "value": input.user_id}
         ]
 
         status_code, json_response = await make_strapi_request(
             method="get",
             endpoint="user-accounts",
             filters=filters,
-            fields=fields_dict[user_access],
-            populate=populate_dict[user_access]
+            fields=fields_dict[input.user_access],
+            populate=populate_dict[input.user_access]
         )
 
         if status_code != 200 or not json_response["data"]:
@@ -147,7 +149,7 @@ async def get_user(
             "username": get_nested(user, "username"),
         }
 
-        if user_access == "full_access":
+        if input.user_access == "full_access":
             full_access_fields = {
                 "is_server_admin": get_nested(user, "is_server_admin"),
                 "teams": [
@@ -158,7 +160,7 @@ async def get_user(
                         admin=get_nested(team, "id") in [get_nested(admin_team, "id") for admin_team in get_nested(user, "teams_where_user_is_admin")]
                     ) for team in get_nested(user, "teams") or []
                 ],
-                "profile_image": f"/v1/{team_slug}{get_nested(user, 'profile_image.file.url')}" if get_nested(user, 'profile_image') else None,
+                "profile_image": f"/v1/{input.team_slug}{get_nested(user, 'profile_image.file.url')}" if get_nested(user, 'profile_image') else None,
                 "balance_credits": get_nested(user, "balance_credits"),
                 "mates_default_privacy_settings": DefaultPrivacySettings(
                     allowed_to_access_name=get_nested(user, "mate_privacy_config_default__allowed_to_access_name"),
@@ -184,7 +186,7 @@ async def get_user(
                             SkillMini(
                                 id=get_nested(skill, "id"),
                                 app_slug=get_nested(skill, "app.slug"),
-                                api_endpoint=f"/v1/{team_slug}/apps/{get_nested(skill, 'app.slug')}/{get_nested(skill, 'slug')}"
+                                api_endpoint=f"/v1/{input.team_slug}/apps/{get_nested(skill, 'app.slug')}/{get_nested(skill, 'slug')}"
                             ) for skill in get_nested(config, "skills") or []
                         ],
                         allowed_to_access_user_name=get_nested(config, "allowed_to_access_user_name"),
@@ -217,10 +219,13 @@ async def get_user(
             }
             user_fields.update({k: v for k, v in full_access_fields.items() if v is not None and v != []})
 
-        return UserEncrypted(**user_fields)
+        return UserGetOneOutputEncrypted(**user_fields)
 
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.debug(f"User not found in cms. Returning None.")
+            return None
+        raise e
     except Exception as e:
         logger.exception(f"Failed to get the user.")
         raise HTTPException(status_code=500, detail=f"An error occurred while getting the user.")

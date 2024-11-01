@@ -72,7 +72,7 @@ from server.api.models.users.users_create_new_api_token import (
     UsersCreateNewApiTokenInput
 )
 from server.api.models.users.users_get_all import users_get_all_output_example
-from server.api.models.users.users_get_one import User, users_get_one_output_example
+from server.api.models.users.users_get_one import UserGetOneInput, UserGetOneOutput, users_get_one_output_example
 from server.api.models.users.users_replace_profile_picture import users_replace_profile_picture_output_example
 from server.api.endpoints.users.create_new_api_token import create_new_api_token as create_new_api_token_processing
 from server.api.endpoints.users.create_user import create_user as create_user_processing

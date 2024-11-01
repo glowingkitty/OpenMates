@@ -2,7 +2,7 @@ import logging
 from server.api.security.crypto import verify_hash
 from server.api.errors.errors import InvalidAPITokenError, UserNotFoundError
 from server.api.endpoints.users.get_user import get_user
-from server.api.models.users.users_get_one import User
+from server.api.models.users.users_get_one import UserGetOneOutput, UserGetOneInput
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -20,10 +20,12 @@ async def validate_api_token(
         # get the user data via get_user (which will first check in memory, then in cms)
         try:
             # get_user will also verify the api token
-            user: User = await get_user(
-                team_slug=team_slug,
-                api_token=token,
-                fields=["is_server_admin", "teams"]
+            user: UserGetOneOutput = await get_user(
+                input=UserGetOneInput(
+                    team_slug=team_slug,
+                    api_token=token,
+                    fields=["is_server_admin", "teams"]
+                )
             )
         except UserNotFoundError:
             raise InvalidAPITokenError(log_message="The user does not exist.")

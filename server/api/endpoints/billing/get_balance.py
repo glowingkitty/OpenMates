@@ -1,7 +1,7 @@
 from server.api.models.billing.billing_get_balance import BillingBalanceOutput
 import logging
 from server.api.endpoints.users.get_user import get_user
-
+from server.api.models.users.users_get_one import UserGetOneInput, UserGetOneOutput
 # Set up logger
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,12 @@ async def get_balance(
     # if so, return the balance of the team from memory (or if not in memory, get it from the database and store it in memory)
 
     # if not, return the balance of the user from memory (or if not in memory, get it from the database and store it in memory)
-    user = await get_user(
-        api_token=api_token,
-        fields=["balance_credits"]
+    user: UserGetOneOutput = await get_user(
+        input=UserGetOneInput(
+            team_slug=team_slug,
+            api_token=api_token,
+            fields=["balance_credits"]
+        )
     )
     balance_credits = user.balance_credits
 

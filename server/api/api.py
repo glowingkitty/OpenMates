@@ -504,12 +504,14 @@ async def get_user(
         team_slug=team_slug,
         user_api_token=token
     )
-    user: User = await get_user_processing(
-        team_slug=team_slug,
-        api_token=token,
-        username=username,
-        user_access=user_access,
-        fields=fields
+    user: UserGetOneOutput = await get_user_processing(
+        input=UserGetOneInput(
+            team_slug=team_slug,
+            api_token=token,
+            username=username,
+            user_access=user_access,
+            fields=fields
+        )
         )
 
     return user.to_api_output(fields)

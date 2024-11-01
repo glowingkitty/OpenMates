@@ -63,7 +63,7 @@ from server.api.models.users.users_get_all import (
     users_get_all_output_example
 )
 from server.api.models.users.users_get_one import (
-    User,
+    UserGetOneOutput,
     users_get_one_output_example
 )
 from server.api.models.users.users_replace_profile_picture import (

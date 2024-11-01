@@ -4,7 +4,7 @@ import json
 from server.api.models.teams.teams_get_one import Team
 from server.api.models.tasks.tasks_create import Task
 from pydantic import BaseModel
-from server.api.models.users.users_get_one import UserEncrypted
+from server.api.models.users.users_get_one import UserGetOneOutputEncrypted
 from server.api.models.users.users_get_all import UsersGetAllOutput, UserMini
 import logging
 from server.api.models.metadata import MetaData, Pagination
@@ -56,7 +56,7 @@ def get_server_config_from_memory() -> dict:
 
 # Save/Get one
 
-def save_user_to_memory(user_id: str, user_data: UserEncrypted) -> bool:
+def save_user_to_memory(user_id: str, user_data: UserGetOneOutputEncrypted) -> bool:
     """
     Save a user to Redis (Dragonfly) by user ID.
     """
@@ -69,7 +69,7 @@ def save_user_to_memory(user_id: str, user_data: UserEncrypted) -> bool:
     client.expire(f"user:{user_id}", default_expiration_time)
     return True
 
-def get_user_from_memory(user_id: str, fields: list[str] = None) -> UserEncrypted | None:
+def get_user_from_memory(user_id: str, fields: list[str] = None) -> UserGetOneOutputEncrypted | None:
     """
     Retrieve a user from Redis (Dragonfly) by user ID.
     If fields are specified, return a User object with only those fields populated.
@@ -91,12 +91,12 @@ def get_user_from_memory(user_id: str, fields: list[str] = None) -> UserEncrypte
         user_data = client.hmget(user_key, fields)
         if not any(user_data):
             return None
-        return UserEncrypted.from_redis_dict({k: v for k, v in zip(fields, user_data) if v is not None})
+        return UserGetOneOutputEncrypted.from_redis_dict({k: v for k, v in zip(fields, user_data) if v is not None})
     else:
         user_data = client.hgetall(user_key)
         if not user_data:
             return None
-        return UserEncrypted.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()})
+        return UserGetOneOutputEncrypted.from_redis_dict({k.decode(): v.decode() for k, v in user_data.items()})
 
 def get_many_users_from_memory(team_slug: str, page: int, pageSize: int) -> UsersGetAllOutput:
     """

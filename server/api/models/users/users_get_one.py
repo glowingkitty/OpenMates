@@ -49,7 +49,16 @@ class MyTeam(BaseModel):
 
 # GET /users/{user_username} (get a user)
 
-class User(BaseModel):
+class UserGetOneInput(BaseModel):
+    team_slug: Optional[str] = Field(None, description="Slug of the team the user is a member of")
+    user_id: str = Field(None, description="ID of the user")
+    api_token: str = Field(None, description="API token of the user")
+    user_access: str = Field(None, description="Access level of the user.")
+    username: str = Field(None, description="Username of the user")
+    password: Optional[str] = Field(None, description="Password of the user")
+    fields: Optional[List[str]] = Field(None, description="Fields of the user to include in the response")
+
+class UserGetOneOutput(BaseModel):
     """This is the base model for a user"""
     model_config = ConfigDict(extra='allow')
 
@@ -98,7 +107,7 @@ class User(BaseModel):
         return user_dict
 
 
-class UserEncrypted(User):
+class UserGetOneOutputEncrypted(UserGetOneOutput):
     email: Optional[str] = Field(None, description="Encrypted Email address of the user")
     password: Optional[str] = Field(None, description="Encrypted password of the user")
     api_token: Optional[str] = Field(None, description="Encrypted API token of the user")
@@ -121,7 +130,7 @@ class UserEncrypted(User):
         return user_dict
 
     @classmethod
-    def from_redis_dict(cls, data: Dict[str, str]) -> 'User':
+    def from_redis_dict(cls, data: Dict[str, str]) -> 'UserGetOneOutput':
         """Create a User object from Redis data."""
         def parse_value(key: str, value: str) -> Any:
             if value.lower() in ('true', 'false'):
