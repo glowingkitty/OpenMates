@@ -19,9 +19,10 @@ async def get_user(
     Get a specific user.
     """
     try:
+        logger.debug(f"cms get_user input: {input}")
         if not input.user_id and not input.username:
             raise HTTPException(status_code=400, detail="You need to provide either an api token or username.")
-    
+
         logger.debug(f"Getting user:")
         logger.debug(f"User ID: {input.user_id}")
         logger.debug(f"Username: {input.username}")

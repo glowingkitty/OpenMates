@@ -20,6 +20,7 @@ async def get_user(
     """
     try:
         logger.debug("Getting a specific user ...")
+        logger.debug(f"Input: {input}")
 
         # TODO currently user can only find himself and get full user info
         # TODO enable team admin to get basic user info about all team members (id, username)

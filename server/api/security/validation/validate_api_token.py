@@ -47,7 +47,7 @@ async def validate_api_token(
         # some endpoints don't require a team slug
         if not team_slug:
             logger.debug("No team slug provided. Can't validate if user is a member of the team.")
-            return "limited_access"
+            return "basic_access"
 
         # if the user is not a member of the team, raise an error
         raise InvalidAPITokenError(log_message="The user is not a member of the team.")

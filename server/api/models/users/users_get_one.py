@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, ClassVar, Dict, Any
 from server.api.models.projects.projects_get_one import Project
-from server.api.models.teams.teams_get_one import Team
+from pydantic import model_validator
 import json
 import logging
 from server.api.models.apps.skills_get_one import SkillMini
@@ -53,10 +53,17 @@ class UserGetOneInput(BaseModel):
     team_slug: Optional[str] = Field(None, description="Slug of the team the user is a member of")
     user_id: str = Field(None, description="ID of the user")
     api_token: str = Field(None, description="API token of the user")
-    user_access: str = Field(None, description="Access level of the user.")
+    user_access: str = Field("basic_access", description="Access level of the user.")
     username: str = Field(None, description="Username of the user")
     password: Optional[str] = Field(None, description="Password of the user")
     fields: Optional[List[str]] = Field(None, description="Fields of the user to include in the response")
+
+    # if api_token is given and user_id is not given, then auto set user_id to the first 32 characters of the api_token
+    @model_validator(mode='after')
+    def set_user_id(self):
+        """Set user_id to the first 32 characters of api_token if user_id is not provided."""
+        if not self.user_id and self.api_token:
+            self.user_id = self.api_token[:32]
 
 class UserGetOneOutput(BaseModel):
     """This is the base model for a user"""

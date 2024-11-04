@@ -137,7 +137,11 @@ async def make_strapi_request(
 
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 401:
-                raise HTTPException(status_code=401, detail="401 Error: Invalid token or insufficient permissions")
+                # this is a 401 error, which means the CMS_TOKEN is invalid or not properly configured
+                # shut down the server and ask the user to remove the CMS_TOKEN from the .env file
+                logger.error("CMS_TOKEN in .env is invalid. Please clear the CMS_TOKEN from the .env file and restart docker-compose to proceed with initial setup")
+                logger.error("Shutting down the server...")
+                os._exit(1)
             else:
                 logger.error(f"A {exc.response.status_code} error occured.")
                 logger.error(exc.response.json())
