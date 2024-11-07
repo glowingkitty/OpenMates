@@ -7,14 +7,10 @@ from server.api.models.users.users_create_new_api_token import UsersCreateNewApi
 from server.api.endpoints.users.create_new_api_token import create_new_api_token
 from server.api.endpoints.teams.get_teams import get_teams
 from server.api.models.teams.teams_get_all import TeamsGetAllOutput
+from server.api.models.teams.teams_get_one import Team
 import logging
-import argon2
-import uuid
-
+from server.api.security.crypto import hashing
 logger = logging.getLogger(__name__)
-
-# Initialize the Argon2 password hasher
-ph = argon2.PasswordHasher()
 
 async def create_server_admin_user(
         input: UsersCreateInput,
@@ -73,7 +69,8 @@ async def create_server_admin_user(
                 name=user_data.get('name', ''),
                 username=user_data['username'],
                 email=user_data['email'],
-                api_token=user_data.get('api_token', '')
+                api_token=user_data.get('api_token', ''),
+                teams=user_data.get('teams', [])
             )
 
         # Create a new API token and hash it
@@ -81,13 +78,15 @@ async def create_server_admin_user(
             input=UsersCreateNewApiTokenInput()
         )
         raw_api_token = create_new_api_token_output["api_token"]
-        hashed_api_token = ph.hash(raw_api_token)
-        
+        hashed_api_token = hashing(raw_api_token)
+
         # Hash the password
-        hashed_password = ph.hash(input.password)
-        
-        # Generate a unique identifier
-        user_uid = str(uuid.uuid4())
+        hashed_password = hashing(input.password)
+
+        # TODO fix fundamental hashing and verifying logic
+
+        # set the user UID based on the api token
+        user_uid = raw_api_token[:32]
 
         # Create the server admin user
         status_code, json_response = await make_strapi_request(
@@ -115,7 +114,12 @@ async def create_server_admin_user(
                 name=input.name,
                 username=input.username,
                 email=input.email,
-                api_token=raw_api_token  # Return the raw token to the client
+                api_token=raw_api_token,  # Return the raw token to the client
+                teams=[Team(
+                    id=team_id,
+                    name=team_name,
+                    slug=team_slug
+                )]
             )
         else:
             logger.error("Failed to create the server admin user")

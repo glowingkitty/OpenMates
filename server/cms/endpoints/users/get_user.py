@@ -19,15 +19,10 @@ async def get_user(
     Get a specific user.
     """
     try:
-        logger.debug(f"cms get_user input: {input}")
         if not input.user_id and not input.username:
             raise HTTPException(status_code=400, detail="You need to provide either an api token or username.")
 
-        logger.debug(f"Getting user:")
-        logger.debug(f"User ID: {input.user_id}")
-        logger.debug(f"Username: {input.username}")
-        logger.debug(f"User access: {input.user_access}")
-        logger.debug(f"Fields: {input.fields}")
+        logger.debug(f"Getting user...")
 
         if input.user_access == "admin_access":
             input.user_access = "basic_access"
@@ -59,6 +54,7 @@ async def get_user(
                 "uid"
             ],
             "basic_access": [
+                "api_token", # hashed
                 "username"
             ]
         }
@@ -146,7 +142,8 @@ async def get_user(
         user = json_response["data"][0]
         # Create a dictionary of User fields
         user_fields = {
-            "id": get_nested(user, "uid"),
+            "id": input.user_id,
+            "api_token": get_nested(user, "api_token"), # hashed
             "username": get_nested(user, "username"),
         }
 

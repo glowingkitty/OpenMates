@@ -79,8 +79,9 @@ async def get_user(
         if user is None:
             raise UserNotFoundError()
 
+        logger.debug(f"User found in memory or cms. Verifying api token...")
         # verify api token
-        if input.api_token and not verify_hash(hashed_text=user.api_token, text=input.api_token[32:]):
+        if input.api_token and not verify_hash(hashed_text=user.api_token, text=input.api_token):
             raise InvalidAPITokenError(log_message="The user token is invalid.")
 
         # verify password

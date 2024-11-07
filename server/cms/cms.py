@@ -139,7 +139,8 @@ async def make_strapi_request(
             if exc.response.status_code == 401:
                 # this is a 401 error, which means the CMS_TOKEN is invalid or not properly configured
                 # shut down the server and ask the user to remove the CMS_TOKEN from the .env file
-                logger.error("CMS_TOKEN in .env is invalid. Please clear the CMS_TOKEN from the .env file and restart docker-compose to proceed with initial setup")
+                logger.error("CMS_TOKEN in .env is invalid. Please clear the CMS_TOKEN from the .env file and restart docker-compose to proceed with initial setup:")
+                logger.error("docker-compose -f server/docker-compose.yml up --build -d cms_admin_setup")
                 logger.error("Shutting down the server...")
                 os._exit(1)
             else:
