@@ -38,6 +38,9 @@ async def validate_user_data_access(
                 logger.debug("User is a server admin and has the permission to access all basic user data.")
                 return "basic_access"
             if request_team_slug:
+                if not user.teams:
+                    logger.debug("User is not part of any team.")
+                    raise HTTPException(status_code=404, detail="User not found. Either the username is wrong, the team slug is wrong or the user is not part of the team or you don't have the permission to access this user.")
                 for team in user.teams:
                     if team.slug == request_team_slug and team.admin == True:
                         logger.debug("User is a team admin and has the permission to access all basic user data on the team.")
@@ -49,6 +52,9 @@ async def validate_user_data_access(
                 logger.debug("User is a server admin and has the permission to access all basic user data.")
                 return "basic_access_for_all_users_on_server"
             if request_team_slug:
+                if not user.teams:
+                    logger.debug("User is not part of any team.")
+                    raise HTTPException(status_code=404, detail="User not found. Either the username is wrong, the team slug is wrong or the user is not part of the team or you don't have the permission to access this user.")
                 for team in user.teams:
                     if team.slug == request_team_slug and team.admin == True:
                         logger.debug("User is a team admin and has the permission to access all basic user data on the team.")

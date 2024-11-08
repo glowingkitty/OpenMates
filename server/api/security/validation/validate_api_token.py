@@ -17,6 +17,8 @@ async def validate_api_token(
     """
     try:
         logger.debug("Verifying User API token...")
+        logger.debug(f"Token: {token}")
+        logger.debug(f"Team slug: {team_slug}")
         # get the user data via get_user (which will first check in memory, then in cms)
         try:
             # get_user will also verify the api token
@@ -35,6 +37,8 @@ async def validate_api_token(
             raise
 
         # verify that the user is a member of the team
+        logger.debug(f"Team slug: {team_slug}")
+        logger.debug(f"User teams: {user.teams}")
         if team_slug and user.teams and (team_slug in [team.slug for team in user.teams]):
             logger.debug("The user is a member of the team.")
             return "full_access"
