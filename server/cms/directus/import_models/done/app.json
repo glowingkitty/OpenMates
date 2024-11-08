@@ -1,0 +1,68 @@
+{
+    "fields": [
+      {
+        "field": "id",
+        "type": "uuid",
+        "meta": {
+          "hidden": true,
+          "interface": "input",
+          "readonly": true,
+          "special": ["uuid"]
+        },
+        "schema": {
+          "is_primary_key": true,
+          "has_auto_increment": true
+        }
+      },
+      {
+        "field": "name",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "required": true,
+          "note": "Name of the application"
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "slug",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "required": true,
+          "note": "URL-friendly version of the name",
+          "special": ["slug"]
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "status",
+        "type": "string",
+        "meta": {
+          "interface": "select-dropdown",
+          "required": true,
+          "note": "Publication status",
+          "options": {
+            "choices": [
+              {
+                "text": "Published",
+                "value": "published"
+              },
+              {
+                "text": "Draft",
+                "value": "draft"
+              }
+            ]
+          }
+        },
+        "schema": {
+          "default_value": "draft",
+          "is_nullable": false
+        }
+      }
+    ]
+  }

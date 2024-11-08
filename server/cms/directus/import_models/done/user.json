@@ -1,0 +1,298 @@
+{
+    "fields": [
+      {
+        "field": "username",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": ["unique"],
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "email",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": [],
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "password",
+        "type": "hash",
+        "meta": {
+          "interface": "input-hash",
+          "special": ["hash"],
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "api_token",
+        "type": "hash",
+        "meta": {
+          "interface": "input-hash",
+          "special": ["hash"],
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "is_server_admin",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": false
+        },
+        "schema": {
+          "default_value": false,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "balance_credits",
+        "type": "integer",
+        "meta": {
+          "interface": "input",
+          "special": [],
+          "required": true,
+          "default_value": 0
+        },
+        "schema": {
+          "default_value": 0,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "other_settings",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": []
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "goals",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": []
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "recent_topics",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": []
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_name",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_username",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_projects",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_goals",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_todos",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_recent_topics",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_recent_emails",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_calendar",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "likes",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": []
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "dislikes",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": []
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_likes",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_privacy_config_default__allowed_to_access_dislikes",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": [],
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "uid",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": ["uuid"],
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "mate_default_llm_endpoint",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": []
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      }
+    ]
+  }

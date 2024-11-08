@@ -1,0 +1,57 @@
+{
+    "fields": [
+      {
+        "field": "access_public",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "special": null,
+          "required": true,
+          "default_value": false
+        },
+        "schema": {
+          "default_value": false,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "filename",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": null,
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "file_id",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": null,
+          "required": true,
+          "min_length": 10,
+          "max_length": 10
+        },
+        "schema": {
+          "is_nullable": false,
+          "length": 10
+        }
+      },
+      {
+        "field": "expiration_datetime",
+        "type": "timestamp",
+        "meta": {
+          "interface": "datetime",
+          "special": null,
+          "required": false
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      }
+    ]
+  }

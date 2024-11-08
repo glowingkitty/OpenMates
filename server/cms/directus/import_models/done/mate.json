@@ -1,0 +1,94 @@
+{
+    "fields": [
+      {
+        "field": "name",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": null,
+          "required": true,
+          "options": {
+            "trim": true
+          },
+          "validation": {
+            "unique": true
+          }
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "varchar",
+          "length": 255
+        }
+      },
+      {
+        "field": "default_systemprompt",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": null,
+          "required": true,
+          "options": {
+            "trim": true
+          }
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "text"
+        }
+      },
+      {
+        "field": "description",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "special": null,
+          "required": true,
+          "options": {
+            "trim": true
+          }
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "text"
+        }
+      },
+      {
+        "field": "username",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": ["slug"],
+          "required": true,
+          "options": {
+            "trim": true,
+            "slug_field": "name"
+          },
+          "validation": {
+            "unique": true
+          }
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "varchar",
+          "length": 255
+        }
+      },
+      {
+        "field": "default_llm_model",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": null,
+          "required": true,
+          "options": {
+            "trim": true
+          }
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "varchar",
+          "length": 255
+        }
+      }
+    ]
+  }

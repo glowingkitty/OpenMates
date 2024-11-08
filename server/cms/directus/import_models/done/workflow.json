@@ -1,0 +1,46 @@
+{
+    "fields": [
+      {
+        "field": "name",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "required": true,
+          "note": "Name of the workflow"
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "varchar",
+          "length": 255
+        }
+      },
+      {
+        "field": "description",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "required": true,
+          "note": "Detailed description of the workflow"
+        },
+        "schema": {
+          "is_nullable": false,
+          "data_type": "text"
+        }
+      },
+      {
+        "field": "requests_user_data",
+        "type": "json",
+        "meta": {
+          "interface": "input-code",
+          "options": {
+            "language": "json"
+          },
+          "note": "JSON structure for user data requirements"
+        },
+        "schema": {
+          "is_nullable": true,
+          "data_type": "json"
+        }
+      }
+    ]
+  }

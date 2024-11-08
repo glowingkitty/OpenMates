@@ -1,0 +1,149 @@
+{
+    "fields": [
+      {
+        "field": "name",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "required": true,
+          "options": {
+            "trim": true
+          }
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "description",
+        "type": "text",
+        "meta": {
+          "interface": "input-multiline",
+          "required": true
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "requires_cloud_to_run",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "slug",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "required": true,
+          "options": {
+            "trim": true,
+            "slug": true
+          }
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "is_llm_endpoint",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "required": true,
+          "default_value": false
+        },
+        "schema": {
+          "default_value": false,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "is_llm_endpoint_and_supports_tool_selection",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "required": true,
+          "default_value": false
+        },
+        "schema": {
+          "default_value": false,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "pricing",
+        "type": "json",
+        "meta": {
+          "interface": "input-code",
+          "options": {
+            "language": "json"
+          }
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "processing",
+        "type": "string",
+        "meta": {
+          "interface": "select-dropdown",
+          "required": true,
+          "options": {
+            "choices": [
+              {
+                "text": "Local",
+                "value": "local"
+              },
+              {
+                "text": "Cloud",
+                "value": "cloud"
+              },
+              {
+                "text": "Local or Cloud",
+                "value": "localORcloud"
+              }
+            ]
+          }
+        },
+        "schema": {
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "free",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "required": true,
+          "default_value": true
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "default_skill_settings",
+        "type": "json",
+        "meta": {
+          "interface": "input-code",
+          "options": {
+            "language": "json"
+          }
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      }
+    ]
+  }

@@ -1,0 +1,97 @@
+{
+    "fields": [
+      {
+        "field": "id",
+        "type": "uuid",
+        "meta": {
+          "hidden": true,
+          "readonly": true,
+          "interface": "input",
+          "special": ["uuid"]
+        },
+        "schema": {
+          "is_primary_key": true,
+          "has_auto_increment": false
+        }
+      },
+      {
+        "field": "code",
+        "type": "string",
+        "meta": {
+          "interface": "input",
+          "special": ["unique"],
+          "required": true,
+          "note": "Unique invite code",
+          "validation": {
+            "min_length": 19,
+            "max_length": 19
+          }
+        },
+        "schema": {
+          "is_nullable": false,
+          "length": 19
+        }
+      },
+      {
+        "field": "expire_date",
+        "type": "timestamp",
+        "meta": {
+          "interface": "datetime",
+          "special": ["date-created"],
+          "note": "When this invite code expires"
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "can_be_used_once",
+        "type": "boolean",
+        "meta": {
+          "interface": "boolean",
+          "required": true,
+          "note": "If true, code can only be used once"
+        },
+        "schema": {
+          "default_value": true,
+          "is_nullable": false
+        }
+      },
+      {
+        "field": "can_be_used_x_more_times",
+        "type": "integer",
+        "meta": {
+          "interface": "input",
+          "note": "Number of times this code can still be used"
+        },
+        "schema": {
+          "is_nullable": true
+        }
+      },
+      {
+        "field": "status",
+        "type": "string",
+        "meta": {
+          "interface": "select-dropdown",
+          "required": true,
+          "note": "Publication status",
+          "options": {
+            "choices": [
+              {
+                "text": "Published",
+                "value": "published"
+              },
+              {
+                "text": "Draft",
+                "value": "draft"
+              }
+            ]
+          }
+        },
+        "schema": {
+          "default_value": "draft",
+          "is_nullable": false
+        }
+      }
+    ]
+  }
