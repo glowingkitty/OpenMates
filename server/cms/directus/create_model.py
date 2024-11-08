@@ -201,6 +201,9 @@ class DirectusSchemaManager:
             logger.error(f"Failed to create field: {str(e)}")
             raise
 
+# TODO add relation fields to the schema
+# TODO update api endpoints/other scripts and replace stripe with directus
+
 def main():
     """Main function to create collections in Directus"""
     # Load configuration from environment variables
