@@ -219,41 +219,31 @@ services:
   # The content management system (CMS) for managing user data
   cms:
     container_name: cms
-    build:
-      context: ./cms/strapi
-      dockerfile: Dockerfile
-    image: cms:latest
+    image: directus/directus:latest
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_CLIENT: ${DATABASE_CLIENT}
-      DATABASE_HOST: cms_database
-      DATABASE_PORT: ${DATABASE_PORT}
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_USERNAME: ${DATABASE_USERNAME}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
-      APP_KEYS: ${APP_KEYS}
-      NODE_ENV: ${NODE_ENV}
-      ADMIN_PATH: ${ADMIN_PATH}
-      STRAPI_ADMIN_BACKEND_URL: http://cms:${CMS_PORT}
-      STRAPI_TELEMETRY_DISABLED: ${STRAPI_TELEMETRY_DISABLED}
+      KEY: "${ADMIN_JWT_SECRET}"
+      SECRET: "${JWT_SECRET}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      DB_CLIENT: "pg"
+      DB_HOST: "cms_database"
+      DB_PORT: "${DATABASE_PORT}"
+      DB_DATABASE: "${DATABASE_NAME}"
+      DB_USER: "${DATABASE_USERNAME}"
+      DB_PASSWORD: "${DATABASE_PASSWORD}"
+      PUBLIC_URL: "http://localhost:${CMS_PORT}"
+      LOG_LEVEL: "debug"
+    ports:
+      - "${CMS_PORT}:8055"  # Directus uses 8055 as default port
     volumes:
-      - ./cms/strapi/config:/opt/app/config
-      - ./cms/strapi/src:/opt/app/src
-      - ./cms/strapi/package.json:/opt/package.json
-      - ./cms/strapi/yarn.lock:/opt/yarn.lock
-      - ./cms/strapi/.env:/opt/app/.env
-      - ./cms/strapi/public/uploads:/opt/app/public/uploads
-    # uncomment, if you want to access the CMS web interface via http://localhost:${CMS_PORT} on the host machine
-    # ports:
-    #   - "${CMS_PORT}:${CMS_PORT}"
+      - ./cms/directus/uploads:/directus/uploads
+      - ./cms/directus/extensions:/directus/extensions
     networks:
       - openmates
     depends_on:
       - cms_database
-    # command: ["yarn", "develop", "--debug"]  # Run Strapi in development mode with debug logging
 
 
   #########################################################################
