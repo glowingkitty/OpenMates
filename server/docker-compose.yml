@@ -109,6 +109,14 @@ services:
   # and to run, use:
   # docker-compose -p penpot -f server/apps/design/penpot/docker-compose.yml up -d
 
+  # 'Project Management' app
+  # Manage projects, tasks and more.
+
+  # / Plane
+  # Will start a Plane server.
+  # Use ./apps/project_management/plane/docker-compose.yml to modify settings
+  # and to run, use:
+  # cd ./server/apps/project_management/plane && ./setup.sh start
 
   #########################################################################
   ##### REST API
@@ -340,4 +348,8 @@ volumes:
   app-home-mosquitto-data:
   # The log for the Mosquitto MQTT broker
   app-home-mosquitto-log:
+  # The data for the Plane database
+  app-projectmanagement-plane-db-data:
+  # The data for the Plane Redis
+  app-projectmanagement-plane-redis-data:
 
