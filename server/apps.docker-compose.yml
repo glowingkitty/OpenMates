@@ -1,0 +1,168 @@
+#  _____________________________________________________________________
+# |                                                                     |
+# |         ____                  __  __        _                       |
+# |        / __ \                |  \/   |     | |                      |
+# |       | |  | |_ __   ___ _ __| \  /  | __ _| |_ ___  ___            |
+# |       | |  | | '_ \ / _ \ '_ \ |\/ | |/ _` | __/ _ \/ __|           |
+# |       | |__| | |_) |  __/ | | | |  | | (_| | ||  __/\__ \           |
+# |        \____/| .__/ \___|_| |_|_|  |_|\__,_|\__\___||___/           |
+# |              | |                                                    |
+# |              |_|                                                    |
+# |                                                                     |
+# |_____________________________________________________________________|
+#                       Your AI team mates.
+
+#########################################################################
+##############          Docker Compose Settings          ################
+#########################################################################
+
+# TODO add docker for Akaunting (for finance app)
+# TODO add docker for Appflowy (for notes app)
+# TODO switch from mounting files to copying into dockers
+# TODO add web app docker
+# TODO add website docker
+# TODO add docker for file storage (MinIO)
+# TODO add docker for Grafana (+ Prometheus? for monitoring)
+# TODO get updated structure to work again
+# TODO add improved security (no root user, only access to folders they really need, seperate networks, no linux commands that aren't needed, no internet if not needed,
+# only read access to files if possible, limit cpu/memory usage, strapi input parameterized, turn off strapi interface (except when in development mode) etc. etc.)
+
+name: openmates-apps
+version: '3.8'
+
+services:
+  #########################################################################
+  ##### Apps
+  #########################################################################
+
+  # Apps used by OpenMates
+
+  # 'Messages' app
+  # Send messages, create threads and more.
+
+  # / Discord / Listener
+  # Will listen to new messages to the OpenMates bots on Discord.
+  app-messages-discord-listener:
+    container_name: app-messages-discord-listener
+    build:
+      context: ./
+      dockerfile: apps/messages/discord/listener/Dockerfile
+    env_file: .env
+    environment:
+      DRAGONFLY_URL: "in_memory_database:${IN_MEMORY_DATABASE_PORT}"
+    command: >
+      sh -c "python /usr/src/app/server_config.py && 
+             python discord_listener.py"
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+    depends_on:
+      - rest-api
+    security_opt:
+      - no-new-privileges:true
+
+  # 'Web' app
+  # Browse the web, research topics and more.
+  app-web:
+    container_name: app-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      APP_WEB_PORT: "${APP_WEB_PORT}"
+      APP_WEB_SECRET_KEY: "${APP_WEB_SECRET_KEY}"
+    volumes:
+      - ./apps/web:/usr/src/app-web
+    networks:
+      - openmates
+    extra_hosts:
+      host.docker.internal: host-gateway
+
+  # 'Home' app
+  # Control your smart home, organize daily tasks and more.
+
+  # TODO properly integrate Mosquitto / home app, including authentication
+
+  # / Mosquitto
+  # MQTT broker for handling MQTT messages
+  app-home-mosquitto:
+    container_name: app-home-mosquitto
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"  # MQTT port
+    volumes:
+      - app-home-mosquitto-data:/mosquitto/data
+      - app-home-mosquitto-log:/mosquitto/log
+      - ./apps/home/mosquitto/config:/mosquitto/config
+    networks:
+      - openmates
+    restart: unless-stopped
+
+  # 'Design' app
+  # Design interfaces, get feedback and more.
+
+  # / Penpot
+  # Will start a Penpot server.
+  # Use ./apps/design/penpot/docker-compose.yml to modify settings
+  # and to run, use:
+  # docker-compose -p penpot -f server/apps/design/penpot/docker-compose.yml up -d
+
+  # 'Project Management' app
+  # Manage projects, tasks and more.
+
+  # / Plane
+  # Will start a Plane server.
+  # Use ./apps/project_management/plane/docker-compose.yml to modify settings
+  # and to run, use:
+  # cd ./server/apps/project_management/plane && ./setup.sh start
+
+  # 'Whiteboard' app
+  # Create whiteboards, write on them and more.
+
+  # / Excalidraw
+  # Collaborative whiteboard tool
+  # app-whiteboard-excalidraw:
+  #   container_name: app-whiteboard-excalidraw
+  #   image: excalidraw/excalidraw:latest
+  #   platform: linux/amd64
+  #   restart: unless-stopped
+  #   environment:
+  #     NODE_ENV: production
+  #   ports:
+  #     - "${EXCALIDRAW_PORT:-3000}:80"  # Default to port 3000 if not specified
+  #   networks:
+  #     - openmates
+  #   volumes:
+  #     - app-whiteboard-excalidraw-data:/opt/excalidraw/storage
+  #   security_opt:
+  #     - no-new-privileges:true
+
+
+##########################################################################################
+# Networks
+##########################################################################################
+
+networks:
+  # The network for the different containers to communicate with each other
+  openmates:
+    external: true  # This allows sharing the network with core compose
+
+
+##########################################################################################
+# Volumes
+##########################################################################################
+
+volumes:
+  # The data for the Mosquitto MQTT broker
+  app-home-mosquitto-data:
+  # The log for the Mosquitto MQTT broker
+  app-home-mosquitto-log:
+  # The data for the Plane database
+  app-projectmanagement-plane-db-data:
+  # The data for the Plane Redis
+  app-projectmanagement-plane-redis-data:
+  # The data for Excalidraw whiteboard storage
+  app-whiteboard-excalidraw-data:
+
