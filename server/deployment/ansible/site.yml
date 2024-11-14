@@ -1,0 +1,12 @@
+---
+- name: Deploy Plane
+  hosts: plane_server
+  become: true
+
+  roles:
+    - security
+    - system
+    - docker
+    - apps/projectmanagement/plane
+    - dns_check
+    - nginx

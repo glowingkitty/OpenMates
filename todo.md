@@ -1,3 +1,10 @@
+# Server
+- integrate ansible and terraform files
+- deploy apps.openmates server for testing
+- start using plane on server for todo's
+
+
+
 # API
 - [ ] test discord_listener as seperate docker container first, with hardcoded bot token
 - [ ] once receiving messages works, continue with extracting teamslug from message / match request to team/user
