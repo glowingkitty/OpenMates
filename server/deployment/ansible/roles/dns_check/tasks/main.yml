@@ -1,44 +1,66 @@
 ---
 # server/deployment/ansible/roles/dns_check/tasks/main.yml
 
+# Task to get the server's public IP and store it in 'server_ip'
 - name: Get server's public IP
   set_fact:
     server_ip: "{{ ansible_host }}"
 
+# Task to retrieve all application subdomains and store them in 'app_subdomains'
 - name: Retrieve all application subdomains
   set_fact:
     app_subdomains: "{{ applications | dict2items | map(attribute='value.subdomain') | list }}"
 
+# Task block to check DNS records for each subdomain
 - name: Check DNS records for each subdomain
   block:
+    # Task to get the subdomain IP from DNS using the 'dig' command
     - name: Get subdomain IP from DNS
       command: "dig +short {{ item }} A"
       register: subdomain_ip
       changed_when: false
       delegate_to: localhost
       become: false
-
+      loop: "{{ app_subdomains }}"
+      loop_control:
+        # Label each loop iteration with the current subdomain
+        label: "{{ item }}"
+    
+    # Task to log the DNS configuration status for each subdomain
     - name: Log DNS configuration status
       debug:
-        msg: "DNS check for {{ item }}: {{ subdomain_ip.stdout_lines[0] if subdomain_ip.stdout_lines[0] else 'no IP' }}"
+        msg: "DNS check for {{ item.item }}: {{ (item.stdout_lines | default([])) | first | default('no IP') }}"
+      loop: "{{ subdomain_ip.results }}"
+      # 'item.item' refers to the current subdomain
+      # 'item.stdout_lines | default([])' ensures 'stdout_lines' is a list
+      # 'first' retrieves the first element if it exists
+      # 'default('no IP')' provides a fallback if the list is empty
+      loop_control:
+        label: "{{ item.item }}"
 
+    # Task to log DNS configuration requirement if the IP is incorrect
     - name: Log DNS configuration requirement if incorrect
       debug:
         msg: |
           ACTION REQUIRED: Please update your DNS records
-          Add an A record for {{ item }} pointing to {{ server_ip }}
-          Current DNS resolves to: {{ subdomain_ip.stdout_lines[0] if subdomain_ip.stdout_lines[0] else 'no IP' }}
-      when: subdomain_ip.stdout_lines[0] != server_ip
+          Add an A record for {{ item.item }} pointing to {{ server_ip }}
+          Current DNS resolves to: {{ (item.stdout_lines | default([])) | first | default('no IP') }}
+      when: ((item.stdout_lines | default([])) | first | default('')) != server_ip
+      loop: "{{ subdomain_ip.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
+    # Task to wait for DNS propagation to reflect the correct IP
     - name: Wait for DNS propagation
-      command: "dig +short {{ item }} A"
+      command: "dig +short {{ item.item }} A"
       register: dns_check
-      until: dns_check.stdout_lines[0] == server_ip
+      until: (dns_check.stdout_lines | default([])) | first == server_ip
       retries: "{{ dns_check_retries }}"
       delay: "{{ dns_check_delay }}"
       changed_when: false
       delegate_to: localhost
       become: false
-      when: subdomain_ip.stdout_lines[0] != server_ip
-
-  loop: "{{ app_subdomains }}"
+      when: ((item.stdout_lines | default([])) | first | default('')) != server_ip
+      loop: "{{ subdomain_ip.results }}"
+      loop_control:
+        label: "{{ item.item }}"
