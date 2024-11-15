@@ -18,19 +18,24 @@
     dest: /etc/nginx/nginx.conf
     mode: '0644'
 
-# Setup Nginx server blocks for all applications
+# Setup Nginx server blocks for each application
 - name: Setup Nginx server blocks for applications
   template:
-    src: apps.conf.j2
-    dest: /etc/nginx/sites-available/apps.conf
+    src: app.conf.j2
+    dest: "/etc/nginx/sites-available/{{ item.key }}.conf"
     mode: '0644'
+  loop: "{{ applications | dict2items }}"
+  vars:
+    app_subdomain: "{{ item.value.subdomain }}"
+    app_port: "{{ item.value.port }}"
 
-# Enable apps Nginx configuration
-- name: Enable apps Nginx configuration
+# Enable application configurations
+- name: Enable application configurations
   file:
-    src: /etc/nginx/sites-available/apps.conf
-    dest: /etc/nginx/sites-enabled/apps.conf
+    src: "/etc/nginx/sites-available/{{ item.key }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item.key }}.conf"
     state: link
+  loop: "{{ applications | dict2items }}"
 
 # Remove default nginx site
 - name: Remove default nginx site
@@ -43,18 +48,11 @@
   shell: |
     certbot certonly --nginx --{{ env if env == 'production' else 'staging' }} --non-interactive --agree-tos \
     --email {{ admin_email }} \
-    {% for app, details in applications %}
-    -d {{ details.subdomain }}
-    {% endfor %}
+    -d {{ item.value.subdomain }}
   args:
-    creates: >
-      {% for app, details in applications %}
-      /etc/letsencrypt/live/{{ details.subdomain }}/fullchain.pem
-      {% endfor %}
-  when: >
-    {% for app, details in applications %}
-    applications["{{ app }}"].subdomain is defined{% if not loop.last %} and {% endif %}
-    {% endfor %}
+    creates: "/etc/letsencrypt/live/{{ item.value.subdomain }}/fullchain.pem"
+  loop: "{{ applications | dict2items }}"
+  when: item.value.subdomain is defined
 
 # Test Nginx configuration
 - name: Test Nginx configuration
