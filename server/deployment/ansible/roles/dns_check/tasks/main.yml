@@ -95,25 +95,27 @@
     - name: Log DNS propagation result
       debug:
         msg: "DNS propagation for {{ item.item }} has completed. Current IP: {{ (dns_check.stdout_lines | default([])) | first | default('no IP') }}"
-      when: server_ip in dns_check.stdout_lines
+      when: dns_check is defined and server_ip in (dns_check.stdout_lines | default([]))
       loop: "{{ subdomain_ip.results }}"
       loop_control:
         label: "{{ item.item }}"
       # Explanation:
       # - Logs the successful DNS resolution after propagation.
-      # - Confirms that the DNS now points to the correct server IP.
+      # - Ensures that dns_check is defined before accessing stdout_lines to prevent errors.
+      # - Uses 'default([])' to provide an empty list if 'stdout_lines' is undefined.
 
     # Task to log failure if DNS propagation does not complete
     - name: Log DNS propagation failure
       debug:
         msg: "DNS propagation for {{ item.item }} failed. Expected IP: {{ server_ip }}, but got: {{ (dns_check.stdout_lines | default([])) | first | default('no IP') }}"
-      when: server_ip not in dns_check.stdout_lines
+      when: dns_check is defined and server_ip not in (dns_check.stdout_lines | default([]))
       loop: "{{ subdomain_ip.results }}"
       loop_control:
         label: "{{ item.item }}"
       # Explanation:
       # - Logs a failure message if DNS propagation does not reflect the correct IP after retries.
-      # - Helps in identifying which subdomains did not propagate correctly.
+      # - Ensures that dns_check is defined before accessing stdout_lines to prevent errors.
+      # - Uses 'default([])' to provide an empty list if 'stdout_lines' is undefined.
 
   # Additional Explanation:
   # - Adjusted the 'until' and 'when' conditions to safely handle cases where 'stdout_lines' might be empty.
