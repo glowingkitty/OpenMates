@@ -1,14 +1,18 @@
 # server/deployment/ansible/roles/nginx/templates/apps.conf.j2
 
-{% for app, details in applications %}
+# Iterate over each application defined in the 'applications' dictionary
+{% for app, details in applications.items() %}
 server {
     listen 80;
+    # Define the server name using the application's subdomain
     server_name {{ details.subdomain }};
+    # Redirect all HTTP traffic to HTTPS
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl;
+    # Define the server name using the application's subdomain
     server_name {{ details.subdomain }};
 
     # SSL configuration
@@ -21,10 +25,11 @@ server {
                  ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:
                  DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
 
-    # Apply rate limiting
+    # Apply rate limiting to prevent abuse
     limit_req zone=one burst=10 nodelay;
 
     location / {
+        # Forward all requests to the application running on the specified port
         proxy_pass http://localhost:{{ details.port }};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -37,7 +42,7 @@ server {
         proxy_read_timeout 86400;
     }
 
-    # Security headers
+    # Security headers to enhance security by controlling client-side behaviors
     add_header Strict-Transport-Security "max-age=63072000" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
