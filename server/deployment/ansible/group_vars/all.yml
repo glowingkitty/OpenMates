@@ -1,13 +1,24 @@
 ---
+# group_vars/all.yml
+
 # General settings
 domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
 admin_email: "{{ lookup('env', 'ADMIN_EMAIL') }}"
 
-# Apps configuration
-apps_subdomain_prefix: "apps"
-plane_subdomain: "{{ apps_subdomain_prefix }}-projectmanagement-plane.{{ domain_name }}"
-# akaunting_subdomain: "{{ apps_subdomain_prefix }}-finance-akaunting.{{ domain_name }}"
-
 # Other settings
 nginx_port: "{{ lookup('env', 'NGINX_PORT') | default(8080, true) }}"
 env: "{{ lookup('env', 'DEPLOY_ENV') | default('development', true) }}"
+
+# DNS check settings
+dns_check_retries: 40
+dns_check_delay: 15
+
+# Applications configuration
+applications:
+  plane:
+    subdomain: "apps-projectmanagement-plane.{{ domain_name }}"
+    port: 8081
+  # Add other applications here
+
+# Derived variables
+plane_web_url: "{{ applications.plane.subdomain }}"

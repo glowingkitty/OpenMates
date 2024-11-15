@@ -15,4 +15,6 @@
     - system
     - security
     - docker
+    - dns_check
     - { role: plane, when: "lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool" }
+    - { role: nginx, when: "lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool" }

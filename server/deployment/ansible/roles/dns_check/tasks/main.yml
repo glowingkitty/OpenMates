@@ -1,40 +1,44 @@
 ---
+# server/deployment/ansible/roles/dns_check/tasks/main.yml
+
 - name: Get server's public IP
   set_fact:
     server_ip: "{{ ansible_host }}"
 
-# Check Plane subdomain if enabled
-- name: Check Plane DNS configuration
+- name: Retrieve all application subdomains
+  set_fact:
+    app_subdomains: "{{ applications | dict2items | map(attribute='value.subdomain') | list }}"
+
+- name: Check DNS records for each subdomain
   block:
-    - name: Get Plane subdomain IP from DNS
-      command: "dig +short {{ plane_subdomain }} A"
-      register: plane_domain_ip
+    - name: Get subdomain IP from DNS
+      command: "dig +short {{ item }} A"
+      register: subdomain_ip
       changed_when: false
       delegate_to: localhost
       become: false
 
-    - name: Extract Plane IP from dig output
-      set_fact:
-        plane_resolved_ip: "{{ plane_domain_ip.stdout_lines[0] | default('') }}"
+    - name: Log DNS configuration status
+      debug:
+        msg: "DNS check for {{ item }}: {{ subdomain_ip.stdout_lines[0] if subdomain_ip.stdout_lines[0] else 'no IP' }}"
 
-    - name: Log Plane DNS configuration status
+    - name: Log DNS configuration requirement if incorrect
       debug:
         msg: |
           ACTION REQUIRED: Please update your DNS records
-          Add an A record for {{ plane_subdomain }} pointing to {{ server_ip }}
-          Current DNS resolves to: {{ plane_resolved_ip if plane_resolved_ip else 'no IP' }}
-      when: plane_resolved_ip != server_ip
+          Add an A record for {{ item }} pointing to {{ server_ip }}
+          Current DNS resolves to: {{ subdomain_ip.stdout_lines[0] if subdomain_ip.stdout_lines[0] else 'no IP' }}
+      when: subdomain_ip.stdout_lines[0] != server_ip
 
-    - name: Wait for Plane DNS propagation
-      command: "dig +short {{ plane_subdomain }} A"
-      register: plane_dns_check
-      until: plane_dns_check.stdout_lines[0] | default('') == server_ip
-      retries: 40
-      delay: 15
+    - name: Wait for DNS propagation
+      command: "dig +short {{ item }} A"
+      register: dns_check
+      until: dns_check.stdout_lines[0] == server_ip
+      retries: "{{ dns_check_retries }}"
+      delay: "{{ dns_check_delay }}"
       changed_when: false
       delegate_to: localhost
       become: false
-      when: plane_resolved_ip != server_ip
-  when: lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool
+      when: subdomain_ip.stdout_lines[0] != server_ip
 
-# Add similar blocks for other apps
+  loop: "{{ app_subdomains }}"

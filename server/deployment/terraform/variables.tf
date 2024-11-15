@@ -1,6 +1,6 @@
 # variables.tf
 
-# Variables for Hetzner Cloud and Plane configuration
+# Variables for Hetzner Cloud and Apps Server configuration
 variable "hcloud_token" {
   description = "API token for Hetzner Cloud"
   type        = string
@@ -8,7 +8,7 @@ variable "hcloud_token" {
 }
 
 variable "domain_name" {
-  description = "Base domain name for all apps"
+  description = "Base domain name for all apps (e.g., openmates.org)"
   type        = string
 }
 
@@ -18,19 +18,29 @@ variable "admin_email" {
 }
 
 variable "nginx_port" {
-  description = "Nginx port for Plane"
+  description = "Default Nginx port"
   type        = number
   default     = 8080
-}
-
-variable "plane_install_dir" {
-  description = "Installation directory for Plane"
-  type        = string
-  default     = "plane-selfhost"
 }
 
 variable "deploy_env" {
   description = "Deployment environment (development/production)"
   type        = string
   default     = "development"
+}
+
+# Map of applications with their subdomains and ports
+variable "applications" {
+  description = "Map of applications with their subdomains and corresponding ports"
+  type = map(object({
+    subdomain = string
+    port      = number
+  }))
+  default = {
+    plane     = {
+      subdomain = "apps-projectmanagement-plane.openmates.org"
+      port      = 8081
+    }
+    # Add other applications here
+  }
 }

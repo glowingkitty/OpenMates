@@ -1,4 +1,6 @@
 ---
+# server/apps/project_management/plane/ansible/roles/plane/tasks/main.yml
+
 - name: Check Docker installation
   command: docker --version
   register: docker_check
@@ -41,8 +43,8 @@
     path: "{{ plane_install_dir }}/plane-app/plane.env"
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
-  with_items:
-    - { key: "NGINX_PORT", value: "8080" }
+  loop:
+    - { key: "NGINX_PORT", value: "{{ nginx_port }}" }
     - { key: "WEB_URL", value: "{{ plane_web_url }}" }
     - { key: "CORS_ALLOWED_ORIGINS", value: "{{ plane_web_url }}" }
 

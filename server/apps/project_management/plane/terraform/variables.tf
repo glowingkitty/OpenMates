@@ -1,6 +1,7 @@
-# variables.tf
+# server/apps/project_management/plane/terraform/variables.tf
 
 # Variables for Hetzner Cloud and Plane configuration
+
 variable "hcloud_token" {
   description = "API token for Hetzner Cloud"
   type        = string

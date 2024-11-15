@@ -1,8 +1,11 @@
 ---
-# Include Plane if enabled
-- name: Include Plane tasks
-  include_role:
-    name: plane
-  when: lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool
+# roles/apps/tasks/main.yml
 
-# include other apps here
+# Include all applications defined in the applications map
+- name: Include application roles
+  include_role:
+    name: "{{ item.key }}"
+  vars:
+    app_subdomain: "{{ item.value.subdomain }}"
+    app_port: "{{ item.value.port }}"
+  loop: "{{ applications | dict2items }}"

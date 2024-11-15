@@ -87,9 +87,8 @@ resource "null_resource" "ansible_provisioner" {
     command = <<-EOT
       cd ../ansible && \
       ANSIBLE_HOST_KEY_CHECKING=False \
-      PLANE_DOMAIN="${var.domain_name}" \
-      PLANE_ADMIN_EMAIL="${var.admin_email}" \
-      PLANE_INSTALL_DIR="${var.plane_install_dir}" \
+      DOMAIN_NAME="${var.domain_name}" \
+      ADMIN_EMAIL="${var.admin_email}" \
       NGINX_PORT="${var.nginx_port}" \
       DEPLOY_ENV="${var.deploy_env}" \
       ansible-playbook \
