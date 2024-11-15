@@ -8,13 +8,14 @@ variable "hcloud_token" {
 }
 
 variable "domain_name" {
-  description = "Base domain name for all apps"
+  description = "Domain name for Plane installation"
   type        = string
 }
 
 variable "admin_email" {
   description = "Email for SSL certificate registration"
   type        = string
+  # sensitive   = true
 }
 
 variable "nginx_port" {

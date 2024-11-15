@@ -1,12 +1,16 @@
 ---
-- name: Deploy Plane
-  hosts: plane_server
-  become: true
-
+- name: Configure webapp server
+  hosts: webapp
   roles:
-    - security
-    - system
-    - docker
-    - apps/projectmanagement/plane
-    - dns_check
-    - nginx
+    - common
+    - webapp
+
+- name: Configure apps server
+  hosts: apps
+  vars_files:
+    - "../../../.env"
+  roles:
+    - common
+    - { role: apps/project_management/plane, when: "lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool" }
+
+# TODO what changes are needed to make this work?

@@ -20,41 +20,49 @@ resource "hcloud_ssh_key" "my_key" {
   public_key = file("~/.ssh/hetzner_key_openmates.pub")
 }
 
-# Define the server on Hetzner
-resource "hcloud_server" "plane_server" {
-  name        = "plane-server"
+# Define servers on Hetzner
+resource "hcloud_server" "app_servers" {
+  # Create a map of servers with their configurations
+  for_each = {
+    # Server for the OpenMates Web App
+    # webapp = {
+    #   name = "webapp-server"
+    #   type = "cax11"
+    # }
+    # Server for the Apps which can run locally and which OpenMates can control
+    apps = {
+      name = "apps-server"
+      type = "cax11"
+    }
+  }
+
+  name        = each.value.name
   image       = "ubuntu-20.04"
-  server_type = "cax11"
+  server_type = each.value.type
   location    = "fsn1"
   ssh_keys    = [hcloud_ssh_key.my_key.id]
 }
 
-# Generate Ansible inventory
+# Generate Ansible inventory for all servers
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/templates/inventory.tpl", {
-    server_ip = hcloud_server.plane_server.ipv4_address
+    # webapp_ip = hcloud_server.app_servers["webapp"].ipv4_address
+    apps_ip = hcloud_server.app_servers["apps"].ipv4_address
   })
   filename = "${path.module}/../ansible/inventory/hosts.yml"
 }
 
-# Fetch server information including SSH host key
-data "hcloud_server" "plane_server_info" {
-  depends_on = [hcloud_server.plane_server]
-  id         = hcloud_server.plane_server.id
-}
-
-# Add server's host key to known_hosts and ensure SSH is accessible
+# SSH setup for all servers
 resource "null_resource" "ssh_setup" {
-  depends_on = [hcloud_server.plane_server]
+  for_each = hcloud_server.app_servers
 
   provisioner "local-exec" {
     command = <<-EOT
       mkdir -p ~/.ssh
       for i in {1..30}; do
-        if ssh-keyscan -H ${hcloud_server.plane_server.ipv4_address} >> ~/.ssh/known_hosts 2>/dev/null; then
-          echo "Successfully added host key"
-          # Test SSH connection
-          if ssh -o ConnectTimeout=5 -i ~/.ssh/hetzner_key_openmates root@${hcloud_server.plane_server.ipv4_address} 'echo "SSH connection successful"'; then
+        if ssh-keyscan -H ${each.value.ipv4_address} >> ~/.ssh/known_hosts 2>/dev/null; then
+          echo "Successfully added host key for ${each.value.name}"
+          if ssh -o ConnectTimeout=5 -i ~/.ssh/hetzner_key_openmates root@${each.value.ipv4_address} 'echo "SSH connection successful"'; then
             exit 0
           fi
         fi
@@ -67,10 +75,10 @@ resource "null_resource" "ssh_setup" {
   }
 }
 
-# Run Ansible playbook after server creation and SSH setup
+# Run Ansible playbook with environment variables
 resource "null_resource" "ansible_provisioner" {
   depends_on = [
-    hcloud_server.plane_server,
+    hcloud_server.app_servers,
     local_file.ansible_inventory,
     null_resource.ssh_setup
   ]
@@ -91,14 +99,60 @@ resource "null_resource" "ansible_provisioner" {
     EOT
   }
 
-  # Modified triggers to avoid file hash calculation before file exists
   triggers = {
-    server_id = hcloud_server.plane_server.id
-    # Using the content of the inventory file instead of its hash
+    # webapp_server_id = hcloud_server.app_servers["webapp"].id
+    apps_server_id = hcloud_server.app_servers["apps"].id
     inventory_content = local_file.ansible_inventory.content
   }
 }
 
-output "server_ip" {
-  value = hcloud_server.plane_server.ipv4_address
+# Define firewall rules for apps server
+resource "hcloud_firewall" "apps_firewall" {
+  name = "apps-firewall"
+
+  # SSH access
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "22"
+    source_ips = ["0.0.0.0/0"]
+  }
+
+  # HTTP access
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "80"
+    source_ips = ["0.0.0.0/0"]
+  }
+
+  # HTTPS access
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "443"
+    source_ips = ["0.0.0.0/0"]
+  }
+
+  # Add additional ports as needed for other apps
+  # rule {
+  #   direction = "in"
+  #   protocol  = "tcp"
+  #   port      = "other_port"
+  #   source_ips = ["0.0.0.0/0"]
+  # }
+}
+
+# Apply firewall to apps server
+resource "hcloud_firewall_attachment" "apps_firewall" {
+  firewall_id = hcloud_firewall.apps_firewall.id
+  server_ids  = [hcloud_server.app_servers["apps"].id]
+}
+
+# Output both server IPs
+output "server_ips" {
+  value = {
+    # webapp = hcloud_server.app_servers["webapp"].ipv4_address
+    apps = hcloud_server.app_servers["apps"].ipv4_address
+  }
 }

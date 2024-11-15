@@ -1,0 +1,97 @@
+---
+# Install required packages
+- name: Install Nginx and Certbot
+  apt:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+# Setup main Nginx configuration with rate limiting in http context
+- name: Setup main Nginx configuration
+  template:
+    src: nginx_main.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: '0644'
+
+# First create a basic HTTP configuration
+- name: Setup initial HTTP Nginx configuration
+  template:
+    src: nginx_initial.conf.j2
+    dest: /etc/nginx/sites-available/plane.conf
+    mode: '0644'
+
+- name: Enable site configuration
+  file:
+    src: /etc/nginx/sites-available/plane.conf
+    dest: /etc/nginx/sites-enabled/plane.conf
+    state: link
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Test Nginx configuration
+  command: nginx -t
+  changed_when: false
+  register: nginx_test
+
+- name: Restart Nginx if configuration is valid
+  service:
+    name: nginx
+    state: restarted
+  when: nginx_test.rc == 0
+
+- name: Generate SSL certificate for development
+  shell: |
+    certbot certonly --nginx --staging --non-interactive --agree-tos \
+    --email {{ admin_email }} \
+    -d {{ domain_name }}
+  args:
+    creates: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+  when: env == "development"
+
+- name: Generate production SSL certificate
+  shell: |
+    certbot certonly --nginx --non-interactive --agree-tos \
+    --email {{ admin_email }} \
+    -d {{ domain_name }}
+  args:
+    creates: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+  when: env == "production"
+
+- name: Verify SSL certificates exist
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  register: ssl_cert
+
+# Finally, update to HTTPS configuration
+- name: Setup final HTTPS Nginx configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/plane.conf
+    mode: '0644'
+  when: ssl_cert.stat.exists
+
+- name: Test final Nginx configuration
+  command: nginx -t
+  changed_when: false
+  register: final_nginx_test
+  when: ssl_cert.stat.exists
+
+- name: Restart Nginx with HTTPS configuration
+  service:
+    name: nginx
+    state: restarted
+  when: ssl_cert.stat.exists and final_nginx_test.rc == 0
+
+# Setup automatic renewal for SSL certificates
+- name: Enable automatic certificate renewal
+  cron:
+    name: "Certbot Renewal"
+    job: "certbot renew --quiet --no-self-upgrade"
+    minute: "0"
+    hour: "3"
+    weekday: "1"

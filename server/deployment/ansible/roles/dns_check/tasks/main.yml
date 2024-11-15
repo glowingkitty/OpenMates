@@ -3,38 +3,38 @@
   set_fact:
     server_ip: "{{ ansible_host }}"
 
-- name: Get domain IP from DNS
-  command: "dig +short {{ domain_name }} A"
-  register: domain_ip
-  changed_when: false
-  delegate_to: localhost
-  become: false
-
-- name: Extract IP from dig output
-  set_fact:
-    resolved_ip: "{{ domain_ip.stdout_lines[0] | default('') }}"
-
-- name: Log successful DNS configuration
-  debug:
-    msg: "DNS check successful: {{ domain_name }} is correctly pointing to {{ server_ip }}"
-  when: resolved_ip == server_ip
-
-- name: Handle incorrect DNS configuration
+# Check Plane subdomain if enabled
+- name: Check Plane DNS configuration
   block:
-    - name: Log DNS update requirement
-      debug:
-        msg: |
-          ACTION REQUIRED: Please update your DNS records
-          Add an A record for {{ domain_name }} pointing to {{ server_ip }}
-          Current DNS resolves to: {{ resolved_ip if resolved_ip else 'no IP' }}
-    
-    - name: Wait for DNS propagation
-      command: "dig +short {{ domain_name }} A"
-      register: dns_check
-      until: dns_check.stdout_lines[0] | default('') == server_ip
-      retries: 40  # Will retry for about 10 minutes
-      delay: 15    # 15 seconds between retries
+    - name: Get Plane subdomain IP from DNS
+      command: "dig +short {{ plane_subdomain }} A"
+      register: plane_domain_ip
       changed_when: false
       delegate_to: localhost
       become: false
-  when: resolved_ip != server_ip
+
+    - name: Extract Plane IP from dig output
+      set_fact:
+        plane_resolved_ip: "{{ plane_domain_ip.stdout_lines[0] | default('') }}"
+
+    - name: Log Plane DNS configuration status
+      debug:
+        msg: |
+          ACTION REQUIRED: Please update your DNS records
+          Add an A record for {{ plane_subdomain }} pointing to {{ server_ip }}
+          Current DNS resolves to: {{ plane_resolved_ip if plane_resolved_ip else 'no IP' }}
+      when: plane_resolved_ip != server_ip
+
+    - name: Wait for Plane DNS propagation
+      command: "dig +short {{ plane_subdomain }} A"
+      register: plane_dns_check
+      until: plane_dns_check.stdout_lines[0] | default('') == server_ip
+      retries: 40
+      delay: 15
+      changed_when: false
+      delegate_to: localhost
+      become: false
+      when: plane_resolved_ip != server_ip
+  when: lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool
+
+# Add similar blocks for other apps

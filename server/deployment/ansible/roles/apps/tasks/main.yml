@@ -1,0 +1,8 @@
+---
+# Include Plane if enabled
+- name: Include Plane tasks
+  include_role:
+    name: "../../../../apps/project_management/plane/ansible/roles/plane"
+  when: lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool
+
+# include other apps here
