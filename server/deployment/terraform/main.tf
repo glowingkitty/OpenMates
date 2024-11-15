@@ -75,7 +75,7 @@ resource "null_resource" "ssh_setup" {
   }
 }
 
-# Run Ansible playbook with environment variables
+# Run Ansible playbook with Terraform variables
 resource "null_resource" "ansible_provisioner" {
   depends_on = [
     hcloud_server.app_servers,
@@ -87,21 +87,29 @@ resource "null_resource" "ansible_provisioner" {
     command = <<-EOT
       cd ../ansible && \
       ANSIBLE_HOST_KEY_CHECKING=False \
-      DOMAIN_NAME="${var.domain_name}" \
-      ADMIN_EMAIL="${var.admin_email}" \
-      NGINX_PORT="${var.nginx_port}" \
-      DEPLOY_ENV="${var.deploy_env}" \
       ansible-playbook \
         -i inventory/hosts.yml \
         --private-key=~/.ssh/hetzner_key_openmates \
+        --extra-vars "
+          domain_name='${var.domain_name}'
+          admin_email='${var.admin_email}'
+          nginx_port='${var.nginx_port}'
+          deploy_env='${var.deploy_env}'
+          app_project_management_plane_install_server='${var.app_project_management_plane_install_server}'
+        " \
         site.yml
     EOT
   }
 
   triggers = {
     # webapp_server_id = hcloud_server.app_servers["webapp"].id
-    apps_server_id = hcloud_server.app_servers["apps"].id
-    inventory_content = local_file.ansible_inventory.content
+    apps_server_id      = hcloud_server.app_servers["apps"].id
+    inventory_content   = local_file.ansible_inventory.content
+    domain_name         = var.domain_name
+    admin_email         = var.admin_email
+    nginx_port          = var.nginx_port
+    deploy_env          = var.deploy_env
+    install_plane_server = var.app_project_management_plane_install_server
   }
 }
 
@@ -111,34 +119,34 @@ resource "hcloud_firewall" "apps_firewall" {
 
   # SSH access
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "22"
-    source_ips = ["0.0.0.0/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "22"
+    source_ips  = ["0.0.0.0/0"]
   }
 
   # HTTP access
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "80"
-    source_ips = ["0.0.0.0/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "80"
+    source_ips  = ["0.0.0.0/0"]
   }
 
   # HTTPS access
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "443"
-    source_ips = ["0.0.0.0/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "443"
+    source_ips  = ["0.0.0.0/0"]
   }
 
   # Add additional ports as needed for other apps
   # rule {
-  #   direction = "in"
-  #   protocol  = "tcp"
-  #   port      = "other_port"
-  #   source_ips = ["0.0.0.0/0"]
+  #   direction   = "in"
+  #   protocol    = "tcp"
+  #   port        = "other_port"
+  #   source_ips  = ["0.0.0.0/0"]
   # }
 }
 
@@ -151,7 +159,7 @@ resource "hcloud_firewall_attachment" "apps_firewall" {
 # Output both server IPs
 output "server_ips" {
   value = {
-    # webapp = hcloud_server.app_servers["webapp"].ipv4_address
-    apps = hcloud_server.app_servers["apps"].ipv4_address
+    # webapp_ip = hcloud_server.app_servers["webapp"].ipv4_address
+    apps_ip = hcloud_server.app_servers["apps"].ipv4_address
   }
 }

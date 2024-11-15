@@ -9,12 +9,10 @@
 
 - name: Configure apps server
   hosts: apps
-  vars_files:
-    - "../../../.env"
   roles:
     - system
     - security
     - docker
     - dns_check
-    - { role: plane, when: "lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool" }
-    - { role: nginx, when: "lookup('env', 'APP_PROJECT_MANAGEMENT_PLANE_INSTALL_SERVER') | bool" }
+    - { role: plane, when: app_project_management_plane_install_server }
+    - { role: nginx, when: app_project_management_plane_install_server }

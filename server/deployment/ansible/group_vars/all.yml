@@ -2,12 +2,12 @@
 # group_vars/all.yml
 
 # General settings
-domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
-admin_email: "{{ lookup('env', 'ADMIN_EMAIL') }}"
+domain_name: "{{ domain_name }}"
+admin_email: "{{ admin_email }}"
 
 # Other settings
-nginx_port: "{{ lookup('env', 'NGINX_PORT') | default(8080, true) }}"
-env: "{{ lookup('env', 'DEPLOY_ENV') | default('development', true) }}"
+nginx_port: "{{ nginx_port | default(8080, true) }}"
+env: "{{ deploy_env | default('development', true) }}"
 
 # DNS check settings
 dns_check_retries: 40
@@ -22,3 +22,4 @@ applications:
 
 # Derived variables
 plane_web_url: "{{ applications.plane.subdomain }}"
+plane_install_dir: "/home/{{ ansible_user }}/apps/project-management/plane"
