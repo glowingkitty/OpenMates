@@ -1,9 +1,8 @@
 ---
 # General settings
-domain_name: "{{ lookup('env', 'PLANE_DOMAIN') }}"
+domain_name: "{{ plane_subdomain | default(lookup('env', 'PLANE_DOMAIN')) }}"
 admin_email: "{{ lookup('env', 'PLANE_ADMIN_EMAIL') }}"
 plane_install_dir: "/home/{{ ansible_user }}/{{ lookup('env', 'PLANE_INSTALL_DIR') }}"
 plane_web_url: "https://{{ domain_name }}"
 nginx_port: "{{ lookup('env', 'NGINX_PORT') | default(8080, true) }}"
-web_url: "https://{{ domain_name }}"
 env: "{{ lookup('env', 'DEPLOY_ENV') | default('development', true) }}"

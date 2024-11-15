@@ -16,9 +16,11 @@ provider "hcloud" {
 
 # Define SSH key to access the server
 resource "hcloud_ssh_key" "my_key" {
-  name       = "my_ssh_key"
+  name       = "openmates_server_ssh_key"
   public_key = file("~/.ssh/hetzner_key_openmates.pub")
 }
+
+# TODO: Make this also work if SSH key has been used before on server
 
 # Define the server on Hetzner
 resource "hcloud_server" "plane_server" {
@@ -84,6 +86,7 @@ resource "null_resource" "ansible_provisioner" {
       PLANE_INSTALL_DIR="${var.plane_install_dir}" \
       NGINX_PORT="${var.nginx_port}" \
       DEPLOY_ENV="${var.deploy_env}" \
+      PLANE_STANDALONE="${var.standalone}" \
       ansible-playbook \
         -i inventory/hosts.yml \
         --private-key=~/.ssh/hetzner_key_openmates \

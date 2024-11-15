@@ -4,9 +4,9 @@
   become: true
 
   roles:
-    - security
     - system
+    - security
     - docker
     - plane
     - dns_check
-    - nginx
+    - { role: nginx, when: "lookup('env', 'PLANE_STANDALONE') | bool" }

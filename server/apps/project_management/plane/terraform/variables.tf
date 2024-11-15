@@ -35,3 +35,9 @@ variable "deploy_env" {
   type        = string
   default     = "development"
 }
+
+variable "standalone" {
+  description = "Whether Plane is being deployed standalone or as part of apps server"
+  type        = bool
+  default     = true
+}
