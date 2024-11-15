@@ -54,13 +54,13 @@
     - name: Wait for DNS propagation
       command: "dig +short {{ item.item }} A"
       register: dns_check
-      until: (dns_check.stdout_lines | default([])) | first == server_ip
+      until: "(dns_check.stdout_lines | first) | default('') == server_ip"
       retries: "{{ dns_check_retries }}"
       delay: "{{ dns_check_delay }}"
       changed_when: false
       delegate_to: localhost
       become: false
-      when: ((item.stdout_lines | default([])) | first | default('')) != server_ip
+      when: "(item.stdout_lines | first) | default('') != server_ip"
       loop: "{{ subdomain_ip.results }}"
       loop_control:
         label: "{{ item.item }}"
