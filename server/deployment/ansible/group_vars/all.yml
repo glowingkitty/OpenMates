@@ -21,5 +21,5 @@ applications:
   # Add other applications here
 
 # Derived variables
-plane_web_url: "{{ applications.plane.subdomain }}"
+plane_web_url: "https://{{ applications.plane.subdomain }}"
 plane_install_dir: "/home/{{ ansible_user }}/apps/project-management/plane"
