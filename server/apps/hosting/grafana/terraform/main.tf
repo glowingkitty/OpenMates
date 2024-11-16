@@ -14,10 +14,9 @@ provider "hcloud" {
   token = var.hcloud_token
 }
 
-# Define SSH key to access the server
-resource "hcloud_ssh_key" "my_key" {
-  name       = "openmates_server_ssh_key"
-  public_key = file("~/.ssh/hetzner_key_openmates.pub")
+# Reference existing SSH key instead of creating a new one
+data "hcloud_ssh_key" "existing_key" {
+  name = "openmates-ssh-key"
 }
 
 # Define the server on Hetzner
@@ -26,7 +25,7 @@ resource "hcloud_server" "grafana_server" {
   image       = "ubuntu-20.04"
   server_type = "cax11"
   location    = "fsn1"
-  ssh_keys    = [hcloud_ssh_key.my_key.id]
+  ssh_keys    = [data.hcloud_ssh_key.existing_key.id]
 }
 
 # Generate Ansible inventory using the updated server IP variable

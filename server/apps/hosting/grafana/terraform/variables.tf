@@ -46,3 +46,9 @@ variable "app_hosting_grafana_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "app_hosting_grafana_install" {
+  description = "Whether to install Grafana"
+  type        = bool
+  default     = true
+}
