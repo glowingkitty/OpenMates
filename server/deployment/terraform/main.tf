@@ -20,6 +20,26 @@ resource "hcloud_ssh_key" "my_key" {
   public_key = file("~/.ssh/hetzner_key_openmates.pub")
 }
 
+# Hetzner Cloud ARM (Ampere) Server Types
+# +--------+-------+--------+---------+-----------+-------------+----------------+
+# | TYPE   | vCPUs | RAM    | SSD     | TRAFFIC   | PRICE/HOUR  | PRICE/MONTH   |
+# +--------+-------+--------+---------+-----------+-------------+----------------+
+# | CAX11  | 2     | 4 GB   | 40 GB   | 20 TB     | €0.005/h    | €3.29/mo      |
+# | CAX21  | 4     | 8 GB   | 80 GB   | 20 TB     | €0.010/h    | €5.99/mo      |
+# | CAX31  | 8     | 16 GB  | 160 GB  | 20 TB     | €0.019/h    | €11.99/mo     |
+# | CAX41  | 16    | 32 GB  | 320 GB  | 20 TB     | €0.038/h    | €23.99/mo     |
+# +--------+-------+--------+---------+-----------+-------------+----------------+
+#
+# Additional costs:
+# - IPv4: €0.0008/h per IP (approximately €0.60/month)
+# - Backups: +20% of server price
+#   * CAX11 backup cost: €0.001/h (€0.66/mo)
+#   * CAX21 backup cost: €0.002/h (€1.20/mo)
+#   * CAX31 backup cost: €0.0038/h (€2.40/mo)
+#   * CAX41 backup cost: €0.0076/h (€4.80/mo)
+# Total cost for CAX31 with IPv4 and backups:
+# €0.019/h (server) + €0.0008/h (IPv4) + €0.0038/h (backup) = €0.0236/h (approximately €14.99/month)
+
 # Define servers on Hetzner
 resource "hcloud_server" "app_servers" {
   # Create a map of servers with their configurations
@@ -32,7 +52,7 @@ resource "hcloud_server" "app_servers" {
     # Server for the Apps which can run locally and which OpenMates can control
     apps = {
       name = "apps-server"
-      type = "cax11"
+      type = "cax31"
     }
   }
 
@@ -41,6 +61,7 @@ resource "hcloud_server" "app_servers" {
   server_type = each.value.type
   location    = "fsn1"
   ssh_keys    = [hcloud_ssh_key.my_key.id]
+  backups     = true  # Enable automated backups
 }
 
 # Generate Ansible inventory for all servers
