@@ -116,7 +116,7 @@ resource "null_resource" "ansible_provisioner" {
           admin_email='${var.admin_email}'
           nginx_port='${var.nginx_port}'
           deploy_env='${var.deploy_env}'
-          app_project_management_plane_install_server='${var.app_project_management_plane_install_server}'
+          app_project_management_plane_install='${var.app_project_management_plane_install}'
         " \
         site.yml
     EOT
@@ -130,7 +130,7 @@ resource "null_resource" "ansible_provisioner" {
     admin_email         = var.admin_email
     nginx_port          = var.nginx_port
     deploy_env          = var.deploy_env
-    install_plane_server = var.app_project_management_plane_install_server
+    install_plane_server = var.app_project_management_plane_install
   }
 }
 

@@ -30,7 +30,7 @@ variable "deploy_env" {
 }
 
 # New variable to control installation of plane and nginx roles
-variable "app_project_management_plane_install_server" {
+variable "app_project_management_plane_install" {
   description = "Flag to determine if the Plane and Nginx roles should be installed"
   type        = bool
   default     = false

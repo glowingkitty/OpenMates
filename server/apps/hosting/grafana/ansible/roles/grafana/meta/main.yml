@@ -1,0 +1,4 @@
+---
+# This file defines the metadata for the Grafana role, including its dependencies.
+dependencies:
+  - role: docker  # Ensures Docker is installed before deploying Grafana

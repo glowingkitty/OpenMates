@@ -1,0 +1,21 @@
+---
+# Docker Compose configuration for Grafana
+
+version: '3.8'
+
+services:
+  grafana:
+    image: grafana/grafana:latest  # Uses the latest Grafana image
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "{{ grafana_port }}:3000"  # Maps host port to Grafana's default port
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD={{ app_hosting_grafana_admin_password }}  # Sets admin password
+      - GF_AUTH_ANONYMOUS_ENABLED=false  # Disables anonymous access for security
+    volumes:
+      - grafana_data:/var/lib/grafana  # Persists Grafana data
+
+volumes:
+  grafana_data:
+    driver: local

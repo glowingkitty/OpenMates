@@ -3,13 +3,13 @@
 terraform {
   required_providers {
     hcloud = {
-      source = "hetznercloud/hcloud"
+      source  = "hetznercloud/hcloud"
       version = "~> 1.45.0"
     }
   }
 }
 
-# Define the Hetzner provider
+# Define the Hetzner provider with the updated API token variable
 provider "hcloud" {
   token = var.hcloud_token
 }
@@ -21,40 +21,40 @@ resource "hcloud_ssh_key" "my_key" {
 }
 
 # Define the server on Hetzner
-resource "hcloud_server" "plane_server" {
-  name        = "plane-server"
+resource "hcloud_server" "grafana_server" {
+  name        = "grafana-server"
   image       = "ubuntu-20.04"
   server_type = "cax11"
   location    = "fsn1"
   ssh_keys    = [hcloud_ssh_key.my_key.id]
 }
 
-# Generate Ansible inventory
+# Generate Ansible inventory using the updated server IP variable
 resource "local_file" "ansible_inventory" {
-  content = templatefile("${path.module}/templates/inventory.tpl", {
-    server_ip = hcloud_server.plane_server.ipv4_address
+  content  = templatefile("${path.module}/templates/inventory.tpl", {
+    server_ip = hcloud_server.grafana_server.ipv4_address
   })
   filename = "${path.module}/../ansible/inventory/hosts.yml"
 }
 
 # Fetch server information including SSH host key
-data "hcloud_server" "plane_server_info" {
-  depends_on = [hcloud_server.plane_server]
-  id         = hcloud_server.plane_server.id
+data "hcloud_server" "grafana_server_info" {
+  depends_on = [hcloud_server.grafana_server]
+  id         = hcloud_server.grafana_server.id
 }
 
 # Add server's host key to known_hosts and ensure SSH is accessible
 resource "null_resource" "ssh_setup" {
-  depends_on = [hcloud_server.plane_server]
+  depends_on = [hcloud_server.grafana_server]
 
   provisioner "local-exec" {
     command = <<-EOT
       mkdir -p ~/.ssh
       for i in {1..30}; do
-        if ssh-keyscan -H ${hcloud_server.plane_server.ipv4_address} >> ~/.ssh/known_hosts 2>/dev/null; then
+        if ssh-keyscan -H ${hcloud_server.grafana_server.ipv4_address} >> ~/.ssh/known_hosts 2>/dev/null; then
           echo "Successfully added host key"
           # Test SSH connection
-          if ssh -o ConnectTimeout=5 -i ~/.ssh/hetzner_key_openmates root@${hcloud_server.plane_server.ipv4_address} 'echo "SSH connection successful"'; then
+          if ssh -o ConnectTimeout=5 -i ~/.ssh/hetzner_key_openmates root@${hcloud_server.grafana_server.ipv4_address} 'echo "SSH connection successful"'; then
             exit 0
           fi
         fi
@@ -70,7 +70,7 @@ resource "null_resource" "ssh_setup" {
 # Run Ansible playbook after server creation and SSH setup
 resource "null_resource" "ansible_provisioner" {
   depends_on = [
-    hcloud_server.plane_server,
+    hcloud_server.grafana_server,
     local_file.ansible_inventory,
     null_resource.ssh_setup
   ]
@@ -79,27 +79,30 @@ resource "null_resource" "ansible_provisioner" {
     command = <<-EOT
       cd ../ansible && \
       ANSIBLE_HOST_KEY_CHECKING=False \
-      PLANE_DOMAIN="${var.domain_name}" \
-      PLANE_ADMIN_EMAIL="${var.admin_email}" \
-      PLANE_INSTALL_DIR="${var.plane_install_dir}" \
-      NGINX_PORT="${var.nginx_port}" \
-      DEPLOY_ENV="${var.deploy_env}" \
-      PLANE_STANDALONE="${var.standalone}" \
       ansible-playbook \
         -i inventory/hosts.yml \
         --private-key=~/.ssh/hetzner_key_openmates \
+        --extra-vars "
+          domain_name='${var.domain_name}'
+          admin_email='${var.admin_email}'
+          nginx_port='${var.nginx_port}'
+          deploy_env='${var.deploy_env}'
+          app_hosting_grafana_install='${var.app_hosting_grafana_install}'
+          app_hosting_grafana_admin_password='${var.app_hosting_grafana_admin_password}'
+        " \
         site.yml
     EOT
   }
 
   # Modified triggers to avoid file hash calculation before file exists
   triggers = {
-    server_id = hcloud_server.plane_server.id
+    server_id         = hcloud_server.grafana_server.id
     # Using the content of the inventory file instead of its hash
     inventory_content = local_file.ansible_inventory.content
   }
 }
 
+# Output the server IP address for reference
 output "server_ip" {
-  value = hcloud_server.plane_server.ipv4_address
+  value = hcloud_server.grafana_server.ipv4_address
 }

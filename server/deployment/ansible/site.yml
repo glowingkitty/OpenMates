@@ -14,5 +14,5 @@
     - security
     - docker
     - dns_check
-    - { role: plane, when: app_project_management_plane_install_server }
-    - { role: nginx, when: app_project_management_plane_install_server }
+    - { role: plane, when: app_project_management_plane_install }
+    - { role: nginx, when: app_project_management_plane_install }

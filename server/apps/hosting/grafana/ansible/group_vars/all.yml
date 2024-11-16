@@ -1,0 +1,13 @@
+---
+# General settings
+
+domain_name: "{{ domain_name }}"
+admin_email: "{{ admin_email }}"
+grafana_install_dir: "/home/{{ ansible_user }}/apps/hosting/grafana"
+grafana_web_url: "{{ grafana_web_url | default('https://localhost') }}"
+nginx_port: "{{ nginx_port | default(8080, true) }}"
+env: "{{ deploy_env | default('development', true) }}"
+
+# Grafana specific settings
+grafana_port: 3000  # Port on which Grafana will be accessible
+app_hosting_grafana_admin_password: "{{ app_hosting_grafana_admin_password }}"  # Admin password for Grafana

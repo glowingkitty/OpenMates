@@ -1,0 +1,14 @@
+---
+# Main Ansible playbook for deploying services on the server
+
+- name: Deploy Services
+  hosts: grafana_server
+  become: true
+
+  roles:
+    - system
+    - security
+    - docker
+    - grafana
+    - dns_check
+    - { role: nginx, when: "lookup('env', 'GRAFANA_STANDALONE') | bool" }
