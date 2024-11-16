@@ -44,7 +44,7 @@
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
   loop:
-    - { key: "NGINX_PORT", value: "{{ nginx_port }}" }
+    - { key: "NGINX_PORT", value: "{{ applications.plane.port }}" }
     - { key: "WEB_URL", value: "{{ plane_web_url }}" }
     - { key: "CORS_ALLOWED_ORIGINS", value: "{{ plane_web_url }}" }
 

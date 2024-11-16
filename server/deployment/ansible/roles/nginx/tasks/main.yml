@@ -81,10 +81,12 @@
     dest: "/etc/nginx/sites-available/{{ item.key }}.conf"
     mode: '0644'
   loop: "{{ applications | dict2items }}"
+  loop_control:
+    index_var: index
   vars:
     app_subdomain: "{{ item.value.subdomain }}"
     app_port: "{{ item.value.port }}"
-  when: ssl_cert.results[ansible_loop.index0].stat.exists
+  when: ssl_cert.results[index].stat.exists
 
 # Final Nginx restart with SSL
 - name: Test and restart Nginx with HTTPS configuration
@@ -108,3 +110,32 @@
     minute: "0"
     hour: "3"
     weekday: "1"
+
+# Debug Nginx configuration
+- name: Debug Nginx configuration
+  debug:
+    msg:
+      - "Application: {{ item.key }}"
+      - "Subdomain: {{ app_subdomain }}"
+      - "Port: {{ app_port }}"
+      - "Configuration file: /etc/nginx/sites-available/{{ item.key }}.conf"
+  loop: "{{ applications | dict2items }}"
+  vars:
+    app_subdomain: "{{ item.value.subdomain }}"
+    app_port: "{{ item.value.port }}"
+
+# Verify backend service is running
+- name: Verify backend service is running
+  wait_for:
+    host: localhost
+    port: "{{ item.value.port }}"
+    timeout: 30
+  loop: "{{ applications | dict2items }}"
+  register: service_check
+  ignore_errors: true
+
+# Display backend service status
+- name: Display backend service status
+  debug:
+    msg: "Service {{ item.item.key }} status: {{ 'running' if item.state is defined else 'not running' }}"
+  loop: "{{ service_check.results }}"

@@ -6,7 +6,6 @@ domain_name: "{{ domain_name }}"
 admin_email: "{{ admin_email }}"
 
 # Other settings
-nginx_port: "{{ nginx_port | default(8080, true) }}"
 env: "{{ deploy_env | default('development', true) }}"
 
 # DNS check settings
