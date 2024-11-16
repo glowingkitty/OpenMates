@@ -11,17 +11,17 @@
     state: present
     update_cache: yes
 
-# Setup main Nginx configuration with rate limiting in http context
+# Setup main Nginx configuration
 - name: Setup main Nginx configuration
   template:
     src: nginx_main.conf.j2
     dest: /etc/nginx/nginx.conf
     mode: '0644'
 
-# Setup Nginx server blocks for each application
-- name: Setup Nginx server blocks for applications
+# First create basic HTTP configurations
+- name: Setup initial HTTP Nginx configurations
   template:
-    src: app.conf.j2
+    src: nginx_initial.conf.j2
     dest: "/etc/nginx/sites-available/{{ item.key }}.conf"
     mode: '0644'
   loop: "{{ applications | dict2items }}"
@@ -29,7 +29,7 @@
     app_subdomain: "{{ item.value.subdomain }}"
     app_port: "{{ item.value.port }}"
 
-# Enable application configurations
+# Enable configurations and restart
 - name: Enable application configurations
   file:
     src: "/etc/nginx/sites-available/{{ item.key }}.conf"
@@ -37,13 +37,26 @@
     state: link
   loop: "{{ applications | dict2items }}"
 
-# Remove default nginx site
 - name: Remove default nginx site
   file:
     path: /etc/nginx/sites-enabled/default
     state: absent
 
-# Generate SSL certificates for all enabled applications
+# Initial Nginx restart
+- name: Test and restart Nginx with HTTP configuration
+  block:
+    - name: Test Nginx configuration
+      command: nginx -t
+      changed_when: false
+      register: nginx_test
+
+    - name: Restart Nginx if configuration is valid
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_test.rc == 0
+
+# Now handle SSL certificates
 - name: Generate SSL certificates for applications
   shell: |
     certbot certonly --nginx --{{ env if env == 'production' else 'staging' }} --non-interactive --agree-tos \
@@ -54,18 +67,38 @@
   loop: "{{ applications | dict2items }}"
   when: item.value.subdomain is defined
 
-# Test Nginx configuration
-- name: Test Nginx configuration
-  command: nginx -t
-  changed_when: false
-  register: nginx_test
+# Verify SSL certificates exist
+- name: Verify SSL certificates exist
+  stat:
+    path: "/etc/letsencrypt/live/{{ item.value.subdomain }}/fullchain.pem"
+  register: ssl_cert
+  loop: "{{ applications | dict2items }}"
 
-# Restart Nginx if configuration is valid
-- name: Restart Nginx if configuration is valid
-  service:
-    name: nginx
-    state: restarted
-  when: nginx_test.rc == 0
+# Finally, update to HTTPS configurations
+- name: Setup final HTTPS Nginx configurations
+  template:
+    src: app.conf.j2
+    dest: "/etc/nginx/sites-available/{{ item.key }}.conf"
+    mode: '0644'
+  loop: "{{ applications | dict2items }}"
+  vars:
+    app_subdomain: "{{ item.value.subdomain }}"
+    app_port: "{{ item.value.port }}"
+  when: ssl_cert.results[ansible_loop.index0].stat.exists
+
+# Final Nginx restart with SSL
+- name: Test and restart Nginx with HTTPS configuration
+  block:
+    - name: Test final Nginx configuration
+      command: nginx -t
+      changed_when: false
+      register: final_nginx_test
+
+    - name: Restart Nginx with HTTPS configuration
+      service:
+        name: nginx
+        state: restarted
+      when: final_nginx_test.rc == 0
 
 # Enable automatic renewal for SSL certificates
 - name: Enable automatic certificate renewal
