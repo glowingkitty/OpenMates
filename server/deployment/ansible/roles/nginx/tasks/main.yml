@@ -59,7 +59,7 @@
 # Now handle SSL certificates
 - name: Generate SSL certificates for applications
   shell: |
-    certbot certonly --nginx --{{ env if env == 'production' else 'staging' }} --non-interactive --agree-tos \
+    certbot certonly --nginx {% if env == 'production' %}{% else %}--test-cert{% endif %} --non-interactive --agree-tos \
     --email {{ admin_email }} \
     -d {{ item.value.subdomain }}
   args:
