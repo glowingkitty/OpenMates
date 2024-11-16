@@ -88,6 +88,10 @@ resource "null_resource" "ansible_provisioner" {
           deploy_env='${var.deploy_env}'
           app_hosting_grafana_install='${var.app_hosting_grafana_install}'
           app_hosting_grafana_admin_password='${var.app_hosting_grafana_admin_password}'
+          app_hosting_grafana_admin_user='${var.app_hosting_grafana_admin_user}'
+          app_hosting_grafana_allow_signup='${var.app_hosting_grafana_allow_signup}'
+          app_hosting_grafana_default_role='${var.app_hosting_grafana_default_role}'
+          app_hosting_grafana_basic_auth='${var.app_hosting_grafana_basic_auth}'
         " \
         site.yml
     EOT

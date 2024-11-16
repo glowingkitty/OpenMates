@@ -24,7 +24,15 @@
       - docker-ce-cli
       - containerd.io
       - docker-compose-plugin
+      - python3-pip
     update_cache: yes
+    state: present
+
+- name: Install Python Docker SDK
+  pip:
+    name:
+      - docker>=5.0.0
+      - docker-compose
     state: present
 
 - name: Ensure Docker service is running

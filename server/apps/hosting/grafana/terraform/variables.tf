@@ -52,3 +52,23 @@ variable "app_hosting_grafana_install" {
   type        = bool
   default     = true
 }
+
+variable "app_hosting_grafana_admin_user" {
+  description = "Admin user for Grafana"
+  type        = string
+}
+
+variable "app_hosting_grafana_allow_signup" {
+  description = "Allow signup for Grafana"
+  type        = bool
+}
+
+variable "app_hosting_grafana_default_role" {
+  description = "Default role for Grafana"
+  type        = string
+}
+
+variable "app_hosting_grafana_basic_auth" {
+  description = "Basic auth for Grafana"
+  type        = bool
+}

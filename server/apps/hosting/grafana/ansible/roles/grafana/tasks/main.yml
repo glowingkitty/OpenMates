@@ -8,8 +8,15 @@
     mode: '0755'
   tags: create_directory
 
+- name: Template docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ grafana_install_dir }}/grafana/docker-compose.yml"
+    mode: '0644'
+  tags: template_compose
+
 - name: Deploy Grafana using Docker Compose
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ grafana_install_dir }}/grafana"
     files:
       - docker-compose.yml
@@ -17,7 +24,7 @@
   tags: deploy_grafana
 
 - name: Ensure Grafana service is started
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ grafana_install_dir }}/grafana"
-    state: started
+    state: present
   tags: start_grafana
