@@ -1,13 +1,17 @@
 ---
 - name: Get server's public IP
   set_fact:
-    server_ip: "{{ ansible_host }}"
+    server_ip: "{{ ansible_default_ipv4.address }}"
+
+- name: Debug server_ip
+  debug:
+    msg: "Server IP is set to: {{ server_ip }}"
 
 - name: Get domain IP from DNS
   command: "dig +short {{ domain_name }} A"
   register: domain_ip
   changed_when: false
-  delegate_to: localhost
+  delegate_to: "{{ inventory_hostname }}"
   become: false
 
 - name: Extract IP from dig output
@@ -32,9 +36,15 @@
       command: "dig +short {{ domain_name }} A"
       register: dns_check
       until: dns_check.stdout_lines[0] | default('') == server_ip
-      retries: 40  # Will retry for about 10 minutes
-      delay: 15    # 15 seconds between retries
+      retries: "{{ dns_check_retries | default(40) }}"
+      delay: "{{ dns_check_delay | default(15) }}"
       changed_when: false
-      delegate_to: localhost
+      delegate_to: "{{ inventory_hostname }}"
       become: false
   when: resolved_ip != server_ip
+
+- name: Set default DNS check retries and delay
+  set_fact:
+    dns_check_retries: 40
+    dns_check_delay: 15
+  when: dns_check_retries is not defined or dns_check_delay is not defined

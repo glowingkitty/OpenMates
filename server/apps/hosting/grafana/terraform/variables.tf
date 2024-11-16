@@ -44,7 +44,7 @@ variable "standalone" {
 variable "app_hosting_grafana_admin_password" {
   description = "Admin password for Grafana"
   type        = string
-  sensitive   = true
+  # sensitive   = true
 }
 
 variable "app_hosting_grafana_install" {
