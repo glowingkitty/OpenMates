@@ -20,7 +20,7 @@ name: 'Audio'
 slug: 'audio'
 description: |
   Generate, modify and transcribe audio and more.
-icon: /images/icons/apps/audio.svg
+icon: ./images/icons/apps/audio.svg
 allowed: ${APP_AUDIO_ALLOWED}
 providers:
   assemblyai:
@@ -28,7 +28,7 @@ providers:
     slug: 'assemblyai'
     description: |
       AssemblyAI offers powerful AI transcription and speech-to-text services.
-    icon: /images/icons/providers/assemblyai.svg
+    icon: ./images/icons/providers/assemblyai.svg
     allowed: ${APP_AUDIO_PROVIDER_ASSEMBLYAI_ALLOWED}
     api_key: ${APP_AUDIO_PROVIDER_ASSEMBLYAI_API_KEY}
   openai:
@@ -36,7 +36,7 @@ providers:
     slug: 'openai'
     description: |
       OpenAI offers powerful AI transcription and speech-to-text services.
-    icon: /images/icons/providers/openai.svg
+    icon: ./images/icons/providers/openai.svg
     allowed: ${APP_AUDIO_PROVIDER_OPENAI_ALLOWED}
     api_key: ${APP_AUDIO_PROVIDER_OPENAI_API_KEY}
   elevenlabs:
@@ -44,7 +44,7 @@ providers:
     slug: 'elevenlabs'
     description: |
       ElevenLabs offers powerful AI text-to-speech services.
-    icon: /images/icons/providers/elevenlabs.svg
+    icon: ./images/icons/providers/elevenlabs.svg
     allowed: ${APP_AUDIO_PROVIDER_ELEVENLABS_ALLOWED}
     api_key: ${APP_AUDIO_PROVIDER_ELEVENLABS_API_KEY}
 skills:
@@ -53,7 +53,7 @@ skills:
     slug: 'generate_speech'
     description: |
       Transform text into spoken audio.
-    icon: /images/icons/skills/generate_speech.svg
+    icon: ./images/icons/skills/generate_speech.svg
     allowed: ${APP_AUDIO_SKILL_GENERATE_SPEECH_ALLOWED}
     default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_SPEECH_DEFAULT_PROVIDER_SLUG}
   generate_transcript:
@@ -61,7 +61,7 @@ skills:
     slug: 'generate_transcript'
     description: |
       Transform spoken audio to text.
-    icon: /images/icons/skills/generate_transcript.svg
+    icon: ./images/icons/skills/generate_transcript.svg
     allowed: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPT_ALLOWED}
     default_provider_slug: ${APP_AUDIO_SKILL_GENERATE_TRANSCRIPT_DEFAULT_PROVIDER_SLUG}
 # focuses:

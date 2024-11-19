@@ -20,7 +20,7 @@ name: 'Docs'
 slug: 'docs'
 description: |
   Create documents for everything from contracts to CVs and more.
-icon: /images/icons/apps/docs.svg
+icon: ./images/icons/apps/docs.svg
 allowed: ${APP_DOCS_ALLOWED}
 providers:
   google_docs:
@@ -28,7 +28,7 @@ providers:
     slug: 'google_docs'
     description: |
       Google Docs is a free web-based word processor.
-    icon: /images/icons/providers/google_docs.svg
+    icon: ./images/icons/providers/google_docs.svg
     allowed: ${APP_DOCS_PROVIDER_GOOGLE_DOCS_ALLOWED}
 skills:
   create:
@@ -37,7 +37,7 @@ skills:
     description: |
       Create a new document.
       Including paragraphs, images, tables and more.
-    icon: /images/icons/skills/create.svg
+    icon: ./images/icons/skills/create.svg
     allowed: ${APP_DOCS_SKILL_CREATE_DOCUMENT_ALLOWED}
     default_provider_slug: ${APP_DOCS_SKILL_CREATE_DOCUMENT_DEFAULT_PROVIDER_SLUG}
 # focuses:

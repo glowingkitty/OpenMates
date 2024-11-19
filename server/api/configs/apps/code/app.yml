@@ -19,7 +19,7 @@
 name: 'Code'
 slug: 'code'
 description: 'Write, test, improve and execute code.'
-icon: /images/icons/apps/code.svg
+icon: ./images/icons/apps/code.svg
 allowed: ${APP_CODE_ALLOWED}
 # providers:
 # skills:
@@ -30,6 +30,6 @@ focuses:
     description: |
       Asks you multiple rounds of questions,
       to make a clear plan with your coding requirements.
-    icon: /images/icons/focuses/plan.svg
+    icon: ./images/icons/focuses/plan.svg
     allowed: ${APP_CODE_FOCUS_PLAN_ALLOWED}
-    prompt: /api/configs/apps/code/prompts/plan.md
+    prompt: ./api/configs/apps/code/prompts/plan.md

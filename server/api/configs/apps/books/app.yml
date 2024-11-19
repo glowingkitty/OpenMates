@@ -19,7 +19,7 @@
 name: 'Books'
 slug: 'books'
 description: 'Manage your ebooks, translate them and more.'
-icon: /images/icons/apps/books.svg
+icon: ./images/icons/apps/books.svg
 allowed: ${APP_BOOKS_ALLOWED}
 # providers:
 skills:
@@ -28,7 +28,7 @@ skills:
     slug: 'translate'
     description: |
       Translate a book that was written by you to another language.
-    icon: /images/icons/skills/translate_ai.svg
+    icon: ./images/icons/skills/translate_ai.svg
     allowed: ${APP_BOOKS_SKILL_TRANSLATE_ALLOWED}
     default_provider_slug: ${APP_BOOKS_SKILL_TRANSLATE_DEFAULT_PROVIDER_SLUG}
 # focuses:

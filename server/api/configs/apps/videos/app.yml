@@ -20,7 +20,7 @@ name: 'Videos'
 slug: 'videos'
 description: |
   Create and generate videos, search for videos, get their transcript and more.
-icon: /images/icons/apps/videos.svg
+icon: ./images/icons/apps/videos.svg
 allowed: ${APP_VIDEOS_ALLOWED}
 providers:
   youtube:
@@ -28,21 +28,21 @@ providers:
     slug: 'youtube'
     description: |
       YouTube is a video-sharing platform that allows users to upload, view, and share videos.
-    icon: /images/icons/providers/youtube.svg
+    icon: ./images/icons/providers/youtube.svg
     allowed: ${APP_VIDEOS_PROVIDER_YOUTUBE_ALLOWED}
   lumalabs:
     name: 'LumaLabs'
     slug: 'lumalabs'
     description: |
       LumaLabs is an AI company with video generation models.
-    icon: /images/icons/providers/lumalabs.svg
+    icon: ./images/icons/providers/lumalabs.svg
     allowed: ${APP_VIDEOS_PROVIDER_LUMALABS_ALLOWED}
   assemblyai:
     name: 'AssemblyAI'
     slug: 'assemblyai'
     description: |
       AssemblyAI is a platform that provides various AI powered services, like transcription.
-    icon: /images/icons/providers/assemblyai.svg
+    icon: ./images/icons/providers/assemblyai.svg
     allowed: ${APP_VIDEOS_PROVIDER_ASSEMBLYAI_ALLOWED}
 skills:
   get_transcript:
@@ -52,6 +52,6 @@ skills:
       Get the full transcript of a video.
       Either an available transcript from YouTube,
       or create a high quality transcript from scratch.
-    icon: /images/icons/skills/transcript.svg
+    icon: ./images/icons/skills/transcript.svg
     allowed: ${APP_VIDEOS_SKILL_GET_TRANSCRIPT_ALLOWED}
 # focuses:

@@ -20,7 +20,7 @@ name: 'Photos'
 slug: 'photos'
 description: |
   Generate images, modify and resize them and more.
-icon: /images/icons/apps/photos.svg
+icon: ./images/icons/apps/photos.svg
 allowed: ${APP_PHOTOS_ALLOWED}
 providers:
   black_forest_labs:
@@ -28,7 +28,7 @@ providers:
     slug: 'black_forest_labs'
     description: |
       Black Forest Labs is an AI company that models for image and video generation - some of them open source.
-    icon: /images/icons/providers/black_forest_labs.svg
+    icon: ./images/icons/providers/black_forest_labs.svg
     allowed: ${APP_FINANCE_PROVIDER_AKAUNTING_ALLOWED}
 skills:
   generate:
@@ -36,7 +36,7 @@ skills:
     slug: 'generate'
     description: |
       Generate an image using AI.
-    icon: /images/icons/skills/generate_image_ai.svg
+    icon: ./images/icons/skills/generate_image_ai.svg
     allowed: ${APP_PHOTOS_SKILL_GENERATE_ALLOWED}
     default_provider_slug: ${APP_PHOTOS_SKILL_GENERATE_DEFAULT_PROVIDER_SLUG}
   resize:
@@ -45,6 +45,6 @@ skills:
     description: |
       Scale or crop an existing image to a higher or lower resolution.
       Can also use AI upscaling for even better results.
-    icon: /images/icons/skills/resize.svg
+    icon: ./images/icons/skills/resize.svg
     allowed: ${APP_PHOTOS_SKILL_RESIZE_ALLOWED}
 # focuses:

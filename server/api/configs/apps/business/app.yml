@@ -19,7 +19,7 @@
 name: 'Business'
 slug: 'business'
 description: 'Manage your businesses, get recommendations and more.'
-icon: /images/icons/apps/business.svg
+icon: ./images/icons/apps/business.svg
 allowed: ${APP_BUSINESS_ALLOWED}
 # providers:
 # skills:
@@ -31,9 +31,9 @@ focuses:
       Asks you multiple rounds of questions, and based on the answers
       it creates a pitch to help you communicate your idea or project,
       making it compelling and exciting to potential stakeholders.
-    icon: /images/icons/focuses/create.svg
+    icon: ./images/icons/focuses/create.svg
     allowed: ${APP_BUSINESS_FOCUS_CREATE_PITCH_ALLOWED}
-    prompt: /api/configs/apps/business/prompts/create_pitch.md
+    prompt: ./api/configs/apps/business/prompts/create_pitch.md
   plan_application:
     name: 'Plan application'
     slug: 'plan_application'
@@ -41,15 +41,15 @@ focuses:
       Based on website URLs, documents, and requirement details,
       you will be asked multiple questions and receive detailed requirements
       and recommendations for writing the application.
-    icon: /images/icons/focuses/plan.svg
+    icon: ./images/icons/focuses/plan.svg
     allowed: ${APP_BUSINESS_FOCUS_PLAN_APPLICATION_ALLOWED}
-    prompt: /api/configs/apps/business/prompts/plan_application.md
+    prompt: ./api/configs/apps/business/prompts/plan_application.md
   create_application:
     name: 'Create application'
     slug: 'create_application'
     description: |
       Write an application based on detailed requirements and recommendations.
       For example, a funding application.
-    icon: /images/icons/focuses/create.svg
+    icon: ./images/icons/focuses/create.svg
     allowed: ${APP_BUSINESS_FOCUS_CREATE_APPLICATION_ALLOWED}
-    prompt: /api/configs/apps/business/prompts/create_application.md
+    prompt: ./api/configs/apps/business/prompts/create_application.md

@@ -20,7 +20,7 @@ name: 'Health'
 slug: 'health'
 description: |
   Everything to improve your health and well being.
-icon: /images/icons/apps/health.svg
+icon: ./images/icons/apps/health.svg
 allowed: ${APP_HEALTH_ALLOWED}
 providers:
   doctolib:
@@ -28,7 +28,7 @@ providers:
     slug: 'doctolib'
     description: |
       Doctolib is a platform for finding doctors and booking appointments.
-    icon: /images/icons/providers/doctolib.svg
+    icon: ./images/icons/providers/doctolib.svg
     allowed: ${APP_HEALTH_PROVIDER_DOCTOLIB_ALLOWED}
 skills:
   search_doctors:
@@ -36,13 +36,13 @@ skills:
     slug: 'search_doctors'
     description: |
       Searches for doctors based on your requirements.
-    icon: /images/icons/skills/search.svg
+    icon: ./images/icons/skills/search.svg
     allowed: ${APP_HEALTH_SKILL_SEARCH_DOCTORS_ALLOWED}
   search_appointments:
     name: 'Search appointments'
     slug: 'search_appointments'
     description: |
       Searches for available appointments based on your requirements.
-    icon: /images/icons/skills/search.svg
+    icon: ./images/icons/skills/search.svg
     allowed: ${APP_HEALTH_SKILL_SEARCH_APPOINTMENTS_ALLOWED}
 # focuses:

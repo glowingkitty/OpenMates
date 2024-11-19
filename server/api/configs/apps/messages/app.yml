@@ -20,14 +20,14 @@
 name: 'Messages'
 slug: 'messages'
 description: 'Send messages, create threads and more.'
-icon: /images/icons/apps/messages.svg
+icon: ./images/icons/apps/messages.svg
 allowed: ${APP_MESSAGES_ALLOWED}
 providers:
   discord:
     name: 'Discord'
     slug: 'discord'
     description: 'Discord is a communication platform that runs in the web browser.'
-    icon: /images/icons/providers/discord.svg
+    icon: ./images/icons/providers/discord.svg
     allowed: ${APP_MESSAGES_PROVIDER_DISCORD_ALLOWED}
     bots:
       burton:
@@ -86,7 +86,7 @@ providers:
     name: 'Slack'
     slug: 'slack'
     description: 'Slack is a communication platform that runs in the web browser.'
-    icon: /images/icons/providers/slack.svg
+    icon: ./images/icons/providers/slack.svg
     allowed: ${APP_MESSAGES_PROVIDER_SLACK_ALLOWED}
     bots:
       sophia:
@@ -118,12 +118,12 @@ skills:
     name: 'Send'
     slug: 'send'
     description: 'Send a new message to a channel or thread.'
-    icon: /images/icons/skills/create.svg
+    icon: ./images/icons/skills/create.svg
     allowed: ${APP_MESSAGES_SKILL_SEND_ALLOWED}
   connect:
     name: 'Connect'
     slug: 'connect'
     description: 'Connect a third party messenger. Allows you to chat with your AI team mates in that messenger.'
-    icon: /images/icons/skills/connect.svg
+    icon: ./images/icons/skills/connect.svg
     allowed: ${APP_MESSAGES_SKILL_CONNECT_ALLOWED}
 # focuses:

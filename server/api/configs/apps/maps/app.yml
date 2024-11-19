@@ -20,7 +20,7 @@ name: 'Maps'
 slug: 'maps'
 description: |
   Find restaurants, bars and so much more - nearby and around the world.
-icon: /images/icons/apps/maps.svg
+icon: ./images/icons/apps/maps.svg
 allowed: ${APP_MAPS_ALLOWED}
 providers:
   google_maps:
@@ -28,7 +28,7 @@ providers:
     slug: 'google_maps'
     description: |
       Google Maps is a platform for finding places and their ratings, opening hours, and more.
-    icon: /images/icons/providers/google_maps.svg
+    icon: ./images/icons/providers/google_maps.svg
     allowed: ${APP_MAPS_PROVIDER_GOOGLE_MAPS_ALLOWED}
 skills:
   search:
@@ -36,6 +36,6 @@ skills:
     slug: 'search'
     description: |
       Search for places.
-    icon: /images/icons/skills/search.svg
+    icon: ./images/icons/skills/search.svg
     allowed: ${APP_MAPS_SKILL_SEARCH_ALLOWED}
 # focuses:

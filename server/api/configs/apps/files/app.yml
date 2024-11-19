@@ -20,7 +20,7 @@ name: 'Files'
 slug: 'files'
 description: |
   Manage your files, regardless of where they are.
-icon: /images/icons/apps/files.svg
+icon: ./images/icons/apps/files.svg
 allowed: ${APP_FILES_ALLOWED}
 providers:
   dropbox:
@@ -28,7 +28,7 @@ providers:
     slug: 'dropbox'
     description: |
       Dropbox is a file hosting service that provides cloud storage, file synchronization, client software, and personal cloud.
-    icon: /images/icons/providers/dropbox.svg
+    icon: ./images/icons/providers/dropbox.svg
     allowed: ${APP_FILES_PROVIDER_DROPBOX_ALLOWED}
     api_url: ${APP_FILES_PROVIDER_DROPBOX_API_URL}
   openmates:
@@ -36,7 +36,7 @@ providers:
     slug: 'openmates'
     description: |
       Alternatively to typical cloud storage options, you can also upload files temporarily to OpenMates.
-    icon: /images/icons/providers/openmates.svg
+    icon: ./images/icons/providers/openmates.svg
     allowed: ${APP_FILES_PROVIDER_OPENMATES_ALLOWED}
     api_url: ${APP_FILES_PROVIDER_OPENMATES_API_URL}
 skills:
@@ -46,7 +46,7 @@ skills:
     description: |
       Upload a file or folder to the OpenMates server
       or to a cloud storage account.
-    icon: /images/icons/skills/upload.svg
+    icon: ./images/icons/skills/upload.svg
     allowed: ${APP_FILES_SKILL_UPLOAD_ALLOWED}
     default_provider_slug: ${APP_FILES_SKILL_UPLOAD_DEFAULT_PROVIDER_SLUG}
   download:
@@ -55,7 +55,7 @@ skills:
     description: |
       Download a file or folder from the OpenMates server
       or from a cloud storage account.
-    icon: /images/icons/skills/download.svg
+    icon: ./images/icons/skills/download.svg
     allowed: ${APP_FILES_SKILL_DOWNLOAD_ALLOWED}
     default_provider_slug: ${APP_FILES_SKILL_DOWNLOAD_DEFAULT_PROVIDER_SLUG}
   delete:
@@ -64,7 +64,7 @@ skills:
     description: |
       Delete a file or folder from the OpenMates server
       or from a cloud storage account.
-    icon: /images/icons/skills/delete.svg
+    icon: ./images/icons/skills/delete.svg
     allowed: ${APP_FILES_SKILL_DELETE_ALLOWED}
     default_provider_slug: ${APP_FILES_SKILL_DELETE_DEFAULT_PROVIDER_SLUG}
 # focuses:

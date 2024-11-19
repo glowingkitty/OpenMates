@@ -19,7 +19,7 @@
 name: 'Web'
 slug: 'web'
 description: 'Browse the web, research topics and more.'
-icon: /images/icons/apps/web.svg
+icon: ./images/icons/apps/web.svg
 allowed: ${APP_WEB_ALLOWED}
 settings:
   secret_key: ${APP_WEB_SECRET_KEY}
@@ -30,12 +30,12 @@ skills:
     name: 'Read'
     slug: 'read'
     description: 'Return the content of a website as easy to read text plus images.'
-    icon: /images/icons/skills/text.svg
+    icon: ./images/icons/skills/text.svg
     allowed: ${APP_WEB_SKILL_READ_ALLOWED}
   view:
     name: 'View'
     slug: 'view'
     description: 'Return a full screenshot of the website.'
-    icon: /images/icons/skills/image.svg
+    icon: ./images/icons/skills/image.svg
     allowed: ${APP_WEB_SKILL_VIEW_ALLOWED}
 # focuses:

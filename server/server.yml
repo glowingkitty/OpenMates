@@ -47,14 +47,14 @@ settings:
   #########################################################################
 
   # All these default settings can be overwritten via the OpenMates REST API or web app.
-  mates: /api/configs/mates/mates.yml
+  mates: ./api/configs/mates/mates.yml
 
   #########################################################################
   ##### Apps
   #########################################################################
 
   # Apps used by OpenMates
-  apps: /api/configs/apps/apps.yml
+  apps: ./api/configs/apps/apps.yml
 
 
   #########################################################################

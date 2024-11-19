@@ -20,7 +20,7 @@ name: 'Travel'
 slug: 'travel'
 description: |
   Plan your next trip with ease.
-icon: /images/icons/apps/travel.svg
+icon: ./images/icons/apps/travel.svg
 allowed: ${APP_TRAVEL_ALLOWED}
 providers:
   google_maps:
@@ -28,14 +28,14 @@ providers:
     slug: 'google_maps'
     description: |
       Google Maps is a platform for finding connections between places.
-    icon: /images/icons/providers/google_maps.svg
+    icon: ./images/icons/providers/google_maps.svg
     allowed: ${APP_TRAVEL_PROVIDER_GOOGLE_MAPS_ALLOWED}
   open_trip_planner:
     name: 'Open Trip Planner'
     slug: 'open_trip_planner'
     description: |
       Open Trip Planner is a platform for finding connections between places.
-    icon: /images/icons/providers/open_trip_planner.svg
+    icon: ./images/icons/providers/open_trip_planner.svg
     allowed: ${APP_TRAVEL_PROVIDER_OPEN_TRIP_PLANNER_ALLOWED}
 skills:
   search_connections:
@@ -44,6 +44,6 @@ skills:
     description: |
       Search for the best connections via train, plane and bus.
       Also considers events like extreme weather and other unexpected events.
-    icon: /images/icons/skills/search.svg
+    icon: ./images/icons/skills/search.svg
     allowed: ${APP_TRAVEL_SKILL_SEARCH_CONNECTIONS_ALLOWED}
 # focuses:

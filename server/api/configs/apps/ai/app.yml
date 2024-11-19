@@ -20,7 +20,7 @@ name: 'AI'
 slug: 'ai'
 description: |
   Use generative AI to answer questions, brainstorm ideas and more.
-icon: /images/icons/apps/ai.svg
+icon: ./images/icons/apps/ai.svg
 allowed: ${APP_AI_ALLOWED}
 providers:
   openai:
@@ -28,7 +28,7 @@ providers:
     slug: 'openai'
     description: |
       OpenAI the company behind powerful AI models like GPT-4o / ChatGPT.
-    icon: /images/icons/providers/openai.svg
+    icon: ./images/icons/providers/openai.svg
     allowed: ${APP_AI_PROVIDER_OPENAI_ALLOWED}
     api_key: ${APP_AI_PROVIDER_OPENAI_API_KEY}
   anthropic:
@@ -36,7 +36,7 @@ providers:
     slug: 'anthropic'
     description: |
       Anthropic is the company behind powerful AI models like Claude 3.5 Sonnet.
-    icon: /images/icons/providers/anthropic.svg
+    icon: ./images/icons/providers/anthropic.svg
     allowed: ${APP_AI_PROVIDER_ANTHROPIC_ALLOWED}
     api_key: ${APP_AI_PROVIDER_ANTHROPIC_API_KEY}
 skills:
@@ -45,24 +45,24 @@ skills:
     slug: 'ask'
     description: |
       Ask your AI a question using text & images, and it will answer it based on its knowledge.
-    icon: /images/icons/skills/chat_ai.svg
+    icon: ./images/icons/skills/chat_ai.svg
     allowed: ${APP_AI_SKILL_ASK_ALLOWED}
     default_provider_slug: ${APP_AI_SKILL_ASK_DEFAULT_PROVIDER_SLUG}
-    default_system_prompt: /api/configs/apps/ai/prompts/chat_default_system.md
+    default_system_prompt: ./api/configs/apps/ai/prompts/chat_default_system.md
   call:
     name: 'Call'
     slug: 'call'
     description: |
       Call your AI and ask question, and it will answer it based on its knowledge.
-    icon: /images/icons/skills/call_ai.svg
+    icon: ./images/icons/skills/call_ai.svg
     allowed: ${APP_AI_SKILL_CALL_ALLOWED}
     default_provider_slug: ${APP_AI_SKILL_CALL_DEFAULT_PROVIDER_SLUG}
-    default_system_prompt: /api/configs/apps/ai/prompts/call_default_system.md
+    default_system_prompt: ./api/configs/apps/ai/prompts/call_default_system.md
   estimate_cost:
     name: 'Estimate cost'
     slug: 'estimate_cost'
     description: |
       Get the estimated cost of a request to your AI.
-    icon: /images/icons/skills/estimate_price.svg
+    icon: ./images/icons/skills/estimate_price.svg
     allowed: ${APP_AI_SKILL_ESTIMATE_COST_ALLOWED}
 # focuses:
