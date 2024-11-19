@@ -1,3 +1,37 @@
+# OpenMates Self Hosted Edition
+
+## Server infrastructure
+
+OpenMates is designed to be deployed on multiple separated servers (for performance & security reasons), but optionally can run on a single device (only recommended for running it locally on your device).
+
+![Server Infrastructure Diagram](./diagrams/server_architecture.drawio.svg)
+
+## Server setup
+
+### 1. .env file
+Create an .env file based on the env.example. 
+CMS secrets will be automatically added later.Make sure to check all other settings/secrets and set them up the way you like.
+
+### 2. ./setup.sh
+Start ./setup.sh script and follow the process or execute with input commands for automated setup:
+
+| Option | Description |
+|--------|-------------|
+| `--setup-core` | Setup a server with all core services. |
+| `--setup-apps` | Setup a server with all apps. |
+| `--setup-full` | Setup a server with both the core services and the apps setup (Only recommended for running on local device, not recommended for server deployment, for security & performance reasons). |
+
+### Setup overview
+![Server Setup Diagram](./diagrams/server_setup.drawio.svg)
+
+
+
+
+
+------------
+OLD:
+
+
 # Installation guide
 
 ## Create bots in messengers
