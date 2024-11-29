@@ -10,6 +10,7 @@
 
     /* AI and ML related icons */
     --icon-ai-path: url('../../../../public/icons/base/ai.svg');
+    --icon-app-ai-path: url('../../../../../public/icons/base/ai.svg');
     --icon-claude-path: url('../../../../public/icons/base/claude.svg');
     --icon-openai-path: url('../../../../public/icons/base/openai.svg');
 
