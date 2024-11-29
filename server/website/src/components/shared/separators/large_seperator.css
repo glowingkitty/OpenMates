@@ -7,22 +7,16 @@
     display: flex;
     justify-content: center;
     overflow: hidden;
-    gap: 5px; /* Gap between columns */
 }
 
 .large-separator {
     display: flex;
     flex-direction: column;
-    gap: 5px; /* Reduced from 10px to 5px for consistent spacing */
+    gap: 5px;
     align-items: center;
 }
 
-/* Second column offset upward */
-.large-separator:nth-child(2) {
-    transform: translateY(-7px);
-}
-
-/* Create first block */
+/* Create first column of blocks */
 .large-separator::before {
     content: "";
     width: 17px;
@@ -30,19 +24,29 @@
     background-color: #808080;
     border-radius: 5px;
     opacity: 1;
+    box-shadow: 
+        0 22px rgba(128, 128, 128, 0.82),
+        0 44px rgba(128, 128, 128, 0.64),
+        0 66px rgba(128, 128, 128, 0.46),
+        0 88px rgba(128, 128, 128, 0.28),
+        0 110px rgba(128, 128, 128, 0.1);
 }
 
-/* Add 5 more blocks with decreasing opacity */
+/* Create second column with offset and decreasing opacity */
 .large-separator::after {
     content: "";
     width: 17px;
     height: 17px;
+    position: absolute;
+    left: calc(50% + 12px);
     background-color: #808080;
     border-radius: 5px;
-    opacity: 0.82;
+    opacity: 1;
+    transform: translateY(-8.5px);
     box-shadow: 
-        0 22px rgba(128, 128, 128, 0.64),  /* Adjusted from 27px to 22px */
-        0 44px rgba(128, 128, 128, 0.46),   /* Adjusted from 54px to 44px */
-        0 66px rgba(128, 128, 128, 0.28),   /* Adjusted from 81px to 66px */
-        0 88px rgba(128, 128, 128, 0.1);    /* Adjusted from 108px to 88px */
+        0 22px rgba(128, 128, 128, 0.82),
+        0 44px rgba(128, 128, 128, 0.64),
+        0 66px rgba(128, 128, 128, 0.46),
+        0 88px rgba(128, 128, 128, 0.28),
+        0 110px rgba(128, 128, 128, 0.1);
 }
