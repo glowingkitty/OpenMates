@@ -1,0 +1,21 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../colors.css';
+@import '../icon_svgs.css';
+
+/* Files icon styling */
+.icon.app-files {
+    background: var(--color-app-files);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        /* Use the Files icon path and center it */
+        background: var(--icon-app-files-path) center no-repeat;
+        background-size: 50%;
+        filter: brightness(0) invert(1);
+    }
+}

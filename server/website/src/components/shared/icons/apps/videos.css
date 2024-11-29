@@ -1,0 +1,21 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../colors.css';
+@import '../icon_svgs.css';
+
+/* Videos icon styling */
+.icon.app-videos {
+    background: var(--color-app-videos);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        /* Use the Videos icon path and center it */
+        background: var(--icon-app-videos-path) center no-repeat;
+        background-size: 50%;
+        filter: brightness(0) invert(1);
+    }
+}

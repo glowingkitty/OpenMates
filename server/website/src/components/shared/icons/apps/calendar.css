@@ -1,0 +1,21 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../colors.css';
+@import '../icon_svgs.css';
+
+/* Calendar icon styling */
+.icon.app-calendar {
+    background: var(--color-app-calendar);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        /* Use the Calendar icon path and center it */
+        background: var(--icon-app-calendar-path) center no-repeat;
+        background-size: 50%;
+        filter: brightness(0) invert(1);
+    }
+}

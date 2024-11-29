@@ -1,0 +1,21 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../colors.css';
+@import '../icon_svgs.css';
+
+/* Home icon styling */
+.icon.app-home {
+    background: var(--color-app-home);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        /* Use the Home icon path and center it */
+        background: var(--icon-app-home-path) center no-repeat;
+        background-size: 50%;
+        filter: brightness(0) invert(1);
+    }
+}
