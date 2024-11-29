@@ -8,5 +8,6 @@
 
     &::before {
         background-image: var(--icon-app-nutrition-path);
+        background-size: 80%;
     }
 }
