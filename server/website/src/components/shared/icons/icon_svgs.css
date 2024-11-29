@@ -1,4 +1,8 @@
 :root {
+    /* App specific icons */
+    --icon-app-ai-path: url('../../../../../public/icons/base/ai.svg');
+    --icon-app-health-path: url('../../../../../public/icons/base/heart.svg');
+
     /* User related icons */
     --icon-user-path: url('../../../../public/icons/base/user.svg');
     --icon-anonym-path: url('../../../../public/icons/base/anonym.svg');
@@ -10,7 +14,6 @@
 
     /* AI and ML related icons */
     --icon-ai-path: url('../../../../public/icons/base/ai.svg');
-    --icon-app-ai-path: url('../../../../../public/icons/base/ai.svg');
     --icon-claude-path: url('../../../../public/icons/base/claude.svg');
     --icon-openai-path: url('../../../../public/icons/base/openai.svg');
 

@@ -5,7 +5,14 @@
     --color-primary: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
 
     /* App colors */
+
+    /* App/AI */
     --color-app-ai-start: #CB7D5D;
     --color-app-ai-end: #CB685D;
     --color-app-ai: linear-gradient(135deg, var(--color-app-ai-start) 9.04%, var(--color-app-ai-end) 90.06%);
+
+    /* App/Health */
+    --color-app-health-start: #FD50A0;
+    --color-app-health-end: #F42C2D;
+    --color-app-health: linear-gradient(135deg, var(--color-app-health-start) 9.04%, var(--color-app-health-end) 90.06%);
 }
