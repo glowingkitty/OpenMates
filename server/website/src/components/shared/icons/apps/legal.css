@@ -15,7 +15,7 @@
         bottom: 0;
         /* Use the Legal icon path and center it */
         background: var(--icon-app-legal-path) center no-repeat;
-        background-size: 50%;
+        background-size: 60%;
         filter: brightness(0) invert(1);
     }
 }
