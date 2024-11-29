@@ -15,10 +15,11 @@
     <link rel="stylesheet" href="workflow.css">
     <link rel="stylesheet" href="apps/ai.css">
     <link rel="stylesheet" href="apps/health.css">
+    <link rel="stylesheet" href="../separators/large_seperator.css">
     <style>
-        /* Optional: Add some styling to better see your icon */
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
@@ -26,17 +27,22 @@
             background-color: #f0f0f0;
         }
 
-        /* Add new container styling */
         .icon-container {
             display: grid;
-            grid-template-columns: repeat(3, auto);  /* Creates 3 columns */
-            gap: 20px;  /* Adds space between icons */
+            grid-template-columns: repeat(3, auto);
+            gap: 20px;
             padding: 20px;
+        }
+
+        .separator-row {
+            overflow: visible;
+            width: 100%;
+            display: flex;
+            justify-content: center;
         }
     </style>
 </head>
 <body>
-    <!-- Wrap icons in a container -->
     <div class="icon-container">
         <div class="icon app"></div>
         <div class="icon billing"></div>
@@ -51,6 +57,11 @@
         <div class="icon workflow"></div>
         <div class="icon app-ai"></div>
         <div class="icon app-health"></div>
+    </div>
+    
+    <div class="separator-row">
+        <div class="large-separator"></div>
+        <div class="large-separator"></div>
     </div>
 </body>
 </html>
