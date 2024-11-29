@@ -4,6 +4,6 @@
     height: 95px;
     border-radius: 19px;
     position: relative;
-    background-color: black;
-    border: .17px solid #DEDEDE;
+    background-color: rgb(219, 219, 219);
+    border: 2.17px solid #DEDEDE;
   }

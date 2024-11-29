@@ -15,7 +15,7 @@
         right: 0;
         bottom: 0;
         background: var(--icon-user-path) center no-repeat;
-        background-size: 60%;
+        background-size: 55%;
         /* Adjust the position of the AI icon by changing its position in the mask */
         -webkit-mask: var(--icon-user-path) center no-repeat,
                      var(--icon-ai-path) center 70% no-repeat;
