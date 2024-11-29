@@ -15,7 +15,7 @@
         bottom: 0;
         /* Use the AI icon path and center it */
         background: var(--icon-app-ai-path) center no-repeat;
-        background-size: 55%;
+        background-size: 50%;
         filter: brightness(0) invert(1);
     }
 }
