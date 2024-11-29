@@ -7,15 +7,6 @@
     background: var(--color-app-hosting);
 
     &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        /* Use the Hosting icon path and center it */
-        background: var(--icon-app-hosting-path) center no-repeat;
-        background-size: 50%;
-        filter: brightness(0) invert(1);
+        background-image: var(--icon-app-hosting-path);
     }
 }

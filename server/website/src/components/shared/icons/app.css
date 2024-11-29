@@ -7,15 +7,7 @@
     background: var(--color-primary);
 
     &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        /* Use the app icon path and center it */
-        background: var(--icon-app-path) center no-repeat;
+        background-image: var(--icon-app-path);
         background-size: 55%;
-        filter: brightness(0) invert(1);
     }
 }

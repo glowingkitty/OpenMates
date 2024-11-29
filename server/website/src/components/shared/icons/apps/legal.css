@@ -7,15 +7,7 @@
     background: var(--color-app-legal);
 
     &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        /* Use the Legal icon path and center it */
-        background: var(--icon-app-legal-path) center no-repeat;
+        background-image: var(--icon-app-legal-path);
         background-size: 60%;
-        filter: brightness(0) invert(1);
     }
 }

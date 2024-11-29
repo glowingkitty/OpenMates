@@ -6,4 +6,18 @@
     position: relative;
     background-color: rgb(219, 219, 219);
     border: 2.17px solid #DEDEDE;
-  }
+
+    /* Common ::before styles for all icons */
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 50%;
+        filter: brightness(0) invert(1);
+    }
+}
