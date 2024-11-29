@@ -4,7 +4,7 @@
 
 /* Chat icon styling */
 .icon.chat {
-    background: var(--primary-color);
+    background: var(--color-primary);
 
     &::before {
         content: '';

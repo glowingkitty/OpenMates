@@ -1,10 +1,10 @@
 /* Import colors.css and icon_svgs.css to access the CSS variables */
-@import '../colors.css';
-@import './icon_svgs.css';
+@import '../../colors.css';
+@import '../icon_svgs.css';
 
-/* Project icon styling */
-.icon.project {
-    background: var(--color-primary);
+/* AI icon styling */
+.icon.app-ai {
+    background: var(--color-app-ai);
 
     &::before {
         content: '';
@@ -13,8 +13,8 @@
         left: 0;
         right: 0;
         bottom: 0;
-        /* Use the project icon path and center it */
-        background: var(--icon-project-path) center no-repeat;
+        /* Use the AI icon path and center it */
+        background: var(--icon-ai-path) center no-repeat;
         background-size: 55%;
         filter: brightness(0) invert(1);
     }

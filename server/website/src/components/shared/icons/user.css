@@ -4,7 +4,7 @@
 
 /* User icon styling */
 .icon.user {
-    background: var(--primary-color);
+    background: var(--color-primary);
 
     &::before {
         content: '';

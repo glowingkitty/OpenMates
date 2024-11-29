@@ -4,7 +4,7 @@
 
 /* App icon styling */
 .icon.app {
-    background: var(--primary-color);
+    background: var(--color-primary);
 
     &::before {
         content: '';

@@ -4,7 +4,7 @@
 
 /* Workflow icon styling */
 .icon.workflow {
-    background: var(--primary-color);
+    background: var(--color-primary);
 
     &::before {
         content: '';

@@ -5,7 +5,7 @@
 
 /* Extends the base .icon class with mate-specific styling */
 .icon.mate {
-    background: var(--primary-color);
+    background: var(--color-primary);
 
     &::before {
         content: '';

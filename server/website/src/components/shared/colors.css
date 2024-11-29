@@ -1,6 +1,11 @@
 :root {
     /* Primary Color */
-    --primary-color-start: #4867CD;
-    --primary-color-end: #5A85EB;
-    --primary-color: linear-gradient(135deg, var(--primary-color-start) 9.04%, var(--primary-color-end) 90.06%);
+    --color-primary-start: #4867CD;
+    --color-primary-end: #5A85EB;
+    --color-primary: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
+
+    /* App colors */
+    --color-app-ai-start: #CB7D5D;
+    --color-app-ai-end: #CB685D;
+    --color-app-ai: linear-gradient(135deg, var(--color-app-ai-start) 9.04%, var(--color-app-ai-end) 90.06%);
 }

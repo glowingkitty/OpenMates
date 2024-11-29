@@ -4,7 +4,7 @@
 
 /* Team icon styling */
 .icon.team {
-    background: var(--primary-color);
+    background: var(--color-primary);
 
     &::before {
         content: '';
