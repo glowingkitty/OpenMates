@@ -2,8 +2,8 @@
 @import '../colors.css';
 @import './icon_svgs.css';
 
-/* Skills icon styling */
-.icon.skills {
+/* User icon styling */
+.icon.user {
     background: var(--primary-color);
 
     &::before {
@@ -13,8 +13,8 @@
         left: 0;
         right: 0;
         bottom: 0;
-        /* Use the skills icon path and center it */
-        background: var(--icon-skill-path) center no-repeat;
+        /* Use the user icon path and center it */
+        background: var(--icon-user-path) center no-repeat;
         background-size: 55%;
         filter: brightness(0) invert(1);
     }

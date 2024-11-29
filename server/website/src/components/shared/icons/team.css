@@ -2,8 +2,8 @@
 @import '../colors.css';
 @import './icon_svgs.css';
 
-/* Tasks icon styling */
-.icon.tasks {
+/* Team icon styling */
+.icon.team {
     background: var(--primary-color);
 
     &::before {
@@ -13,8 +13,8 @@
         left: 0;
         right: 0;
         bottom: 0;
-        /* Use the tasks icon path and center it */
-        background: var(--icon-tasks-path) center no-repeat;
+        /* Use the team icon path and center it */
+        background: var(--icon-team-path) center no-repeat;
         background-size: 55%;
         filter: brightness(0) invert(1);
     }

@@ -2,9 +2,8 @@
 @import '../colors.css';
 @import './icon_svgs.css';
 
-
-/* Apps icon styling */
-.icon.apps {
+/* App icon styling */
+.icon.app {
     background: var(--primary-color);
 
     &::before {
@@ -14,9 +13,9 @@
         left: 0;
         right: 0;
         bottom: 0;
-        /* Use the apps icon path and center it */
+        /* Use the app icon path and center it */
         background: var(--icon-app-path) center no-repeat;
         background-size: 55%;
         filter: brightness(0) invert(1);
     }
-}
+} 

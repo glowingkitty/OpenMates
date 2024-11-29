@@ -20,7 +20,7 @@
 
     /* Project management icons */
     --icon-project-path: url('../../../../public/icons/base/project.svg');
-    --icon-tasks-path: url('../../../../public/icons/base/tasks.svg');
+    --icon-task-path: url('../../../../public/icons/base/task.svg');
     --icon-workflow-path: url('../../../../public/icons/base/workflow.svg');
     --icon-calendar-path: url('../../../../public/icons/base/calendar.svg');
 

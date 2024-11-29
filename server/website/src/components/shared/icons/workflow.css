@@ -2,8 +2,8 @@
 @import '../colors.css';
 @import './icon_svgs.css';
 
-/* Workflows icon styling */
-.icon.workflows {
+/* Workflow icon styling */
+.icon.workflow {
     background: var(--primary-color);
 
     &::before {
@@ -13,7 +13,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        /* Use the workflows icon path and center it */
+        /* Use the workflow icon path and center it */
         background: var(--icon-workflow-path) center no-repeat;
         background-size: 55%;
         filter: brightness(0) invert(1);
