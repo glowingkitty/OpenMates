@@ -1,0 +1,9 @@
+/* Base icon container with common styles */
+.icon {
+    width: 95px;
+    height: 95px;
+    border-radius: 19px;
+    position: relative;
+    background-color: black;
+    border: .17px solid #DEDEDE;
+  }

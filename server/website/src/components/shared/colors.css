@@ -1,0 +1,6 @@
+:root {
+    /* Primary Color */
+    --primary-color-start: #4867CD;
+    --primary-color-end: #5A85EB;
+    --primary-color: linear-gradient(135deg, var(--primary-color-start) 9.04%, var(--primary-color-end) 90.06%);
+}

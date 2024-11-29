@@ -1,0 +1,43 @@
+:root {
+    /* User related icons */
+    --icon-user-path: url('../../../../public/icons/base/user.svg');
+    --icon-anonym-path: url('../../../../public/icons/base/anonym.svg');
+    --icon-team-path: url('../../../../public/icons/base/team.svg');
+
+    /* Communication icons */
+    --icon-chat-path: url('../../../../public/icons/base/chat.svg');
+    --icon-discord-path: url('../../../../public/icons/base/discord.svg');
+
+    /* AI and ML related icons */
+    --icon-ai-path: url('../../../../public/icons/base/ai.svg');
+    --icon-claude-path: url('../../../../public/icons/base/claude.svg');
+    --icon-openai-path: url('../../../../public/icons/base/openai.svg');
+
+    /* Navigation and UI icons */
+    --icon-menu-path: url('../../../../public/icons/base/menu.svg');
+    --icon-search-path: url('../../../../public/icons/base/search.svg');
+    --icon-app-path: url('../../../../public/icons/base/app.svg');
+
+    /* Project management icons */
+    --icon-project-path: url('../../../../public/icons/base/project.svg');
+    --icon-tasks-path: url('../../../../public/icons/base/tasks.svg');
+    --icon-workflow-path: url('../../../../public/icons/base/workflow.svg');
+    --icon-calendar-path: url('../../../../public/icons/base/calendar.svg');
+
+    /* System and security icons */
+    --icon-lock-path: url('../../../../public/icons/base/lock.svg');
+    --icon-server-path: url('../../../../public/icons/base/server.svg');
+    --icon-laptop-path: url('../../../../public/icons/base/laptop.svg');
+
+    /* Miscellaneous icons */
+    --icon-billing-path: url('../../../../public/icons/base/billing.svg');
+    --icon-cv-path: url('../../../../public/icons/base/cv.svg');
+    --icon-eu-path: url('../../../../public/icons/base/eu.svg');
+    --icon-github-path: url('../../../../public/icons/base/github.svg');
+    --icon-good-path: url('../../../../public/icons/base/good.svg');
+    --icon-mate-path: url('../../../../public/icons/base/mate.svg');
+    --icon-meta-path: url('../../../../public/icons/base/meta.svg');
+    --icon-opensource-path: url('../../../../public/icons/base/opensource.svg');
+    --icon-patreon-path: url('../../../../public/icons/base/patreon.svg');
+    --icon-skill-path: url('../../../../public/icons/base/skill.svg');
+}
