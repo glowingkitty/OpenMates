@@ -1,4 +1,4 @@
-/* Large separator styling with vertically stacked rounded blocks */
+/* Container for the separator to ensure proper spacing */
 .separator-row {
     width: 100%;
     padding: 20px;
@@ -9,44 +9,16 @@
     overflow: hidden;
 }
 
+/* Main separator class with repeating pattern */
 .large-separator {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    align-items: center;
-}
-
-/* Create first column of blocks */
-.large-separator::before {
-    content: "";
-    width: 17px;
-    height: 17px;
-    background-color: #808080;
-    border-radius: 5px;
-    opacity: 1;
-    box-shadow: 
-        0 22px rgba(128, 128, 128, 0.82),
-        0 44px rgba(128, 128, 128, 0.64),
-        0 66px rgba(128, 128, 128, 0.46),
-        0 88px rgba(128, 128, 128, 0.28),
-        0 110px rgba(128, 128, 128, 0.1);
-}
-
-/* Create second column with offset and decreasing opacity */
-.large-separator::after {
-    content: "";
-    width: 17px;
-    height: 17px;
-    position: absolute;
-    left: calc(50% + 12px);
-    background-color: #808080;
-    border-radius: 5px;
-    opacity: 1;
-    transform: translateY(-8.5px);
-    box-shadow: 
-        0 22px rgba(128, 128, 128, 0.82),
-        0 44px rgba(128, 128, 128, 0.64),
-        0 66px rgba(128, 128, 128, 0.46),
-        0 88px rgba(128, 128, 128, 0.28),
-        0 110px rgba(128, 128, 128, 0.1);
+    width: 100%;
+    height: 132px;
+    position: relative;
+    /* Control the repetition pattern */
+    background-image: url('../../../../public/seperator_block.svg');
+    background-repeat: repeat-x;
+    background-size: 42px 100%;
+    /* Center the pattern horizontally and vertically */
+    background-position: calc(50% - 21px) center;
+    -webkit-background-size: 42px 100%;
 }
