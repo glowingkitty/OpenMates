@@ -2,8 +2,17 @@
 <html>
 <head>
     <link rel="stylesheet" href="icon.css">
+    <link rel="stylesheet" href="billing.css">
+    <link rel="stylesheet" href="chats.css">
     <link rel="stylesheet" href="mate.css">
     <link rel="stylesheet" href="apps.css">
+    <link rel="stylesheet" href="projects.css">
+    <link rel="stylesheet" href="server.css">
+    <link rel="stylesheet" href="skills.css">
+    <link rel="stylesheet" href="tasks.css">
+    <link rel="stylesheet" href="users.css">
+    <link rel="stylesheet" href="teams.css">
+    <link rel="stylesheet" href="workflows.css">
     <style>
         /* Optional: Add some styling to better see your icon */
         body {
@@ -14,10 +23,30 @@
             margin: 0;
             background-color: #f0f0f0;
         }
+
+        /* Add new container styling */
+        .icon-container {
+            display: grid;
+            grid-template-columns: repeat(3, auto);  /* Creates 3 columns */
+            gap: 20px;  /* Adds space between icons */
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="icon mate"></div>
-    <div class="icon apps"></div>
+    <!-- Wrap icons in a container -->
+    <div class="icon-container">
+        <div class="icon apps"></div>
+        <div class="icon billing"></div>
+        <div class="icon chats"></div>
+        <div class="icon mate"></div>
+        <div class="icon projects"></div>
+        <div class="icon server"></div>
+        <div class="icon skills"></div>
+        <div class="icon tasks"></div>
+        <div class="icon teams"></div>
+        <div class="icon users"></div>
+        <div class="icon workflows"></div>
+    </div>
 </body>
 </html>
