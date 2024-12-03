@@ -4,8 +4,8 @@
     height: 95px;
     border-radius: 19px;
     position: relative;
-    background: linear-gradient(135deg, #f3f3f3, #e3e3e3);
-    border: 2.17px solid #DEDEDE;
+    background: var(--icon-background);
+    border: 2.17px solid var(--icon-border-color);
 
     /* Common ::before styles for all icons */
     &::before {
@@ -26,6 +26,10 @@
     &::before {
         filter: brightness(0) saturate(100%) invert(70%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
     }
+}
+
+.focus-icon {
+    background: var(--icon-focus-background);
 }
 
 .powered_by_ai {

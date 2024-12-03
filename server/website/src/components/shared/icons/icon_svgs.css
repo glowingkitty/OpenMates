@@ -58,6 +58,9 @@
     --icon-skill-create-path: url('../../../../../../public/icons/base/create.svg');
     --icon-skill-message-path: url('../../../../../../public/icons/base/chat.svg');
 
+    /* Focus specific icons */
+    --icon-focus-insights-path: url('../../../../../../public/icons/base/insight.svg');
+
     /* User related icons */
     --icon-user-path: url('../../../../public/icons/base/user.svg');
     --icon-anonym-path: url('../../../../public/icons/base/anonym.svg');

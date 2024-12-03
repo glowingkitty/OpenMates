@@ -1,4 +1,13 @@
 :root {
+    /* Icon */
+    --icon-background-start: #f3f3f3;
+    --icon-background-end: #e3e3e3;
+    --icon-background: linear-gradient(135deg, var(--icon-background-start) 9.04%, var(--icon-background-end) 90.06%);
+    --icon-border-color: #dedede;
+    --icon-focus-background-start: #5951D0;
+    --icon-focus-background-end: #7D74FF;
+    --icon-focus-background: linear-gradient(135deg, var(--icon-focus-background-start) 9.04%, var(--icon-focus-background-end) 90.06%);
+
     /* Primary Color */
     --color-primary-start: #4867CD;
     --color-primary-end: #5A85EB;
