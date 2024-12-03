@@ -39,17 +39,17 @@
     --icon-app-projectmanagement-path: url('../../../../../public/icons/base/projectmanagement.svg');
     --icon-app-messages-path: url('../../../../../public/icons/base/chat.svg');
     --icon-app-books-path: url('../../../../../public/icons/base/book.svg');
-    --icon-app-plants-path: url('../../../../../public/icons/base/plants.svg');
+    --icon-app-plants-path: url('../../../../../public/icons/base/plant.svg');
     --icon-app-beauty-path: url('../../../../../public/icons/base/beauty.svg');
-    --icon-app-hosting-path: url('../../../../../public/icons/base/hosting.svg');
+    --icon-app-hosting-path: url('../../../../../public/icons/base/server.svg');
     --icon-app-fashion-path: url('../../../../../public/icons/base/fashion.svg');
     --icon-app-shipping-path: url('../../../../../public/icons/base/shipping.svg');
     --icon-app-time-path: url('../../../../../public/icons/base/time.svg');
     --icon-app-tv-path: url('../../../../../public/icons/base/tv.svg');
     --icon-app-movies-path: url('../../../../../public/icons/base/movies.svg');
-    --icon-app-secrets-path: url('../../../../../public/icons/base/secrets.svg');
+    --icon-app-secrets-path: url('../../../../../public/icons/base/secret.svg');
     --icon-app-study-path: url('../../../../../public/icons/base/study.svg');
-    --icon-app-contacts-path: url('../../../../../public/icons/base/contacts.svg');
+    --icon-app-contacts-path: url('../../../../../public/icons/base/contact.svg');
     --icon-app-calculator-path: url('../../../../../public/icons/base/calculator.svg');
 
     /* User related icons */
