@@ -260,4 +260,9 @@
     --color-app-calculator-start: #0EA308;
     --color-app-calculator-end: #45A15D;
     --color-app-calculator: linear-gradient(135deg, var(--color-app-calculator-start) 9.04%, var(--color-app-calculator-end) 90.06%);
+
+    /* App/Games */
+    --color-app-games-start: #0D1B31;
+    --color-app-games-end: #167AAA;
+    --color-app-games: linear-gradient(135deg, var(--color-app-games-start) 9.04%, var(--color-app-games-end) 90.06%);
 }

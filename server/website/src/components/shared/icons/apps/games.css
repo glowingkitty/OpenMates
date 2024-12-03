@@ -1,0 +1,12 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../colors.css';
+@import '../icon_svgs.css';
+
+/* Games icon styling */
+.icon.app-games {
+    background: var(--color-app-games);
+
+    &::before {
+        background-image: var(--icon-app-games-path);
+    }
+}

@@ -51,6 +51,12 @@
     --icon-app-study-path: url('../../../../../public/icons/base/study.svg');
     --icon-app-contacts-path: url('../../../../../public/icons/base/contact.svg');
     --icon-app-calculator-path: url('../../../../../public/icons/base/calculator.svg');
+    --icon-app-games-path: url('../../../../../public/icons/base/games.svg');
+
+    /* Skill specific icons */
+    --icon-skill-search-path: url('../../../../../../public/icons/base/search.svg');
+    --icon-skill-create-path: url('../../../../../../public/icons/base/create.svg');
+    --icon-skill-message-path: url('../../../../../../public/icons/base/chat.svg');
 
     /* User related icons */
     --icon-user-path: url('../../../../public/icons/base/user.svg');

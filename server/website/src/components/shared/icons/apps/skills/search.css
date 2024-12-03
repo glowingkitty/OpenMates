@@ -1,0 +1,9 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../../icon_svgs.css';
+
+/* Skill search icon styling */
+.icon.skill-search {
+    &::before {
+        background-image: var(--icon-skill-search-path);
+    }
+}

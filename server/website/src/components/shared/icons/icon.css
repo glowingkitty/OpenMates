@@ -4,7 +4,7 @@
     height: 95px;
     border-radius: 19px;
     position: relative;
-    background-color: rgb(219, 219, 219);
+    background: linear-gradient(135deg, #f3f3f3, #e3e3e3);
     border: 2.17px solid #DEDEDE;
 
     /* Common ::before styles for all icons */
@@ -19,5 +19,33 @@
         background-repeat: no-repeat;
         background-size: 50%;
         filter: brightness(0) invert(1);
+    }
+}
+
+.skill-icon {
+    &::before {
+        filter: brightness(0) saturate(100%) invert(70%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
+    }
+}
+
+.powered_by_ai {
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        width: 20px;
+        height: 20px;
+        background-image: var(--icon-ai-path);
+        background-size: contain;
+        background-repeat: no-repeat;
+
+        /* Overlay the gradient color */
+        background: var(--color-app-ai);
+        -webkit-mask-image: var(--icon-ai-path);
+        mask-image: var(--icon-ai-path);
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
     }
 }

@@ -1,0 +1,10 @@
+/* Import colors.css and icon_svgs.css to access the CSS variables */
+@import '../../../icon_svgs.css';
+
+/* Skill message icon styling */
+.icon.skill-message {
+    &::before {
+        background-image: var(--icon-skill-message-path);
+        background-size: 48%;
+    }
+}
