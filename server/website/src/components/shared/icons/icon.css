@@ -45,7 +45,7 @@
         background-repeat: no-repeat;
 
         /* Overlay the gradient color */
-        background: var(--color-app-ai);
+        background: var(--color-primary);
         -webkit-mask-image: var(--icon-ai-path);
         mask-image: var(--icon-ai-path);
         mask-size: contain;
