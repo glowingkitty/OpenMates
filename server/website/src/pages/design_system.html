@@ -2,6 +2,7 @@
 <html>
 <head>
     <link rel="stylesheet" href="../components/main.css">
+    <link rel="stylesheet" href="../components/shared/colors.css">
     <style>
         body {
             display: flex;
@@ -68,8 +69,8 @@
         /* Color palette section */
         .color-palette {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
             padding: 20px;
             background-color: white;
             border-radius: 12px;
@@ -77,14 +78,55 @@
         }
 
         .color-item {
-            height: 100px;
+            background: white;
             border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .color-blocks {
             display: flex;
             flex-direction: column;
-            justify-content: flex-end;
-            padding: 10px;
-            color: white;
-            font-size: 0.9rem;
+            gap: 6px;
+        }
+
+        .color-block {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-sample {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .color-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .var-name {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .hex-code {
+            font-family: monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Remove unused styles */
+        .gradient-preview,
+        .gradient-class-name,
+        .color-text .label {
+            display: none;
         }
 
         /* Add new styles for icon labels */
@@ -101,6 +143,69 @@
             color: #666;
             word-break: break-word;
         }
+
+        .color-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gradient-preview {
+            width: 100%;
+            height: 16px;
+            border-radius: 3px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            background-size: 100% 100%;
+        }
+
+        .gradient-var {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .gradient-preview {
+            width: 100%;
+            height: 16px;
+            border-radius: 3px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            background-size: 100% 100%;
+        }
+
+        /* Add these new styles */
+        .subsection-title {
+            font-size: 1.3rem;
+            color: #555;
+            margin: 30px 0 15px;
+            padding-left: 15px;
+            border-left: 4px solid #ddd;
+        }
+
+        .gradient-preview {
+            display: block;
+            background-size: 100% 100%;
+        }
+
+        .color-palette {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .color-item {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .color-info {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
     </style>
 </head>
 <body>
@@ -110,10 +215,104 @@
 
     <section class="section">
         <h2 class="section-title">Colors</h2>
+        
+        <!-- Base Colors -->
+        <h3 class="subsection-title">Base Colors</h3>
         <div class="color-palette">
-            <!-- Add your color palette items here -->
-            <div class="color-item" style="background-color: #007AFF;">#007AFF</div>
-            <!-- Add more color items -->
+            <!-- Primary Colors -->
+            <div class="color-item">
+                <div class="color-info">
+                    <div class="gradient-var">--color-primary</div>
+                    <div class="gradient-preview" style="background: linear-gradient(to right, var(--color-primary-start), var(--color-primary-end))"></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--color-primary-start)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--color-primary-start</div>
+                                <div class="hex-code">#4867CD</div>
+                            </div>
+                        </div>
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--color-primary-end)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--color-primary-end</div>
+                                <div class="hex-code">#5A85EB</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Icon Default -->
+            <div class="color-item">
+                <div class="color-info">
+                    <div class="gradient-var">--icon-background</div>
+                    <div class="gradient-preview" style="background: linear-gradient(to right, var(--icon-background-start), var(--icon-background-end))"></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--icon-background-start)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--icon-background-start</div>
+                                <div class="hex-code">#F3F3F3</div>
+                            </div>
+                        </div>
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--icon-background-end)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--icon-background-end</div>
+                                <div class="hex-code">#E3E3E3</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Icon Focus -->
+            <div class="color-item">
+                <div class="color-info">
+                    <div class="gradient-var">--icon-focus-background</div>
+                    <div class="gradient-preview" style="background: linear-gradient(to right, var(--icon-focus-background-start), var(--icon-focus-background-end))"></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--icon-focus-background-start)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--icon-focus-background-start</div>
+                                <div class="hex-code">#5951D0</div>
+                            </div>
+                        </div>
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--icon-focus-background-end)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--icon-focus-background-end</div>
+                                <div class="hex-code">#7D74FF</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Icon Border -->
+            <div class="color-item">
+                <div class="color-info">
+                    <div class="gradient-var">--icon-border-color</div>
+                    <div class="gradient-preview" style="background: var(--icon-border-color)"></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: var(--icon-border-color)"></div>
+                            <div class="color-text">
+                                <div class="var-name">--icon-border-color</div>
+                                <div class="hex-code">#DEDEDE</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Colors -->
+        <h3 class="subsection-title">App Colors</h3>
+        <div class="color-palette">
+            <!-- App colors will be dynamically inserted here -->
         </div>
     </section>
 
@@ -123,77 +322,77 @@
     </section>
 
     <section class="section">
-        <h2 class="section-title">Icons - OpenMate Endpoints</h2>
+        <h2 class="section-title">OpenMate Endpoints</h2>
         <div class="icon-container">
             <div class="icon-wrapper">
                 <div class="icon app"></div>
-                <span class="icon-label">.app</span>
+                <span class="icon-label">icon.app</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon billing"></div>
-                <span class="icon-label">.billing</span>
+                <span class="icon-label">icon.billing</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon chat"></div>
-                <span class="icon-label">.chat</span>
+                <span class="icon-label">icon.chat</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon mate"></div>
-                <span class="icon-label">.mate</span>
+                <span class="icon-label">icon.mate</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon project"></div>
-                <span class="icon-label">.project</span>
+                <span class="icon-label">icon.project</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon server"></div>
-                <span class="icon-label">.server</span>
+                <span class="icon-label">icon.server</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon skill"></div>
-                <span class="icon-label">.skill</span>
+                <span class="icon-label">icon.skill</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon task"></div>
-                <span class="icon-label">.task</span>
+                <span class="icon-label">icon.task</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon team"></div>
-                <span class="icon-label">.team</span>
+                <span class="icon-label">icon.team</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon user"></div>
-                <span class="icon-label">.user</span>
+                <span class="icon-label">icon.user</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon workflow"></div>
-                <span class="icon-label">.workflow</span>
+                <span class="icon-label">icon.workflow</span>
             </div>
         </div>
     </section>
 
     <section class="section">
-        <h2 class="section-title">Icons - Apps</h2>
+        <h2 class="section-title">Apps</h2>
         <div class="icon-container">
             <div class="icon-wrapper">
                 <div class="icon app-ai"></div>
-                <span class="icon-label">.app-ai</span>
+                <span class="icon-label">icon.app-ai</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon app-health"></div>
-                <span class="icon-label">.app-health</span>
+                <span class="icon-label">icon.app-health</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon app-lifecoaching"></div>
-                <span class="icon-label">.app-lifecoaching</span>
+                <span class="icon-label">icon.app-lifecoaching</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon app-nutrition"></div>
-                <span class="icon-label">.app-nutrition</span>
+                <span class="icon-label">icon.app-nutrition</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon app-finance"></div>
-                <span class="icon-label">.app-finance</span>
+                <span class="icon-label">icon.app-finance</span>
             </div>
             <div class="icon-wrapper">
                 <div class="icon app-fitness"></div>
@@ -419,6 +618,82 @@
         <h2 class="section-title">Separators</h2>
         <div class="large-separator"></div>
     </section>
+
+    <script>
+        // Function to create a color item element
+        function createColorItem(name, startColor, endColor, gradient) {
+            const colorItem = document.createElement('div');
+            colorItem.className = 'color-item';
+            
+            // Convert name from kebab-case to Title Case for display
+            const displayName = name.split('-').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+            
+            colorItem.innerHTML = `
+                <div class="color-info">
+                    <div class="gradient-var">--color-app-${name}</div>
+                    <div class="gradient-preview" style="background: ${gradient}"></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: ${startColor}"></div>
+                            <div class="color-text">
+                                <div class="var-name">--color-app-${name}-start</div>
+                                <div class="hex-code">${startColor}</div>
+                            </div>
+                        </div>
+                        <div class="color-block">
+                            <div class="color-sample" style="background: ${endColor}"></div>
+                            <div class="color-text">
+                                <div class="var-name">--color-app-${name}-end</div>
+                                <div class="hex-code">${endColor}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return colorItem;
+        }
+
+        // Function to load and parse app colors
+        function loadAppColors() {
+            const appColorsContainer = document.querySelector('.color-palette:last-of-type');
+            appColorsContainer.innerHTML = ''; // Clear example color item
+            
+            const style = getComputedStyle(document.documentElement);
+            
+            // Get all CSS custom properties
+            const cssVars = Array.from(document.styleSheets)
+                .filter(sheet => sheet.href && sheet.href.includes('colors.css'))
+                .flatMap(sheet => Array.from(sheet.cssRules))
+                .find(rule => rule.selectorText === ':root')
+                .style;
+
+            // Find all app color variables
+            const appColors = new Set();
+            for (let i = 0; i < cssVars.length; i++) {
+                const prop = cssVars[i];
+                if (prop.startsWith('--color-app-') && !prop.endsWith('-start') && !prop.endsWith('-end')) {
+                    appColors.add(prop);
+                }
+            }
+
+            // Create color items for each app
+            appColors.forEach(colorVar => {
+                const name = colorVar.replace('--color-app-', '');
+                const startColor = style.getPropertyValue(`--color-app-${name}-start`).trim();
+                const endColor = style.getPropertyValue(`--color-app-${name}-end`).trim();
+                const gradient = `linear-gradient(135deg, ${startColor} 9.04%, ${endColor} 90.06%)`;
+                
+                const colorItem = createColorItem(name, startColor, endColor, gradient);
+                appColorsContainer.appendChild(colorItem);
+            });
+        }
+
+        // Load colors when the page is ready
+        document.addEventListener('DOMContentLoaded', loadAppColors);
+    </script>
 </body>
 </html>
 <!-- DO NOT add all icons for providers and skills yet, since i won't need most of them on website -->
