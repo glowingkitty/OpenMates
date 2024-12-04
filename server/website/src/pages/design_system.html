@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="../components/main.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            padding: 40px;
+        }
+
+        .design-system-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .design-system-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .section {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #444;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .icon-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 25px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .icon {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .icon:hover {
+            transform: scale(1.1);
+        }
+
+        .separator-row {
+            margin: 40px 0;
+        }
+
+        /* Color palette section */
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .color-item {
+            height: 100px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 10px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        /* Add new styles for icon labels */
+        .icon-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .icon-label {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #666;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="design-system-header">
+        <h1>Design System</h1>
+    </div>
+
+    <section class="section">
+        <h2 class="section-title">Colors</h2>
+        <div class="color-palette">
+            <!-- Add your color palette items here -->
+            <div class="color-item" style="background-color: #007AFF;">#007AFF</div>
+            <!-- Add more color items -->
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Typography</h2>
+        <!-- Add typography examples -->
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Icons - OpenMate Endpoints</h2>
+        <div class="icon-container">
+            <div class="icon-wrapper">
+                <div class="icon app"></div>
+                <span class="icon-label">.app</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon billing"></div>
+                <span class="icon-label">.billing</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon chat"></div>
+                <span class="icon-label">.chat</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon mate"></div>
+                <span class="icon-label">.mate</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon project"></div>
+                <span class="icon-label">.project</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon server"></div>
+                <span class="icon-label">.server</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon skill"></div>
+                <span class="icon-label">.skill</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon task"></div>
+                <span class="icon-label">.task</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon team"></div>
+                <span class="icon-label">.team</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon user"></div>
+                <span class="icon-label">.user</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon workflow"></div>
+                <span class="icon-label">.workflow</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Icons - Apps</h2>
+        <div class="icon-container">
+            <div class="icon-wrapper">
+                <div class="icon app-ai"></div>
+                <span class="icon-label">.app-ai</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-health"></div>
+                <span class="icon-label">.app-health</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-lifecoaching"></div>
+                <span class="icon-label">.app-lifecoaching</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-nutrition"></div>
+                <span class="icon-label">.app-nutrition</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-finance"></div>
+                <span class="icon-label">.app-finance</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-fitness"></div>
+                <span class="icon-label">.app-fitness</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-legal"></div>
+                <span class="icon-label">.app-legal</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-weather"></div>
+                <span class="icon-label">.app-weather</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-travel"></div>
+                <span class="icon-label">.app-travel</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-news"></div>
+                <span class="icon-label">.app-news</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-jobs"></div>
+                <span class="icon-label">.app-jobs</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-files"></div>
+                <span class="icon-label">.app-files</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-home"></div>
+                <span class="icon-label">.app-home</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-docs"></div>
+                <span class="icon-label">.app-docs</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-slides"></div>
+                <span class="icon-label">.app-slides</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-sheets"></div>
+                <span class="icon-label">.app-sheets</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-notes"></div>
+                <span class="icon-label">.app-notes</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-whiteboards"></div>
+                <span class="icon-label">.app-whiteboards</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-diagrams"></div>
+                <span class="icon-label">.app-diagrams</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-events"></div>
+                <span class="icon-label">.app-events</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-code"></div>
+                <span class="icon-label">.app-code</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-calendar"></div>
+                <span class="icon-label">.app-calendar</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-mail"></div>
+                <span class="icon-label">.app-mail</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-reminder"></div>
+                <span class="icon-label">.app-reminder</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-business"></div>
+                <span class="icon-label">.app-business</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-web"></div>
+                <span class="icon-label">.app-web</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-videos"></div>
+                <span class="icon-label">.app-videos</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-audio"></div>
+                <span class="icon-label">.app-audio</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-maps"></div>
+                <span class="icon-label">.app-maps</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-design"></div>
+                <span class="icon-label">.app-design</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-pcbdesign"></div>
+                <span class="icon-label">.app-pcbdesign</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-pdfeditor"></div>
+                <span class="icon-label">.app-pdfeditor</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-shopping"></div>
+                <span class="icon-label">.app-shopping</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-photos"></div>
+                <span class="icon-label">.app-photos</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-publishing"></div>
+                <span class="icon-label">.app-publishing</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-socialmedia"></div>
+                <span class="icon-label">.app-socialmedia</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-projectmanagement"></div>
+                <span class="icon-label">.app-projectmanagement</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-messages"></div>
+                <span class="icon-label">.app-messages</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-books"></div>
+                <span class="icon-label">.app-books</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-plants"></div>
+                <span class="icon-label">.app-plants</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-beauty"></div>
+                <span class="icon-label">.app-beauty</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-hosting"></div>
+                <span class="icon-label">.app-hosting</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-fashion"></div>
+                <span class="icon-label">.app-fashion</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-shipping"></div>
+                <span class="icon-label">.app-shipping</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-time"></div>
+                <span class="icon-label">.app-time</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-tv"></div>
+                <span class="icon-label">.app-tv</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-movies"></div>
+                <span class="icon-label">.app-movies</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-secrets"></div>
+                <span class="icon-label">.app-secrets</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-study"></div>
+                <span class="icon-label">.app-study</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-contacts"></div>
+                <span class="icon-label">.app-contacts</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-calculator"></div>
+                <span class="icon-label">.app-calculator</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon app-games"></div>
+                <span class="icon-label">.app-games</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Icons - Skills</h2>
+        <div class="icon-container">
+            <div class="icon-wrapper">
+                <div class="icon skill-icon skill-search"></div>
+                <span class="icon-label">.skill-search</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon skill-icon skill-create"></div>
+                <span class="icon-label">.skill-create</span>
+            </div>
+            <div class="icon-wrapper">
+                <div class="icon skill-icon skill-message powered_by_ai"></div>
+                <span class="icon-label">.skill-message .powered_by_ai</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Icons - Focuses</h2>
+        <div class="icon-container">
+            <div class="icon-wrapper">
+                <div class="icon focus-icon focus-insights"></div>
+                <span class="icon-label">.focus-insights</span>
+            </div>
+        </div>
+    </section>
+    
+    <!-- add separators -->
+    <section class="section">
+        <h2 class="section-title">Separators</h2>
+        <div class="large-separator"></div>
+    </section>
+</body>
+</html>
+<!-- DO NOT add all icons for providers and skills yet, since i won't need most of them on website -->
