@@ -11,6 +11,10 @@
     --font-size-h4: 16px;
     --font-size-p: 16px;
     --font-weight-p: 500;
+    --button-font-family: var(--font-primary);
+    --button-font-size: 16px;
+    --button-font-weight: 500;
+    --button-text-decoration: none;
 }
 
 /* Utility classes for text alignment */
@@ -62,6 +66,15 @@ p {
     font-style: var(--font-style-normal);
     font-weight: var(--font-weight-p);
     line-height: var(--line-height-normal);
+}
+
+/* Button typography styles */
+button {
+    color: var(--color-font-button);
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+    text-decoration: var(--button-text-decoration);
 }
 
 /* Highlight class to change text color */

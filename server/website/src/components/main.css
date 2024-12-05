@@ -4,6 +4,9 @@
 /* Import fonts */
 @import './shared/fonts.css';
 
+/* Import buttons */
+@import './shared/buttons.css';
+
 /* Import endpoint icons */
 @import './shared/icons/billing.css';
 @import './shared/icons/chat.css';
