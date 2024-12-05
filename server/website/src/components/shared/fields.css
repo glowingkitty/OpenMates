@@ -1,0 +1,64 @@
+/* Default input styles for all text inputs */
+input[type="text"] {
+    /* Base dimensions and layout */
+    width: 100%;
+    max-width: 400px;
+    padding: 16px 20px;
+
+    /* Modern rounded appearance */
+    border-radius: 9px;  /* Fully rounded corners */
+    border: 1px solid #e0e0e0;
+    background-color: #ffffff;
+
+    /* Subtle shadow for depth */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+    /* Smooth transitions */
+    transition: all 0.2s ease-in-out;
+}
+
+input[type="text"]:focus {
+    /* Focus state enhancements */
+    outline: none;
+    border-color: #d0d0d0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Search field with icon styling */
+.search-field {
+    /* Container for search input and icon */
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    transition: transform 0.2s ease-in-out;  /* Single transition definition */
+}
+
+.search-field input[type="text"] {
+    /* Adjust padding to accommodate the icon */
+    padding-left: 48px;
+    width: 100%;
+}
+
+/* Icon styling */
+.search-field::before {
+    /* Search icon styling */
+    content: '';
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background-image: var(--icon-field-search-path);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    pointer-events: none;
+    z-index: 1;
+    filter: brightness(0) saturate(100%) invert(65%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
+}
+
+.search-field:hover,
+.search-field:focus-within {  /* Using :focus-within instead of input[type="text"]:focus */
+    transform: translateY(-1px);
+}

@@ -15,6 +15,8 @@
     --button-font-size: 16px;
     --button-font-weight: 500;
     --button-text-decoration: none;
+    --input-font-size: 16px;
+    --input-font-weight: 500;
 }
 
 /* Utility classes for text alignment */
@@ -75,6 +77,20 @@ button {
     font-size: var(--button-font-size);
     font-weight: var(--button-font-weight);
     text-decoration: var(--button-text-decoration);
+}
+
+/* Input field typography styles */
+input {
+    font-family: var(--font-primary);
+    font-size: var(--input-font-size);
+    font-weight: var(--input-font-weight);
+}
+
+input::placeholder {
+    color: var(--color-font-field-placeholder);
+    font-family: var(--font-primary);
+    font-size: var(--input-font-size);
+    font-weight: var(--input-font-weight);
 }
 
 /* Highlight class to change text color */

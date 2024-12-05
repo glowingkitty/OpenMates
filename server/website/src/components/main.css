@@ -7,6 +7,9 @@
 /* Import buttons */
 @import './shared/buttons.css';
 
+/* Import fields */
+@import './shared/fields.css';
+
 /* Import endpoint icons */
 @import './shared/icons/billing.css';
 @import './shared/icons/chat.css';
