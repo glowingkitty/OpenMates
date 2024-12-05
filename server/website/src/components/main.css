@@ -1,6 +1,9 @@
 /* Import base icon styles */
 @import './shared/icons/icon.css';
 
+/* Import fonts */
+@import './shared/fonts.css';
+
 /* Import endpoint icons */
 @import './shared/icons/billing.css';
 @import './shared/icons/chat.css';

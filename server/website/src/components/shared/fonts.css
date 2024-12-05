@@ -1,0 +1,89 @@
+/* Global font settings */
+:root {
+    --font-primary: "Lexend Deca";
+    --font-weight-bold: 700;
+    --font-weight-extra-bold: 800;
+    --font-style-normal: normal;
+    --line-height-normal: normal;
+    --font-size-h1: 60px;
+    --font-size-h2: 30px;
+    --font-size-h3: 20px;
+    --font-size-h4: 16px;
+    --font-size-p: 16px;
+    --font-weight-p: 500;
+}
+
+/* Utility classes for text alignment */
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+/* Common styles for headings */
+h1, h2, h3, h4 {
+    font-family: var(--font-primary);
+    font-style: var(--font-style-normal);
+    line-height: var(--line-height-normal);
+}
+
+h1 {
+    color: var(--color-font-primary);
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-extra-bold);
+}
+
+h2 {
+    font-size: var(--font-size-h2);
+    font-weight: var(--font-weight-bold);
+}
+
+h3 {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-bold);
+}
+
+h4 {
+    color: var(--color-font-tertiary);
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-bold);
+}
+
+p {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-p);
+    font-style: var(--font-style-normal);
+    font-weight: var(--font-weight-p);
+    line-height: var(--line-height-normal);
+}
+
+/* Highlight class to change text color */
+.highlight {
+    background: var(--color-primary);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Brand name styling */
+.brand-name {
+    /* Inherit heading properties if used within headings */
+    font: inherit;
+    display: inline;
+    font-weight: var(--font-weight-bold);
+}
+
+.brand-name-my {
+    color: var(--color-primary-start);
+}
+
+.brand-name-mates {
+    color: var(--color-font-primary);
+}

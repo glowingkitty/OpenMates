@@ -13,6 +13,11 @@
     --color-primary-end: #5A85EB;
     --color-primary: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
 
+    /* Font Colors */
+    --color-font-primary: #000;
+    --color-font-secondary: #A9A9A9;
+    --color-font-tertiary: #6B6B6B;
+
     /* App colors */
 
     /* App/AI */
