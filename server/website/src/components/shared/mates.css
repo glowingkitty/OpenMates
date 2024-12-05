@@ -1,0 +1,23 @@
+/* Creates a circular container for profile pictures or avatars */
+.mate {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.mate.buton {
+    background-image: url('../../../../api/images/mates/profile_images/burton.jpg');
+}
+
+.mate.sophia {
+    background-image: url('../../../../api/images/mates/profile_images/sophia.jpg');
+}
+
+.mate.melvin {
+    background-image: url('../../../../api/images/mates/profile_images/melvin.jpg');
+}
+
+

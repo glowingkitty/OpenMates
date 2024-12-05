@@ -10,6 +10,9 @@
 /* Import fields */
 @import './shared/fields.css';
 
+/* Import mates */
+@import './shared/mates.css';
+
 /* Import endpoint icons */
 @import './shared/icons/billing.css';
 @import './shared/icons/chat.css';
