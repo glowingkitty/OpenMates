@@ -24,24 +24,24 @@ input[type="text"]:focus {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* Search field with icon styling */
-.search-field {
-    /* Container for search input and icon */
+/* Shared styles for fields with icons */
+.icon-field {
+    /* Container for input and icon */
     position: relative;
     width: 100%;
     max-width: 400px;
-    transition: transform 0.2s ease-in-out;  /* Single transition definition */
+    margin-bottom: 16px; /* Add spacing between stacked fields */
+    transition: transform 0.2s ease-in-out;
 }
 
-.search-field input[type="text"] {
+.icon-field input[type="text"] {
     /* Adjust padding to accommodate the icon */
     padding-left: 48px;
     width: 100%;
 }
 
-/* Icon styling */
-.search-field::before {
-    /* Search icon styling */
+/* Base icon styling */
+.icon-field::before {
     content: '';
     position: absolute;
     left: 16px;
@@ -49,7 +49,6 @@ input[type="text"]:focus {
     transform: translateY(-50%);
     width: 20px;
     height: 20px;
-    background-image: var(--icon-field-search-path);
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
@@ -58,7 +57,15 @@ input[type="text"]:focus {
     filter: brightness(0) saturate(100%) invert(65%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
 }
 
-.search-field:hover,
-.search-field:focus-within {  /* Using :focus-within instead of input[type="text"]:focus */
+.icon-field:hover,
+.icon-field:focus-within {
     transform: translateY(-1px);
+}
+
+.search-field.icon-field::before {
+    background-image: var(--icon-field-search-path);
+}
+
+.apikey-field.icon-field::before {
+    background-image: var(--icon-field-apikey-path);
 }

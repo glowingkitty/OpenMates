@@ -1,6 +1,7 @@
 :root {
     /* Fields icons */
     --icon-field-search-path: url('../../../public/icons/base/search.svg');
+    --icon-field-apikey-path: url('../../../public/icons/base/secret.svg');
 
     /* App specific icons */
     --icon-app-ai-path: url('../../../../../public/icons/base/ai.svg');
