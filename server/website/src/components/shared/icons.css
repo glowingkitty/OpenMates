@@ -482,7 +482,7 @@
 .icon.provider-mistral {
     &::before {
         background-image: url('../../../public/icons/base/mistral.svg');
-        background-size: 55%;
+        background-size: 50%;
     }
 }
 

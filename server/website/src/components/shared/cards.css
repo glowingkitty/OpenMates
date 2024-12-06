@@ -12,7 +12,7 @@
     overflow: hidden;
     background-repeat: no-repeat;
     padding: var(--card-padding);
-    background-size: 100% 5px;
+    background-size: 100% 8px;
     box-sizing: border-box;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     cursor: pointer; /* Shows clickable cursor on hover */
@@ -33,6 +33,27 @@
     position: absolute;
     bottom: var(--card-padding);
     left: var(--card-padding);
+}
+
+.app-card-extra-detail{
+    position: absolute;
+    top: var(--card-padding);
+    left: 145px;
+    /* Stack items vertically and center them */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.app-card-transit-icon{
+    width: 16px;
+    height: 16px;
+    background-image: url('../../../public/icons/base/travel.svg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 16px;
+    filter: brightness(0) invert(0.45);
 }
 
 /* App Card Backgrounds */
