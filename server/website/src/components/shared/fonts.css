@@ -141,3 +141,10 @@ input::placeholder {
     font-weight: var(--font-weight-bold);
     color: var(--color-app-card-h3);
 }
+
+.app-card-text {
+    font-family: var(--font-primary);
+    font-size: var(--app-card-font-size);
+    font-weight: var(--font-weight-p);
+    color: var(--color-app-card-text);
+}
