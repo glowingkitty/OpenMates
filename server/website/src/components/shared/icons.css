@@ -93,7 +93,7 @@
                      url('../../../public/icons/base/ai.svg') center 63%/17px no-repeat;
         -webkit-mask-composite: source-out;
         mask: url('../../../public/icons/base/user.svg') center 50% no-repeat,
-              url('../../../public/icons/base/ai.svg') center 63%/17px no-repeat;
+              url('../../../public/icons/base/ai.svg') center 67%/17px no-repeat;
         mask-composite: subtract;
     }
 }
