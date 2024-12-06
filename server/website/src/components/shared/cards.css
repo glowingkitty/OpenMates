@@ -1,12 +1,14 @@
 .app-card {
     border-radius: 19px;
-    background: white;
+    background: var(--color-app-card-background);
     border-radius: 24px;
     position: relative;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     background-repeat: no-repeat;
+    padding: 15px;
     background-size: 100% 5px;
+    box-sizing: border-box;
 }
 
 .app-card.large {
