@@ -32,6 +32,12 @@
     background: var(--icon-focus-background);
 }
 
+.provider-icon {
+    &::before {
+        filter: none;
+    }
+}
+
 .powered_by_ai {
     &::after {
         content: '';
@@ -456,5 +462,33 @@
 .icon.skill-search {
     &::before {
         background-image: url('../../../public/icons/base/search.svg');
+    }
+}
+
+.icon.provider-openai {
+    &::before {
+        background-image: url('../../../public/icons/base/openai.svg');
+        background-size: 55%;
+    }
+}
+
+.icon.provider-anthropic {
+    &::before {
+        background-image: url('../../../public/icons/base/claude.svg');
+        background-size: 55%;
+    }
+}
+
+.icon.provider-mistral {
+    &::before {
+        background-image: url('../../../public/icons/base/mistral.svg');
+        background-size: 55%;
+    }
+}
+
+.icon.provider-meta {
+    &::before {
+        background-image: url('../../../public/icons/base/meta.svg');
+        background-size: 55%;
     }
 }
