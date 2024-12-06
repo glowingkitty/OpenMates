@@ -1,0 +1,19 @@
+.app-card {
+    border-radius: 19px;
+    background: #FFF;
+}
+
+.app-card.large {
+    width: 320px;
+    height: 187px;
+}
+
+
+
+.health {
+    background: white;
+    border-radius: 24px;
+    padding: 32px;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

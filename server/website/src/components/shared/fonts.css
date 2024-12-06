@@ -17,6 +17,7 @@
     --button-text-decoration: none;
     --input-font-size: 16px;
     --input-font-weight: 500;
+    --app-card-font-size: 16px;
 }
 
 /* Utility classes for text alignment */
@@ -115,4 +116,28 @@ input::placeholder {
 
 .brand-name-mates {
     color: var(--color-font-primary);
+}
+
+/* App Card Typography */
+.app-card-h1 {
+    font-family: var(--font-primary);
+    font-size: var(--app-card-font-size);
+    font-weight: var(--font-weight-bold);
+    background: var(--color-primary);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.app-card-h2 {
+    font-family: var(--font-primary);
+    font-size: var(--app-card-font-size);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-app-card-h2);
+}
+
+.app-card-h3 {
+    font-family: var(--font-primary);
+    font-size: var(--app-card-font-size);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-app-card-h3);
 }

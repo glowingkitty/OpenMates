@@ -1,5 +1,5 @@
-/* Import base icon styles */
-@import './shared/icons/icon.css';
+/* Import icons */
+@import './shared/icons.css';
 
 /* Import fonts */
 @import './shared/fonts.css';
@@ -13,80 +13,8 @@
 /* Import mates */
 @import './shared/mates.css';
 
-/* Import endpoint icons */
-@import './shared/icons/billing.css';
-@import './shared/icons/chat.css';
-@import './shared/icons/mate.css';
-@import './shared/icons/app.css';
-@import './shared/icons/project.css';
-@import './shared/icons/server.css';
-@import './shared/icons/skill.css';
-@import './shared/icons/task.css';
-@import './shared/icons/user.css';
-@import './shared/icons/team.css';
-@import './shared/icons/workflow.css';
-
-/* Import app icons */
-@import './shared/icons/apps/ai.css';
-@import './shared/icons/apps/health.css';
-@import './shared/icons/apps/lifecoaching.css';
-@import './shared/icons/apps/nutrition.css';
-@import './shared/icons/apps/finance.css';
-@import './shared/icons/apps/fitness.css';
-@import './shared/icons/apps/legal.css';
-@import './shared/icons/apps/weather.css';
-@import './shared/icons/apps/travel.css';
-@import './shared/icons/apps/news.css';
-@import './shared/icons/apps/jobs.css';
-@import './shared/icons/apps/files.css';
-@import './shared/icons/apps/home.css';
-@import './shared/icons/apps/docs.css';
-@import './shared/icons/apps/slides.css';
-@import './shared/icons/apps/sheets.css';
-@import './shared/icons/apps/notes.css';
-@import './shared/icons/apps/whiteboards.css';
-@import './shared/icons/apps/diagrams.css';
-@import './shared/icons/apps/events.css';
-@import './shared/icons/apps/code.css';
-@import './shared/icons/apps/calendar.css';
-@import './shared/icons/apps/mail.css';
-@import './shared/icons/apps/reminder.css';
-@import './shared/icons/apps/business.css';
-@import './shared/icons/apps/web.css';
-@import './shared/icons/apps/videos.css';
-@import './shared/icons/apps/audio.css';
-@import './shared/icons/apps/maps.css';
-@import './shared/icons/apps/design.css';
-@import './shared/icons/apps/pcbdesign.css';
-@import './shared/icons/apps/pdfeditor.css';
-@import './shared/icons/apps/shopping.css';
-@import './shared/icons/apps/photos.css';
-@import './shared/icons/apps/publishing.css';
-@import './shared/icons/apps/socialmedia.css';
-@import './shared/icons/apps/projectmanagement.css';
-@import './shared/icons/apps/messages.css';
-@import './shared/icons/apps/books.css';
-@import './shared/icons/apps/plants.css';
-@import './shared/icons/apps/beauty.css';
-@import './shared/icons/apps/hosting.css';
-@import './shared/icons/apps/fashion.css';
-@import './shared/icons/apps/shipping.css';
-@import './shared/icons/apps/time.css';
-@import './shared/icons/apps/tv.css';
-@import './shared/icons/apps/movies.css';
-@import './shared/icons/apps/secrets.css';
-@import './shared/icons/apps/study.css';
-@import './shared/icons/apps/contacts.css';
-@import './shared/icons/apps/calculator.css';
-@import './shared/icons/apps/games.css';
-
-/* Import skill icons */
-@import './shared/icons/apps/skills/search.css';
-@import './shared/icons/apps/skills/create.css';
-@import './shared/icons/apps/skills/message.css';
-
-/* Import focus icons */
-@import './shared/icons/apps/focuses/insights.css';
+/* Import cards */
+@import './shared/cards.css';
 
 /* Import separators */
-@import './shared/separators/large_seperator.css';
+@import './shared/separators.css';

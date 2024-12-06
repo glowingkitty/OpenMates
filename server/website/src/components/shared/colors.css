@@ -27,6 +27,12 @@
     --color-button-secondary: #808080;
     --color-button-secondary-hover: #909090;
     --color-button-secondary-pressed: #606060;
+
+    /* App Card Colors */
+    --color-app-card-background: #ffffff;
+    --color-app-card-h2: #000000;
+    --color-app-card-h3: #6B6B6B;
+
     /* App colors */
 
     /* App/AI */
