@@ -235,6 +235,7 @@
 
         .mates-container {
             display: flex;
+            flex-wrap: wrap;
             gap: 30px;
             justify-content: center;
             padding: 20px;
@@ -244,6 +245,8 @@
         }
 
         .mate-wrapper {
+            min-width: 150px;
+            flex: 0 1 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -687,6 +690,26 @@
                 <div class="mate melvin"></div>
                 <div class="mate-name">Melvin</div>
                 <div class="mate-specialty">Medical Doctor</div>
+            </div>
+            <div class="mate-wrapper">
+                <div class="mate finn"></div>
+                <div class="mate-name">Finn</div>
+                <div class="mate-specialty">Finance</div>
+            </div>
+            <div class="mate-wrapper">
+                <div class="mate elton"></div>
+                <div class="mate-name">Elton</div>
+                <div class="mate-specialty">Electrical Engineering</div>
+            </div>
+            <div class="mate-wrapper">
+                <div class="mate denise"></div>
+                <div class="mate-name">Denise</div>
+                <div class="mate-specialty">Design</div>
+            </div>
+            <div class="mate-wrapper">
+                <div class="mate mark"></div>
+                <div class="mate-name">Mark</div>
+                <div class="mate-specialty">Marketing</div>
             </div>
         </div>
     </section>
