@@ -68,7 +68,7 @@
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); /* Enhanced shadow for "lifted" effect */
 }
 
-/* Add calendar preview styles */
+/* Update calendar preview styles for better time slot positioning */
 .calendar-preview {
     position: absolute;
     top: var(--card-padding);
@@ -87,22 +87,28 @@
     flex-direction: column;
     justify-content: space-between;
     width: 100%;
+    height: 100%; /* Add this to ensure full height */
 }
 
+/* Update appointment indicator for dynamic positioning */
+.appointment-indicator {
+    position: absolute;
+    right: 0;
+    width: 45px;
+    height: calc(30px); /* Height for 1-hour slot */
+    background-color: white;
+    border: 3px dashed var(--color-app-calendar-start);
+    border-radius: 8px;
+    margin: 5px;
+    /* Calculate top position based on time slots */
+    top: 8px; /* This positions it at 9:00 AM */
+}
+
+/* Add time slot markers for better visual alignment */
 .time-slot {
+    position: relative;
     color: var(--color-font-tertiary, #999);
     font-size: 14px;
     font-family: var(--font-primary);
-}
-
-.appointment-indicator {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 70px;
-    height: 40px;
-    background-color: white;
-    border: 2px dashed var(--color-app-calendar-start);
-    border-radius: 8px;
-    margin: 8px;
+    padding: 2px 0;
 }
