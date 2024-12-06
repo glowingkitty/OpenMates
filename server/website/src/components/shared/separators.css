@@ -15,7 +15,7 @@
     height: 132px;
     position: relative;
     /* Control the repetition pattern */
-    background-image: url('../../../../public/seperator_block.svg');
+    background-image: url('../../../public/seperator_block.svg');
     background-repeat: repeat-x;
     background-size: 42px 100%;
     /* Center the pattern horizontally and vertically */
