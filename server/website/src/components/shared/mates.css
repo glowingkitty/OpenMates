@@ -1,5 +1,5 @@
 /* Creates a circular container for profile pictures or avatars */
-.mate {
+.mate-profile {
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -8,30 +8,30 @@
     background-repeat: no-repeat;
 }
 
-.mate.buton {
+.mate-profile.buton {
     background-image: url('../../../../api/images/mates/profile_images/burton.jpg');
 }
 
-.mate.sophia {
+.mate-profile.sophia {
     background-image: url('../../../../api/images/mates/profile_images/sophia.jpg');
 }
 
-.mate.melvin {
+.mate-profile.melvin {
     background-image: url('../../../../api/images/mates/profile_images/melvin.jpg');
 }
 
-.mate.finn {
+.mate-profile.finn {
     background-image: url('../../../../api/images/mates/profile_images/finn.jpg');
 }
 
-.mate.elton {
+.mate-profile.elton {
     background-image: url('../../../../api/images/mates/profile_images/elton.jpg');
 }
 
-.mate.denise {
+.mate-profile.denise {
     background-image: url('../../../../api/images/mates/profile_images/denise.jpg');
 }
 
-.mate.mark {
+.mate-profile.mark {
     background-image: url('../../../../api/images/mates/profile_images/mark.jpg');
 }
