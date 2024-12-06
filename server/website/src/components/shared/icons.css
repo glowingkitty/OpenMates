@@ -40,14 +40,11 @@
         right: 5px;
         width: 20px;
         height: 20px;
-        background-image: var(--icon-ai-path);
-        background-size: contain;
-        background-repeat: no-repeat;
 
         /* Overlay the gradient color */
         background: var(--color-primary);
-        -webkit-mask-image: var(--icon-ai-path);
-        mask-image: var(--icon-ai-path);
+        -webkit-mask-image: url('../../../public/icons/base/ai.svg');
+        mask-image: url('../../../public/icons/base/ai.svg');
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
@@ -77,9 +74,28 @@
 
 .icon.mate {
     background: var(--color-primary);
+    overflow: hidden;
 
     &::before {
-        background-image: url('../../../public/icons/base/mate.svg');
+        /* Base user icon */
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url('../../../public/icons/base/user.svg');
+        background-size: 50%;
+        background-position: center;
+        background-repeat: no-repeat;
+        filter: brightness(0) invert(1);
+        /* Create a mask using the AI icon */
+        -webkit-mask: url('../../../public/icons/base/user.svg') center 50% no-repeat,
+                     url('../../../public/icons/base/ai.svg') center 63%/17px no-repeat;
+        -webkit-mask-composite: source-out;
+        mask: url('../../../public/icons/base/user.svg') center 50% no-repeat,
+              url('../../../public/icons/base/ai.svg') center 63%/17px no-repeat;
+        mask-composite: subtract;
     }
 }
 
