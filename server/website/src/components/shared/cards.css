@@ -16,6 +16,7 @@
     box-sizing: border-box;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     cursor: pointer; /* Shows clickable cursor on hover */
+    background-image: linear-gradient(to right, var(--color-app-health) 100%, transparent 0);
 }
 
 .app-card.large {
@@ -95,13 +96,23 @@
     position: absolute;
     right: 0;
     width: 45px;
-    height: calc(30px); /* Height for 1-hour slot */
-    background-color: white;
-    border: 3px dashed var(--color-app-calendar-start);
+    height: 30px;
     border-radius: 8px;
     margin: 5px;
-    /* Calculate top position based on time slots */
-    top: 8px; /* This positions it at 9:00 AM */
+}
+
+/* Add new class for dashed appointment style */
+.appointment-indicator.dashed {
+    background-color: white;
+    border: 3px dashed var(--color-app-calendar-start);
+}
+
+/* Add new class for solid appointment style */
+.appointment-indicator.solid {
+    background-color: var(--color-app-calendar-start, #4A6FFF);  /* Use your app's primary color */
+    border: none;
+    /* Position at 13:00 (adjust top value based on your time slots) */
+    top: calc(4 * 30px + 8px);
 }
 
 /* Add time slot markers for better visual alignment */

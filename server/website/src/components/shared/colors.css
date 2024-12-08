@@ -126,6 +126,11 @@
     --color-app-whiteboards-end: #0F40C4;
     --color-app-whiteboards: linear-gradient(135deg, var(--color-app-whiteboards-start) 9.04%, var(--color-app-whiteboards-end) 90.06%);
 
+    /* App/Language */
+    --color-app-language-start: #4989F2;
+    --color-app-language-end: #2F44BF;
+    --color-app-language: linear-gradient(135deg, var(--color-app-language-start) 9.04%, var(--color-app-language-end) 90.06%);
+
     /* App/Diagrams */
     --color-app-diagrams-start: #FFB200;
     --color-app-diagrams-end: #E6BD43;

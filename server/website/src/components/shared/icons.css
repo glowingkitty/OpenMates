@@ -439,6 +439,11 @@
     &::before { background-image: url('../../../public/icons/base/whiteboard.svg'); }
 }
 
+.icon.app-language {
+    background: var(--color-app-language);
+    &::before { background-image: url('../../../public/icons/base/language.svg'); }
+}
+
 /* Focus Icons */
 .icon.focus-insights {
     &::before { background-image: url('../../../public/icons/base/insight.svg'); }
