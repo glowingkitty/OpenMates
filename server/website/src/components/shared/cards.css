@@ -2,6 +2,7 @@
 :root {
     --card-padding: 15px;
     --card-edge: 8px;
+    --dashed-border-width: 3px;
 }
 
 
@@ -76,7 +77,7 @@
     width: 111px;
     height: calc(100% - var(--card-edge));
     background-color: var(--color-background-secondary, #f5f5f5);
-    padding: 10px;
+    padding: 0 10px;
     display: flex;
     box-sizing: border-box;
 
@@ -103,42 +104,48 @@
 }
 
 .time-slots {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    display: grid;
+    grid-template-rows: repeat(5, 35px);
     width: 100%;
-    height: 100%; /* Add this to ensure full height */
+    padding-top: 8px;
+    position: relative;
 }
 
-/* Update appointment indicator for dynamic positioning */
+/* Style for time slot text */
+.app-card-text {
+    align-self: start;
+    margin: 0; /* Remove margin since we're using grid */
+}
+
+/* Base styles for appointment indicators */
 .appointment-indicator {
     position: absolute;
-    right: 0;
+    left: 45px;
     width: 45px;
-    height: 30px;
     border-radius: 8px;
-    margin: 5px;
+
+    /* These will be set inline via HTML attributes */
+    --start-hour: 0;
+    --start-minute: 0;
+    --end-hour: 0;
+    --end-minute: 0;
+    --slot-height: 35px;
+    --slot-padding: calc(var(--dashed-border-width)*2 + 1px);
+    --total-minutes: calc((var(--end-hour) - var(--start-hour)) * 60 + (var(--end-minute) - var(--start-minute)));
+
+    /* Calculate top position based on start time, add small offset */
+    top: calc(calc(var(--start-hour) * var(--slot-height) + (var(--start-minute) / 60) * var(--slot-height)) + var(--card-padding) - var(--dashed-border-width));
+
+    /* Calculate height based on duration, subtract padding to prevent overlap */
+    height: calc(var(--total-minutes) / 60 * var(--slot-height) - var(--slot-padding));
 }
 
-/* Add new class for dashed appointment style */
 .appointment-indicator.dashed {
     background-color: white;
-    border: 3px dashed var(--color-app-calendar-start);
+    border: var(--dashed-border-width) dashed var(--color-app-calendar-start);
 }
 
-/* Add new class for solid appointment style */
 .appointment-indicator.solid {
-    background-color: var(--color-app-calendar-start, #4A6FFF);  /* Use your app's primary color */
-    border: none;
-    /* Position at 13:00 (adjust top value based on your time slots) */
-    top: calc(4 * 30px + 8px);
-}
-
-/* Add time slot markers for better visual alignment */
-.time-slot {
-    position: relative;
-    color: var(--color-font-tertiary, #999);
-    font-size: 14px;
-    font-family: var(--font-primary);
-    padding: 2px 0;
+    background-color: color-mix(in srgb, var(--color-app-calendar-start) 50%, transparent);
+    border: var(--dashed-border-width) solid color-mix(in srgb, var(--color-app-calendar-start) 0%, transparent);
 }
