@@ -264,6 +264,36 @@
             font-size: 0.9rem;
             color: var(--color-font-secondary);
         }
+
+        .app-card-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 300px;
+            max-width: calc(50% - 10px);
+            margin: 0;
+        }
+
+        .app-card-description {
+            margin-top: 10px;
+            color: var(--color-font-secondary);
+            font-size: 0.9rem;
+            font-family: var(--font-primary);
+        }
+
+        /* Update chat-container to handle multiple cards in a row */
+        .chat-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -273,7 +303,7 @@
 
     <section class="section">
         <h2 class="section-title">Colors</h2>
-        
+
         <!-- Base Colors -->
         <h3 class="subsection-title">Base Colors</h3>
         <div class="color-palette" id="base-colors">
@@ -742,43 +772,47 @@
     <section class="section">
         <h2 class="section-title">App Cards</h2>
         <div class="chat-container">
-            <div class="app-card large health">
-                <div>
-                    <div class="app-card-subheader-top">
-                        <div class="app-card-h3">Wednesday</div>
-                        <div class="app-card-h2">9:00 AM -<br>10:00 AM</div>
-                    </div>
-
-                    <div class="app-card-header">
-                        <div class="app-card-h1">Dr. Van Hausen</div>
-                        <div class="app-card-h3">Cardiologist</div>
-                    </div>
-
-                    <div class="app-card-subheader-bottom">
-                        <span class="app-card-h3">★</span>
-                        <span class="app-card-h3">4.2</span>
-                        <span class="app-card-h3">(85 ratings)</span>
-                    </div>
-                </div>
-                <div class="app-card-secondary-app calendar">
-                    <div class="time-slots">
-                        <div class="app-card-text">9:00</div>
-                        <div class="app-card-text">10:00</div>
-                        <div class="app-card-text">11:00</div>
-                        <div class="app-card-text">12:00</div>
-                        <div class="app-card-text">13:00</div>
-
-                        <!-- 9:00 to 10:00 appointment -->
-                        <div class="appointment-indicator dashed"
-                             style="--start-hour: 0; --start-minute: 0; --end-hour: 1; --end-minute: 0;">
+            <!-- First card -->
+            <div class="app-card-container">
+                <div class="app-card large health">
+                    <div>
+                        <div class="app-card-subheader-top">
+                            <div class="app-card-h3">Wednesday</div>
+                            <div class="app-card-h2">9:00 - 10:00</div>
                         </div>
 
-                        <!-- 13:00 to 15:00 appointment -->
-                        <div class="appointment-indicator solid"
-                             style="--start-hour: 4; --start-minute: 0; --end-hour: 6; --end-minute: 0;">
+                        <div class="app-card-header">
+                            <div class="app-card-h1">Dr. Van Hausen</div>
+                            <div class="app-card-h3">Cardiologist</div>
+                        </div>
+
+                        <div class="app-card-subheader-bottom">
+                            <span class="app-card-h3">★</span>
+                            <span class="app-card-h3">4.2</span>
+                            <span class="app-card-h3">(85 ratings)</span>
+                        </div>
+                    </div>
+                    <div class="app-card-secondary-app calendar">
+                        <div class="time-slots">
+                            <div class="app-card-text">9:00</div>
+                            <div class="app-card-text">10:00</div>
+                            <div class="app-card-text">11:00</div>
+                            <div class="app-card-text">12:00</div>
+                            <div class="app-card-text">13:00</div>
+
+                            <!-- 9:00 to 10:00 appointment -->
+                            <div class="appointment-indicator dashed"
+                                 style="--start-hour: 0; --start-minute: 0; --end-hour: 1; --end-minute: 0;">
+                            </div>
+
+                            <!-- 13:00 to 15:00 appointment -->
+                            <div class="appointment-indicator solid"
+                                 style="--start-hour: 4; --start-minute: 0; --end-hour: 6; --end-minute: 0;">
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="app-card-description">Health - Appointment</div>
             </div>
         </div>
     </section>

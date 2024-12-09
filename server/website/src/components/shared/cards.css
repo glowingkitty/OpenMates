@@ -3,10 +3,12 @@
     --card-padding: 15px;
     --card-edge: 8px;
     --dashed-border-width: 3px;
+    --card-margin: 5px;
 }
 
 
 .app-card {
+    margin: var(--card-margin);
     border-radius: 19px;
     background: var(--color-app-card-background);
     position: relative;
@@ -19,10 +21,12 @@
     background-repeat: no-repeat;
     background-size: 100% var(--card-edge);
     background-image: linear-gradient(to right, var(--color-app-health) 100%, transparent 0);
+    display: inline-block;
+    vertical-align: top;
 }
 
 .app-card.large {
-    width: 320px;
+    min-width: 320px;
     height: 187px;
 }
 
@@ -148,4 +152,15 @@
 .appointment-indicator.solid {
     background-color: color-mix(in srgb, var(--color-app-calendar-start) 50%, transparent);
     border: var(--dashed-border-width) solid color-mix(in srgb, var(--color-app-calendar-start) 0%, transparent);
+}
+
+/* Add after the app-card styles */
+.app-cards-container {
+    /* Use flex to handle wrapping and spacing */
+    display: flex;
+    flex-wrap: wrap;
+    /* Negative margin to counteract the cards' margins */
+    margin: calc(-1 * var(--card-margin));
+    /* Add padding to ensure container has some space from its surroundings */
+    padding: var(--card-margin);
 }
