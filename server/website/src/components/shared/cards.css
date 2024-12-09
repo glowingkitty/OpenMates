@@ -114,7 +114,7 @@
 /* Style for time slot text */
 .app-card-text {
     align-self: start;
-    margin: 0; /* Remove margin since we're using grid */
+    user-select: none;
 }
 
 /* Base styles for appointment indicators */
