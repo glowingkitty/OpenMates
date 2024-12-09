@@ -1,6 +1,6 @@
 /* Define card padding variable for consistent spacing */
 :root {
-    --card-padding: 15px;
+    --card-padding: 13px;
     --card-edge: 8px;
     --dashed-border-width: 3px;
     --card-margin: 5px;
@@ -26,7 +26,12 @@
 }
 
 .app-card.large {
-    min-width: 320px;
+    width: 320px;
+    height: 187px;
+}
+
+.app-card.small {
+    width: 150px;
     height: 187px;
 }
 
@@ -39,33 +44,14 @@
     position: absolute;
     bottom: 54px;
     left: var(--card-padding);
+    right: var(--card-padding);
 }
 
 .app-card-subheader-bottom {
     position: absolute;
     bottom: var(--card-padding);
     left: var(--card-padding);
-}
-
-.app-card-extra-detail{
-    position: absolute;
-    top: var(--card-padding);
-    left: 145px;
-    /* Stack items vertically and center them */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-.app-card-transit-icon{
-    width: 16px;
-    height: 16px;
-    background-image: url('../../../public/icons/base/travel.svg');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 16px;
-    filter: brightness(0) invert(0.45);
+    right: var(--card-padding);
 }
 
 /* App Card Backgrounds */
@@ -111,7 +97,7 @@
     display: grid;
     grid-template-rows: repeat(5, 35px);
     width: 100%;
-    padding-top: 8px;
+    padding-top: var(--card-edge);
     position: relative;
 }
 
@@ -138,7 +124,7 @@
     --total-minutes: calc((var(--end-hour) - var(--start-hour)) * 60 + (var(--end-minute) - var(--start-minute)));
 
     /* Calculate top position based on start time, add small offset */
-    top: calc(calc(var(--start-hour) * var(--slot-height) + (var(--start-minute) / 60) * var(--slot-height)) + var(--card-padding) - var(--dashed-border-width));
+    top: calc(calc(var(--start-hour) * var(--slot-height) + (var(--start-minute) / 60) * var(--slot-height)) + var(--card-padding) - var(--dashed-border-width) + 1px);
 
     /* Calculate height based on duration, subtract padding to prevent overlap */
     height: calc(var(--total-minutes) / 60 * var(--slot-height) - var(--slot-padding));
