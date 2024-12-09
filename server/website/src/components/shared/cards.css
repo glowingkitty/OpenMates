@@ -174,3 +174,57 @@
     top: 2px; /* Move the icon further down */
     left: -2px; /* Move the icon further to the left */
 }
+
+.participants-text {
+    /* Hide the text by moving it out of view */
+    text-indent: -9999px;
+    display: inline-block;
+    position: relative;
+    width: 16px; /* Width of the icon */
+    height: 16px; /* Height of the icon */
+}
+
+.participants-text::after {
+    /* Use the user icon as a background image */
+    content: '';
+    display: inline-block;
+    width: 16px; /* Adjust size as needed */
+    height: 16px; /* Adjust size as needed */
+    background-image: url('../../../public/icons/base/team.svg'); /* Path to your user icon */
+    background-size: contain;
+    background-repeat: no-repeat;
+    filter: brightness(0) invert(0.4);
+    position: absolute;
+    top: 2px; /* Move the icon further down */
+    left: -2px; /* Move the icon further to the left */
+}
+
+.events {
+    background-image: var(--color-app-events);
+}
+
+
+/* Specific styling for events card text */
+.events .app-card-h3 {
+    color: var(--color-font-secondary);
+}
+
+.events .app-card-h2 {
+    color: var(--color-font-primary);
+    font-weight: var(--font-weight-bold);
+}
+
+.event-header {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.event-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: var(--color-background-primary); /* Dark purple background */
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
