@@ -1,6 +1,7 @@
 /* Define card padding variable for consistent spacing */
 :root {
     --card-padding: 15px;
+    --card-edge: 8px;
 }
 
 
@@ -10,18 +11,23 @@
     position: relative;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    background-repeat: no-repeat;
     padding: var(--card-padding);
-    background-size: 100% 8px;
     box-sizing: border-box;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     cursor: pointer; /* Shows clickable cursor on hover */
+    background-repeat: no-repeat;
+    background-size: 100% var(--card-edge);
     background-image: linear-gradient(to right, var(--color-app-health) 100%, transparent 0);
 }
 
 .app-card.large {
     width: 320px;
     height: 187px;
+}
+
+.app-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .app-card-header {
@@ -63,24 +69,37 @@
     background-image: var(--color-app-health);
 }
 
-/* Add hover effects to card */
-.app-card:hover {
-    transform: translateY(-5px); /* Moves card up by 5px */
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); /* Enhanced shadow for "lifted" effect */
-}
-
-/* Update calendar preview styles for better time slot positioning */
-.calendar-preview {
+.app-card-secondary-app {
     position: absolute;
-    top: var(--card-padding);
-    right: var(--card-padding);
+    top: var(--card-edge);
+    right: 0;
     width: 111px;
-    height: 166px;
+    height: calc(100% - var(--card-edge));
     background-color: var(--color-background-secondary, #f5f5f5);
-    border-radius: 12px;
     padding: 10px;
     display: flex;
     box-sizing: border-box;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: calc(-1 * var(--card-edge));
+        left: 0;
+        width: 100%;
+        height: var(--card-edge);
+    }
+}
+
+.app-card-secondary-app.calendar {
+    &::before {
+        background-image: var(--color-app-calendar);
+    }
+}
+
+.app-card-secondary-app.travel {
+    &::before {
+        background-image: var(--color-app-travel);
+    }
 }
 
 .time-slots {
