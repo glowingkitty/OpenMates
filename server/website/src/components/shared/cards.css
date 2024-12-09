@@ -164,3 +164,27 @@
     /* Add padding to ensure container has some space from its surroundings */
     padding: var(--card-margin);
 }
+
+.ratings-text {
+    /* Hide the text by moving it out of view */
+    text-indent: -9999px;
+    display: inline-block;
+    position: relative;
+    width: 16px; /* Width of the icon */
+    height: 16px; /* Height of the icon */
+}
+
+.ratings-text::after {
+    /* Use the user icon as a background image */
+    content: '';
+    display: inline-block;
+    width: 16px; /* Adjust size as needed */
+    height: 16px; /* Adjust size as needed */
+    background-image: url('../../../public/icons/base/user.svg'); /* Path to your user icon */
+    background-size: contain;
+    background-repeat: no-repeat;
+    filter: brightness(0) invert(0.4);
+    position: absolute;
+    top: 2px; /* Move the icon further down */
+    left: -2px; /* Move the icon further to the left */
+}
