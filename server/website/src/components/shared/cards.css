@@ -47,6 +47,10 @@
     right: var(--card-padding);
 }
 
+.app-card-header.app-card-header-events {
+    bottom: 35px;
+}
+
 .app-card-subheader-bottom {
     position: absolute;
     bottom: var(--card-padding);
@@ -201,17 +205,6 @@
 
 .events {
     background-image: var(--color-app-events);
-}
-
-
-/* Specific styling for events card text */
-.events .app-card-h3 {
-    color: var(--color-font-secondary);
-}
-
-.events .app-card-h2 {
-    color: var(--color-font-primary);
-    font-weight: var(--font-weight-bold);
 }
 
 .event-header {
