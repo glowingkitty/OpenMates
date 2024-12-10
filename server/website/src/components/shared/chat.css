@@ -1,0 +1,15 @@
+.message-content {
+    margin-top: var(--mate-profile-margin);
+    max-width: 352px;
+    background-color: white;
+    border-radius: 13px;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+    margin-left: 12px;  /* Add spacing between mate-profile and message */
+    padding: 12px;      /* Add some internal padding for the content */
+    flex: 1;          /* Allow message content to take remaining space */
+}
+
+.chat-message {
+    display: flex;  /* Makes children align horizontally */
+    align-items: flex-start;  /* Aligns items to the top */
+}

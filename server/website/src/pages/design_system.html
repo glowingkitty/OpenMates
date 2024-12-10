@@ -265,7 +265,7 @@
             color: var(--color-font-secondary);
         }
 
-        .app-card-container {
+        .example_container {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -282,8 +282,7 @@
             font-family: var(--font-primary);
         }
 
-        /* Update chat-container to handle multiple cards in a row */
-        .chat-container {
+        .container {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
@@ -293,6 +292,16 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             width: 100%;
+        }
+
+        .placeholder {
+            padding: 20px;
+            background-color: #f5f5f5;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            color: #666;
+            text-align: center;
+            font-style: italic;
         }
     </style>
 </head>
@@ -771,9 +780,9 @@
 
     <section class="section">
         <h2 class="section-title">App Cards</h2>
-        <div class="chat-container">
+        <div class="container">
             <!-- First card -->
-            <div class="app-card-container">
+            <div class="example_container">
                 <div class="app-card large health">
                     <div>
                         <div class="app-card-subheader-top">
@@ -815,7 +824,7 @@
                 <div class="app-card-description">Health - Appointment (large)</div>
             </div>
             <!-- First card -->
-            <div class="app-card-container">
+            <div class="example_container">
                 <div class="app-card small health">
                     <div>
                         <div class="app-card-subheader-top">
@@ -838,7 +847,7 @@
                 <div class="app-card-description">Health - Appointment (small)</div>
             </div>
             <!-- Events Card -->
-            <div class="app-card-container">
+            <div class="example_container">
                 <div class="app-card small events">
                     <div>
                         <div class="app-card-subheader-top">
@@ -864,7 +873,7 @@
                 <div class="app-card-description">Events - Event (small)</div>
             </div>
             <!-- Events Card -->
-            <div class="app-card-container">
+            <div class="example_container">
                 <div class="app-card small events">
                     <div>
                         <div class="app-card-subheader-top">
@@ -894,13 +903,49 @@
 
     <section class="section">
         <h2 class="section-title">Chat</h2>
-        <div class="chat-container">
-            <div class="chat-message">
-                <div class="mate-profile burton"></div>
-                <div class="message-content">
-                    <div class="chat-mate-name">Burton</div>
-                    <div class="chat-message-text">Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.</div>
+        <div class="container">
+            <!-- Chat message - mate -->
+            <div class="example_container">
+                <div class="chat-message">
+                    <div class="mate-profile burton"></div>
+                    <div class="message-content">
+                        <div class="chat-mate-name">Burton</div>
+                        <div class="chat-message-text">Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.</div>
+                    </div>
                 </div>
+                <div class="app-card-description">Chat message - mate</div>
+            </div>
+
+            <!-- Chat message - user -->
+            <div class="example_container">
+                <div class="placeholder">
+                    [User message content will go here]
+                </div>
+                <div class="app-card-description">Chat message - user</div>
+            </div>
+
+            <!-- Loading preferences -->
+            <div class="example_container">
+                <div class="placeholder">
+                    [Loading preferences content will go here]
+                </div>
+                <div class="app-card-description">Loading preferences</div>
+            </div>
+
+            <!-- Using app -->
+            <div class="example_container">
+                <div class="placeholder">
+                    [Using app content will go here]
+                </div>
+                <div class="app-card-description">Using app</div>
+            </div>
+
+            <!-- Using multiple apps -->
+            <div class="example_container">
+                <div class="placeholder">
+                    [Using multiple apps content will go here]
+                </div>
+                <div class="app-card-description">Using multiple apps</div>
             </div>
         </div>
     </section>

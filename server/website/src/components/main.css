@@ -18,3 +18,6 @@
 
 /* Import separators */
 @import './shared/separators.css';
+
+/* Import chat */
+@import './shared/chat.css';
