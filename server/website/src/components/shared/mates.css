@@ -6,6 +6,23 @@
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
+
+    /* Add initial opacity and animation */
+    opacity: 0;
+    animation: fadeInMate 0.4s ease-in forwards;
+    animation-delay: 800ms;
+}
+
+/* Fade in animation for mate profiles */
+@keyframes fadeInMate {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .mate-profile.buton {

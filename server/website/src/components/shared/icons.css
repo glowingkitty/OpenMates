@@ -6,6 +6,11 @@
     position: relative;
     background: var(--icon-background);
     border: 2.17px solid var(--icon-border-color);
+    
+    /* Add fade-in animation */
+    opacity: 0;
+    animation: fadeInIcon 0.3s ease-in forwards;
+    animation-delay: 800ms;
 
     /* Common ::before styles for all icons */
     &::before {
@@ -19,6 +24,18 @@
         background-repeat: no-repeat;
         background-size: 50%;
         filter: brightness(0) invert(1);
+    }
+}
+
+/* Add the animation keyframes */
+@keyframes fadeInIcon {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
     }
 }
 
