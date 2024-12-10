@@ -226,7 +226,7 @@
     background-position: center;
     background-repeat: no-repeat;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    
+
     /* Add fade-in animation */
     opacity: 0;
     animation: fadeInEventImage 0.3s ease-in forwards;
