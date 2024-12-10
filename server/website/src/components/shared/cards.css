@@ -27,12 +27,12 @@
 
 .app-card.large {
     width: 320px;
-    height: 187px;
+    height: 200px;
 }
 
 .app-card.small {
     width: 150px;
-    height: 187px;
+    height: 200px;
 }
 
 .app-card:hover {
@@ -48,7 +48,7 @@
 }
 
 .app-card-header.app-card-header-events {
-    bottom: 35px;
+    bottom: 40px;
 }
 
 .app-card-subheader-bottom {
@@ -217,7 +217,9 @@
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    background-color: var(--color-background-primary); /* Dark purple background */
-    background-image: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    background-color: var(--color-background-primary);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
