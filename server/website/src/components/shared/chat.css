@@ -14,6 +14,8 @@
     filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
     animation: fadeInMessage 0.4s ease-in forwards;
     animation-delay: 800ms;
+    margin-top: var(--mate-profile-margin);
+    margin-bottom: 5px
 }
 
 .mate-message-content {
@@ -24,9 +26,9 @@
 }
 
 .user-message-content {
-    background-color: var(--color-primary-start);
+    background-color: white;
+    filter: grayscale(100%) brightness(0.9) drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
     color: white;
-    margin-top: var(--mate-profile-margin);
     margin-left: 86px; /* Width of the mate profile */
     margin-right: 12px;
 }
