@@ -72,6 +72,10 @@ p {
     line-height: var(--line-height-normal);
 }
 
+bold {
+    font-weight: var(--font-weight-bold);
+}
+
 /* Button typography styles */
 button {
     color: var(--color-font-button);
