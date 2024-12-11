@@ -18,6 +18,7 @@
     --input-font-size: 16px;
     --input-font-weight: 500;
     --app-card-font-size: 16px;
+    --chat-message-font-size: 16px;
 }
 
 /* Utility classes for text alignment */
@@ -147,4 +148,17 @@ input::placeholder {
     font-size: var(--app-card-font-size);
     font-weight: var(--font-weight-p);
     color: var(--color-app-card-text);
+}
+
+.chat-message-text {
+    font-family: var(--font-primary);
+    font-size: var(--chat-message-font-size);
+    font-weight: var(--font-weight-p);
+}
+
+.not_selectable {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
