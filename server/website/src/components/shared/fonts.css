@@ -95,6 +95,16 @@ input::placeholder {
     font-weight: var(--input-font-weight);
 }
 
+ol {
+    margin: 0.5em 0;     /* Reduced top/bottom margin */
+    padding-left: 1.5em;  /* Reduced left padding */
+}
+
+li {
+    margin: 0.2em 0;     /* Minimal spacing between list items */
+    padding-left: 0.5em;  /* Space between number and text */
+}
+
 /* Highlight class to change text color */
 .highlight {
     background: var(--color-primary);
@@ -150,11 +160,26 @@ input::placeholder {
     color: var(--color-app-card-text);
 }
 
+/* Chat message typography */
+.chat-mate-name {
+    font-family: var(--font-primary);
+    font-size: var(--chat-message-font-size);
+    font-weight: var(--font-weight-bold);
+    background: var(--color-primary);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: 4px;
+}
+
 .chat-message-text {
+    color: var(--color-font-primary); 
     font-family: var(--font-primary);
     font-size: var(--chat-message-font-size);
     font-weight: var(--font-weight-p);
 }
+
+
 
 .not_selectable {
     user-select: none;

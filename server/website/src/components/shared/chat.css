@@ -1,15 +1,32 @@
 .message-content {
+    position: relative;  /* Required for absolute positioning of pseudo-element */
     margin-top: var(--mate-profile-margin);
     max-width: 352px;
     background-color: white;
     border-radius: 13px;
-    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
-    margin-left: 12px;  /* Add spacing between mate-profile and message */
-    padding: 12px;      /* Add some internal padding for the content */
-    flex: 1;          /* Allow message content to take remaining space */
+    margin-left: 12px;
+    padding: 12px;
+    flex: 1;
+    /* Add the drop shadow directly to the main element */
+    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+/* Add the speech bubble pointer */
+.message-content::before {
+    content: "";
+    position: absolute;
+    left: -12px;  /* Adjust this value to position the pointer */
+    top: 20px;    /* Adjust this value to align with profile picture */
+    width: 12px;  /* Width of the pointer */
+    height: 20px; /* Height of the pointer */
+    /* Create the pointer using an SVG background */
+    background-image: url('../../../public/speechbubble.svg');
+    z-index: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
 }
 
 .chat-message {
-    display: flex;  /* Makes children align horizontally */
-    align-items: flex-start;  /* Aligns items to the top */
+    display: flex;
+    align-items: flex-start;
 }
