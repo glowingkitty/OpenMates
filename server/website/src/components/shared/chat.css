@@ -1,38 +1,54 @@
-.mate-message-content {
-    position: relative;  /* Required for absolute positioning of pseudo-element */
-    margin-top: var(--mate-profile-margin);
+.mate-message, .user-message {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.mate-message-content, .user-message-content {
+    position: relative;
     max-width: 352px;
-    background-color: white;
     border-radius: 13px;
-    margin-left: 6px;
     padding: 12px;
     flex: 1;
-    /* Add the drop shadow directly to the main element */
     filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
-    /* Add initial opacity and animation similar to mate-profile */
-    opacity: 0;
     animation: fadeInMessage 0.4s ease-in forwards;
     animation-delay: 800ms;
 }
 
-/* Add the speech bubble pointer */
-.mate-message-content::before {
+.mate-message-content {
+    background-color: white;
+    margin-top: var(--mate-profile-margin);
+    opacity: 0;
+}
+
+.user-message-content {
+    background-color: var(--color-primary-start);
+    color: white;
+    margin-top: var(--mate-profile-margin);
+}
+
+/* Adjust the speech bubble pointers */
+.mate-message-content::before, .user-message-content::before {
     content: "";
     position: absolute;
-    left: -12px;  /* Adjust this value to position the pointer */
-    top: 20px;    /* Adjust this value to align with profile picture */
-    width: 12px;  /* Width of the pointer */
-    height: 20px; /* Height of the pointer */
-    /* Create the pointer using an SVG background */
+    width: 12px;
+    height: 20px;
     background-image: url('../../../public/speechbubble.svg');
     z-index: 0;
     background-size: contain;
     background-repeat: no-repeat;
 }
 
-.mate-message {
-    display: flex;
-    align-items: flex-start;
+.mate-message-content::before {
+    left: -12px;
+    top: 20px;
+}
+
+.user-message-content::before {
+    right: -12px;
+    bottom: 10px;
+    transform: scaleX(-1);
 }
 
 /* Add the fade-in animation keyframes */
@@ -45,42 +61,4 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-/* Add new user message styles */
-.user-message {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-}
-
-.user-message-content {
-    position: relative;
-    margin-top: var(--mate-profile-margin);
-    max-width: 352px;
-    background-color: var(--color-primary-start);
-    border-radius: 13px;
-    margin-right: 6px;
-    padding: 12px;
-    flex: 1;
-    color: white;
-    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
-    animation: fadeInMessage 0.4s ease-in forwards;
-    animation-delay: 800ms;
-}
-
-
-/* Add the mirrored speech bubble pointer */
-.user-message-content::before {
-    content: "";
-    position: absolute;
-    right: -12px;  /* Position on the right instead of left */
-    bottom: 10px;  /* Position at bottom instead of top */
-    width: 12px;
-    height: 20px;
-    background-image: url('../../../public/speechbubble.svg');
-    z-index: 0;
-    background-size: contain;
-    background-repeat: no-repeat;
-    transform: scaleX(-1);  /* Mirror the speech bubble horizontally */
 }
