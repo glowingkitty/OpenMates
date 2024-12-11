@@ -1,4 +1,4 @@
-.mate-message, .user-message {
+.chat-message {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -7,7 +7,7 @@
 
 .mate-message-content, .user-message-content {
     position: relative;
-    max-width: 352px;
+    max-width: 430px;
     border-radius: 13px;
     padding: 12px;
     flex: 1;
@@ -20,12 +20,15 @@
     background-color: white;
     margin-top: var(--mate-profile-margin);
     opacity: 0;
+    margin-right: 12px;
 }
 
 .user-message-content {
     background-color: var(--color-primary-start);
     color: white;
     margin-top: var(--mate-profile-margin);
+    margin-left: 86px; /* Width of the mate profile */
+    margin-right: 12px;
 }
 
 /* Adjust the speech bubble pointers */
