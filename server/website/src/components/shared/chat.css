@@ -3,6 +3,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 6px;
+    width: 100%;
 }
 
 .mate-message-content, .user-message-content {
@@ -51,6 +52,21 @@
     filter: brightness(0) saturate(100%) invert(94%) sepia(5%) saturate(654%) hue-rotate(200deg) brightness(100%) contrast(96%);
 }
 
+/* Add speech bubble pointer for mate messages */
+.mate-message-content::before {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 20px;
+    background-image: url('../../../public/speechbubble.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    left: -12px;
+    top: 20px;
+    /* Color the SVG to match the white message background */
+    filter: brightness(0) saturate(100%) invert(100%);
+}
+
 /* Add the fade-in animation keyframes */
 @keyframes fadeInMessage {
     from {
@@ -61,4 +77,13 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Add these new classes */
+.message-align-right {
+    margin-left: auto;
+}
+
+.message-align-left {
+    margin-right: auto;
 }
