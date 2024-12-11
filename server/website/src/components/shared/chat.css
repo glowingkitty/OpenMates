@@ -27,10 +27,10 @@
 
 .user-message-content {
     position: relative;
-    background-color: #007bff;
+    background-color: #E6EAFF;
     margin-left: 86px;
     margin-right: 12px;
-    color: white;
+    color: #000000;
     padding: 12px;
     border-radius: 13px;
 }
@@ -48,7 +48,7 @@
     bottom: 10px;
     transform: scaleX(-1);
     /* Color the SVG to match the message background */
-    filter: brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1043%) hue-rotate(194deg) brightness(97%) contrast(107%);
+    filter: brightness(0) saturate(100%) invert(94%) sepia(5%) saturate(654%) hue-rotate(200deg) brightness(100%) contrast(96%);
 }
 
 /* Add the fade-in animation keyframes */
