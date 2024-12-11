@@ -1,4 +1,4 @@
-.message-content {
+.mate-message-content {
     position: relative;  /* Required for absolute positioning of pseudo-element */
     margin-top: var(--mate-profile-margin);
     max-width: 352px;
@@ -16,7 +16,7 @@
 }
 
 /* Add the speech bubble pointer */
-.message-content::before {
+.mate-message-content::before {
     content: "";
     position: absolute;
     left: -12px;  /* Adjust this value to position the pointer */
@@ -30,7 +30,7 @@
     background-repeat: no-repeat;
 }
 
-.chat-message {
+.mate-message {
     display: flex;
     align-items: flex-start;
 }
@@ -45,4 +45,42 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Add new user message styles */
+.user-message {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+}
+
+.user-message-content {
+    position: relative;
+    margin-top: var(--mate-profile-margin);
+    max-width: 352px;
+    background-color: var(--color-primary-start);
+    border-radius: 13px;
+    margin-right: 6px;
+    padding: 12px;
+    flex: 1;
+    color: white;
+    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+    animation: fadeInMessage 0.4s ease-in forwards;
+    animation-delay: 800ms;
+}
+
+
+/* Add the mirrored speech bubble pointer */
+.user-message-content::before {
+    content: "";
+    position: absolute;
+    right: -12px;  /* Position on the right instead of left */
+    bottom: 10px;  /* Position at bottom instead of top */
+    width: 12px;
+    height: 20px;
+    background-image: url('../../../public/speechbubble.svg');
+    z-index: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    transform: scaleX(-1);  /* Mirror the speech bubble horizontally */
 }
