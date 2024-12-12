@@ -23,6 +23,7 @@
     background-image: linear-gradient(to right, var(--color-app-health) 100%, transparent 0);
     display: inline-block;
     vertical-align: top;
+    flex-shrink: 0;
 }
 
 .app-card.large {

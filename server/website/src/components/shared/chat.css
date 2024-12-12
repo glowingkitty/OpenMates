@@ -15,7 +15,9 @@
     animation: fadeInMessage 0.4s ease-in forwards;
     animation-delay: 800ms;
     margin-top: var(--mate-profile-margin);
-    margin-bottom: 5px
+    margin-bottom: 5px;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .mate-message-content {
@@ -81,10 +83,14 @@
 /* Add these new classes */
 .message-align-right {
     margin-left: auto;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .message-align-left {
     margin-right: auto;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .processing-details {
@@ -114,4 +120,31 @@
 .processing-details:hover {
     background: transparent !important;
     opacity: 1;
+}
+
+/* Add new styles for the app cards container in chat */
+.chat-app-cards-container {
+    margin-top: 16px;
+    width: 100%;
+    overflow-x: auto;
+    display: flex;
+    gap: 16px;
+    padding: 4px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Style the scrollbar for webkit browsers */
+.chat-app-cards-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.chat-app-cards-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+}
+
+.chat-app-cards-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
 }

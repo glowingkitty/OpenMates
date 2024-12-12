@@ -178,7 +178,7 @@ li {
 }
 
 .chat-message-text {
-    color: var(--color-font-primary); 
+    color: var(--color-font-primary);
     font-family: var(--font-primary);
     font-size: var(--chat-message-font-size);
     font-weight: var(--font-weight-p);
