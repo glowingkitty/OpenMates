@@ -39,8 +39,8 @@
         width: 16px;
         height: 16px;
         background: var(--color-primary);
-        -webkit-mask-image: url('../../../public/icons/base/ai.svg');
-        mask-image: url('../../../public/icons/base/ai.svg');
+        -webkit-mask-image: url('../../../public/icons/ai.svg');
+        mask-image: url('../../../public/icons/ai.svg');
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;

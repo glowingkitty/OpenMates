@@ -78,17 +78,17 @@ input[type="number"] {
 }
 
 .icon-field.search-field::before {
-    background-image: url('../../../public/icons/base/search.svg');
+    background-image: url('../../../public/icons/search.svg');
 }
 
 .icon-field.apikey-field::before {
-    background-image: url('../../../public/icons/base/secret.svg');
+    background-image: url('../../../public/icons/secret.svg');
 }
 
 .icon-field.teamslug-field::before {
-    background-image: url('../../../public/icons/base/team.svg');
+    background-image: url('../../../public/icons/team.svg');
 }
 
 .icon-field.email-field::before {
-    background-image: url('../../../public/icons/base/mail.svg');
+    background-image: url('../../../public/icons/mail.svg');
 }

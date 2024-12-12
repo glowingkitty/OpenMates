@@ -175,7 +175,7 @@
     display: inline-block;
     width: 16px; /* Adjust size as needed */
     height: 16px; /* Adjust size as needed */
-    background-image: url('../../../public/icons/base/user.svg'); /* Path to your user icon */
+    background-image: url('../../../public/icons/user.svg'); /* Path to your user icon */
     background-size: contain;
     background-repeat: no-repeat;
     filter: brightness(0) invert(0.4);
@@ -199,7 +199,7 @@
     display: inline-block;
     width: 16px; /* Adjust size as needed */
     height: 16px; /* Adjust size as needed */
-    background-image: url('../../../public/icons/base/team.svg'); /* Path to your user icon */
+    background-image: url('../../../public/icons/team.svg'); /* Path to your user icon */
     background-size: contain;
     background-repeat: no-repeat;
     filter: brightness(0) invert(0.4);

@@ -9,12 +9,12 @@
   $: className = [
     'icon',
     inline ? 'inline' : '',
-    type === 'provider' ? `provider-${name}` :
     type === 'default' ? name : `${type}-${name}`,
+    type === 'provider' ? 'provider-icon' : '',
+    type === 'skill' ? 'skill-icon' : '',
+    type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : ''
   ].filter(Boolean).join(' ');
 </script>
 
-<div class={className} aria-label={name}>
-  <slot />
-</div>
+<div class={className} aria-label={name}></div>
