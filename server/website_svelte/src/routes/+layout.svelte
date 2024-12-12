@@ -7,6 +7,7 @@
     import '$lib/styles/cards.css';
     import '$lib/styles/chat.css';
     import '$lib/styles/fields.css';
+    import '$lib/styles/icons.css';
 </script>
 
 <slot />
