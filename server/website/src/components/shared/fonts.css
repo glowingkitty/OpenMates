@@ -19,6 +19,7 @@
     --input-font-weight: 500;
     --app-card-font-size: 16px;
     --chat-message-font-size: 16px;
+    --processing-details-font-size: 14px;
 }
 
 /* Utility classes for text alignment */
@@ -183,6 +184,13 @@ li {
     font-weight: var(--font-weight-p);
 }
 
+.processing-details {
+    font-family: var(--font-primary);
+    font-size: var(--processing-details-font-size);
+    font-weight: var(--font-weight-p);
+    color: var(--color-font-primary);
+    text-decoration: none;
+}
 
 
 .not_selectable {

@@ -6,7 +6,7 @@
     position: relative;
     background: var(--icon-background);
     border: 2.17px solid var(--icon-border-color);
-    
+
     /* Add fade-in animation */
     opacity: 0;
     animation: fadeInIcon 0.3s ease-in forwards;
@@ -25,6 +25,16 @@
         background-size: 50%;
         filter: brightness(0) invert(1);
     }
+}
+
+.icon.inline {
+    display: inline-block;
+    width: 27.19px;
+    height: 27.19px;
+    border-radius: 5.58px;
+    border: 0.33px solid var(--icon-border-color);
+    vertical-align: middle;
+    margin: 0 4px;
 }
 
 /* Add the animation keyframes */
