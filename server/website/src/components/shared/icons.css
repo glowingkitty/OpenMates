@@ -35,6 +35,12 @@
     border: 0.33px solid var(--icon-border-color);
     vertical-align: middle;
     margin: 0 4px;
+    position: relative;
+}
+
+.icon.inline + .icon.inline {
+    margin-left: -17px;
+    position: relative;
 }
 
 /* Add the animation keyframes */
