@@ -17,11 +17,12 @@ button {
 
 button:hover {
     background-color: var(--color-button-primary-hover);  /* Slightly lighter shade for hover */
-    transform: translateY(-1px);
+    scale: 1.02;
 }
 
 button:active {
     background-color: var(--color-button-primary-pressed);
+    scale: 0.98;
 }
 
 /* Secondary Button - Gray style */

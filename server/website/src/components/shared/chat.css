@@ -89,6 +89,7 @@
 }
 
 .processing-details {
+    cursor: pointer;
     opacity: 0.5;
     transition: all 0.3s ease-in-out;
     position: relative;
@@ -112,10 +113,6 @@
 }
 
 .processing-details:hover {
+    background: transparent !important;
     opacity: 1;
-    scale: 1.02;
-}
-
-.processing-details:active {
-    scale: 0.98;
 }

@@ -185,6 +185,9 @@ li {
 }
 
 .processing-details {
+    /* Reset all button styles */
+    all: unset;  /* This removes all browser default styles */
+
     font-family: var(--font-primary);
     font-size: var(--processing-details-font-size);
     font-weight: var(--font-weight-p);
