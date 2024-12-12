@@ -131,7 +131,23 @@
     gap: 16px;
     padding: 4px;
     scrollbar-width: thin;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    
+    /* Add these new properties */
+    scroll-snap-type: x mandatory;  /* Enable smooth snap scrolling */
+    scroll-behavior: smooth;        /* Smooth scrolling animation */
+    overflow-y: hidden;            /* Prevent vertical scroll */
+}
+
+/* Add this new rule to handle wheel events */
+.chat-app-cards-container {
+    scrollbar-width: thin;
+    -ms-overflow-style: none;  /* Hide scrollbar for IE and Edge */
+}
+
+/* Optional: Hide the scrollbar for a cleaner look */
+.chat-app-cards-container::-webkit-scrollbar {
+    display: none;
 }
 
 /* Style the scrollbar for webkit browsers */
