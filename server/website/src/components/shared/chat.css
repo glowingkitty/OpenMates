@@ -93,6 +93,9 @@
     transition: all 0.3s ease-in-out;
     position: relative;
     padding-right: 20px; /* Make space for the icon */
+    margin-left: 86px;   /* Match user message left margin */
+    margin-right: 12px;  /* Match message right margin */
+    margin-top: 10px;
 }
 
 .processing-details::after {
