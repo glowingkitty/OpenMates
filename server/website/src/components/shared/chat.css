@@ -16,8 +16,7 @@
     animation-delay: 800ms;
     margin-top: var(--mate-profile-margin);
     margin-bottom: 5px;
-    max-width: 100%;
-    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .mate-message-content {
@@ -83,14 +82,16 @@
 /* Add these new classes */
 .message-align-right {
     margin-left: auto;
+    padding-left: 12px;
+    box-sizing: border-box;
     max-width: 100%;
-    overflow: hidden;
 }
 
 .message-align-left {
     margin-right: auto;
-    max-width: 100%;
-    overflow: hidden;
+    padding-right: 12px;
+    box-sizing: border-box;
+    max-width: calc(100% - 70px);
 }
 
 .processing-details {
@@ -126,17 +127,17 @@
 .chat-app-cards-container {
     margin-top: 16px;
     width: 100%;
-    overflow-x: auto;
     display: flex;
     gap: 16px;
-    padding: 4px;
+    padding: 4px 0;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
-    
-    /* Add these new properties */
-    scroll-snap-type: x mandatory;  /* Enable smooth snap scrolling */
-    scroll-behavior: smooth;        /* Smooth scrolling animation */
-    overflow-y: hidden;            /* Prevent vertical scroll */
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    overflow-x: auto;
+    overflow-y: visible;
+    box-sizing: border-box;
+    contain: content;
 }
 
 /* Add this new rule to handle wheel events */
