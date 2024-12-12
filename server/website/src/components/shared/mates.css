@@ -69,6 +69,10 @@
     background-image: url('../../../../api/images/mates/profile_images/burton.jpg');
 }
 
+.mate-profile.lisa {
+    background-image: url('../../../../api/images/mates/profile_images/lisa.jpg');
+}
+
 .mate-profile.sophia {
     background-image: url('../../../../api/images/mates/profile_images/sophia.jpg');
 }

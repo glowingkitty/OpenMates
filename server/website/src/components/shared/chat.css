@@ -8,7 +8,6 @@
 
 .mate-message-content, .user-message-content {
     position: relative;
-    max-width: 430px;
     border-radius: 13px;
     padding: 12px;
     flex: 1;
