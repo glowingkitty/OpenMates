@@ -126,7 +126,8 @@
 /* Add new styles for the app cards container in chat */
 .chat-app-cards-container {
     margin-top: 16px;
-    width: 100%;
+    margin-left: -12px;
+    margin-right: -12px;
     display: flex;
     gap: 16px;
     padding: 4px 0;
