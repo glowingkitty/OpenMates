@@ -1,2 +1,2 @@
-<h1>Roadmap</h1>
-<h2>Learn what’s next for OpenMates</h2>
+<h1 class="text-center">Roadmap</h1>
+<h2 class="text-center">Learn what’s next for OpenMates</h2>
