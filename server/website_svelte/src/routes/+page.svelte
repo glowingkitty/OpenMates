@@ -288,10 +288,10 @@
         <!-- Chat message - mate -->
         <div class="example_container">
             <ChatMessage role="burton">
-                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.
-
-                To get a better sense of direction, could you tell me:
-                1. What aspects of your previous jobs did you find most fulfilling?
+                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills. To get a better sense of direction, could you tell me:
+                <ol>
+                    <li>What aspects of your previous jobs did you find most fulfilling?</li>
+                </ol>
             </ChatMessage>
             <div class="app-card-description">Chat message - mate</div>
         </div>
@@ -341,10 +341,10 @@
                 appNames={['Jobs']}
             />
             <ChatMessage role="burton">
-                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.
-
-                To get a better sense of direction, could you tell me:
-                1. What aspects of your previous jobs did you find most fulfilling?
+                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills. To get a better sense of direction, could you tell me:
+                <ol>
+                    <li>What aspects of your previous jobs did you find most fulfilling?</li>
+                </ol>
             </ChatMessage>
             <div class="app-card-description">Chat conversation with loaded preferences</div>
         </div>

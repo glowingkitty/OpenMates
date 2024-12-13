@@ -45,7 +45,7 @@
         {#if messageParts && messageParts.length > 0}
           {#each messageParts as part}
             {#if part.type === 'text'}
-              <div class="text-content">{part.content as string}</div>
+              <div class="text-content">{@html part.content}</div>
             {:else if part.type === 'app-cards'}
               <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
                 {#each (part.content as AppCardData[]) as card}
@@ -55,7 +55,10 @@
             {/if}
           {/each}
         {:else}
-          <slot />
+          <div class="text-content">
+            {@html $$slots.default ? '' : ''}
+            <slot />
+          </div>
           
           {#if appCards && appCards.length > 0}
             <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
@@ -99,5 +102,12 @@
   /* Remove margin from last text content */
   .text-content:last-child {
     margin-bottom: 0;
+  }
+
+  /* Adjust line breaks to have a more natural spacing */
+  :global(.text-content br) {
+    display: block;
+    content: "";
+    margin-top: 0.25em;
   }
 </style>
