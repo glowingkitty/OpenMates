@@ -131,7 +131,7 @@
 </script>
 
 <div class="design-system-header">
-    <h1>OpenMates<br><mark>Design System</mark></h1>
+    <h1>OpenMates<br>Design System</h1>
 </div>
 
 <section class="section">
@@ -142,6 +142,65 @@
     
     <div id="app-colors" class="color-palette">
         <!-- App colors will be rendered here -->
+    </div>
+</section>
+
+<section class="section">
+    <h2 class="section-title">Typography</h2>
+    <div class="typography-container">
+        <div class="typography-example">
+            <h1>H1<br><mark>With highlight</mark></h1>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h1) (60px)<br>
+                font-weight: var(--font-weight-extra-bold) (800)<br>
+                line-height: var(--line-height-normal)<br>
+                color: var(--color-font-primary)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <h2>H2 <mark>With highlight</mark></h2>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h2) (30px)<br>
+                font-weight: var(--font-weight-bold) (700)<br>
+                line-height: var(--line-height-normal)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <h3>H3</h3>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h3) (20px)<br>
+                font-weight: var(--font-weight-bold) (700)<br>
+                line-height: var(--line-height-normal)<br>
+                color: var(--color-font-secondary)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <h4>H4</h4>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h4) (16px)<br>
+                font-weight: var(--font-weight-bold) (700)<br>
+                line-height: var(--line-height-normal)<br>
+                color: var(--color-font-tertiary)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <p>Regular text - This is an example from OpenMates with body text</p>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-p) (16px)<br>
+                font-weight: var(--font-weight-p) (500)<br>
+                line-height: var(--line-height-normal)<br>
+                font-style: var(--font-style-normal)
+            </div>
+        </div>
     </div>
 </section>
 
@@ -206,6 +265,11 @@
 </section>
 
 <section class="section">
+    <h2 class="section-title">Separators</h2>
+    <div class="large-separator"></div>
+</section>
+
+<section class="section">
     <h2 class="section-title">Buttons</h2>
     <div class="button-container">
         <Button>Primary</Button>
@@ -221,64 +285,7 @@
     <Field type="email" placeholder="Enter your e-mail address..." variant="email" />
 </section>
 
-<section class="section">
-    <h2 class="section-title">Typography</h2>
-    <div class="typography-container">
-        <div class="typography-example">
-            <h1>H1<br><mark>With highlight</mark></h1>
-            <div class="typography-info">
-                font-family: var(--font-primary) (Lexend Deca)<br>
-                font-size: var(--font-size-h1) (60px)<br>
-                font-weight: var(--font-weight-extra-bold) (800)<br>
-                line-height: var(--line-height-normal)<br>
-                color: var(--color-font-primary)
-            </div>
-        </div>
 
-        <div class="typography-example">
-            <h2>H2 <mark>With highlight</mark></h2>
-            <div class="typography-info">
-                font-family: var(--font-primary) (Lexend Deca)<br>
-                font-size: var(--font-size-h2) (30px)<br>
-                font-weight: var(--font-weight-bold) (700)<br>
-                line-height: var(--line-height-normal)
-            </div>
-        </div>
-
-        <div class="typography-example">
-            <h3>H3</h3>
-            <div class="typography-info">
-                font-family: var(--font-primary) (Lexend Deca)<br>
-                font-size: var(--font-size-h3) (20px)<br>
-                font-weight: var(--font-weight-bold) (700)<br>
-                line-height: var(--line-height-normal)<br>
-                color: var(--color-font-secondary)
-            </div>
-        </div>
-
-        <div class="typography-example">
-            <h4>H4</h4>
-            <div class="typography-info">
-                font-family: var(--font-primary) (Lexend Deca)<br>
-                font-size: var(--font-size-h4) (16px)<br>
-                font-weight: var(--font-weight-bold) (700)<br>
-                line-height: var(--line-height-normal)<br>
-                color: var(--color-font-tertiary)
-            </div>
-        </div>
-
-        <div class="typography-example">
-            <p>Regular text - This is an example from OpenMates with body text</p>
-            <div class="typography-info">
-                font-family: var(--font-primary) (Lexend Deca)<br>
-                font-size: var(--font-size-p) (16px)<br>
-                font-weight: var(--font-weight-p) (500)<br>
-                line-height: var(--line-height-normal)<br>
-                font-style: var(--font-style-normal)
-            </div>
-        </div>
-    </div>
-</section>
 
 <section class="section">
     <h2 class="section-title">Mates</h2>
@@ -326,10 +333,7 @@
     </div>
 </section>
 
-<section class="section">
-    <h2 class="section-title">Separators</h2>
-    <div class="large-separator"></div>
-</section>
+
 
 <section class="section">
     <h2 class="section-title">App Cards</h2>
@@ -747,12 +751,5 @@
     .mate-specialty {
         font-size: 0.9rem;
         color: var(--color-font-secondary);
-    }
-
-    .large-separator {
-        width: 100%;
-        height: 2px;
-        background-color: var(--color-border);
-        margin: 20px 0;
     }
 </style>
