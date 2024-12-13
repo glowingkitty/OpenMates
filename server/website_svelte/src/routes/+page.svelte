@@ -149,15 +149,15 @@
             <HealthAppCard
                 size="large"
                 date="Wed, Dec 12"
-                time="9:00 - 10:00"
+                start="9:00"
+                end="10:00"
                 doctorName="Dr. Van Hausen"
                 specialty="Cardiologist"
                 rating={4.2}
                 ratingCount={85}
                 showCalendar={true}
-                appointments={[
-                    {start: 9, end: 10, type: 'dashed'},
-                    {start: 13, end: 15, type: 'solid'}
+                existingAppointments={[
+                    {start: "13:00", end: "15:00"}
                 ]}
             />
             <div class="app-card-description">Health - Appointment (large)</div>
@@ -167,7 +167,8 @@
             <HealthAppCard
                 size="small"
                 date="Wed, Dec 12"
-                time="9:00 - 10:00"
+                start="9:00"
+                end="10:00"
                 doctorName="Dr. Van Hausen"
                 specialty="Cardiologist"
                 rating={4.2}
