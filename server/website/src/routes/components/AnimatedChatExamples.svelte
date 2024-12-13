@@ -100,21 +100,28 @@
         visibleMessages = [];
         currentSequenceIndex = 0;
 
+        // Reset all app icons to default opacity at the start of each example
+        const icons = document.querySelectorAll('.icon-wrapper');
+        icons.forEach(icon => {
+            (icon as HTMLElement).style.opacity = '0.2';
+        });
+
+        // Find the app to highlight for this example (usually from first user message)
+        const appToHighlight = currentExample.sequence.find(msg => msg.highlightApp)?.highlightApp;
+
         // Animate each message in sequence
         for (const message of currentExample.sequence) {
             visibleMessages = [...visibleMessages, message];
-
-            // Highlight corresponding app icon
-            if (message.highlightApp) {
-                highlightAppIcon(message.highlightApp);
-            }
-
-            // Wait before showing next message
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
+        // Highlight the app icon only after all messages are displayed
+        if (appToHighlight) {
+            highlightAppIcon(appToHighlight);
+        }
+
         // Wait before starting next example
-        await new Promise(resolve => setTimeout(resolve, 4000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Move to next example
         currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
@@ -160,8 +167,9 @@
 <style>
     .animated-chat-container {
         width: 100%;
-        max-width: 600px;
+        max-width: 540px;
         margin: 0 auto;
         padding: 1rem;
+        user-select: none;
     }
 </style>

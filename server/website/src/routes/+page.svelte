@@ -145,14 +145,20 @@
     /* Updated center content styles */
     .center-space {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
-        text-align: center;
+        padding-top: 4rem;
     }
 
     .center-content {
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: 1.5rem;
+    }
+
+    .center-content h1,
+    .center-content p {
+        margin: 0;
     }
 </style>
