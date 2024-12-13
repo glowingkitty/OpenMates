@@ -128,6 +128,89 @@
             ]
         }
     ];
+
+    // Helper function to get computed hex color from CSS variable
+    function getCssVarColor(varName: string): string {
+        // Get color from CSS variable, defaulting to empty string if not found
+        const color = getComputedStyle(document.documentElement)
+            .getPropertyValue(varName)
+            .trim();
+        return color;
+    }
+
+    // Function to load base colors
+    function loadBaseColors(): Array<{name: string, startColor: string, endColor: string}> {
+        // Define base color variables
+        const baseColors = [
+            'color-primary',
+            'icon-background',
+            'icon-focus-background'
+        ];
+
+        const colors = baseColors.map(colorName => ({
+            name: colorName,
+            startColor: getCssVarColor(`--${colorName}-start`),
+            endColor: getCssVarColor(`--${colorName}-end`)
+        }));
+
+        // Add icon border color separately since it's not a gradient
+        const borderColor = getCssVarColor('--icon-border-color');
+        colors.push({
+            name: 'icon-border-color',
+            startColor: borderColor,
+            endColor: borderColor
+        });
+
+        return colors;
+    }
+
+    // Function to load app colors
+    function loadAppColors(): Array<{name: string, startColor: string, endColor: string}> {
+        const appColors: Array<{name: string, startColor: string, endColor: string}> = [];
+        
+        // Get all CSS custom properties that match app color pattern
+        const styleSheets = document.styleSheets;
+        for (const sheet of styleSheets) {
+            try {
+                const rules = sheet.cssRules || sheet.rules;
+                for (const rule of rules) {
+                    if (rule instanceof CSSStyleRule && rule.selectorText === ':root') {
+                        const style = rule.style;
+                        const appColorSet = new Set<string>();
+                        
+                        for (let i = 0; i < style.length; i++) {
+                            const prop = style[i];
+                            if (prop.startsWith('--color-app-') && !prop.endsWith('-start') && !prop.endsWith('-end')) {
+                                appColorSet.add(prop.replace('--color-app-', ''));
+                            }
+                        }
+
+                        appColorSet.forEach(colorName => {
+                            appColors.push({
+                                name: colorName,
+                                startColor: getCssVarColor(`--color-app-${colorName}-start`),
+                                endColor: getCssVarColor(`--color-app-${colorName}-end`)
+                            });
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Error accessing stylesheet:', e);
+            }
+        }
+
+        return appColors;
+    }
+
+    let baseColors: Array<{name: string, startColor: string, endColor: string}> = [];
+    let appColors: Array<{name: string, startColor: string, endColor: string}> = [];
+
+    // Load colors when component mounts
+    import { onMount } from 'svelte';
+    onMount(() => {
+        baseColors = loadBaseColors();
+        appColors = loadAppColors();
+    });
 </script>
 
 <div class="design-system-header">
@@ -136,12 +219,67 @@
 
 <section class="section">
     <h2 class="section-title">Colors</h2>
+    
+    <h3 class="subsection-title">Base Colors</h3>
     <div id="base-colors" class="color-palette">
-        <!-- Base colors will be rendered here -->
+        {#each baseColors as color}
+            <div class="color-item">
+                <div class="color-info">
+                    <div class="gradient-var">--{color.name}</div>
+                    <div 
+                        class="gradient-preview" 
+                        style="background: linear-gradient(to right, {color.startColor}, {color.endColor})"
+                    ></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: {color.startColor}"></div>
+                            <div class="color-text">
+                                <div class="var-name">--{color.name}-start</div>
+                                <div class="hex-code">{color.startColor}</div>
+                            </div>
+                        </div>
+                        <div class="color-block">
+                            <div class="color-sample" style="background: {color.endColor}"></div>
+                            <div class="color-text">
+                                <div class="var-name">--{color.name}-end</div>
+                                <div class="hex-code">{color.endColor}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {/each}
     </div>
 
+    <h3 class="subsection-title">App Colors</h3>
     <div id="app-colors" class="color-palette">
-        <!-- App colors will be rendered here -->
+        {#each appColors as color}
+            <div class="color-item">
+                <div class="color-info">
+                    <div class="gradient-var">--color-app-{color.name}</div>
+                    <div 
+                        class="gradient-preview" 
+                        style="background: linear-gradient(to right, {color.startColor}, {color.endColor})"
+                    ></div>
+                    <div class="color-blocks">
+                        <div class="color-block">
+                            <div class="color-sample" style="background: {color.startColor}"></div>
+                            <div class="color-text">
+                                <div class="var-name">--color-app-{color.name}-start</div>
+                                <div class="hex-code">{color.startColor}</div>
+                            </div>
+                        </div>
+                        <div class="color-block">
+                            <div class="color-sample" style="background: {color.endColor}"></div>
+                            <div class="color-text">
+                                <div class="var-name">--color-app-{color.name}-end</div>
+                                <div class="hex-code">{color.endColor}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {/each}
     </div>
 </section>
 
@@ -751,5 +889,93 @@
     .mate-specialty {
         font-size: 0.9rem;
         color: var(--color-font-secondary);
+    }
+
+    .subsection-title {
+        font-size: 1.3rem;
+        color: #555;
+        margin: 30px 0 15px;
+        padding-left: 15px;
+        border-left: 4px solid #ddd;
+    }
+
+    .color-palette {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 25px;
+        padding: 20px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .color-item {
+        background: white;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        height: 100%;
+    }
+
+    .color-info {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .gradient-var {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .gradient-preview {
+        width: 100%;
+        height: 16px;
+        border-radius: 3px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        background-size: 100% 100%;
+    }
+
+    .color-blocks {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .color-block {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .color-sample {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .color-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .var-name {
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .hex-code {
+        font-family: monospace;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #333;
     }
 </style>
