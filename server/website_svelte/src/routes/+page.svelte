@@ -277,7 +277,7 @@
     <h2 class="section-title">Processing Details</h2>
     <div class="container">
         <div class="example_container">
-            <ProcessingDetails 
+            <ProcessingDetails
                 type="loading_preferences"
                 appNames={['Jobs']}
             />
@@ -285,7 +285,7 @@
         </div>
 
         <div class="example_container">
-            <ProcessingDetails 
+            <ProcessingDetails
                 type="using_app"
                 appNames={['Events']}
             />
@@ -293,7 +293,7 @@
         </div>
 
         <div class="example_container">
-            <ProcessingDetails 
+            <ProcessingDetails
                 type="used_apps"
                 appNames={['Calendar', 'Health']}
             />
@@ -306,8 +306,8 @@
     <h2 class="section-title">Chat</h2>
     <div class="container">
         {#each chatExamples as message}
-            <ChatMessage 
-                type={message.type} 
+            <ChatMessage
+                type={message.type}
                 mateName={message.type === 'mate' ? message.mateName : undefined}
                 mateProfile={message.type === 'mate' ? message.mateProfile : undefined}
                 appCards={message.appCards}
@@ -316,9 +316,9 @@
                 {message.text}
             </ChatMessage>
             {#if message.type === 'mate' && message.appCards}
-                <ProcessingDetails 
+                <ProcessingDetails
                     type="used_apps"
-                    appNames={['calendar', 'health']}
+                    appNames={['Calendar', 'Health']}
                 />
             {/if}
         {/each}
