@@ -52,7 +52,7 @@
 </script>
 
 <div class="design-system-header">
-    <h1>OpenMates<br>Design System</h1>
+    <h1>OpenMates<br><highlight>Design System</highlight></h1>
 </div>
 
 <section class="section">
@@ -143,6 +143,41 @@
 </section>
 
 <section class="section">
+    <h2 class="section-title">App Cards</h2>
+    <div class="container">
+        <div class="example_container">
+            <HealthAppCard
+                size="large"
+                date="Wed, Dec 12"
+                time="9:00 - 10:00"
+                doctorName="Dr. Van Hausen"
+                specialty="Cardiologist"
+                rating={4.2}
+                ratingCount={85}
+                showCalendar={true}
+                appointments={[
+                    {start: 9, end: 10, type: 'dashed'},
+                    {start: 13, end: 15, type: 'solid'}
+                ]}
+            />
+            <div class="app-card-description">Health - Appointment (large)</div>
+        </div>
+
+        <div class="example_container">
+            <EventAppCard
+                size="small"
+                date="Today"
+                time="18:30"
+                eventName="Book Lovers' Social: An Evening of Reading and Discussion"
+                participants={12}
+                imageUrl="/images/examples/group1.jpg"
+            />
+            <div class="app-card-description">Events - Event (small)</div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
     <h2 class="section-title">Chat</h2>
     <div class="container">
         {#each chatExamples as message}
@@ -163,40 +198,7 @@
     </div>
 </section>
 
-<section class="section">
-    <h2 class="section-title">App Cards</h2>
-    <div class="container">
-        <div class="example_container">
-            <HealthAppCard
-                size="large"
-                date="Wed, Dec 12"
-                time="9:00 - 10:00"
-                doctorName="Dr. Van Hausen"
-                specialty="Cardiologist"
-                rating={4.2}
-                ratingCount={85}
-                showCalendar={true}
-                appointments={[
-                    {start: 0, end: 1, type: 'dashed'},
-                    {start: 4, end: 6, type: 'solid'}
-                ]}
-            />
-            <div class="app-card-description">Health - Appointment (large)</div>
-        </div>
 
-        <div class="example_container">
-            <EventAppCard
-                size="small"
-                date="Today"
-                time="18:30"
-                eventName="Book Lovers' Social: An Evening of Reading and Discussion"
-                participants={12}
-                imageUrl="../../public/images/examples/group1.jpg"
-            />
-            <div class="app-card-description">Events - Event (small)</div>
-        </div>
-    </div>
-</section>
 
 <style>
     .design-system-header {

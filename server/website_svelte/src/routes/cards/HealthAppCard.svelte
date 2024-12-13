@@ -10,6 +10,21 @@
   export let ratingCount: number;
   export let showCalendar: boolean = false;
   export let appointments: Array<{start: number, end: number, type: 'dashed' | 'solid'}> = [];
+
+  // Calculate the start time based on the earliest appointment
+  $: startTime = appointments.length > 0 
+    ? Math.min(...appointments.map(a => a.start)) 
+    : 9; // Default to 9 if no appointments
+
+  // Generate 5 time slots starting from the calculated start time
+  $: timeSlots = Array.from({length: 5}, (_, i) => `${startTime + i}:00`);
+
+  // Convert absolute times to relative positions (0-4)
+  $: relativeAppointments = appointments.map(app => ({
+    ...app,
+    start: app.start - startTime,
+    end: app.end - startTime
+  }));
 </script>
 
 <BaseAppCard {size} type="health" title={doctorName} subtitle={specialty}>
@@ -32,13 +47,11 @@
     {#if showCalendar}
       <div class="app-card-secondary-app calendar">
         <div class="time-slots">
-          <div class="app-card-text">9:00</div>
-          <div class="app-card-text">10:00</div>
-          <div class="app-card-text">11:00</div>
-          <div class="app-card-text">12:00</div>
-          <div class="app-card-text">13:00</div>
+          {#each timeSlots as slot}
+            <div class="app-card-text">{slot}</div>
+          {/each}
 
-          {#each appointments as appointment}
+          {#each relativeAppointments as appointment}
             <div class="appointment-indicator {appointment.type}"
                  style="--start-hour: {appointment.start}; --end-hour: {appointment.end};">
             </div>
