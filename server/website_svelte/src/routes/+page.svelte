@@ -5,6 +5,7 @@
     import ChatMessage from './ChatMessage.svelte';
     import HealthAppCard from './cards/HealthAppCard.svelte';
     import EventAppCard from './cards/EventAppCard.svelte';
+    import ProcessingDetails from './ProcessingDetails.svelte';
 
     // Define icon groups
     const endpointIcons = [
@@ -273,6 +274,35 @@
 </section>
 
 <section class="section">
+    <h2 class="section-title">Processing Details</h2>
+    <div class="container">
+        <div class="example_container">
+            <ProcessingDetails 
+                type="loading_preferences"
+                appNames={['Jobs']}
+            />
+            <div class="app-card-description">Loading preferences</div>
+        </div>
+
+        <div class="example_container">
+            <ProcessingDetails 
+                type="using_app"
+                appNames={['Events']}
+            />
+            <div class="app-card-description">Using app</div>
+        </div>
+
+        <div class="example_container">
+            <ProcessingDetails 
+                type="used_apps"
+                appNames={['Calendar', 'Health']}
+            />
+            <div class="app-card-description">Using multiple apps</div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
     <h2 class="section-title">Chat</h2>
     <div class="container">
         {#each chatExamples as message}
@@ -286,11 +316,10 @@
                 {message.text}
             </ChatMessage>
             {#if message.type === 'mate' && message.appCards}
-                <button class="processing-details">
-                    <span class="icon app-calendar inline"></span>
-                    <span class="icon app-health inline"></span>
-                    Used <strong>2 apps</strong> ...
-                </button>
+                <ProcessingDetails 
+                    type="used_apps"
+                    appNames={['calendar', 'health']}
+                />
             {/if}
         {/each}
     </div>
