@@ -139,7 +139,7 @@
     <div id="base-colors" class="color-palette">
         <!-- Base colors will be rendered here -->
     </div>
-    
+
     <div id="app-colors" class="color-palette">
         <!-- App colors will be rendered here -->
     </div>

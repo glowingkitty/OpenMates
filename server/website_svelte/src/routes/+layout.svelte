@@ -10,6 +10,9 @@
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
     import '$lib/styles/separators.css';
+    import { replaceOpenMates } from '$lib/actions/replaceText';
 </script>
 
-<slot />
+<main use:replaceOpenMates style="display: contents">
+    <slot />
+</main>
