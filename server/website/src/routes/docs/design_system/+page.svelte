@@ -559,16 +559,17 @@
         <!-- Loading preferences -->
         <div class="example_container">
             <ProcessingDetails
-                type="loading_preferences"
+                type="loaded_preferences"
                 appNames={['Jobs']}
             />
-            <div class="app-card-description">Loading preferences</div>
+            <div class="app-card-description">Loaded preferences</div>
         </div>
 
         <!-- Using app -->
         <div class="example_container">
             <ProcessingDetails
-                type="using_app"
+                type="using_apps"
+                in_progress={true}
                 appNames={['Events']}
             />
             <div class="app-card-description">Using app</div>
@@ -577,7 +578,8 @@
         <!-- Using multiple apps -->
         <div class="example_container">
             <ProcessingDetails
-                type="used_apps"
+                type="using_apps"
+                in_progress={true}
                 appNames={['Calendar', 'Health']}
             />
             <div class="app-card-description">Using multiple apps</div>
@@ -589,7 +591,13 @@
                 I am unhappy in my current job. Any ideas in what direction I could go instead?
             </ChatMessage>
             <ProcessingDetails
-                type="loading_preferences"
+                type="started_focus"
+                appNames={['Jobs']}
+                focusName="Career insights"
+                focusIcon="insights"
+            />
+            <ProcessingDetails
+                type="loaded_preferences"
                 appNames={['Jobs']}
             />
             <ChatMessage role="burton">
@@ -607,7 +615,8 @@
                 What events are happening the coming days?
             </ChatMessage>
             <ProcessingDetails
-                type="using_app"
+                type="using_apps"
+                in_progress={false}
                 appNames={['Events']}
             />
             <ChatMessage
@@ -673,7 +682,8 @@
                 Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.
             </ChatMessage>
             <ProcessingDetails
-                type="used_apps"
+                type="using_apps"
+                in_progress={false}
                 appNames={['Calendar', 'Health']}
             />
             <ChatMessage
