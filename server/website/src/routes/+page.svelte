@@ -109,22 +109,18 @@
         grid-template-columns: 250px 1fr 250px;
         max-width: 1400px;
         margin: 0 auto;
-        padding: 2rem;
         min-height: 100vh;
     }
 
     .icon-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-        padding: 1rem;
         align-content: start;
     }
 
     .icon-column {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
         align-items: center;
     }
 
@@ -136,13 +132,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        opacity: 0.3;
+        opacity: 0.2;
         transition: opacity 0.3s ease;
         scale: 0.65;
-    }
-
-    .icon-wrapper:hover {
-        opacity: 0.8;
     }
 
     /* Center content styles */
@@ -151,16 +143,5 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 1024px) {
-        .landing-container {
-            grid-template-columns: 1fr;
-        }
-
-        .icon-grid {
-            display: none;
-        }
     }
 </style>
