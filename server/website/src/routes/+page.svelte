@@ -1,6 +1,7 @@
 <script lang="ts">
     import Icon from './components/Icon.svelte';
-
+    import ChatMessage from './components/ChatMessage.svelte';
+    import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
     // Define icon groups for left and right sides
     const header_app_icons = [
         // Left side | First column
@@ -76,7 +77,7 @@
         {#each header_app_icons.slice(0, 3) as column}
             <div class="icon-column">
                 {#each column as icon}
-                    <div class="icon-wrapper">
+                    <div class="icon-wrapper" data-app={icon.name}>
                         <Icon name={icon.name} type={icon.type} />
                     </div>
                 {/each}
@@ -84,9 +85,13 @@
         {/each}
     </div>
 
-    <!-- Empty center space -->
+    <!-- Center space -->
     <div class="center-space">
-        <h1 class="text-center">AI Team Mates.<mark><br>For all of us.</mark></h1>
+        <div class="center-content">
+            <h1 class="text-center">AI Team Mates.<mark><br>For all of us.</mark></h1>
+            <p class="text-center">via Mattermost, Discord, Slack & more</p>
+            <AnimatedChatExamples />
+        </div>
     </div>
 
     <!-- Right side icons -->
@@ -94,7 +99,7 @@
         {#each header_app_icons.slice(3) as column}
             <div class="icon-column">
                 {#each column as icon}
-                    <div class="icon-wrapper">
+                    <div class="icon-wrapper" data-app={icon.name}>
                         <Icon name={icon.name} type={icon.type} />
                     </div>
                 {/each}
@@ -137,11 +142,17 @@
         scale: 0.65;
     }
 
-    /* Center content styles */
+    /* Updated center content styles */
     .center-space {
         display: flex;
         align-items: center;
         justify-content: center;
         text-align: center;
+    }
+
+    .center-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 </style>
