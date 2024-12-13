@@ -288,7 +288,7 @@
         <!-- Chat message - mate -->
         <div class="example_container">
             <ChatMessage role="burton">
-                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills. To get a better sense of direction, could you tell me:
+                Of course! Since you mentioned that you have a <bold>background in marketing</bold> and <bold>enjoy storytelling</bold>, we could look for roles that leverage those skills. To get a better sense of direction, could you tell me:
                 <ol>
                     <li>What aspects of your previous jobs did you find most fulfilling?</li>
                 </ol>
@@ -341,7 +341,7 @@
                 appNames={['Jobs']}
             />
             <ChatMessage role="burton">
-                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills. To get a better sense of direction, could you tell me:
+                Of course! Since you mentioned that you have a <bold>background in marketing</bold> and <bold>enjoy storytelling</bold>, we could look for roles that leverage those skills. To get a better sense of direction, could you tell me:
                 <ol>
                     <li>What aspects of your previous jobs did you find most fulfilling?</li>
                 </ol>
@@ -429,7 +429,7 @@
                 messageParts={[
                     {
                         type: 'text',
-                        content: 'The best appointment I could find is tomorrow at 9:00. Doesn\'t collide with your product launch meeting later that day.' 
+                        content: 'The best appointment I could find is <bold>tomorrow at 9:00</bold>. Doesn\'t collide with your product launch meeting later that day.' 
                     },
                     {
                         type: 'app-cards',
