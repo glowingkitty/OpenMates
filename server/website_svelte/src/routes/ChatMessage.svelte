@@ -1,38 +1,69 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
   
-  export let type: 'user' | 'mate' = 'user';
-  export let mateName: string | undefined = undefined;
-  export let mateProfile: string | undefined = undefined;
+  export let role: 'user' | string = 'user';
   
+  // Define types for message content parts
   type AppCardData = {
     component: new (...args: any[]) => SvelteComponent;
     props: Record<string, any>;
   };
-  
-  export let appCards: AppCardData[] | undefined = undefined;
+
+  type MessagePart = {
+    type: 'text' | 'app-cards';
+    content: string | AppCardData[];
+  };
+
+  export let messageParts: MessagePart[] = [];
   export let showScrollableContainer: boolean = false;
+  export let appCards: AppCardData[] | undefined = undefined;
+
+  // If appCards is provided, add it to messageParts
+  $: if (appCards && (!messageParts || messageParts.length === 0)) {
+    messageParts = [
+      { type: 'text', content: '' },
+      { type: 'app-cards', content: appCards }
+    ];
+  }
+
+  // Capitalize first letter of mate name
+  $: displayName = role === 'user' ? '' : role.charAt(0).toUpperCase() + role.slice(1);
 </script>
 
 <div class="chat-message">
-  {#if type === 'mate' && mateProfile}
-    <div class="mate-profile {mateProfile}"></div>
+  {#if role !== 'user'}
+    <div class="mate-profile {role}"></div>
   {/if}
   
-  <div class="message-align-{type === 'user' ? 'right' : 'left'}">
-    <div class="{type}-message-content">
-      {#if type === 'mate' && mateName}
-        <div class="chat-mate-name">{mateName}</div>
+  <div class="message-align-{role === 'user' ? 'right' : 'left'}">
+    <div class="{role === 'user' ? 'user' : 'mate'}-message-content">
+      {#if role !== 'user'}
+        <div class="chat-mate-name">{displayName}</div>
       {/if}
+      
       <div class="chat-message-text">
-        <slot />
-        
-        {#if appCards && appCards.length > 0}
-          <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
-            {#each appCards as card}
-              <svelte:component this={card.component} {...card.props} />
-            {/each}
-          </div>
+        {#if messageParts && messageParts.length > 0}
+          {#each messageParts as part}
+            {#if part.type === 'text'}
+              <div class="text-content">{part.content as string}</div>
+            {:else if part.type === 'app-cards'}
+              <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
+                {#each (part.content as AppCardData[]) as card}
+                  <svelte:component this={card.component} {...card.props} />
+                {/each}
+              </div>
+            {/if}
+          {/each}
+        {:else}
+          <slot />
+          
+          {#if appCards && appCards.length > 0}
+            <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
+              {#each appCards as card}
+                <svelte:component this={card.component} {...card.props} />
+              {/each}
+            </div>
+          {/if}
         {/if}
       </div>
     </div>
@@ -58,5 +89,15 @@
 
   .chat-app-cards-container.scrollable::-webkit-scrollbar {
     display: none;
+  }
+
+  .text-content {
+    margin-bottom: 15px;
+    white-space: pre-line;
+  }
+
+  /* Remove margin from last text content */
+  .text-content:last-child {
+    margin-bottom: 0;
   }
 </style>
