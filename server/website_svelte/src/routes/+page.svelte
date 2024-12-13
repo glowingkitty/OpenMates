@@ -131,7 +131,7 @@
 </script>
 
 <div class="design-system-header">
-    <h1>OpenMates<br><highlight>Design System</highlight></h1>
+    <h1>OpenMates<br><mark>Design System</mark></h1>
 </div>
 
 <section class="section">
@@ -219,6 +219,116 @@
     <Field type="text" placeholder="Enter API Key..." variant="apikey" />
     <Field type="text" placeholder="Enter Team Slug..." variant="teamslug" />
     <Field type="email" placeholder="Enter your e-mail address..." variant="email" />
+</section>
+
+<section class="section">
+    <h2 class="section-title">Typography</h2>
+    <div class="typography-container">
+        <div class="typography-example">
+            <h1>H1<br><mark>With highlight</mark></h1>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h1) (60px)<br>
+                font-weight: var(--font-weight-extra-bold) (800)<br>
+                line-height: var(--line-height-normal)<br>
+                color: var(--color-font-primary)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <h2>H2 <mark>With highlight</mark></h2>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h2) (30px)<br>
+                font-weight: var(--font-weight-bold) (700)<br>
+                line-height: var(--line-height-normal)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <h3>H3</h3>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h3) (20px)<br>
+                font-weight: var(--font-weight-bold) (700)<br>
+                line-height: var(--line-height-normal)<br>
+                color: var(--color-font-secondary)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <h4>H4</h4>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-h4) (16px)<br>
+                font-weight: var(--font-weight-bold) (700)<br>
+                line-height: var(--line-height-normal)<br>
+                color: var(--color-font-tertiary)
+            </div>
+        </div>
+
+        <div class="typography-example">
+            <p>Regular text - This is an example from OpenMates with body text</p>
+            <div class="typography-info">
+                font-family: var(--font-primary) (Lexend Deca)<br>
+                font-size: var(--font-size-p) (16px)<br>
+                font-weight: var(--font-weight-p) (500)<br>
+                line-height: var(--line-height-normal)<br>
+                font-style: var(--font-style-normal)
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <h2 class="section-title">Mates</h2>
+    <div class="mates-container">
+        <div class="mate-wrapper">
+            <div class="mate-profile burton"></div>
+            <div class="mate-name">Burton</div>
+            <div class="mate-specialty">Business Development</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile sophia"></div>
+            <div class="mate-name">Sophia</div>
+            <div class="mate-specialty">Software Developer</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile melvin"></div>
+            <div class="mate-name">Melvin</div>
+            <div class="mate-specialty">Medical Doctor</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile finn"></div>
+            <div class="mate-name">Finn</div>
+            <div class="mate-specialty">Finance</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile elton"></div>
+            <div class="mate-name">Elton</div>
+            <div class="mate-specialty">Electrical Engineering</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile denise"></div>
+            <div class="mate-name">Denise</div>
+            <div class="mate-specialty">Design</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile mark"></div>
+            <div class="mate-name">Mark</div>
+            <div class="mate-specialty">Marketing</div>
+        </div>
+        <div class="mate-wrapper">
+            <div class="mate-profile colin"></div>
+            <div class="mate-name">Colin</div>
+            <div class="mate-specialty">Cook & Nutritionist</div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <h2 class="section-title">Separators</h2>
+    <div class="large-separator"></div>
 </section>
 
 <section class="section">
@@ -580,5 +690,69 @@
         color: var(--color-font-secondary);
         font-size: 0.9rem;
         font-family: var(--font-primary);
+    }
+
+    .typography-container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .typography-example {
+        margin-bottom: 30px;
+    }
+
+    .typography-info {
+        margin-top: 10px;
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #666;
+        padding: 8px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .typography-example p {
+        margin: 0;
+    }
+
+    .mates-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        justify-content: center;
+        padding: 20px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .mate-wrapper {
+        min-width: 150px;
+        flex: 0 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .mate-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--color-font-primary);
+        margin-bottom: 5px;
+    }
+
+    .mate-specialty {
+        font-size: 0.9rem;
+        color: var(--color-font-secondary);
+    }
+
+    .large-separator {
+        width: 100%;
+        height: 2px;
+        background-color: var(--color-border);
+        margin: 20px 0;
     }
 </style>

@@ -9,6 +9,7 @@
     import '$lib/styles/cards.css';
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
+    import '$lib/styles/separators.css';
 </script>
 
 <slot />

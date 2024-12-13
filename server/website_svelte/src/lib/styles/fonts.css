@@ -111,7 +111,7 @@ li {
 }
 
 /* Highlight class to change text color */
-highlight {
+mark {
     background: var(--color-primary);
     background-clip: text;
     -webkit-background-clip: text;
