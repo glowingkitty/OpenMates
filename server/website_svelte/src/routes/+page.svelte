@@ -164,6 +164,19 @@
         </div>
 
         <div class="example_container">
+            <HealthAppCard
+                size="small"
+                date="Wed, Dec 12"
+                time="9:00 - 10:00"
+                doctorName="Dr. Van Hausen"
+                specialty="Cardiologist"
+                rating={4.2}
+                ratingCount={85}
+            />
+            <div class="app-card-description">Health - Appointment (small)</div>
+        </div>
+
+        <div class="example_container">
             <EventAppCard
                 size="small"
                 date="Today"
@@ -171,6 +184,18 @@
                 eventName="Book Lovers' Social: An Evening of Reading and Discussion"
                 participants={12}
                 imageUrl="/images/examples/group1.jpg"
+            />
+            <div class="app-card-description">Events - Event (small)</div>
+        </div>
+
+        <div class="example_container">
+            <EventAppCard
+                size="small"
+                date="Dec 15"
+                time="19:00"
+                eventName="TechTalk: AI in Everyday Business"
+                participants={76}
+                imageUrl="/images/examples/group2.jpg"
             />
             <div class="app-card-description">Events - Event (small)</div>
         </div>
@@ -251,5 +276,34 @@
         background-color: white;
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        background-color: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+    }
+
+    .example_container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 300px;
+        max-width: calc(50% - 10px);
+        margin: 0;
+    }
+
+    .app-card-description {
+        margin-top: 10px;
+        color: var(--color-font-secondary);
+        font-size: 0.9rem;
+        font-family: var(--font-primary);
     }
 </style>
