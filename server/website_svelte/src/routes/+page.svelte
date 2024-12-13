@@ -2,8 +2,9 @@
     import Icon from './Icon.svelte';
     import Button from './Button.svelte';
     import Field from './Field.svelte';
-    import AppCard from './AppCard.svelte';
     import ChatMessage from './ChatMessage.svelte';
+    import HealthAppCard from './cards/HealthAppCard.svelte';
+    import EventAppCard from './cards/EventAppCard.svelte';
 
     // Define icon groups
     const endpointIcons = [
@@ -33,6 +34,20 @@
 
     const focusIcons = [
         'insights'
+    ];
+
+    // Add example data for chat messages
+    const chatExamples = [
+        {
+            type: 'user' as const,
+            text: 'I am unhappy in my current job. Any ideas in what direction I could go instead?'
+        },
+        {
+            type: 'mate' as const,
+            mateName: 'Burton',
+            mateProfile: 'burton',
+            text: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?'
+        }
     ];
 </script>
 
@@ -116,6 +131,70 @@
     <div class="button-container">
         <Button>Primary</Button>
         <Button variant="secondary">Secondary</Button>
+    </div>
+</section>
+
+<section class="section">
+    <h2 class="section-title">Fields</h2>
+    <Field type="search" placeholder="Search..." variant="search" />
+    <Field type="text" placeholder="Enter API Key..." variant="apikey" />
+    <Field type="text" placeholder="Enter Team Slug..." variant="teamslug" />
+    <Field type="email" placeholder="Enter your e-mail address..." variant="email" />
+</section>
+
+<section class="section">
+    <h2 class="section-title">Chat</h2>
+    <div class="container">
+        {#each chatExamples as message}
+            <ChatMessage 
+                type={message.type} 
+                mateName={message.type === 'mate' ? message.mateName : undefined}
+                mateProfile={message.type === 'mate' ? message.mateProfile : undefined}
+            >
+                {message.text}
+            </ChatMessage>
+        {/each}
+
+        <button class="processing-details">
+            <span class="icon app-calendar inline"></span>
+            <span class="icon app-health inline"></span>
+            Used <strong>2 apps</strong> ...
+        </button>
+    </div>
+</section>
+
+<section class="section">
+    <h2 class="section-title">App Cards</h2>
+    <div class="container">
+        <div class="example_container">
+            <HealthAppCard
+                size="large"
+                date="Wed, Dec 12"
+                time="9:00 - 10:00"
+                doctorName="Dr. Van Hausen"
+                specialty="Cardiologist"
+                rating={4.2}
+                ratingCount={85}
+                showCalendar={true}
+                appointments={[
+                    {start: 0, end: 1, type: 'dashed'},
+                    {start: 4, end: 6, type: 'solid'}
+                ]}
+            />
+            <div class="app-card-description">Health - Appointment (large)</div>
+        </div>
+
+        <div class="example_container">
+            <EventAppCard
+                size="small"
+                date="Today"
+                time="18:30"
+                eventName="Book Lovers' Social: An Evening of Reading and Discussion"
+                participants={12}
+                imageUrl="../../public/images/examples/group1.jpg"
+            />
+            <div class="app-card-description">Events - Event (small)</div>
+        </div>
     </div>
 </section>
 
