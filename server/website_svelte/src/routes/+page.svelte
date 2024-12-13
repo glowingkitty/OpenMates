@@ -36,7 +36,7 @@
         'insights'
     ];
 
-    // Add example data for chat messages
+    // Add example data for chat messages with app cards
     const chatExamples = [
         {
             type: 'user' as const,
@@ -47,6 +47,75 @@
             mateName: 'Burton',
             mateProfile: 'burton',
             text: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?'
+        },
+        {
+            type: 'user' as const,
+            text: 'What events are happening the coming days?'
+        },
+        {
+            type: 'mate' as const,
+            mateName: 'Lisa',
+            mateProfile: 'lisa',
+            text: 'There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.',
+            appCards: [
+                {
+                    component: EventAppCard,
+                    props: {
+                        size: 'small',
+                        date: 'Today',
+                        time: '18:30',
+                        eventName: "Book Lovers' Social: An Evening of Reading and Discussion",
+                        participants: 12,
+                        imageUrl: '/images/examples/group1.jpg'
+                    }
+                },
+                {
+                    component: EventAppCard,
+                    props: {
+                        size: 'small',
+                        date: 'Dec 15',
+                        time: '19:00',
+                        eventName: 'TechTalk: AI in Everyday Business',
+                        participants: 76,
+                        imageUrl: '/images/examples/group2.jpg'
+                    }
+                }
+            ]
+        },
+        {
+            type: 'user' as const,
+            text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?"
+        },
+        {
+            type: 'mate' as const,
+            mateName: 'Melvin',
+            mateProfile: 'melvin',
+            text: 'Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.'
+        },
+        {
+            type: 'mate' as const,
+            mateName: 'Melvin',
+            mateProfile: 'melvin',
+            text: 'The best appointment I could find is tomorrow at 9:00. Doesn\'t collide with your product launch meeting later that day.',
+            appCards: [
+                {
+                    component: HealthAppCard,
+                    props: {
+                        size: 'large',
+                        date: 'Wed, Dec 12',
+                        start: '9:00',
+                        end: '10:00',
+                        doctorName: 'Dr. Van Hausen',
+                        specialty: 'Cardiologist',
+                        rating: 4.2,
+                        ratingCount: 85,
+                        showCalendar: true,
+                        existingAppointments: [
+                            {start: '13:00', end: '15:00'}
+                        ]
+                    }
+                }
+            ]
         }
     ];
 </script>
@@ -211,16 +280,19 @@
                 type={message.type} 
                 mateName={message.type === 'mate' ? message.mateName : undefined}
                 mateProfile={message.type === 'mate' ? message.mateProfile : undefined}
+                appCards={message.appCards}
+                showScrollableContainer={message.appCards ? message.appCards.length > 2 : false}
             >
                 {message.text}
             </ChatMessage>
+            {#if message.type === 'mate' && message.appCards}
+                <button class="processing-details">
+                    <span class="icon app-calendar inline"></span>
+                    <span class="icon app-health inline"></span>
+                    Used <strong>2 apps</strong> ...
+                </button>
+            {/if}
         {/each}
-
-        <button class="processing-details">
-            <span class="icon app-calendar inline"></span>
-            <span class="icon app-health inline"></span>
-            Used <strong>2 apps</strong> ...
-        </button>
     </div>
 </section>
 
