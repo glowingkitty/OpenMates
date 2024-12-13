@@ -66,37 +66,37 @@
 }
 
 .mate-profile.burton {
-    background-image: url('../../../../api/images/mates/profile_images/burton.jpg');
+    background-image: url('@mate-images/burton.jpg');
 }
 
 .mate-profile.lisa {
-    background-image: url('../../../../api/images/mates/profile_images/lisa.jpg');
+    background-image: url('@mate-images/lisa.jpg');
 }
 
 .mate-profile.sophia {
-    background-image: url('../../../../api/images/mates/profile_images/sophia.jpg');
+    background-image: url('@mate-images/sophia.jpg');
 }
 
 .mate-profile.melvin {
-    background-image: url('../../../../api/images/mates/profile_images/melvin.jpg');
+    background-image: url('@mate-images/melvin.jpg');
 }
 
 .mate-profile.finn {
-    background-image: url('../../../../api/images/mates/profile_images/finn.jpg');
+    background-image: url('@mate-images/finn.jpg');
 }
 
 .mate-profile.elton {
-    background-image: url('../../../../api/images/mates/profile_images/elton.jpg');
+    background-image: url('@mate-images/elton.jpg');
 }
 
 .mate-profile.denise {
-    background-image: url('../../../../api/images/mates/profile_images/denise.jpg');
+    background-image: url('@mate-images/denise.jpg');
 }
 
 .mate-profile.mark {
-    background-image: url('../../../../api/images/mates/profile_images/mark.jpg');
+    background-image: url('@mate-images/mark.jpg');
 }
 
 .mate-profile.colin {
-    background-image: url('../../../../api/images/mates/profile_images/colin.jpg');
+    background-image: url('@mate-images/colin.jpg');
 }
