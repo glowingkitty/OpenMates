@@ -1,11 +1,11 @@
 <script lang="ts">
-    import Icon from '../../Icon.svelte';
-    import Button from '../../Button.svelte';
-    import Field from '../../Field.svelte';
-    import ChatMessage from '../../ChatMessage.svelte';
-    import HealthAppCard from '../../cards/HealthAppCard.svelte';
-    import EventAppCard from '../../cards/EventAppCard.svelte';
-    import ProcessingDetails from '../../ProcessingDetails.svelte';
+    import Icon from '../../components/Icon.svelte';
+    import Button from '../../components/Button.svelte';
+    import Field from '../../components/Field.svelte';
+    import ChatMessage from '../../components/ChatMessage.svelte';
+    import HealthAppCard from '../../components/cards/HealthAppCard.svelte';
+    import EventAppCard from '../../components/cards/EventAppCard.svelte';
+    import ProcessingDetails from '../../components/ProcessingDetails.svelte';
 
     // Define icon groups
     const endpointIcons = [
