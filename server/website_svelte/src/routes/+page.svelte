@@ -37,8 +37,9 @@
         'insights'
     ];
 
-    // Add example data for chat messages with app cards
+    // Update the chatExamples array to include more examples
     const chatExamples = [
+        // Career advice conversation
         {
             type: 'user' as const,
             text: 'I am unhappy in my current job. Any ideas in what direction I could go instead?'
@@ -49,6 +50,12 @@
             mateProfile: 'burton',
             text: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?'
         },
+        {
+            type: 'user' as const,
+            text: 'I really enjoyed creating marketing campaigns and seeing them come to life. The creative process of storytelling and connecting with audiences was particularly fulfilling.'
+        },
+
+        // Events conversation
         {
             type: 'user' as const,
             text: 'What events are happening the coming days?'
@@ -83,6 +90,8 @@
                 }
             ]
         },
+
+        // Health appointment conversation
         {
             type: 'user' as const,
             text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?"
@@ -274,8 +283,32 @@
 </section>
 
 <section class="section">
-    <h2 class="section-title">Processing Details</h2>
+    <h2 class="section-title">Chat</h2>
     <div class="container">
+        <!-- Chat message - mate -->
+        <div class="example_container">
+            <ChatMessage
+                type="mate"
+                mateName="Burton"
+                mateProfile="burton"
+            >
+                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.
+
+                To get a better sense of direction, could you tell me:
+                1. What aspects of your previous jobs did you find most fulfilling?
+            </ChatMessage>
+            <div class="app-card-description">Chat message - mate</div>
+        </div>
+
+        <!-- Chat message - user -->
+        <div class="example_container">
+            <ChatMessage type="user">
+                I really enjoyed creating marketing campaigns and seeing them come to life. The creative process of storytelling and connecting with audiences was particularly fulfilling.
+            </ChatMessage>
+            <div class="app-card-description">Chat message - user</div>
+        </div>
+
+        <!-- Loading preferences -->
         <div class="example_container">
             <ProcessingDetails
                 type="loading_preferences"
@@ -284,6 +317,7 @@
             <div class="app-card-description">Loading preferences</div>
         </div>
 
+        <!-- Using app -->
         <div class="example_container">
             <ProcessingDetails
                 type="using_app"
@@ -292,6 +326,7 @@
             <div class="app-card-description">Using app</div>
         </div>
 
+        <!-- Using multiple apps -->
         <div class="example_container">
             <ProcessingDetails
                 type="used_apps"
@@ -299,29 +334,116 @@
             />
             <div class="app-card-description">Using multiple apps</div>
         </div>
-    </div>
-</section>
 
-<section class="section">
-    <h2 class="section-title">Chat</h2>
-    <div class="container">
-        {#each chatExamples as message}
-            <ChatMessage
-                type={message.type}
-                mateName={message.type === 'mate' ? message.mateName : undefined}
-                mateProfile={message.type === 'mate' ? message.mateProfile : undefined}
-                appCards={message.appCards}
-                showScrollableContainer={message.appCards ? message.appCards.length > 2 : false}
-            >
-                {message.text}
+        <!-- Chat conversation with loaded preferences -->
+        <div class="example_container">
+            <ChatMessage type="user">
+                I am unhappy in my current job. Any ideas in what direction I could go instead?
             </ChatMessage>
-            {#if message.type === 'mate' && message.appCards}
-                <ProcessingDetails
-                    type="used_apps"
-                    appNames={['Calendar', 'Health']}
-                />
-            {/if}
-        {/each}
+            <ProcessingDetails
+                type="loading_preferences"
+                appNames={['Jobs']}
+            />
+            <ChatMessage
+                type="mate"
+                mateName="Burton"
+                mateProfile="burton"
+            >
+                Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.
+
+                To get a better sense of direction, could you tell me:
+                1. What aspects of your previous jobs did you find most fulfilling?
+            </ChatMessage>
+            <div class="app-card-description">Chat conversation with loaded preferences</div>
+        </div>
+
+        <!-- Chat conversation with using events app -->
+        <div class="example_container">
+            <ChatMessage type="user">
+                What events are happening the coming days?
+            </ChatMessage>
+            <ProcessingDetails
+                type="using_app"
+                appNames={['Events']}
+            />
+            <ChatMessage
+                type="mate"
+                mateName="Lisa"
+                mateProfile="lisa"
+                appCards={[
+                    {
+                        component: EventAppCard,
+                        props: {
+                            size: 'small',
+                            date: 'Today',
+                            time: '18:30',
+                            eventName: "Book Lovers' Social: An Evening of Reading and Discussion",
+                            participants: 12,
+                            imageUrl: '/images/examples/group1.jpg'
+                        }
+                    },
+                    {
+                        component: EventAppCard,
+                        props: {
+                            size: 'small',
+                            date: 'Dec 15',
+                            time: '19:00',
+                            eventName: 'TechTalk: AI in Everyday Business',
+                            participants: 76,
+                            imageUrl: '/images/examples/group2.jpg'
+                        }
+                    }
+                ]}
+            >
+                There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.
+            </ChatMessage>
+            <div class="app-card-description">Chat conversation with using events app</div>
+        </div>
+
+        <!-- Chat conversation with using 2 apps -->
+        <div class="example_container">
+            <ChatMessage type="user">
+                What is the next available cardiologist appointment, that doesn't collide with my calendar?
+            </ChatMessage>
+            <ChatMessage
+                type="mate"
+                mateName="Melvin"
+                mateProfile="melvin"
+            >
+                Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.
+            </ChatMessage>
+            <ProcessingDetails
+                type="used_apps"
+                appNames={['Calendar', 'Health']}
+            />
+            <ChatMessage
+                type="mate"
+                mateName="Melvin"
+                mateProfile="melvin"
+                appCards={[
+                    {
+                        component: HealthAppCard,
+                        props: {
+                            size: 'large',
+                            date: 'Wed, Dec 12',
+                            start: '9:00',
+                            end: '10:00',
+                            doctorName: 'Dr. Van Hausen',
+                            specialty: 'Cardiologist',
+                            rating: 4.2,
+                            ratingCount: 85,
+                            showCalendar: true,
+                            existingAppointments: [
+                                {start: '13:00', end: '15:00'}
+                            ]
+                        }
+                    }
+                ]}
+            >
+                The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.
+            </ChatMessage>
+            <div class="app-card-description">Chat conversation with using 2 apps</div>
+        </div>
     </div>
 </section>
 
