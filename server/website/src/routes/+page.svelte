@@ -3,6 +3,7 @@
     import Icon from './components/Icon.svelte';
     import ChatMessage from './components/ChatMessage.svelte';
     import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
+    import WaitingList from './components/WaitingList.svelte';
     // Define icon groups for left and right sides
     const header_app_icons = [
         // Left side | First column
@@ -127,7 +128,12 @@
                 </span>
                 & more
             </p>
-            <AnimatedChatExamples bind:currentApp={currentApp} />
+            <div class="chat-examples-container">
+                <AnimatedChatExamples bind:currentApp={currentApp} />
+                <div class="gradient-overlay"></div>
+            </div>
+
+            <WaitingList />
         </div>
     </div>
 
@@ -266,5 +272,26 @@
         -webkit-user-select: all;
         -moz-user-select: all;
         -ms-user-select: all;
+    }
+
+    .chat-examples-container {
+        position: relative;
+        height: 400px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .gradient-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100px;
+        background: linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 1) 100%
+        );
+        pointer-events: none;
     }
 </style>
