@@ -186,14 +186,14 @@
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        padding-top: 4rem;
+        padding-top: 2rem;
     }
 
     .center-content {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1.5rem;
+        gap: 0.75rem;
     }
 
     .center-content h1,
@@ -251,6 +251,7 @@
         gap: 0.5rem;
         font-size: 1.1rem;
         color: #8A8A8A;
+        margin-bottom: -0.5rem;
     }
 
     .platform-wrapper {

@@ -242,7 +242,6 @@
         height: 300px;
         width: 540px;
         margin: 0 auto;
-        margin-bottom: 2rem;
     }
 
     .chat-content {
