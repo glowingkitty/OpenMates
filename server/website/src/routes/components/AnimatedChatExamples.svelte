@@ -109,7 +109,7 @@
         // Reset all app icons
         const icons = document.querySelectorAll('.icon-wrapper');
         icons.forEach(icon => {
-            (icon as HTMLElement).style.opacity = '0.2';
+            icon.classList.remove('slide-right', 'slide-left');
         });
 
         // Highlight the app icon
@@ -150,20 +150,26 @@
 
     // Function to highlight app icon
     function highlightAppIcon(appName: string) {
-
-        // Highlight the relevant icon
         const targetIcon = document.querySelector(`.icon-wrapper[data-app="${appName}"]`);
         if (targetIcon) {
-            (targetIcon as HTMLElement).style.opacity = '1';
+            // Determine if the icon is on the left or right side
+            const isLeftSide = targetIcon.closest('.icon-grid.left') !== null;
+            
+            // Add the appropriate slide class
+            if (isLeftSide) {
+                targetIcon.classList.add('slide-right');
+            } else {
+                targetIcon.classList.add('slide-left');
+            }
         }
     }
 
     // Reset icon
     function resetAppIcon(appName: string) {
-        // Reset the relevant icon
         const targetIcon = document.querySelector(`.icon-wrapper[data-app="${appName}"]`);
         if (targetIcon) {
-            (targetIcon as HTMLElement).style.opacity = '0.2';
+            // Remove both slide classes
+            targetIcon.classList.remove('slide-right', 'slide-left');
         }
     }
 

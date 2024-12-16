@@ -529,3 +529,23 @@
       background-size: 55%;
   }
 }
+
+.icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.2;
+    transition: all 1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    scale: 0.65;
+    transform: translateX(0);
+}
+
+.icon-wrapper.slide-left {
+    opacity: 0 !important;
+    transform: translateX(-50px) !important;
+}
+
+.icon-wrapper.slide-right {
+    opacity: 0 !important;
+    transform: translateX(50px) !important;
+}
