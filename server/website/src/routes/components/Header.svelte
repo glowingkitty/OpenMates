@@ -1,5 +1,6 @@
 <script lang="ts">
     import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
     
     // Props for configurable URLs
     export let githubUrl = "https://github.com/OpenMates/OpenMates";
@@ -9,38 +10,46 @@
     const isActive = (path: string) => {
         return $page.url.pathname === path;
     }
+
+    // Modern navigation handler
+    const navigate = async (path: string) => {
+        await goto(path, { replaceState: false });
+    }
 </script>
 
 <header>
     <nav>
         <div class="left-section">
-            <a href="/" class="logo-link">
+            <button 
+                class="logo-link" 
+                on:click={() => navigate('/')}
+            >
                 <span class="logo-text">Open</span>
                 <span class="logo-text highlight">Mates</span>
-            </a>
+            </button>
         </div>
         <div class="nav-links">
-            <a 
-                href="/" 
+            <button 
                 class="nav-link"
                 class:active={isActive('/')}
+                on:click={() => navigate('/')}
             >
                 For all of us
-            </a>
-            <a 
-                href="/developers" 
+            </button>
+            <button 
                 class="nav-link"
                 class:active={isActive('/developers')}
+                on:click={() => navigate('/developers')}
             >
                 For developers
-            </a>
-            <a 
-                href="/docs" 
+            </button>
+            <button 
                 class="nav-link"
                 class:active={isActive('/docs')}
+                on:click={() => navigate('/docs')}
             >
                 Docs
-            </a>
+            </button>
             <div class="icon-links">
                 <a 
                     href={githubUrl} 
@@ -91,7 +100,6 @@
     .logo-link {
         font-size: 1.25rem;
         font-weight: 600;
-        text-decoration: none;
         display: flex;
         gap: 0.25rem;
     }
@@ -132,6 +140,7 @@
 
     .nav-link.active {
         opacity: 1;
+        font-weight: bold;
     }
 
     .icon-link {
@@ -142,5 +151,14 @@
 
     .icon-link:hover {
         opacity: 1;
+    }
+
+    button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        font: inherit;
+        color: inherit;
     }
 </style> 
