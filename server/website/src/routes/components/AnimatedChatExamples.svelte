@@ -9,11 +9,11 @@
     const chatExamples = [
         // Events conversation
         {
+            app: 'events',
             sequence: [
                 {
                     type: 'user',
-                    text: 'What events are happening the coming days?',
-                    highlightApp: 'events'
+                    text: 'What events are happening the coming days?'
                 },
                 {
                     type: 'mate',
@@ -48,11 +48,11 @@
         },
         // Health conversation
         {
+            app: 'health',
             sequence: [
                 {
                     type: 'user',
-                    text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
-                    highlightApp: 'health'
+                    text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?"
                 },
                 {
                     type: 'mate',
@@ -106,8 +106,10 @@
             (icon as HTMLElement).style.opacity = '0.2';
         });
 
-        // Find the app to highlight for this example (usually from first user message)
-        const appToHighlight = currentExample.sequence.find(msg => msg.highlightApp)?.highlightApp;
+        // Highlight the app icon
+        if (currentExample.app) {
+            highlightAppIcon(currentExample.app);
+        }
 
         // Animate each message in sequence
         for (const message of currentExample.sequence) {
@@ -115,13 +117,12 @@
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
-        // Highlight the app icon only after all messages are displayed
-        if (appToHighlight) {
-            highlightAppIcon(appToHighlight);
-        }
 
         // Wait before starting next example
         await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // Reset icon
+        resetAppIcon(currentExample.app);
 
         // Move to next example
         currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
@@ -130,16 +131,20 @@
 
     // Function to highlight app icon
     function highlightAppIcon(appName: string) {
-        // Reset all icons to default opacity
-        const icons = document.querySelectorAll('.icon-wrapper');
-        icons.forEach(icon => {
-            (icon as HTMLElement).style.opacity = '0.2';
-        });
 
         // Highlight the relevant icon
         const targetIcon = document.querySelector(`.icon-wrapper[data-app="${appName}"]`);
         if (targetIcon) {
             (targetIcon as HTMLElement).style.opacity = '1';
+        }
+    }
+
+    // Reset icon
+    function resetAppIcon(appName: string) {
+        // Reset the relevant icon
+        const targetIcon = document.querySelector(`.icon-wrapper[data-app="${appName}"]`);
+        if (targetIcon) {
+            (targetIcon as HTMLElement).style.opacity = '0.2';
         }
     }
 
