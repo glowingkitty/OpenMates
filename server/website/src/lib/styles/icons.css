@@ -581,7 +581,7 @@
     background-position: center;
     background-repeat: no-repeat;
     /* Make it black and white by default */
-    filter: grayscale(100%) brightness(0);
+    filter: grayscale(100%) brightness(1.8);
     transition: filter 0.2s ease-in-out;
 
     &:hover {
@@ -597,7 +597,7 @@
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(0);
+    filter: grayscale(100%) brightness(1.6);
     transition: filter 0.2s ease-in-out;
 
     &:hover {
@@ -612,7 +612,7 @@
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(0);
+    filter: grayscale(100%) brightness(1);
     transition: filter 0.2s ease-in-out;
 
     &:hover {

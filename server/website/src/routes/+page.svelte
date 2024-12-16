@@ -237,7 +237,7 @@
         align-items: center;
         gap: 0.5rem;
         font-size: 1.1rem;
-        color: var(--color-text-secondary);
+        color: #8A8A8A;
     }
 
     .platform-wrapper {
