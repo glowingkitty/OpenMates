@@ -231,7 +231,7 @@
     /* Add fade-in animation */
     opacity: 0;
     animation: fadeInEventImage 0.3s ease-in forwards;
-    animation-delay: 800ms;
+    /* animation-delay: 800ms; */
 }
 
 /* Add the animation keyframes */

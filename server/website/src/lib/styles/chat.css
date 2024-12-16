@@ -12,11 +12,12 @@
     padding: 12px;
     flex: 1;
     filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
-    animation: fadeInMessage 0.4s ease-in forwards;
+    animation: none;
     animation-delay: 800ms;
     margin-top: var(--mate-profile-margin);
     margin-bottom: 5px;
     box-sizing: border-box;
+    opacity: 0;
 }
 
 .mate-message-content {
@@ -165,4 +166,9 @@
 .chat-app-cards-container::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.15);
     border-radius: 3px;
+}
+
+/* Add a new class for animated messages */
+.message-animated {
+    animation: fadeInMessage 0.4s ease-in forwards;
 }

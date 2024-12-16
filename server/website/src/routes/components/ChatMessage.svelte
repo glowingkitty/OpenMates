@@ -28,6 +28,9 @@
 
   // Capitalize first letter of mate name
   $: displayName = role === 'user' ? '' : role.charAt(0).toUpperCase() + role.slice(1);
+
+  // Add new prop for animation control
+  export let animated: boolean = false;
 </script>
 
 <div class="chat-message">
@@ -36,7 +39,7 @@
   {/if}
   
   <div class="message-align-{role === 'user' ? 'right' : 'left'}">
-    <div class="{role === 'user' ? 'user' : 'mate'}-message-content">
+    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}">
       {#if role !== 'user'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}

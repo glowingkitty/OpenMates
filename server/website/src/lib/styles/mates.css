@@ -15,6 +15,10 @@
     position: relative;
     flex-shrink: 0;
 
+    /* Add initial opacity and animation */
+    opacity: 0;
+    animation: fadeInMate 0.4s ease-in forwards;
+
     &::after {
         content: '';
         position: absolute;
@@ -47,10 +51,7 @@
         z-index: 2;
     }
 
-    /* Add initial opacity and animation */
-    opacity: 0;
-    animation: fadeInMate 0.4s ease-in forwards;
-    animation-delay: 800ms;
+    
 }
 
 /* Fade in animation for mate profiles */

@@ -89,10 +89,10 @@
     ];
 
     let currentExampleIndex = 0;
-    let visibleMessages: any[] = [];
+    let visibleMessages: Array<any & {animated?: boolean}> = [];
     let currentSequenceIndex = 0;
 
-    // Function to animate messages
+    // Modified function to animate messages
     async function animateMessages() {
         const currentExample = chatExamples[currentExampleIndex];
 
@@ -100,7 +100,7 @@
         visibleMessages = [];
         currentSequenceIndex = 0;
 
-        // Reset all app icons to default opacity at the start of each example
+        // Reset all app icons
         const icons = document.querySelectorAll('.icon-wrapper');
         icons.forEach(icon => {
             (icon as HTMLElement).style.opacity = '0.2';
@@ -113,10 +113,20 @@
 
         // Animate each message in sequence
         for (const message of currentExample.sequence) {
-            visibleMessages = [...visibleMessages, message];
+            // Add message initially without animation
+            const messageWithAnimation = { ...message, animated: false };
+            visibleMessages = [...visibleMessages, messageWithAnimation];
+            
+            // Wait a brief moment to ensure the message is rendered
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Trigger animation
+            messageWithAnimation.animated = true;
+            visibleMessages = [...visibleMessages];
+            
+            // Wait before showing next message
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
-
 
         // Wait before starting next example
         await new Promise(resolve => setTimeout(resolve, 5000));
@@ -155,13 +165,14 @@
 
 <div class="animated-chat-container">
     {#each visibleMessages as message (message)}
-        <div transition:fade={{ duration: 300 }}>
-            <ChatMessage 
+        <div>
+            <ChatMessage
                 role={message.type === 'user' ? 'user' : message.mateName.toLowerCase()}
                 messageParts={message.appCards ? [
                     { type: 'text', content: message.text },
                     { type: 'app-cards', content: message.appCards }
                 ] : undefined}
+                animated={message.animated}
             >
                 {message.text}
             </ChatMessage>
