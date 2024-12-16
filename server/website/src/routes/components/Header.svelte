@@ -11,8 +11,17 @@
         return $page.url.pathname === path;
     }
 
-    // Modern navigation handler
-    const navigate = async (path: string) => {
+    // Handle click events to prevent full page reload while allowing new tab behavior
+    const handleClick = async (event: MouseEvent, path: string) => {
+        // Allow default behavior (new tab) if ctrl/cmd/middle click
+        if (event.ctrlKey || event.metaKey || event.button === 1) {
+            return;
+        }
+        
+        // Prevent default link behavior
+        event.preventDefault();
+        
+        // Use SvelteKit's client-side navigation
         await goto(path, { replaceState: false });
     }
 </script>
@@ -20,36 +29,40 @@
 <header>
     <nav>
         <div class="left-section">
-            <button 
+            <a 
+                href="/"
                 class="logo-link" 
-                on:click={() => navigate('/')}
+                on:click={(e) => handleClick(e, '/')}
             >
                 <span class="logo-text">Open</span>
                 <span class="logo-text highlight">Mates</span>
-            </button>
+            </a>
         </div>
         <div class="nav-links">
-            <button 
+            <a 
+                href="/"
                 class="nav-link"
                 class:active={isActive('/')}
-                on:click={() => navigate('/')}
+                on:click={(e) => handleClick(e, '/')}
             >
                 For all of us
-            </button>
-            <button 
+            </a>
+            <a 
+                href="/developers"
                 class="nav-link"
                 class:active={isActive('/developers')}
-                on:click={() => navigate('/developers')}
+                on:click={(e) => handleClick(e, '/developers')}
             >
                 For developers
-            </button>
-            <button 
+            </a>
+            <a 
+                href="/docs"
                 class="nav-link"
                 class:active={isActive('/docs')}
-                on:click={() => navigate('/docs')}
+                on:click={(e) => handleClick(e, '/docs')}
             >
                 Docs
-            </button>
+            </a>
             <div class="icon-links">
                 <a 
                     href={githubUrl} 
@@ -102,6 +115,8 @@
         font-weight: 600;
         display: flex;
         gap: 0.25rem;
+        text-decoration: none;
+        cursor: pointer;
     }
 
     .logo-text {
@@ -132,6 +147,7 @@
         color: var(--text-color, #000);
         opacity: 0.5;
         transition: opacity 0.2s ease;
+        cursor: pointer;
     }
 
     .nav-link:hover {
@@ -151,14 +167,5 @@
 
     .icon-link:hover {
         opacity: 1;
-    }
-
-    button {
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        font: inherit;
-        color: inherit;
     }
 </style> 
