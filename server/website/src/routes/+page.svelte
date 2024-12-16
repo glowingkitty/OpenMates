@@ -100,7 +100,7 @@
                 {#if currentApp}
                     <span class="app-title">
                         <span class="visually-hidden">{capitalize(currentApp)} </span>
-                        <Icon name={currentApp} type="app" />
+                        <Icon name={currentApp} type="app" size="67.98px" />
                         Team Mates
                     </span>
                 {:else}
@@ -202,12 +202,20 @@
         gap: 0.5rem;
         user-select: all;
         position: relative;
+        line-height: 1;
+        vertical-align: middle;
+        margin: 0;
+        padding: 0;
     }
 
-    .app-title :global(svg) {
-        width: 2rem;
-        height: 2rem;
-        user-select: all;
+    /* Add this to ensure the icon aligns properly */
+    .app-title :global(.icon) {
+        display: inline-flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+        line-height: 0;
+        vertical-align: middle;
     }
 
     /* Style for hidden text that will be included in copy */

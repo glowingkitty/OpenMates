@@ -4,6 +4,7 @@
   export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' = 'default';
   export let inline: boolean = false;
   export let poweredByAI: boolean = false;
+  export let size: string | undefined = undefined; // Add size prop
 
   // Compute the final class name
   $: className = [
@@ -15,6 +16,9 @@
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : ''
   ].filter(Boolean).join(' ');
+
+  // Compute styles including size if provided
+  $: style = size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '';
 </script>
 
-<div class={className} aria-label={name}></div>
+<div class={className} aria-label={name} style={style}></div>

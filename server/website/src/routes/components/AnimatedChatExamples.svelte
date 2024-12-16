@@ -238,4 +238,11 @@
         padding: 1rem;
         user-select: none;
     }
+
+    :global(.app-title svg) {
+        width: 67.98px !important;
+        height: 67.98px !important;
+        min-width: 67.98px !important;
+        min-height: 67.98px !important;
+    }
 </style>
