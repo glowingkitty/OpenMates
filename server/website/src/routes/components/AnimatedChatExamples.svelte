@@ -92,9 +92,15 @@
     let visibleMessages: Array<any & {animated?: boolean}> = [];
     let currentSequenceIndex = 0;
 
+    // Add export for currentApp
+    export let currentApp = '';
+
     // Modified function to animate messages
     async function animateMessages() {
         const currentExample = chatExamples[currentExampleIndex];
+
+        // Update current app
+        currentApp = currentExample.app;
 
         // Reset messages when starting new example
         visibleMessages = [];
@@ -134,6 +140,9 @@
         // Reset icon
         resetAppIcon(currentExample.app);
 
+        // Before moving to next example, clear current app
+        currentApp = '';
+        
         // Move to next example
         currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
         animateMessages();

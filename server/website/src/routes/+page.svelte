@@ -69,6 +69,14 @@
     // Split icons into left and right sides (first 3 columns are left, last 3 are right)
     const leftIcons = header_app_icons.slice(0, 3).flat();
     const rightIcons = header_app_icons.slice(3).flat();
+
+    // Add reactive variable for current app
+    let currentApp = '';
+
+    // Helper function to capitalize first letter
+    function capitalize(str: string) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
 </script>
 
 <div class="landing-container">
@@ -88,9 +96,21 @@
     <!-- Center space -->
     <div class="center-space">
         <div class="center-content">
-            <h1 class="text-center">AI Team Mates.<mark><br>For all of us.</mark></h1>
+            <h1 class="text-center">
+                {#if currentApp}
+                    <span class="app-title">
+                        <!-- Hidden text for copying -->
+                        <span class="visually-hidden">{capitalize(currentApp)} </span>
+                        <Icon name={currentApp} type="app" />
+                        Team Mates
+                    </span>
+                {:else}
+                    AI Team Mates
+                {/if}
+                <mark><br>For all of us.</mark>
+            </h1>
             <p class="text-center">via Mattermost, Discord, Slack & more</p>
-            <AnimatedChatExamples />
+            <AnimatedChatExamples bind:currentApp={currentApp} />
         </div>
     </div>
 
@@ -160,5 +180,41 @@
     .center-content h1,
     .center-content p {
         margin: 0;
+    }
+
+    .app-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        user-select: all;
+        position: relative;
+    }
+
+    .app-title :global(svg) {
+        width: 2rem;
+        height: 2rem;
+        user-select: all;
+    }
+
+    /* Style for hidden text that will be included in copy */
+    .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+        user-select: all;
+    }
+
+    /* Make sure the icon is included in text selection */
+    .app-title :global(svg) {
+        user-select: all;
+        -webkit-user-select: all;
+        -moz-user-select: all;
+        -ms-user-select: all;
     }
 </style>
