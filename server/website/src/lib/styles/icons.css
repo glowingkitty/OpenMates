@@ -619,3 +619,33 @@
         filter: none;
     }
 }
+
+.github-icon {
+    width: 24px;
+    height: 24px;
+    background-image: url('/icons/github.svg');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: grayscale(100%) brightness(1);
+    transition: filter 0.2s ease-in-out;
+
+    &:hover {
+        filter: none;
+    }
+}
+
+.opencollective-icon {
+    width: 24px;
+    height: 24px;
+    background-image: url('/icons/opencollective.svg');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: grayscale(100%) brightness(1);
+    transition: filter 0.2s ease-in-out;
+
+    &:hover {
+        filter: none;
+    }
+}

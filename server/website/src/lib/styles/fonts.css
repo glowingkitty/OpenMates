@@ -65,7 +65,7 @@ h4 {
     font-weight: var(--font-weight-bold);
 }
 
-p {
+p, a {
     font-family: var(--font-primary);
     font-size: var(--font-size-p);
     font-style: var(--font-style-normal);

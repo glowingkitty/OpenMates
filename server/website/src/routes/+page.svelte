@@ -1,4 +1,5 @@
 <script lang="ts">
+    import Header from './components/Header.svelte';
     import Icon from './components/Icon.svelte';
     import ChatMessage from './components/ChatMessage.svelte';
     import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
@@ -78,6 +79,8 @@
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 </script>
+
+<Header />
 
 <div class="landing-container">
     <!-- Left side icons -->
