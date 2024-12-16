@@ -5,7 +5,7 @@
     import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
     import WaitingList from './components/WaitingList.svelte';
     // Define icon groups for left and right sides
-    const header_app_icons = [
+    const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
         // Left side | First column
         [
             {type: 'app', name: 'videos'},
@@ -113,7 +113,7 @@
                 <mark><br>For all of us.</mark>
             </h1>
             <p class="text-center platform-text">
-                via 
+                via
                 <span class="platform-wrapper">
                     <span class="visually-hidden">Mattermost, </span>
                     <span class="messenger-mattermost"></span>
@@ -128,11 +128,7 @@
                 </span>
                 & more
             </p>
-            <div class="chat-examples-container">
-                <AnimatedChatExamples bind:currentApp={currentApp} />
-                <div class="gradient-overlay"></div>
-            </div>
-
+            <AnimatedChatExamples bind:currentApp={currentApp} />
             <WaitingList />
         </div>
     </div>
@@ -272,26 +268,5 @@
         -webkit-user-select: all;
         -moz-user-select: all;
         -ms-user-select: all;
-    }
-
-    .chat-examples-container {
-        position: relative;
-        height: 400px;
-        overflow: hidden;
-        margin-bottom: 2rem;
-    }
-
-    .gradient-overlay {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 100px;
-        background: linear-gradient(
-            to bottom,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 1) 100%
-        );
-        pointer-events: none;
     }
 </style>
