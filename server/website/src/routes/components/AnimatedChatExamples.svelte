@@ -239,32 +239,31 @@
 <style>
     .chat-examples-container {
         position: relative;
-        height: 400px;
+        height: 300px;
+        width: 540px;
+        margin: 0 auto;
         margin-bottom: 2rem;
-        width: 100%;
     }
 
     .chat-content {
         position: relative;
         height: 100%;
         overflow: hidden;
-        -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
-        mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+        mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
     }
 
     .gradient-overlay {
-        display: none; /* We're using mask-image instead */
+        display: none;
     }
 
     .animated-chat-container {
         width: 100%;
-        max-width: 540px;
         margin: 0 auto;
         padding: 1rem;
         user-select: none;
-        /* Adjust padding since we're using mask-image now */
-        padding-top: 20px;
-        padding-bottom: 20px;
+        padding-top: 15px;
+        padding-bottom: 15px;
     }
 
     :global(.app-title svg) {
