@@ -18,49 +18,49 @@
                 <span class="logo-text">Open</span>
                 <span class="logo-text highlight">Mates</span>
             </a>
-            <div class="nav-links">
+        </div>
+        <div class="nav-links">
+            <a 
+                href="/" 
+                class="nav-link"
+                class:active={isActive('/')}
+            >
+                For all of us
+            </a>
+            <a 
+                href="/developers" 
+                class="nav-link"
+                class:active={isActive('/developers')}
+            >
+                For developers
+            </a>
+            <a 
+                href="/docs" 
+                class="nav-link"
+                class:active={isActive('/docs')}
+            >
+                Docs
+            </a>
+            <div class="icon-links">
                 <a 
-                    href="/" 
-                    class="nav-link"
-                    class:active={isActive('/')}
+                    href={githubUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="icon-link"
+                    aria-label="Visit our GitHub page"
                 >
-                    For all of us
+                    <div class="github-icon"></div>
                 </a>
                 <a 
-                    href="/developers" 
-                    class="nav-link"
-                    class:active={isActive('/developers')}
+                    href={openCollectiveUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="icon-link"
+                    aria-label="Support us on OpenCollective"
                 >
-                    For developers
-                </a>
-                <a 
-                    href="/docs" 
-                    class="nav-link"
-                    class:active={isActive('/docs')}
-                >
-                    Docs
+                    <div class="opencollective-icon"></div>
                 </a>
             </div>
-        </div>
-        <div class="right-section">
-            <a 
-                href={githubUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="icon-link"
-                aria-label="Visit our GitHub page"
-            >
-                <div class="github-icon"></div>
-            </a>
-            <a 
-                href={openCollectiveUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="icon-link"
-                aria-label="Support us on OpenCollective"
-            >
-                <div class="opencollective-icon"></div>
-            </a>
         </div>
     </nav>
 </header>
@@ -68,10 +68,12 @@
 <style>
     header {
         width: 100%;
-        background: var(--background, rgba(255, 255, 255, 0.8));
-        backdrop-filter: blur(10px);
+        background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
         z-index: 1000;
         padding: 1rem 2rem;
+        position: fixed;
+        top: 0;
+        left: 0;
     }
 
     nav {
@@ -83,9 +85,7 @@
     }
 
     .left-section {
-        display: flex;
-        align-items: center;
-        gap: 2rem;
+        flex-shrink: 0;
     }
 
     .logo-link {
@@ -107,6 +107,16 @@
     .nav-links {
         display: flex;
         gap: 1.5rem;
+        align-items: center;
+        justify-content: flex-end;
+        flex-grow: 1;
+    }
+
+    .icon-links {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-left: 1.5rem;
     }
 
     .nav-link {
@@ -122,12 +132,6 @@
 
     .nav-link.active {
         opacity: 1;
-    }
-
-    .right-section {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
     }
 
     .icon-link {

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import Header from '../../components/Header.svelte';
     import Icon from '../../components/Icon.svelte';
     import Button from '../../components/Button.svelte';
     import Field from '../../components/Field.svelte';
@@ -213,9 +214,11 @@
     });
 </script>
 
-<div class="design-system-header">
-    <h1>OpenMates<br>Design System</h1>
-</div>
+<Header />
+
+<h1 class="text-center">Design System</h1>
+
+<h2 class="text-center">Learn how OpenMates is designed & built up.</h2>
 
 <section class="section">
     <h2 class="section-title">Colors</h2>
