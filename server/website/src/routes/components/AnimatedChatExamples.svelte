@@ -2,7 +2,7 @@
     import ChatMessage from './ChatMessage.svelte';
     import EventAppCard from './cards/EventAppCard.svelte';
     import HealthAppCard from './cards/HealthAppCard.svelte';
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
 
     // Import example chat content from the main page
@@ -95,57 +95,83 @@
     // Add export for currentApp
     export let currentApp = '';
 
+    let animationInProgress = false;
+    let currentAnimationId = 0;
+
+    let cleanup = () => {};
+
     // Modified function to animate messages
     async function animateMessages() {
-        const currentExample = chatExamples[currentExampleIndex];
-
-        // Update current app
-        currentApp = currentExample.app;
-
-        // Reset messages when starting new example
-        visibleMessages = [];
-        currentSequenceIndex = 0;
-
-        // Reset all app icons
-        const icons = document.querySelectorAll('.icon-wrapper');
-        icons.forEach(icon => {
-            icon.classList.remove('slide-right', 'slide-left');
-        });
-
-        // Highlight the app icon
-        if (currentExample.app) {
-            highlightAppIcon(currentExample.app);
+        // Cancel any ongoing animation
+        const thisAnimationId = ++currentAnimationId;
+        if (animationInProgress) {
+            return;
         }
 
-        // Animate each message in sequence
-        for (const message of currentExample.sequence) {
-            // Add message initially without animation
-            const messageWithAnimation = { ...message, animated: false };
-            visibleMessages = [...visibleMessages, messageWithAnimation];
-            
-            // Wait a brief moment to ensure the message is rendered
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            // Trigger animation
-            messageWithAnimation.animated = true;
-            visibleMessages = [...visibleMessages];
-            
-            // Wait before showing next message
-            await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            animationInProgress = true;
+            const currentExample = chatExamples[currentExampleIndex];
+            currentApp = currentExample.app;
+
+            visibleMessages = [];
+            currentSequenceIndex = 0;
+
+            // Reset icons with proper error handling
+            try {
+                const icons = document.querySelectorAll('.icon-wrapper');
+                icons.forEach(icon => icon.classList.remove('slide-right', 'slide-left'));
+
+                if (currentExample.app) {
+                    highlightAppIcon(currentExample.app);
+                }
+            } catch (error) {
+                console.error('Error handling icons:', error);
+            }
+
+            // Animate messages with cancellation check
+            for (const message of currentExample.sequence) {
+                if (thisAnimationId !== currentAnimationId) {
+                    return; // Animation was superseded
+                }
+
+                const messageWithAnimation = { ...message, animated: false };
+                visibleMessages = [...visibleMessages, messageWithAnimation];
+
+                // Wait for next frame to ensure DOM update
+                await new Promise(resolve => requestAnimationFrame(resolve));
+
+                // Additional frame for safety
+                await new Promise(resolve => requestAnimationFrame(resolve));
+
+                if (thisAnimationId !== currentAnimationId) return;
+
+                messageWithAnimation.animated = true;
+                visibleMessages = [...visibleMessages];
+
+                // Dynamic delay based on message content
+                const baseDelay = 2000;
+                const contentLength = message.text.length;
+                const dynamicDelay = Math.min(baseDelay + (contentLength * 20), 4000);
+
+                await new Promise(resolve => setTimeout(resolve, dynamicDelay));
+            }
+
+            if (thisAnimationId !== currentAnimationId) return;
+
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            resetAppIcon(currentExample.app);
+            currentApp = '';
+            currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
+
+            // Recursively call with a frame delay to prevent stack overflow
+            requestAnimationFrame(() => animateMessages());
+
+        } finally {
+            if (thisAnimationId === currentAnimationId) {
+                animationInProgress = false;
+            }
         }
-
-        // Wait before starting next example
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // Reset icon
-        resetAppIcon(currentExample.app);
-
-        // Before moving to next example, clear current app
-        currentApp = '';
-        
-        // Move to next example
-        currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
-        animateMessages();
     }
 
     // Function to highlight app icon
@@ -154,7 +180,7 @@
         if (targetIcon) {
             // Determine if the icon is on the left or right side
             const isLeftSide = targetIcon.closest('.icon-grid.left') !== null;
-            
+
             // Add the appropriate slide class
             if (isLeftSide) {
                 targetIcon.classList.add('slide-right');
@@ -175,6 +201,15 @@
 
     onMount(() => {
         animateMessages();
+        return () => {
+            currentAnimationId++; // Cancel any running animation
+            cleanup();
+        };
+    });
+
+    onDestroy(() => {
+        cleanup();
+        currentAnimationId++; // Ensure no animations continue
     });
 </script>
 
