@@ -99,7 +99,6 @@
             <h1 class="text-center">
                 {#if currentApp}
                     <span class="app-title">
-                        <!-- Hidden text for copying -->
                         <span class="visually-hidden">{capitalize(currentApp)} </span>
                         <Icon name={currentApp} type="app" />
                         Team Mates
@@ -109,7 +108,22 @@
                 {/if}
                 <mark><br>For all of us.</mark>
             </h1>
-            <p class="text-center">via Mattermost, Discord, Slack & more</p>
+            <p class="text-center platform-text">
+                via 
+                <span class="platform-wrapper">
+                    <span class="visually-hidden">Mattermost, </span>
+                    <span class="messenger-mattermost"></span>
+                </span>
+                <span class="platform-wrapper">
+                    <span class="visually-hidden">Discord, </span>
+                    <span class="messenger-discord"></span>
+                </span>
+                <span class="platform-wrapper">
+                    <span class="visually-hidden">Slack </span>
+                    <span class="messenger-slack"></span>
+                </span>
+                & more
+            </p>
             <AnimatedChatExamples bind:currentApp={currentApp} />
         </div>
     </div>
@@ -212,6 +226,31 @@
 
     /* Make sure the icon is included in text selection */
     .app-title :global(svg) {
+        user-select: all;
+        -webkit-user-select: all;
+        -moz-user-select: all;
+        -ms-user-select: all;
+    }
+
+    .platform-text {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.1rem;
+        color: var(--color-text-secondary);
+    }
+
+    .platform-wrapper {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+        user-select: all;
+        cursor: pointer;
+    }
+
+    .platform-wrapper :global(.messenger-mattermost),
+    .platform-wrapper :global(.messenger-discord),
+    .platform-wrapper :global(.messenger-slack) {
         user-select: all;
         -webkit-user-select: all;
         -moz-user-select: all;

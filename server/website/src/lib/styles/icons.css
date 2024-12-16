@@ -530,6 +530,27 @@
   }
 }
 
+.icon.provider-mattermost {
+  &::before {
+      background-image: url('/icons/mattermost.svg');
+      background-size: 55%;
+  }
+}
+
+.icon.provider-discord {
+  &::before {
+      background-image: url('/icons/discord.svg');
+      background-size: 55%;
+  }
+}
+
+.icon.provider-slack {
+  &::before {
+      background-image: url('/icons/slack.svg');
+      background-size: 55%;
+  }
+}
+
 .icon-wrapper {
     display: flex;
     align-items: center;
@@ -548,4 +569,53 @@
 .icon-wrapper.slide-right {
     opacity: 0 !important;
     transform: translateX(50px) !important;
+}
+
+/* Standalone Messenger Icons */
+.messenger-mattermost {
+    /* Set default appearance */
+    width: 24px;
+    height: 24px;
+    background-image: url('/icons/mattermost.svg');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    /* Make it black and white by default */
+    filter: grayscale(100%) brightness(0);
+    transition: filter 0.2s ease-in-out;
+
+    &:hover {
+        /* Remove filters on hover to show original colors */
+        filter: none;
+    }
+}
+
+.messenger-discord {
+    width: 24px;
+    height: 24px;
+    background-image: url('/icons/discord.svg');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: grayscale(100%) brightness(0);
+    transition: filter 0.2s ease-in-out;
+
+    &:hover {
+        filter: none;
+    }
+}
+
+.messenger-slack {
+    width: 24px;
+    height: 24px;
+    background-image: url('/icons/slack.svg');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: grayscale(100%) brightness(0);
+    transition: filter 0.2s ease-in-out;
+
+    &:hover {
+        filter: none;
+    }
 }
