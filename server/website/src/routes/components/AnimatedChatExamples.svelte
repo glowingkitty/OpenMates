@@ -214,60 +214,46 @@
 </script>
 
 <div class="chat-examples-container">
-    <div class="gradient-overlay top"></div>
-    <div class="animated-chat-container">
-        {#each visibleMessages as message (message)}
-            <div>
-                <ChatMessage
-                    role={message.type === 'user' ? 'user' : message.mateName.toLowerCase()}
-                    messageParts={message.appCards ? [
-                        { type: 'text', content: message.text },
-                        { type: 'app-cards', content: message.appCards }
-                    ] : undefined}
-                    animated={message.animated}
-                >
-                    {message.text}
-                </ChatMessage>
-            </div>
-        {/each}
+    <div class="chat-content">
+        <div class="gradient-overlay top"></div>
+        <div class="animated-chat-container">
+            {#each visibleMessages as message (message)}
+                <div>
+                    <ChatMessage
+                        role={message.type === 'user' ? 'user' : message.mateName.toLowerCase()}
+                        messageParts={message.appCards ? [
+                            { type: 'text', content: message.text },
+                            { type: 'app-cards', content: message.appCards }
+                        ] : undefined}
+                        animated={message.animated}
+                    >
+                        {message.text}
+                    </ChatMessage>
+                </div>
+            {/each}
+        </div>
+        <div class="gradient-overlay bottom"></div>
     </div>
-    <div class="gradient-overlay bottom"></div>
 </div>
 
 <style>
     .chat-examples-container {
         position: relative;
         height: 400px;
-        overflow: hidden;
         margin-bottom: 2rem;
         width: 100%;
     }
 
+    .chat-content {
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+    }
+
     .gradient-overlay {
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 100px;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .gradient-overlay.top {
-        top: 0;
-        background: linear-gradient(
-            to top,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 1) 100%
-        );
-    }
-
-    .gradient-overlay.bottom {
-        bottom: 0;
-        background: linear-gradient(
-            to bottom,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 1) 100%
-        );
+        display: none; /* We're using mask-image instead */
     }
 
     .animated-chat-container {
@@ -276,9 +262,9 @@
         margin: 0 auto;
         padding: 1rem;
         user-select: none;
-        /* Add some padding to account for the gradients */
-        padding-top: 60px;
-        padding-bottom: 60px;
+        /* Adjust padding since we're using mask-image now */
+        padding-top: 20px;
+        padding-bottom: 20px;
     }
 
     :global(.app-title svg) {
