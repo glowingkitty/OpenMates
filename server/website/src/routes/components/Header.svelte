@@ -1,11 +1,11 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    
+
     // Props for configurable URLs
     export let githubUrl = "https://github.com/OpenMates/OpenMates";
     export let openCollectiveUrl = "https://opencollective.com/openmates";
-    
+
     // Helper function to determine if a path is active
     const isActive = (path: string) => {
         return $page.url.pathname === path;
@@ -17,10 +17,10 @@
         if (event.ctrlKey || event.metaKey || event.button === 1) {
             return;
         }
-        
+
         // Prevent default link behavior
         event.preventDefault();
-        
+
         // Use SvelteKit's client-side navigation
         await goto(path, { replaceState: false });
     }
@@ -29,9 +29,9 @@
 <header>
     <nav>
         <div class="left-section">
-            <a 
+            <a
                 href="/"
-                class="logo-link" 
+                class="logo-link"
                 on:click={(e) => handleClick(e, '/')}
             >
                 <span class="logo-text">Open</span>
@@ -39,7 +39,7 @@
             </a>
         </div>
         <div class="nav-links">
-            <a 
+            <a
                 href="/"
                 class="nav-link"
                 class:active={isActive('/')}
@@ -47,7 +47,7 @@
             >
                 For all of us
             </a>
-            <a 
+            <a
                 href="/developers"
                 class="nav-link"
                 class:active={isActive('/developers')}
@@ -55,7 +55,7 @@
             >
                 For developers
             </a>
-            <a 
+            <a
                 href="/docs"
                 class="nav-link"
                 class:active={isActive('/docs')}
@@ -64,19 +64,19 @@
                 Docs
             </a>
             <div class="icon-links">
-                <a 
-                    href={githubUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                <a
+                    href={githubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     class="icon-link"
                     aria-label="Visit our GitHub page"
                 >
                     <div class="github-icon"></div>
                 </a>
-                <a 
-                    href={openCollectiveUrl} 
+                <a
+                    href={openCollectiveUrl}
                     target="_blank" 
-                    rel="noopener noreferrer" 
+                    rel="noopener noreferrer"
                     class="icon-link"
                     aria-label="Support us on OpenCollective"
                 >
