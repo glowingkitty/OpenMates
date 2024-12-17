@@ -6,8 +6,14 @@
     import { onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
 
-    // Import example chat content from the main page
-    const chatExamples = [
+    // Add at the top of the script section
+    type ChatExample = {
+        app: string;
+        sequence: MessageSequence[];
+    };
+
+    // Update the chatExamples declaration
+    const chatExamples: ChatExample[] = [
         // Career advice conversation with loaded preferences
         {
             app: 'ai',
@@ -147,7 +153,7 @@
     ];
 
     let currentExampleIndex = 0;
-    let visibleMessages: Array<any & {animated?: boolean}> = [];
+    let visibleMessages: Array<MessageSequence & {animated?: boolean}> = [];
     let currentSequenceIndex = 0;
     
     // Add new variable to track processing state
@@ -160,6 +166,25 @@
     let currentAnimationId = 0;
 
     let cleanup = () => {};
+
+    // Define a type for the message sequences
+    type MessageSequence = {
+        type: string;
+        text?: string;
+        waitTime?: number;
+        appNames?: string[];
+        focusName?: string;
+        focusIcon?: string;
+        mateName?: string;
+        in_progress?: boolean;
+        appCards?: any[];
+    };
+
+    // Add at the top with other types
+    type MessagePart = {
+        type: 'text' | 'app-cards';
+        content: string | any[];  // or be more specific with AppCardData[] if available
+    };
 
     // Modified function to animate messages
     async function animateMessages() {
@@ -193,7 +218,7 @@
             // Animate messages with processing states
             for (let i = 0; i < currentExample.sequence.length; i++) {
                 const message = currentExample.sequence[i];
-                
+
                 if (thisAnimationId !== currentAnimationId) return;
 
                 if (message.type === 'using_apps') {
@@ -213,7 +238,7 @@
                     // Add new processing details for other types
                     const messageWithAnimation = { ...message, animated: false };
                     visibleMessages = [...visibleMessages, messageWithAnimation];
-                    
+
                     await new Promise(resolve => requestAnimationFrame(resolve));
                     await new Promise(resolve => requestAnimationFrame(resolve));
 
@@ -317,8 +342,8 @@
                         />
                     {:else}
                         <ChatMessage
-                            role={message.type === 'user' ? 'user' : message.mateName.toLowerCase()}
-                            messageParts={message.appCards ? [
+                            role={message.type === 'user' ? 'user' : message.mateName?.toLowerCase() ?? 'mate'}
+                            messageParts={message.appCards && message.text ? [
                                 { type: 'text', content: message.text },
                                 { type: 'app-cards', content: message.appCards }
                             ] : undefined}
