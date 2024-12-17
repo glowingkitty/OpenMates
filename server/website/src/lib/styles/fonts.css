@@ -29,7 +29,6 @@ body {
     font-weight: var(--font-weight-p);
     line-height: var(--line-height-normal);
     color: var(--color-font-primary);
-    margin: 0;
 }
 
 /* Utility classes for text alignment */

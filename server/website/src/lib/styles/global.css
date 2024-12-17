@@ -1,0 +1,8 @@
+body {
+    margin: 0;
+}
+
+.content {
+    max-width: 1000px;
+    margin: 0 auto;
+}

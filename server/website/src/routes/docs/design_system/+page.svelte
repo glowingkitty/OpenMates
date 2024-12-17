@@ -766,15 +766,10 @@
 
 
 <style>
-    .design-system-header {
-        text-align: center;
-        margin-bottom: 60px;
-    }
-
     .section {
-        width: 100%;
         max-width: 1200px;
-        margin-bottom: 60px;
+        margin: 0 auto 60px;
+        padding: 0 40px;
     }
 
     .section-title {

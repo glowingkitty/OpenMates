@@ -9,6 +9,7 @@
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
     import '$lib/styles/separators.css';
+    import '$lib/styles/global.css';
     import { replaceOpenMates } from '$lib/actions/replaceText';
 </script>
 
