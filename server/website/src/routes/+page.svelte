@@ -139,7 +139,7 @@
         {#each header_app_icons.slice(3) as column}
             <div class="icon-column">
                 {#each column as icon}
-                    <div class="icon-wrapper" data-app={icon.name}>
+                    <div class="icon-wrapper" style="opacity: 0.2; scale: 0.65;" data-app={icon.name}>
                         <Icon name={icon.name} type={icon.type} />
                     </div>
                 {/each}

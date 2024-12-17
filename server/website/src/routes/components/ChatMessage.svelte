@@ -38,13 +38,13 @@
   {#if role !== 'user'}
     <div class="mate-profile {role}"></div>
   {/if}
-  
+
   <div class="message-align-{role === 'user' ? 'right' : 'left'}">
-    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} {defaultHidden ? 'default_hidden' : ''}">
+    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
       {#if role !== 'user'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
-      
+
       <div class="chat-message-text">
         {#if messageParts && messageParts.length > 0}
           {#each messageParts as part}
@@ -63,7 +63,7 @@
             {@html $$slots.default ? '' : ''}
             <slot />
           </div>
-          
+
           {#if appCards && appCards.length > 0}
             <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
               {#each appCards as card}

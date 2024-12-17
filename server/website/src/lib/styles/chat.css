@@ -19,10 +19,6 @@
     box-sizing: border-box;
 }
 
-.default_hidden {
-    opacity: 0;
-}
-
 .mate-message-content {
     background-color: white;
     margin-top: var(--mate-profile-margin);
