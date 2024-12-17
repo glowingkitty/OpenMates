@@ -1,6 +1,5 @@
 <script lang="ts">
     // Import all necessary styles
-    import '$lib/styles/global.css';
     import '$lib/styles/colors.css';
     import '$lib/styles/fonts.css';
     import '$lib/styles/icons.css';

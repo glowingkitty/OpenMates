@@ -83,77 +83,94 @@
 
 <Header />
 
-<div class="landing-container">
-    <!-- Left side icons -->
-    <div class="icon-grid left">
-        {#each header_app_icons.slice(0, 3) as column}
-            <div class="icon-column">
-                {#each column as icon}
-                    <div class="icon-wrapper" data-app={icon.name}>
-                        <Icon name={icon.name} type={icon.type} />
-                    </div>
-                {/each}
-            </div>
-        {/each}
-    </div>
+<!-- Add header section with background color -->
+<section class="hero-header">
+    <div class="landing-container">
+        <!-- Left side icons -->
+        <div class="icon-grid left">
+            {#each header_app_icons.slice(0, 3) as column}
+                <div class="icon-column">
+                    {#each column as icon}
+                        <div class="icon-wrapper" data-app={icon.name}>
+                            <Icon name={icon.name} type={icon.type} />
+                        </div>
+                    {/each}
+                </div>
+            {/each}
+        </div>
 
-    <!-- Center space -->
-    <div class="center-space">
-        <div class="center-content">
-            <h1 class="text-center">
-                {#if currentApp}
-                    <span class="app-title">
-                        <span class="visually-hidden">{capitalize(currentApp)} </span>
-                        <Icon name={currentApp} type="app" size="67.98px" />
-                        Team Mates
+        <!-- Center space -->
+        <div class="center-space">
+            <div class="center-content">
+                <h1 class="text-center">
+                    {#if currentApp}
+                        <span class="app-title">
+                            <span class="visually-hidden">{capitalize(currentApp)} </span>
+                            <Icon name={currentApp} type="app" size="67.98px" />
+                            Team Mates
+                        </span>
+                    {:else}
+                        AI Team Mates
+                    {/if}
+                    <mark><br>For all of us.</mark>
+                </h1>
+                <p class="text-center platform-text">
+                    via
+                    <span class="platform-wrapper">
+                        <span class="visually-hidden">Mattermost, </span>
+                        <span class="messenger-mattermost"></span>
                     </span>
-                {:else}
-                    AI Team Mates
-                {/if}
-                <mark><br>For all of us.</mark>
-            </h1>
-            <p class="text-center platform-text">
-                via
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Mattermost, </span>
-                    <span class="messenger-mattermost"></span>
-                </span>
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Discord, </span>
-                    <span class="messenger-discord"></span>
-                </span>
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Slack </span>
-                    <span class="messenger-slack"></span>
-                </span>
-                & more
-            </p>
-            <AnimatedChatExamples bind:currentApp={currentApp} />
-            <WaitingList />
+                    <span class="platform-wrapper">
+                        <span class="visually-hidden">Discord, </span>
+                        <span class="messenger-discord"></span>
+                    </span>
+                    <span class="platform-wrapper">
+                        <span class="visually-hidden">Slack </span>
+                        <span class="messenger-slack"></span>
+                    </span>
+                    & more
+                </p>
+                <AnimatedChatExamples bind:currentApp={currentApp} />
+                <WaitingList />
+            </div>
+        </div>
+
+        <!-- Right side icons -->
+        <div class="icon-grid right">
+            {#each header_app_icons.slice(3) as column}
+                <div class="icon-column">
+                    {#each column as icon}
+                        <div class="icon-wrapper" data-app={icon.name}>
+                            <Icon name={icon.name} type={icon.type} />
+                        </div>
+                    {/each}
+                </div>
+            {/each}
         </div>
     </div>
+</section>
 
-    <!-- Right side icons -->
-    <div class="icon-grid right">
-        {#each header_app_icons.slice(3) as column}
-            <div class="icon-column">
-                {#each column as icon}
-                    <div class="icon-wrapper" data-app={icon.name}>
-                        <Icon name={icon.name} type={icon.type} />
-                    </div>
-                {/each}
-            </div>
-        {/each}
-    </div>
-</div>
+<!-- Add white body section for future content -->
+<section>
+    <!-- Future content will go here -->
+</section>
 
 <style>
+    .hero-header {
+        background-color: #f3f3f3;
+        width: 100%;
+        padding: 2rem 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+
     .landing-container {
         display: grid;
         grid-template-columns: 250px 1fr 250px;
         max-width: 1400px;
         margin: 0 auto;
-        min-height: 100vh;
     }
 
     .icon-grid {
@@ -269,5 +286,10 @@
         -webkit-user-select: all;
         -moz-user-select: all;
         -ms-user-select: all;
+    }
+
+    /* Remove the min-height from landing-container as it's no longer needed */
+    .landing-container {
+        min-height: auto;
     }
 </style>
