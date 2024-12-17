@@ -2,6 +2,7 @@
     import ChatMessage from './ChatMessage.svelte';
     import EventAppCard from './cards/EventAppCard.svelte';
     import HealthAppCard from './cards/HealthAppCard.svelte';
+    import ProcessingDetails from './ProcessingDetails.svelte';
     import { onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
 
@@ -14,6 +15,16 @@
                 {
                     type: 'user',
                     text: 'What events are happening the coming days?'
+                },
+                {
+                    type: "using_apps",
+                    appNames: ["events"],
+                    in_progress: true
+                },
+                {
+                    type: "using_apps",
+                    appNames: ["events"],
+                    in_progress: false
                 },
                 {
                     type: 'mate',
