@@ -14,22 +14,20 @@
             sequence: [
                 {
                     type: 'user',
-                    text: 'What events are happening the coming days?'
+                    text: 'What events are happening the coming days?',
+                    waitTime: 2000
                 },
                 {
                     type: "using_apps",
                     appNames: ["events"],
-                    in_progress: true
-                },
-                {
-                    type: "using_apps",
-                    appNames: ["events"],
-                    in_progress: false
+                    in_progress: false,
+                    waitTime: 500
                 },
                 {
                     type: 'mate',
                     mateName: 'Lisa',
                     text: 'There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.',
+                    waitTime: 3000,
                     appCards: [
                         {
                             component: EventAppCard,
@@ -74,27 +72,26 @@
             sequence: [
                 {
                     type: 'user',
-                    text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?"
+                    text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
+                    waitTime: 2500
                 },
                 {
                     type: 'mate',
                     mateName: 'Melvin',
-                    text: 'Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.'
+                    text: 'Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.',
+                    waitTime: 1500
                 },
                 {
                     type: "using_apps",
                     appNames: ["calendar", "health"],
-                    in_progress: true
-                },
-                {
-                    type: "using_apps",
-                    appNames: ["calendar", "health"],
-                    in_progress: false
+                    in_progress: false,
+                    waitTime: 500
                 },
                 {
                     type: 'mate',
                     mateName: 'Melvin',
                     text: "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+                    waitTime: 3000,
                     appCards: [
                         {
                             component: HealthAppCard,
@@ -123,6 +120,9 @@
     let currentExampleIndex = 0;
     let visibleMessages: Array<any & {animated?: boolean}> = [];
     let currentSequenceIndex = 0;
+    
+    // Add new variable to track processing state
+    let currentProcessingMessage: any = null;
 
     // Add export for currentApp
     export let currentApp = '';
@@ -146,6 +146,7 @@
             currentApp = currentExample.app;
 
             visibleMessages = [];
+            currentProcessingMessage = null;
             currentSequenceIndex = 0;
 
             // Reset icons with proper error handling
@@ -166,35 +167,38 @@
                 
                 if (thisAnimationId !== currentAnimationId) return;
 
-                const messageWithAnimation = { ...message, animated: false };
-                visibleMessages = [...visibleMessages, messageWithAnimation];
-
-                // Wait for next frame to ensure DOM update
-                await new Promise(resolve => requestAnimationFrame(resolve));
-                await new Promise(resolve => requestAnimationFrame(resolve));
-
-                if (thisAnimationId !== currentAnimationId) return;
-
-                messageWithAnimation.animated = true;
-                visibleMessages = [...visibleMessages];
-
-                // Calculate delay based on message type and content
-                let delay = 2000;
-                
                 if (message.type === 'using_apps') {
-                    if (message.in_progress) {
-                        // Show "Using..." for 1 second
-                        delay = 1000;
+                    // Update or create processing message
+                    if (!currentProcessingMessage) {
+                        currentProcessingMessage = { ...message, animated: true };
+                        visibleMessages = [...visibleMessages, currentProcessingMessage];
                     } else {
-                        // Show "Used..." briefly before showing the next message
-                        delay = 500;
+                        // Update existing processing message
+                        Object.assign(currentProcessingMessage, {
+                            in_progress: message.in_progress,
+                            appNames: message.appNames
+                        });
+                        visibleMessages = [...visibleMessages];
                     }
-                } else if (message.text) {
-                    // Dynamic delay for text messages
-                    const baseDelay = 2000;
-                    const contentLength = message.text.length;
-                    delay = Math.min(baseDelay + (contentLength * 20), 4000);
+                } else {
+                    const messageWithAnimation = { ...message, animated: false };
+                    visibleMessages = [...visibleMessages, messageWithAnimation];
+
+                    // Wait for next frame to ensure DOM update
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+
+                    if (thisAnimationId !== currentAnimationId) return;
+
+                    messageWithAnimation.animated = true;
+                    visibleMessages = [...visibleMessages];
                 }
+
+                // Use waitTime from sequence or calculate default
+                const delay = message.waitTime ?? (message.text ? 
+                    Math.min(2000 + (message.text.length * 20), 4000) : 
+                    (message.type === 'using_apps' ? (message.in_progress ? 1000 : 500) : 2000)
+                );
 
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
@@ -260,7 +264,7 @@
     <div class="chat-content">
         <div class="gradient-overlay top"></div>
         <div class="animated-chat-container">
-            {#each visibleMessages as message (message)}
+            {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
                 <div>
                     {#if message.type === 'using_apps'}
                         <ProcessingDetails
