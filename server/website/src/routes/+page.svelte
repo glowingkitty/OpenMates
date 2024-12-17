@@ -85,68 +85,66 @@
 
 <!-- Add header section with background color -->
 <section class="hero-header">
-    <div class="landing-container">
-        <!-- Left side icons -->
-        <div class="icon-grid left">
-            {#each header_app_icons.slice(0, 3) as column}
-                <div class="icon-column">
-                    {#each column as icon}
-                        <div class="icon-wrapper" data-app={icon.name}>
-                            <Icon name={icon.name} type={icon.type} />
-                        </div>
-                    {/each}
-                </div>
-            {/each}
-        </div>
-
-        <!-- Center space -->
-        <div class="center-space">
-            <div class="center-content">
-                <h1 class="text-center">
-                    {#if currentApp}
-                        <span class="app-title">
-                            <span class="visually-hidden">{capitalize(currentApp)} </span>
-                            <Icon name={currentApp} type="app" size="67.98px" />
-                            Team Mates
-                        </span>
-                    {:else}
-                        AI Team Mates
-                    {/if}
-                    <mark><br>For all of us.</mark>
-                </h1>
-                <p class="text-center platform-text">
-                    via
-                    <span class="platform-wrapper">
-                        <span class="visually-hidden">Mattermost, </span>
-                        <span class="messenger-mattermost"></span>
-                    </span>
-                    <span class="platform-wrapper">
-                        <span class="visually-hidden">Discord, </span>
-                        <span class="messenger-discord"></span>
-                    </span>
-                    <span class="platform-wrapper">
-                        <span class="visually-hidden">Slack </span>
-                        <span class="messenger-slack"></span>
-                    </span>
-                    & more
-                </p>
-                <AnimatedChatExamples bind:currentApp={currentApp} />
-                <WaitingList />
+    <!-- Left side icons -->
+    <div class="icon-grid left">
+        {#each header_app_icons.slice(0, 3) as column}
+            <div class="icon-column">
+                {#each column as icon}
+                    <div class="icon-wrapper" data-app={icon.name}>
+                        <Icon name={icon.name} type={icon.type} />
+                    </div>
+                {/each}
             </div>
-        </div>
+        {/each}
+    </div>
 
-        <!-- Right side icons -->
-        <div class="icon-grid right">
-            {#each header_app_icons.slice(3) as column}
-                <div class="icon-column">
-                    {#each column as icon}
-                        <div class="icon-wrapper" data-app={icon.name}>
-                            <Icon name={icon.name} type={icon.type} />
-                        </div>
-                    {/each}
-                </div>
-            {/each}
+    <!-- Center space -->
+    <div class="center-space">
+        <div class="center-content">
+            <h1 class="text-center">
+                {#if currentApp}
+                    <span class="app-title">
+                        <span class="visually-hidden">{capitalize(currentApp)} </span>
+                        <Icon name={currentApp} type="app" size="67.98px" />
+                        Team Mates
+                    </span>
+                {:else}
+                    AI Team Mates
+                {/if}
+                <mark><br>For all of us.</mark>
+            </h1>
+            <p class="text-center platform-text">
+                via
+                <span class="platform-wrapper">
+                    <span class="visually-hidden">Mattermost, </span>
+                    <span class="messenger-mattermost"></span>
+                </span>
+                <span class="platform-wrapper">
+                    <span class="visually-hidden">Discord, </span>
+                    <span class="messenger-discord"></span>
+                </span>
+                <span class="platform-wrapper">
+                    <span class="visually-hidden">Slack </span>
+                    <span class="messenger-slack"></span>
+                </span>
+                & more
+            </p>
+            <AnimatedChatExamples bind:currentApp={currentApp} />
+            <WaitingList />
         </div>
+    </div>
+
+    <!-- Right side icons -->
+    <div class="icon-grid right">
+        {#each header_app_icons.slice(3) as column}
+            <div class="icon-column">
+                {#each column as icon}
+                    <div class="icon-wrapper" data-app={icon.name}>
+                        <Icon name={icon.name} type={icon.type} />
+                    </div>
+                {/each}
+            </div>
+        {/each}
     </div>
 </section>
 
@@ -163,14 +161,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-    }
-
-
-    .landing-container {
-        display: grid;
-        grid-template-columns: 250px 1fr 250px;
-        max-width: 1400px;
-        margin: 0 auto;
+        overflow: hidden;
     }
 
     .icon-grid {
