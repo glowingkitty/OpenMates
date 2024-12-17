@@ -31,25 +31,25 @@
 
     .email-input-container {
         width: 100%;
-        max-width: 400px;
         position: relative;
         display: flex;
         align-items: center;
+        margin: 0 auto;
     }
 
     /* Style for the input field to accommodate the button */
     :global(.email-input-container .email-field) {
-        border-radius: 50px;
-        padding-right: 120px; /* Make room for the button */
+        padding-right: 120px;
     }
 
     /* Position the button to overlap the input */
     :global(.email-input-container .send-button) {
         position: absolute;
         right: 5px;
+        top: calc(50% - 8px);
+        transform: translateY(-50%);
         padding: 12px 24px;
         height: auto;
-        border-radius: 25px;
         margin: 0;
         z-index: 1;
     }

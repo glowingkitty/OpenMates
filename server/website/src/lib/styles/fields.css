@@ -9,6 +9,10 @@ input[type="number"] {
     width: 100%;
     max-width: 400px;
     padding: 16px 20px;
+    padding-left: 48px;
+
+    /* Add min-width to prevent text cutoff */
+    min-width: 250px;
 
     /* Modern rounded appearance */
     border-radius: 9px;  /* Fully rounded corners */
@@ -20,6 +24,11 @@ input[type="number"] {
 
     /* Smooth transitions */
     transition: all 0.2s ease-in-out;
+
+    /* Add text overflow handling */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 input[type="text"]:focus,
@@ -50,8 +59,6 @@ input[type="search"],
 input[type="tel"],
 input[type="url"],
 input[type="number"] {
-    /* Adjust padding to accommodate the icon */
-    padding-left: 48px;
     width: 100%;
 }
 
