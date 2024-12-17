@@ -8,6 +8,35 @@
 
     // Import example chat content from the main page
     const chatExamples = [
+        // Career advice conversation with loaded preferences
+        {
+            app: 'ai',
+            sequence: [
+                {
+                    type: 'user',
+                    text: 'I am unhappy in my current job. Any ideas in what direction I could go instead?',
+                    waitTime: 2000
+                },
+                {
+                    type: 'started_focus',
+                    appNames: ['Jobs'],
+                    focusName: 'Career insights',
+                    focusIcon: 'insights',
+                    waitTime: 500
+                },
+                {
+                    type: 'loaded_preferences',
+                    appNames: ['Jobs'],
+                    waitTime: 500
+                },
+                {
+                    type: 'mate',
+                    mateName: 'Burton',
+                    text: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?',
+                    waitTime: 3000
+                }
+            ]
+        },
         // Events conversation
         {
             app: 'events',
@@ -180,11 +209,23 @@
                         });
                         visibleMessages = [...visibleMessages];
                     }
+                } else if (message.type === 'started_focus' || message.type === 'loaded_preferences') {
+                    // Add new processing details for other types
+                    const messageWithAnimation = { ...message, animated: false };
+                    visibleMessages = [...visibleMessages, messageWithAnimation];
+                    
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+
+                    if (thisAnimationId !== currentAnimationId) return;
+
+                    messageWithAnimation.animated = true;
+                    visibleMessages = [...visibleMessages];
                 } else {
+                    // Handle regular messages (user/mate)
                     const messageWithAnimation = { ...message, animated: false };
                     visibleMessages = [...visibleMessages, messageWithAnimation];
 
-                    // Wait for next frame to ensure DOM update
                     await new Promise(resolve => requestAnimationFrame(resolve));
                     await new Promise(resolve => requestAnimationFrame(resolve));
 
@@ -266,11 +307,13 @@
         <div class="animated-chat-container">
             {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
                 <div>
-                    {#if message.type === 'using_apps'}
+                    {#if message.type === 'using_apps' || message.type === 'started_focus' || message.type === 'loaded_preferences'}
                         <ProcessingDetails
-                            type="using_apps"
+                            type={message.type}
                             in_progress={message.in_progress}
                             appNames={message.appNames}
+                            focusName={message.focusName}
+                            focusIcon={message.focusIcon}
                         />
                     {:else}
                         <ChatMessage
