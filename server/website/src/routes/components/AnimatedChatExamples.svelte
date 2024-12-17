@@ -340,4 +340,17 @@
         transform: none !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     }
+
+    /* Add these new rules to disable hover effects and cursor changes */
+    :global(.chat-examples-container .processing-details),
+    :global(.chat-examples-container .processing-details *) {
+        pointer-events: none !important;
+        cursor: default !important;
+        transition: none !important;
+    }
+
+    :global(.chat-examples-container .processing-details:hover) {
+        transform: none !important;
+        filter: none !important;
+    }
 </style>
