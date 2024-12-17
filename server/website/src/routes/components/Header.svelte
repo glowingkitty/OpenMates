@@ -9,7 +9,22 @@
     // Helper function to determine if a path is active
     const isActive = (path: string) => {
         return $page.url.pathname === path;
-    }
+    };
+
+    // Array of social links with their properties
+    const socialLinks = [
+        {
+            href: githubUrl,
+            ariaLabel: "Visit our GitHub page",
+            iconClass: "github-icon"
+        },
+        // TODO Why is the last icon always hidden? (but visible in the dom code)
+        {
+            href: openCollectiveUrl,
+            ariaLabel: "Support us on OpenCollective",
+            iconClass: "opencollective-icon"
+        }
+    ];
 
     // Handle click events to prevent full page reload while allowing new tab behavior
     const handleClick = async (event: MouseEvent, path: string) => {
@@ -64,24 +79,17 @@
                 Docs
             </a>
             <div class="icon-links">
-                <a
-                    href={githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="icon-link"
-                    aria-label="Visit our GitHub page"
-                >
-                    <div class="github-icon"></div>
-                </a>
-                <a
-                    href={openCollectiveUrl}
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="icon-link"
-                    aria-label="Support us on OpenCollective"
-                >
-                    <div class="opencollective-icon"></div>
-                </a>
+                {#each socialLinks as link}
+                    <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="icon-link"
+                        aria-label={link.ariaLabel}
+                    >
+                        <div class={link.iconClass}></div>
+                    </a>
+                {/each}
             </div>
         </div>
     </nav>
@@ -167,5 +175,30 @@
 
     .icon-link:hover {
         opacity: 1;
+    }
+
+    /* Ensure all icon classes have defined styles */
+    .github-icon {
+        width: 24px;
+        height: 24px;
+        background-image: url('/icons/github.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .opencollective-icon {
+        width: 24px;
+        height: 24px;
+        background-image: url('/icons/opencollective.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .twitter-icon {
+        width: 24px;
+        height: 24px;
+        background-image: url('/icons/twitter.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
     }
 </style> 
