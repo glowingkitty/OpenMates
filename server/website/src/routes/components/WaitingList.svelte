@@ -1,15 +1,24 @@
 <script lang="ts">
-    // Component for the waiting list section with email signup
+    import Field from './Field.svelte';
+    
+    // Handler for the email submission
+    const handleSubmit = () => {
+        // TODO: Implement email submission logic
+        console.log('Email submitted');
+    };
 </script>
 
 <div class="waiting-list-section">
     <p class="waiting-list-text">Join the waiting list:</p>
     <div class="email-input-container">
-        <input class="icon-field email-field" 
+        <Field 
             type="email" 
-            placeholder="Enter your e-mail address" 
+            placeholder="Enter your e-mail address..." 
+            variant="email"
+            withButton={true}
+            buttonText="Send"
+            onButtonClick={handleSubmit}
         />
-        <button class="send-button">Send</button>
     </div>
     <p class="invites-text">First invites in Jan 2025</p>
 </div>
@@ -35,23 +44,6 @@
         display: flex;
         align-items: center;
         margin: 0 auto;
-    }
-
-    /* Style for the input field to accommodate the button */
-    :global(.email-input-container .email-field) {
-        padding-right: 120px;
-    }
-
-    /* Position the button to overlap the input */
-    :global(.email-input-container .send-button) {
-        position: absolute;
-        right: 5px;
-        top: calc(50% - 8px);
-        transform: translateY(-50%);
-        padding: 12px 24px;
-        height: auto;
-        margin: 0;
-        z-index: 1;
     }
 
     .invites-text {
