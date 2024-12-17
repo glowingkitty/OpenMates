@@ -82,6 +82,16 @@
                     text: 'Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.'
                 },
                 {
+                    type: "using_apps",
+                    appNames: ["calendar", "health"],
+                    in_progress: true
+                },
+                {
+                    type: "using_apps",
+                    appNames: ["calendar", "health"],
+                    in_progress: false
+                },
+                {
                     type: 'mate',
                     mateName: 'Melvin',
                     text: "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
@@ -150,19 +160,17 @@
                 console.error('Error handling icons:', error);
             }
 
-            // Animate messages with cancellation check
-            for (const message of currentExample.sequence) {
-                if (thisAnimationId !== currentAnimationId) {
-                    return; // Animation was superseded
-                }
+            // Animate messages with processing states
+            for (let i = 0; i < currentExample.sequence.length; i++) {
+                const message = currentExample.sequence[i];
+                
+                if (thisAnimationId !== currentAnimationId) return;
 
                 const messageWithAnimation = { ...message, animated: false };
                 visibleMessages = [...visibleMessages, messageWithAnimation];
 
                 // Wait for next frame to ensure DOM update
                 await new Promise(resolve => requestAnimationFrame(resolve));
-
-                // Additional frame for safety
                 await new Promise(resolve => requestAnimationFrame(resolve));
 
                 if (thisAnimationId !== currentAnimationId) return;
@@ -170,12 +178,25 @@
                 messageWithAnimation.animated = true;
                 visibleMessages = [...visibleMessages];
 
-                // Dynamic delay based on message content
-                const baseDelay = 2000;
-                const contentLength = message.text.length;
-                const dynamicDelay = Math.min(baseDelay + (contentLength * 20), 4000);
+                // Calculate delay based on message type and content
+                let delay = 2000;
+                
+                if (message.type === 'using_apps') {
+                    if (message.in_progress) {
+                        // Show "Using..." for 1 second
+                        delay = 1000;
+                    } else {
+                        // Show "Used..." briefly before showing the next message
+                        delay = 500;
+                    }
+                } else if (message.text) {
+                    // Dynamic delay for text messages
+                    const baseDelay = 2000;
+                    const contentLength = message.text.length;
+                    delay = Math.min(baseDelay + (contentLength * 20), 4000);
+                }
 
-                await new Promise(resolve => setTimeout(resolve, dynamicDelay));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
 
             if (thisAnimationId !== currentAnimationId) return;
@@ -241,17 +262,25 @@
         <div class="animated-chat-container">
             {#each visibleMessages as message (message)}
                 <div>
-                    <ChatMessage
-                        role={message.type === 'user' ? 'user' : message.mateName.toLowerCase()}
-                        messageParts={message.appCards ? [
-                            { type: 'text', content: message.text },
-                            { type: 'app-cards', content: message.appCards }
-                        ] : undefined}
-                        animated={message.animated}
-                        defaultHidden={true}
-                    >
-                        {message.text}
-                    </ChatMessage>
+                    {#if message.type === 'using_apps'}
+                        <ProcessingDetails
+                            type="using_apps"
+                            in_progress={message.in_progress}
+                            appNames={message.appNames}
+                        />
+                    {:else}
+                        <ChatMessage
+                            role={message.type === 'user' ? 'user' : message.mateName.toLowerCase()}
+                            messageParts={message.appCards ? [
+                                { type: 'text', content: message.text },
+                                { type: 'app-cards', content: message.appCards }
+                            ] : undefined}
+                            animated={message.animated}
+                            defaultHidden={true}
+                        >
+                            {message.text}
+                        </ChatMessage>
+                    {/if}
                 </div>
             {/each}
         </div>
