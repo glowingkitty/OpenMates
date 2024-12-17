@@ -271,4 +271,17 @@
         min-width: 67.98px !important;
         min-height: 67.98px !important;
     }
+
+    /* Disable all hover effects and cursor changes for elements in the animated chat */
+    :global(.chat-examples-container .app-card) {
+        pointer-events: none !important;
+        cursor: default !important;
+        transition: none !important;
+        transform: none !important;
+    }
+
+    :global(.chat-examples-container .app-card:hover) {
+        transform: none !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    }
 </style>
