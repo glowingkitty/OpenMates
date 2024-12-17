@@ -22,6 +22,16 @@
     --processing-details-font-size: 14px;
 }
 
+/* Add base body typography */
+body {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-p);
+    font-weight: var(--font-weight-p);
+    line-height: var(--line-height-normal);
+    color: var(--color-font-primary);
+    margin: 0;
+}
+
 /* Utility classes for text alignment */
 .text-center {
     text-align: center;
