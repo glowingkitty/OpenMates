@@ -41,6 +41,17 @@
                                 participants: 76,
                                 imageUrl: '/images/examples/group2.jpg'
                             }
+                        },
+                        {
+                            component: EventAppCard,
+                            props: {
+                                size: 'small',
+                                date: 'Dec 16',
+                                time: '18:00',
+                                eventName: 'Workshop: Building AI-Powered Applications',
+                                participants: 13,
+                                imageUrl: '/images/examples/group2.jpg'
+                            }
                         }
                     ]
                 }
