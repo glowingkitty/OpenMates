@@ -226,6 +226,7 @@
                             { type: 'app-cards', content: message.appCards }
                         ] : undefined}
                         animated={message.animated}
+                        defaultHidden={true}
                     >
                         {message.text}
                     </ChatMessage>

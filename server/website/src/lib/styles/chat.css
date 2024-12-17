@@ -17,13 +17,15 @@
     margin-top: var(--mate-profile-margin);
     margin-bottom: 5px;
     box-sizing: border-box;
+}
+
+.default_hidden {
     opacity: 0;
 }
 
 .mate-message-content {
     background-color: white;
     margin-top: var(--mate-profile-margin);
-    opacity: 0;
     margin-right: 12px;
 }
 

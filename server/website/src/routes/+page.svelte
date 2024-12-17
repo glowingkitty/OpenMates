@@ -278,20 +278,6 @@
         -moz-user-select: all;
         -ms-user-select: all;
     }
-
-    /* Remove the min-height from landing-container as it's no longer needed */
-    .landing-container {
-        min-height: auto;
-    }
-
-    /* Scope chat-specific styles to the landing page */
-    :global(.landing-page) .chat-message {
-        /* Add any specific chat message styles for landing page */
-    }
-
-    :global(.landing-page) .chat-container {
-        /* Add any specific chat container styles for landing page */
-    }
 </style>
 
 <!-- Add the landing-page class to the root element -->

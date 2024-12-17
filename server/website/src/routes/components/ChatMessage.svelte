@@ -17,6 +17,7 @@
   export let messageParts: MessagePart[] = [];
   export let showScrollableContainer: boolean = false;
   export let appCards: AppCardData[] | undefined = undefined;
+  export let defaultHidden: boolean = false;
 
   // If appCards is provided, add it to messageParts
   $: if (appCards && (!messageParts || messageParts.length === 0)) {
@@ -39,7 +40,7 @@
   {/if}
   
   <div class="message-align-{role === 'user' ? 'right' : 'left'}">
-    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}">
+    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} {defaultHidden ? 'default_hidden' : ''}">
       {#if role !== 'user'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
