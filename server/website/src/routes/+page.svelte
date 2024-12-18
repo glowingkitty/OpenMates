@@ -116,16 +116,16 @@
             <p class="text-center platform-text">
                 via
                 <span class="platform-wrapper">
+                    <span class="visually-hidden">Web, </span>
+                    <span class="web-icon"></span>
+                </span>
+                <span class="platform-wrapper">
                     <span class="visually-hidden">Mattermost, </span>
                     <span class="messenger-mattermost"></span>
                 </span>
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">Discord, </span>
+                    <span class="visually-hidden">Discord</span>
                     <span class="messenger-discord"></span>
-                </span>
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Slack </span>
-                    <span class="messenger-slack"></span>
                 </span>
                 & more
             </p>
@@ -162,6 +162,10 @@
         justify-content: center;
         align-items: center;
         overflow: hidden;
+    }
+
+    .web-icon {
+        filter: opacity(0.4);
     }
 
     .icon-grid {

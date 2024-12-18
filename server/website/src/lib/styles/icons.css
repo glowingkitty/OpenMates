@@ -656,3 +656,12 @@
   background-position: center;
   background-repeat: no-repeat;
 }
+
+.web-icon {
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/web.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
