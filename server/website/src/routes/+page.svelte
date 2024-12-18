@@ -188,6 +188,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        margin-top: -5rem;
     }
 
     .icon-column:nth-child(2) {
@@ -209,6 +210,7 @@
         align-items: flex-start;
         justify-content: center;
         padding-top: 2rem;
+        margin-bottom: 80px;
     }
 
     .center-content {
@@ -290,10 +292,6 @@
         -webkit-user-select: all;
         -moz-user-select: all;
         -ms-user-select: all;
-    }
-
-    .large-separator {
-        margin-top: -50px;
     }
 </style>
 
