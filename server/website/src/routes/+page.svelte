@@ -1,9 +1,9 @@
 <script lang="ts">
     import Header from './components/Header.svelte';
     import Icon from './components/Icon.svelte';
-    import ChatMessage from './components/ChatMessage.svelte';
     import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
     import WaitingList from './components/WaitingList.svelte';
+    import Highlights from './components/Highlights.svelte';
     // Define icon groups for left and right sides
     const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
         // Left side | First column
@@ -152,7 +152,7 @@
 
 <!-- Add white body section for future content -->
 <section>
-    <!-- Future content will go here -->
+    <Highlights target="for_all" />
 </section>
 
 <style>
