@@ -3,6 +3,9 @@
     import { fade } from 'svelte/transition';
     import { browser } from '$app/environment';
 
+    // Add context prop
+    export let context: 'for_all' | 'developer' = 'for_all';
+
     // State management
     let email: string = '';
     let isSubmitting: boolean = false;
@@ -13,8 +16,9 @@
 
     // TODO if not submitted, show form
 
-    // Check localStorage for previous submission
-    const hasSubmittedBefore = browser && localStorage.getItem('newsletter_submitted');
+    // Check localStorage for previous submission with context
+    const storageKey = `newsletter_submitted_${context}`;
+    const hasSubmittedBefore = browser && localStorage.getItem(storageKey);
     if (hasSubmittedBefore) {
         isSubmitted = true;
     }
@@ -58,8 +62,9 @@
 
             // Store submission in localStorage
             if (browser) {
-                localStorage.setItem('newsletter_submitted', 'true');
-                localStorage.setItem('newsletter_email', email);
+                localStorage.setItem(storageKey, 'true');
+                localStorage.setItem(`newsletter_email_${context}`, email);
+                console.log("Submitted email for context:", context, "is:", email);
             }
 
         } catch (error) {
