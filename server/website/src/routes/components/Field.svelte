@@ -8,7 +8,12 @@
 </script>
 
 <div class="icon-field {variant}-field">
-  <input {type} {placeholder} class:with-button={withButton} />
+  <input 
+    {type} 
+    {placeholder} 
+    class:with-button={withButton} 
+    style={withButton ? 'padding-right: 120px;' : ''} 
+  />
   {#if withButton}
     <button class="field-button" on:click={onButtonClick}>
       {buttonText}

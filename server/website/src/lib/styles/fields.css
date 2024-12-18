@@ -6,7 +6,6 @@ input[type="tel"],
 input[type="url"],
 input[type="number"] {
     /* Base dimensions and layout */
-    width: 100%;
     max-width: 400px;
     padding: 16px 20px;
     padding-left: 48px;
@@ -48,18 +47,8 @@ input[type="number"]:focus {
     /* Container for input and icon */
     position: relative;
     width: 100%;
-    max-width: 400px;
     margin-bottom: 16px; /* Add spacing between stacked fields */
     transition: transform 0.2s ease-in-out;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="search"],
-input[type="tel"],
-input[type="url"],
-input[type="number"] {
-    width: 100%;
 }
 
 /* Base icon styling */
