@@ -130,7 +130,7 @@
                 & more
             </p>
             <AnimatedChatExamples bind:currentApp={currentApp} />
-            <WaitingList />
+            <WaitingList context="for_all" />
         </div>
     </div>
 
