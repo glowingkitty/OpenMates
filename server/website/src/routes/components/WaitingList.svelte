@@ -12,6 +12,9 @@
     let isSubmitted: boolean = false;
     let errorMessage: string = '';
 
+    // Add honeypot state
+    let honeypotField: string = '';
+
     // TODO check API server for previous submission
 
     // TODO if not submitted, show form
@@ -29,7 +32,15 @@
     // Handler for the email submission
     const handleSubmit = async () => {
         try {
-            // Prevent double submission
+            // Move honeypot check before any state changes
+            if (honeypotField.trim() !== '') {
+                console.debug('Honeypot triggered, likely bot submission');
+                // Don't set isSubmitted to true - that shows success message
+                // Instead, silently fail
+                return;
+            }
+
+            // Only proceed if we're not already submitting and haven't submitted
             if (isSubmitting || isSubmitted) {
                 console.debug('Preventing double submission');
                 return;
@@ -38,16 +49,22 @@
             isSubmitting = true;
             errorMessage = '';
 
-            // const response = await fetch('https://your-server.com/api/subscribe', {
+            // Validate real email field
+            if (!email || !email.includes('@')) {
+                errorMessage = 'Please enter a valid email address';
+                isSubmitting = false;
+                return;
+            }
+
+            // const response = await fetch('http://localhost:8000/api/subscribe', {
             //     method: 'POST',
             //     headers: {
             //         'Content-Type': 'application/json',
-            //         'X-Request-Token': requestToken
             //     },
             //     body: JSON.stringify({ 
             //         email,
+            //         context,
             //         timestamp: Date.now(),
-            //         // Add a hash to prevent tampering
             //         hash: await generateHash(email, requestToken)
             //     })
             // });
@@ -57,18 +74,16 @@
             //     throw new Error(data.message || 'Subscription failed');
             // }
 
-            console.info('Email subscription initiated');
+            console.info('Email subscription successful');
             isSubmitted = true;
 
-            // Store submission in localStorage
             if (browser) {
                 localStorage.setItem(storageKey, 'true');
                 localStorage.setItem(`newsletter_email_${context}`, email);
-                console.log("Submitted email for context:", context, "is:", email);
             }
 
         } catch (error) {
-            console.error(error);
+            console.error('Subscription error:', error);
             errorMessage = error instanceof Error ? error.message : 'Something went wrong. Please try again later.';
         } finally {
             isSubmitting = false;
@@ -95,6 +110,18 @@
                     class="email-input-container" 
                     on:submit|preventDefault={handleSubmit}
                 >
+                    <div class="hidden-field">
+                        <label for="email-confirm">Confirm Email</label>
+                        <input
+                            type="email"
+                            id="email-confirm"
+                            name="email-confirm"
+                            placeholder="Please confirm your email"
+                            autocomplete="off"
+                            bind:value={honeypotField}
+                            tabindex="-1"
+                        />
+                    </div>
                     <Field
                         type="email"
                         id="newsletter-email"
@@ -190,5 +217,16 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+    }
+
+    .hidden-field {
+        position: absolute !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        /* Add left positioning to move it completely off-screen */
+        left: -9999px !important;
     }
 </style>
