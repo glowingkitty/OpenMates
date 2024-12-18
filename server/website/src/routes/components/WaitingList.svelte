@@ -1,6 +1,6 @@
 <script lang="ts">
     import Field from './Field.svelte';
-    
+
     // Handler for the email submission
     const handleSubmit = () => {
         // TODO: Implement email submission logic
@@ -11,9 +11,9 @@
 <div class="waiting-list-section">
     <p class="waiting-list-text">Join the waiting list:</p>
     <div class="email-input-container">
-        <Field 
-            type="email" 
-            placeholder="Enter your e-mail address..." 
+        <Field
+            type="email"
+            placeholder="Enter your e-mail address..."
             variant="email"
             withButton={true}
             buttonText="Send"
@@ -21,7 +21,10 @@
             autofocus={true}
         />
     </div>
-    <p class="invites-text"><span class="calendar-icon" style="display: inline-block;"></span> First invites in Jan 2025</p>
+    <p class="invites-text">
+        <span class="calendar-icon"></span>
+        First invites in Jan 2025
+    </p>
 </div>
 
 <style>
@@ -51,5 +54,14 @@
         font-size: 0.9rem;
         color: #888;
         margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .calendar-icon {
+        display: inline-block;
+        filter: opacity(40%); /* Makes the icon more grey */
+        vertical-align: middle;
     }
 </style> 
