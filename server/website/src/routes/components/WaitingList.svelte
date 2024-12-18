@@ -21,7 +21,7 @@
             autofocus={true}
         />
     </div>
-    <p class="invites-text">First invites in Jan 2025</p>
+    <p class="invites-text"><span class="calendar-icon" style="display: inline-block;"></span> First invites in Jan 2025</p>
 </div>
 
 <style>

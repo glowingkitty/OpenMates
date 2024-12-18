@@ -552,98 +552,107 @@
 }
 
 .icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 1s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    transform: translateX(0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transform: translateX(0);
 }
 
 .icon-wrapper.slide-left {
-    opacity: 0 !important;
-    transform: translateX(-50px) !important;
+  opacity: 0 !important;
+  transform: translateX(-50px) !important;
 }
 
 .icon-wrapper.slide-right {
-    opacity: 0 !important;
-    transform: translateX(50px) !important;
+  opacity: 0 !important;
+  transform: translateX(50px) !important;
 }
 
 /* Standalone Messenger Icons */
 .messenger-mattermost {
-    /* Set default appearance */
-    width: 24px;
-    height: 24px;
-    background-image: url('/icons/mattermost.svg');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    /* Make it black and white by default */
-    filter: grayscale(100%) brightness(1.8);
-    transition: filter 0.2s ease-in-out;
+  /* Set default appearance */
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/mattermost.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* Make it black and white by default */
+  filter: grayscale(100%) brightness(1.8);
+  transition: filter 0.2s ease-in-out;
 
-    &:hover {
-        /* Remove filters on hover to show original colors */
-        filter: none;
-    }
+  &:hover {
+      /* Remove filters on hover to show original colors */
+      filter: none;
+  }
 }
 
 .messenger-discord {
-    width: 24px;
-    height: 24px;
-    background-image: url('/icons/discord.svg');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(1.6);
-    transition: filter 0.2s ease-in-out;
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/discord.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: grayscale(100%) brightness(1.6);
+  transition: filter 0.2s ease-in-out;
 
-    &:hover {
-        filter: none;
-    }
+  &:hover {
+      filter: none;
+  }
 }
 
 .messenger-slack {
-    width: 24px;
-    height: 24px;
-    background-image: url('/icons/slack.svg');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(1);
-    transition: filter 0.2s ease-in-out;
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/slack.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: grayscale(100%) brightness(1);
+  transition: filter 0.2s ease-in-out;
 
-    &:hover {
-        filter: none;
-    }
+  &:hover {
+      filter: none;
+  }
 }
 
 .github-icon {
-    width: 24px;
-    height: 24px;
-    background-image: url('/icons/github.svg');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(1);
-    transition: filter 0.2s ease-in-out;
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/github.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: grayscale(100%) brightness(1);
+  transition: filter 0.2s ease-in-out;
 
-    &:hover {
-        filter: none;
-    }
+  &:hover {
+      filter: none;
+  }
 }
 
 .opencollective-icon {
-    width: 24px;
-    height: 24px;
-    background-image: url('/icons/opencollective.svg');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: grayscale(100%) brightness(1);
-    transition: filter 0.2s ease-in-out;
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/opencollective.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: grayscale(100%) brightness(1);
+  transition: filter 0.2s ease-in-out;
 
-    &:hover {
-        filter: none;
-    }
+  &:hover {
+      filter: none;
+  }
+}
+
+.calendar-icon {
+  width: 24px;
+  height: 24px;
+  background-image: url('/icons/calendar.svg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
 }
