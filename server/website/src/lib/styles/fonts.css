@@ -1,3 +1,40 @@
+/* Font face declarations */
+@font-face {
+    font-family: 'Lexend Deca';
+    src: url('/fonts/LexendDeca-Regular.woff2') format('woff2'),
+         url('/fonts/LexendDeca-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Lexend Deca';
+    src: url('/fonts/LexendDeca-Medium.woff2') format('woff2'),
+         url('/fonts/LexendDeca-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Lexend Deca';
+    src: url('/fonts/LexendDeca-Bold.woff2') format('woff2'),
+         url('/fonts/LexendDeca-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Lexend Deca';
+    src: url('/fonts/LexendDeca-ExtraBold.woff2') format('woff2'),
+         url('/fonts/LexendDeca-ExtraBold.woff') format('woff');
+    font-weight: 800;
+    font-style: normal;
+    font-display: block;
+}
+
 /* Global font settings */
 :root {
     --font-primary: "Lexend Deca";
@@ -29,6 +66,20 @@ body {
     font-weight: var(--font-weight-p);
     line-height: var(--line-height-normal);
     color: var(--color-font-primary);
+
+    /* Add animation with delay */
+    opacity: 0;
+    animation: fadeIn 300ms ease-in forwards;
+    animation-delay: 300ms;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 /* Utility classes for text alignment */
