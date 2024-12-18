@@ -18,6 +18,7 @@
             withButton={true}
             buttonText="Send"
             onButtonClick={handleSubmit}
+            autofocus={true}
         />
     </div>
     <p class="invites-text">First invites in Jan 2025</p>
