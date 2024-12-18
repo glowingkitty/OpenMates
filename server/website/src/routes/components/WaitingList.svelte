@@ -32,7 +32,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1rem;
+        gap: 0.5rem;
         margin-top: 2rem;
     }
 
@@ -53,7 +53,7 @@
     .invites-text {
         font-size: 0.9rem;
         color: #888;
-        margin-top: 0.5rem;
+        margin-top: 0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
