@@ -85,18 +85,24 @@
     {#if !isSubmitted}
         <div transition:fade>
             <p class="waiting-list-text">Join the waiting list:</p>
-            <div class="email-input-container">
+            <form 
+                class="email-input-container" 
+                on:submit|preventDefault={handleSubmit}
+            >
                 <Field
                     type="email"
+                    id="newsletter-email"
+                    name="newsletter-email"
                     placeholder="Enter your e-mail address..."
                     variant="email"
                     withButton={true}
                     buttonText="Send"
                     onButtonClick={handleSubmit}
                     bind:value={email}
-                    autofocus={true}
+                    autofocus={false}
+                    autocomplete="email"
                 />
-            </div>
+            </form>
         </div>
     {:else}
         <div class="confirmation-message" transition:fade>

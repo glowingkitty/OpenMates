@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { HTMLInputAttributes } from 'svelte/elements';
+  
   export let type: string = 'text';
   export let placeholder: string = '';
   export let variant: 'search' | 'apikey' | 'teamslug' | 'email' = 'search';
@@ -7,6 +9,11 @@
   export let onButtonClick: () => void = () => {};
   export let autofocus: boolean = false;
   export let value: string = '';
+
+  // New props for accessibility and autofill
+  export let id: string | undefined = undefined;
+  export let name: string | undefined = undefined;
+  export let autocomplete: HTMLInputAttributes['autocomplete'] = 'off';
 
   // State for validation
   let error: string = '';
@@ -56,6 +63,9 @@
     {type}
     {placeholder}
     bind:value
+    {id}
+    {name}
+    {autocomplete}
     class:with-button={withButton}
     class:error={!isValid}
     style={withButton ? 'padding-right: 120px;' : ''}
@@ -63,12 +73,16 @@
     on:keydown={handleKeydown}
   />
   {#if withButton}
-    <button class="field-button" on:click={handleButtonClick}>
+    <button 
+      class="field-button" 
+      on:click={handleButtonClick}
+      type="submit"
+    >
       {buttonText}
     </button>
   {/if}
   {#if error}
-    <p class="error-message">{error}</p>
+    <p class="error-message" id={id ? `${id}-error` : undefined} role="alert">{error}</p>
   {/if}
 </div>
 
