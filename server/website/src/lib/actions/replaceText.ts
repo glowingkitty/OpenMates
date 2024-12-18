@@ -14,7 +14,10 @@ export function replaceOpenMates(node: HTMLElement) {
             if (text.includes('OpenMates')) {
                 // Create a temporary container to hold our HTML
                 const container = document.createElement('div');
-                container.innerHTML = text.replace(/OpenMates/g, '<mark>Open</mark>Mates');
+                container.innerHTML = text.replace(
+                    /OpenMates/g, 
+                    '<strong><mark>Open</mark><span style="color: black;">Mates</span></strong>'
+                );
 
                 // Replace the text node with the container's children
                 while (container.firstChild) {
@@ -23,9 +26,12 @@ export function replaceOpenMates(node: HTMLElement) {
                 node.parentNode?.removeChild(node);
             }
         } else {
-            // Skip processing if node is already a mark element or inside one
-            if (node.nodeName === 'MARK' ||
-                (node.parentElement && node.parentElement.nodeName === 'MARK')) {
+            // Skip processing if node is already styled or inside styled elements
+            if (node.nodeName === 'MARK' || 
+                node.nodeName === 'STRONG' ||
+                (node.parentElement && 
+                    (node.parentElement.nodeName === 'MARK' || 
+                     node.parentElement.nodeName === 'STRONG'))) {
                 return;
             }
 

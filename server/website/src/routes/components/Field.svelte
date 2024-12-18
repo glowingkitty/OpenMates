@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { HTMLInputAttributes } from 'svelte/elements';
-  
+
   export let type: string = 'text';
   export let placeholder: string = '';
   export let variant: 'search' | 'apikey' | 'teamslug' | 'email' = 'search';

@@ -106,7 +106,7 @@
         </div>
     {:else}
         <div class="confirmation-message" transition:fade>
-            <p>Thank you for joining! We'll be in touch soon.</p>
+            <p><mark><bold>You are on the waiting list</bold></mark> for <strong><mark>Open</mark><span style="color: black;">Mates</span></strong>.<br>We let you know via e-mail once you can sign up.</p>
         </div>
     {/if}
 
@@ -126,7 +126,6 @@
     }
 
     .waiting-list-text {
-        font-size: 1.2rem;
         color: #666;
         margin: 0 0 1rem 0;
         text-align: center;
@@ -144,13 +143,10 @@
 
     .confirmation-message {
         text-align: center;
-        color: #2ecc71;
-        font-size: 1.1rem;
-        margin: 1rem 0;
+        color: #888;
     }
 
     .invites-text {
-        font-size: 0.9rem;
         color: #888;
         margin-top: 0;
         display: flex;
