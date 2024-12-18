@@ -165,7 +165,12 @@
     }
 
     .web-icon {
+        transition: filter 0.2s ease-in-out;
         filter: opacity(0.4);
+    }
+
+    .web-icon:hover {
+        filter: brightness(0) saturate(100%) invert(48%) sepia(100%) saturate(2000%) hue-rotate(200deg) brightness(100%) contrast(100%);
     }
 
     .icon-grid {
@@ -271,7 +276,6 @@
         align-items: center;
         position: relative;
         user-select: all;
-        cursor: pointer;
     }
 
     .platform-wrapper :global(.messenger-mattermost),
