@@ -148,6 +148,8 @@
     </div>
 </section>
 
+<div class="large-separator"></div>
+
 <!-- Add white body section for future content -->
 <section>
     <!-- Future content will go here -->
@@ -162,6 +164,9 @@
         justify-content: center;
         align-items: center;
         overflow: hidden;
+        position: relative;
+        -webkit-mask-image: linear-gradient(to bottom, black, black 85%, transparent);
+        mask-image: linear-gradient(to bottom, black, black 85%, transparent);
     }
 
     .web-icon {
@@ -285,6 +290,10 @@
         -webkit-user-select: all;
         -moz-user-select: all;
         -ms-user-select: all;
+    }
+
+    .large-separator {
+        margin-top: -50px;
     }
 </style>
 
