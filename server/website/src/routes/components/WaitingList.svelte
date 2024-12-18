@@ -82,33 +82,35 @@
 </script>
 
 <div class="waiting-list-section">
-    {#if !isSubmitted}
-        <div transition:fade>
-            <p class="waiting-list-text">Join the waiting list:</p>
-            <form 
-                class="email-input-container" 
-                on:submit|preventDefault={handleSubmit}
-            >
-                <Field
-                    type="email"
-                    id="newsletter-email"
-                    name="newsletter-email"
-                    placeholder="Enter your e-mail address..."
-                    variant="email"
-                    withButton={true}
-                    buttonText="Send"
-                    onButtonClick={handleSubmit}
-                    bind:value={email}
-                    autofocus={false}
-                    autocomplete="email"
-                />
-            </form>
-        </div>
-    {:else}
-        <div class="confirmation-message" transition:fade>
-            <p><mark><bold>You are on the waiting list</bold></mark> for <strong><mark>Open</mark><span style="color: black;">Mates</span></strong>.<br>We let you know via e-mail once you can sign up.</p>
-        </div>
-    {/if}
+    <div class="content-wrapper">
+        {#if !isSubmitted}
+            <div class="form-content" transition:fade={{ duration: 200 }}>
+                <p class="waiting-list-text">Join the waiting list:</p>
+                <form 
+                    class="email-input-container" 
+                    on:submit|preventDefault={handleSubmit}
+                >
+                    <Field
+                        type="email"
+                        id="newsletter-email"
+                        name="newsletter-email"
+                        placeholder="Enter your e-mail address..."
+                        variant="email"
+                        withButton={true}
+                        buttonText="Send"
+                        onButtonClick={handleSubmit}
+                        bind:value={email}
+                        autofocus={false}
+                        autocomplete="email"
+                    />
+                </form>
+            </div>
+        {:else}
+            <div class="confirmation-content" transition:fade={{ duration: 200 }}>
+                <p style="text-align: center;"><mark><bold>You are on the waiting list</bold></mark> for <strong><mark>Open</mark><span style="color: black;">Mates</span></strong>.<br>We let you know via e-mail once you can sign up.</p>
+            </div>
+        {/if}
+    </div>
 
     <p class="invites-text">
         <span class="calendar-icon"></span>
@@ -118,6 +120,7 @@
 
 <style>
     .waiting-list-section {
+        width: 420px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -164,5 +167,23 @@
     .email-input-container :global(.error-message) {
         text-align: center;
         width: 100%;
+    }
+
+    .content-wrapper {
+        width: 100%;
+        min-height: 120px; /* Adjust this value based on your content */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .form-content,
+    .confirmation-content {
+        position: absolute;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 </style>
