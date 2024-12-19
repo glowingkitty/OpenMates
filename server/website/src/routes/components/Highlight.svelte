@@ -22,12 +22,21 @@
     }
 </script>
 
-<div class="highlight-container">
-    <div class={`highlight-content ${text_side === 'right' ? 'order-2' : 'order-1'}`}>
+<div class="highlight-container" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+    <!-- Text content with conditional alignment -->
+    <div class="highlight-content" style="text-align: {text_side === 'left' ? 'right' : 'left'};">
         <h3 class="subheading">{sub_heading}</h3>
-        <!-- Use {@html} with processed text to safely render mark tags -->
         <h2 class="title">{@html processMarkTags(main_heading)}</h2>
         <p class="description">{@html processMarkTags(paragraph)}</p>
+    </div>
+
+    <!-- Visual block with background and shadow -->
+    <div class="highlight-visual">
+        {#if sub_heading === 'Ask'}
+            <div class="powered-text">
+                powered by the leading<br>cloud & on-device AI models
+            </div>
+        {/if}
     </div>
 </div>
 
@@ -39,12 +48,31 @@
         gap: 2rem;
         padding: 2rem;
         max-width: 1200px;
-        margin: 0 auto; 
+        margin: 0 auto;
     }
 
     /* Content styles */
     .highlight-content {
         flex: 1;
+    }
+
+    /* Visual block styles */
+    .highlight-visual {
+        width: 309px;
+        height: 309px;
+        background-color: #F0F0F0;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .powered-text {
+        color: #666;
+        font-size: 0.9rem;
+        line-height: 1.5;
     }
 
     .title {
