@@ -1,4 +1,6 @@
 <script lang="ts">
+    import AnimatedChatExamples from './AnimatedChatExamples.svelte';
+    
     // Define props for the component
     export let main_heading: string;
     export let sub_heading: string;
@@ -19,6 +21,20 @@
             .replace(/&lt;br&gt;/g, '<br>');
 
         return escaped;
+    }
+
+    // Function to get the correct app based on sub_heading
+    function getAppForSubHeading(heading: string): string {
+        switch (heading) {
+            case 'Ask':
+                return 'ai';
+            case 'Tasks':
+                return 'health';
+            case 'Apps':
+                return 'events';
+            default:
+                return '';
+        }
     }
 </script>
 
@@ -58,7 +74,12 @@
                     </div>
                 </div>
             </div>
-            <div class="highlight-content-container-2"></div>
+            <div class="highlight-content-container-2">
+                <AnimatedChatExamples 
+                    currentApp={getAppForSubHeading(sub_heading)}
+                    singleExample={true}
+                />
+            </div>
         {/if}
         {#if sub_heading === 'Tasks'}
             <div class="highlight-content-container-1">
@@ -71,7 +92,12 @@
                     Calendar <mark>+</mark> Health
                 </div>
             </div>
-            <div class="highlight-content-container-2"></div>
+            <div class="highlight-content-container-2">
+                <AnimatedChatExamples 
+                    currentApp={getAppForSubHeading(sub_heading)}
+                    singleExample={true}
+                />
+            </div>
         {/if}
         {#if sub_heading === 'Apps'}
             <div class="highlight-content-container-1">
@@ -84,7 +110,12 @@
                     Events | <mark>Search</mark>
                 </div>
             </div>
-            <div class="highlight-content-container-2"></div>
+            <div class="highlight-content-container-2">
+                <AnimatedChatExamples 
+                    currentApp={getAppForSubHeading(sub_heading)}
+                    singleExample={true}
+                />
+            </div>
         {/if}
     </div>
 </div>
@@ -131,10 +162,22 @@
         background-color: #F0F0F0;
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        padding: 20px;
+        overflow: hidden;
+    }
+
+    .highlight-content-container-1,
+    .highlight-content-container-2 {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        overflow: hidden;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        padding: 20px;
     }
 
     .provider-icons {

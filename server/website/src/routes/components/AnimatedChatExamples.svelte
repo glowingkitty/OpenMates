@@ -186,6 +186,9 @@
         content: string | any[];  // or be more specific with AppCardData[] if available
     };
 
+    // Add new prop
+    export let singleExample = false;
+
     // Modified function to animate messages
     async function animateMessages() {
         // Cancel any ongoing animation
@@ -196,8 +199,17 @@
 
         try {
             animationInProgress = true;
-            const currentExample = chatExamples[currentExampleIndex];
-            currentApp = currentExample.app;
+            
+            // If singleExample is true, find the example matching currentApp
+            let example;
+            if (singleExample) {
+                example = chatExamples.find(ex => ex.app === currentApp);
+                if (!example) return;
+            } else {
+                example = chatExamples[currentExampleIndex];
+            }
+
+            currentApp = example.app;
 
             visibleMessages = [];
             currentProcessingMessage = null;
@@ -208,16 +220,16 @@
                 const icons = document.querySelectorAll('.icon-wrapper');
                 icons.forEach(icon => icon.classList.remove('slide-right', 'slide-left'));
 
-                if (currentExample.app) {
-                    highlightAppIcon(currentExample.app);
+                if (currentApp) {
+                    highlightAppIcon(currentApp);
                 }
             } catch (error) {
                 console.error('Error handling icons:', error);
             }
 
             // Animate messages with processing states
-            for (let i = 0; i < currentExample.sequence.length; i++) {
-                const message = currentExample.sequence[i];
+            for (let i = 0; i < example.sequence.length; i++) {
+                const message = example.sequence[i];
 
                 if (thisAnimationId !== currentAnimationId) return;
 
@@ -273,12 +285,14 @@
 
             await new Promise(resolve => setTimeout(resolve, 5000));
 
-            resetAppIcon(currentExample.app);
+            resetAppIcon(example.app);
             currentApp = '';
-            currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
 
-            // Recursively call with a frame delay to prevent stack overflow
-            requestAnimationFrame(() => animateMessages());
+            // Only continue to next example if not in single example mode
+            if (!singleExample) {
+                currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
+                requestAnimationFrame(() => animateMessages());
+            }
 
         } finally {
             if (thisAnimationId === currentAnimationId) {
