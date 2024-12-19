@@ -22,9 +22,14 @@
     }
 </script>
 
-<div class="highlight-container" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+<div
+    class="highlight-container"
+    style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'};">
     <!-- Text content with conditional alignment -->
-    <div class="highlight-content" style="text-align: {text_side === 'left' ? 'right' : 'left'};">
+    <div
+        class="highlight-content"
+        style="text-align: {text_side === 'left' ? 'right' : 'left'};
+        {text_side === 'left' ? 'margin-right: 50px;' : 'margin-left: 50px;'}">
         <h3 class="subheading">{sub_heading}</h3>
         <h2 class="title">{@html processMarkTags(main_heading)}</h2>
         <p class="description">{@html processMarkTags(paragraph)}</p>
@@ -57,7 +62,8 @@
     /* Content styles */
     .highlight-content {
         width: 40%;
-        padding: 2rem;
+        margin-left: 80px;
+        margin-right: 80px;
         box-sizing: border-box;
     }
 
