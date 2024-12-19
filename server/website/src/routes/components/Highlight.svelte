@@ -38,8 +38,25 @@
     <!-- Visual block with background and shadow -->
     <div class="highlight-visual">
         {#if sub_heading === 'Ask'}
-            <div class="powered-text">
-                powered by the leading<br>cloud & on-device AI models
+            <!-- Background AI provider icons -->
+            <div class="highlight-content-container-1">
+                <div class="provider-icons">
+                    <div class="row_1">
+                        <div class="icon provider-icon provider-mistral"></div>
+                        <div class="icon provider-icon provider-meta"></div>
+                    </div>
+                    <div class="row_2">
+                        <div class="icon provider-icon provider-openai"></div>
+                        <div class="icon provider-icon provider-anthropic"></div>
+                    </div>
+                </div>
+                <!-- Center content wrapper -->
+                <div class="center-content">
+                    <div class="icon mate"></div>
+                    <div class="powered-text">
+                        powered by the leading<br>cloud & on-device AI models
+                    </div>
+                </div>
             </div>
         {/if}
     </div>
@@ -67,8 +84,16 @@
         box-sizing: border-box;
     }
 
+    .highlight-content-container-1 {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
     /* Visual block styles */
     .highlight-visual {
+        position: relative;
         width: 60%;
         min-height: 309px;
         height: 50vh;
@@ -78,13 +103,39 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        text-align: center;
+        overflow: hidden;
+    }
+
+    .provider-icons {
+        opacity: 0.3;
+    }
+
+    .row_1, .row_2 {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: auto;
+        gap: 20px;
+        margin-bottom: -70px;
+    }
+
+    .row_1 {
+        gap: 140px;
+    }
+
+    .center-content {
+        width: 300px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
 
     .powered-text {
-        color: #666;
-        font-size: 0.9rem;
-        line-height: 1.5;
+        color: #818181;
+        text-align: center;
+        margin-top: 15px;
     }
 
     .title {
@@ -95,5 +146,9 @@
     .description {
         font-size: 1.1rem;
         line-height: 1.6;
+    }
+
+    .icon{
+        filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.1));
     }
 </style>
