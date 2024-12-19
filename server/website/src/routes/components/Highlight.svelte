@@ -38,14 +38,9 @@
     }
 </script>
 
-<div
-    class="highlight-container"
-    style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'};">
+<div class={`highlight-container ${text_side}`}>
     <!-- Text content with conditional alignment -->
-    <div
-        class="highlight-content"
-        style="text-align: {text_side === 'left' ? 'right' : 'left'};
-        {text_side === 'left' ? 'margin-right: 50px;' : 'margin-left: 50px;'}">
+    <div class={`highlight-content text-${text_side}`}>
         <h3 class="subheading">{sub_heading}</h3>
         <h2 class="title">{@html processMarkTags(main_heading)}</h2>
         <p class="description">{@html processMarkTags(paragraph)}</p>
@@ -54,8 +49,7 @@
     <!-- Visual block with background and shadow -->
     <div class="highlight-visual">
         {#if sub_heading === 'Ask'}
-            <!-- Conditionally order containers based on text_side -->
-            <div class="highlight-content-wrapper" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+            <div class={`highlight-content-wrapper content-${text_side}`}>
                 <div class="highlight-content-container-1">
                     <div class="provider-icons">
                         <div class="row_1">
@@ -84,7 +78,7 @@
             </div>
         {/if}
         {#if sub_heading === 'Tasks'}
-            <div class="highlight-content-wrapper" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+            <div class={`highlight-content-wrapper content-${text_side}`}>
                 <div class="highlight-content-container-1">
                     <div class="inline-icons">
                         <div class="icon app-calendar"></div>
@@ -104,7 +98,7 @@
             </div>
         {/if}
         {#if sub_heading === 'Apps'}
-            <div class="highlight-content-wrapper" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+            <div class={`highlight-content-wrapper content-${text_side}`}>
                 <div class="highlight-content-container-1">
                     <div class="inline-icons">
                         <div class="icon app-events"></div>
@@ -134,29 +128,31 @@
         position: relative;
         width: calc(100vw + 100px);
         left: -50px;
-        margin: 0;
+        margin: 80px 0;
         overflow: visible;
-        margin-top: 80px;
-        margin-bottom: 80px;
+    }
+
+    .highlight-container.left {
+        flex-direction: row;
+    }
+
+    .highlight-container.right {
+        flex-direction: row-reverse;
     }
 
     /* Content styles */
     .highlight-content {
         width: 40%;
-        margin-left: 80px;
-        margin-right: 80px;
         box-sizing: border-box;
+        margin: 0 80px;
     }
 
-    .description {
-        color: #6B6B6B;
+    .highlight-content.text-left {
+        text-align: right;
     }
 
-    .highlight-content-container-1 {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+    .highlight-content.text-right {
+        text-align: left;
     }
 
     /* Visual block styles */
@@ -172,6 +168,30 @@
         overflow: hidden;
     }
 
+    .highlight-container.left .highlight-visual {
+        padding-right: 80px;
+    }
+
+    .highlight-container.right .highlight-visual {
+        padding-left: 80px;
+    }
+
+    /* Content wrapper styles */
+    .highlight-content-wrapper {
+        display: flex;
+        width: 100%;
+        height: 100%;
+    }
+
+    .content-left {
+        flex-direction: row;
+    }
+
+    .content-right {
+        flex-direction: row-reverse;
+    }
+
+    /* Content containers */
     .highlight-content-container-1,
     .highlight-content-container-2 {
         flex: 1;
@@ -185,9 +205,10 @@
     }
 
     .highlight-content-container-2 {
-        overflow: hidden; /* Prevent content from pushing container-1 */
+        overflow: hidden;
     }
 
+    /* Provider icons styles */
     .provider-icons {
         opacity: 0.3;
     }
@@ -205,6 +226,7 @@
         gap: 140px;
     }
 
+    /* Center content styles */
     .center-content {
         width: 300px;
         position: relative;
@@ -220,6 +242,7 @@
         margin-top: 15px;
     }
 
+    /* Typography */
     .title {
         font-size: 2rem;
         margin-bottom: 1rem;
@@ -228,31 +251,24 @@
     .description {
         font-size: 1.1rem;
         line-height: 1.6;
+        color: #6B6B6B;
     }
 
-    .icon{
+    /* Icon styles */
+    .icon {
         filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.1));
     }
 
-    /* Add new style for inline icons */
     .inline-icons {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 20px;  /* Adds space between icons */
+        gap: 20px;
     }
 
-    /* Add new styles for the text below icons */
     .icons-text {
         margin-top: 21px;
         text-align: center;
         font-weight: 700;
-    }
-
-    /* Add new wrapper styles */
-    .highlight-content-wrapper {
-        display: flex;
-        width: 100%;
-        height: 100%;
     }
 </style>
