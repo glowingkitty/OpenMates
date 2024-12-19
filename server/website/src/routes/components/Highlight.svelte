@@ -1,11 +1,44 @@
 <script lang="ts">
     import AnimatedChatExamples from './AnimatedChatExamples.svelte';
+    import { onMount, onDestroy } from 'svelte';
     
     // Define props for the component
     export let main_heading: string;
     export let sub_heading: string;
     export let paragraph: string;
     export let text_side: 'left' | 'right' = 'left'; // Default to left alignment
+
+    // Add a prop to track visibility
+    let isVisible = false;
+    let highlightElement: HTMLElement;
+    let observer: IntersectionObserver;
+
+    onMount(() => {
+        // Create intersection observer for the highlight container
+        observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    isVisible = entry.isIntersecting;
+                });
+            },
+            {
+                threshold: 0.7,
+                rootMargin: '-20% 0px'
+            }
+        );
+
+        if (highlightElement) {
+            observer.observe(highlightElement);
+        }
+
+        return () => {
+            observer?.disconnect();
+        };
+    });
+
+    onDestroy(() => {
+        observer?.disconnect();
+    });
 
     // Function to process text and preserve <mark> and <br> tags
     function processMarkTags(text: string): string {
@@ -38,7 +71,10 @@
     }
 </script>
 
-<div class={`highlight-container ${text_side}`}>
+<div 
+    class={`highlight-container ${text_side}`}
+    bind:this={highlightElement}
+>
     <!-- Text content with conditional alignment -->
     <div class={`highlight-content text-${text_side}`}>
         <h3 class="subheading">{sub_heading}</h3>

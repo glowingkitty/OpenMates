@@ -192,9 +192,26 @@
     // Add new prop for highlight context
     export let inHighlight = false;
 
-    // Modified function to animate messages
+    let observer: IntersectionObserver;
+    let containerElement: HTMLElement;
+    let isVisible = false;
+    let isPaused = false;
+    let animationStarted = false;
+    let lastAnimationTime = 0;
+
+    // Add a new variable to track completion
+    let isCompleted = false;
+
+    // Add helper function to check for duplicates
+    function isDuplicateMessage(message: MessageSequence, messages: Array<MessageSequence & {animated?: boolean}>): boolean {
+        return messages.some(existing => 
+            existing.type === message.type && 
+            existing.text === message.text &&
+            existing.mateName === message.mateName
+        );
+    }
+
     async function animateMessages() {
-        // Cancel any ongoing animation
         const thisAnimationId = ++currentAnimationId;
         if (animationInProgress) {
             return;
@@ -203,7 +220,6 @@
         try {
             animationInProgress = true;
             
-            // If singleExample is true, find the example matching currentApp
             let example;
             if (singleExample) {
                 example = chatExamples.find(ex => ex.app === currentApp);
@@ -214,9 +230,21 @@
 
             currentApp = example.app;
 
-            visibleMessages = [];
-            currentProcessingMessage = null;
-            currentSequenceIndex = 0;
+            // Only reset if we haven't started yet
+            if (!animationStarted) {
+                visibleMessages = [];
+                currentProcessingMessage = null;
+                currentSequenceIndex = 0;
+                animationStarted = true;
+                isCompleted = false;
+            }
+
+            // If we've already completed the sequence, don't continue
+            if (currentSequenceIndex >= example.sequence.length) {
+                animationInProgress = false;
+                isCompleted = true;
+                return;
+            }
 
             // Reset icons with proper error handling
             try {
@@ -230,8 +258,14 @@
                 console.error('Error handling icons:', error);
             }
 
-            // Animate messages with processing states
-            for (let i = 0; i < example.sequence.length; i++) {
+            // Start from current sequence index
+            for (let i = currentSequenceIndex; i < example.sequence.length; i++) {
+                if (!isVisible) {
+                    isPaused = true;
+                    currentSequenceIndex = i;
+                    return;
+                }
+
                 const message = example.sequence[i];
 
                 if (thisAnimationId !== currentAnimationId) return;
@@ -240,7 +274,9 @@
                     // Update or create processing message
                     if (!currentProcessingMessage) {
                         currentProcessingMessage = { ...message, animated: true };
-                        visibleMessages = [...visibleMessages, currentProcessingMessage];
+                        if (!isDuplicateMessage(currentProcessingMessage, visibleMessages)) {
+                            visibleMessages = [...visibleMessages, currentProcessingMessage];
+                        }
                     } else {
                         // Update existing processing message
                         Object.assign(currentProcessingMessage, {
@@ -251,28 +287,32 @@
                     }
                 } else if (message.type === 'started_focus' || message.type === 'loaded_preferences') {
                     // Add new processing details for other types
-                    const messageWithAnimation = { ...message, animated: false };
-                    visibleMessages = [...visibleMessages, messageWithAnimation];
+                    if (!isDuplicateMessage(message, visibleMessages)) {
+                        const messageWithAnimation = { ...message, animated: false };
+                        visibleMessages = [...visibleMessages, messageWithAnimation];
 
-                    await new Promise(resolve => requestAnimationFrame(resolve));
-                    await new Promise(resolve => requestAnimationFrame(resolve));
+                        await new Promise(resolve => requestAnimationFrame(resolve));
+                        await new Promise(resolve => requestAnimationFrame(resolve));
 
-                    if (thisAnimationId !== currentAnimationId) return;
+                        if (thisAnimationId !== currentAnimationId) return;
 
-                    messageWithAnimation.animated = true;
-                    visibleMessages = [...visibleMessages];
+                        messageWithAnimation.animated = true;
+                        visibleMessages = [...visibleMessages];
+                    }
                 } else {
                     // Handle regular messages (user/mate)
-                    const messageWithAnimation = { ...message, animated: false };
-                    visibleMessages = [...visibleMessages, messageWithAnimation];
+                    if (!isDuplicateMessage(message, visibleMessages)) {
+                        const messageWithAnimation = { ...message, animated: false };
+                        visibleMessages = [...visibleMessages, messageWithAnimation];
 
-                    await new Promise(resolve => requestAnimationFrame(resolve));
-                    await new Promise(resolve => requestAnimationFrame(resolve));
+                        await new Promise(resolve => requestAnimationFrame(resolve));
+                        await new Promise(resolve => requestAnimationFrame(resolve));
 
-                    if (thisAnimationId !== currentAnimationId) return;
+                        if (thisAnimationId !== currentAnimationId) return;
 
-                    messageWithAnimation.animated = true;
-                    visibleMessages = [...visibleMessages];
+                        messageWithAnimation.animated = true;
+                        visibleMessages = [...visibleMessages];
+                    }
                 }
 
                 // Use waitTime from sequence or calculate default
@@ -282,6 +322,9 @@
                 );
 
                 await new Promise(resolve => setTimeout(resolve, delay));
+                
+                // Update index after successful message display
+                currentSequenceIndex = i + 1;
             }
 
             if (thisAnimationId !== currentAnimationId) return;
@@ -294,7 +337,15 @@
             // Only continue to next example if not in single example mode
             if (!singleExample) {
                 currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
-                requestAnimationFrame(() => animateMessages());
+                isPaused = false;
+                if (isVisible) {
+                    requestAnimationFrame(() => animateMessages());
+                }
+            }
+
+            // Reset flags after completion
+            if (inHighlight) {
+                isCompleted = true;  // Mark as completed instead of pausing
             }
 
         } finally {
@@ -330,20 +381,80 @@
     }
 
     onMount(() => {
-        animateMessages();
+        const observerOptions = inHighlight ? 
+            {
+                threshold: [0.6],
+                rootMargin: '-10% 0px'
+            } : 
+            {
+                threshold: [0.5],
+                rootMargin: '0px'
+            };
+
+        observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    const wasVisible = isVisible;
+                    isVisible = entry.isIntersecting;
+
+                    if (!wasVisible && isVisible) {
+                        // Coming into view
+                        if (inHighlight) {
+                            if (!animationStarted || isCompleted) {
+                                // Start fresh if never started or completed
+                                animationStarted = false;
+                                isCompleted = false;
+                                currentSequenceIndex = 0;
+                                visibleMessages = [];
+                                isPaused = false;
+                                requestAnimationFrame(() => animateMessages());
+                            } else if (isPaused) {
+                                // Resume from current position
+                                isPaused = false;
+                                requestAnimationFrame(() => animateMessages());
+                            }
+                        } else {
+                            // Header animation behavior
+                            if (isPaused || (!animationInProgress && !singleExample)) {
+                                requestAnimationFrame(() => animateMessages());
+                            }
+                        }
+                    } else if (wasVisible && !isVisible) {
+                        // Going out of view - just pause if not completed
+                        currentAnimationId++;
+                        if (!isCompleted) {
+                            isPaused = true;
+                        }
+                        animationInProgress = false;
+                    }
+                });
+            },
+            observerOptions
+        );
+
+        if (containerElement) {
+            observer.observe(containerElement);
+        }
+
         return () => {
-            currentAnimationId++; // Cancel any running animation
+            observer?.disconnect();
+            currentAnimationId++;
             cleanup();
         };
     });
 
     onDestroy(() => {
+        observer?.disconnect();
         cleanup();
-        currentAnimationId++; // Ensure no animations continue
+        currentAnimationId++;
     });
 </script>
 
-<div class="chat-examples-container" class:in-highlight={inHighlight}>
+<div 
+    class="chat-examples-container" 
+    class:in-highlight={inHighlight}
+    bind:this={containerElement}
+>
     <div class="chat-content" class:in-highlight={inHighlight}>
         <div class="gradient-overlay top"></div>
         <div class="animated-chat-container">
