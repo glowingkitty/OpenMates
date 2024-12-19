@@ -59,6 +59,23 @@
                 </div>
             </div>
         {/if}
+        {#if sub_heading === 'Tasks'}
+            <div class="highlight-content-container-1">
+                <!-- New wrapper div for inline icons -->
+                <div class="inline-icons">
+                    <div class="icon app-calendar"></div>
+                    <div class="icon app-health"></div>
+                </div>
+            </div>
+        {/if}
+        {#if sub_heading === 'Apps'}
+            <div class="highlight-content-container-1">
+                <div class="inline-icons">
+                    <div class="icon app-events"></div>
+                    <div class="icon skill-icon skill-search"></div>
+                </div>
+            </div>
+        {/if}
     </div>
 </div>
 
@@ -150,5 +167,13 @@
 
     .icon{
         filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.1));
+    }
+
+    /* Add new style for inline icons */
+    .inline-icons {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;  /* Adds space between icons */
     }
 </style>

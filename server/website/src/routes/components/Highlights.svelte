@@ -14,7 +14,7 @@
 <Highlight
     sub_heading="Tasks"
     main_heading="Ask them to<br><mark>fulfill your tasks</mark><br>using apps."
-    paragraph="For example:<br>Find doctor appointments<br>on Doctolib & Jameda."
+    paragraph="For example:<br>Find doctor appointments<br>that don’t collide with your calendar<br>on Doctolib & Jameda."
     text_side="right"
 />
 <Highlight
