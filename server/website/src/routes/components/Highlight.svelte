@@ -194,7 +194,6 @@
     /* Content containers */
     .highlight-content-container-1,
     .highlight-content-container-2 {
-        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -204,7 +203,15 @@
         height: 100%;
     }
 
+    /* Set fixed width for container 1 */
+    .highlight-content-container-1 {
+        flex: 0 0 350px; /* Don't grow, don't shrink, fixed width 300px */
+        width: 350px;
+    }
+
+    /* Allow container 2 to take remaining space */
     .highlight-content-container-2 {
+        flex: 1; /* Grow to take remaining space */
         overflow: hidden;
     }
 
