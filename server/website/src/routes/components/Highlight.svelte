@@ -180,6 +180,7 @@
     .highlight-content-wrapper {
         display: flex;
         width: 100%;
+        max-width: 800px;
         height: 100%;
     }
 

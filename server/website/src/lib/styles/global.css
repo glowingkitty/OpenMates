@@ -5,6 +5,10 @@ body {
     width: 100%;
 }
 
+section {
+    overflow: hidden;
+}
+
 .content {
     max-width: 1000px;
     margin: 0 auto;
