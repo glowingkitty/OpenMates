@@ -189,6 +189,9 @@
     // Add new prop
     export let singleExample = false;
 
+    // Add new prop for highlight context
+    export let inHighlight = false;
+
     // Modified function to animate messages
     async function animateMessages() {
         // Cancel any ongoing animation
@@ -340,8 +343,8 @@
     });
 </script>
 
-<div class="chat-examples-container">
-    <div class="chat-content">
+<div class="chat-examples-container" class:in-highlight={inHighlight}>
+    <div class="chat-content" class:in-highlight={inHighlight}>
         <div class="gradient-overlay top"></div>
         <div class="animated-chat-container">
             {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
@@ -380,6 +383,13 @@
         height: 300px;
         width: 540px;
         margin: 0 auto;
+        user-select: none; /* Make text not selectable */
+    }
+
+    /* Adjust container when used in highlights */
+    .chat-examples-container.in-highlight {
+        height: 100%;
+        width: 100%;
     }
 
     .chat-content {
@@ -388,6 +398,12 @@
         overflow: hidden;
         -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
         mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    }
+
+    /* Remove gradient mask when in highlight */
+    .chat-content.in-highlight {
+        -webkit-mask-image: none;
+        mask-image: none;
     }
 
     .gradient-overlay {
@@ -434,5 +450,10 @@
     :global(.chat-examples-container .processing-details:hover) {
         transform: none !important;
         filter: none !important;
+    }
+
+    /* Ensure all text within the container is not selectable */
+    :global(.chat-examples-container *) {
+        user-select: none;
     }
 </style>

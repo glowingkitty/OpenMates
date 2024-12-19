@@ -78,6 +78,7 @@
                 <AnimatedChatExamples 
                     currentApp={getAppForSubHeading(sub_heading)}
                     singleExample={true}
+                    inHighlight={true}
                 />
             </div>
         {/if}
@@ -96,6 +97,7 @@
                 <AnimatedChatExamples 
                     currentApp={getAppForSubHeading(sub_heading)}
                     singleExample={true}
+                    inHighlight={true}
                 />
             </div>
         {/if}
@@ -114,6 +116,7 @@
                 <AnimatedChatExamples 
                     currentApp={getAppForSubHeading(sub_heading)}
                     singleExample={true}
+                    inHighlight={true}
                 />
             </div>
         {/if}
@@ -175,9 +178,13 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.5);
         border-radius: 8px;
         padding: 20px;
+        height: 100%;
+    }
+
+    .highlight-content-container-2 {
+        overflow: hidden; /* Prevent content from pushing container-1 */
     }
 
     .provider-icons {
