@@ -220,48 +220,17 @@
         try {
             animationInProgress = true;
             
-            let example;
-            if (singleExample) {
-                example = chatExamples.find(ex => ex.app === currentApp);
-                if (!example) return;
-            } else {
-                example = chatExamples[currentExampleIndex];
-            }
+            let example = singleExample ? 
+                chatExamples.find(ex => ex.app === currentApp) : 
+                chatExamples[currentExampleIndex];
+            
+            if (!example) return;
 
             currentApp = example.app;
 
-            // Only reset if we haven't started yet
-            if (!animationStarted) {
-                visibleMessages = [];
-                currentProcessingMessage = null;
-                currentSequenceIndex = 0;
-                animationStarted = true;
-                isCompleted = false;
-            }
-
-            // If we've already completed the sequence, don't continue
-            if (currentSequenceIndex >= example.sequence.length) {
-                animationInProgress = false;
-                isCompleted = true;
-                return;
-            }
-
-            // Reset icons with proper error handling
-            try {
-                const icons = document.querySelectorAll('.icon-wrapper');
-                icons.forEach(icon => icon.classList.remove('slide-right', 'slide-left'));
-
-                if (currentApp) {
-                    highlightAppIcon(currentApp);
-                }
-            } catch (error) {
-                console.error('Error handling icons:', error);
-            }
-
-            // Start from current sequence index
+            // Continue from where we left off if paused
             for (let i = currentSequenceIndex; i < example.sequence.length; i++) {
-                if (!isVisible) {
-                    isPaused = true;
+                if (!isVisible || isPaused) {
                     currentSequenceIndex = i;
                     return;
                 }
@@ -323,29 +292,28 @@
 
                 await new Promise(resolve => setTimeout(resolve, delay));
                 
-                // Update index after successful message display
+                // Update sequence index after each message
                 currentSequenceIndex = i + 1;
             }
 
             if (thisAnimationId !== currentAnimationId) return;
 
+            // Mark as completed after final delay
             await new Promise(resolve => setTimeout(resolve, 5000));
-
+            
             resetAppIcon(example.app);
             currentApp = '';
 
-            // Only continue to next example if not in single example mode
-            if (!singleExample) {
+            if (inHighlight) {
+                isCompleted = true;  // Mark as completed for highlights
+            } else if (!singleExample) {
+                // Continue to next example for header animations
                 currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
+                currentSequenceIndex = 0;
                 isPaused = false;
                 if (isVisible) {
                     requestAnimationFrame(() => animateMessages());
                 }
-            }
-
-            // Reset flags after completion
-            if (inHighlight) {
-                isCompleted = true;  // Mark as completed instead of pausing
             }
 
         } finally {
@@ -381,16 +349,6 @@
     }
 
     onMount(() => {
-        const observerOptions = inHighlight ? 
-            {
-                threshold: [0.6],
-                rootMargin: '-10% 0px'
-            } : 
-            {
-                threshold: [0.5],
-                rootMargin: '0px'
-            };
-
         observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
@@ -400,16 +358,16 @@
                     if (!wasVisible && isVisible) {
                         // Coming into view
                         if (inHighlight) {
-                            if (!animationStarted || isCompleted) {
-                                // Start fresh if never started or completed
-                                animationStarted = false;
+                            if (!animationStarted) {
+                                // First time starting the animation
+                                animationStarted = true;
                                 isCompleted = false;
                                 currentSequenceIndex = 0;
                                 visibleMessages = [];
                                 isPaused = false;
                                 requestAnimationFrame(() => animateMessages());
-                            } else if (isPaused) {
-                                // Resume from current position
+                            } else if (isPaused && !isCompleted) {
+                                // Resume from current position if paused and not completed
                                 isPaused = false;
                                 requestAnimationFrame(() => animateMessages());
                             }
@@ -420,7 +378,7 @@
                             }
                         }
                     } else if (wasVisible && !isVisible) {
-                        // Going out of view - just pause if not completed
+                        // Going out of view
                         currentAnimationId++;
                         if (!isCompleted) {
                             isPaused = true;
@@ -429,7 +387,15 @@
                     }
                 });
             },
-            observerOptions
+            inHighlight ? 
+                {
+                    threshold: [0.6],
+                    rootMargin: '-10% 0px'
+                } : 
+                {
+                    threshold: [0.5],
+                    rootMargin: '0px'
+                }
         );
 
         if (containerElement) {
