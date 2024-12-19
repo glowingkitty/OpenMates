@@ -1,5 +1,8 @@
 body {
     margin: 0;
+    overflow-x: hidden;
+    position: relative;
+    width: 100%;
 }
 
 .content {

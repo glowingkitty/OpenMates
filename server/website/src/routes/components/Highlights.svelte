@@ -13,13 +13,13 @@
 />
 <Highlight
     sub_heading="Tasks"
-    main_heading="Ask them to<br><mark>fulfill your tasks</mark>,<br>using apps."
+    main_heading="Ask them to<br><mark>fulfill your tasks</mark><br>using apps."
     paragraph="For example:<br>Find doctor appointments<br>on Doctolib & Jameda."
     text_side="right"
 />
 <Highlight
     sub_heading="Apps"
-    main_heading="<mark>So many apps</mark>,<br>to transform your personal life & work."
+    main_heading="<mark>So many apps</mark><br>to transform your<br>personal life & work."
     paragraph="For example:<br>Find events<br>on Meetup, Eventbrite & RA."
     text_side="left"
 />

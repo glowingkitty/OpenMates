@@ -45,21 +45,27 @@
     .highlight-container {
         display: flex;
         align-items: center;
-        gap: 2rem;
-        padding: 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
+        position: relative;
+        width: calc(100vw + 100px);
+        left: -50px;
+        margin: 0;
+        overflow: visible;
+        margin-top: 80px;
+        margin-bottom: 80px;
     }
 
     /* Content styles */
     .highlight-content {
-        flex: 1;
+        width: 40%;
+        padding: 2rem;
+        box-sizing: border-box;
     }
 
     /* Visual block styles */
     .highlight-visual {
-        width: 309px;
-        height: 309px;
+        width: 60%;
+        min-height: 309px;
+        height: 50vh;
         background-color: #F0F0F0;
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
