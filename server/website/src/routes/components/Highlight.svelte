@@ -58,6 +58,7 @@
                     </div>
                 </div>
             </div>
+            <div class="highlight-content-container-2"></div>
         {/if}
         {#if sub_heading === 'Tasks'}
             <div class="highlight-content-container-1">
@@ -70,6 +71,7 @@
                     Calendar <mark>+</mark> Health
                 </div>
             </div>
+            <div class="highlight-content-container-2"></div>
         {/if}
         {#if sub_heading === 'Apps'}
             <div class="highlight-content-container-1">
@@ -82,6 +84,7 @@
                     Events | <mark>Search</mark>
                 </div>
             </div>
+            <div class="highlight-content-container-2"></div>
         {/if}
     </div>
 </div>
