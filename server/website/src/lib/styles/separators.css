@@ -22,5 +22,6 @@
     background-position: calc(50% - 21px) center;
     -webkit-background-size: 42px 100%;
     top: -120px;
+    margin-bottom: -170px;
     z-index: -1;
 }
