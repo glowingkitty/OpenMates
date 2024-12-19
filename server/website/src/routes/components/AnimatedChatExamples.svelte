@@ -454,6 +454,11 @@
 
     /* Ensure all text within the container is not selectable */
     :global(.chat-examples-container *) {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
         user-select: none;
+        pointer-events: none;
+        cursor: default;
     }
 </style>

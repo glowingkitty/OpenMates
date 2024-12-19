@@ -54,70 +54,73 @@
     <!-- Visual block with background and shadow -->
     <div class="highlight-visual">
         {#if sub_heading === 'Ask'}
-            <!-- Background AI provider icons -->
-            <div class="highlight-content-container-1">
-                <div class="provider-icons">
-                    <div class="row_1">
-                        <div class="icon provider-icon provider-mistral"></div>
-                        <div class="icon provider-icon provider-meta"></div>
+            <!-- Conditionally order containers based on text_side -->
+            <div class="highlight-content-wrapper" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+                <div class="highlight-content-container-1">
+                    <div class="provider-icons">
+                        <div class="row_1">
+                            <div class="icon provider-icon provider-mistral"></div>
+                            <div class="icon provider-icon provider-meta"></div>
+                        </div>
+                        <div class="row_2">
+                            <div class="icon provider-icon provider-openai"></div>
+                            <div class="icon provider-icon provider-anthropic"></div>
+                        </div>
                     </div>
-                    <div class="row_2">
-                        <div class="icon provider-icon provider-openai"></div>
-                        <div class="icon provider-icon provider-anthropic"></div>
+                    <div class="center-content">
+                        <div class="icon mate"></div>
+                        <div class="powered-text">
+                            powered by the leading<br>cloud & on-device AI models
+                        </div>
                     </div>
                 </div>
-                <!-- Center content wrapper -->
-                <div class="center-content">
-                    <div class="icon mate"></div>
-                    <div class="powered-text">
-                        powered by the leading<br>cloud & on-device AI models
-                    </div>
+                <div class="highlight-content-container-2">
+                    <AnimatedChatExamples 
+                        currentApp={getAppForSubHeading(sub_heading)}
+                        singleExample={true}
+                        inHighlight={true}
+                    />
                 </div>
-            </div>
-            <div class="highlight-content-container-2">
-                <AnimatedChatExamples 
-                    currentApp={getAppForSubHeading(sub_heading)}
-                    singleExample={true}
-                    inHighlight={true}
-                />
             </div>
         {/if}
         {#if sub_heading === 'Tasks'}
-            <div class="highlight-content-container-1">
-                <div class="inline-icons">
-                    <div class="icon app-calendar"></div>
-                    <div class="icon app-health"></div>
+            <div class="highlight-content-wrapper" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+                <div class="highlight-content-container-1">
+                    <div class="inline-icons">
+                        <div class="icon app-calendar"></div>
+                        <div class="icon app-health"></div>
+                    </div>
+                    <div class="icons-text">
+                        Calendar <mark>+</mark> Health
+                    </div>
                 </div>
-                <!-- Add text container below icons -->
-                <div class="icons-text">
-                    Calendar <mark>+</mark> Health
+                <div class="highlight-content-container-2">
+                    <AnimatedChatExamples 
+                        currentApp={getAppForSubHeading(sub_heading)}
+                        singleExample={true}
+                        inHighlight={true}
+                    />
                 </div>
-            </div>
-            <div class="highlight-content-container-2">
-                <AnimatedChatExamples 
-                    currentApp={getAppForSubHeading(sub_heading)}
-                    singleExample={true}
-                    inHighlight={true}
-                />
             </div>
         {/if}
         {#if sub_heading === 'Apps'}
-            <div class="highlight-content-container-1">
-                <div class="inline-icons">
-                    <div class="icon app-events"></div>
-                    <div class="icon skill-icon skill-search"></div>
+            <div class="highlight-content-wrapper" style="flex-direction: {text_side === 'left' ? 'row' : 'row-reverse'}">
+                <div class="highlight-content-container-1">
+                    <div class="inline-icons">
+                        <div class="icon app-events"></div>
+                        <div class="icon skill-icon skill-search"></div>
+                    </div>
+                    <div class="icons-text">
+                        Events | <mark>Search</mark>
+                    </div>
                 </div>
-                <!-- Add text container below icons -->
-                <div class="icons-text">
-                    Events | <mark>Search</mark>
+                <div class="highlight-content-container-2">
+                    <AnimatedChatExamples 
+                        currentApp={getAppForSubHeading(sub_heading)}
+                        singleExample={true}
+                        inHighlight={true}
+                    />
                 </div>
-            </div>
-            <div class="highlight-content-container-2">
-                <AnimatedChatExamples 
-                    currentApp={getAppForSubHeading(sub_heading)}
-                    singleExample={true}
-                    inHighlight={true}
-                />
             </div>
         {/if}
     </div>
@@ -161,19 +164,17 @@
         position: relative;
         width: 60%;
         min-height: 309px;
-        height: 50vh;
+        height: 60vh;
         background-color: #F0F0F0;
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
         padding: 20px;
         overflow: hidden;
     }
 
     .highlight-content-container-1,
     .highlight-content-container-2 {
+        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -246,5 +247,12 @@
         margin-top: 21px;
         text-align: center;
         font-weight: 700;
+    }
+
+    /* Add new wrapper styles */
+    .highlight-content-wrapper {
+        display: flex;
+        width: 100%;
+        height: 100%;
     }
 </style>
