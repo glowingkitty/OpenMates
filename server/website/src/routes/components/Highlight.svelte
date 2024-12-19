@@ -61,10 +61,13 @@
         {/if}
         {#if sub_heading === 'Tasks'}
             <div class="highlight-content-container-1">
-                <!-- New wrapper div for inline icons -->
                 <div class="inline-icons">
                     <div class="icon app-calendar"></div>
                     <div class="icon app-health"></div>
+                </div>
+                <!-- Add text container below icons -->
+                <div class="icons-text">
+                    Calendar <mark>+</mark> Health
                 </div>
             </div>
         {/if}
@@ -73,6 +76,10 @@
                 <div class="inline-icons">
                     <div class="icon app-events"></div>
                     <div class="icon skill-icon skill-search"></div>
+                </div>
+                <!-- Add text container below icons -->
+                <div class="icons-text">
+                    Events | <mark>Search</mark>
                 </div>
             </div>
         {/if}
@@ -99,6 +106,10 @@
         margin-left: 80px;
         margin-right: 80px;
         box-sizing: border-box;
+    }
+
+    .description {
+        color: #6B6B6B;
     }
 
     .highlight-content-container-1 {
@@ -175,5 +186,12 @@
         justify-content: center;
         align-items: center;
         gap: 20px;  /* Adds space between icons */
+    }
+
+    /* Add new styles for the text below icons */
+    .icons-text {
+        margin-top: 21px;
+        text-align: center;
+        font-weight: 700;
     }
 </style>
