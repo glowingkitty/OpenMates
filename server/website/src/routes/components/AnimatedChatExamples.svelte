@@ -226,7 +226,10 @@
 
             if (!example) return;
 
-            currentApp = example.app;
+            // Update currentApp for both header and highlight cases
+            if (!singleExample) {
+                currentApp = example.app;
+            }
 
             // Continue from where we left off if paused
             for (let i = currentSequenceIndex; i < example.sequence.length; i++) {
@@ -302,7 +305,11 @@
             await new Promise(resolve => setTimeout(resolve, 5000));
 
             resetAppIcon(example.app);
-            currentApp = '';
+            
+            // Only clear currentApp if we're cycling through examples
+            if (!singleExample) {
+                currentApp = '';
+            }
 
             if (inHighlight) {
                 isCompleted = true;  // Mark as completed for highlights
@@ -310,6 +317,7 @@
                 // Continue to next example for header animations
                 currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
                 currentSequenceIndex = 0;
+                visibleMessages = [];  // Clear messages between examples
                 isPaused = false;
                 if (isVisible) {
                     requestAnimationFrame(() => animateMessages());
@@ -408,20 +416,36 @@
     function initIntersectionObserver() {
         observer = new IntersectionObserver(
             (entries) => {
-                entries.forEach(entry => {
+                entries.forEach((entry) => {
                     const wasVisible = isVisible;
-                    // isVisible is updated for controlling animations
                     isVisible = entry.isIntersecting;
 
                     // Only start or resume animations when becoming visible
                     if (!wasVisible && isVisible) {
                         if (inHighlight) {
-                            manageHighlightAnimation();
+                            // For highlights - single example animation
+                            if (!animationStarted) {
+                                animationStarted = true;
+                                isCompleted = false;
+                                currentSequenceIndex = 0;
+                                visibleMessages = [];
+                                isPaused = false;
+                                requestAnimationFrame(() => animateMessages());
+                            } else if (isPaused && !isCompleted) {
+                                isPaused = false;
+                                requestAnimationFrame(() => animateMessages());
+                            }
                         } else {
-                            manageHeaderAnimation();
+                            // For header - cycling through all examples
+                            isPaused = false;
+                            if (!animationInProgress && !singleExample) {
+                                // Reset messages when starting a new cycle
+                                visibleMessages = [];
+                                currentSequenceIndex = 0;
+                                requestAnimationFrame(() => animateMessages());
+                            }
                         }
                     } else if (wasVisible && !isVisible) {
-                        // When out of view, pause and avoid overlapping animations
                         currentAnimationId++;
                         if (!isCompleted) {
                             isPaused = true;
@@ -430,10 +454,9 @@
                     }
                 });
             },
-            // Use existing threshold logic
-            inHighlight ?
-                { threshold: [0.6], rootMargin: '-10% 0px' } :
-                { threshold: [0.5], rootMargin: '0px' }
+            inHighlight
+                ? { threshold: [0.6], rootMargin: '-10% 0px' }
+                : { threshold: [0.5], rootMargin: '0px' }
         );
         if (containerElement) {
             observer.observe(containerElement);
