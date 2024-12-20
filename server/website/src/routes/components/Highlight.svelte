@@ -14,24 +14,31 @@
     let observer: IntersectionObserver;
 
     onMount(() => {
-        // Create intersection observer for the highlight container
-        observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach(entry => {
-                    isVisible = entry.isIntersecting;
-                });
-            },
-            {
-                threshold: 0.7,
-                rootMargin: '-20% 0px'
-            }
-        );
+        // In onMount, encapsulate observer logic in a small function for improved readability
+        function setupObserver() {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        // Toggle isVisible for section animations
+                        isVisible = entry.isIntersecting;
+                    });
+                },
+                {
+                    threshold: 0.7,
+                    rootMargin: '-20% 0px'
+                }
+            );
 
-        if (highlightElement) {
-            observer.observe(highlightElement);
+            if (highlightElement) {
+                observer.observe(highlightElement);
+            }
         }
 
+        // Initialize the observer
+        setupObserver();
+
         return () => {
+            // Ensure we unobserve and disconnect in the same place
             observer?.disconnect();
         };
     });
@@ -42,7 +49,8 @@
 
     // Function to process text and preserve <mark> and <br> tags
     function processMarkTags(text: string): string {
-        // First, escape any HTML except <mark> and <br> tags
+        // Escape all HTML other than <mark> and <br>,
+        // ensuring untrusted HTML won't render except for these specific tags
         const escaped = text
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -71,7 +79,7 @@
     }
 </script>
 
-<div 
+<div
     class={`highlight-container ${text_side}`}
     bind:this={highlightElement}
 >
@@ -105,7 +113,7 @@
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
-                    <AnimatedChatExamples 
+                    <AnimatedChatExamples
                         currentApp={getAppForSubHeading(sub_heading)}
                         singleExample={true}
                         inHighlight={true}
@@ -125,7 +133,7 @@
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
-                    <AnimatedChatExamples 
+                    <AnimatedChatExamples
                         currentApp={getAppForSubHeading(sub_heading)}
                         singleExample={true}
                         inHighlight={true}
@@ -145,7 +153,7 @@
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
-                    <AnimatedChatExamples 
+                    <AnimatedChatExamples
                         currentApp={getAppForSubHeading(sub_heading)}
                         singleExample={true}
                         inHighlight={true}

@@ -219,11 +219,11 @@
 
         try {
             animationInProgress = true;
-            
-            let example = singleExample ? 
-                chatExamples.find(ex => ex.app === currentApp) : 
+
+            let example = singleExample ?
+                chatExamples.find(ex => ex.app === currentApp) :
                 chatExamples[currentExampleIndex];
-            
+
             if (!example) return;
 
             currentApp = example.app;
@@ -285,13 +285,13 @@
                 }
 
                 // Use waitTime from sequence or calculate default
-                const delay = message.waitTime ?? (message.text ? 
-                    Math.min(2000 + (message.text.length * 20), 4000) : 
+                const delay = message.waitTime ?? (message.text ?
+                    Math.min(2000 + (message.text.length * 20), 4000) :
                     (message.type === 'using_apps' ? (message.in_progress ? 1000 : 500) : 2000)
                 );
 
                 await new Promise(resolve => setTimeout(resolve, delay));
-                
+
                 // Update sequence index after each message
                 currentSequenceIndex = i + 1;
             }
@@ -300,7 +300,7 @@
 
             // Mark as completed after final delay
             await new Promise(resolve => setTimeout(resolve, 5000));
-            
+
             resetAppIcon(example.app);
             currentApp = '';
 
@@ -348,37 +348,80 @@
         }
     }
 
+    // Added helper function for repeated requestAnimationFrame calls and made code more readable
+    function waitForNextFrame() {
+        // This utility function centralizes our requestAnimationFrame usage
+        return new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    }
+
+    // Example of a helper to add new messages with animation flags
+    function addMessageWithAnimation(message: MessageSequence) {
+        // Check for duplicates before adding
+        if (!isDuplicateMessage(message, visibleMessages)) {
+            // Spread to avoid mutating the original message object
+            const messageWithAnimation = { ...message, animated: false };
+            visibleMessages = [...visibleMessages, messageWithAnimation];
+            // Next set of frames will set the 'animated' to true, triggering CSS transitions if any
+            waitForNextFrame().then(() => {
+                messageWithAnimation.animated = true;
+                visibleMessages = [...visibleMessages];
+            });
+        }
+    }
+
     onMount(() => {
+        // Consolidate IntersectionObserver setup into a dedicated function for clarity
+        initIntersectionObserver();
+
+        return () => {
+            // Clean up any pending animations and observers
+            observer?.disconnect();
+            currentAnimationId++;
+            cleanup();
+        };
+    });
+
+    // Demonstration of new helper for highlight animations (instead of inlining logic)
+    function manageHighlightAnimation() {
+        if (!animationStarted) {
+            animationStarted = true;
+            isCompleted = false;
+            currentSequenceIndex = 0;
+            visibleMessages = [];
+            isPaused = false;
+            requestAnimationFrame(() => animateMessages());
+        } else if (isPaused && !isCompleted) {
+            // Resume from current position if paused and not completed
+            isPaused = false;
+            requestAnimationFrame(() => animateMessages());
+        }
+    }
+
+    // Similarly, extract the header animation handling
+    function manageHeaderAnimation() {
+        if (isPaused || (!animationInProgress && !singleExample)) {
+            requestAnimationFrame(() => animateMessages());
+        }
+    }
+
+    // Consolidate IntersectionObserver setup into a dedicated function for clarity
+    function initIntersectionObserver() {
         observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
                     const wasVisible = isVisible;
+                    // isVisible is updated for controlling animations
                     isVisible = entry.isIntersecting;
 
+                    // Only start or resume animations when becoming visible
                     if (!wasVisible && isVisible) {
-                        // Coming into view
                         if (inHighlight) {
-                            if (!animationStarted) {
-                                // First time starting the animation
-                                animationStarted = true;
-                                isCompleted = false;
-                                currentSequenceIndex = 0;
-                                visibleMessages = [];
-                                isPaused = false;
-                                requestAnimationFrame(() => animateMessages());
-                            } else if (isPaused && !isCompleted) {
-                                // Resume from current position if paused and not completed
-                                isPaused = false;
-                                requestAnimationFrame(() => animateMessages());
-                            }
+                            manageHighlightAnimation();
                         } else {
-                            // Header animation behavior
-                            if (isPaused || (!animationInProgress && !singleExample)) {
-                                requestAnimationFrame(() => animateMessages());
-                            }
+                            manageHeaderAnimation();
                         }
                     } else if (wasVisible && !isVisible) {
-                        // Going out of view
+                        // When out of view, pause and avoid overlapping animations
                         currentAnimationId++;
                         if (!isCompleted) {
                             isPaused = true;
@@ -387,37 +430,19 @@
                     }
                 });
             },
-            inHighlight ? 
-                {
-                    threshold: [0.6],
-                    rootMargin: '-10% 0px'
-                } : 
-                {
-                    threshold: [0.5],
-                    rootMargin: '0px'
-                }
+            // Use existing threshold logic
+            inHighlight ?
+                { threshold: [0.6], rootMargin: '-10% 0px' } :
+                { threshold: [0.5], rootMargin: '0px' }
         );
-
         if (containerElement) {
             observer.observe(containerElement);
         }
-
-        return () => {
-            observer?.disconnect();
-            currentAnimationId++;
-            cleanup();
-        };
-    });
-
-    onDestroy(() => {
-        observer?.disconnect();
-        cleanup();
-        currentAnimationId++;
-    });
+    }
 </script>
 
-<div 
-    class="chat-examples-container" 
+<div
+    class="chat-examples-container"
     class:in-highlight={inHighlight}
     bind:this={containerElement}
 >
