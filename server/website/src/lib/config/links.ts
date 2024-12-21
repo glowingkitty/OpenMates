@@ -12,10 +12,9 @@ export const externalLinks = {
 
     // Legal
     legal: {
-        privacyPolicy: "/privacy",
-        terms: "/terms",
-        imprint: "/imprint",
-        cookies: "/cookies",
+        privacyPolicy: "/legal/privacy",
+        terms: "/legal/terms",
+        imprint: "/legal/imprint",
     }
 } as const;
 
