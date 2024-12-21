@@ -1,20 +1,19 @@
 <script lang="ts">
-    // Discord invite URL - replace with your actual Discord invite link
-    const DISCORD_INVITE_URL = "https://discord.gg/bHtkxZB5cc";
+    import { externalLinks } from '$lib/config/links';
 </script>
 
 <a
-    href={DISCORD_INVITE_URL}
+    href={externalLinks.discord}
     target="_blank"
     rel="noopener noreferrer"
     class="discord-button"
 >
-    <span class="messenger-discord"></span>
+    <span class="small-icon discord"></span>
     Join server
 </a>
 
 <style>
-    .messenger-discord {
+    .small-icon.discord {
         filter: brightness(0) invert(1);
     }
 </style>

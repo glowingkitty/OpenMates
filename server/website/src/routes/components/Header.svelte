@@ -1,42 +1,32 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-
-    // Props for configurable URLs
-    export let githubUrl = "https://github.com/OpenMates/OpenMates";
-    export let openCollectiveUrl = "https://opencollective.com/openmates";
+    import { externalLinks, routes } from '$lib/config/links';
 
     // Helper function to determine if a path is active
-    const isActive = (path: string) => {
-        return $page.url.pathname === path;
-    };
+    const isActive = (path: string) => $page.url.pathname === path;
 
-    // Array of social links with their properties
+    // Navigation items using centralized routes
+    const navItems = [
+        { href: routes.home, text: 'For all of us' },
+        { href: routes.developers, text: 'For Developers' },
+        { href: routes.docs.main, text: 'Documentation' }
+    ];
+
+    // Social media links
     const socialLinks = [
         {
-            href: githubUrl,
+            href: externalLinks.github,
             ariaLabel: "Visit our GitHub page",
             iconClass: "github"
-        },
-        // TODO Why is the last icon always hidden? (but visible in the dom code)
-        {
-            href: openCollectiveUrl,
-            ariaLabel: "Support us on OpenCollective",
-            iconClass: "opencollective"
         }
     ];
 
-    // Handle click events to prevent full page reload while allowing new tab behavior
-    const handleClick = async (event: MouseEvent, path: string) => {
-        // Allow default behavior (new tab) if ctrl/cmd/middle click
-        if (event.ctrlKey || event.metaKey || event.button === 1) {
+    const handleClick = async (event: MouseEvent, path: string, external: boolean = false) => {
+        if (external || event.ctrlKey || event.metaKey || event.button === 1) {
             return;
         }
-
-        // Prevent default link behavior
         event.preventDefault();
-
-        // Use SvelteKit's client-side navigation
         await goto(path, { replaceState: false });
     }
 </script>
@@ -54,30 +44,16 @@
             </a>
         </div>
         <div class="nav-links">
-            <a
-                href="/"
-                class="nav-link"
-                class:active={isActive('/')}
-                on:click={(e) => handleClick(e, '/')}
-            >
-                For all of us
-            </a>
-            <a
-                href="/developers"
-                class="nav-link"
-                class:active={isActive('/developers')}
-                on:click={(e) => handleClick(e, '/developers')}
-            >
-                For developers
-            </a>
-            <a
-                href="/docs"
-                class="nav-link"
-                class:active={isActive('/docs')}
-                on:click={(e) => handleClick(e, '/docs')}
-            >
-                Docs
-            </a>
+            {#each navItems as item}
+                <a
+                    href={item.href}
+                    class="nav-link"
+                    class:active={isActive(item.href)}
+                    on:click={(e) => handleClick(e, item.href)}
+                >
+                    {item.text}
+                </a>
+            {/each}
             <div class="icon-links">
                 {#each socialLinks as link}
                     <a
@@ -96,6 +72,10 @@
 </header>
 
 <style>
+    nav {
+        margin-right: 80px !important;
+    }
+
     header {
         width: 100%;
         background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);

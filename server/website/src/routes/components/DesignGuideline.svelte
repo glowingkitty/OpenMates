@@ -1,6 +1,7 @@
 <script lang="ts">
     // Import necessary Svelte components
     import { goto } from '$app/navigation';
+    import { routes } from '$lib/config/links';
 
     // Props definition
     export let main_icon = '';
@@ -8,6 +9,9 @@
     export let subheadings: {icon: string; heading: string; link?: string}[] = [];
     export let text = '';
     export let subtext = '';
+
+    // If there are any links to design guidelines or documentation
+    const designDocsLink = routes.docs.designGuidelines;
 
     // Function to sanitize HTML, allowing only <mark> and <br> tags
     function sanitizeHtml(html: string) {

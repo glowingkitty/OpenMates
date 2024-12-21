@@ -1,11 +1,11 @@
 <script lang="ts">
-    import Header from './components/Header.svelte';
     import Icon from './components/Icon.svelte';
     import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
     import WaitingList from './components/WaitingList.svelte';
     import Highlights from './components/Highlights.svelte';
     import DesignGuidelines from './components/DesignGuidelines.svelte';
     import Community from './components/Community.svelte';
+    import { externalLinks, routes } from '$lib/config/links';
     // Define icon groups for left and right sides
     const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
         // Left side | First column
@@ -82,8 +82,6 @@
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 </script>
-
-<Header />
 
 <!-- Add header section with background color -->
 <section class="hero-header">
@@ -163,6 +161,8 @@
 <section>
     <DesignGuidelines />
 </section>
+
+<div class="large-separator"></div>
 
 <!-- Community -->
 <section>
