@@ -1,23 +1,39 @@
 /**
  * Svelte action that replaces instances of "OpenMates" with marked up version
+ * Handles text nodes within regular elements and anchor tags
  * Logger used for debugging text replacements
  */
 import { browser } from '$app/environment';
 
 export function replaceOpenMates(node: HTMLElement) {
-    if (!browser) return;
+    if (!browser) {
+        return;
+    }
 
     // Function to process text nodes
     function processNode(node: Node) {
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent || '';
             if (text.includes('OpenMates')) {
+
                 // Create a temporary container to hold our HTML
                 const container = document.createElement('div');
-                container.innerHTML = text.replace(
-                    /OpenMates/g, 
-                    '<strong><mark>Open</mark><span style="color: black;">Mates</span></strong>'
-                );
+
+                // Check if parent is an anchor tag to preserve the link functionality
+                const isInAnchor = node.parentElement?.nodeName === 'A';
+
+                if (isInAnchor) {
+                    // For text in anchor tags, preserve link functionality but ensure Mates is black
+                    container.innerHTML = text.replace(
+                        /OpenMates/g,
+                        '<span><mark>Open</mark><span style="color: black;">Mates</span></span>'
+                    );
+                } else {
+                    container.innerHTML = text.replace(
+                        /OpenMates/g,
+                        '<strong><mark>Open</mark><span style="color: black;">Mates</span></strong>'
+                    );
+                }
 
                 // Replace the text node with the container's children
                 while (container.firstChild) {
@@ -27,10 +43,10 @@ export function replaceOpenMates(node: HTMLElement) {
             }
         } else {
             // Skip processing if node is already styled or inside styled elements
-            if (node.nodeName === 'MARK' || 
+            if (node.nodeName === 'MARK' ||
                 node.nodeName === 'STRONG' ||
-                (node.parentElement && 
-                    (node.parentElement.nodeName === 'MARK' || 
+                (node.parentElement &&
+                    (node.parentElement.nodeName === 'MARK' ||
                      node.parentElement.nodeName === 'STRONG'))) {
                 return;
             }
@@ -48,4 +64,4 @@ export function replaceOpenMates(node: HTMLElement) {
             // Cleanup if needed
         }
     };
-} 
+}

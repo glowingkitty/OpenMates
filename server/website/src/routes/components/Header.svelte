@@ -2,7 +2,7 @@
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '$lib/config/links';
-
+    import { replaceOpenMates } from '$lib/actions/replaceText';
     // Updated helper function to check if a path is active, including subpaths
     const isActive = (path: string) => {
         // For docs section, check if current path starts with docs path
@@ -38,7 +38,7 @@
     }
 </script>
 
-<header>
+<header use:replaceOpenMates>
     <nav>
         <div class="left-section">
             <a
@@ -46,8 +46,7 @@
                 class="logo-link"
                 on:click={(e) => handleClick(e, '/')}
             >
-                <span class="logo-text">Open</span>
-                <span class="logo-text highlight">Mates</span>
+                <bold>OpenMates</bold>
             </a>
         </div>
         <div class="nav-links">
@@ -112,14 +111,6 @@
         gap: 0.25rem;
         text-decoration: none;
         cursor: pointer;
-    }
-
-    .logo-text {
-        color: var(--text-color, #000);
-    }
-
-    .logo-text.highlight {
-        color: var(--primary-color, #4361ee);
     }
 
     .nav-links {

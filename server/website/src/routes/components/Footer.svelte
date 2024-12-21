@@ -113,7 +113,7 @@
 
 <style>
     footer {
-        background-color: var(--primary-color, #4361ee);
+        background: var(--color-primary);
         color: white;
         padding: 4rem 2rem 2rem;
     }
@@ -126,20 +126,24 @@
     .footer-header {
         margin-bottom: 3rem;
         width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
     }
 
     .header-content {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
         gap: 2rem;
-        max-width: 800px;
-        margin: 0 auto;
+        padding: 0 2rem;
+        margin-bottom: 20px;
     }
 
     .logo {
         font-size: 1.5rem;
         font-weight: 600;
+        display: flex;
+        align-items: center;
     }
 
     .logo-text {
@@ -147,7 +151,7 @@
     }
 
     .logo-text.highlight {
-        color: white;
+        color: #1C1C1C;
         margin-left: 0.25rem;
     }
 
@@ -155,6 +159,7 @@
         font-size: 1.2rem;
         line-height: 1.5;
         text-align: center;
+        width: 100%;
     }
 
     .tagline p {
@@ -162,10 +167,13 @@
     }
 
     .footer-nav {
+        max-width: 1400px;
+        margin: 0 auto;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 2rem;
         margin-bottom: 3rem;
+        padding: 0 2rem;
     }
 
     .footer-section h3 {
@@ -204,28 +212,6 @@
         width: 40px;
         height: auto;
         margin-top: 0.5rem;
-    }
-
-    @media (max-width: 768px) {
-        .footer-nav {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    @media (max-width: 480px) {
-        .footer-nav {
-            grid-template-columns: 1fr;
-        }
-
-        .header-content {
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo {
-            margin-bottom: 0.5rem;
-        }
     }
 
     /* Simplify the active link styles */
