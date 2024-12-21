@@ -5,12 +5,17 @@
     export let title: string = defaultMeta.title;
     export let description: string = defaultMeta.description;
     export let image: string = defaultMeta.image;
+    export let imageWidth: number = defaultMeta.imageWidth;
+    export let imageHeight: number = defaultMeta.imageHeight;
     export let url: string = defaultMeta.url;
     export let type: string = defaultMeta.type;
     export let keywords: string[] = defaultMeta.keywords;
     export let author: string = defaultMeta.author;
     export let locale: string = defaultMeta.locale;
     export let siteName: string = defaultMeta.siteName;
+    export let logo: string = defaultMeta.logo;
+    export let logoWidth: number = defaultMeta.logoWidth;
+    export let logoHeight: number = defaultMeta.logoHeight;
 </script>
 
 <svelte:head>
@@ -28,6 +33,8 @@
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={image} />
+    <meta property="og:image:width" content={imageWidth.toString()} />
+    <meta property="og:image:height" content={imageHeight.toString()} />
     <meta property="og:site_name" content={siteName} />
     <meta property="og:locale" content={locale} />
 
@@ -49,16 +56,35 @@
             "@context": "http://schema.org",
             "@type": "${type === 'article' ? 'Article' : 'WebSite'}",
             "name": "${title}",
+            "headline": "${title}",
             "description": "${description}",
             "author": {
                 "@type": "Organization",
-                "name": "${author}"
+                "name": "${author}",
+                "url": "${defaultMeta.url}"
             },
             "url": "${url}",
-            "image": "${image}",
+            "image": {
+                "@type": "ImageObject",
+                "url": "${image}",
+                "width": "${imageWidth}",
+                "height": "${imageHeight}"
+            },
             "publisher": {
                 "@type": "Organization",
-                "name": "${siteName}"
+                "name": "${siteName}",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "${logo}",
+                    "width": "${logoWidth}",
+                    "height": "${logoHeight}"
+                }
+            },
+            "datePublished": "${new Date().toISOString()}",
+            "dateModified": "${new Date().toISOString()}",
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": "${url}"
             }
         }
         </script>

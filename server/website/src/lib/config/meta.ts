@@ -3,12 +3,17 @@ export interface MetaTagConfig {
     title: string;
     description: string;
     image: string;
+    imageWidth: number;
+    imageHeight: number;
     url: string;
     type: string;
     keywords: string[];
     author: string;
     locale: string;
     siteName: string;
+    logo: string;
+    logoWidth: number;
+    logoHeight: number;
 }
 
 interface PageMetaTags {
@@ -20,12 +25,17 @@ export const defaultMeta: MetaTagConfig = {
     title: "OpenMates",
     description: "Your personalized AI team mates can answer your questions, fulfil your tasks and use apps that can transform your personal life & work. Build with a focus on privacy and safety.",
     image: "/images/og-image.png", // TODO
+    imageWidth: 1200,
+    imageHeight: 630,
     url: "https://openmates.org",
     type: "website",
     keywords: ["AI", "artificial intelligence", "team mates", "automation", "productivity", "privacy", "safety"],
     author: "OpenMates Team",
     locale: "en_US",
     siteName: "OpenMates",
+    logo: "/images/logo.png",
+    logoWidth: 1200,
+    logoHeight: 630,
 };
 
 // Page-specific meta tags
