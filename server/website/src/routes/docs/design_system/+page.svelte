@@ -7,6 +7,10 @@
     import HealthAppCard from '../../components/cards/HealthAppCard.svelte';
     import EventAppCard from '../../components/cards/EventAppCard.svelte';
     import ProcessingDetails from '../../components/ProcessingDetails.svelte';
+    import MetaTags from '$lib/components/MetaTags.svelte';
+    import { getMetaTags } from '$lib/config/meta';
+
+    const meta = getMetaTags('docsDesignSystem');
 
     // Define icon groups
     const endpointIcons = [
@@ -213,6 +217,8 @@
         appColors = loadAppColors();
     });
 </script>
+
+<MetaTags {...meta} />
 
 <h1 class="text-center">Design System</h1>
 

@@ -6,6 +6,11 @@
     import DesignGuidelines from './components/DesignGuidelines.svelte';
     import Community from './components/Community.svelte';
     import { externalLinks, routes } from '$lib/config/links';
+    import MetaTags from '$lib/components/MetaTags.svelte';
+    import { getMetaTags } from '$lib/config/meta';
+
+    const meta = getMetaTags('home');
+
     // Define icon groups for left and right sides
     const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
         // Left side | First column
@@ -82,6 +87,8 @@
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 </script>
+
+<MetaTags {...meta} />
 
 <!-- Add header section with background color -->
 <section class="hero-header">
