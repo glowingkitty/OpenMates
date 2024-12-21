@@ -39,6 +39,8 @@ export const defaultMeta: MetaTagConfig = {
 };
 
 // Page-specific meta tags
+
+// TODO change descriptions
 export const pageMeta: PageMetaTags = {
     home: {
         ...defaultMeta,

@@ -39,49 +39,47 @@
 </script>
 
 <header use:replaceOpenMates>
-    <nav>
-        <div class="left-section">
-            <a
-                href="/"
-                class="logo-link"
-                on:click={(e) => handleClick(e, '/')}
-            >
-                <bold>OpenMates</bold>
-            </a>
-        </div>
-        <div class="nav-links">
-            {#each navItems as item}
+    <div class="container">
+        <nav>
+            <div class="left-section">
                 <a
-                    href={item.href}
-                    class="nav-link"
-                    class:active={isActive(item.href)}
-                    on:click={(e) => handleClick(e, item.href)}
+                    href="/"
+                    class="logo-link"
+                    on:click={(e) => handleClick(e, '/')}
                 >
-                    {item.text}
+                    <bold>OpenMates</bold>
                 </a>
-            {/each}
-            <div class="icon-links">
-                {#each socialLinks as link}
+            </div>
+            <div class="nav-links">
+                {#each navItems as item}
                     <a
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="icon-link"
-                        aria-label={link.ariaLabel}
+                        href={item.href}
+                        class="nav-link"
+                        class:active={isActive(item.href)}
+                        on:click={(e) => handleClick(e, item.href)}
                     >
-                        <div class="small-icon {link.iconClass}"></div>
+                        {item.text}
                     </a>
                 {/each}
+                <div class="icon-links">
+                    {#each socialLinks as link}
+                        <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="icon-link"
+                            aria-label={link.ariaLabel}
+                        >
+                            <div class="small-icon {link.iconClass}"></div>
+                        </a>
+                    {/each}
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </div>
 </header>
 
 <style>
-    nav {
-        margin-right: 80px !important;
-    }
-
     header {
         width: 100%;
         background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
@@ -90,6 +88,12 @@
         position: fixed;
         top: 0;
         left: 0;
+    }
+
+    .container {
+        /* max-width: 1000px; */
+        margin: 0 auto;
+        width: 100%;
     }
 
     nav {
