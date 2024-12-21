@@ -9,6 +9,18 @@
     export let text = '';
     export let subtext = '';
 
+    // Function to sanitize HTML, allowing only <mark> and <br> tags
+    function sanitizeHtml(html: string) {
+        // Remove all HTML tags except <mark> and <br>
+        return html
+            .replace(/<(?!\/?(mark|br)(?=>|\s.*>))\/?(?:.|\n)*?>/gm, '')
+            // Ensure proper closing of mark tags
+            .replace(/<mark>/g, '<mark>')
+            .replace(/<\/mark>/g, '</mark>')
+            // Ensure self-closing br tags
+            .replace(/<br>/g, '<br />');
+    }
+
     // Handle navigation for subheading links
     const handleSubheadingClick = (link?: string) => {
         if (link) {
@@ -21,7 +33,7 @@
     <!-- Main icon and headline section -->
     <div class="header">
         <div class="main-icon icon {main_icon}"></div>
-        <h2>{headline}</h2>
+        <h2>{@html sanitizeHtml(headline)}</h2>
     </div>
 
     <!-- Subheadings grid -->
@@ -35,7 +47,7 @@
                 tabindex="0"
             >
                 <div class="icon {icon}"></div>
-                <h3>{heading}</h3>
+                <h3>{@html sanitizeHtml(heading)}</h3>
                 {#if link}
                     <div class="learn-more">
                         Learn more
@@ -48,9 +60,9 @@
 
     <!-- Main text content -->
     <div class="content">
-        <p class="main-text">{text}</p>
+        <p class="main-text">{@html sanitizeHtml(text)}</p>
         {#if subtext}
-            <p class="sub-text">{subtext}</p>
+            <p class="sub-text">{@html sanitizeHtml(subtext)}</p>
         {/if}
     </div>
 </div>
