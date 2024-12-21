@@ -33,9 +33,9 @@ export const defaultMeta: MetaTagConfig = {
     author: "OpenMates Team",
     locale: "en_US",
     siteName: "OpenMates",
-    logo: "/images/logo.png",
-    logoWidth: 1200,
-    logoHeight: 630,
+    logo: "/images/logo.jpg", // TODO
+    logoWidth: 500,
+    logoHeight: 500,
 };
 
 // Page-specific meta tags
