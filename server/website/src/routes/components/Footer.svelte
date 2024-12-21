@@ -107,7 +107,7 @@
         <!-- Made in EU Section -->
         <div class="footer-bottom">
             <p>Made in the EU</p>
-            <img src="/images/eu-flag.png" alt="EU Flag" class="eu-flag" />
+            <div class="flag eu"></div>
         </div>
     </div>
 </footer>
@@ -192,6 +192,7 @@
 
     .footer-section ul li {
         margin-bottom: 0.5rem;
+        padding-left: 0;
     }
 
     .footer-section ul li a {
@@ -208,6 +209,10 @@
         text-align: center;
         padding-top: 2rem;
         border-top: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
     }
 
     .eu-flag {

@@ -118,6 +118,10 @@
   background-image: url('/icons/calendar.svg');
 }
 
+.eu {
+  background-image: url('/icons/eu.svg');
+}
+
 /* OpenMates Endpoint Icons */
 
 .icon.app {
@@ -628,4 +632,12 @@
 
 .small-icon.web {
   filter: grayscale(100%) opacity(0.4);
+}
+
+.flag {
+  width: 60px;
+  height: 60px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
 }
