@@ -4,6 +4,7 @@
     import AnimatedChatExamples from './components/AnimatedChatExamples.svelte';
     import WaitingList from './components/WaitingList.svelte';
     import Highlights from './components/Highlights.svelte';
+    import DesignGuideline from './components/DesignGuideline.svelte';
     // Define icon groups for left and right sides
     const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
         // Left side | First column
@@ -117,15 +118,15 @@
                 via
                 <span class="platform-wrapper">
                     <span class="visually-hidden">Web, </span>
-                    <span class="web-icon"></span>
+                    <span class="small-icon web"></span>
                 </span>
                 <span class="platform-wrapper">
                     <span class="visually-hidden">Mattermost, </span>
-                    <span class="messenger-mattermost"></span>
+                    <span class="small-icon mattermost"></span>
                 </span>
                 <span class="platform-wrapper">
                     <span class="visually-hidden">Discord</span>
-                    <span class="messenger-discord"></span>
+                    <span class="small-icon discord"></span>
                 </span>
                 & more
             </p>
@@ -159,6 +160,29 @@
 
 <section>
     <h2>Design Guidelines</h2>
+    <DesignGuideline
+        main_icon="lock"
+        headline="Your privacy matters"
+        subheadings={[
+            {
+                icon: "anonymization",
+                heading: "Anonymization",
+                link: "/docs/design_guidelines#anonymization"
+            },
+            {
+                icon: "local-processing",
+                heading: "Local processing first",
+                link: "/docs/design_guidelines#local-processing"
+            },
+            {
+                icon: "self-hosting",
+                heading: "Self hosting option",
+                link: "/docs/design_guidelines#self-hosting"
+            }
+        ]}
+        text="In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential."
+        subtext="Therefore, OpenMates is designed with a focus on privacy."
+    />
 </section>
 
 <style>

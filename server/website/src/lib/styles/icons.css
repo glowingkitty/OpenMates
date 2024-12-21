@@ -89,6 +89,34 @@
   }
 }
 
+/* Icons */
+.mattermost {
+  background-image: url('/icons/mattermost.svg');
+}
+
+.discord {
+  background-image: url('/icons/discord.svg');
+}
+
+.slack {
+  background-image: url('/icons/slack.svg');
+}
+
+.web {
+  background-image: url('/icons/web.svg');
+}
+
+.github {
+  background-image: url('/icons/github.svg');
+}
+
+.opencollective {
+  background-image: url('/icons/opencollective.svg');
+}
+
+.calendar {
+  background-image: url('/icons/calendar.svg');
+}
 
 /* OpenMates Endpoint Icons */
 
@@ -569,99 +597,35 @@
   transform: translateX(50px) !important;
 }
 
-/* Standalone Messenger Icons */
-.messenger-mattermost {
-  /* Set default appearance */
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/mattermost.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  /* Make it black and white by default */
-  filter: grayscale(100%) brightness(1.8);
-  transition: filter 0.2s ease-in-out;
+/* Base Messenger Icon Styles */
+.small-icon {
+    /* Common properties for all messenger icons */
+    width: 24px;
+    height: 24px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: grayscale(100%) brightness(1);
+    transition: filter 0.2s ease-in-out;
 
-  &:hover {
-      /* Remove filters on hover to show original colors */
-      filter: none;
-  }
+    &:hover {
+        filter: none;
+    }
 }
 
-.messenger-discord {
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/discord.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: grayscale(100%) brightness(1.6);
-  transition: filter 0.2s ease-in-out;
-
-  &:hover {
-      filter: none;
-  }
+/* Specific messenger variations */
+.small-icon.mattermost {
+    filter: grayscale(100%) brightness(1.8);
 }
 
-.messenger-slack {
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/slack.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: grayscale(100%) brightness(1);
-  transition: filter 0.2s ease-in-out;
-
-  &:hover {
-      filter: none;
-  }
+.small-icon.discord {
+    filter: grayscale(100%) brightness(1.6);
 }
 
-.github-icon {
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/github.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: grayscale(100%) brightness(1);
-  transition: filter 0.2s ease-in-out;
-
-  &:hover {
-      filter: none;
-  }
+.small-icon.slack {
+    filter: grayscale(100%) brightness(0.8);
 }
 
-.opencollective-icon {
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/opencollective.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: grayscale(100%) brightness(1);
-  transition: filter 0.2s ease-in-out;
-
-  &:hover {
-      filter: none;
-  }
-}
-
-.calendar-icon {
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/calendar.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.web-icon {
-  width: 24px;
-  height: 24px;
-  background-image: url('/icons/web.svg');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
+.small-icon.web {
+  filter: grayscale(100%) opacity(0.4);
 }

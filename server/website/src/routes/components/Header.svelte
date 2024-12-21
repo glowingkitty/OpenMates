@@ -16,13 +16,13 @@
         {
             href: githubUrl,
             ariaLabel: "Visit our GitHub page",
-            iconClass: "github-icon"
+            iconClass: "github"
         },
         // TODO Why is the last icon always hidden? (but visible in the dom code)
         {
             href: openCollectiveUrl,
             ariaLabel: "Support us on OpenCollective",
-            iconClass: "opencollective-icon"
+            iconClass: "opencollective"
         }
     ];
 
@@ -87,7 +87,7 @@
                         class="icon-link"
                         aria-label={link.ariaLabel}
                     >
-                        <div class={link.iconClass}></div>
+                        <div class="small-icon {link.iconClass}"></div>
                     </a>
                 {/each}
             </div>
