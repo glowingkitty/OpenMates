@@ -23,6 +23,7 @@ button:hover {
 button:active {
     background-color: var(--color-button-primary-pressed);
     scale: 0.98;
+    filter: none;
 }
 
 /* Secondary Button - Gray style */
@@ -48,4 +49,28 @@ button:disabled {
 /* Remove margin from last button in a row */
 button:last-child {
     margin-right: 0;
+}
+
+.discord-button {
+    background-color: #5865F2;
+    color: white;
+    padding: 0.8rem 70px;
+    border-radius: 20px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.discord-button:hover {
+    background-color: #4752C4;
+    scale: 1.02;
+}
+
+.discord-button:active {
+    background-color: #4752C4;
+    scale: 0.98;
+    filter: none;
 }

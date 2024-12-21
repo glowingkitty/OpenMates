@@ -130,7 +130,7 @@
                 & more
             </p>
             <AnimatedChatExamples bind:currentApp={currentApp} />
-            <WaitingList context="for_all" />
+            <WaitingList/>
         </div>
     </div>
 
@@ -153,6 +153,12 @@
 <!-- Add white body section for future content -->
 <section>
     <Highlights target="for_all" />
+</section>
+
+<div class="large-separator" style="rotate: 180deg;"></div>
+
+<section>
+    <h2>Design Guidelines</h2>
 </section>
 
 <style>
