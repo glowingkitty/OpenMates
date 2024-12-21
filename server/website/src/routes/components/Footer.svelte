@@ -67,14 +67,16 @@
     <div class="footer-content">
         <!-- Logo and Tagline Section -->
         <div class="footer-header">
-            <div class="logo">
-                <span class="logo-text">Open</span>
-                <span class="logo-text highlight">Mates</span>
-            </div>
-            <div class="tagline">
-                <p>Our world needs change.</p>
-                <p>And change requires action.</p>
-                <p>So, let us take action.</p>
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-text">Open</span>
+                    <span class="logo-text highlight">Mates</span>
+                </div>
+                <div class="tagline">
+                    <p>Our world needs change.</p>
+                    <p>And change requires action.</p>
+                    <p>So, let us take action.</p>
+                </div>
             </div>
         </div>
 
@@ -123,13 +125,21 @@
 
     .footer-header {
         margin-bottom: 3rem;
-        text-align: center;
+        width: 100%;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
     }
 
     .logo {
         font-size: 1.5rem;
         font-weight: 600;
-        margin-bottom: 1rem;
     }
 
     .logo-text {
@@ -144,6 +154,7 @@
     .tagline {
         font-size: 1.2rem;
         line-height: 1.5;
+        text-align: center;
     }
 
     .tagline p {
@@ -204,6 +215,16 @@
     @media (max-width: 480px) {
         .footer-nav {
             grid-template-columns: 1fr;
+        }
+
+        .header-content {
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            margin-bottom: 0.5rem;
         }
     }
 

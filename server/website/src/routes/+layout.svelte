@@ -18,7 +18,7 @@
 <Header />
 
 <!-- This is where page-specific content will be rendered -->
-<main>
+<main use:replaceOpenMates>
     <slot />
 </main>
 
