@@ -3,14 +3,21 @@
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '$lib/config/links';
 
-    // Helper function to determine if a path is active
-    const isActive = (path: string) => $page.url.pathname === path;
+    // Updated helper function to check if a path is active, including subpaths
+    const isActive = (path: string) => {
+        // For docs section, check if current path starts with docs path
+        if (path === routes.docs.main) {
+            return $page.url.pathname.startsWith(path);
+        }
+        // For other paths, keep exact matching
+        return $page.url.pathname === path;
+    };
 
     // Navigation items using centralized routes
     const navItems = [
         { href: routes.home, text: 'For all of us' },
         { href: routes.developers, text: 'For Developers' },
-        { href: routes.docs.main, text: 'Documentation' }
+        { href: routes.docs.main, text: 'Docs' }
     ];
 
     // Social media links

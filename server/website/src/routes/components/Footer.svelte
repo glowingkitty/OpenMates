@@ -53,6 +53,14 @@
         event.preventDefault();
         await goto(path, { replaceState: false });
     }
+
+    // Helper function to check if a link is active
+    const isActive = (href: string): boolean => {
+        // Remove trailing slashes for consistent comparison
+        const currentPath = $page.url.pathname.replace(/\/$/, '');
+        const linkPath = href.replace(/\/$/, '');
+        return currentPath === linkPath;
+    };
 </script>
 
 <footer>
@@ -80,6 +88,7 @@
                             <li>
                                 <a
                                     href={link.href}
+                                    class:active={isActive(link.href)}
                                     {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                                     on:click={(e) => handleClick(e, link.href, link.external)}
                                 >
@@ -196,5 +205,11 @@
         .footer-nav {
             grid-template-columns: 1fr;
         }
+    }
+
+    /* Simplify the active link styles */
+    .footer-section ul li a.active {
+        color: white;
+        font-weight: 600;
     }
 </style> 
