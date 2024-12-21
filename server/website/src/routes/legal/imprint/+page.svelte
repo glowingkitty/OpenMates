@@ -1,6 +1,12 @@
 <script lang="ts">
     import { externalLinks } from '$lib/config/links';
+    import MetaTags from '$lib/components/MetaTags.svelte';
+    import { getMetaTags } from '$lib/config/meta';
+
+    const meta = getMetaTags('legalImprint');
 </script>
+
+<MetaTags {...meta} />
 
 <div class="legal-container">
     <h1>Legal Notice (Imprint)</h1>

@@ -5,6 +5,10 @@ export interface MetaTagConfig {
     image: string;
     url: string;
     type: string;
+    keywords: string[];
+    author: string;
+    locale: string;
+    siteName: string;
 }
 
 interface PageMetaTags {
@@ -17,14 +21,18 @@ export const defaultMeta: MetaTagConfig = {
     description: "Your personalized AI team mates can answer your questions, fulfil your tasks and use apps that can transform your personal life & work. Build with a focus on privacy and safety.",
     image: "/images/og-image.png", // TODO
     url: "https://openmates.org",
-    type: "website"
+    type: "website",
+    keywords: ["AI", "artificial intelligence", "team mates", "automation", "productivity", "privacy", "safety"],
+    author: "OpenMates Team",
+    locale: "en_US",
+    siteName: "OpenMates",
 };
 
 // Page-specific meta tags
 export const pageMeta: PageMetaTags = {
     home: {
         ...defaultMeta,
-        title: "For all of us  OpenMates"
+        title: "For all of us | OpenMates"
     },
     developers: {
         ...defaultMeta,
@@ -39,28 +47,43 @@ export const pageMeta: PageMetaTags = {
     },
     docsApi: {
         ...defaultMeta,
-        title: "Docs: API | OpenMates",
+        title: "API docs | OpenMates",
         description: "API documentation for integrating AI Team Mates into your applications.",
     },
     docsDesignGuidelines: {
         ...defaultMeta,
-        title: "Docs: Design Guidelines | OpenMates",
+        title: "Design guidelines | OpenMates",
         description: "Design guidelines for using AI Team Mates effectively.",
     },
     docsDesignSystem: {
         ...defaultMeta,
-        title: "Docs: Design System | OpenMates",
+        title: "Design system | OpenMates",
         description: "Design system for using AI Team Mates effectively.",
     },
     docsRoadmap: {
         ...defaultMeta,
-        title: "Docs: Roadmap | OpenMates",
+        title: "Roadmap | OpenMates",
         description: "Roadmap for using AI Team Mates effectively.",
     },
     docsUserGuide: {
         ...defaultMeta,
-        title: "Docs: User Guide | OpenMates",
+        title: "User guide | OpenMates",
         description: "User guide for using AI Team Mates effectively.",
+    },
+    legalImprint: {
+        ...defaultMeta,
+        title: "Imprint | OpenMates",
+        description: "Imprint for OpenMates.",
+    },
+    legalPrivacy: {
+        ...defaultMeta,
+        title: "Privacy | OpenMates",
+        description: "Privacy policy for OpenMates.",
+    },
+    legalTerms: {
+        ...defaultMeta,
+        title: "Terms and Conditions | OpenMates",
+        description: "Terms of service for OpenMates.",
     },
 };
 
@@ -74,13 +97,15 @@ export function generateMetaTags(
     title: string,
     description: string,
     slug: string,
-    type: string = 'article'
+    type: string = 'article',
+    keywords?: string[]
 ): MetaTagConfig {
     return {
         ...defaultMeta,
-        title: `${title} - AI Team Mates`,
+        title: `${title} | ${defaultMeta.siteName}`,
         description,
         url: `${defaultMeta.url}/${slug}`,
-        type
+        type,
+        keywords: keywords || defaultMeta.keywords
     };
 } 

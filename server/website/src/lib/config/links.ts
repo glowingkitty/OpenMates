@@ -8,7 +8,7 @@ export const externalLinks = {
     github: null,
 
     // Contact
-    email: "mailto:contact@openmates.com",
+    email: "contact@openmates.com",
 
     // Legal
     legal: {
