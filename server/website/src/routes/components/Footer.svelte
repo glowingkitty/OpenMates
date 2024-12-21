@@ -77,6 +77,7 @@
                     <p>And change requires action.</p>
                     <p>So, let us take action.</p>
                 </div>
+                <div class="logo invisible"></div>
             </div>
         </div>
 
@@ -133,13 +134,14 @@
     .header-content {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
         gap: 2rem;
         padding: 0 2rem;
         margin-bottom: 20px;
     }
 
     .logo {
+        min-width: 150px;
         font-size: 1.5rem;
         font-weight: 600;
         display: flex;
@@ -159,7 +161,7 @@
         font-size: 1.2rem;
         line-height: 1.5;
         text-align: center;
-        width: 100%;
+        flex: 1;
     }
 
     .tagline p {
@@ -218,5 +220,9 @@
     .footer-section ul li a.active {
         color: white;
         font-weight: 600;
+    }
+
+    .invisible {
+        visibility: hidden;
     }
 </style> 
