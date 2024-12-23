@@ -41,11 +41,11 @@ export const defaultMeta: MetaTagConfig = {
 // Page-specific meta tags
 
 export const pageMeta: PageMetaTags = {
-    home: {
+    for_all_of_us: {
         ...defaultMeta,
         title: "For all of us | OpenMates"
     },
-    developers: {
+    for_developers: {
         ...defaultMeta,
         title: "For developers | OpenMates",
         description: "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project.",

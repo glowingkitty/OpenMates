@@ -12,7 +12,7 @@
     import { replaceOpenMates } from '$lib/actions/replaceText';
     import Header from './components/Header.svelte';
     import Footer from './components/Footer.svelte';
-    import MetaTags from '$lib/components/MetaTags.svelte';
+    import MetaTags from './components/MetaTags.svelte';
 </script>
 
 <!-- Default meta tags for all pages -->

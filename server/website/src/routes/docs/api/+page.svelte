@@ -1,5 +1,5 @@
 <script lang="ts">
-    import MetaTags from '$lib/components/MetaTags.svelte';
+    import MetaTags from '../../components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
 
     const meta = getMetaTags('docsApi');

@@ -5,11 +5,10 @@
     import Highlights from './components/Highlights.svelte';
     import DesignGuidelines from './components/DesignGuidelines.svelte';
     import Community from './components/Community.svelte';
-    import { externalLinks, routes } from '$lib/config/links';
-    import MetaTags from '$lib/components/MetaTags.svelte';
+    import MetaTags from './components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
 
-    const meta = getMetaTags('home');
+    const meta = getMetaTags('for_all_of_us');
 
     // Define icon groups for left and right sides
     const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
