@@ -15,17 +15,17 @@
         headline="<mark>Your privacy matters</mark>"
         subheadings={[
             {
-                icon: "anonymization",
+                icon: "icon_anonym",
                 heading: "Anonymization",
                 link: "/docs/design_guidelines#anonymization"
             },
             {
-                icon: "local-processing",
+                icon: "icon_laptop",
                 heading: "Local processing first",
                 link: "/docs/design_guidelines#local-processing"
             },
             {
-                icon: "self-hosting",
+                icon: "icon_server",
                 heading: "Self hosting option",
                 link: "/docs/design_guidelines#self-hosting"
             }

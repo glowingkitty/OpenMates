@@ -43,9 +43,11 @@
     <!-- Subheadings grid -->
     <div class="subheadings-grid">
         {#each subheadings as { icon, heading, link }}
-            <div
+            <a
+                href={link || '#'}
+                target={link ? '_blank' : '_self'}
                 class="subheading-item"
-                on:click={() => handleSubheadingClick(link)}
+                on:click|preventDefault={(e) => handleSubheadingClick(link)}
                 on:keydown={(e) => e.key === 'Enter' && handleSubheadingClick(link)}
                 role="button"
                 tabindex="0"
@@ -58,7 +60,7 @@
                         <span class="arrow">→</span>
                     </div>
                 {/if}
-            </div>
+            </a>
         {/each}
     </div>
 
@@ -119,6 +121,8 @@
     }
 
     .subheading-item {
+        text-decoration: none;
+        color: inherit;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -173,5 +177,9 @@
     .subheading-item div[class] {
         width: 61px;
         height: 61px;
+        background-size: 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        filter: brightness(0) saturate(100%) invert(50%); /* Convert black to grey */
     }
 </style>

@@ -126,6 +126,18 @@
   background-image: url('/icons/lock.svg');
 }
 
+.icon_anonym {
+  background-image: url('/icons/anonym.svg');
+}
+
+.icon_laptop {
+  background-image: url('/icons/laptop.svg');
+}
+
+.icon_server {
+  background-image: url('/icons/server.svg');
+}
+
 /* OpenMates Endpoint Icons */
 
 .icon.app {
