@@ -1,7 +1,7 @@
 <script lang="ts">
     import AnimatedChatExamples from './AnimatedChatExamples.svelte';
     import { onMount, onDestroy } from 'svelte';
-    
+
     // Define props for the component
     export let main_heading: string;
     export let sub_heading: string;
@@ -203,8 +203,8 @@
     .highlight-visual {
         position: relative;
         width: 60%;
-        min-height: 309px;
-        height: 60vh;
+        min-height: 400px;
+        height: 70vh;
         background-color: #F0F0F0;
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -226,14 +226,7 @@
         width: 100%;
         max-width: 800px;
         height: 100%;
-    }
-
-    .content-left {
-        flex-direction: row;
-    }
-
-    .content-right {
-        flex-direction: row-reverse;
+        flex-direction: column;
     }
 
     /* Content containers */
@@ -245,18 +238,20 @@
         justify-content: center;
         border-radius: 8px;
         padding: 20px;
-        height: 100%;
+        width: 100%;
     }
 
     /* Set fixed width for container 1 */
     .highlight-content-container-1 {
-        flex: 0 0 350px; /* Don't grow, don't shrink, fixed width 300px */
-        width: 350px;
+        flex: 0 0 auto;
+        height: auto;
+        margin-bottom: 20px;
     }
 
     /* Allow container 2 to take remaining space */
     .highlight-content-container-2 {
-        flex: 1; /* Grow to take remaining space */
+        flex: 1;
+        min-height: 0;
         overflow: hidden;
     }
 
