@@ -10,6 +10,18 @@ export function replaceOpenMates(node: HTMLElement) {
         return;
     }
 
+    // Create MutationObserver to watch for DOM changes
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            // Process new nodes
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    processNode(node);
+                }
+            });
+        });
+    });
+
     // Function to process text nodes
     function processNode(node: Node) {
         if (node.nodeType === Node.TEXT_NODE) {
@@ -59,9 +71,16 @@ export function replaceOpenMates(node: HTMLElement) {
     // Initial processing
     processNode(node);
 
+    // Start observing the entire document for changes
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
     return {
         destroy() {
-            // Cleanup if needed
+            // Cleanup: disconnect the observer when the action is destroyed
+            observer.disconnect();
         }
     };
 }

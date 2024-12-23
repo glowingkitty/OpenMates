@@ -1,6 +1,5 @@
 <script lang="ts">
     import DiscordButton from './DiscordButton.svelte';
-    import Icon from './Icon.svelte';
 </script>
 
 <div class="community-section">
