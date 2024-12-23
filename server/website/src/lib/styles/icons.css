@@ -90,36 +90,40 @@
 }
 
 /* Icons */
-.mattermost {
+.icon_mattermost {
   background-image: url('/icons/mattermost.svg');
 }
 
-.discord {
+.icon_discord {
   background-image: url('/icons/discord.svg');
 }
 
-.slack {
+.icon_slack {
   background-image: url('/icons/slack.svg');
 }
 
-.web {
+.icon_web {
   background-image: url('/icons/web.svg');
 }
 
-.github {
+.icon_github {
   background-image: url('/icons/github.svg');
 }
 
-.opencollective {
+.icon_opencollective {
   background-image: url('/icons/opencollective.svg');
 }
 
-.calendar {
+.icon_calendar {
   background-image: url('/icons/calendar.svg');
 }
 
-.eu {
+.icon_eu {
   background-image: url('/icons/eu.svg');
+}
+
+.icon_lock {
+  background-image: url('/icons/lock.svg');
 }
 
 /* OpenMates Endpoint Icons */
@@ -618,19 +622,19 @@
 }
 
 /* Specific messenger variations */
-.small-icon.mattermost {
+.small-icon.icon_mattermost {
     filter: grayscale(100%) brightness(1.8);
 }
 
-.small-icon.discord {
+.small-icon.icon_discord {
     filter: grayscale(100%) brightness(1.6);
 }
 
-.small-icon.slack {
+.small-icon.icon_slack {
     filter: grayscale(100%) brightness(0.8);
 }
 
-.small-icon.web {
+.small-icon.icon_web {
   filter: grayscale(100%) opacity(0.4);
 }
 

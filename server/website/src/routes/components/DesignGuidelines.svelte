@@ -8,10 +8,10 @@
 
 <section class="centered">
     <h3>{sectionTitle}</h3>
-    
+
     <!-- Privacy Design Guideline -->
     <DesignGuideline
-        main_icon="lock"
+        main_icon="icon_lock"
         headline="<mark>Your privacy matters</mark>"
         subheadings={[
             {
@@ -36,7 +36,7 @@
 
     <!-- Maximum Good Design Guideline -->
     <DesignGuideline
-        main_icon="lock"
+        main_icon="icon_good"
         headline="<mark>Maximum good,</mark><br>not maximum greed."
         subheadings={[
             {

@@ -36,7 +36,7 @@
 <div class="design-guideline">
     <!-- Main icon and headline section -->
     <div class="header">
-        <div class="main-icon icon {main_icon}"></div>
+        <div class="main-icon {main_icon}"></div>
         <h2>{@html sanitizeHtml(headline)}</h2>
     </div>
 
@@ -50,7 +50,7 @@
                 role="button"
                 tabindex="0"
             >
-                <div class="icon {icon}"></div>
+                <div class="{icon}"></div>
                 <h3>{@html sanitizeHtml(heading)}</h3>
                 {#if link}
                     <div class="learn-more">
@@ -87,9 +87,20 @@
     }
 
     .main-icon {
-        width: 120px;
-        height: 120px;
+        width: 96px;
+        height: 96px;
         margin: 0 auto 1.5rem;
+        mask-size: cover;
+        mask-repeat: no-repeat;
+        background: var(--color-primary);
+    }
+
+    .main-icon.icon_lock {
+        mask-image: url('/icons/lock.svg');
+    }
+
+    .main-icon.icon_good {
+        mask-image: url('/icons/good.svg');
     }
 
     h2 {
@@ -159,18 +170,8 @@
         color: var(--text-color-secondary);
     }
 
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .subheadings-grid {
-            grid-template-columns: 1fr;
-        }
-
-        h2 {
-            font-size: 2rem;
-        }
-
-        .main-text {
-            font-size: 1rem;
-        }
+    .subheading-item div[class] {
+        width: 61px;
+        height: 61px;
     }
 </style>

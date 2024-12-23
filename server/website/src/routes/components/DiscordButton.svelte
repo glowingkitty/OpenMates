@@ -8,12 +8,12 @@
     rel="noopener noreferrer"
     class="discord-button"
 >
-    <span class="small-icon discord"></span>
+    <span class="small-icon icon_discord"></span>
     Join server
 </a>
 
 <style>
-    .small-icon.discord {
+    .small-icon.icon_discord {
         filter: brightness(0) invert(1);
     }
 </style>
