@@ -75,10 +75,6 @@
         ]
     ]
 
-    // Split icons into left and right sides (first 3 columns are left, last 3 are right)
-    const leftIcons = header_app_icons.slice(0, 3).flat();
-    const rightIcons = header_app_icons.slice(3).flat();
-
     // Add reactive variable for current app
     let currentApp = '';
 
