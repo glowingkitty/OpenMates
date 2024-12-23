@@ -69,8 +69,13 @@
         <div class="footer-header">
             <div class="header-content">
                 <div class="logo">
-                    <span class="logo-text">Open</span>
-                    <span class="logo-text highlight">Mates</span>
+                    <a 
+                        href={routes.home} 
+                        on:click={(e) => handleClick(e, routes.home)}
+                    >
+                        <span class="logo-text">Open</span>
+                        <span class="logo-text highlight">Mates</span>
+                    </a>
                 </div>
                 <div class="tagline">
                     <p>Our world needs change.</p>
@@ -229,5 +234,15 @@
 
     .invisible {
         visibility: hidden;
+    }
+
+    /* Add styles for the logo link */
+    .logo a {
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        font-size: inherit;
+        font-weight: inherit;
+        min-width: inherit;
     }
 </style> 

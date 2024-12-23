@@ -5,13 +5,14 @@
 
 <div class="community-section">
     <div class="content">
+        <h3>Community</h3>
         <!-- Community icon -->
-        <div class="icon-wrapper">
-            <Icon name="team" type="default" />
+        <div class="header">
+            <div class="main-icon icon_team"></div>
+            <h2><mark>Join</mark> the development</h2>
         </div>
 
         <!-- Community text -->
-        <h2>Community</h2>
         <p>
             OpenMates is a community effort. From software developers, to designers, 
             to users who are just excited about how AI can help them at work and in 
@@ -29,6 +30,23 @@
 </div>
 
 <style>
+    .header {
+        margin-bottom: 2rem;
+    }
+
+    .main-icon {
+        width: 96px;
+        height: 96px;
+        margin: 0 auto 1.5rem;
+        mask-size: cover;
+        mask-repeat: no-repeat;
+        background: var(--color-primary);
+    }
+
+    .main-icon.icon_team {
+        mask-image: url('/icons/team.svg');
+    }
+
     .community-section {
         display: flex;
         justify-content: center;
@@ -44,17 +62,6 @@
         flex-direction: column;
         align-items: center;
         gap: 1.5rem;
-    }
-
-    .icon-wrapper {
-        margin-bottom: 1rem;
-    }
-
-    h2 {
-        font-size: 2rem;
-        font-weight: 600;
-        margin: 0;
-        color: var(--color-text);
     }
 
     p {
@@ -73,22 +80,4 @@
         margin-top: 0.5rem;
     }
 
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .community-section {
-            padding: 3rem 1rem;
-        }
-
-        .content {
-            max-width: 90%;
-        }
-
-        h2 {
-            font-size: 1.75rem;
-        }
-
-        p {
-            font-size: 1rem;
-        }
-    }
 </style> 
