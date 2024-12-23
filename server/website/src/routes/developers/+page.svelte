@@ -108,16 +108,16 @@
     <div class="center-space">
         <div class="center-content">
             <h1 class="text-center">
+                <mark><br>The powerful</mark>
                 {#if currentApp}
                     <span class="app-title">
                         <span class="visually-hidden">{capitalize(currentApp)} </span>
                         <Icon name={currentApp} type="app" size="67.98px" />
-                        Team Mates
+                        API
                     </span>
                 {:else}
-                    Digital Team Mates
+                    Digital Team Mates API
                 {/if}
-                <mark><br>For all of us.</mark>
             </h1>
             <p class="text-center platform-text">
                 via

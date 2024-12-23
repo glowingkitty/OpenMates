@@ -7,6 +7,7 @@
     import Community from './components/Community.svelte';
     import MetaTags from './components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
+    import LargeSeparator from './components/LargeSeparator.svelte';
 
     const meta = getMetaTags('for_all_of_us');
 
@@ -154,21 +155,21 @@
     </div>
 </section>
 
-<div class="large-separator"></div>
+<LargeSeparator />
 
 <!-- Highlights -->
 <section>
     <Highlights target="for_all" />
 </section>
 
-<div class="large-separator" style="rotate: 180deg;"></div>
+<LargeSeparator reverse_direction={true} />
 
 <!-- Design Guidelines -->
 <section>
     <DesignGuidelines />
 </section>
 
-<div class="large-separator"></div>
+<LargeSeparator />
 
 <!-- Community -->
 <section>
@@ -303,8 +304,3 @@
         -ms-user-select: all;
     }
 </style>
-
-<!-- Add the landing-page class to the root element -->
-<div class="landing-page">
-    <!-- Existing content -->
-</div>
