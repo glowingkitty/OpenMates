@@ -31,8 +31,11 @@
             }
         ]}
         text="In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential."
-        subtext="Therefore, OpenMates is designed with a focus on privacy."
+        subtext="Therefore,<br>OpenMates is designed<br>with a focus on privacy."
     />
+
+    <!-- Separator line -->
+    <div class="separator"></div>
 
     <!-- Maximum Good Design Guideline -->
     <DesignGuideline
@@ -56,7 +59,7 @@
             }
         ]}
         text="Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that."
-        subtext="Therefore, OpenMates is designed with a focus on maximizing the positive impact of AI."
+        subtext="Therefore,<br>OpenMates is designed<br>with a focus on maximizing the positive impact of AI."
     />
 </section>
 
@@ -73,5 +76,11 @@
         margin: 0;
         font-size: 1.5rem;
         font-weight: 600;
+    }
+
+    .separator {
+        width: 80%;
+        border-top: 2px dotted #ccc;
+        margin: 1rem 0;
     }
 </style> 
