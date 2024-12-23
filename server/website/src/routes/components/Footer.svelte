@@ -112,7 +112,7 @@
         <!-- Made in EU Section -->
         <div class="footer-bottom">
             <p>Made in the EU</p>
-            <div class="flag eu"></div>
+            <div class="flag icon_eu"></div>
         </div>
     </div>
 </footer>
@@ -122,6 +122,7 @@
         background: var(--color-primary);
         color: white;
         padding: 4rem 2rem 2rem;
+        margin-top: 40px;
     }
 
     .footer-content {
