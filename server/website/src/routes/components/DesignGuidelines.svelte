@@ -9,7 +9,7 @@
 
 <LargeSeparator reverse_direction={true} />
 <section class="centered gradient-section">
-    <h3>{sectionTitle}</h3>
+    <h3 style="margin-top: 30px">{sectionTitle}</h3>
 
     <!-- Privacy Design Guideline -->
     <DesignGuideline
