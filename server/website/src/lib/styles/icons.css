@@ -150,6 +150,10 @@
   background-image: url('/icons/chat.svg');
 }
 
+.icon_open {
+  background-image: url('/icons/open.svg');
+}
+
 /* OpenMates Endpoint Icons */
 
 .icon.app {

@@ -57,7 +57,7 @@
                 {#if link}
                     <div class="learn-more">
                         Learn more
-                        <span class="arrow">→</span>
+                        <span class="small-icon icon_open"></span>
                     </div>
                 {/if}
             </a>
@@ -85,7 +85,7 @@
     }
 
     .header {
-        margin-bottom: 3rem;
+        margin-bottom: 2rem;
     }
 
     .main-icon {
@@ -114,10 +114,10 @@
 
     .subheadings-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 2rem;
         width: 100%;
-        margin-bottom: 3rem;
+        margin-bottom: 2rem;
     }
 
     .subheading-item {
@@ -142,11 +142,12 @@
     }
 
     .learn-more {
+        width: auto;
         color: var(--color-primary);
-        font-size: 0.9rem;
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        white-space: nowrap;
     }
 
     .arrow {
@@ -174,12 +175,18 @@
         color: var(--text-color-secondary);
     }
 
-    .subheading-item div[class] {
+    .subheading-item div[class*="icon_"] {
         width: 61px;
         height: 61px;
         background-size: 100%;
         background-repeat: no-repeat;
         background-position: center;
         filter: brightness(0) saturate(100%) invert(50%); /* Convert black to grey */
+    }
+
+    /* Separate styles for the small icon in "Learn more" section */
+    .small-icon[class*="icon_"] {
+        width: 15px;
+        height: 15px;
     }
 </style>
