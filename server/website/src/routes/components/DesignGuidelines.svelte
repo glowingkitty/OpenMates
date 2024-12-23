@@ -40,17 +40,17 @@
         headline="<mark>Maximum good,</mark><br>not maximum greed."
         subheadings={[
             {
-                icon: "open-source",
+                icon: "icon_open_source",
                 heading: "Open Source",
                 link: "/docs/design_guidelines#open-source"
             },
             {
-                icon: "provider-independence",
-                heading: "Provider independence",
+                icon: "icon_ai",
+                heading: "Provider independent",
                 link: "/docs/design_guidelines#provider-independence"
             },
             {
-                icon: "chat-anywhere",
+                icon: "icon_chat",
                 heading: "Chat anywhere",
                 link: "/docs/design_guidelines#chat-anywhere"
             }

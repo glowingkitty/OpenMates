@@ -138,6 +138,18 @@
   background-image: url('/icons/server.svg');
 }
 
+.icon_open_source {
+  background-image: url('/icons/opensource.svg');
+}
+
+.icon_ai {
+  background-image: url('/icons/ai.svg');
+}
+
+.icon_chat {
+  background-image: url('/icons/chat.svg');
+}
+
 /* OpenMates Endpoint Icons */
 
 .icon.app {
