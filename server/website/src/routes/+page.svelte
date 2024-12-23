@@ -158,14 +158,10 @@
     <Highlights target="for_all" />
 </section>
 
-<LargeSeparator reverse_direction={true} />
 
 <!-- Design Guidelines -->
-<section>
-    <DesignGuidelines />
-</section>
+<DesignGuidelines />
 
-<LargeSeparator />
 
 <!-- Community -->
 <section>
@@ -174,7 +170,7 @@
 
 <style>
     .hero-header {
-        background-color: #f3f3f3;
+        background-color: --color-background-grey;
         width: 100%;
         padding: 2rem 0;
         display: flex;

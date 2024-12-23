@@ -1,12 +1,14 @@
 <script lang="ts">
     // Import the individual DesignGuideline component
     import DesignGuideline from './DesignGuideline.svelte';
+    import LargeSeparator from '../components/LargeSeparator.svelte';
 
     // Export a prop to allow customizing the section title
     export let sectionTitle = "Design Guidelines";
 </script>
 
-<section class="centered">
+<LargeSeparator reverse_direction={true} />
+<section class="centered gradient-section">
     <h3>{sectionTitle}</h3>
 
     <!-- Privacy Design Guideline -->
@@ -62,6 +64,7 @@
         subtext="Therefore,<br>OpenMates is designed<br>with a focus on maximizing the positive impact of AI."
     />
 </section>
+<LargeSeparator />
 
 <style>
     .centered {
@@ -72,15 +75,58 @@
         padding: 2rem;
     }
 
+    /* Modified section styling with gradient background */
+    .gradient-section {
+        position: relative;
+        margin-top: -60px;
+        margin-bottom: -60px;
+        padding-top: 60px;
+        padding-bottom: 60px;
+        background: var(--color-background-grey);
+    }
+
+    .gradient-section::before,
+    .gradient-section::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 60px;
+        pointer-events: none;
+        width: 100%;
+    }
+
+    .gradient-section::before {
+        top: 0;
+        background: linear-gradient(
+            to bottom,
+            var(--color-background) 0%,
+            var(--color-background-grey) 100%
+        );
+    }
+
+    .gradient-section::after {
+        bottom: 0;
+        background: linear-gradient(
+            to top,
+            var(--color-background) 0%,
+            var(--color-background-grey) 100%
+        );
+    }
+
     h3 {
         margin: 0;
         font-size: 1.5rem;
         font-weight: 600;
+        position: relative; /* Ensure text stays above gradients */
+        z-index: 1;
     }
 
     .separator {
         width: 80%;
         border-top: 2px dotted #ccc;
         margin: 1rem 0;
+        position: relative; /* Ensure separator stays above gradients */
+        z-index: 1;
     }
 </style> 
