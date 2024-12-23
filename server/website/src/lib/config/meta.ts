@@ -23,13 +23,13 @@ interface PageMetaTags {
 // Default meta values
 export const defaultMeta: MetaTagConfig = {
     title: "OpenMates",
-    description: "Your personalized AI team mates can answer your questions, fulfil your tasks and use apps that can transform your personal life & work. Build with a focus on privacy and safety.",
+    description: "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
     image: "/images/og-image.png", // TODO
     imageWidth: 1200,
     imageHeight: 630,
     url: "https://openmates.org",
     type: "website",
-    keywords: ["AI", "artificial intelligence", "team mates", "automation", "productivity", "privacy", "safety"],
+    keywords: ["AI", "artificial intelligence", "team mates", "digital", "virtual assistant", "automation", "productivity", "privacy", "safety"],
     author: "OpenMates Team",
     locale: "en_US",
     siteName: "OpenMates",
@@ -40,7 +40,6 @@ export const defaultMeta: MetaTagConfig = {
 
 // Page-specific meta tags
 
-// TODO change descriptions
 export const pageMeta: PageMetaTags = {
     home: {
         ...defaultMeta,
@@ -49,48 +48,48 @@ export const pageMeta: PageMetaTags = {
     developers: {
         ...defaultMeta,
         title: "For developers | OpenMates",
-        description: "Technical documentation and API references for integrating AI Team Mates into your applications.",
+        description: "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project.",
     },
     docs: {
         ...defaultMeta,
         title: "Docs | OpenMates",
-        description: "Comprehensive guides and documentation for using AI Team Mates effectively.",
+        description: "Comprehensive documentation for OpenMates - from API documentation, to the Design Guidelines, Roadmap and more.",
         type: "article"
     },
     docsApi: {
         ...defaultMeta,
         title: "API docs | OpenMates",
-        description: "API documentation for integrating AI Team Mates into your applications.",
+        description: "API documentation for integrating OpenMates into your applications. Fronm building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project.",
     },
     docsDesignGuidelines: {
         ...defaultMeta,
         title: "Design guidelines | OpenMates",
-        description: "Design guidelines for using AI Team Mates effectively.",
+        description: "The Design Guidelines that define how OpenMates is designed and built.",
     },
     docsDesignSystem: {
         ...defaultMeta,
         title: "Design system | OpenMates",
-        description: "Design system for using AI Team Mates effectively.",
+        description: "The Design System that shows all the components that are used in OpenMates.",
     },
     docsRoadmap: {
         ...defaultMeta,
         title: "Roadmap | OpenMates",
-        description: "Roadmap for using AI Team Mates effectively.",
+        description: "Learn what is coming next for OpenMates. What the current state of the development is, and what the next milestones are.",
     },
     docsUserGuide: {
         ...defaultMeta,
         title: "User guide | OpenMates",
-        description: "User guide for using AI Team Mates effectively.",
+        description: "Learn how to use OpenMates.",
     },
     legalImprint: {
         ...defaultMeta,
         title: "Imprint | OpenMates",
-        description: "Imprint for OpenMates.",
+        description: "Learn who is behind OpenMates.",
     },
     legalPrivacy: {
         ...defaultMeta,
         title: "Privacy | OpenMates",
-        description: "Privacy policy for OpenMates.",
+        description: "Learn how OpenMates handles your personal data.",
     },
     legalTerms: {
         ...defaultMeta,
@@ -120,4 +119,4 @@ export function generateMetaTags(
         type,
         keywords: keywords || defaultMeta.keywords
     };
-} 
+}

@@ -116,7 +116,7 @@
                         Team Mates
                     </span>
                 {:else}
-                    AI Team Mates
+                    Digital Team Mates
                 {/if}
                 <mark><br>For all of us.</mark>
             </h1>
