@@ -170,7 +170,7 @@
 
 <style>
     .hero-header {
-        background-color: --color-background-grey;
+        background-color: var(--color-background-grey);
         width: 100%;
         padding: 2rem 0;
         display: flex;
