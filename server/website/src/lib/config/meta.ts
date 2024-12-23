@@ -24,7 +24,7 @@ interface PageMetaTags {
 export const defaultMeta: MetaTagConfig = {
     title: "OpenMates",
     description: "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
-    image: "/images/og-image.png", // TODO
+    image: "/images/og-image.png",
     imageWidth: 1200,
     imageHeight: 630,
     url: "https://openmates.org",
@@ -33,9 +33,9 @@ export const defaultMeta: MetaTagConfig = {
     author: "OpenMates Team",
     locale: "en_US",
     siteName: "OpenMates",
-    logo: "/images/logo.jpg", // TODO
-    logoWidth: 500,
-    logoHeight: 500,
+    logo: "/images/logo.png",
+    logoWidth: 436,
+    logoHeight: 92,
 };
 
 // Page-specific meta tags
