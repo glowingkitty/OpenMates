@@ -208,7 +208,7 @@
         background-color: #F0F0F0;
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        padding: 20px;
+        padding: 20px 40px 0 40px;
         overflow: hidden;
     }
 
@@ -253,6 +253,11 @@
         flex: 1;
         min-height: 0;
         overflow: hidden;
+        padding: 20px 20px 0 20px;
+        margin-bottom: -20px;
+        max-width: calc(100% - 40px);
+        margin-left: auto;
+        margin-right: auto;
     }
 
     /* Provider icons styles */
