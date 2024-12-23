@@ -53,7 +53,7 @@
                 tabindex="0"
             >
                 <div class="{icon}"></div>
-                <h3>{@html sanitizeHtml(heading)}</h3>
+                <h4>{@html sanitizeHtml(heading)}</h4>
                 {#if link}
                     <div class="learn-more">
                         Learn more
@@ -105,12 +105,6 @@
         mask-image: url('/icons/good.svg');
     }
 
-    h2 {
-        font-size: 2.5rem;
-        font-weight: 600;
-        color: var(--text-color);
-        margin-bottom: 2rem;
-    }
 
     .subheadings-grid {
         display: grid;
@@ -135,10 +129,8 @@
         transform: translateY(-5px);
     }
 
-    .subheading-item h3 {
-        font-size: 1.2rem;
+    .subheading-item h4 {
         margin: 1rem 0 0.5rem;
-        color: var(--text-color);
     }
 
     .learn-more {
@@ -148,6 +140,7 @@
         align-items: center;
         gap: 0.5rem;
         white-space: nowrap;
+        color: #A9A9A9;
     }
 
     .arrow {
@@ -164,14 +157,12 @@
     }
 
     .main-text {
-        font-size: 1.1rem;
         line-height: 1.6;
         margin-bottom: 2rem;
         color: var(--text-color);
     }
 
     .sub-text {
-        font-size: 1rem;
         color: var(--text-color-secondary);
     }
 
@@ -188,5 +179,6 @@
     .small-icon[class*="icon_"] {
         width: 15px;
         height: 15px;
+        filter: opacity(50%);
     }
 </style>
