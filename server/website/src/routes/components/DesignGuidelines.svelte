@@ -67,6 +67,10 @@
 <LargeSeparator />
 
 <style>
+    :root {
+        --gradient-height: 100px;
+    }
+
     .centered {
         display: flex;
         flex-direction: column;
@@ -78,39 +82,24 @@
     /* Modified section styling with gradient background */
     .gradient-section {
         position: relative;
-        margin-top: -60px;
-        margin-bottom: -60px;
-        padding-top: 60px;
-        padding-bottom: 60px;
+        margin-top: calc(-1*var(--gradient-height));
+        margin-bottom: calc(-1*var(--gradient-height));
+        padding-top: var(--gradient-height);
+        padding-bottom: var(--gradient-height);
         background: var(--color-background-grey);
-    }
-
-    .gradient-section::before,
-    .gradient-section::after {
-        content: '';
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 60px;
-        pointer-events: none;
-        width: 100%;
-    }
-
-    .gradient-section::before {
-        top: 0;
-        background: linear-gradient(
+        -webkit-mask-image: linear-gradient(
             to bottom,
-            var(--color-background) 0%,
-            var(--color-background-grey) 100%
+            transparent,
+            black var(--gradient-height),
+            black calc(100% - var(--gradient-height)),
+            transparent
         );
-    }
-
-    .gradient-section::after {
-        bottom: 0;
-        background: linear-gradient(
-            to top,
-            var(--color-background) 0%,
-            var(--color-background-grey) 100%
+        mask-image: linear-gradient(
+            to bottom,
+            transparent,
+            black var(--gradient-height),
+            black calc(100% - var(--gradient-height)),
+            transparent
         );
     }
 

@@ -13,6 +13,8 @@
     --color-primary-end: #5A85EB;
     --color-primary: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
 
+    --color-background-grey: #f3f3f3;
+
     /* Font Colors */
     --color-font-primary: #000;
     --color-font-secondary: #A9A9A9;
