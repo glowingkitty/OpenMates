@@ -34,6 +34,10 @@
 </script>
 
 <div class="design-guideline">
+    <!-- Add background icons -->
+    <div class="background-icon background-icon-left {main_icon}"></div>
+    <div class="background-icon background-icon-right {main_icon}"></div>
+    
     <!-- Main icon and headline section -->
     <div class="header">
         <div class="main-icon {main_icon}"></div>
@@ -75,6 +79,7 @@
 
 <style>
     .design-guideline {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -179,5 +184,37 @@
         width: 15px;
         height: 15px;
         filter: opacity(50%);
+    }
+
+    /* Add new styles for background icons */
+    .background-icon {
+        position: absolute;
+        width: 50vh;
+        height: 50vh;
+        mask-size: cover;
+        mask-repeat: no-repeat;
+        background: var(--color-primary);
+        opacity: 0.05;
+        z-index: -1;
+    }
+
+    .background-icon.icon_lock {
+        mask-image: url('/icons/lock.svg');
+    }
+
+    .background-icon.icon_good {
+        mask-image: url('/icons/good.svg');
+    }
+
+    .background-icon-left {
+        left: -30vw;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .background-icon-right {
+        right: -30vw;
+        top: 50%;
+        transform: translateY(-50%);
     }
 </style>
