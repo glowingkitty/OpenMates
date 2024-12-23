@@ -155,7 +155,7 @@
     </div>
 </section>
 
-<LargeSeparator />
+<LargeSeparator after_header={true} />
 
 <!-- Highlights -->
 <section>
