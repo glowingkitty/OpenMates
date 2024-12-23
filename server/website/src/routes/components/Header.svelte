@@ -152,7 +152,6 @@
     .icon-link {
         opacity: 0.5;
         transition: opacity 0.2s ease;
-        line-height: 0;
     }
 
     .icon-link:hover {

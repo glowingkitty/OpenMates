@@ -296,13 +296,10 @@
 
     /* Typography */
     .title {
-        font-size: 2rem;
         margin-bottom: 1rem;
     }
 
     .description {
-        font-size: 1.1rem;
-        line-height: 1.6;
         color: #6B6B6B;
     }
 

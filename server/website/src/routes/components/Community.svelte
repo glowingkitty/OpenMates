@@ -7,7 +7,7 @@
     <div class="content">
         <h3>Community</h3>
         <!-- Community icon -->
-        <div class="header">
+        <div>
             <div class="main-icon icon_team"></div>
             <h2><mark>Join</mark> the development</h2>
         </div>
@@ -30,9 +30,6 @@
 </div>
 
 <style>
-    .header {
-        margin-bottom: 2rem;
-    }
 
     .main-icon {
         width: 96px;
@@ -65,14 +62,11 @@
     }
 
     p {
-        font-size: 1.1rem;
-        line-height: 1.6;
         color: var(--color-text-secondary);
         margin: 0;
     }
 
     .join-text {
-        font-size: 1rem;
         margin-top: -0.5rem;
     }
 

@@ -163,8 +163,6 @@
     }
 
     .tagline {
-        font-size: 1.2rem;
-        line-height: 1.5;
         text-align: center;
         flex: 1;
     }

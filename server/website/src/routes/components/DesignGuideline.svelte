@@ -157,7 +157,6 @@
     }
 
     .main-text {
-        line-height: 1.6;
         margin-bottom: 2rem;
         color: var(--text-color);
     }

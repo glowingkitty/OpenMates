@@ -243,7 +243,6 @@
         gap: 0.5rem;
         user-select: all;
         position: relative;
-        line-height: 1;
         vertical-align: middle;
         margin: 0;
         padding: 0;
@@ -255,7 +254,6 @@
         align-items: center;
         margin: 0;
         padding: 0;
-        line-height: 0;
         vertical-align: middle;
     }
 
