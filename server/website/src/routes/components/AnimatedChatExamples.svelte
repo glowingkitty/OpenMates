@@ -202,6 +202,30 @@
     // Add a new variable to track completion
     let isCompleted = false;
 
+    let messageHeights: number[] = [];
+    let containerMarginTop = 0;
+
+    // Add constant for message spacing
+    const MESSAGE_SPACING = 20; // Standard spacing between messages
+
+    // Modify the updateMargins function to account for spacing
+    function updateMargins() {
+        // Calculate total height including spacing between messages
+        const totalHeight = messageHeights.reduce((sum, height, index) => {
+            // Add message height
+            let heightWithSpacing = height;
+            // Add spacing after each message except the last one
+            if (index < messageHeights.length - 1) {
+                heightWithSpacing += MESSAGE_SPACING;
+            }
+            return sum + heightWithSpacing;
+        }, 0);
+
+        // Calculate the distance to move up (negative moves up)
+        // We want to keep the last message at the bottom, so we subtract the first message height
+        containerMarginTop = messageHeights.length > 1 ? totalHeight - messageHeights[messageHeights.length - 1] : 0;
+    }
+
     // Add helper function to check for duplicates
     function isDuplicateMessage(message: MessageSequence, messages: Array<MessageSequence & {animated?: boolean}>): boolean {
         return messages.some(existing => 
@@ -211,6 +235,31 @@
         );
     }
 
+    // Modify the addMessageWithAnimation function to handle heights more accurately
+    async function addMessageWithAnimation(message: MessageSequence) {
+        if (!isDuplicateMessage(message, visibleMessages)) {
+            const messageWithAnimation = { ...message, animated: false };
+            visibleMessages = [...visibleMessages, messageWithAnimation];
+
+            // Wait for DOM update
+            await waitForNextFrame();
+
+            // Get height of the newly added message
+            const messageElements = document.querySelectorAll('.animated-chat-container > div');
+            const newMessageElement = messageElements[messageElements.length - 1];
+            if (newMessageElement) {
+                const height = (newMessageElement as HTMLElement).offsetHeight;
+                messageHeights = [...messageHeights, height];
+                updateMargins();
+            }
+
+            // Set animated flag
+            messageWithAnimation.animated = true;
+            visibleMessages = [...visibleMessages];
+        }
+    }
+
+    // Modify the animateMessages function to use addMessageWithAnimation
     async function animateMessages() {
         const thisAnimationId = ++currentAnimationId;
         if (animationInProgress) {
@@ -219,6 +268,10 @@
 
         try {
             animationInProgress = true;
+
+            // Reset heights and margin when starting new example
+            messageHeights = [];
+            containerMarginTop = 0;
 
             let example = singleExample ?
                 chatExamples.find(ex => ex.app === currentApp) :
@@ -243,55 +296,22 @@
                 if (thisAnimationId !== currentAnimationId) return;
 
                 if (message.type === 'using_apps') {
-                    // Update or create processing message
                     if (!currentProcessingMessage) {
                         currentProcessingMessage = { ...message, animated: true };
-                        if (!isDuplicateMessage(currentProcessingMessage, visibleMessages)) {
-                            visibleMessages = [...visibleMessages, currentProcessingMessage];
-                        }
+                        await addMessageWithAnimation(currentProcessingMessage);
                     } else {
-                        // Update existing processing message
                         Object.assign(currentProcessingMessage, {
                             in_progress: message.in_progress,
                             appNames: message.appNames
                         });
                         visibleMessages = [...visibleMessages];
                     }
-                } else if (message.type === 'started_focus' || message.type === 'loaded_preferences') {
-                    // Add new processing details for other types
-                    if (!isDuplicateMessage(message, visibleMessages)) {
-                        const messageWithAnimation = { ...message, animated: false };
-                        visibleMessages = [...visibleMessages, messageWithAnimation];
-
-                        await new Promise(resolve => requestAnimationFrame(resolve));
-                        await new Promise(resolve => requestAnimationFrame(resolve));
-
-                        if (thisAnimationId !== currentAnimationId) return;
-
-                        messageWithAnimation.animated = true;
-                        visibleMessages = [...visibleMessages];
-                    }
                 } else {
-                    // Handle regular messages (user/mate)
-                    if (!isDuplicateMessage(message, visibleMessages)) {
-                        const messageWithAnimation = { ...message, animated: false };
-                        visibleMessages = [...visibleMessages, messageWithAnimation];
-
-                        await new Promise(resolve => requestAnimationFrame(resolve));
-                        await new Promise(resolve => requestAnimationFrame(resolve));
-
-                        if (thisAnimationId !== currentAnimationId) return;
-
-                        messageWithAnimation.animated = true;
-                        visibleMessages = [...visibleMessages];
-                    }
+                    await addMessageWithAnimation(message);
                 }
 
                 // Use waitTime from sequence or calculate default
-                const delay = message.waitTime ?? (message.text ?
-                    Math.min(2000 + (message.text.length * 20), 4000) :
-                    (message.type === 'using_apps' ? (message.in_progress ? 1000 : 500) : 2000)
-                );
+                const delay = 10000; // Fixed 10 second delay for debugging
 
                 await new Promise(resolve => setTimeout(resolve, delay));
 
@@ -305,7 +325,7 @@
             await new Promise(resolve => setTimeout(resolve, 5000));
 
             resetAppIcon(example.app);
-            
+
             // Only clear currentApp if we're cycling through examples
             if (!singleExample) {
                 currentApp = '';
@@ -360,21 +380,6 @@
     function waitForNextFrame() {
         // This utility function centralizes our requestAnimationFrame usage
         return new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    }
-
-    // Example of a helper to add new messages with animation flags
-    function addMessageWithAnimation(message: MessageSequence) {
-        // Check for duplicates before adding
-        if (!isDuplicateMessage(message, visibleMessages)) {
-            // Spread to avoid mutating the original message object
-            const messageWithAnimation = { ...message, animated: false };
-            visibleMessages = [...visibleMessages, messageWithAnimation];
-            // Next set of frames will set the 'animated' to true, triggering CSS transitions if any
-            waitForNextFrame().then(() => {
-                messageWithAnimation.animated = true;
-                visibleMessages = [...visibleMessages];
-            });
-        }
     }
 
     onMount(() => {
@@ -471,7 +476,10 @@
 >
     <div class="chat-content" class:in-highlight={inHighlight}>
         <div class="gradient-overlay top"></div>
-        <div class="animated-chat-container">
+        <div 
+            class="animated-chat-container"
+            style="transform: translateY(-{containerMarginTop}px); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);"
+        >
             {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
                 <div>
                     {#if message.type === 'using_apps' || message.type === 'started_focus' || message.type === 'loaded_preferences'}
@@ -542,6 +550,10 @@
         user-select: none;
         padding-top: 15px;
         padding-bottom: 15px;
+        will-change: transform;
+        display: flex;
+        flex-direction: column;
+        gap: 20px; /* Add consistent gap between messages */
     }
 
     :global(.app-title svg) {
