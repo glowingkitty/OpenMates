@@ -235,11 +235,14 @@
         );
     }
 
-    // Modify the addMessageWithAnimation function to handle heights more accurately
+    // Modify the addMessageWithAnimation function to prevent resetting transform
     async function addMessageWithAnimation(message: MessageSequence) {
         if (!isDuplicateMessage(message, visibleMessages)) {
             const messageWithAnimation = { ...message, animated: false };
-            visibleMessages = [...visibleMessages, messageWithAnimation];
+            
+            // Create new array without mutating state directly
+            const newVisibleMessages = [...visibleMessages, messageWithAnimation];
+            visibleMessages = newVisibleMessages;
 
             // Wait for DOM update
             await waitForNextFrame();
@@ -253,13 +256,13 @@
                 updateMargins();
             }
 
-            // Set animated flag
+            // Set animated flag without resetting the transform
             messageWithAnimation.animated = true;
-            visibleMessages = [...visibleMessages];
+            visibleMessages = [...newVisibleMessages];
         }
     }
 
-    // Modify the animateMessages function to use addMessageWithAnimation
+    // Modify the animateMessages function to properly handle message clearing
     async function animateMessages() {
         const thisAnimationId = ++currentAnimationId;
         if (animationInProgress) {
@@ -310,9 +313,8 @@
                     await addMessageWithAnimation(message);
                 }
 
-                // Use waitTime from sequence or calculate default
-                const delay = 10000; // Fixed 10 second delay for debugging
-
+                // Use message-specific wait time instead of fixed delay
+                const delay = message.waitTime || 2000; // Default to 2 seconds if no waitTime specified
                 await new Promise(resolve => setTimeout(resolve, delay));
 
                 // Update sequence index after each message
@@ -334,10 +336,12 @@
             if (inHighlight) {
                 isCompleted = true;  // Mark as completed for highlights
             } else if (!singleExample) {
-                // Continue to next example for header animations
+                // When clearing messages between examples, also reset heights and margins
                 currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
                 currentSequenceIndex = 0;
-                visibleMessages = [];  // Clear messages between examples
+                visibleMessages = [];
+                messageHeights = [];  // Reset heights
+                containerMarginTop = 0;  // Reset margin
                 isPaused = false;
                 if (isVisible) {
                     requestAnimationFrame(() => animateMessages());
@@ -478,7 +482,7 @@
         <div class="gradient-overlay top"></div>
         <div 
             class="animated-chat-container"
-            style="transform: translateY(-{containerMarginTop}px); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);"
+            style="--container-margin-top: {containerMarginTop}px;"
         >
             {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
                 <div>
@@ -553,7 +557,9 @@
         will-change: transform;
         display: flex;
         flex-direction: column;
-        gap: 20px; /* Add consistent gap between messages */
+        gap: 20px;
+        transform: translateY(calc(-1 * var(--container-margin-top)));
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     :global(.app-title svg) {
