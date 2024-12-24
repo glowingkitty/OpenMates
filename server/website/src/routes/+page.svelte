@@ -132,7 +132,9 @@
                 </span>
                 & more
             </p>
-            <AnimatedChatExamples bind:currentApp={currentApp} />
+            <div class="chat-container">
+                <AnimatedChatExamples bind:currentApp={currentApp} />
+            </div>
             <WaitingList/>
         </div>
     </div>
@@ -222,6 +224,9 @@
         flex-direction: column;
         align-items: center;
         gap: 0.75rem;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
     }
 
     .center-content h1,
@@ -294,5 +299,14 @@
         -webkit-user-select: all;
         -moz-user-select: all;
         -ms-user-select: all;
+    }
+
+    .chat-container {
+        position: relative;
+        height: 400px;
+        width: 100%;
+        max-width: 800px;
+        overflow: hidden;
+        margin: 20px 0;
     }
 </style>
