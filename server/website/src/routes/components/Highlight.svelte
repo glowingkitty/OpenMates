@@ -210,6 +210,9 @@
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         padding: 20px 40px 0 40px;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .highlight-container.left .highlight-visual {
@@ -251,6 +254,7 @@
     /* Allow container 2 to take remaining space */
     .highlight-content-container-2 {
         flex: 1;
+        position: relative;
         min-height: 0;
         overflow: hidden;
         padding: 20px 20px 0 20px;
