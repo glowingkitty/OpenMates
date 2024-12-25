@@ -587,11 +587,6 @@
         );
     }
 
-    /* Remove the gradient overlays since we're using masks */
-    .gradient-overlay {
-        display: none;
-    }
-
     .animated-chat-container {
         width: 100%;
         margin: 0 auto;
@@ -605,11 +600,6 @@
         gap: 20px;
         transform: translateY(calc(-1 * var(--container-margin-top)));
         transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* Add a class for when we're resetting */
-    .animated-chat-container.resetting {
-        transition: none;
     }
 
     :global(.app-title svg) {
