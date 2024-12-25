@@ -128,24 +128,58 @@
                     text: "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
                     waitTime: 3000,
                     appCards: [
-                        {
-                            component: HealthAppCard,
-                            props: {
-                                size: 'large',
-                                date: 'Wed, Dec 12',
-                                start: '9:00',
-                                end: '10:00',
-                                doctorName: 'Dr. Van Hausen',
-                                specialty: 'Cardiologist',
-                                rating: 4.2,
-                                ratingCount: 85,
-                                showCalendar: true,
-                                existingAppointments: [
-                                    {start: '13:00', end: '15:00'}
-                                ]
+                            {
+                                component: HealthAppCard,
+                                props: {
+                                    size: 'large',
+                                    date: 'Wed, Dec 12',
+                                    start: '9:00',
+                                    end: '10:00',
+                                    doctorName: 'Dr. Van Hausen',
+                                    specialty: 'Cardiologist',
+                                    rating: 4.2,
+                                    ratingCount: 85,
+                                    showCalendar: true,
+                                    existingAppointments: [
+                                        {start: '13:00', end: '15:00'}
+                                    ]
+                                }
+                            },
+                            {
+                                component: HealthAppCard,
+                                props: {
+                                    size: 'large',
+                                    date: 'Thu, Dec 13',
+                                    start: '11:30',
+                                    end: '12:30',
+                                    doctorName: 'Dr. Williams',
+                                    specialty: 'Cardiologist',
+                                    rating: 4.8,
+                                    ratingCount: 124,
+                                    showCalendar: true,
+                                    existingAppointments: [
+                                        {start: '14:00', end: '16:00'}
+                                    ]
+                                }
+                            },
+                            {
+                                component: HealthAppCard,
+                                props: {
+                                    size: 'large',
+                                    date: 'Fri, Dec 14',
+                                    start: '15:00',
+                                    end: '16:00',
+                                    doctorName: 'Dr. Chen',
+                                    specialty: 'Cardiologist',
+                                    rating: 4.6,
+                                    ratingCount: 93,
+                                    showCalendar: true,
+                                    existingAppointments: [
+                                        {start: '10:00', end: '12:00'}
+                                    ]
+                                }
                             }
-                        }
-                    ]
+                        ]
                 }
             ]
         }

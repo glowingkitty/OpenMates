@@ -43,7 +43,7 @@
 
 .app-card-header {
     position: absolute;
-    bottom: 54px;
+    bottom: 43px;
     left: var(--card-padding);
     right: var(--card-padding);
 }

@@ -132,7 +132,7 @@
                 </span>
                 & more
             </p>
-            <div class="chat-container">
+            <div class="chat-container header">
                 <AnimatedChatExamples bind:currentApp={currentApp} />
             </div>
             <WaitingList/>
@@ -308,5 +308,9 @@
         max-width: 800px;
         overflow: hidden;
         margin: 20px 0;
+    }
+
+    .chat-container.header {
+        height: 280px;
     }
 </style>
