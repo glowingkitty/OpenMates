@@ -24,7 +24,15 @@ const config = {
 			$lib: 'src/lib'
 		},
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/openmates' : ''
+			base: ''
+		},
+		prerender: {
+			handleHttpError: ({ path, referrer, message }) => {
+				if (message.includes('404')) {
+					return;
+				}
+				throw new Error(message);
+			}
 		}
 	}
 };
