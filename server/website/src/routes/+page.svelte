@@ -182,6 +182,8 @@
         position: relative;
         -webkit-mask-image: linear-gradient(to bottom, black, black 85%, transparent);
         mask-image: linear-gradient(to bottom, black, black 85%, transparent);
+        height: 90vh;
+        min-height: 845px;
     }
 
     .icon-grid {
@@ -312,5 +314,8 @@
 
     .chat-container.header {
         height: 280px;
+        /* Add mask/gradient for bottom fade effect */
+        -webkit-mask-image: linear-gradient(to bottom, black, black calc(100% - 40px), transparent);
+        mask-image: linear-gradient(to bottom, black, black calc(100% - 40px), transparent);
     }
 </style>
