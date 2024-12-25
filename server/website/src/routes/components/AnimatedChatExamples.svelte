@@ -21,19 +21,19 @@
                 {
                     type: 'user',
                     text: 'I am unhappy in my current job. Any ideas in what direction I could go instead?',
-                    waitTime: 2000
+                    waitTime: 2500
                 },
                 {
                     type: 'started_focus',
                     appNames: ['Jobs'],
                     focusName: 'Career insights',
                     focusIcon: 'insights',
-                    waitTime: 500
+                    waitTime: 1500
                 },
                 {
                     type: 'loaded_preferences',
                     appNames: ['Jobs'],
-                    waitTime: 500
+                    waitTime: 1500
                 },
                 {
                     type: 'mate',
@@ -50,13 +50,13 @@
                 {
                     type: 'user',
                     text: 'What events are happening the coming days?',
-                    waitTime: 2000
+                    waitTime: 2500
                 },
                 {
                     type: "using_apps",
                     appNames: ["events"],
                     in_progress: false,
-                    waitTime: 500
+                    waitTime: 1500
                 },
                 {
                     type: 'mate',
@@ -114,13 +114,13 @@
                     type: 'mate',
                     mateName: 'Melvin',
                     text: 'Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.',
-                    waitTime: 1500
+                    waitTime: 2500
                 },
                 {
                     type: "using_apps",
                     appNames: ["calendar", "health"],
                     in_progress: false,
-                    waitTime: 500
+                    waitTime: 2500
                 },
                 {
                     type: 'mate',
