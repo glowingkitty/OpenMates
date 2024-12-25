@@ -483,7 +483,6 @@
     bind:this={containerElement}
 >
     <div class="chat-content" class:in-highlight={inHighlight}>
-        <div class="gradient-overlay top"></div>
         <div 
             class="animated-chat-container"
             style="--container-margin-top: {containerMarginTop}px;"
@@ -515,7 +514,6 @@
                 </div>
             {/each}
         </div>
-        <div class="gradient-overlay bottom"></div>
     </div>
 </div>
 
@@ -538,16 +536,24 @@
         position: relative;
         height: 100%;
         overflow: hidden;
-        -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
-        mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+        /* Replace the old gradient mask with a more pronounced one */
+        -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            black 10%,
+            black 90%,
+            transparent 100%
+        );
+        mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            black 10%,
+            black 90%,
+            transparent 100%
+        );
     }
 
-    /* Remove gradient mask when in highlight */
-    .chat-content.in-highlight {
-        -webkit-mask-image: none;
-        mask-image: none;
-    }
-
+    /* Remove the gradient overlays since we're using masks */
     .gradient-overlay {
         display: none;
     }

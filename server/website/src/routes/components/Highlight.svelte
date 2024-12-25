@@ -248,7 +248,6 @@
     .highlight-content-container-1 {
         flex: 0 0 auto;
         height: auto;
-        margin-bottom: 20px;
     }
 
     /* Allow container 2 to take remaining space */
