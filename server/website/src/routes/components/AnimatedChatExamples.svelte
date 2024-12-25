@@ -202,19 +202,18 @@
     // Add a new variable to track completion
     let isCompleted = false;
 
-    let messageHeights: number[] = [];
-    let containerMarginTop = 0;
-
     // Add constant for message spacing
     const MESSAGE_SPACING = 20; // Standard spacing between messages
 
-    // Modify the updateMargins function to account for spacing
-    function updateMargins() {
+    // Add at the top of the script section
+    let instanceId = crypto.randomUUID();
+    let messageHeights: number[] = [];
+
+    // Calculate containerMarginTop reactively
+    $: containerMarginTop = (() => {
         // Calculate total height including spacing between messages
         const totalHeight = messageHeights.reduce((sum, height, index) => {
-            // Add message height
             let heightWithSpacing = height;
-            // Add spacing after each message except the last one
             if (index < messageHeights.length - 1) {
                 heightWithSpacing += MESSAGE_SPACING;
             }
@@ -222,9 +221,14 @@
         }, 0);
 
         // Calculate the distance to move up (negative moves up)
-        // We want to keep the last message at the bottom, so we subtract the first message height
-        containerMarginTop = messageHeights.length > 1 ? totalHeight - messageHeights[messageHeights.length - 1] : 0;
-    }
+        // We want to keep the last message at the bottom
+        return messageHeights.length > 1 ? totalHeight - messageHeights[messageHeights.length - 1] : 0;
+    })();
+
+    // Clean up instance data on component destroy
+    onDestroy(() => {
+        messageHeights = [];
+    });
 
     // Add helper function to check for duplicates
     function isDuplicateMessage(message: MessageSequence, messages: Array<MessageSequence & {animated?: boolean}>): boolean {
@@ -248,12 +252,11 @@
             await waitForNextFrame();
 
             // Get height of the newly added message
-            const messageElements = document.querySelectorAll('.animated-chat-container > div');
+            const messageElements = document.querySelectorAll(`.animated-chat-container[data-instance="${instanceId}"] > div`);
             const newMessageElement = messageElements[messageElements.length - 1];
             if (newMessageElement) {
                 const height = (newMessageElement as HTMLElement).offsetHeight;
                 messageHeights = [...messageHeights, height];
-                updateMargins();
             }
 
             // Set animated flag without resetting the transform
@@ -262,7 +265,7 @@
         }
     }
 
-    // Modify the animateMessages function to properly handle message clearing
+    // Modify the animateMessages function to prevent resetting transform
     async function animateMessages() {
         const thisAnimationId = ++currentAnimationId;
         if (animationInProgress) {
@@ -272,9 +275,11 @@
         try {
             animationInProgress = true;
 
-            // Reset heights and margin when starting new example
-            messageHeights = [];
-            containerMarginTop = 0;
+            // Only reset messages when starting new example and not in single example mode
+            if (!singleExample && currentSequenceIndex === 0) {
+                visibleMessages = [];
+                messageHeights = [];  // Reset heights only when resetting messages
+            }
 
             let example = singleExample ?
                 chatExamples.find(ex => ex.app === currentApp) :
@@ -336,12 +341,11 @@
             if (inHighlight) {
                 isCompleted = true;  // Mark as completed for highlights
             } else if (!singleExample) {
-                // When clearing messages between examples, also reset heights and margins
+                // When cycling to next example, only reset sequence index and messages
+                // but maintain the transform
                 currentExampleIndex = (currentExampleIndex + 1) % chatExamples.length;
                 currentSequenceIndex = 0;
                 visibleMessages = [];
-                messageHeights = [];  // Reset heights
-                containerMarginTop = 0;  // Reset margin
                 isPaused = false;
                 if (isVisible) {
                     requestAnimationFrame(() => animateMessages());
@@ -483,6 +487,7 @@
         <div 
             class="animated-chat-container"
             style="--container-margin-top: {containerMarginTop}px;"
+            data-instance={instanceId}
         >
             {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
                 <div>
@@ -560,6 +565,11 @@
         gap: 20px;
         transform: translateY(calc(-1 * var(--container-margin-top)));
         transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Add a class for when we're resetting */
+    .animated-chat-container.resetting {
+        transition: none;
     }
 
     :global(.app-title svg) {
