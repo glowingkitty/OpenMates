@@ -24,7 +24,7 @@ interface PageMetaTags {
 export const defaultMeta: MetaTagConfig = {
     title: "OpenMates",
     description: "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
-    image: "/images/og-image.png",
+    image: "/images/og-image.jpg",
     imageWidth: 1200,
     imageHeight: 630,
     url: "https://openmates.org",

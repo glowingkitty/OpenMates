@@ -21,7 +21,7 @@
 
     <section>
         <h2>Contact</h2>
-        <p>Email: <a href="mailto:{externalLinks.email}">{externalLinks.email}</a></p>
+        <p>Email: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </div>
 

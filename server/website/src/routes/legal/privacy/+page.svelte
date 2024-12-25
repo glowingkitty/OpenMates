@@ -52,7 +52,7 @@
     <section>
         <h2>4. Contact Information</h2>
         <p>For questions about data protection:</p>
-        <p>Email: <a href="mailto:{externalLinks.email}">{externalLinks.email}</a></p>
+        <p>Email: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </div>
 
