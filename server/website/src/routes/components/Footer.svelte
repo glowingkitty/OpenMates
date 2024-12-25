@@ -2,6 +2,7 @@
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '$lib/config/links';
+    import { isPageVisible } from '$lib/config/pages';
 
     // Type definition for footer links
     type FooterLink = {
@@ -43,7 +44,12 @@
                 { href: externalLinks.email, text: "E-Mail", external: true }
             ]
         }
-    ];
+    ].map(section => ({
+        ...section,
+        links: section.links.filter(link => 
+            link.external || isPageVisible(link.href)
+        )
+    })).filter(section => section.links.length > 0); // Remove sections with no visible links
 
     // Handle click events
     const handleClick = async (event: MouseEvent, path: string, external: boolean = false) => {

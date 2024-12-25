@@ -2,9 +2,12 @@
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '$lib/config/links';
+    import { isPageVisible } from '$lib/config/pages';
     import { replaceOpenMates } from '$lib/actions/replaceText';
-    // Updated helper function to check if a path is active, including subpaths
+    // Updated helper function to check if a path is active and visible
     const isActive = (path: string) => {
+        if (!isPageVisible(path)) return false;
+        
         // For docs section, check if current path starts with docs path
         if (path === routes.docs.main) {
             return $page.url.pathname.startsWith(path);
@@ -13,12 +16,12 @@
         return $page.url.pathname === path;
     };
 
-    // Navigation items using centralized routes
+    // Navigation items using centralized routes, filtered by visibility
     const navItems = [
         { href: routes.home, text: 'For all of us' },
         { href: routes.developers, text: 'For Developers' },
         { href: routes.docs.main, text: 'Docs' }
-    ];
+    ].filter(item => isPageVisible(item.href));
 
     // Social media links
     const socialLinks = [
@@ -28,6 +31,11 @@
             iconClass: "github"
         }
     ];
+
+    // Only show navigation section if we have at least 2 nav items
+    const showNavLinks = navItems.length >= 2;
+    // Show social links only if nav section is visible
+    const showSocialLinks = showNavLinks && socialLinks.length > 0;
 
     const handleClick = async (event: MouseEvent, path: string, external: boolean = false) => {
         if (external || event.ctrlKey || event.metaKey || event.button === 1) {
@@ -50,6 +58,7 @@
                     <bold>OpenMates</bold>
                 </a>
             </div>
+            {#if showNavLinks}
             <div class="nav-links">
                 {#each navItems as item}
                     <a
@@ -61,6 +70,7 @@
                         {item.text}
                     </a>
                 {/each}
+                {#if showSocialLinks}
                 <div class="icon-links">
                     {#each socialLinks as link}
                         <a
@@ -74,7 +84,9 @@
                         </a>
                     {/each}
                 </div>
+                {/if}
             </div>
+            {/if}
         </nav>
     </div>
 </header>
