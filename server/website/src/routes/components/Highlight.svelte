@@ -212,15 +212,14 @@
         overflow: hidden;
         display: flex;
         align-items: center;
-        justify-content: center;
     }
 
     .highlight-container.left .highlight-visual {
-        padding-right: 80px;
+        padding-right: 40px;
     }
 
     .highlight-container.right .highlight-visual {
-        padding-left: 80px;
+        padding-left: 40px;
     }
 
     /* Content wrapper styles */
@@ -230,6 +229,19 @@
         max-width: 800px;
         height: 100%;
         flex-direction: column;
+        position: relative;
+    }
+
+    .highlight-content-wrapper.content-left {
+        margin-right: auto;
+        margin-left: 0;
+        left: 40px;
+    }
+
+    .highlight-content-wrapper.content-right {
+        margin-left: auto;
+        margin-right: 0;
+        right: 40px;
     }
 
     /* Content containers */
