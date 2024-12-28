@@ -94,7 +94,7 @@
             <div class="icon-column">
                 {#each column as icon}
                     <div class="icon-wrapper" data-app={icon.name}>
-                        <Icon name={icon.name} type={icon.type} />
+                        <Icon name={icon.name} type={icon.type} in_header={true}/>
                     </div>
                 {/each}
             </div>
@@ -144,8 +144,8 @@
         {#each header_app_icons.slice(3) as column}
             <div class="icon-column">
                 {#each column as icon}
-                    <div class="icon-wrapper" style="opacity: 0.2; scale: 0.65;" data-app={icon.name}>
-                        <Icon name={icon.name} type={icon.type} />
+                    <div class="icon-wrapper" data-app={icon.name}>
+                        <Icon name={icon.name} type={icon.type} in_header={true} />
                     </div>
                 {/each}
             </div>
@@ -209,7 +209,6 @@
         justify-content: center;
         opacity: 0.2;
         transition: opacity 0.3s ease;
-        scale: 0.65;
     }
 
     /* Updated center content styles */

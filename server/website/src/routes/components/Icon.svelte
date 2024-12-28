@@ -5,16 +5,18 @@
   export let inline: boolean = false;
   export let poweredByAI: boolean = false;
   export let size: string | undefined = undefined; // Add size prop
+  export let in_header: boolean = false;
 
   // Compute the final class name
   $: className = [
     'icon',
+    in_header ? 'in_header' : '',
     inline ? 'inline' : '',
     type === 'default' ? name : `${type}-${name}`,
     type === 'provider' ? 'provider-icon' : '',
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
-    poweredByAI ? 'powered_by_ai' : ''
+    poweredByAI ? 'powered_by_ai' : '',
   ].filter(Boolean).join(' ');
 
   // Compute styles including size if provided
