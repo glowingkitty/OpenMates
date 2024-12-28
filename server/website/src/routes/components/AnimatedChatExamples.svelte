@@ -560,6 +560,13 @@
         user-select: none; /* Make text not selectable */
     }
 
+    /* Add media query for smaller screens */
+    @media (max-width: 560px) {
+        .chat-examples-container {
+            width: 100%;
+        }
+    }
+
     /* Adjust container when used in highlights */
     .chat-examples-container.in-highlight {
         height: 100%;

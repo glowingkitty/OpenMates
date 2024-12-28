@@ -6,6 +6,7 @@
     --font-style-normal: normal;
     --line-height-normal: normal;
     --font-size-h1: 60px;
+    --font-size-h1-mobile: 36px;
     --font-size-h2: 30px;
     --font-size-h3: 20px;
     --font-size-h4: 16px;
@@ -69,6 +70,12 @@ h1 {
     color: var(--color-font-primary);
     font-size: var(--font-size-h1);
     font-weight: var(--font-weight-extra-bold);
+}
+
+@media (max-width: 600px) {
+    h1 {
+        font-size: var(--font-size-h1-mobile);
+    }
 }
 
 h2 {

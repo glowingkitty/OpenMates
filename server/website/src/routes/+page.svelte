@@ -367,6 +367,10 @@
 
         .center-space {
             padding-top: 0;
+            padding-left: 30px;
+            padding-right: 30px;
+            box-sizing: border-box;
+            width: 100%;
         }
 
         /* Increase icon opacity for better visibility */
