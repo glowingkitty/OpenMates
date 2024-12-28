@@ -333,6 +333,9 @@
             flex-direction: column;
             gap: 0.1rem;
             width: auto;
+            /* Add mask for smooth fade effect */
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0) 100%);
         }
 
         .icon-grid.left {
@@ -343,6 +346,11 @@
             left: 50vw;
         }
 
+        /* Hide third column on mobile */
+        .icon-grid .icon-column:nth-child(3) {
+            display: none;
+        }
+
         .icon-column {
             display: flex;
             flex-direction: row;
@@ -351,18 +359,19 @@
             transform: none;
         }
 
-        /* Add specific shifts for second columns */
+        /* Adjust shifts for remaining columns */
         .icon-grid.left .icon-column:nth-child(2),
         .icon-grid.right .icon-column:nth-child(2) {
-            transform: translateX(48px);
-        }
-
-        .icon-column:nth-child(2) {
-            transform: translateX(48px);
+            transform: translateX(24px); /* Reduced shift for better spacing with 2 columns */
         }
 
         .center-space {
             padding-top: 0;
+        }
+
+        /* Increase icon opacity for better visibility */
+        .icon-wrapper {
+            opacity: 0.3;
         }
     }
 </style>
