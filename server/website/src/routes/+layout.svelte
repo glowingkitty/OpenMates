@@ -34,7 +34,7 @@
         margin: 0;
         overflow-x: hidden;
         position: relative;
-        width: 100%;
+        max-width: 100vw;
     }
 
     :global(section) {
@@ -57,5 +57,11 @@
     main {
         min-height: calc(100vh - var(--header-height) - var(--footer-height));
         width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    :global(html) {
+        overflow-x: hidden;
     }
 </style>
