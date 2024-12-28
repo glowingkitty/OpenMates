@@ -44,6 +44,19 @@
         event.preventDefault();
         await goto(path, { replaceState: false });
     }
+
+    // Add state for mobile menu
+    let isMobileMenuOpen = false;
+    
+    // Function to toggle mobile menu
+    const toggleMobileMenu = () => {
+        isMobileMenuOpen = !isMobileMenuOpen;
+    };
+
+    // Close mobile menu when route changes
+    $: if ($page.url.pathname) {
+        isMobileMenuOpen = false;
+    }
 </script>
 
 <header use:replaceOpenMates>
@@ -58,8 +71,23 @@
                     <bold>OpenMates</bold>
                 </a>
             </div>
+            
+            <!-- Add hamburger menu button -->
+            <button 
+                class="mobile-menu-button" 
+                on:click={toggleMobileMenu}
+                aria-label="Toggle navigation menu"
+            >
+                <div class:open={isMobileMenuOpen} class="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </button>
+
+            <!-- Modified nav-links with mobile support -->
             {#if showNavLinks}
-            <div class="nav-links">
+            <div class="nav-links" class:mobile-open={isMobileMenuOpen}>
                 {#each navItems as item}
                     <a
                         href={item.href}
@@ -193,5 +221,79 @@
         background-image: url('/icons/twitter.svg');
         background-size: contain;
         background-repeat: no-repeat;
+    }
+
+    /* Add mobile menu styles */
+    .mobile-menu-button {
+        display: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        z-index: 1001;
+    }
+
+    .hamburger {
+        width: 24px;
+        height: 20px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .hamburger span {
+        display: block;
+        height: 2px;
+        width: 100%;
+        background-color: var(--text-color, #000);
+        transition: all 0.3s ease;
+    }
+
+    .hamburger.open span:nth-child(1) {
+        transform: translateY(9px) rotate(45deg);
+    }
+
+    .hamburger.open span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .hamburger.open span:nth-child(3) {
+        transform: translateY(-9px) rotate(-45deg);
+    }
+
+    @media (max-width: 600px) {
+        .mobile-menu-button {
+            display: block;
+        }
+
+        .nav-links {
+            display: none;
+            position: fixed;
+            top: 4rem;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+            backdrop-filter: blur(10px);
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 2rem;
+            gap: 2rem;
+            z-index: 1000;
+        }
+
+        .nav-links.mobile-open {
+            display: flex;
+        }
+
+        .icon-links {
+            margin: 1rem 0 0 0;
+        }
+
+        header {
+            background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
+        }
     }
 </style> 
