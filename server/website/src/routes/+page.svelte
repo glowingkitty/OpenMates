@@ -318,4 +318,40 @@
         -webkit-mask-image: linear-gradient(to bottom, black, black calc(100% - 40px), transparent);
         mask-image: linear-gradient(to bottom, black, black calc(100% - 40px), transparent);
     }
+
+    /* Add media query for mobile devices */
+    @media (max-width: 767px) {
+        .hero-header {
+            position: relative;
+            padding-top: 6rem;
+        }
+
+        .icon-grid {
+            position: absolute;
+            top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            width: auto;
+        }
+
+        .icon-grid.left {
+            right: 50vw;
+        }
+
+        .icon-grid.right {
+            left: 50vw;
+        }
+
+        .icon-column {
+            display: flex;
+            flex-direction: row;
+            gap: 0.25rem;
+            margin-top: 0;
+        }
+
+        .center-space {
+            padding-top: 0;
+        }
+    }
 </style>
