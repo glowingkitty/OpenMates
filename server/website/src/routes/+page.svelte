@@ -331,7 +331,7 @@
             top: 1rem;
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 0.1rem;
             width: auto;
         }
 
@@ -348,6 +348,17 @@
             flex-direction: row;
             gap: 0.25rem;
             margin-top: 0;
+            transform: none;
+        }
+
+        /* Add specific shifts for second columns */
+        .icon-grid.left .icon-column:nth-child(2),
+        .icon-grid.right .icon-column:nth-child(2) {
+            transform: translateX(48px);
+        }
+
+        .icon-column:nth-child(2) {
+            transform: translateX(48px);
         }
 
         .center-space {
