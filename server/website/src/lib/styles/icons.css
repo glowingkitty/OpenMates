@@ -27,6 +27,14 @@
   }
 }
 
+@media (max-width: 600px) {
+  .icon {
+    width: 65px;
+    height: 65px;
+    border-radius: 14px;
+  }
+}
+
 .icon.inline {
   display: inline-block;
   width: 27.19px;
