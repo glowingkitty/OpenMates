@@ -6,7 +6,7 @@
     // Props definition
     export let main_icon = '';
     export let headline = '';
-    export let subheadings: {icon: string; heading: string; link?: string}[] = [];
+    export let subheadings: {icon: string; heading: string}[] = [];
     export let text = '';
     export let subtext = '';
 
@@ -46,25 +46,11 @@
 
     <!-- Subheadings grid -->
     <div class="subheadings-grid">
-        {#each subheadings as { icon, heading, link }}
-            <a
-                href={link || '#'}
-                target={link ? '_blank' : '_self'}
-                class="subheading-item"
-                on:click|preventDefault={(e) => handleSubheadingClick(link)}
-                on:keydown={(e) => e.key === 'Enter' && handleSubheadingClick(link)}
-                role="button"
-                tabindex="0"
-            >
+        {#each subheadings as { icon, heading }}
+            <div class="subheading-item">
                 <div class="{icon}"></div>
                 <h4>{@html sanitizeHtml(heading)}</h4>
-                {#if link}
-                    <div class="learn-more">
-                        Learn more
-                        <span class="small-icon icon_open"></span>
-                    </div>
-                {/if}
-            </a>
+            </div>
         {/each}
     </div>
 
@@ -140,13 +126,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        cursor: pointer;
         padding: 1rem;
-        transition: transform 0.2s ease;
-    }
-
-    .subheading-item:hover {
-        transform: translateY(-5px);
     }
 
     .subheading-item h4 {
@@ -161,28 +141,6 @@
         gap: 0.5rem;
         white-space: nowrap;
         color: #A9A9A9;
-    }
-
-    .arrow {
-        transition: transform 0.2s ease;
-    }
-
-    .subheading-item:hover .arrow {
-        transform: translateX(5px);
-    }
-
-    .content {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-
-    .main-text {
-        margin-bottom: 2rem;
-        color: var(--text-color);
-    }
-
-    .sub-text {
-        color: var(--text-color-secondary);
     }
 
     .subheading-item div[class*="icon_"] {
