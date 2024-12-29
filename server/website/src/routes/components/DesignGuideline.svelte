@@ -119,6 +119,14 @@
         margin-bottom: 2rem;
     }
 
+    /* Add media query for screens smaller than 700px */
+    @media (max-width: 700px) {
+        .subheadings-grid {
+            grid-template-columns: 1fr;  /* Change to single column */
+            gap: 1.5rem;  /* Slightly reduce gap for better mobile spacing */
+        }
+    }
+
     .subheading-item {
         text-decoration: none;
         color: inherit;
@@ -216,5 +224,21 @@
         right: -30vw;
         top: 50%;
         transform: translateY(-50%);
+    }
+
+    /* Add media query for screens smaller than 700px */
+    @media (max-width: 700px) {
+        .background-icon {
+            width: 30vh;  /* Reduce size on mobile */
+            height: 30vh;
+        }
+
+        .background-icon-left {
+            left: -20vw;  /* Adjust position to be closer to content */
+        }
+
+        .background-icon-right {
+            right: -20vw;  /* Adjust position to be closer to content */
+        }
     }
 </style>
