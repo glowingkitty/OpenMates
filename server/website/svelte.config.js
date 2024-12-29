@@ -13,7 +13,7 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter({
 			// Add these adapter options to properly configure the build output
-			runtime: 'nodejs18.x',
+			runtime: 'nodejs18',
 			split: false
 		}),
 		alias: {
