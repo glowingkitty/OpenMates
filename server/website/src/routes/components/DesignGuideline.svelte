@@ -102,6 +102,13 @@
         background: var(--color-primary);
     }
 
+    @media (max-width: 600px) {
+        .main-icon {
+            width: 67.2px;
+            height: 67.2px;
+        }
+    }
+
     .main-icon.icon_lock {
         mask-image: url('/icons/lock.svg');
     }
