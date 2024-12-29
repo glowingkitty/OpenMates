@@ -29,8 +29,8 @@
 
 @media (max-width: 600px) {
   .icon {
-    width: 65px;
-    height: 65px;
+    width: 77.69px;
+    height: 77.69px;
     border-radius: 14px;
   }
 }
@@ -204,12 +204,12 @@
       background-position: center;
       background-repeat: no-repeat;
       filter: brightness(0) invert(1);
-      /* Create a mask using the AI icon */
+      /* Create a mask using the AI icon - reduced size from 35% to 25% */
       -webkit-mask: url('/icons/user.svg') center 50% no-repeat,
-                   url('/icons/ai.svg') center 63%/17px no-repeat;
+                   url('/icons/ai.svg') center 67%/20% no-repeat;
       -webkit-mask-composite: source-out;
       mask: url('/icons/user.svg') center 50% no-repeat,
-            url('/icons/ai.svg') center 67%/17px no-repeat;
+            url('/icons/ai.svg') center 67%/20% no-repeat;
       mask-composite: subtract;
   }
 }
