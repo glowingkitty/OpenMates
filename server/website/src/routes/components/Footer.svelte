@@ -74,7 +74,7 @@
         <!-- Logo and Tagline Section -->
         <div class="footer-header">
             <div class="header-content">
-                <div class="logo">
+                <div class="logo mobile-order-2">
                     <a 
                         href={routes.home} 
                         on:click={(e) => handleClick(e, routes.home)}
@@ -83,12 +83,12 @@
                         <span class="logo-text highlight">Mates</span>
                     </a>
                 </div>
-                <div class="tagline">
+                <div class="tagline mobile-order-1">
                     <p>Our world needs change.</p>
                     <p>And change requires action.</p>
                     <p>So, let us take action.</p>
                 </div>
-                <div class="logo invisible"></div>
+                <div class="logo invisible mobile-order-3"></div>
             </div>
         </div>
 
@@ -129,6 +129,13 @@
         color: white;
         padding: 4rem 2rem 2rem;
         margin-top: 40px;
+    }
+
+    @media (max-width: 600px) {
+        footer {
+            padding: 2rem 1rem 1rem;
+            margin-top: 20px;
+        }
     }
 
     .footer-content {
@@ -186,6 +193,12 @@
         gap: 2rem;
         margin-bottom: 3rem;
         padding: 0 2rem;
+    }
+
+    @media (max-width: 600px) {
+        .footer-nav {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     .footer-section h3 {
@@ -249,5 +262,28 @@
         font-size: inherit;
         font-weight: inherit;
         min-width: inherit;
+    }
+
+    @media (max-width: 600px) {
+        .header-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .mobile-order-1 {
+            order: 1;
+        }
+
+        .mobile-order-2 {
+            order: 2;
+        }
+
+        .mobile-order-3 {
+            display: none; /* Hide the invisible spacer on mobile */
+        }
+
+        .logo {
+            justify-content: center;
+        }
     }
 </style> 
