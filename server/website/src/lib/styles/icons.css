@@ -41,6 +41,15 @@
   margin: 15px;
 }
 
+@media (max-width: 600px) {
+  .icon.in_header {
+    width: 40.79px;
+    height: 40.79px;
+    margin: 5px;
+    border-radius: 10px;
+  }
+}
+
 .icon.inline {
   display: inline-block;
   width: 27.19px;

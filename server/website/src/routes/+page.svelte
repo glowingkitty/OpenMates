@@ -318,6 +318,13 @@
         mask-image: linear-gradient(to bottom, black, black calc(100% - 40px), transparent);
     }
 
+    @media (max-width: 600px) {
+        .icon-grid.left {
+            padding-right: 20px;
+            margin-right: -20px;
+        }
+    }
+
     /* Add media query for mobile devices */
     @media (max-width: 767px) {
         .hero-header {
