@@ -26,6 +26,12 @@
         margin-top: 2rem;
     }
 
+    @media (max-width: 600px) {
+        .waiting-list-section {
+            margin-top: 0px;
+        }
+    }
+
     .content-wrapper {
         width: 100%;
         min-height: 120px;

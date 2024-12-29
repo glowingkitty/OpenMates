@@ -186,6 +186,8 @@
         min-height: 845px;
     }
 
+    
+
     .icon-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -384,4 +386,11 @@
             opacity: 0.3;
         }
     }
+
+    @media (max-width: 600px) {
+        .hero-header {
+            padding-top: 70px;
+        }
+    }
+
 </style>
