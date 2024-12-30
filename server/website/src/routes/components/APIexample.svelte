@@ -8,28 +8,23 @@
     // Add import for onMount if you need to trigger animation on component load
     import { onMount } from 'svelte';
     
-    // Flag to control animation state
-    let showResponse = false;
+    // Remove showResponse flag since request will always be visible
+    let isSmaller = false;
     
     onMount(() => {
-        // Trigger animation after 1500ms
+        // Trigger size animation after 1500ms
         setTimeout(() => {
-            showResponse = true;
+            isSmaller = true;
         }, 1500);
     });
 </script>
 
 <div class="api-example">
-    {#if showResponse}
-        <div class="response" class:show={showResponse}>
-            <div class="endpoint">
-                <span class="method">{method}</span> {endpoint}
-            </div>
-            <pre class="output">{"{"}<br/>    <span class="key">"message"</span>: <span class="string">"{output.message}"</span><br/>{"}"}</pre>
-        </div>
-    {/if}
-    
-    <div class="request">
+    <div class="response">
+        <pre class="output">{"{"}<br/>    <span class="key">"message"</span>: <span class="string">"{output.message}"</span><br/>{"}"}</pre>
+    </div>
+
+    <div class="request" class:smaller={isSmaller}>
         <div class="endpoint">
             <span class="method">{method}</span> {endpoint}
         </div>
@@ -46,34 +41,31 @@
         font-family: 'Fira Code', monospace;
         font-size: 12px;
         background-color: #313131;
+        overflow: hidden;
     }
 
     .request {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        bottom: 0;
         background: #242424;
-        border-radius: 8px;
-        padding: 1rem;
-        transition: height 0.5s ease;
+        transition: all 0.5s ease;
+        padding: 10px 20px 10px 20px;
+        border-radius: 12px;
     }
 
     .request.smaller {
-        height: 70px;
+        bottom: 175px;
     }
 
     .response {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: 8px;
-        padding: 1rem;
-        transform: translateY(100%);
-        transition: transform 0.5s ease, height 0.5s ease;
+        bottom: 0;
+        padding: 20px;
+        padding-top: 110px;
     }
 
     .endpoint {
