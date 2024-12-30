@@ -6,6 +6,7 @@
     import DesignGuidelines from '../components/DesignGuidelines.svelte';
     import Community from '../components/Community.svelte';
     import MetaTags from '../components/MetaTags.svelte';
+    import APIexample from '../components/APIexample.svelte';
     import { getMetaTags } from '$lib/config/meta';
 
     const meta = getMetaTags('for_developers');
@@ -131,7 +132,14 @@
                 </span>
                 & more
             </p>
-            <AnimatedChatExamples bind:currentApp={currentApp} />
+            <APIexample
+                method="POST"
+                endpoint="/api/v1/mates/ask"
+                input="I am unhappy in my current job. Any ideas in what direction I could go instead?"
+                output={{
+                    message: "Of course! Since you mentioned that you have a <b>background in marketing</b> and <b>enjoy storytelling</b>, we could look for roles that leverage those skills.<br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?"
+                }}
+            />
             <WaitingList/>
         </div>
     </div>
