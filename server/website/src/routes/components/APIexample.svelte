@@ -21,7 +21,9 @@
 
 <div class="api-example">
     <div class="response">
-        <pre class="output">{"{"}<br/>    <span class="key">"message"</span>: <span class="string">"{output.message}"</span><br/>{"}"}</pre>
+        <pre class="output"><span class="syntax">{"{"}</span>
+        <span class="key">"message"</span><span class="syntax">:</span> <span class="string">"{output.message}"</span>
+<span class="syntax">{"}"}</span></pre>
     </div>
 
     <div class="request" class:smaller={isSmaller}>
@@ -66,6 +68,7 @@
         bottom: 0;
         padding: 20px;
         padding-top: 110px;
+        padding-left: 40px;
     }
 
     .endpoint {
@@ -86,6 +89,7 @@
     pre {
         font-family: 'Fira Code', monospace;
         font-size: 12px;
+        font-weight: 600;
     }
 
     .key {
@@ -94,5 +98,9 @@
 
     .string {
         color: #4CA47F;
+    }
+
+    .syntax {
+        color: #ffffff;
     }
 </style>

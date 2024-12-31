@@ -116,22 +116,6 @@
                     Digital Team Mates API
                 {/if}
             </h1>
-            <p class="text-center platform-text">
-                via
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Web, </span>
-                    <span class="small-icon icon_web"></span>
-                </span>
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Mattermost, </span>
-                    <span class="small-icon icon_mattermost"></span>
-                </span>
-                <span class="platform-wrapper">
-                    <span class="visually-hidden">Discord</span>
-                    <span class="small-icon icon_discord"></span>
-                </span>
-                & more
-            </p>
             <APIexample
                 method="POST"
                 endpoint="/api/v1/mates/ask"
