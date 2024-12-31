@@ -4,13 +4,13 @@
     export let output = { message: "" }; // Initialize with message property
     export let endpoint = ""; // API endpoint
     export let method = "POST"; // HTTP method
-    
+
     // Add import for onMount if you need to trigger animation on component load
     import { onMount } from 'svelte';
-    
+
     // Remove showResponse flag since request will always be visible
     let isSmaller = false;
-    
+
     onMount(() => {
         // Trigger size animation after 1500ms
         setTimeout(() => {
@@ -68,7 +68,6 @@
         bottom: 0;
         padding: 20px;
         padding-top: 110px;
-        padding-left: 40px;
     }
 
     .endpoint {
@@ -94,9 +93,13 @@
 
     .key {
         color: #CC4379;
+        display: inline-block;
+        margin-left: -30px;
     }
 
     .string {
+        display: inline-block;
+        margin-left: 30px;
         color: #4CA47F;
     }
 
