@@ -7,73 +7,10 @@
     import Community from '../components/Community.svelte';
     import MetaTags from '../components/MetaTags.svelte';
     import APIexample from '../components/APIexample.svelte';
+    import AppIconGrid from '../components/AppIconGrid.svelte';
     import { getMetaTags } from '$lib/config/meta';
 
     const meta = getMetaTags('for_developers');
-
-    // Define icon groups for left and right sides
-    const header_app_icons: Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>> = [
-        // Left side | First column
-        [
-            {type: 'app', name: 'videos'},
-            {type: 'app', name: 'calendar'},
-            {type: 'app', name: 'plants'},
-            {type: 'app', name: 'shopping'},
-            {type: 'app', name: 'study'},
-            {type: 'app', name: 'weather'},
-            {type: 'app', name: 'travel'}
-        ],
-        // Left side | Second column
-        [
-            {type: 'app', name: 'health'},
-            {type: 'app', name: 'nutrition'},
-            {type: 'app', name: 'fitness'},
-            {type: 'app', name: 'jobs'},
-            {type: 'app', name: 'home'},
-            {type: 'app', name: 'events'},
-            {type: 'app', name: 'photos'}
-        ],
-        // Left side | Third column
-        [
-            {type: 'app', name: 'web'},
-            {type: 'app', name: 'language'},
-            {type: 'app', name: 'shipping'},
-            {type: 'app', name: 'books'},
-            {type: 'app', name: 'tv'},
-            {type: 'app', name: 'legal'},
-            {type: 'app', name: 'maps'}
-        ],
-        // Right side | First column
-        [
-            {type: 'app', name: 'finance'},
-            {type: 'app', name: 'code'},
-            {type: 'app', name: 'mail'},
-            {type: 'app', name: 'hosting'},
-            {type: 'app', name: 'notes'},
-            {type: 'app', name: 'design'},
-            {type: 'app', name: 'slides'}
-        ],
-        // Right side | Second column
-        [
-            {type: 'app', name: 'business'},
-            {type: 'app', name: 'pcbdesign'},
-            {type: 'app', name: 'socialmedia'},
-            {type: 'app', name: 'diagrams'},
-            {type: 'app', name: 'whiteboards'},
-            {type: 'app', name: 'publishing'},
-            {type: 'app', name: 'sheets'}
-        ],
-        // Right side | Third column
-        [
-            {type: 'app', name: 'files'},
-            {type: 'app', name: 'audio'},
-            {type: 'app', name: 'messages'},
-            {type: 'app', name: 'news'},
-            {type: 'app', name: 'projectmanagement'},
-            {type: 'app', name: 'pdfeditor'},
-            {type: 'app', name: 'docs'}
-        ]
-    ]
 
     // Add reactive variable for current app
     let currentApp = '';
@@ -88,18 +25,7 @@
 
 <!-- Add header section with background color -->
 <section class="hero-header">
-    <!-- Left side icons -->
-    <div class="icon-grid left">
-        {#each header_app_icons.slice(0, 3) as column}
-            <div class="icon-column">
-                {#each column as icon}
-                    <div class="icon-wrapper" data-app={icon.name}>
-                        <Icon name={icon.name} type={icon.type} in_header={true} />
-                    </div>
-                {/each}
-            </div>
-        {/each}
-    </div>
+    <AppIconGrid side="left" />
 
     <!-- Center space -->
     <div class="center-space">
@@ -128,18 +54,7 @@
         </div>
     </div>
 
-    <!-- Right side icons -->
-    <div class="icon-grid right">
-        {#each header_app_icons.slice(3) as column}
-            <div class="icon-column">
-                {#each column as icon}
-                    <div class="icon-wrapper" data-app={icon.name}>
-                        <Icon name={icon.name} type={icon.type} in_header={true} />
-                    </div>
-                {/each}
-            </div>
-        {/each}
-    </div>
+    <AppIconGrid side="right" />
 </section>
 
 <div class="large-separator"></div>
@@ -175,32 +90,6 @@
         position: relative;
         -webkit-mask-image: linear-gradient(to bottom, black, black 85%, transparent);
         mask-image: linear-gradient(to bottom, black, black 85%, transparent);
-    }
-
-    .icon-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        align-content: start;
-    }
-
-    .icon-column {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin-top: -5rem;
-    }
-
-    .icon-column:nth-child(2) {
-        transform: translateY(-2rem);
-    }
-
-    .icon-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0.2;
-        transition: opacity 0.3s ease;
-        scale: 0.65;
     }
 
     /* Updated center content styles */
@@ -266,30 +155,6 @@
         -ms-user-select: all;
     }
 
-    .platform-text {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.1rem;
-        color: #8A8A8A;
-        margin-bottom: -0.5rem;
-    }
-
-    .platform-wrapper {
-        display: inline-flex;
-        align-items: center;
-        position: relative;
-        user-select: all;
-    }
-
-    .platform-wrapper :global(.messenger-mattermost),
-    .platform-wrapper :global(.messenger-discord),
-    .platform-wrapper :global(.messenger-slack) {
-        user-select: all;
-        -webkit-user-select: all;
-        -moz-user-select: all;
-        -ms-user-select: all;
-    }
 </style>
 
 <!-- Add the landing-page class to the root element -->
