@@ -61,7 +61,7 @@
 
 <!-- Highlights -->
 <section>
-    <Highlights target="for_all" />
+    <Highlights target="for_developers" />
 </section>
 
 <div class="large-separator" style="rotate: 180deg;"></div>

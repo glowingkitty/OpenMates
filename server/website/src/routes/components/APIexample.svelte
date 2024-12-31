@@ -1,14 +1,14 @@
-<script>
+<script lang="ts">
     // Props for the API example
     export let input = "";  // Input string
-    export let output = { message: "" }; // Initialize with message property
+    export let output = {}; // Updated to accept a dictionary of any shape
     export let endpoint = ""; // API endpoint
     export let method = "POST"; // HTTP method
 
-    // Add import for onMount if you need to trigger animation on component load
+    // Import onMount if you need to trigger animation on component load
     import { onMount } from 'svelte';
 
-    // Remove showResponse flag since request will always be visible
+    // Flag to control the size animation of the request block
     let isSmaller = false;
 
     onMount(() => {
@@ -17,12 +17,63 @@
             isSmaller = true;
         }, 1500);
     });
+
+    /**
+     * Function to format the output dictionary into a JSON-like string
+     * with syntax highlighting based on the specified color scheme.
+     * - Keys are wrapped in `{}` and colored red.
+     * - Colons are colored white.
+     * - Values are colored green.
+     */
+    function formatOutput(outputDict: Record<string, any>): string {
+        // Initialize an array to hold formatted lines
+        let formatted = ['{'];
+
+        // Iterate over each key-value pair in the dictionary
+        for (const [key, value] of Object.entries(outputDict)) {
+            // Determine the display string based on the value type
+            let displayValue = '';
+
+            if (typeof value === 'string') {
+                // For string values, wrap them in quotes
+                displayValue = `"${value}"`;
+            } else if (Array.isArray(value)) {
+                // For arrays, convert them to a JSON string
+                displayValue = JSON.stringify(value, null, 4);
+            } else if (typeof value === 'object' && value !== null) {
+                // For nested objects, recursively format them
+                displayValue = JSON.stringify(value, null, 4);
+            } else {
+                // For other types (number, boolean, etc.), convert to string
+                displayValue = String(value);
+            }
+
+            // Construct the formatted line with proper styling
+            formatted.push(
+                `    <span class="syntax">{"{"}</span>`,
+                `    <span class="key">"${key}"</span><span class="syntax">:</span> <span class="value">${displayValue}</span>,`
+            );
+        }
+
+        // Remove the trailing comma from the last entry
+        if (formatted.length > 1) {
+            formatted[formatted.length - 1] = formatted[formatted.length - 1].replace(/,$/, '');
+        }
+
+        // Close the JSON-like structure
+        formatted.push('<span class="syntax">{"}"}</span>');
+
+        // Join all lines into a single string separated by newlines
+        return formatted.join('\n');
+    }
 </script>
 
 <div class="api-example">
     <div class="response">
         <pre class="output"><span class="syntax">{"{"}</span>
-        <span class="key">"message"</span><span class="syntax">:</span> <span class="string">"{output.message}"</span>
+{#each Object.entries(output) as [key, value], index}
+    <span class="key">"{key}"</span><span class="syntax">:</span> <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>{#if index < Object.keys(output).length - 1},{/if}
+{/each}
 <span class="syntax">{"}"}</span></pre>
     </div>
 
@@ -94,16 +145,14 @@
     .key {
         color: #CC4379;
         display: inline-block;
-        margin-left: -30px;
+        /* margin-left: -30px; */
     }
 
-    .string {
-        display: inline-block;
-        margin-left: 30px;
-        color: #4CA47F;
+    .value {
+        color: #4CA47F; /* Green color for values */
     }
 
     .syntax {
-        color: #ffffff;
+        color: #FFFFFF; /* White color for syntax characters like ":" and "{" "}" */
     }
 </style>

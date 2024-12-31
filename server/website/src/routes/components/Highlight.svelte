@@ -1,5 +1,6 @@
 <script lang="ts">
     import AnimatedChatExamples from './AnimatedChatExamples.svelte';
+    import APIexample from './APIexample.svelte';
     import { onMount, onDestroy } from 'svelte';
 
     // Define props for the component
@@ -7,6 +8,7 @@
     export let sub_heading: string;
     export let paragraph: string;
     export let text_side: 'left' | 'right' = 'left'; // Default to left alignment
+    export let target: string = '';
 
     // Add a prop to track visibility
     let isVisible = false;
@@ -113,11 +115,22 @@
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
-                    <AnimatedChatExamples
-                        currentApp={getAppForSubHeading(sub_heading)}
-                        singleExample={true}
-                        inHighlight={true}
-                    />
+                    {#if target === 'for_developers'}
+                        <APIexample
+                            method="POST"
+                            endpoint="/api/v1/mates/ask"
+                            input="I am unhappy in my current job. Any ideas in what direction I could go instead?"
+                            output={{
+                                message: "Of course! Since you mentioned that you have a <b>background in marketing</b> and <b>enjoy storytelling</b>, we could look for roles that leverage those skills.<br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?"
+                            }}
+                        />
+                    {:else}
+                        <AnimatedChatExamples
+                            currentApp={getAppForSubHeading(sub_heading)}
+                            singleExample={true}
+                            inHighlight={true}
+                        />
+                    {/if}
                 </div>
             </div>
         {/if}
@@ -133,11 +146,24 @@
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
-                    <AnimatedChatExamples
-                        currentApp={getAppForSubHeading(sub_heading)}
-                        singleExample={true}
-                        inHighlight={true}
-                    />
+                    {#if target === 'for_developers'}
+                        <APIexample
+                            method="POST"
+                            endpoint="/api/v1/mates/ask"
+                            input="What is the next available cardiologist appointment, that doesn’t collide with my calendar?"
+                            output={{
+                                message: "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
+                                started_tasks: ["/v1/myteam/tasks/153e0027e34d"],
+                                chat_id: "13s91lads02xex75"
+                            }}
+                        />
+                    {:else}
+                        <AnimatedChatExamples
+                            currentApp={getAppForSubHeading(sub_heading)}
+                            singleExample={true}
+                            inHighlight={true}
+                        />
+                    {/if}
                 </div>
             </div>
         {/if}
@@ -153,11 +179,27 @@
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
-                    <AnimatedChatExamples
-                        currentApp={getAppForSubHeading(sub_heading)}
-                        singleExample={true}
-                        inHighlight={true}
+                    {#if target === 'for_developers'}
+                        <APIexample
+                            method="POST"
+                            endpoint="/api/v1/apps/events/search"
+                            input="AI, beginner"
+                            output={{
+                                events: [
+                                    {
+                                        title: "AI, Projects, Resources, and the Future - A Glimpse into Tomorrow",
+                                        datetime: "2024-12-02T18:30:00Z"
+                                    }
+                            ]
+                        }}
                     />
+                    {:else}
+                        <AnimatedChatExamples
+                            currentApp={getAppForSubHeading(sub_heading)}
+                            singleExample={true}
+                            inHighlight={true}
+                        />
+                    {/if}
                 </div>
             </div>
         {/if}
