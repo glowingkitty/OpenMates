@@ -71,39 +71,37 @@
 <div class="api-example">
     <div class="response">
         <!-- Start JSON output structure -->
-        <pre class="output"><span class="syntax">{"{"}</span>
-        {#each Object.entries(output) as [key, value], index}
-            <!-- Format each key-value pair -->
-            <span class="key">"{key}"</span><span class="syntax">:</span> 
-            {#if Array.isArray(value)}
-                <!-- Handle arrays - display brackets in white -->
-                <span class="syntax">[</span>
-                {#each value as item, i}
-                    {#if typeof item === 'object' && item !== null}
-                        <!-- Handle nested objects within arrays -->
-                        <span class="syntax">{"{"}</span>
-                        {#each Object.entries(item) as [itemKey, itemValue], j}
-                            <!-- Format nested object key-value pairs -->
-                            <span class="key">"{itemKey}"</span><span class="syntax">:</span> 
-                            <span class="value">{typeof itemValue === 'string' ? `"${itemValue}"` : JSON.stringify(itemValue)}</span>
-                            <!-- Add comma between object properties -->
-                            {#if j < Object.keys(item).length - 1}<span class="syntax">,</span> {/if}
-                        {/each}
-                        <span class="syntax">{"}"}</span>
-                    {:else}
-                        <!-- Handle primitive array values -->
-                        <span class="value">{typeof item === 'string' ? `"${item}"` : JSON.stringify(item)}</span>
-                    {/if}
-                    <!-- Add comma between array items -->
-                    {#if i < value.length - 1}<span class="syntax">,</span> {/if}
+        <pre class="output"><span class="syntax">{"{"}</span>{#each Object.entries(output) as [key, value], index}<!-- Format each key-value pair -->
+    <span class="key">"{key}"</span><span class="syntax">:</span> 
+    {#if Array.isArray(value)}
+        <!-- Handle arrays - display brackets in white -->
+        <span class="syntax">[</span>
+        {#each value as item, i}
+            {#if typeof item === 'object' && item !== null}
+                <!-- Handle nested objects within arrays -->
+                <span class="syntax">{"{"}</span>
+                {#each Object.entries(item) as [itemKey, itemValue], j}
+                    <!-- Format nested object key-value pairs -->
+                    <span class="key">"{itemKey}"</span><span class="syntax">:</span> 
+                    <span class="value">{typeof itemValue === 'string' ? `"${itemValue}"` : JSON.stringify(itemValue)}</span>
+                    <!-- Add comma between object properties -->
+                    {#if j < Object.keys(item).length - 1}<span class="syntax">,</span> {/if}
                 {/each}
-                <span class="syntax">]</span>
+                <span class="syntax">{"}"}</span>
             {:else}
-                <!-- Handle non-array values -->
-                <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>
+                <!-- Handle primitive array values -->
+                <span class="value">{typeof item === 'string' ? `"${item}"` : JSON.stringify(item)}</span>
             {/if}
-            <!-- Add comma between top-level properties -->
-            {#if index < Object.keys(output).length - 1}<span class="syntax">,</span>{/if}
+            <!-- Add comma between array items -->
+            {#if i < value.length - 1}<span class="syntax">,</span> {/if}
+        {/each}
+        <span class="syntax">]</span>
+    {:else}
+        <!-- Handle non-array values -->
+        <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>
+    {/if}
+    <!-- Add comma between top-level properties -->
+    {#if index < Object.keys(output).length - 1}<span class="syntax">,</span>{/if}
         {/each}
         <span class="syntax">{"}"}</span></pre>
     </div>
