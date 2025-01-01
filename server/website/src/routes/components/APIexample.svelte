@@ -72,7 +72,26 @@
     <div class="response">
         <pre class="output"><span class="syntax">{"{"}</span>
     {#each Object.entries(output) as [key, value], index}
-        <span class="key">"{key}"</span><span class="syntax">:</span> <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>{#if index < Object.keys(output).length - 1}<span class="syntax">,</span>{/if}
+        <span class="key">"{key}"</span><span class="syntax">:</span> 
+        {#if Array.isArray(value)}
+            <span class="syntax">[</span>
+            {#each value as item, i}
+                {#if typeof item === 'object' && item !== null}
+                    <span class="syntax">{"{"}</span>
+                    {#each Object.entries(item) as [itemKey, itemValue], j}
+                        <span class="key">"{itemKey}"</span><span class="syntax">:</span> <span class="value">{typeof itemValue === 'string' ? `"${itemValue}"` : JSON.stringify(itemValue)}</span>{#if j < Object.keys(item).length - 1}<span class="syntax">,</span> {/if}
+                    {/each}
+                    <span class="syntax">{"}"}</span>
+                {:else}
+                    <span class="value">{typeof item === 'string' ? `"${item}"` : JSON.stringify(item)}</span>
+                {/if}
+                {#if i < value.length - 1}<span class="syntax">,</span> {/if}
+            {/each}
+            <span class="syntax">]</span>
+        {:else}
+            <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>
+        {/if}
+        {#if index < Object.keys(output).length - 1}<span class="syntax">,</span>{/if}
     {/each}
     <span class="syntax">{"}"}</span></pre>
     </div>
