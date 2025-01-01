@@ -24,10 +24,11 @@
      * - Keys are wrapped in `{}` and colored red.
      * - Colons are colored white.
      * - Values are colored green.
+     * - Additionally, `[`, `]`, and `,` are colored white.
      */
     function formatOutput(outputDict: Record<string, any>): string {
         // Initialize an array to hold formatted lines
-        let formatted = ['{'];
+        let formatted = ['<span class="syntax">{"{"}</span>']; // Start with `{` in white
 
         // Iterate over each key-value pair in the dictionary
         for (const [key, value] of Object.entries(outputDict)) {
@@ -38,8 +39,8 @@
                 // For string values, wrap them in quotes
                 displayValue = `"${value}"`;
             } else if (Array.isArray(value)) {
-                // For arrays, convert them to a JSON string
-                displayValue = JSON.stringify(value, null, 4);
+                // For arrays, convert them to a JSON string and wrap `[` and `]` in white
+                displayValue = `<span class="syntax">[</span>${JSON.stringify(value, null, 4)}<span class="syntax">]</span>`;
             } else if (typeof value === 'object' && value !== null) {
                 // For nested objects, recursively format them
                 displayValue = JSON.stringify(value, null, 4);
@@ -50,17 +51,16 @@
 
             // Construct the formatted line with proper styling
             formatted.push(
-                `    <span class="syntax">{"{"}</span>`,
-                `    <span class="key">"${key}"</span><span class="syntax">:</span> <span class="value">${displayValue}</span>,`
+                `    <span class="key">"${key}"</span><span class="syntax">:</span> <span class="value">${displayValue}</span><span class="syntax">,</span>` // Added comma with syntax span
             );
         }
 
         // Remove the trailing comma from the last entry
         if (formatted.length > 1) {
-            formatted[formatted.length - 1] = formatted[formatted.length - 1].replace(/,$/, '');
+            formatted[formatted.length - 1] = formatted[formatted.length - 1].replace(/,<span class="syntax">,<\/span>$/, '</span>'); // Remove comma
         }
 
-        // Close the JSON-like structure
+        // Close the JSON-like structure with `}` in white
         formatted.push('<span class="syntax">{"}"}</span>');
 
         // Join all lines into a single string separated by newlines
@@ -71,10 +71,10 @@
 <div class="api-example">
     <div class="response">
         <pre class="output"><span class="syntax">{"{"}</span>
-{#each Object.entries(output) as [key, value], index}
-    <span class="key">"{key}"</span><span class="syntax">:</span> <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>{#if index < Object.keys(output).length - 1},{/if}
-{/each}
-<span class="syntax">{"}"}</span></pre>
+    {#each Object.entries(output) as [key, value], index}
+        <span class="key">"{key}"</span><span class="syntax">:</span> <span class="value">{typeof value === 'string' ? `"${value}"` : JSON.stringify(value)}</span>{#if index < Object.keys(output).length - 1}<span class="syntax">,</span>{/if}
+    {/each}
+    <span class="syntax">{"}"}</span></pre>
     </div>
 
     <div class="request" class:smaller={isSmaller}>
@@ -153,6 +153,6 @@
     }
 
     .syntax {
-        color: #FFFFFF; /* White color for syntax characters like ":" and "{" "}" */
+        color: #FFFFFF; /* White color for syntax characters like ":", "{", "}", "[", "]", "," */
     }
 </style>
