@@ -28,7 +28,16 @@
     // Add new reactive variable to track if there's content
     $: hasContent = textSegments.some(segment => segment.text.trim().length > 0) || inlineImages.length > 0;
 
-    // Insert image after the active segment
+    // Add new function to check if segment should be visible
+    function shouldShowSegment(segment: TextSegment, index: number): boolean {
+        // Show segment if:
+        // 1. It has text content, or
+        // 2. It's not the first segment, or
+        // 3. It's the first segment but there are no images at index 0
+        return segment.text.length > 0 || index > 0 || !inlineImages[0];
+    }
+
+    // Modify the insertImageAtCursor function
     function insertImageAtCursor(imageBlob: Blob) {
         const imageId = crypto.randomUUID();
         const newSegmentId = crypto.randomUUID();
@@ -42,15 +51,27 @@
         // Find index of active segment
         const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
         
-        // Insert new segment after the image
-        const newSegments = [
-            ...textSegments.slice(0, activeIndex + 1),
-            { id: newSegmentId, text: '' }
-        ];
-        
-        textSegments = newSegments;
-        inlineImages = [...inlineImages, newImage];
-        activeSegmentId = newSegmentId;
+        if (activeIndex === 0 && !textSegments[0].text) {
+            // If inserting at the beginning with no text:
+            // 1. Keep the first segment
+            // 2. Add the image
+            // 3. Add a new empty segment after the image
+            textSegments = [
+                textSegments[0],
+                { id: newSegmentId, text: '' }
+            ];
+            inlineImages = [...inlineImages, newImage];
+            activeSegmentId = newSegmentId;
+        } else {
+            // Insert new segment after the image
+            const newSegments = [
+                ...textSegments.slice(0, activeIndex + 1),
+                { id: newSegmentId, text: '' }
+            ];
+            textSegments = newSegments;
+            inlineImages = [...inlineImages, newImage];
+            activeSegmentId = newSegmentId;
+        }
         
         // Focus new segment
         setTimeout(() => {
@@ -238,15 +259,17 @@
     <div class="scrollable-content">
         <div class="content-wrapper">
             {#each textSegments as segment, index}
-                <textarea
-                    id={segment.id}
-                    bind:value={segment.text}
-                    on:focus={() => activeSegmentId = segment.id}
-                    on:keydown={(e) => handleKeydown(e, index)}
-                    on:input={handleInput}
-                    placeholder={index === 0 ? "Type your message here..." : ""}
-                    rows="1"
-                ></textarea>
+                {#if shouldShowSegment(segment, index)}
+                    <textarea
+                        id={segment.id}
+                        bind:value={segment.text}
+                        on:focus={() => activeSegmentId = segment.id}
+                        on:keydown={(e) => handleKeydown(e, index)}
+                        on:input={handleInput}
+                        placeholder={index === 0 ? "Type your message here..." : ""}
+                        rows="1"
+                    ></textarea>
+                {/if}
                 
                 {#if index < inlineImages.length}
                     <div class="image-container">
