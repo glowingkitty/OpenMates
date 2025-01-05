@@ -235,6 +235,11 @@
                             alt="Inline"
                             class="preview-image"
                         />
+                        <textarea 
+                            class="image-markdown-field"
+                            readonly
+                            value={`![${inlineImages[index].filename}](${inlineImages[index].filename})`}
+                        ></textarea>
                     </div>
                 {/if}
             {/each}
@@ -335,6 +340,7 @@
         width: 100%;
         height: 100px;
         margin: 0.5rem 0;
+        position: relative;
     }
 
     .preview-image {
@@ -344,6 +350,25 @@
         object-fit: contain;
         border-radius: 6px;
         background: #f5f5f5;
+        position: relative;
+        z-index: 2;
+    }
+
+    .image-markdown-field {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 1;
+        resize: none;
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: transparent;
+        overflow: hidden;
     }
 
     .action-buttons {
