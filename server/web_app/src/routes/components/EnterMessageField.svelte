@@ -233,7 +233,9 @@
                 autoplay
                 playsinline
                 class="camera-preview"
-            ></video>
+            >
+                <track kind="captions" />
+            </video>
             <div class="camera-controls">
                 <button class="camera-button" on:click={closeCamera}>
                     ❌
