@@ -388,8 +388,9 @@
         position: absolute;
         left: 0;
         top: var(--line-position);
-        height: 80px;  /* Doubled height */
-        padding: 4px;
+        height: 100px;
+        margin-top: 10px;
+        margin-bottom: 10px;
         background: #f5f5f5;
         border-radius: 8px;
         z-index: 1;
