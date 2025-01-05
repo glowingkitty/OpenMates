@@ -1,6 +1,16 @@
 <script lang="ts">
     import { tick, onDestroy } from 'svelte';
 
+    // File size limits in MB
+    const FILE_SIZE_LIMITS = {
+        TOTAL_MAX_SIZE: 100,  // Total size limit for all files combined
+        PER_FILE_MAX_SIZE: 100  // Maximum size per individual file
+    };
+
+    // Convert MB to bytes for internal use
+    const MAX_TOTAL_SIZE = FILE_SIZE_LIMITS.TOTAL_MAX_SIZE * 1024 * 1024;
+    const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
+
     // Add variable declarations
     let fileInput: HTMLInputElement;
 
@@ -145,34 +155,79 @@
         }).join('');
     }
 
-    // Handler for file selection
+    // Add helper function to calculate total size of existing attachments
+    function getCurrentAttachmentsSize(): number {
+        const imageSize = inlineImages.reduce((total, img) => total + img.blob.size, 0);
+        const fileSize = fileAttachments.reduce((total, file) => total + file.file.size, 0);
+        return imageSize + fileSize;
+    }
+
+    // Modify file input to accept multiple files
     function handleFileSelect() {
+        // Set multiple attribute before clicking
+        fileInput.multiple = true;
         fileInput.click();
     }
 
-    // Handler for camera activation
-    async function handleCameraClick() {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' },
-                audio: false 
-            });
-            
-            if (stream) {
-                showCamera = true;
-                await tick();
-                if (videoElement) {
-                    videoElement.srcObject = stream;
-                }
-            }
-        } catch (err) {
-            console.error('Camera access error:', err);
-            cameraInput.removeAttribute('capture');
-            cameraInput.click();
+    // Update file selection handler
+    function onFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        // Convert FileList to Array for easier handling
+        const newFiles = Array.from(input.files);
+        
+        // Calculate total size of new files
+        const newFilesSize = newFiles.reduce((total, file) => total + file.size, 0);
+        const currentSize = getCurrentAttachmentsSize();
+        const totalSize = currentSize + newFilesSize;
+
+        // Check if total size exceeds limit
+        if (totalSize > MAX_TOTAL_SIZE) {
+            alert(`Total file size would exceed 50MB limit. Current size: ${(currentSize / 1024 / 1024).toFixed(1)}MB, Attempted to add: ${(newFilesSize / 1024 / 1024).toFixed(1)}MB`);
+            // Clear the input
+            input.value = '';
+            return;
         }
+
+        // Process each file
+        newFiles.forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                // If it's not the last file, create a new segment
+                insertImageAtCursor(file);
+            } else {
+                insertFileAtCursor(file);
+            }
+        });
+
+        // Clear the input for future selections
+        input.value = '';
     }
 
-    // Function to capture photo
+    // Update camera input to match multiple file handling pattern
+    function onCameraFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        const newFiles = Array.from(input.files);
+        const newFilesSize = newFiles.reduce((total, file) => total + file.size, 0);
+        const currentSize = getCurrentAttachmentsSize();
+        const totalSize = currentSize + newFilesSize;
+
+        if (totalSize > MAX_TOTAL_SIZE) {
+            alert(`Total file size would exceed 50MB limit. Current size: ${(currentSize / 1024 / 1024).toFixed(1)}MB, Attempted to add: ${(newFilesSize / 1024 / 1024).toFixed(1)}MB`);
+            input.value = '';
+            return;
+        }
+
+        newFiles.forEach(file => {
+            insertImageAtCursor(file);
+        });
+
+        input.value = '';
+    }
+
+    // Update the camera capture function to check size before inserting
     async function capturePhoto() {
         if (!videoElement) return;
 
@@ -185,6 +240,12 @@
             ctx.drawImage(videoElement, 0, 0);
             canvas.toBlob((blob) => {
                 if (blob) {
+                    // Check size before inserting
+                    const totalSize = getCurrentAttachmentsSize() + blob.size;
+                    if (totalSize > MAX_TOTAL_SIZE) {
+                        alert(`Adding this photo would exceed the 50MB limit. Current size: ${(getCurrentAttachmentsSize() / 1024 / 1024).toFixed(1)}MB`);
+                        return;
+                    }
                     insertImageAtCursor(blob);
                 }
             }, 'image/jpeg');
@@ -203,31 +264,6 @@
     onDestroy(() => {
         closeCamera();
     });
-
-    // Add constant for max file size (20MB in bytes)
-    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB in bytes
-
-    function onFileSelected(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files.length > 0) {
-            const file = input.files[0];
-            
-            // Check file size
-            if (file.size > MAX_FILE_SIZE) {
-                alert(`File size exceeds 20MB limit. Please choose a smaller file.`);
-                // Clear the input
-                input.value = '';
-                return;
-            }
-            
-            // Check if the file is an image
-            if (file.type.startsWith('image/')) {
-                insertImageAtCursor(file);
-            } else {
-                insertFileAtCursor(file);
-            }
-        }
-    }
 
     // Add new function to handle file insertions
     function insertFileAtCursor(file: File) {
@@ -388,6 +424,28 @@
             handleTextClick(segment, event as unknown as MouseEvent);
         }
     }
+
+    // Add this function back after handleFileSelect
+    async function handleCameraClick() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' },
+                audio: false 
+            });
+            
+            if (stream) {
+                showCamera = true;
+                await tick();
+                if (videoElement) {
+                    videoElement.srcObject = stream;
+                }
+            }
+        } catch (err) {
+            console.error('Camera access error:', err);
+            cameraInput.removeAttribute('capture');
+            cameraInput.click();
+        }
+    }
 </script>
 
 <div class="message-container">
@@ -397,6 +455,7 @@
         type="file"
         on:change={onFileSelected}
         style="display: none"
+        multiple
     />
     
     <input
@@ -404,8 +463,9 @@
         type="file"
         accept="image/*"
         capture="environment"
-        on:change={onFileSelected}
+        on:change={onCameraFileSelected}
         style="display: none"
+        multiple
     />
 
     <div class="scrollable-content">
