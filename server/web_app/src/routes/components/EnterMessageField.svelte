@@ -7,6 +7,7 @@
     type TextSegment = {
         id: string;
         text: string;
+        isEditing: boolean;
     }
 
     type InlineImage = { 
@@ -15,7 +16,7 @@
         filename: string
     };
 
-    let textSegments: TextSegment[] = [{ id: 'initial', text: '' }];
+    let textSegments: TextSegment[] = [{ id: 'initial', text: '', isEditing: true }];
     let inlineImages: InlineImage[] = [];
     let activeSegmentId = 'initial';
 
@@ -37,7 +38,47 @@
         return segment.text.length > 0 || index > 0 || !inlineImages[0];
     }
 
-    // Modify the insertImageAtCursor function
+    // Function to handle clicking on a text div
+    function handleTextClick(segment: TextSegment, event: MouseEvent) {
+        const textDiv = event.target as HTMLDivElement;
+        const clickPosition = getClickPosition(textDiv, event);
+        
+        // Make all segments non-editable
+        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
+        
+        // Make clicked segment editable
+        const index = textSegments.findIndex(s => s.id === segment.id);
+        textSegments[index].isEditing = true;
+        activeSegmentId = segment.id;
+        
+        // Wait for textarea to be created and set cursor position
+        tick().then(() => {
+            const textarea = document.getElementById(segment.id) as HTMLTextAreaElement;
+            if (textarea) {
+                textarea.focus();
+                textarea.setSelectionRange(clickPosition, clickPosition);
+            }
+        });
+    }
+
+    // Helper function to calculate click position in text
+    function getClickPosition(element: HTMLElement, event: MouseEvent): number {
+        const range = document.createRange();
+        const selection = window.getSelection();
+        
+        range.setStart(element, 0);
+        range.setEnd(element, 0);
+        
+        const rects = range.getClientRects();
+        const clickX = event.clientX;
+        const text = element.textContent || '';
+        
+        // Simple calculation - can be improved for more accuracy
+        const charWidth = element.offsetWidth / text.length;
+        return Math.round((clickX - element.getBoundingClientRect().left) / charWidth);
+    }
+
+    // Modify insertImageAtCursor to handle edit states
     function insertImageAtCursor(imageBlob: Blob) {
         const imageId = crypto.randomUUID();
         const newSegmentId = crypto.randomUUID();
@@ -48,36 +89,31 @@
             filename: `image_${imageId}.jpg`
         };
         
-        // Find index of active segment
+        // Make all existing segments non-editable
+        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
+        
         const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
         
         if (activeIndex === 0 && !textSegments[0].text) {
-            // If inserting at the beginning with no text:
-            // 1. Keep the first segment
-            // 2. Add the image
-            // 3. Add a new empty segment after the image
             textSegments = [
                 textSegments[0],
-                { id: newSegmentId, text: '' }
+                { id: newSegmentId, text: '', isEditing: true }
             ];
-            inlineImages = [...inlineImages, newImage];
-            activeSegmentId = newSegmentId;
         } else {
-            // Insert new segment after the image
-            const newSegments = [
+            textSegments = [
                 ...textSegments.slice(0, activeIndex + 1),
-                { id: newSegmentId, text: '' }
+                { id: newSegmentId, text: '', isEditing: true }
             ];
-            textSegments = newSegments;
-            inlineImages = [...inlineImages, newImage];
-            activeSegmentId = newSegmentId;
         }
         
+        inlineImages = [...inlineImages, newImage];
+        activeSegmentId = newSegmentId;
+        
         // Focus new segment
-        setTimeout(() => {
+        tick().then(() => {
             const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
             if (newTextarea) newTextarea.focus();
-        }, 0);
+        });
     }
 
     // Get complete content in markdown format
@@ -248,6 +284,14 @@
             })));
         }
     }
+
+    // Add this new function to handle keyboard events
+    function handleKeyPress(segment: TextSegment, event: KeyboardEvent) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleTextClick(segment, event as unknown as MouseEvent);
+        }
+    }
 </script>
 
 <div class="message-container">
@@ -273,15 +317,28 @@
         <div class="content-wrapper">
             {#each textSegments as segment, index}
                 {#if shouldShowSegment(segment, index)}
-                    <textarea
-                        id={segment.id}
-                        bind:value={segment.text}
-                        on:focus={() => activeSegmentId = segment.id}
-                        on:keydown={(e) => handleKeydown(e, index)}
-                        on:input={handleInput}
-                        placeholder={index === 0 ? "Type your message here..." : ""}
-                        rows="1"
-                    ></textarea>
+                    {#if segment.isEditing}
+                        <textarea
+                            id={segment.id}
+                            bind:value={segment.text}
+                            on:focus={() => activeSegmentId = segment.id}
+                            on:keydown={(e) => handleKeydown(e, index)}
+                            on:input={handleInput}
+                            on:blur={() => segment.isEditing = false}
+                            placeholder={index === 0 ? "Type your message here..." : ""}
+                            rows="1"
+                        ></textarea>
+                    {:else}
+                        <div
+                            class="text-display"
+                            on:click={(e) => handleTextClick(segment, e)}
+                            on:keydown={(e) => handleKeyPress(segment, e)}
+                            tabindex="0"
+                            role="textbox"
+                        >
+                            {segment.text || '\u00A0'}
+                        </div>
+                    {/if}
                 {/if}
                 
                 {#if index < inlineImages.length}
@@ -291,11 +348,6 @@
                             alt="Inline"
                             class="preview-image"
                         />
-                        <textarea 
-                            class="image-markdown-field"
-                            readonly
-                            value={`![${inlineImages[index].filename}](${inlineImages[index].filename})`}
-                        ></textarea>
                     </div>
                 {/if}
             {/each}
@@ -531,5 +583,21 @@
 
     .camera-button:hover {
         background: rgba(255, 255, 255, 0.3);
+    }
+
+    .text-display {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem 0;
+        white-space: pre-wrap;
+        cursor: text;
+        line-height: 1.5;
+        font-size: 1rem;
+    }
+
+    /* Make text-display look similar to textarea */
+    .text-display:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
     }
 </style>
