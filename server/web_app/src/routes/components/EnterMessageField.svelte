@@ -268,14 +268,8 @@
         border-radius: 24px;
         padding: 1rem 1rem 50px 1rem;
         box-sizing: border-box;
-        overflow-y: auto;
+        overflow-y: hidden;
         position: relative;
-    }
-
-    .content-wrapper {
-        position: relative;
-        width: 100%;
-        padding-right: 90px;
     }
 
     textarea {
@@ -369,21 +363,41 @@
         background: rgba(255, 255, 255, 0.3);
     }
 
+    .content-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 60px;
+        max-height: 168px;
+        border: none;
+        outline: none;
+        resize: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1.5;
+        padding: 0.5rem 0;
+        margin: 0;
+        overflow-y: auto;
+    }
+
     .inline-image-wrapper {
         position: absolute;
-        right: 0;
+        left: 0;
         top: var(--line-position);
-        height: 80px;
+        height: 80px;  /* Doubled height */
         padding: 4px;
         background: #f5f5f5;
         border-radius: 8px;
         z-index: 1;
-        width: 80px;
     }
 
     .inline-image {
         height: 100%;
-        width: 100%;
+        width: auto;
         object-fit: contain;
         border-radius: 6px;
     }
