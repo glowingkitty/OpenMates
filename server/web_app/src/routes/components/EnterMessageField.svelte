@@ -25,6 +25,9 @@
     let stream: MediaStream | null = null;
     let showCamera = false;
 
+    // Add new reactive variable to track if there's content
+    $: hasContent = textSegments.some(segment => segment.text.trim().length > 0) || inlineImages.length > 0;
+
     // Insert image after the active segment
     function insertImageAtCursor(imageBlob: Blob) {
         const imageId = crypto.randomUUID();
@@ -194,6 +197,13 @@
         const textarea = event.target as HTMLTextAreaElement;
         adjustTextareaHeight(textarea);
     }
+
+    // Add function to handle sending
+    function handleSend() {
+        // TODO: Implement send functionality
+        const content = getMarkdownContent();
+        console.log('Sending content:', content);
+    }
 </script>
 
 <div class="message-container">
@@ -269,12 +279,20 @@
 
     <!-- Action buttons -->
     <div class="action-buttons">
-        <button class="icon-button" on:click={handleFileSelect}>
-            📎
-        </button>
-        <button class="icon-button" on:click={handleCameraClick}>
-            📷
-        </button>
+        <div class="left-buttons">
+            <button class="icon-button" on:click={handleFileSelect}>
+                📎
+            </button>
+            <button class="icon-button" on:click={handleCameraClick}>
+                📷
+            </button>
+        </div>
+        
+        {#if hasContent}
+            <button class="send-button" on:click={handleSend}>
+                Send ➤
+            </button>
+        {/if}
     </div>
 </div>
 
@@ -379,6 +397,33 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+    }
+
+    .left-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .send-button {
+        background-color: #007AFF;
+        color: white;
+        border: none;
+        border-radius: 18px;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.1s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .send-button:hover {
+        background-color: #0056b3;
+    }
+
+    .send-button:active {
+        transform: scale(0.98);
     }
 
     .icon-button {
