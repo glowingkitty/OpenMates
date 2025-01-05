@@ -204,10 +204,21 @@
         closeCamera();
     });
 
+    // Add constant for max file size (20MB in bytes)
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB in bytes
+
     function onFileSelected(event: Event) {
         const input = event.target as HTMLInputElement;
         if (input.files && input.files.length > 0) {
             const file = input.files[0];
+            
+            // Check file size
+            if (file.size > MAX_FILE_SIZE) {
+                alert(`File size exceeds 20MB limit. Please choose a smaller file.`);
+                // Clear the input
+                input.value = '';
+                return;
+            }
             
             // Check if the file is an image
             if (file.type.startsWith('image/')) {
