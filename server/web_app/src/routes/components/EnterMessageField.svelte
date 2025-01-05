@@ -43,25 +43,31 @@
         const lines = messageText.slice(0, cursorPosition).split('\n');
         const currentLineIndex = lines.length - 1;
         
-        // Insert newline before and after image if not at start of line
+        // Insert newlines to create space for the image
         const before = messageText.slice(0, cursorPosition);
         const after = messageText.slice(cursorPosition);
-        const needsNewlineBefore = cursorPosition > 0 && messageText[cursorPosition - 1] !== '\n';
-        const needsNewlineAfter = after.length > 0 && after[0] !== '\n';
         
+        // Add extra newlines to create space for the image
         messageText = before + 
-            (needsNewlineBefore ? '\n' : '') + 
-            '\u200B' +  // Zero-width space as placeholder
-            (needsNewlineAfter ? '\n' : '') + 
+            '\n\u200B\n\n' +  // Zero-width space as placeholder with extra newlines
             after;
         
         const newImage: InlineImage = { 
             id, 
             blob: imageBlob, 
             filename,
-            lineIndex: currentLineIndex + (needsNewlineBefore ? 1 : 0)
+            lineIndex: currentLineIndex + 1  // Position after the current line
         };
         inlineImages = [...inlineImages, newImage];
+        
+        // Adjust cursor position after insertion
+        setTimeout(() => {
+            if (textareaElement) {
+                textareaElement.selectionStart = cursorPosition + 3;
+                textareaElement.selectionEnd = cursorPosition + 3;
+                textareaElement.focus();
+            }
+        }, 0);
     }
 
     // Function to handle auto-resizing of the textarea
@@ -202,16 +208,20 @@
             rows="1"
         ></textarea>
 
-        <!-- Overlay for inline images -->
+        <!-- Inline images that follow text position -->
         {#each inlineImages as img}
             {@const lines = messageText.slice(0, messageText.length).split('\n')}
             {#if img.lineIndex < lines.length && lines[img.lineIndex].includes('\u200B')}
-                <img
-                    src={URL.createObjectURL(img.blob)}
-                    alt="Inline"
-                    class="inline-image"
-                    style="--top: {img.lineIndex * 1.5}em"
-                />
+                <div 
+                    class="inline-image-wrapper"
+                    style="--line-position: {img.lineIndex * 1.5}em"
+                >
+                    <img
+                        src={URL.createObjectURL(img.blob)}
+                        alt="Inline"
+                        class="inline-image"
+                    />
+                </div>
             {/if}
         {/each}
     </div>
@@ -253,13 +263,19 @@
     .message-container {
         width: 100%;
         min-height: 100px;
-        max-height: 250px;
+        max-height: 350px;
         background-color: #FFFFFF;
         border-radius: 24px;
         padding: 1rem 1rem 50px 1rem;
         box-sizing: border-box;
-        overflow-y: hidden;
+        overflow-y: auto;
         position: relative;
+    }
+
+    .content-wrapper {
+        position: relative;
+        width: 100%;
+        padding-right: 90px;
     }
 
     textarea {
@@ -353,17 +369,28 @@
         background: rgba(255, 255, 255, 0.3);
     }
 
-    .content-wrapper {
-        position: relative;
-        width: 100%;
+    .inline-image-wrapper {
+        position: absolute;
+        right: 0;
+        top: var(--line-position);
+        height: 80px;
+        padding: 4px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        z-index: 1;
+        width: 80px;
     }
 
     .inline-image {
-        position: absolute;
-        max-height: 40px;
-        width: auto;
-        top: var(--top, 0);
-        left: 0;
-        pointer-events: none;
+        height: 100%;
+        width: 100%;
+        object-fit: contain;
+        border-radius: 6px;
+    }
+
+    /* Add padding to textarea lines that contain images */
+    textarea {
+        line-height: 1.5;
+        padding-bottom: 90px; /* Ensure space for images */
     }
 </style>
