@@ -1,10 +1,10 @@
 <script lang="ts">
     // State for the input text
     let messageText = '';
-    
+
     // Track the height of the input field for auto-resizing
     let textareaElement: HTMLTextAreaElement;
-    
+
     // Function to handle auto-resizing of the textarea
     function adjustHeight() {
         if (textareaElement) {
@@ -34,17 +34,21 @@
         max-height: 250px;
         background-color: #FFFFFF;
         border-radius: 24px;
-        padding: 1rem;
+        /* Adjust padding to ensure consistent bottom spacing */
+        padding: 1rem 1rem 50px 1rem;
         box-sizing: border-box;
         /* Remove container scroll */
         overflow-y: hidden;
+        /* Add relative positioning for potential absolute elements */
+        position: relative;
     }
 
     textarea {
         /* Input field styling */
         width: 100%;
         min-height: 60px;
-        max-height: 218px; /* 250px - 2rem padding */
+        /* Adjust max-height to account for bottom spacing */
+        max-height: 168px; /* 250px - 2rem padding - 50px bottom spacing */
         border: none;
         outline: none;
         resize: none;
@@ -54,7 +58,6 @@
         line-height: 1.5;
         padding: 0.5rem 0;
         margin: 0;
-
         /* Enable textarea scrolling */
         overflow-y: auto;
     }
