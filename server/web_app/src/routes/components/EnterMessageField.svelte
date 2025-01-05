@@ -170,6 +170,19 @@
         // Adjust height on next tick to ensure content is updated
         tick().then(() => adjustTextareaHeight(textarea));
 
+        // Handle Enter key
+        if (event.key === 'Enter') {
+            // If Shift is not pressed, send the message
+            if (!event.shiftKey) {
+                event.preventDefault(); // Prevent default newline
+                if (hasContent) {
+                    handleSend();
+                }
+            }
+            // If Shift is pressed, let the default behavior (newline) happen
+        }
+
+        // Existing Backspace handling
         if (event.key === 'Backspace') {
             // Check if cursor is at the beginning of the textarea
             if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
