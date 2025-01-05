@@ -200,9 +200,19 @@
 
     // Add function to handle sending
     function handleSend() {
-        // TODO: Implement send functionality
-        const content = getMarkdownContent();
-        console.log('Sending content:', content);
+        const markdownContent = getMarkdownContent();
+        console.log('Sending message with following markdown content:');
+        console.log('----------------------------------------');
+        console.log(markdownContent);
+        console.log('----------------------------------------');
+
+        // Log image details separately for debugging
+        if (inlineImages.length > 0) {
+            console.log('Included images:', inlineImages.map(img => ({
+                filename: img.filename,
+                size: Math.round(img.blob.size / 1024) + 'KB'
+            })));
+        }
     }
 </script>
 
