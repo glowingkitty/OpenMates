@@ -281,7 +281,7 @@
             }
         }
 
-        // Update Backspace handling to include file attachments
+        // Update Backspace handling
         if (event.key === 'Backspace') {
             if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
                 event.preventDefault();
@@ -289,31 +289,51 @@
                 const currentText = textarea.value;
                 const prevSegment = textSegments[index - 1];
                 
-                // Remove the current segment and merge text with previous segment
-                textSegments = [
-                    ...textSegments.slice(0, index - 1),
-                    {
-                        ...prevSegment,
-                        text: prevSegment.text + currentText
-                    },
-                    ...textSegments.slice(index + 1)
-                ];
+                // If previous segment has an attachment, remove it
+                if (prevSegment.imageId || prevSegment.fileId) {
+                    // Remove the attachment
+                    if (prevSegment.imageId) {
+                        inlineImages = inlineImages.filter(img => img.id !== prevSegment.imageId);
+                    }
+                    if (prevSegment.fileId) {
+                        fileAttachments = fileAttachments.filter(file => file.id !== prevSegment.fileId);
+                    }
 
-                // Remove any orphaned attachments
-                if (prevSegment.imageId) {
-                    inlineImages = inlineImages.filter(img => img.id !== prevSegment.imageId);
-                }
-                if (prevSegment.fileId) {
-                    fileAttachments = fileAttachments.filter(file => file.id !== prevSegment.fileId);
+                    // Update the previous segment to remove attachment reference
+                    textSegments = [
+                        ...textSegments.slice(0, index - 1),
+                        {
+                            ...prevSegment,
+                            imageId: undefined,
+                            fileId: undefined,
+                            text: prevSegment.text + currentText,
+                            isEditing: true
+                        },
+                        ...textSegments.slice(index + 1)
+                    ];
+
+                    activeSegmentId = prevSegment.id;
+                } else {
+                    // Regular text merge if no attachments
+                    textSegments = [
+                        ...textSegments.slice(0, index - 1),
+                        {
+                            ...prevSegment,
+                            text: prevSegment.text + currentText,
+                            isEditing: true
+                        },
+                        ...textSegments.slice(index + 1)
+                    ];
+
+                    activeSegmentId = prevSegment.id;
                 }
 
                 setTimeout(() => {
-                    const prevTextarea = document.getElementById(textSegments[index - 1].id) as HTMLTextAreaElement;
+                    const prevTextarea = document.getElementById(prevSegment.id) as HTMLTextAreaElement;
                     if (prevTextarea) {
                         prevTextarea.focus();
                         const length = prevTextarea.value.length;
                         prevTextarea.setSelectionRange(length, length);
-                        activeSegmentId = textSegments[index - 1].id;
                     }
                 }, 0);
             }
@@ -356,13 +376,6 @@
             event.preventDefault();
             handleTextClick(segment, event as unknown as MouseEvent);
         }
-    }
-
-    // Helper function to format file size
-    function formatFileSize(bytes: number): string {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 </script>
 
@@ -429,9 +442,6 @@
                             <div class="file-info">
                                 <div class="file-name">
                                     {fileAttachments.find(file => file.id === segment.fileId)!.filename}
-                                </div>
-                                <div class="file-size">
-                                    {formatFileSize(fileAttachments.find(file => file.id === segment.fileId)!.file.size)}
                                 </div>
                             </div>
                         </div>
@@ -706,16 +716,10 @@
     .file-info {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
     }
 
     .file-name {
         font-weight: 500;
         word-break: break-all;
-    }
-
-    .file-size {
-        font-size: 0.875rem;
-        color: #666;
     }
 </style>
