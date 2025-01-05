@@ -1,81 +1,65 @@
 <script lang="ts">
     import { tick, onDestroy } from 'svelte';
 
-    // State for the input text
-    let messageText = '';
-    // Track cursor position for image insertion
-    let cursorPosition = 0;
-    // Store for inline images
+    type TextSegment = {
+        id: string;
+        text: string;
+    }
+
     type InlineImage = { 
         id: string, 
         blob: Blob, 
-        filename: string,
-        lineIndex: number  // Track which line the image is on
+        filename: string
     };
-    let inlineImages: InlineImage[] = [];
 
-    // Track the height of the input field for auto-resizing
-    let textareaElement: HTMLTextAreaElement;
-    
+    let textSegments: TextSegment[] = [{ id: 'initial', text: '' }];
+    let inlineImages: InlineImage[] = [];
+    let activeSegmentId = 'initial';
+
     // References for file input and camera input
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
-
-    // State for camera view
-    let showCamera = false;
     let videoElement: HTMLVideoElement;
     let stream: MediaStream | null = null;
+    let showCamera = false;
 
-    // Track cursor position when typing
-    function handleInput() {
-        adjustHeight();
-        if (textareaElement) {
-            cursorPosition = textareaElement.selectionStart;
-        }
-    }
-
-    // Insert image at current cursor position
+    // Insert image after the active segment
     function insertImageAtCursor(imageBlob: Blob) {
-        const id = crypto.randomUUID();
-        const filename = `image_${id}.jpg`;
-        
-        // Find the current line number based on cursor position
-        const lines = messageText.slice(0, cursorPosition).split('\n');
-        const currentLineIndex = lines.length - 1;
-        
-        // Insert newlines to create space for the image
-        const before = messageText.slice(0, cursorPosition);
-        const after = messageText.slice(cursorPosition);
-        
-        // Add extra newlines to create space for the image
-        messageText = before + 
-            '\n\u200B\n\n' +  // Zero-width space as placeholder with extra newlines
-            after;
+        const imageId = crypto.randomUUID();
+        const newSegmentId = crypto.randomUUID();
         
         const newImage: InlineImage = { 
-            id, 
+            id: imageId, 
             blob: imageBlob, 
-            filename,
-            lineIndex: currentLineIndex + 1  // Position after the current line
+            filename: `image_${imageId}.jpg`
         };
-        inlineImages = [...inlineImages, newImage];
         
-        // Adjust cursor position after insertion
+        // Find index of active segment
+        const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
+        
+        // Insert new segment after the image
+        const newSegments = [
+            ...textSegments.slice(0, activeIndex + 1),
+            { id: newSegmentId, text: '' }
+        ];
+        
+        textSegments = newSegments;
+        inlineImages = [...inlineImages, newImage];
+        activeSegmentId = newSegmentId;
+        
+        // Focus new segment
         setTimeout(() => {
-            if (textareaElement) {
-                textareaElement.selectionStart = cursorPosition + 3;
-                textareaElement.selectionEnd = cursorPosition + 3;
-                textareaElement.focus();
-            }
+            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+            if (newTextarea) newTextarea.focus();
         }, 0);
     }
 
-    // Function to handle auto-resizing of the textarea
-    function adjustHeight() {
-        if (textareaElement) {
-            textareaElement.style.height = 'auto';
-            textareaElement.style.height = Math.min(textareaElement.scrollHeight, 250) + 'px';
-        }
+    // Get complete content in markdown format
+    export function getMarkdownContent(): string {
+        return textSegments.map((segment, index) => {
+            const img = inlineImages[index];
+            return segment.text + (img ? `\n![${img.filename}](${img.filename})\n` : '');
+        }).join('');
     }
 
     // Handler for file selection
@@ -86,7 +70,6 @@
     // Handler for camera activation
     async function handleCameraClick() {
         try {
-            // Request camera access
             stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' },
                 audio: false 
@@ -94,7 +77,6 @@
             
             if (stream) {
                 showCamera = true;
-                // Wait for DOM update
                 await tick();
                 if (videoElement) {
                     videoElement.srcObject = stream;
@@ -102,7 +84,6 @@
             }
         } catch (err) {
             console.error('Camera access error:', err);
-            // Fallback to basic file input if camera access fails
             cameraInput.removeAttribute('capture');
             cameraInput.click();
         }
@@ -119,19 +100,15 @@
         
         if (ctx) {
             ctx.drawImage(videoElement, 0, 0);
-            
-            // Convert to file
             canvas.toBlob((blob) => {
                 if (blob) {
                     insertImageAtCursor(blob);
                 }
             }, 'image/jpeg');
         }
-
         closeCamera();
     }
 
-    // Function to close camera
     function closeCamera() {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -140,90 +117,60 @@
         showCamera = false;
     }
 
-    // Clean up on component destruction
     onDestroy(() => {
         closeCamera();
     });
 
-    // Handler for when files are selected
     function onFileSelected(event: Event) {
         const input = event.target as HTMLInputElement;
         if (input.files && input.files.length > 0) {
-            // TODO: Handle the selected file
-            console.log('File selected:', input.files[0]);
+            const file = input.files[0];
+            insertImageAtCursor(file);
         }
-    }
-
-    // Handler for when media is captured
-    function onMediaCaptured(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files.length > 0) {
-            // TODO: Handle the captured media
-            console.log('Media captured:', input.files[0]);
-        }
-    }
-
-    // Get markdown representation of the content
-    export function getMarkdownContent(): string {
-        const lines = messageText.split('\n');
-        
-        // Replace zero-width spaces with image tags
-        for (const img of inlineImages) {
-            if (img.lineIndex < lines.length) {
-                if (lines[img.lineIndex].includes('\u200B')) {
-                    lines[img.lineIndex] = `![${img.filename}](${img.filename})`;
-                }
-            }
-        }
-        return lines.join('\n');
     }
 </script>
 
 <div class="message-container">
-    <!-- Hidden file input -->
+    <!-- Hidden file inputs -->
     <input
         bind:this={fileInput}
         type="file"
+        accept="image/*"
         on:change={onFileSelected}
         style="display: none"
     />
     
-    <!-- Hidden camera input -->
     <input
         bind:this={cameraInput}
         type="file"
         accept="image/*"
         capture="environment"
-        on:change={onMediaCaptured}
+        on:change={onFileSelected}
         style="display: none"
     />
 
-    <div class="content-wrapper">
-        <textarea
-            bind:this={textareaElement}
-            bind:value={messageText}
-            on:input={handleInput}
-            on:click={handleInput}
-            placeholder="Type your message here..."
-            rows="1"
-        ></textarea>
-
-        <!-- Inline images that follow text position -->
-        {#each inlineImages as img}
-            {@const lines = messageText.slice(0, messageText.length).split('\n')}
-            {#if img.lineIndex < lines.length && lines[img.lineIndex].includes('\u200B')}
-                <div 
-                    class="inline-image-wrapper"
-                    style="--line-position: {img.lineIndex * 1.5}em"
-                >
-                    <img
-                        src={URL.createObjectURL(img.blob)}
-                        alt="Inline"
-                        class="inline-image"
-                    />
-                </div>
-            {/if}
-        {/each}
+    <div class="scrollable-content">
+        <div class="content-wrapper">
+            {#each textSegments as segment, index}
+                <textarea
+                    id={segment.id}
+                    bind:value={segment.text}
+                    on:focus={() => activeSegmentId = segment.id}
+                    placeholder="Type your message here..."
+                    rows="1"
+                ></textarea>
+                
+                {#if index < inlineImages.length}
+                    <div class="image-container">
+                        <img
+                            src={URL.createObjectURL(inlineImages[index].blob)}
+                            alt="Inline"
+                            class="preview-image"
+                        />
+                    </div>
+                {/if}
+            {/each}
+        </div>
     </div>
 
     {#if showCamera}
@@ -247,14 +194,11 @@
         </div>
     {/if}
 
-    <!-- Action buttons container -->
+    <!-- Action buttons -->
     <div class="action-buttons">
-        <!-- File upload button -->
         <button class="icon-button" on:click={handleFileSelect}>
             📎
         </button>
-        
-        <!-- Camera button -->
         <button class="icon-button" on:click={handleCameraClick}>
             📷
         </button>
@@ -270,14 +214,27 @@
         border-radius: 24px;
         padding: 1rem 1rem 50px 1rem;
         box-sizing: border-box;
-        overflow-y: hidden;
         position: relative;
+    }
+
+    .scrollable-content {
+        width: 100%;
+        height: 100%;
+        max-height: 250px; /* Adjust based on your needs */
+        overflow-y: auto;
+        position: relative;
+        padding: 0.5rem 0;
+    }
+
+    .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
     textarea {
         width: 100%;
-        min-height: 60px;
-        max-height: 168px;
+        min-height: 2em;
         border: none;
         outline: none;
         resize: none;
@@ -287,11 +244,21 @@
         line-height: 1.5;
         padding: 0.5rem 0;
         margin: 0;
-        overflow-y: auto;
     }
 
-    textarea::placeholder {
-        color: #888;
+    .image-container {
+        width: 100%;
+        height: 100px;
+        margin: 0.5rem 0;
+    }
+
+    .preview-image {
+        height: 100%;
+        width: auto;
+        max-width: 80%;
+        object-fit: contain;
+        border-radius: 6px;
+        background: #f5f5f5;
     }
 
     .action-buttons {
@@ -363,51 +330,5 @@
 
     .camera-button:hover {
         background: rgba(255, 255, 255, 0.3);
-    }
-
-    .content-wrapper {
-        position: relative;
-        width: 100%;
-    }
-
-    textarea {
-        width: 100%;
-        min-height: 60px;
-        max-height: 168px;
-        border: none;
-        outline: none;
-        resize: none;
-        background: transparent;
-        font-family: inherit;
-        font-size: 1rem;
-        line-height: 1.5;
-        padding: 0.5rem 0;
-        margin: 0;
-        overflow-y: auto;
-    }
-
-    .inline-image-wrapper {
-        position: absolute;
-        left: 0;
-        top: var(--line-position);
-        height: 100px;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        background: #f5f5f5;
-        border-radius: 8px;
-        z-index: 1;
-    }
-
-    .inline-image {
-        height: 100%;
-        width: auto;
-        object-fit: contain;
-        border-radius: 6px;
-    }
-
-    /* Add padding to textarea lines that contain images */
-    textarea {
-        line-height: 1.5;
-        padding-bottom: 90px; /* Ensure space for images */
     }
 </style>
