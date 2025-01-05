@@ -128,6 +128,36 @@
             insertImageAtCursor(file);
         }
     }
+
+    // Add function to handle backspace in empty fields
+    function handleKeydown(event: KeyboardEvent, index: number) {
+        if (event.key === 'Backspace' && 
+            (event.target as HTMLTextAreaElement).value === '' && 
+            index > 0) {
+            event.preventDefault();
+            
+            // Remove current segment and image before it
+            textSegments = [
+                ...textSegments.slice(0, index),
+                ...textSegments.slice(index + 1)
+            ];
+            inlineImages = [
+                ...inlineImages.slice(0, index - 1),
+                ...inlineImages.slice(index)
+            ];
+
+            // Set focus to end of previous segment
+            setTimeout(() => {
+                const prevTextarea = document.getElementById(textSegments[index - 1].id) as HTMLTextAreaElement;
+                if (prevTextarea) {
+                    prevTextarea.focus();
+                    const length = prevTextarea.value.length;
+                    prevTextarea.setSelectionRange(length, length);
+                    activeSegmentId = textSegments[index - 1].id;
+                }
+            }, 0);
+        }
+    }
 </script>
 
 <div class="message-container">
@@ -156,7 +186,8 @@
                     id={segment.id}
                     bind:value={segment.text}
                     on:focus={() => activeSegmentId = segment.id}
-                    placeholder="Type your message here..."
+                    on:keydown={(e) => handleKeydown(e, index)}
+                    placeholder={index === 0 ? "Type your message here..." : ""}
                     rows="1"
                 ></textarea>
                 
