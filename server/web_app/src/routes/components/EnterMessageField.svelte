@@ -8,6 +8,8 @@
         id: string;
         text: string;
         isEditing: boolean;
+        imageId?: string;  // Reference to associated image
+        fileId?: string;   // Reference to associated file
     }
 
     type InlineImage = { 
@@ -16,9 +18,16 @@
         filename: string
     };
 
+    type FileAttachment = {
+        id: string,
+        file: File,
+        filename: string
+    };
+
     let textSegments: TextSegment[] = [{ id: 'initial', text: '', isEditing: true }];
     let inlineImages: InlineImage[] = [];
     let activeSegmentId = 'initial';
+    let fileAttachments: FileAttachment[] = [];
 
     // References for file input and camera input
     let cameraInput: HTMLInputElement;
@@ -27,15 +36,19 @@
     let showCamera = false;
 
     // Add new reactive variable to track if there's content
-    $: hasContent = textSegments.some(segment => segment.text.trim().length > 0) || inlineImages.length > 0;
+    $: hasContent = textSegments.some(segment => segment.text.trim().length > 0) || 
+                    inlineImages.length > 0 || 
+                    fileAttachments.length > 0;
 
     // Add new function to check if segment should be visible
     function shouldShowSegment(segment: TextSegment, index: number): boolean {
         // Show segment if:
         // 1. It has text content, or
         // 2. It's not the first segment, or
-        // 3. It's the first segment but there are no images at index 0
-        return segment.text.length > 0 || index > 0 || !inlineImages[0];
+        // 3. It's the first segment but there are no attachments at index 0
+        return segment.text.length > 0 || 
+               index > 0 || 
+               (!inlineImages[0] && !fileAttachments[0]);
     }
 
     // Function to handle clicking on a text div
@@ -96,20 +109,21 @@
         
         if (activeIndex === 0 && !textSegments[0].text) {
             textSegments = [
-                textSegments[0],
-                { id: newSegmentId, text: '', isEditing: true }
+                { ...textSegments[0], imageId },  // Associate image with first segment
+                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
             ];
         } else {
             textSegments = [
                 ...textSegments.slice(0, activeIndex + 1),
-                { id: newSegmentId, text: '', isEditing: true }
+                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
             ];
+            // Associate image with the segment at activeIndex
+            textSegments[activeIndex] = { ...textSegments[activeIndex], imageId };
         }
         
         inlineImages = [...inlineImages, newImage];
         activeSegmentId = newSegmentId;
         
-        // Focus new segment
         tick().then(() => {
             const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
             if (newTextarea) newTextarea.focus();
@@ -118,9 +132,16 @@
 
     // Get complete content in markdown format
     export function getMarkdownContent(): string {
-        return textSegments.map((segment, index) => {
-            const img = inlineImages[index];
-            return segment.text + (img ? `\n![${img.filename}](${img.filename})\n` : '');
+        return textSegments.map(segment => {
+            const img = segment.imageId ? inlineImages.find(img => img.id === segment.imageId) : null;
+            const file = segment.fileId ? fileAttachments.find(file => file.id === segment.fileId) : null;
+            
+            if (img) {
+                return segment.text + `\n![${img.filename}](${img.filename})\n`;
+            } else if (file) {
+                return segment.text + `\n[📎 ${file.filename}](${file.filename})\n`;
+            }
+            return segment.text;
         }).join('');
     }
 
@@ -187,8 +208,52 @@
         const input = event.target as HTMLInputElement;
         if (input.files && input.files.length > 0) {
             const file = input.files[0];
-            insertImageAtCursor(file);
+            
+            // Check if the file is an image
+            if (file.type.startsWith('image/')) {
+                insertImageAtCursor(file);
+            } else {
+                insertFileAtCursor(file);
+            }
         }
+    }
+
+    // Add new function to handle file insertions
+    function insertFileAtCursor(file: File) {
+        const fileId = crypto.randomUUID();
+        const newSegmentId = crypto.randomUUID();
+        
+        const newFile: FileAttachment = {
+            id: fileId,
+            file: file,
+            filename: file.name
+        };
+        
+        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
+        
+        const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
+        
+        if (activeIndex === 0 && !textSegments[0].text) {
+            textSegments = [
+                { ...textSegments[0], fileId },  // Associate file with first segment
+                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
+            ];
+        } else {
+            textSegments = [
+                ...textSegments.slice(0, activeIndex + 1),
+                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
+            ];
+            // Associate file with the segment at activeIndex
+            textSegments[activeIndex] = { ...textSegments[activeIndex], fileId };
+        }
+        
+        fileAttachments = [...fileAttachments, newFile];
+        activeSegmentId = newSegmentId;
+        
+        tick().then(() => {
+            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+            if (newTextarea) newTextarea.focus();
+        });
     }
 
     // Add this new function to adjust textarea height
@@ -208,47 +273,40 @@
 
         // Handle Enter key
         if (event.key === 'Enter') {
-            // If Shift is not pressed, send the message
             if (!event.shiftKey) {
-                event.preventDefault(); // Prevent default newline
+                event.preventDefault();
                 if (hasContent) {
                     handleSend();
                 }
             }
-            // If Shift is pressed, let the default behavior (newline) happen
         }
 
-        // Existing Backspace handling
+        // Update Backspace handling to include file attachments
         if (event.key === 'Backspace') {
-            // Check if cursor is at the beginning of the textarea
             if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
                 event.preventDefault();
                 
-                // Get the current segment's text
                 const currentText = textarea.value;
+                const prevSegment = textSegments[index - 1];
                 
-                // Remove the image before the current segment
-                inlineImages = [
-                    ...inlineImages.slice(0, index - 1),
-                    ...inlineImages.slice(index)
-                ];
-                
-                // Remove the current segment
+                // Remove the current segment and merge text with previous segment
                 textSegments = [
-                    ...textSegments.slice(0, index),
+                    ...textSegments.slice(0, index - 1),
+                    {
+                        ...prevSegment,
+                        text: prevSegment.text + currentText
+                    },
                     ...textSegments.slice(index + 1)
                 ];
 
-                // If there was text in the removed segment, append it to the previous segment
-                if (currentText) {
-                    const prevSegment = textSegments[index - 1];
-                    textSegments[index - 1] = {
-                        ...prevSegment,
-                        text: prevSegment.text + currentText
-                    };
+                // Remove any orphaned attachments
+                if (prevSegment.imageId) {
+                    inlineImages = inlineImages.filter(img => img.id !== prevSegment.imageId);
+                }
+                if (prevSegment.fileId) {
+                    fileAttachments = fileAttachments.filter(file => file.id !== prevSegment.fileId);
                 }
 
-                // Set focus to end of previous segment
                 setTimeout(() => {
                     const prevTextarea = document.getElementById(textSegments[index - 1].id) as HTMLTextAreaElement;
                     if (prevTextarea) {
@@ -276,11 +334,18 @@
         console.log(markdownContent);
         console.log('----------------------------------------');
 
-        // Log image details separately for debugging
+        // Log attachments for debugging
         if (inlineImages.length > 0) {
             console.log('Included images:', inlineImages.map(img => ({
                 filename: img.filename,
                 size: Math.round(img.blob.size / 1024) + 'KB'
+            })));
+        }
+        
+        if (fileAttachments.length > 0) {
+            console.log('Included files:', fileAttachments.map(file => ({
+                filename: file.filename,
+                size: Math.round(file.file.size / 1024) + 'KB'
             })));
         }
     }
@@ -292,6 +357,13 @@
             handleTextClick(segment, event as unknown as MouseEvent);
         }
     }
+
+    // Helper function to format file size
+    function formatFileSize(bytes: number): string {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
 </script>
 
 <div class="message-container">
@@ -299,7 +371,6 @@
     <input
         bind:this={fileInput}
         type="file"
-        accept="image/*"
         on:change={onFileSelected}
         style="display: none"
     />
@@ -341,14 +412,30 @@
                     {/if}
                 {/if}
                 
-                {#if index < inlineImages.length}
-                    <div class="image-container">
-                        <img
-                            src={URL.createObjectURL(inlineImages[index].blob)}
-                            alt="Inline"
-                            class="preview-image"
-                        />
-                    </div>
+                {#if segment.imageId}
+                    {#if inlineImages.find(img => img.id === segment.imageId)}
+                        <div class="image-container">
+                            <img
+                                src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)}
+                                alt="Inline"
+                                class="preview-image"
+                            />
+                        </div>
+                    {/if}
+                {:else if segment.fileId}
+                    {#if fileAttachments.find(file => file.id === segment.fileId)}
+                        <div class="file-attachment">
+                            <div class="file-icon">📎</div>
+                            <div class="file-info">
+                                <div class="file-name">
+                                    {fileAttachments.find(file => file.id === segment.fileId)!.filename}
+                                </div>
+                                <div class="file-size">
+                                    {formatFileSize(fileAttachments.find(file => file.id === segment.fileId)!.file.size)}
+                                </div>
+                            </div>
+                        </div>
+                    {/if}
                 {/if}
             {/each}
         </div>
@@ -599,5 +686,36 @@
     .text-display:hover {
         background-color: rgba(0, 0, 0, 0.05);
         border-radius: 4px;
+    }
+
+    .file-attachment {
+        display: flex;
+        align-items: center;
+        background: #f5f5f5;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        gap: 1rem;
+        max-width: 80%;
+    }
+
+    .file-icon {
+        font-size: 1.5rem;
+    }
+
+    .file-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .file-name {
+        font-weight: 500;
+        word-break: break-all;
+    }
+
+    .file-size {
+        font-size: 0.875rem;
+        color: #666;
     }
 </style>
