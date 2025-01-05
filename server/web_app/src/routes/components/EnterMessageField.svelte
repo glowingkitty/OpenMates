@@ -1,6 +1,9 @@
 <script lang="ts">
     import { tick, onDestroy } from 'svelte';
 
+    // Add variable declarations
+    let fileInput: HTMLInputElement;
+
     type TextSegment = {
         id: string;
         text: string;
@@ -17,7 +20,6 @@
     let activeSegmentId = 'initial';
 
     // References for file input and camera input
-    let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
     let videoElement: HTMLVideoElement;
     let stream: MediaStream | null = null;
@@ -144,31 +146,46 @@
         // Adjust height on next tick to ensure content is updated
         tick().then(() => adjustTextareaHeight(textarea));
 
-        if (event.key === 'Backspace' && 
-            textarea.value === '' && 
-            index > 0) {
-            event.preventDefault();
-            
-            // Remove current segment and image before it
-            textSegments = [
-                ...textSegments.slice(0, index),
-                ...textSegments.slice(index + 1)
-            ];
-            inlineImages = [
-                ...inlineImages.slice(0, index - 1),
-                ...inlineImages.slice(index)
-            ];
+        if (event.key === 'Backspace') {
+            // Check if cursor is at the beginning of the textarea
+            if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
+                event.preventDefault();
+                
+                // Get the current segment's text
+                const currentText = textarea.value;
+                
+                // Remove the image before the current segment
+                inlineImages = [
+                    ...inlineImages.slice(0, index - 1),
+                    ...inlineImages.slice(index)
+                ];
+                
+                // Remove the current segment
+                textSegments = [
+                    ...textSegments.slice(0, index),
+                    ...textSegments.slice(index + 1)
+                ];
 
-            // Set focus to end of previous segment
-            setTimeout(() => {
-                const prevTextarea = document.getElementById(textSegments[index - 1].id) as HTMLTextAreaElement;
-                if (prevTextarea) {
-                    prevTextarea.focus();
-                    const length = prevTextarea.value.length;
-                    prevTextarea.setSelectionRange(length, length);
-                    activeSegmentId = textSegments[index - 1].id;
+                // If there was text in the removed segment, append it to the previous segment
+                if (currentText) {
+                    const prevSegment = textSegments[index - 1];
+                    textSegments[index - 1] = {
+                        ...prevSegment,
+                        text: prevSegment.text + currentText
+                    };
                 }
-            }, 0);
+
+                // Set focus to end of previous segment
+                setTimeout(() => {
+                    const prevTextarea = document.getElementById(textSegments[index - 1].id) as HTMLTextAreaElement;
+                    if (prevTextarea) {
+                        prevTextarea.focus();
+                        const length = prevTextarea.value.length;
+                        prevTextarea.setSelectionRange(length, length);
+                        activeSegmentId = textSegments[index - 1].id;
+                    }
+                }, 0);
+            }
         }
     }
 
