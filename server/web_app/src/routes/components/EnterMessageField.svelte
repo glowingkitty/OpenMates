@@ -129,10 +129,23 @@
         }
     }
 
-    // Add function to handle backspace in empty fields
+    // Add this new function to adjust textarea height
+    async function adjustTextareaHeight(textarea: HTMLTextAreaElement) {
+        // Reset height to auto to get the correct scrollHeight
+        textarea.style.height = 'auto';
+        // Set the height to match the content
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    // Modify the existing handleKeydown function to include height adjustment
     function handleKeydown(event: KeyboardEvent, index: number) {
+        const textarea = event.target as HTMLTextAreaElement;
+        
+        // Adjust height on next tick to ensure content is updated
+        tick().then(() => adjustTextareaHeight(textarea));
+
         if (event.key === 'Backspace' && 
-            (event.target as HTMLTextAreaElement).value === '' && 
+            textarea.value === '' && 
             index > 0) {
             event.preventDefault();
             
@@ -157,6 +170,12 @@
                 }
             }, 0);
         }
+    }
+
+    // Add new function to handle input events
+    function handleInput(event: Event) {
+        const textarea = event.target as HTMLTextAreaElement;
+        adjustTextareaHeight(textarea);
     }
 </script>
 
@@ -187,6 +206,7 @@
                     bind:value={segment.text}
                     on:focus={() => activeSegmentId = segment.id}
                     on:keydown={(e) => handleKeydown(e, index)}
+                    on:input={handleInput}
                     placeholder={index === 0 ? "Type your message here..." : ""}
                     rows="1"
                 ></textarea>
@@ -251,10 +271,25 @@
     .scrollable-content {
         width: 100%;
         height: 100%;
-        max-height: 250px; /* Adjust based on your needs */
+        max-height: 250px;
         overflow-y: auto;
         position: relative;
         padding: 0.5rem 0;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+    }
+
+    .scrollable-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .scrollable-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .scrollable-content::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
     }
 
     .content-wrapper {
@@ -275,6 +310,8 @@
         line-height: 1.5;
         padding: 0.5rem 0;
         margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
     }
 
     .image-container {
