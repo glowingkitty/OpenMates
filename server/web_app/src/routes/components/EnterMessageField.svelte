@@ -1,99 +1,194 @@
 <script lang="ts">
-    import { tick, onDestroy } from 'svelte';
+    import { tick, onDestroy, onMount } from 'svelte';
 
-    // Add variable declarations
-    let fileInput: HTMLInputElement;
-
-    type TextSegment = {
+    // Content block types
+    type Block = {
         id: string;
-        text: string;
+        type: 'text' | 'image';
+        content: string | ImageContent;
     }
 
-    type InlineImage = { 
-        id: string, 
-        blob: Blob, 
-        filename: string
-    };
+    type ImageContent = {
+        blob: Blob;
+        filename: string;
+        altText: string;
+    }
 
-    let textSegments: TextSegment[] = [{ id: 'initial', text: '' }];
-    let inlineImages: InlineImage[] = [];
-    let activeSegmentId = 'initial';
-
-    // References for file input and camera input
+    // State
+    let blocks: Block[] = [{ id: crypto.randomUUID(), type: 'text', content: '' }];
+    let editorRef: HTMLDivElement;
+    let currentSelection: Range | null = null;
+    
+    // File and camera refs (keeping existing camera functionality)
+    let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
     let videoElement: HTMLVideoElement;
     let stream: MediaStream | null = null;
     let showCamera = false;
 
-    // Add new reactive variable to track if there's content
-    $: hasContent = textSegments.some(segment => segment.text.trim().length > 0) || inlineImages.length > 0;
+    // Track if there's content
+    $: hasContent = blocks.some(block => 
+        block.type === 'text' ? block.content.toString().trim().length > 0 : true
+    );
 
-    // Add new function to check if segment should be visible
-    function shouldShowSegment(segment: TextSegment, index: number): boolean {
-        // Show segment if:
-        // 1. It has text content, or
-        // 2. It's not the first segment, or
-        // 3. It's the first segment but there are no images at index 0
-        return segment.text.length > 0 || index > 0 || !inlineImages[0];
-    }
+    onMount(() => {
+        // Track selection changes
+        document.addEventListener('selectionchange', () => {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                currentSelection = selection.getRangeAt(0);
+            }
+        });
+    });
 
-    // Modify the insertImageAtCursor function
-    function insertImageAtCursor(imageBlob: Blob) {
-        const imageId = crypto.randomUUID();
-        const newSegmentId = crypto.randomUUID();
-        
-        const newImage: InlineImage = { 
-            id: imageId, 
-            blob: imageBlob, 
-            filename: `image_${imageId}.jpg`
-        };
-        
-        // Find index of active segment
-        const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
-        
-        if (activeIndex === 0 && !textSegments[0].text) {
-            // If inserting at the beginning with no text:
-            // 1. Keep the first segment
-            // 2. Add the image
-            // 3. Add a new empty segment after the image
-            textSegments = [
-                textSegments[0],
-                { id: newSegmentId, text: '' }
-            ];
-            inlineImages = [...inlineImages, newImage];
-            activeSegmentId = newSegmentId;
-        } else {
-            // Insert new segment after the image
-            const newSegments = [
-                ...textSegments.slice(0, activeIndex + 1),
-                { id: newSegmentId, text: '' }
-            ];
-            textSegments = newSegments;
-            inlineImages = [...inlineImages, newImage];
-            activeSegmentId = newSegmentId;
+    // Handle content updates
+    function handleInput(event: Event, block: Block) {
+        if (block.type === 'text') {
+            const div = event.target as HTMLDivElement;
+            block.content = div.innerText;
         }
+    }
+
+    // Insert image at current selection or at end
+    function insertImage(blob: Blob) {
+        const imageId = crypto.randomUUID();
+        const newBlock: Block = {
+            id: imageId,
+            type: 'image',
+            content: {
+                blob,
+                filename: `image_${imageId}.jpg`,
+                altText: ''
+            }
+        };
+
+        let insertIndex = blocks.length;
         
-        // Focus new segment
-        setTimeout(() => {
-            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-            if (newTextarea) newTextarea.focus();
-        }, 0);
+        // Find insertion point from current selection
+        if (currentSelection) {
+            const blockEl = currentSelection.startContainer.parentElement?.closest('[data-block-id]');
+            if (blockEl) {
+                const blockId = blockEl.getAttribute('data-block-id');
+                const foundIndex = blocks.findIndex(b => b.id === blockId);
+                if (foundIndex !== -1) {
+                    insertIndex = foundIndex + 1;
+                }
+            }
+        }
+
+        // Insert image and new text block
+        blocks = [
+            ...blocks.slice(0, insertIndex),
+            newBlock,
+            { id: crypto.randomUUID(), type: 'text', content: '' },
+            ...blocks.slice(insertIndex)
+        ];
     }
 
-    // Get complete content in markdown format
-    export function getMarkdownContent(): string {
-        return textSegments.map((segment, index) => {
-            const img = inlineImages[index];
-            return segment.text + (img ? `\n![${img.filename}](${img.filename})\n` : '');
-        }).join('');
+    function handleKeydown(event: KeyboardEvent, block: Block, index: number) {
+        if (event.key === 'Enter') {
+            if (!event.shiftKey) {
+                event.preventDefault();
+                if (hasContent) {
+                    handleSend();
+                } else {
+                    // Insert new block
+                    const newBlock: Block = { 
+                        id: crypto.randomUUID(), 
+                        type: 'text', 
+                        content: '' 
+                    };
+                    blocks = [
+                        ...blocks.slice(0, index + 1),
+                        newBlock,
+                        ...blocks.slice(index + 1)
+                    ];
+                    // Focus new block after render
+                    tick().then(() => {
+                        const newDiv = document.querySelector(`[data-block-id="${newBlock.id}"]`);
+                        if (newDiv) {
+                            (newDiv as HTMLElement).focus();
+                        }
+                    });
+                }
+            }
+        }
+
+        // Handle backspace
+        if (event.key === 'Backspace') {
+            if (block.type === 'text') {
+                if (window.getSelection()?.anchorOffset === 0 && index > 0) {
+                    event.preventDefault();
+                    // If previous block is an image, delete it
+                    if (blocks[index - 1].type === 'image') {
+                        blocks = [
+                            ...blocks.slice(0, index - 1),
+                            ...blocks.slice(index)
+                        ];
+                    } else {
+                        mergeWithPreviousBlock(index);
+                    }
+                }
+            } else if (block.type === 'image') {
+                event.preventDefault();
+                blocks = blocks.filter(b => b.id !== block.id);
+            }
+        }
     }
 
-    // Handler for file selection
+    function mergeWithPreviousBlock(index: number) {
+        const currentBlock = blocks[index];
+        const previousBlock = blocks[index - 1];
+
+        if (currentBlock.type === 'text' && previousBlock.type === 'text') {
+            const mergedContent = (previousBlock.content as string) + (currentBlock.content as string);
+            blocks = [
+                ...blocks.slice(0, index - 1),
+                { ...previousBlock, content: mergedContent },
+                ...blocks.slice(index + 1)
+            ];
+            // Focus end of previous block
+            tick().then(() => {
+                const prevDiv = document.querySelector(`[data-block-id="${previousBlock.id}"]`);
+                if (prevDiv) {
+                    const range = document.createRange();
+                    const sel = window.getSelection();
+                    range.selectNodeContents(prevDiv);
+                    range.collapse(false);
+                    sel?.removeAllRanges();
+                    sel?.addRange(range);
+                }
+            });
+        }
+    }
+
+    // Get markdown content
+    function getMarkdownContent(): string {
+        return blocks.map(block => {
+            if (block.type === 'text') {
+                return block.content;
+            } else {
+                const img = block.content as ImageContent;
+                return `![${img.altText}](${img.filename})`;
+            }
+        }).join('\n');
+    }
+
+    // Handle file selection
     function handleFileSelect() {
         fileInput.click();
     }
 
-    // Handler for camera activation
+    // Handle file input change
+    function onFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files.length > 0) {
+            const file = input.files[0];
+            insertImage(file);
+        }
+    }
+
+    // Handle camera activation
     async function handleCameraClick() {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ 
@@ -115,7 +210,7 @@
         }
     }
 
-    // Function to capture photo
+    // Capture photo from camera
     async function capturePhoto() {
         if (!videoElement) return;
 
@@ -128,13 +223,14 @@
             ctx.drawImage(videoElement, 0, 0);
             canvas.toBlob((blob) => {
                 if (blob) {
-                    insertImageAtCursor(blob);
+                    insertImage(blob);
                 }
             }, 'image/jpeg');
         }
         closeCamera();
     }
 
+    // Close camera
     function closeCamera() {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -147,105 +243,24 @@
         closeCamera();
     });
 
-    function onFileSelected(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files.length > 0) {
-            const file = input.files[0];
-            insertImageAtCursor(file);
-        }
-    }
-
-    // Add this new function to adjust textarea height
-    async function adjustTextareaHeight(textarea: HTMLTextAreaElement) {
-        // Reset height to auto to get the correct scrollHeight
-        textarea.style.height = 'auto';
-        // Set the height to match the content
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-
-    // Modify the existing handleKeydown function to include height adjustment
-    function handleKeydown(event: KeyboardEvent, index: number) {
-        const textarea = event.target as HTMLTextAreaElement;
-        
-        // Adjust height on next tick to ensure content is updated
-        tick().then(() => adjustTextareaHeight(textarea));
-
-        // Handle Enter key
-        if (event.key === 'Enter') {
-            // If Shift is not pressed, send the message
-            if (!event.shiftKey) {
-                event.preventDefault(); // Prevent default newline
-                if (hasContent) {
-                    handleSend();
-                }
-            }
-            // If Shift is pressed, let the default behavior (newline) happen
-        }
-
-        // Existing Backspace handling
-        if (event.key === 'Backspace') {
-            // Check if cursor is at the beginning of the textarea
-            if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
-                event.preventDefault();
-                
-                // Get the current segment's text
-                const currentText = textarea.value;
-                
-                // Remove the image before the current segment
-                inlineImages = [
-                    ...inlineImages.slice(0, index - 1),
-                    ...inlineImages.slice(index)
-                ];
-                
-                // Remove the current segment
-                textSegments = [
-                    ...textSegments.slice(0, index),
-                    ...textSegments.slice(index + 1)
-                ];
-
-                // If there was text in the removed segment, append it to the previous segment
-                if (currentText) {
-                    const prevSegment = textSegments[index - 1];
-                    textSegments[index - 1] = {
-                        ...prevSegment,
-                        text: prevSegment.text + currentText
-                    };
-                }
-
-                // Set focus to end of previous segment
-                setTimeout(() => {
-                    const prevTextarea = document.getElementById(textSegments[index - 1].id) as HTMLTextAreaElement;
-                    if (prevTextarea) {
-                        prevTextarea.focus();
-                        const length = prevTextarea.value.length;
-                        prevTextarea.setSelectionRange(length, length);
-                        activeSegmentId = textSegments[index - 1].id;
-                    }
-                }, 0);
-            }
-        }
-    }
-
-    // Add new function to handle input events
-    function handleInput(event: Event) {
-        const textarea = event.target as HTMLTextAreaElement;
-        adjustTextareaHeight(textarea);
-    }
-
-    // Add function to handle sending
     function handleSend() {
-        const markdownContent = getMarkdownContent();
-        console.log('Sending message with following markdown content:');
-        console.log('----------------------------------------');
-        console.log(markdownContent);
-        console.log('----------------------------------------');
+        const content = getMarkdownContent();
+        console.log('Sending:', content);
+        
+        // Reset content
+        blocks = [{ id: crypto.randomUUID(), type: 'text', content: '' }];
+    }
 
-        // Log image details separately for debugging
-        if (inlineImages.length > 0) {
-            console.log('Included images:', inlineImages.map(img => ({
-                filename: img.filename,
-                size: Math.round(img.blob.size / 1024) + 'KB'
-            })));
+    // Add keyboard shortcut handler
+    function handleEditorKeydown(event: KeyboardEvent) {
+        // Handle Cmd/Ctrl + A
+        if ((event.metaKey || event.ctrlKey) && event.key === 'a') {
+            event.preventDefault();
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(editorRef);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
         }
     }
 </script>
@@ -269,37 +284,49 @@
         style="display: none"
     />
 
-    <div class="scrollable-content">
-        <div class="content-wrapper">
-            {#each textSegments as segment, index}
-                {#if shouldShowSegment(segment, index)}
-                    <textarea
-                        id={segment.id}
-                        bind:value={segment.text}
-                        on:focus={() => activeSegmentId = segment.id}
-                        on:keydown={(e) => handleKeydown(e, index)}
-                        on:input={handleInput}
-                        placeholder={index === 0 ? "Type your message here..." : ""}
-                        rows="1"
-                    ></textarea>
-                {/if}
-                
-                {#if index < inlineImages.length}
-                    <div class="image-container">
-                        <img
-                            src={URL.createObjectURL(inlineImages[index].blob)}
-                            alt="Inline"
-                            class="preview-image"
-                        />
-                        <textarea 
-                            class="image-markdown-field"
-                            readonly
-                            value={`![${inlineImages[index].filename}](${inlineImages[index].filename})`}
-                        ></textarea>
-                    </div>
-                {/if}
-            {/each}
-        </div>
+    <div 
+        class="editor-content" 
+        bind:this={editorRef}
+        role="textbox"
+        tabindex="0"
+        on:keydown={handleEditorKeydown}
+    >
+        {#each blocks as block, index}
+            {#if block.type === 'text'}
+                <div
+                    class="content-block text-block"
+                    data-block-id={block.id}
+                    contenteditable="true"
+                    role="textbox"
+                    tabindex="0"
+                    on:input={(e) => handleInput(e, block)}
+                    on:keydown={(e) => handleKeydown(e, block, index)}
+                    data-placeholder={index === 0 && !block.content ? "Type your message here..." : ""}
+                >{block.content}</div>
+            {:else if block.type === 'image'}
+                {@const imgContent = block.content as ImageContent}
+                <div 
+                    class="content-block image-block" 
+                    data-block-id={block.id}
+                    tabindex="0"
+                    role="button"
+                    on:keydown={(e) => handleKeydown(e, block, index)}
+                >
+                    <img
+                        src={URL.createObjectURL(imgContent.blob)}
+                        alt={imgContent.altText}
+                        class="preview-image"
+                    />
+                    <div 
+                        class="image-caption"
+                        contenteditable="true"
+                        role="textbox"
+                        tabindex="0"
+                        on:input={(e) => imgContent.altText = (e.target as HTMLDivElement).innerText}
+                    >{imgContent.altText}</div>
+                </div>
+            {/if}
+        {/each}
     </div>
 
     {#if showCamera}
@@ -354,85 +381,50 @@
         position: relative;
     }
 
-    .scrollable-content {
+    .editor-content {
         width: 100%;
-        height: 100%;
+        min-height: 100px;
         max-height: 250px;
         overflow-y: auto;
-        position: relative;
+        padding: 0.5rem;
+    }
+
+    .content-block {
+        margin: 0.5rem 0;
+    }
+
+    .text-block {
+        min-height: 1.5em;
         padding: 0.5rem 0;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        outline: none;
     }
 
-    .scrollable-content::-webkit-scrollbar {
-        width: 6px;
+    .text-block:empty::before {
+        content: attr(data-placeholder);
+        color: #999;
+        pointer-events: none;
     }
 
-    .scrollable-content::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .scrollable-content::-webkit-scrollbar-thumb {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 3px;
-    }
-
-    .content-wrapper {
+    .image-block {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-    }
-
-    textarea {
-        width: 100%;
-        min-height: 2em;
-        border: none;
-        outline: none;
-        resize: none;
-        background: transparent;
-        font-family: inherit;
-        font-size: 1rem;
-        line-height: 1.5;
-        padding: 0.5rem 0;
-        margin: 0;
-        overflow: hidden;
-        box-sizing: border-box;
-    }
-
-    .image-container {
-        width: 100%;
-        height: 100px;
-        margin: 0.5rem 0;
-        position: relative;
+        align-items: flex-start;
     }
 
     .preview-image {
-        height: 100%;
-        width: auto;
-        max-width: 80%;
+        max-height: 200px;
+        max-width: 100%;
         object-fit: contain;
         border-radius: 6px;
-        background: #f5f5f5;
-        position: relative;
-        z-index: 2;
     }
 
-    .image-markdown-field {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        pointer-events: none;
-        z-index: 1;
-        resize: none;
-        padding: 0;
-        margin: 0;
-        border: none;
-        background: transparent;
-        overflow: hidden;
+    .image-caption {
+        font-size: 0.9em;
+        color: #666;
+        padding: 0.25rem 0;
+        outline: none;
+        min-width: 100px;
     }
 
     .action-buttons {
