@@ -562,7 +562,16 @@
                 
                 {#if segment.imageId}
                     {#if inlineImages.find(img => img.id === segment.imageId)}
-                        <Photos src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)} />
+                        <Photos 
+                            src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)}
+                            on:delete={() => {
+                                // Remove the image
+                                inlineImages = inlineImages.filter(img => img.id !== segment.imageId);
+                                // Update the segment to remove the image reference
+                                const index = textSegments.findIndex(s => s.id === segment.id);
+                                textSegments[index] = { ...textSegments[index], imageId: undefined };
+                            }}
+                        />
                     {/if}
                 {:else if segment.fileId}
                     {#if fileAttachments.find(file => file.id === segment.fileId)}
