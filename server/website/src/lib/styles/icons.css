@@ -27,6 +27,31 @@
   }
 }
 
+.clickable-icon {
+  /* Reset all previous properties */
+  all: unset;
+  
+  /* Define new base properties for clickable icons */
+  display: block;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+}
+
+.clickable-icon.icon_files {
+  background-color: var(--color-primary);
+  -webkit-mask: url('/icons/files.svg') center/contain no-repeat;
+  mask: url('/icons/files.svg') center/contain no-repeat;
+}
+
+.clickable-icon.icon_camera {
+  background-color: var(--color-primary);
+  -webkit-mask: url('/icons/camera.svg') center/contain no-repeat;
+  mask: url('/icons/camera.svg') center/contain no-repeat;
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
@@ -695,4 +720,25 @@
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+/* Update icon classes to work with clickable-icon */
+.clickable-icon.icon_files {
+  /* Use mask instead of background-image for colorable icons */
+  mask-image: url('/icons/files.svg');
+  -webkit-mask-image: url('/icons/files.svg');
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  background-color: var(--color-primary);
+}
+
+.clickable-icon.icon_camera {
+  /* Use mask instead of background-image for colorable icons */
+  mask-image: url('/icons/camera.svg');
+  -webkit-mask-image: url('/icons/camera.svg');
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  background-color: var(--color-primary);
 }

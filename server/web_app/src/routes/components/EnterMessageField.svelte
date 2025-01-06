@@ -623,18 +623,20 @@
     <!-- Action buttons -->
     <div class="action-buttons">
         <div class="left-buttons">
-            <button class="icon-button" on:click={handleFileSelect}>
-                📎
-            </button>
-            <button class="icon-button" on:click={handleCameraClick}>
-                📷
-            </button>
+            <button 
+                class="clickable-icon icon_files" 
+                on:click={handleFileSelect} 
+                aria-label="Attach files"
+            ></button>
+            <button 
+                class="clickable-icon icon_camera" 
+                on:click={handleCameraClick} 
+                aria-label="Take photo or video"
+            ></button>
         </div>
         
         {#if hasContent}
-            <button class="send-button" on:click={handleSend}>
-                Send ➤
-            </button>
+            <button on:click={handleSend}>Send</button>
         {/if}
     </div>
 </div>
@@ -744,7 +746,8 @@
 
     .left-buttons {
         display: flex;
-        gap: 0.5rem;
+        gap: 1rem;
+        align-items: center;
     }
 
     .send-button {

@@ -4,6 +4,7 @@ import path from 'path';
 
 // Get the absolute path to your other project's source directory
 const websiteSourcePath = path.resolve(__dirname, '../website/src');
+const websiteStaticPath = path.resolve(__dirname, '../website/static');
 
 export default defineConfig({
 	plugins: [sveltekit()],
@@ -13,6 +14,18 @@ export default defineConfig({
 			'@website-styles': path.resolve(websiteSourcePath, 'lib/styles'),
 			'@website-static': path.resolve(websiteSourcePath, 'static'),
 			'@website-actions': path.resolve(websiteSourcePath, 'lib/actions'),
+			'/icons': path.resolve(websiteStaticPath, 'icons')
+		}
+	},
+	server: {
+		fs: {
+			// Allow serving files from one level up to include the website project
+			allow: [
+				// Defaults
+				'.', 
+				'../website/static',
+				websiteStaticPath
+			]
 		}
 	}
 });
