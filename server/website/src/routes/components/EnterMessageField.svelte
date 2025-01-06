@@ -565,35 +565,25 @@
                         <Photos 
                             src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)}
                             on:delete={() => {
-                                // Remove the image
+                                // Remove only the specific image
                                 inlineImages = inlineImages.filter(img => img.id !== segment.imageId);
                                 
                                 // Find the current segment index
                                 const currentIndex = textSegments.findIndex(s => s.id === segment.id);
                                 
-                                // If there's a next segment, merge its text with the current segment
-                                if (currentIndex < textSegments.length - 1) {
-                                    const nextSegment = textSegments[currentIndex + 1];
-                                    textSegments[currentIndex] = {
-                                        ...textSegments[currentIndex],
-                                        text: textSegments[currentIndex].text + nextSegment.text,
-                                        imageId: undefined,
-                                        isEditing: true
-                                    };
-                                    // Remove the next segment
-                                    textSegments = [
-                                        ...textSegments.slice(0, currentIndex + 1),
-                                        ...textSegments.slice(currentIndex + 2)
-                                    ];
-                                } else {
-                                    // Just remove the image reference if it's the last segment
-                                    textSegments[currentIndex] = {
-                                        ...textSegments[currentIndex],
-                                        imageId: undefined
-                                    };
-                                }
+                                // Only modify the current segment by removing its image reference
+                                textSegments = textSegments.map((seg, idx) => {
+                                    if (idx === currentIndex) {
+                                        return {
+                                            ...seg,
+                                            imageId: undefined,
+                                            isEditing: true
+                                        };
+                                    }
+                                    return seg;
+                                });
                                 
-                                // Set focus to the merged segment
+                                // Set focus to the current segment
                                 activeSegmentId = textSegments[currentIndex].id;
                             }}
                         />
