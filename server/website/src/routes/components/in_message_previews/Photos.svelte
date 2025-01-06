@@ -71,24 +71,27 @@
     }
     
     // Handle menu actions
-    function handleDelete() {
+    function handleDelete(event: Event) {
+        event.stopPropagation();  // Prevent click from bubbling up
         dispatch('delete');
-        showMenu = false;  // Close menu after action
+        showMenu = false;
     }
     
-    function handleDownload() {
+    function handleDownload(event: Event) {
+        event.stopPropagation();  // Prevent click from bubbling up
         const link = document.createElement('a');
         link.href = src;
-        link.download = filename;  // Use original filename
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        showMenu = false;  // Close menu after action
+        showMenu = false;
     }
     
-    function handleView() {
+    function handleView(event: Event) {
+        event.stopPropagation();  // Prevent click from bubbling up
         window.open(src, '_blank');
-        showMenu = false;  // Close menu after action
+        showMenu = false;
     }
     
     // Update to show menu on regular click as well

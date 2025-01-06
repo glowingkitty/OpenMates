@@ -19,7 +19,8 @@
     }
 
     // Handle menu item clicks
-    function handleMenuItemClick(action: Parameters<typeof dispatch>[0]) {
+    function handleMenuItemClick(action: Parameters<typeof dispatch>[0], event: MouseEvent) {
+        event.stopPropagation();  // Stop event from bubbling
         dispatch(action);
         dispatch('close');
     }
@@ -54,21 +55,21 @@
     >
         <button 
             class="menu-item delete"
-            on:click={() => handleMenuItemClick('delete')}
+            on:click={(event) => handleMenuItemClick('delete', event)}
         >
             <div class="clickable-icon icon_delete"></div>
             Delete
         </button>
         <button 
             class="menu-item download"
-            on:click={() => handleMenuItemClick('download')}
+            on:click={(event) => handleMenuItemClick('download', event)}
         >
             <div class="clickable-icon icon_download"></div>
             Download
         </button>
         <button 
             class="menu-item view"
-            on:click={() => handleMenuItemClick('view')}
+            on:click={(event) => handleMenuItemClick('view', event)}
         >
             <div class="clickable-icon icon_fullscreen"></div>
             View
