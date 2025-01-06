@@ -230,7 +230,7 @@
         const totalSize = currentSize + newFilesSize;
 
         if (totalSize > MAX_TOTAL_SIZE) {
-            alert(`Total file size would exceed 50MB limit. Current size: ${(currentSize / 1024 / 1024).toFixed(1)}MB, Attempted to add: ${(newFilesSize / 1024 / 1024).toFixed(1)}MB`);
+            alert(`Total file size would exceed ${FILE_SIZE_LIMITS.TOTAL_MAX_SIZE}MB limit. Current size: ${(currentSize / 1024 / 1024).toFixed(1)}MB, Attempted to add: ${(newFilesSize / 1024 / 1024).toFixed(1)}MB`);
             input.value = '';
             return;
         }
@@ -258,7 +258,7 @@
                     // Check size before inserting
                     const totalSize = getCurrentAttachmentsSize() + blob.size;
                     if (totalSize > MAX_TOTAL_SIZE) {
-                        alert(`Adding this photo would exceed the 50MB limit. Current size: ${(getCurrentAttachmentsSize() / 1024 / 1024).toFixed(1)}MB`);
+                        alert(`Adding this photo would exceed the ${FILE_SIZE_LIMITS.TOTAL_MAX_SIZE}MB limit. Current size: ${(getCurrentAttachmentsSize() / 1024 / 1024).toFixed(1)}MB`);
                         return;
                     }
                     insertImageAtCursor(blob);

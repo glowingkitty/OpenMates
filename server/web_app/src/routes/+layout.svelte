@@ -1,25 +1,20 @@
 <script>
-    // Import any necessary components or styles
+    import '@website-styles/buttons.css';
+    import '@website-styles/colors.css';
+    import '@website-styles/fonts.css';
+    import '@website-styles/icons.css';
+    import '@website-styles/buttons.css';
+    import '@website-styles/fields.css';
+    import '@website-styles/cards.css';
+    import '@website-styles/chat.css';
+    import '@website-styles/mates.css';
+    import { replaceOpenMates } from '@website-actions/replaceText';
 </script>
 
-<slot />
+<!-- This is where page-specific content will be rendered -->
+<main use:replaceOpenMates>
+    <slot />
+</main>
 
 <style>
-    /* Apply global styles */
-    :global(body) {
-        /* Set default font family and size */
-        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        margin: 0;
-        padding: 0;
-        /* Add font weight for bold text */
-        font-weight: bold;
-    }
-
-    /* Ensure all text elements inherit the font and bold weight */
-    :global(*) {
-        font-family: inherit;
-        font-weight: inherit;
-    }
 </style> 
