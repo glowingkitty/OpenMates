@@ -1,9 +1,11 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import PressAndHoldMenu from './PressAndHoldMenu.svelte';
+    import { onMount, onDestroy } from 'svelte';
     
     // Props to receive the image URL/blob and type
     export let src: string;
+    export let filename: string = 'image'; // Default filename for camera photos
     
     const dispatch: {
         (e: 'delete'): void;
@@ -76,7 +78,7 @@
     function handleDownload() {
         const link = document.createElement('a');
         link.href = src;
-        link.download = 'image';
+        link.download = filename; // Use the provided filename
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -85,12 +87,34 @@
     function handleView() {
         window.open(src, '_blank');
     }
+    
+    // Update to show menu on regular click as well
+    function handleClick(event: MouseEvent) {
+        showMenu = true;
+        menuX = event.clientX;
+        menuY = event.clientY;
+    }
+    
+    // Add scroll handler to close menu
+    function handleScroll() {
+        showMenu = false;
+    }
+
+    // Add scroll listener on mount and remove on destroy
+    onMount(() => {
+        document.addEventListener('scroll', handleScroll, true);
+    });
+    
+    onDestroy(() => {
+        document.removeEventListener('scroll', handleScroll, true);
+    });
 </script>
 
 <div 
     class="photo-preview-container"
     role="button"
     tabindex="0"
+    on:click={handleClick}
     on:contextmenu={handleContextMenu}
     on:touchstart={handleTouchStart}
     on:touchend={handleTouchEnd}

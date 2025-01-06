@@ -597,8 +597,10 @@
                 
                 {#if segment.imageId}
                     {#if inlineImages.find(img => img.id === segment.imageId)}
+                        {@const image = inlineImages.find(img => img.id === segment.imageId)!}
                         <Photos 
-                            src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)}
+                            src={URL.createObjectURL(image.blob)}
+                            filename={image.filename}
                             on:delete={() => {
                                 // Remove only the specific image
                                 inlineImages = inlineImages.filter(img => img.id !== segment.imageId);

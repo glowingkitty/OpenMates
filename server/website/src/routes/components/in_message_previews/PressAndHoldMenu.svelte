@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 
     // Props
     export let x: number = 0;  // X position of menu
@@ -24,14 +24,23 @@
         dispatch('close');
     }
 
+    // Add scroll handler
+    function handleScroll() {
+        if (show) {
+            dispatch('close');
+        }
+    }
+
     // Add and remove event listeners
     onMount(() => {
         document.addEventListener('mousedown', handleClickOutside);
         document.addEventListener('touchstart', handleClickOutside);
+        document.addEventListener('scroll', handleScroll, true);
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
+            document.removeEventListener('scroll', handleScroll, true);
         };
     });
 </script>
