@@ -27,21 +27,21 @@
 
         try {
             const url = new URL(src);
-            const extension = url.pathname.split('.').pop()?.toLowerCase() || '';
-
-            // Set image type based on extension
-            if (['jpg', 'jpeg'].includes(extension)) {
-                imageType = 'jpg';
-            } else if (url.protocol === 'blob:') {
-                // For blob URLs, check type only once
+            // For blob URLs, check type only once
+            if (url.protocol === 'blob:') {
                 fetch(src)
                     .then(response => response.blob())
                     .then(blob => {
-                        imageType = blob.type.includes('jpeg') ? 'jpg' : 'other';
+                        // Keep original type, don't force jpg
+                        imageType = blob.type.startsWith('image/jpeg') ? 'jpg' : 'other';
                     })
                     .catch(error => {
                         console.error('Error determining image type:', error);
                     });
+            } else {
+                // For regular URLs, check extension
+                const extension = url.pathname.split('.').pop()?.toLowerCase() || '';
+                imageType = ['jpg', 'jpeg'].includes(extension) ? 'jpg' : 'other';
             }
         } catch (error) {
             console.error('Error parsing URL:', error);
@@ -73,19 +73,22 @@
     // Handle menu actions
     function handleDelete() {
         dispatch('delete');
+        showMenu = false;  // Close menu after action
     }
     
     function handleDownload() {
         const link = document.createElement('a');
         link.href = src;
-        link.download = filename; // Use the provided filename
+        link.download = filename;  // Use original filename
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        showMenu = false;  // Close menu after action
     }
     
     function handleView() {
         window.open(src, '_blank');
+        showMenu = false;  // Close menu after action
     }
     
     // Update to show menu on regular click as well

@@ -133,10 +133,15 @@
         const imageId = crypto.randomUUID();
         const newSegmentId = crypto.randomUUID();
         
+        // If imageBlob is a File, use its name, otherwise generate one
+        const filename = (imageBlob instanceof File) ? 
+            imageBlob.name : 
+            `image_${imageId}.jpg`;
+        
         const newImage: InlineImage = { 
             id: imageId, 
             blob: imageBlob, 
-            filename: `image_${imageId}.jpg`
+            filename: filename  // Use original filename or generated one
         };
         
         textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
