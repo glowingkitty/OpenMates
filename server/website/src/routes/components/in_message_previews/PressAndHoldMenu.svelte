@@ -47,21 +47,21 @@
             class="menu-item delete"
             on:click={() => handleMenuItemClick('delete')}
         >
-            <div class="icon delete"></div>
+            <div class="clickable-icon icon_delete"></div>
             Delete
         </button>
         <button 
             class="menu-item download"
             on:click={() => handleMenuItemClick('download')}
         >
-            <div class="icon download"></div>
+            <div class="clickable-icon icon_download"></div>
             Download
         </button>
         <button 
             class="menu-item view"
             on:click={() => handleMenuItemClick('view')}
         >
-            <div class="icon view"></div>
+            <div class="clickable-icon icon_fullscreen"></div>
             View
         </button>
     </div>
@@ -83,18 +83,14 @@
     }
 
     .menu-item {
+        all: unset;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
         padding: 12px 16px;
-        border: none;
-        background: none;
-        width: 100%;
-        border-radius: 22px;
+        border-radius: 25px;
         cursor: pointer;
-        font-size: 14px;
-        color: #333;
-        transition: background-color 0.2s;
+        transition: background-color 0.2s ease;
     }
 
     .menu-item:hover {
@@ -102,26 +98,10 @@
     }
 
     .menu-item.delete {
-        color: #ff3b30;
+        color: #E80000;
     }
 
-    .icon {
-        width: 20px;
-        height: 20px;
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-    }
-
-    .icon.delete {
-        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff3b30"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>');
-    }
-
-    .icon.download {
-        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>');
-    }
-
-    .icon.view {
-        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>');
+    .menu-item.delete .clickable-icon {
+        background: #E80000;
     }
 </style>

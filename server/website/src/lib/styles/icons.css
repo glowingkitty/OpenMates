@@ -27,7 +27,7 @@
   }
 }
 
-.clickable-icon {
+button.clickable-icon {
   /* Reset all previous properties from button css*/
   all: unset;
 
@@ -47,16 +47,48 @@
   mask-size: contain;
 }
 
-
+/* New class for non-button clickable icons */
+div.clickable-icon {
+  /* Base properties for div icons */
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  background: var(--color-primary);
+  vertical-align: middle;
+  
+  /* Mask properties */
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
 
 .clickable-icon.icon_files {
-  -webkit-mask: url('/icons/files.svg');
-  mask: url('/icons/files.svg');
+  -webkit-mask-image: url('/icons/files.svg');
+  mask-image: url('/icons/files.svg');
 }
 
 .clickable-icon.icon_camera {
-  -webkit-mask: url('/icons/camera.svg');
-  mask: url('/icons/camera.svg');
+  -webkit-mask-image: url('/icons/camera.svg');
+  mask-image: url('/icons/camera.svg');
+}
+
+.clickable-icon.icon_download {
+  -webkit-mask-image: url('/icons/download.svg');
+  mask-image: url('/icons/download.svg');
+}
+
+.clickable-icon.icon_fullscreen {
+  -webkit-mask-image: url('/icons/fullscreen.svg');
+  mask-image: url('/icons/fullscreen.svg');
+}
+
+.clickable-icon.icon_delete {
+  -webkit-mask-image: url('/icons/delete.svg');
+  mask-image: url('/icons/delete.svg');
 }
 
 .icon_rounded {
