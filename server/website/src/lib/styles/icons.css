@@ -28,9 +28,9 @@
 }
 
 .clickable-icon {
-  /* Reset all previous properties */
+  /* Reset all previous properties from button css*/
   all: unset;
-  
+
   /* Define new base properties for clickable icons */
   display: block;
   align-items: center;
@@ -38,18 +38,23 @@
   width: 25px;
   height: 25px;
   cursor: pointer;
+  background: var(--color-primary);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
 }
 
 .clickable-icon.icon_files {
-  background-color: var(--color-primary);
-  -webkit-mask: url('/icons/files.svg') center/contain no-repeat;
-  mask: url('/icons/files.svg') center/contain no-repeat;
+  -webkit-mask: url('/icons/files.svg');
+  mask: url('/icons/files.svg');
 }
 
 .clickable-icon.icon_camera {
-  background-color: var(--color-primary);
-  -webkit-mask: url('/icons/camera.svg') center/contain no-repeat;
-  mask: url('/icons/camera.svg') center/contain no-repeat;
+  -webkit-mask: url('/icons/camera.svg');
+  mask: url('/icons/camera.svg');
 }
 
 @media (max-width: 600px) {
