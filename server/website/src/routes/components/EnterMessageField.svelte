@@ -567,9 +567,34 @@
                             on:delete={() => {
                                 // Remove the image
                                 inlineImages = inlineImages.filter(img => img.id !== segment.imageId);
-                                // Update the segment to remove the image reference
-                                const index = textSegments.findIndex(s => s.id === segment.id);
-                                textSegments[index] = { ...textSegments[index], imageId: undefined };
+                                
+                                // Find the current segment index
+                                const currentIndex = textSegments.findIndex(s => s.id === segment.id);
+                                
+                                // If there's a next segment, merge its text with the current segment
+                                if (currentIndex < textSegments.length - 1) {
+                                    const nextSegment = textSegments[currentIndex + 1];
+                                    textSegments[currentIndex] = {
+                                        ...textSegments[currentIndex],
+                                        text: textSegments[currentIndex].text + nextSegment.text,
+                                        imageId: undefined,
+                                        isEditing: true
+                                    };
+                                    // Remove the next segment
+                                    textSegments = [
+                                        ...textSegments.slice(0, currentIndex + 1),
+                                        ...textSegments.slice(currentIndex + 2)
+                                    ];
+                                } else {
+                                    // Just remove the image reference if it's the last segment
+                                    textSegments[currentIndex] = {
+                                        ...textSegments[currentIndex],
+                                        imageId: undefined
+                                    };
+                                }
+                                
+                                // Set focus to the merged segment
+                                activeSegmentId = textSegments[currentIndex].id;
                             }}
                         />
                     {/if}

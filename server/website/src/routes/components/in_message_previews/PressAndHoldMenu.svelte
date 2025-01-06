@@ -1,34 +1,34 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from 'svelte';
-    
+
     // Props
     export let x: number = 0;  // X position of menu
     export let y: number = 0;  // Y position of menu
     export let show: boolean = false;
-    
+
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view'): void;
     } = createEventDispatcher();
     let menuElement: HTMLDivElement;
-    
+
     // Handle clicking outside the menu
     function handleClickOutside(event: MouseEvent | TouchEvent) {
         if (menuElement && !menuElement.contains(event.target as Node)) {
             dispatch('close');
         }
     }
-    
+
     // Handle menu item clicks
     function handleMenuItemClick(action: Parameters<typeof dispatch>[0]) {
         dispatch(action);
         dispatch('close');
     }
-    
+
     // Add and remove event listeners
     onMount(() => {
         document.addEventListener('mousedown', handleClickOutside);
         document.addEventListener('touchstart', handleClickOutside);
-        
+
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
