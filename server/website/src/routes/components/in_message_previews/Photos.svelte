@@ -114,6 +114,19 @@
     onDestroy(() => {
         document.removeEventListener('scroll', handleScroll, true);
     });
+
+    function handleKeyDown(event: KeyboardEvent) {
+        // Trigger menu on Enter or Space
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            showMenu = true;
+            // Position menu in the center of the container
+            const element = event.currentTarget as HTMLElement;
+            const rect = element.getBoundingClientRect();
+            menuX = rect.left + rect.width / 2;
+            menuY = rect.top + rect.height / 2;
+        }
+    }
 </script>
 
 <div 
@@ -121,6 +134,7 @@
     role="button"
     tabindex="0"
     on:click={handleClick}
+    on:keydown={handleKeyDown}
     on:contextmenu={handleContextMenu}
     on:touchstart={handleTouchStart}
     on:touchend={handleTouchEnd}
