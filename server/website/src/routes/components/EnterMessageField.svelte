@@ -1,6 +1,7 @@
 <script lang="ts">
     import { tick, onDestroy } from 'svelte';
     import Photos from './in_message_previews/Photos.svelte';
+    import PDF from './in_message_previews/PDF.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -632,14 +633,36 @@
                     {/if}
                 {:else if segment.fileId}
                     {#if fileAttachments.find(file => file.id === segment.fileId)}
-                        <div class="file-attachment">
-                            <div class="file-icon">📎</div>
-                            <div class="file-info">
-                                <div class="file-name">
-                                    {fileAttachments.find(file => file.id === segment.fileId)!.filename}
+                        {@const file = fileAttachments.find(file => file.id === segment.fileId)!}
+                        {#if file.file.type === 'application/pdf'}
+                            <PDF 
+                                src={URL.createObjectURL(file.file)}
+                                filename={file.filename}
+                                on:delete={() => {
+                                    fileAttachments = fileAttachments.filter(f => f.id !== segment.fileId);
+                                    textSegments = textSegments.map((seg, idx) => {
+                                        if (idx === index) {
+                                            return {
+                                                ...seg,
+                                                fileId: undefined,
+                                                isEditing: true
+                                            };
+                                        }
+                                        return seg;
+                                    });
+                                    activeSegmentId = textSegments[index].id;
+                                }}
+                            />
+                        {:else}
+                            <div class="file-attachment">
+                                <div class="file-icon">📎</div>
+                                <div class="file-info">
+                                    <div class="file-name">
+                                        {file.filename}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        {/if}
                     {/if}
                 {:else if segment.videoId}
                     {#if videoAttachments.find(video => video.id === segment.videoId)}

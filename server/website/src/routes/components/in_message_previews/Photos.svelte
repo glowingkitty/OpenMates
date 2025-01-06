@@ -207,11 +207,4 @@
         max-height: 100%;
         object-fit: contain;
     }
-
-    .icon_rounded {
-        position: absolute;
-        bottom: 0px;
-        left: 0px;
-        z-index: 2;
-    }
 </style>

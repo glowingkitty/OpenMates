@@ -95,27 +95,36 @@ div.clickable-icon {
   width: 60px;
   height: 60px;
   border-radius: 30px;
-  &::before {
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  z-index: 2;
+  &::after {
+    content: '';
     background-position: center;
     background-repeat: no-repeat;
-    background-size: 50%;
+    background-size: 25px 25px;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    filter: brightness(0) invert(1);
   }
 }
 
 .icon_rounded.photos {
   background: var(--color-app-photos);
   &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     background-image: url('/icons/image.svg');
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: 50%;
-    filter: brightness(0) invert(1);
+  }
+}
+
+.icon_rounded.pdf {
+  background: var(--color-app-pdfeditor);
+  &::after {
+    background-image: url('/icons/pdf.svg');
   }
 }
 
