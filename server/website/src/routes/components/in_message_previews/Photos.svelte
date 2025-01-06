@@ -1,13 +1,50 @@
 <script lang="ts">
-    // Props to receive the image URL/blob
+    // Props to receive the image URL/blob and type
     export let src: string;
+
+    // Function to determine image type from src
+    let imageType: 'jpg' | 'other' = 'other';
+    let isTypeChecked = false;
+
+    // Watch for src changes and determine image type only once per src
+    $: if (src && !isTypeChecked) {
+        isTypeChecked = true;
+
+        try {
+            const url = new URL(src);
+            const extension = url.pathname.split('.').pop()?.toLowerCase() || '';
+
+            // Set image type based on extension
+            if (['jpg', 'jpeg'].includes(extension)) {
+                imageType = 'jpg';
+            } else if (url.protocol === 'blob:') {
+                // For blob URLs, check type only once
+                fetch(src)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        imageType = blob.type.includes('jpeg') ? 'jpg' : 'other';
+                    })
+                    .catch(error => {
+                        console.error('Error determining image type:', error);
+                    });
+            }
+        } catch (error) {
+            console.error('Error parsing URL:', error);
+        }
+    }
 </script>
 
 <div class="photo-preview-container">
     <!-- Checkerboard background container -->
     <div class="checkerboard-background">
-        <!-- Actual image -->
-        <img {src} alt="Preview" class="preview-image" />
+        <!-- Actual image with dynamic class based on type -->
+        <img
+            {src}
+            alt="Preview"
+            class="preview-image"
+            class:fill-container={imageType === 'jpg'}
+            class:fit-center={imageType === 'other'}
+        />
     </div>
     <!-- Photos icon -->
     <div class="icon_rounded photos"></div>
@@ -39,12 +76,24 @@
     }
 
     .preview-image {
+        display: block;
+    }
+
+    /* Style for JPG images - fill the container */
+    .fill-container {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Style for PNG/SVG images - fit in center */
+    .fit-center {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
-        display: block;
     }
-    .icon_rounded{
+
+    .icon_rounded {
         position: absolute;
         bottom: 0px;
         left: 0px;
