@@ -47,6 +47,8 @@
   mask-size: contain;
 }
 
+
+
 .clickable-icon.icon_files {
   -webkit-mask: url('/icons/files.svg');
   mask: url('/icons/files.svg');
@@ -55,6 +57,34 @@
 .clickable-icon.icon_camera {
   -webkit-mask: url('/icons/camera.svg');
   mask: url('/icons/camera.svg');
+}
+
+.icon_rounded {
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  &::before {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 50%;
+  }
+}
+
+.icon_rounded.photos {
+  background: var(--color-app-photos);
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('/icons/image.svg');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 50%;
+    filter: brightness(0) invert(1);
+  }
 }
 
 @media (max-width: 600px) {

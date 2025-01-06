@@ -1,5 +1,6 @@
 <script lang="ts">
     import { tick, onDestroy } from 'svelte';
+    import Photos from './in_message_previews/Photos.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -561,13 +562,7 @@
                 
                 {#if segment.imageId}
                     {#if inlineImages.find(img => img.id === segment.imageId)}
-                        <div class="image-container">
-                            <img
-                                src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)}
-                                alt="Inline"
-                                class="preview-image"
-                            />
-                        </div>
+                        <Photos src={URL.createObjectURL(inlineImages.find(img => img.id === segment.imageId)!.blob)} />
                     {/if}
                 {:else if segment.fileId}
                     {#if fileAttachments.find(file => file.id === segment.fileId)}
@@ -699,41 +694,6 @@
         box-sizing: border-box;
     }
 
-    .image-container {
-        width: 100%;
-        height: 100px;
-        margin: 0.5rem 0;
-        position: relative;
-    }
-
-    .preview-image {
-        height: 100%;
-        width: auto;
-        max-width: 80%;
-        object-fit: contain;
-        border-radius: 6px;
-        background: #f5f5f5;
-        position: relative;
-        z-index: 2;
-    }
-
-    .image-markdown-field {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        pointer-events: none;
-        z-index: 1;
-        resize: none;
-        padding: 0;
-        margin: 0;
-        border: none;
-        background: transparent;
-        overflow: hidden;
-    }
-
     .action-buttons {
         position: absolute;
         bottom: 1rem;
@@ -762,27 +722,6 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-    }
-
-    .send-button:hover {
-        background-color: #0056b3;
-    }
-
-    .send-button:active {
-        transform: scale(0.98);
-    }
-
-    .icon-button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 1.5rem;
-        padding: 0.5rem;
-        transition: opacity 0.2s;
-    }
-
-    .icon-button:hover {
-        opacity: 0.7;
     }
 
     .camera-overlay {
