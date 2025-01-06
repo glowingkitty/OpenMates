@@ -1,7 +1,7 @@
 <script>
     // Import the required components
-    import ActivityHistory from './components/ActivityHistory.svelte';
-    import ActiveChat from './components/ActiveChat.svelte';
+    import ActivityHistory from '@website-components/ActivityHistory.svelte';
+    import ActiveChat from '@website-components/ActiveChat.svelte';
 </script>
 
 <div class="sidebar">

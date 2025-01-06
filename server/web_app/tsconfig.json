@@ -15,7 +15,8 @@
 			"$lib/*": ["./src/lib/*"],
 			"@website-styles/*": ["../website/src/lib/styles/*"],
 			"@website-static/*": ["../website/src/static/*"],
-			"@website-actions/*": ["../website/src/lib/actions/*"]
+			"@website-actions/*": ["../website/src/lib/actions/*"],
+			"@website-components/*": ["../website/src/routes/components/*"]
 		}
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
