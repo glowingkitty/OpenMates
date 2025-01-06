@@ -67,13 +67,25 @@
 
     // Add new function to check if segment should be visible
     function shouldShowSegment(segment: TextSegment, index: number): boolean {
-        // Show segment if:
-        // 1. It has text content, or
-        // 2. It's not the first segment, or
-        // 3. It's the first segment but there are no attachments at index 0
-        return segment.text.length > 0 || 
-               index > 0 || 
-               (!inlineImages[0] && !fileAttachments[0]);
+        const hasContent = Boolean(segment.text.length > 0);
+        const hasAttachment = Boolean(segment.imageId || segment.fileId || segment.videoId);
+        const isFirstSegment = index === 0;
+        const isLastSegment = index === textSegments.length - 1;
+        const prevHasAttachment = index > 0 && Boolean(textSegments[index - 1].imageId || textSegments[index - 1].fileId || textSegments[index - 1].videoId);
+        const nextHasAttachment = index < textSegments.length - 1 && Boolean(textSegments[index + 1].imageId || textSegments[index + 1].fileId || textSegments[index + 1].videoId);
+
+        // Show if:
+        // 1. Has content or attachment
+        // 2. Is first segment
+        // 3. Is last segment (for input)
+        // 4. Is between non-attachment segments AND has content
+        return Boolean(
+            hasContent || 
+            hasAttachment || 
+            isFirstSegment || 
+            isLastSegment || 
+            (!prevHasAttachment && !nextHasAttachment && hasContent)
+        );
     }
 
     // Function to handle clicking on a text div
@@ -127,30 +139,48 @@
             filename: `image_${imageId}.jpg`
         };
         
-        // Make all existing segments non-editable
         textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
-        
         const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
         
-        if (activeIndex === 0 && !textSegments[0].text) {
-            textSegments = [
-                { ...textSegments[0], imageId },  // Associate image with first segment
-                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
-            ];
+        if (!textSegments[activeIndex].text && !textSegments[activeIndex].imageId) {
+            // Use current empty segment for image
+            textSegments[activeIndex] = {
+                ...textSegments[activeIndex],
+                imageId,
+                isEditing: false
+            };
         } else {
-            textSegments = [
-                ...textSegments.slice(0, activeIndex + 1),
-                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
-            ];
-            // Associate image with the segment at activeIndex
-            textSegments[activeIndex] = { ...textSegments[activeIndex], imageId };
+            // Insert new segment for image
+            textSegments.splice(activeIndex + 1, 0, {
+                id: crypto.randomUUID(),
+                text: '',
+                isEditing: false,
+                imageId,
+                fileId: undefined,
+                videoId: undefined
+            });
+        }
+        
+        // Ensure there's always an empty segment at the end
+        if (!textSegments[textSegments.length - 1].text && !textSegments[textSegments.length - 1].imageId) {
+            activeSegmentId = textSegments[textSegments.length - 1].id;
+            textSegments[textSegments.length - 1].isEditing = true;
+        } else {
+            textSegments.push({
+                id: newSegmentId,
+                text: '',
+                isEditing: true,
+                imageId: undefined,
+                fileId: undefined,
+                videoId: undefined
+            });
+            activeSegmentId = newSegmentId;
         }
         
         inlineImages = [...inlineImages, newImage];
-        activeSegmentId = newSegmentId;
         
         tick().then(() => {
-            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+            const newTextarea = document.getElementById(activeSegmentId) as HTMLTextAreaElement;
             if (newTextarea) newTextarea.focus();
         });
     }
@@ -439,11 +469,16 @@
         }
     }
 
-    // Add this new function to handle keyboard events
+    // Update handleKeyPress to properly handle keyboard events
     function handleKeyPress(segment: TextSegment, event: KeyboardEvent) {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            handleTextClick(segment, event as unknown as MouseEvent);
+            // Create a fake mouse event at position 0
+            const fakeMouseEvent = {
+                clientX: 0,
+                target: event.target
+            } as MouseEvent;
+            handleTextClick(segment, fakeMouseEvent);
         }
     }
 
