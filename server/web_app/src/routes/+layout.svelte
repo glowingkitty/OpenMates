@@ -33,6 +33,11 @@
 </main>
 
 <style>
+    /* Apply background color to the body */
+    :global(body) {
+        background-color: var(--color-grey-0);
+    }
+
     .theme-toggle {
         position: fixed;
         top: 1rem;

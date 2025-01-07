@@ -306,15 +306,15 @@
 
 /* Light theme */
 [data-theme="light"] {
-    --color-background-white: #ffffff;
-    --color-background-grey: #f3f3f3;
+    --color-grey-0: #ffffff;
+    --color-grey-20: #f3f3f3;
 }
 
 
 /* Dark theme */
 [data-theme="dark"] {
-    --color-background-white: #1a1a1a;
-    --color-background-grey: #2d2d2d;
+    --color-grey-0: #212121;
+    --color-grey-20: #171717;
 }
 
 /* Add smooth transitions for theme changes */

@@ -999,12 +999,11 @@
 </div>
 
 <style>
-    
     .message-container {
         width: 100%;
         min-height: 100px;
         max-height: 350px;
-        background-color: #FFFFFF;
+        background-color: var(--color-grey-0);
         border-radius: 24px;
         padding: 0 1rem 50px 1rem;
         box-sizing: border-box;

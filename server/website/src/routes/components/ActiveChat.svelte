@@ -14,7 +14,7 @@
 <style>
     .active-chat-container {
         /* Use theme variables instead of hard-coded colors */
-        background-color: var(--color-background-grey);
+        background-color: var(--color-grey-20);
         border-radius: 17px;
         position: absolute;
         top: 0;
