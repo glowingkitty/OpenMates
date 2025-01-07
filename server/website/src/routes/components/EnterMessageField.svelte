@@ -1006,7 +1006,7 @@
         max-height: 350px;
         background-color: #FFFFFF;
         border-radius: 24px;
-        padding: 1rem 1rem 50px 1rem;
+        padding: 0 1rem 50px 1rem;
         box-sizing: border-box;
         position: relative;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -1023,7 +1023,7 @@
         max-height: 250px;
         overflow-y: auto;
         position: relative;
-        padding: 0.5rem 0;
+        padding-top: 1em;
         scrollbar-width: thin;
         scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
     }
