@@ -1,5 +1,5 @@
 <script>
-    import EnterMessageField from './EnterMessageField.svelte';
+    import EnterMessageField from './enter_message/EnterMessageField.svelte';
 </script>
 
 <div class="active-chat-container">
