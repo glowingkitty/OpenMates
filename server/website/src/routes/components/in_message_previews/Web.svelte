@@ -12,8 +12,27 @@
     let menuX = 0;
     let menuY = 0;
     
-    // Get domain name for display
-    const domain = new URL(url).hostname;
+    // Enhanced URL parsing
+    const urlObj = new URL(url);
+    const parts = {
+        subdomain: '',
+        domain: '',
+        path: ''
+    };
+
+    // Split hostname into parts
+    const hostParts = urlObj.hostname.split('.');
+    if (hostParts.length > 2) {
+        parts.subdomain = hostParts[0] + '.';
+        parts.domain = hostParts.slice(1).join('.');
+    } else {
+        parts.domain = urlObj.hostname;
+    }
+
+    // Get path and query parameters
+    // Only set path if it's more than just a forward slash
+    const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
+    parts.path = fullPath === '/' ? '' : fullPath;
     
     // Handle mouse events
     function handleContextMenu(event: MouseEvent) {
@@ -82,7 +101,15 @@
     
     <!-- URL -->
     <div class="url-container">
-        <span class="url">{domain}</span>
+        <div class="url">
+            <div class="domain-line">
+                <span class="subdomain">{parts.subdomain}</span>
+                <span class="main-domain">{parts.domain}</span>
+            </div>
+            {#if parts.path}
+                <span class="path">{parts.path}</span>
+            {/if}
+        </div>
     </div>
     
     <PressAndHoldMenu
@@ -125,17 +152,35 @@
     }
 
     .url {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: flex;
+        flex-direction: column;
         line-height: 1.3;
         font-size: 14px;
-        color: #333;
         width: 100%;
         word-break: break-word;
         max-height: 2.6em;
+        overflow: hidden;
+    }
+
+    .domain-line {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+    }
+
+    .subdomain {
+        color: #7C7C7C;
+    }
+
+    .main-domain {
+        color: #333;
+    }
+
+    .path {
+        color: #7C7C7C;
+        display: block;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
 </style>
