@@ -367,7 +367,7 @@
         textarea.style.height = textarea.scrollHeight + 'px';
     }
 
-    // Modify the existing handleKeydown function to include height adjustment
+    // Modify the existing handleKeydown function
     function handleKeydown(event: KeyboardEvent, index: number) {
         const textarea = event.target as HTMLTextAreaElement;
         
@@ -384,7 +384,7 @@
             }
         }
 
-        // Update Backspace handling to include videos
+        // Handle Backspace key
         if (event.key === 'Backspace') {
             if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
                 event.preventDefault();
@@ -394,32 +394,55 @@
                 
                 if (prevSegment.webUrl) {
                     const url = prevSegment.webUrl;
-                    // Remove the web preview and append URL to previous text segment
+                    // Remove the web preview and merge segments
                     const prevPrevSegment = index > 1 ? textSegments[index - 2] : null;
                     
                     if (prevPrevSegment) {
-                        // Append URL to previous text segment without extra space
+                        // Append URL to previous text segment
+                        const newText = prevPrevSegment.text + (prevPrevSegment.text ? ' ' : '') + url + currentText;
                         textSegments = [
                             ...textSegments.slice(0, index - 2),
                             {
                                 ...prevPrevSegment,
-                                text: (prevPrevSegment.text + ' ' + url + currentText).trim(),
+                                text: newText,
                                 isEditing: true
                             },
                             ...textSegments.slice(index + 1)
                         ];
                         activeSegmentId = prevPrevSegment.id;
+                        
+                        // Set cursor position after URL
+                        tick().then(() => {
+                            const textarea = document.getElementById(prevPrevSegment.id) as HTMLTextAreaElement;
+                            if (textarea) {
+                                textarea.focus();
+                                const cursorPosition = newText.length - currentText.length;
+                                textarea.setSelectionRange(cursorPosition, cursorPosition);
+                            }
+                        });
                     } else {
-                        // Create new text segment with URL without extra space
+                        // Create new text segment with URL
+                        const newText = url + currentText;
+                        const newSegmentId = crypto.randomUUID();
                         textSegments = [
                             {
-                                id: crypto.randomUUID(),
-                                text: url + currentText,
+                                id: newSegmentId,
+                                text: newText,
                                 isEditing: true
                             },
                             ...textSegments.slice(index + 1)
                         ];
-                        activeSegmentId = textSegments[0].id;
+                        activeSegmentId = newSegmentId;
+                        
+                        // Set cursor position after URL
+                        tick().then(() => {
+                            const textarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+                            if (textarea) {
+                                textarea.focus();
+                                const cursorPosition = url.length;
+                                textarea.setSelectionRange(cursorPosition, cursorPosition);
+                            }
+                        });
                     }
                 } else if (prevSegment.imageId || prevSegment.fileId || prevSegment.videoId) {
                     // Existing attachment handling code...
