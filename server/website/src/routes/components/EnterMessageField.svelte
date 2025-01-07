@@ -800,11 +800,10 @@
                             bind:value={segment.text}
                             on:focus={() => {
                                 activeSegmentId = segment.id;
-                                isMessageFieldFocused = true;  // Set to true when any textarea is focused
+                                isMessageFieldFocused = true;
                             }}
                             on:blur={() => {
                                 segment.isEditing = false;
-                                // Only set isMessageFieldFocused to false if no other textarea is focused
                                 setTimeout(() => {
                                     const activeElement = document.activeElement;
                                     if (!activeElement || !activeElement.matches('textarea')) {
@@ -817,16 +816,18 @@
                             on:paste={handlePaste}
                             placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
                                 ? "Enter your message"
-                                : ""}
+                                : segment.imageId || segment.fileId || segment.videoId || segment.webUrl 
+                                    ? "Click here to add text"
+                                    : ""}
                             rows="1"
-                            class="message-input {segment.text ? 'has-content' : ''}"
+                            class="message-input {segment.text ? 'has-content' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''}"
                         ></textarea>
                     {:else}
                         <div
-                            class="text-display {!segment.text ? 'empty' : ''}"
+                            class="text-display {!segment.text ? 'empty' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''}"
                             on:click={(e) => {
                                 handleTextClick(segment, e);
-                                isMessageFieldFocused = true;  // Set to true when clicking to edit
+                                isMessageFieldFocused = true;
                             }}
                             on:keydown={(e) => handleKeyPress(segment, e)}
                             tabindex="0"
@@ -834,6 +835,8 @@
                         >
                             {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
                                 {isMessageFieldFocused ? "Enter your message" : "Click here to enter your message"}
+                            {:else if !segment.text && (segment.imageId || segment.fileId || segment.videoId || segment.webUrl)}
+                                Click here to add text
                             {:else}
                                 {segment.text || '\u00A0'}
                             {/if}
@@ -1245,5 +1248,17 @@
         align-items: center;
         height: 50px;
         margin-top: 10px;
+    }
+
+    .message-input.before-attachment::placeholder,
+    .text-display.before-attachment.empty {
+        text-align: left;
+        color: #8A8A8A;
+        font-style: italic;
+    }
+
+    .text-display.empty:not(.before-attachment) {
+        text-align: center;
+        color: #8A8A8A;
     }
 </style>
