@@ -28,7 +28,7 @@
         width: var(--sidebar-width);
 
         /* Background color */
-        background-color: #F2F2F2;
+        background-color: var(--color-background-grey);
 
         /* Ensure sidebar stays above other content */
         z-index: 10;

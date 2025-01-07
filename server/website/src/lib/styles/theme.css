@@ -13,7 +13,7 @@
     --color-primary-end: #5A85EB;
     --color-primary: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
 
-    --color-background-grey: #f3f3f3;
+    
 
     /* Font Colors */
     --color-font-primary: #000;
@@ -302,4 +302,20 @@
     --color-app-games-start: #0D1B31;
     --color-app-games-end: #167AAA;
     --color-app-games: linear-gradient(135deg, var(--color-app-games-start) 9.04%, var(--color-app-games-end) 90.06%);
+}
+
+/* Light theme */
+[data-theme="light"] {
+    --color-background-grey: #f3f3f3;
+}
+
+
+/* Dark theme */
+[data-theme="dark"] {
+    --color-background-grey: #2d2d2d;
+}
+
+/* Add smooth transitions for theme changes */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease;
 }

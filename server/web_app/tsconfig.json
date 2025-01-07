@@ -15,6 +15,7 @@
 			"$lib/*": ["./src/lib/*"],
 			"@website-styles/*": ["../website/src/lib/styles/*"],
 			"@website-static/*": ["../website/src/static/*"],
+			"@website-stores/*": ["../website/src/lib/stores/*"],
 			"@website-actions/*": ["../website/src/lib/actions/*"],
 			"@website-components/*": ["../website/src/routes/components/*"]
 		}
