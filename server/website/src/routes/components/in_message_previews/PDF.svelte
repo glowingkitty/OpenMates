@@ -61,14 +61,20 @@
         showMenu = false;
     }
     
-    function handleClick() {
-        handleView();
+    function handleClick(event: MouseEvent) {
+        showMenu = true;
+        menuX = event.clientX;
+        menuY = event.clientY;
     }
     
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            handleView();
+            showMenu = true;
+            const element = event.currentTarget as HTMLElement;
+            const rect = element.getBoundingClientRect();
+            menuX = rect.left + rect.width / 2;
+            menuY = rect.top + rect.height / 2;
         }
     }
 </script>
@@ -108,12 +114,8 @@
         background-color: #F8F8F8;
         border-radius: 30px;
         position: relative;
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        gap: 12px;
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         transition: background-color 0.2s;
     }
 
@@ -122,7 +124,11 @@
     }
 
     .filename-container {
-        flex: 1;
+        position: absolute;
+        left: 65px;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 16px;
         overflow: hidden;
     }
 
