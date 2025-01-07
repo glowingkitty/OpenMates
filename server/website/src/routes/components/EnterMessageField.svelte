@@ -104,6 +104,8 @@
         tick().then(() => {
             const textarea = document.getElementById(segment.id) as HTMLTextAreaElement;
             if (textarea) {
+                // Adjust height before focusing to prevent flicker
+                adjustTextareaHeight(textarea);
                 textarea.focus();
                 textarea.setSelectionRange(clickPosition, clickPosition);
             }
@@ -356,11 +358,11 @@
     }
 
     // Add this new function to adjust textarea height
-    async function adjustTextareaHeight(textarea: HTMLTextAreaElement) {
-        // Reset height to auto to get the correct scrollHeight
-        textarea.style.height = 'auto';
-        // Set the height to match the content
-        textarea.style.height = textarea.scrollHeight + 'px';
+    function adjustTextareaHeight(textarea: HTMLTextAreaElement) {
+        // Reset height temporarily to get the correct scrollHeight
+        textarea.style.height = '0';
+        // Set to scrollHeight to get the full content height
+        textarea.style.height = `${textarea.scrollHeight}px`;
     }
 
     // Modify the existing handleKeydown function
@@ -1059,10 +1061,12 @@
         margin: 0;
         overflow: hidden;
         box-sizing: border-box;
-        text-align: left; /* Default alignment for content */
-        caret-color: #000; /* Makes the cursor black - adjust color as needed */
+        text-align: left;
+        caret-color: #000;
         animation: blink-caret 1s step-end infinite;
         height: auto;
+        word-break: break-word;
+        white-space: pre-wrap;
     }
 
     @keyframes blink-caret {
