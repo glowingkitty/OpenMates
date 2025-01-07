@@ -1254,7 +1254,6 @@
     .text-display.before-attachment.empty {
         text-align: left;
         color: #8A8A8A;
-        font-style: italic;
     }
 
     .text-display.empty:not(.before-attachment) {
