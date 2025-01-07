@@ -1030,6 +1030,13 @@
         overflow: hidden;
         box-sizing: border-box;
         text-align: left; /* Default alignment for content */
+        caret-color: #000; /* Makes the cursor black - adjust color as needed */
+        animation: blink-caret 1s step-end infinite;
+    }
+
+    @keyframes blink-caret {
+        from, to { caret-color: #000; }
+        50% { caret-color: transparent; }
     }
 
     .message-input::placeholder {
