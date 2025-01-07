@@ -502,7 +502,7 @@
         // Check if space was typed using InputEvent
         const inputEvent = event as InputEvent;
         if (inputEvent.data === ' ') {
-            console.log('Space detected, checking for URLs in:', textarea.value); // Debug log
+            // console.log('Space detected, checking for URLs in:', textarea.value); // Debug log
             handleUrlDetection(segment, index);
         }
     }
