@@ -117,6 +117,8 @@
         cursor: pointer;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
     }
 
     .pdf-preview-container:hover {
@@ -126,10 +128,11 @@
     .filename-container {
         position: absolute;
         left: 65px;
-        top: 50%;
-        transform: translateY(-50%);
         right: 16px;
-        overflow: hidden;
+        min-height: 40px;
+        padding: 5px 0;
+        display: flex;
+        align-items: center;
     }
 
     .filename {
@@ -139,8 +142,11 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.2;
+        line-height: 1.3;
         font-size: 14px;
         color: #333;
+        width: 100%;
+        word-break: break-word;
+        max-height: 2.6em;
     }
 </style>
