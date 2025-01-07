@@ -1092,6 +1092,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding-right: 10px;
     }
 
     .left-buttons {
@@ -1104,6 +1105,7 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
+        min-height: 40px;
     }
 
     .camera-overlay {
@@ -1209,6 +1211,15 @@
         max-height: 300px;
         object-fit: contain;
         background: #000;
+    }
+
+    .icon_recordaudio {
+        margin: 0 20px;
+    }
+
+    .send-button {
+        margin-right: -20px;
+        margin-bottom: -10px;
     }
 
     .icon_recordaudio {
