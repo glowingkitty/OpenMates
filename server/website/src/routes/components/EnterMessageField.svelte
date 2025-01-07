@@ -1062,6 +1062,7 @@
         text-align: left; /* Default alignment for content */
         caret-color: #000; /* Makes the cursor black - adjust color as needed */
         animation: blink-caret 1s step-end infinite;
+        height: auto;
     }
 
     @keyframes blink-caret {
@@ -1094,7 +1095,6 @@
         font-weight: 500 !important;
         min-height: unset !important;
         max-height: unset !important;
-        height: auto !important;
         box-sizing: content-box !important;
     }
 
