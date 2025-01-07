@@ -2,6 +2,7 @@
     import { tick, onDestroy } from 'svelte';
     import Photos from './in_message_previews/Photos.svelte';
     import PDF from './in_message_previews/PDF.svelte';
+    import Web from './in_message_previews/Web.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -23,6 +24,7 @@
         imageId?: string;  // Reference to associated image
         fileId?: string;   // Reference to associated file
         videoId?: string;  // Reference to associated video
+        webUrl?: string;   // Reference to web preview
     }
 
     type InlineImage = { 
@@ -449,6 +451,11 @@
     function handleInput(event: Event) {
         const textarea = event.target as HTMLTextAreaElement;
         adjustTextareaHeight(textarea);
+        
+        const currentIndex = textSegments.findIndex(s => s.id === activeSegmentId);
+        if (currentIndex !== -1) {
+            handleUrlDetection(textSegments[currentIndex], currentIndex);
+        }
     }
 
     // Add function to handle sending
@@ -551,6 +558,69 @@
             if (newTextarea) newTextarea.focus();
         });
     }
+
+    // URL detection regex
+    const urlRegex = /https?:\/\/[^\s]+/g;
+
+    // Function to check if text contains a URL
+    function extractUrls(text: string): string[] {
+        return text.match(urlRegex) || [];
+    }
+
+    // Function to handle URL detection and replacement
+    function handleUrlDetection(segment: TextSegment, index: number) {
+        const urls = extractUrls(segment.text);
+        
+        if (urls.length > 0) {
+            const url = urls[urls.length - 1];
+            
+            if (segment.text.endsWith(' ') || segment.text.endsWith(url)) {
+                const newSegmentId = crypto.randomUUID();
+                const textBeforeUrl = segment.text.substring(0, segment.text.indexOf(url));
+                const textAfterUrl = segment.text.substring(segment.text.indexOf(url) + url.length);
+                
+                textSegments = [
+                    ...textSegments.slice(0, index),
+                    { ...segment, text: textBeforeUrl.trim() },
+                    { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: url },
+                    { id: newSegmentId, text: textAfterUrl.trim(), isEditing: true },
+                    ...textSegments.slice(index + 1)
+                ];
+                
+                activeSegmentId = newSegmentId;
+                
+                tick().then(() => {
+                    const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+                    if (newTextarea) newTextarea.focus();
+                });
+            }
+        }
+    }
+
+    // Add paste handler for URLs
+    function handlePaste(event: ClipboardEvent) {
+        const textarea = event.target as HTMLTextAreaElement;
+        const pastedText = event.clipboardData?.getData('text') || '';
+        
+        if (pastedText.match(urlRegex)) {
+            event.preventDefault();
+            
+            const currentIndex = textSegments.findIndex(s => s.id === activeSegmentId);
+            if (currentIndex !== -1) {
+                const segment = textSegments[currentIndex];
+                const cursorPosition = textarea.selectionStart;
+                
+                const newText = 
+                    segment.text.slice(0, cursorPosition) + 
+                    pastedText + 
+                    ' ' + 
+                    segment.text.slice(textarea.selectionEnd);
+                
+                textSegments[currentIndex].text = newText;
+                handleUrlDetection(textSegments[currentIndex], currentIndex);
+            }
+        }
+    }
 </script>
 
 <div class="message-container">
@@ -584,6 +654,7 @@
                             on:focus={() => activeSegmentId = segment.id}
                             on:keydown={(e) => handleKeydown(e, index)}
                             on:input={handleInput}
+                            on:paste={handlePaste}
                             on:blur={() => segment.isEditing = false}
                             placeholder={index === 0 ? "Type your message here..." : ""}
                             rows="1"
@@ -678,6 +749,29 @@
                             </video>
                         </div>
                     {/if}
+                {:else if segment.webUrl}
+                    <Web 
+                        url={segment.webUrl} 
+                        on:delete={() => {
+                            const currentIndex = textSegments.findIndex(s => s.id === segment.id);
+                            if (currentIndex !== -1) {
+                                const prevSegment = textSegments[currentIndex - 1];
+                                const nextSegment = textSegments[currentIndex + 1];
+                                
+                                textSegments = [
+                                    ...textSegments.slice(0, currentIndex - 1),
+                                    {
+                                        ...prevSegment,
+                                        text: (prevSegment.text + ' ' + nextSegment.text).trim(),
+                                        isEditing: true
+                                    },
+                                    ...textSegments.slice(currentIndex + 2)
+                                ];
+                                
+                                activeSegmentId = prevSegment.id;
+                            }
+                        }}
+                    />
                 {/if}
             {/each}
         </div>
