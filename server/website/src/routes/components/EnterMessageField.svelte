@@ -756,19 +756,21 @@
         }
     }
 
-    // Add this variable near the top of the script section with other state variables
-    let isMessageFieldFocused = true;
+    // First, modify the isMessageFieldFocused variable to track actual text field focus
+    let isMessageFieldFocused = false;
 
+    // Add back onMount with focus state
     onMount(() => {
         // Auto-focus the initial textarea on component load
         const initialTextarea = document.getElementById('initial') as HTMLTextAreaElement;
         if (initialTextarea) {
             initialTextarea.focus();
+            isMessageFieldFocused = true; // Set focus state to true on initial load
         }
     });
 </script>
 
-<div class="message-container">
+<div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
     <!-- Hidden file inputs -->
     <input
         bind:this={fileInput}
@@ -798,19 +800,23 @@
                             bind:value={segment.text}
                             on:focus={() => {
                                 activeSegmentId = segment.id;
-                                isMessageFieldFocused = true;
+                                isMessageFieldFocused = true;  // Set to true when any textarea is focused
                             }}
                             on:blur={() => {
                                 segment.isEditing = false;
-                                if (index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl) {
-                                    isMessageFieldFocused = false;
-                                }
+                                // Only set isMessageFieldFocused to false if no other textarea is focused
+                                setTimeout(() => {
+                                    const activeElement = document.activeElement;
+                                    if (!activeElement || !activeElement.matches('textarea')) {
+                                        isMessageFieldFocused = false;
+                                    }
+                                }, 0);
                             }}
                             on:keydown={(e) => handleKeydown(e, index)}
                             on:input={(e) => handleInput(e, segment, index)}
                             on:paste={handlePaste}
                             placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
-                                ? (isMessageFieldFocused ? "Enter your message" : "Click here to enter your message")
+                                ? "Enter your message"
                                 : ""}
                             rows="1"
                             class="message-input {segment.text ? 'has-content' : ''}"
@@ -820,7 +826,7 @@
                             class="text-display {!segment.text ? 'empty' : ''}"
                             on:click={(e) => {
                                 handleTextClick(segment, e);
-                                isMessageFieldFocused = true;
+                                isMessageFieldFocused = true;  // Set to true when clicking to edit
                             }}
                             on:keydown={(e) => handleKeyPress(segment, e)}
                             tabindex="0"
@@ -998,6 +1004,11 @@
         padding: 1rem 1rem 50px 1rem;
         box-sizing: border-box;
         position: relative;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: box-shadow 0.2s ease-in-out;
+    }
+
+    .message-container.focused {
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     }
 
