@@ -91,6 +91,11 @@ div.clickable-icon {
   mask-image: url('/icons/delete.svg');
 }
 
+.clickable-icon.icon_copy {
+  -webkit-mask-image: url('/icons/copy.svg');
+  mask-image: url('/icons/copy.svg');
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;

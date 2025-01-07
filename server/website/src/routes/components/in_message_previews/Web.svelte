@@ -14,6 +14,7 @@
     
     // Add state for showing copied message
     let showCopiedMessage = false;
+    let urlVisible = true;  // New state to control URL visibility
     
     // Enhanced URL parsing
     const urlObj = new URL(url);
@@ -63,11 +64,12 @@
         document.addEventListener('touchmove', cleanup);
     }
     
+    // Handle click to show menu instead of opening URL
     function handleClick(event: MouseEvent) {
-        if (!showMenu) {
-            window.open(url, '_blank');
-        }
-        showMenu = false;
+        // Show menu instead of opening URL
+        showMenu = true;
+        menuX = event.clientX;
+        menuY = event.clientY;
     }
     
     function handleKeyDown(event: KeyboardEvent) {
@@ -77,13 +79,26 @@
         }
     }
     
-    // Handle copy action
+    // Handle copy action with improved animation
     async function handleCopy() {
         await navigator.clipboard.writeText(url);
-        showCopiedMessage = true;
+        
+        // Hide URL first
+        urlVisible = false;
+        
+        // Show copied message after URL is hidden
         setTimeout(() => {
-            showCopiedMessage = false;
-        }, 1500);
+            showCopiedMessage = true;
+            
+            // Hide copied message and show URL again after 1500ms
+            setTimeout(() => {
+                showCopiedMessage = false;
+                setTimeout(() => {
+                    urlVisible = true;
+                }, 300); // Wait for fade out animation to complete
+            }, 1500);
+        }, 300); // Wait for fade out animation to complete
+        
         showMenu = false;
     }
     
@@ -107,7 +122,7 @@
     
     <!-- URL -->
     <div class="url-container">
-        <div class="url" class:fade-out={showCopiedMessage}>
+        <div class="url" class:fade-out={!urlVisible} class:hidden={!urlVisible}>
             <div class="domain-line">
                 <span class="subdomain">{parts.subdomain}</span>
                 <span class="main-domain">{parts.domain}</span>
@@ -204,6 +219,10 @@
         text-align: center;
         color: #4CAF50;
         font-weight: 500;
+    }
+
+    .hidden {
+        display: none;
     }
 
     .fade-in {

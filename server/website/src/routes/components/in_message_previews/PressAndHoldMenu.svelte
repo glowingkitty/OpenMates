@@ -127,12 +127,4 @@
     .menu-item.delete .clickable-icon {
         background: #E80000;
     }
-
-    .menu-item.copy {
-        color: #2196F3;
-    }
-
-    .menu-item.copy .clickable-icon {
-        background: #2196F3;
-    }
 </style>
