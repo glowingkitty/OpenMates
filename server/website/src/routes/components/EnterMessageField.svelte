@@ -3,6 +3,7 @@
     import Photos from './in_message_previews/Photos.svelte';
     import PDF from './in_message_previews/PDF.svelte';
     import Web from './in_message_previews/Web.svelte';
+    import { onMount } from 'svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -759,6 +760,14 @@
             }
         }
     }
+
+    onMount(() => {
+        // Auto-focus the initial textarea on component load
+        const initialTextarea = document.getElementById('initial') as HTMLTextAreaElement;
+        if (initialTextarea) {
+            initialTextarea.focus();
+        }
+    });
 </script>
 
 <div class="message-container">
@@ -794,8 +803,9 @@
                             on:input={(e) => handleInput(e, segment, index)}
                             on:paste={handlePaste}
                             on:blur={() => segment.isEditing = false}
-                            placeholder={index === 0 ? "Type your message here..." : ""}
+                            placeholder={index === 0 ? "Enter your message" : ""}
                             rows="1"
+                            class="message-input {segment.text ? 'has-content' : ''}"
                         ></textarea>
                     {:else}
                         <div
@@ -944,16 +954,21 @@
                 on:click={handleFileSelect} 
                 aria-label="Attach files"
             ></button>
+        </div>
+        <div class="right-buttons">
             <button 
                 class="clickable-icon icon_camera" 
                 on:click={handleCameraClick} 
                 aria-label="Take photo or video"
             ></button>
+            <button 
+                class="clickable-icon icon_recordaudio" 
+                aria-label="Record audio"
+            ></button>
+            {#if hasContent}
+                <button class="send-button" on:click={handleSend}>Send</button>
+            {/if}
         </div>
-        
-        {#if hasContent}
-            <button on:click={handleSend}>Send</button>
-        {/if}
     </div>
 </div>
 
@@ -999,7 +1014,7 @@
         gap: 0.5rem;
     }
 
-    textarea {
+    .message-input {
         width: 100%;
         min-height: 2em;
         border: none;
@@ -1013,6 +1028,20 @@
         margin: 0;
         overflow: hidden;
         box-sizing: border-box;
+        text-align: left; /* Default alignment for content */
+    }
+
+    .message-input::placeholder {
+        text-align: center;
+        transition: opacity 0.2s ease;
+        position: absolute;
+        left: 0;
+        right: 0;
+        color: #666;
+    }
+
+    .message-input.has-content::placeholder {
+        opacity: 0;
     }
 
     .action-buttons {
@@ -1027,8 +1056,31 @@
 
     .left-buttons {
         display: flex;
-        gap: 1rem;
+        gap: 0.75rem;
         align-items: center;
+    }
+
+    .right-buttons {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    /* Add styles for the record icon */
+    .icon_record {
+        width: 24px;
+        height: 24px;
+        background-image: url('/icons/recordaudio.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        border: none;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .icon_record:hover {
+        opacity: 1;
     }
 
     .camera-overlay {

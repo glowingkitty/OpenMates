@@ -76,6 +76,11 @@ div.clickable-icon {
   mask-image: url('/icons/camera.svg');
 }
 
+.clickable-icon.icon_recordaudio {
+  -webkit-mask-image: url('/icons/recordaudio.svg');
+  mask-image: url('/icons/recordaudio.svg');
+}
+
 .clickable-icon.icon_download {
   -webkit-mask-image: url('/icons/download.svg');
   mask-image: url('/icons/download.svg');
@@ -808,25 +813,4 @@ div.clickable-icon {
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-}
-
-/* Update icon classes to work with clickable-icon */
-.clickable-icon.icon_files {
-  /* Use mask instead of background-image for colorable icons */
-  mask-image: url('/icons/files.svg');
-  -webkit-mask-image: url('/icons/files.svg');
-  mask-size: contain;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  background-color: var(--color-primary);
-}
-
-.clickable-icon.icon_camera {
-  /* Use mask instead of background-image for colorable icons */
-  mask-image: url('/icons/camera.svg');
-  -webkit-mask-image: url('/icons/camera.svg');
-  mask-size: contain;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  background-color: var(--color-primary);
 }
