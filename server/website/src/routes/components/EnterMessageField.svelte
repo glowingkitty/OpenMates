@@ -799,20 +799,6 @@
         align-items: center;
     }
 
-    .send-button {
-        background-color: #007AFF;
-        color: white;
-        border: none;
-        border-radius: 18px;
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.2s, transform 0.1s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
     .camera-overlay {
         position: fixed;
         top: 0;
