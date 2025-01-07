@@ -1077,6 +1077,7 @@
         line-height: normal !important;
         font-size: unset !important;
         font-family: unset !important;
+        font-weight: 500 !important;
         min-height: unset !important;
         max-height: unset !important;
         height: auto !important;
