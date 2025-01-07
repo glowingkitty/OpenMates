@@ -817,7 +817,7 @@
                         ></textarea>
                     {:else}
                         <div
-                            class="text-display"
+                            class="text-display {!segment.text ? 'empty' : ''}"
                             on:click={(e) => {
                                 handleTextClick(segment, e);
                                 isMessageFieldFocused = true;
@@ -988,6 +988,7 @@
 </div>
 
 <style>
+    
     .message-container {
         width: 100%;
         min-height: 100px;
@@ -1068,6 +1069,20 @@
         opacity: 0;
     }
 
+    textarea {
+        /* Reset all properties that could affect textarea height */
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        line-height: normal !important;
+        font-size: unset !important;
+        font-family: unset !important;
+        min-height: unset !important;
+        max-height: unset !important;
+        height: auto !important;
+        box-sizing: content-box !important;
+    }
+
     .action-buttons {
         position: absolute;
         bottom: 1rem;
@@ -1142,9 +1157,15 @@
         width: 100%;
         white-space: pre-wrap;
         cursor: text;
+        text-align: left; /* Change default alignment to left */
+        color: #000; /* Change default color to black */
+        font-weight: 500 !important; 
+    }
+
+    /* Add a new class for empty text display */
+    .text-display.empty {
         text-align: center;
         color: #8A8A8A;
-        font-weight: 500;
     }
 
     /* Make text-display look similar to textarea */
