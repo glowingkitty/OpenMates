@@ -982,6 +982,7 @@
         padding: 1rem 1rem 50px 1rem;
         box-sizing: border-box;
         position: relative;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     }
 
     .scrollable-content {
@@ -1062,8 +1063,8 @@
 
     .right-buttons {
         display: flex;
-        gap: 0.75rem;
         align-items: center;
+        gap: 0.75rem;
     }
 
     /* Add styles for the record icon */
@@ -1187,5 +1188,9 @@
         max-height: 300px;
         object-fit: contain;
         background: #000;
+    }
+
+    .icon_recordaudio {
+        margin: 0 20px;
     }
 </style>
