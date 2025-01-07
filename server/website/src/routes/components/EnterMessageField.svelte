@@ -609,6 +609,14 @@
             ];
 
             activeSegmentId = newSegmentId;
+
+            // Wait for DOM update then focus the new textarea
+            tick().then(() => {
+                const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+                if (newTextarea) {
+                    newTextarea.focus();
+                }
+            });
         }
     }
 
@@ -630,21 +638,30 @@
                 const textBefore = segment.text.slice(0, cursorPosition);
                 const textAfter = segment.text.slice(textarea.selectionEnd);
 
+                const newSegmentId = crypto.randomUUID();
+
                 // Create new segments
                 textSegments = [
                     ...textSegments.slice(0, currentIndex),
                     { ...segment, text: textBefore.trim() },
                     { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: pastedText },
-                    { id: crypto.randomUUID(), text: textAfter.trim(), isEditing: true },
+                    { id: newSegmentId, text: textAfter.trim(), isEditing: true },
                     ...textSegments.slice(currentIndex + 1)
                 ];
 
                 // Set focus to the last segment
-                activeSegmentId = textSegments[currentIndex + 2].id;
+                activeSegmentId = newSegmentId;
 
+                // Ensure focus is set after DOM update
                 tick().then(() => {
-                    const newTextarea = document.getElementById(activeSegmentId) as HTMLTextAreaElement;
-                    if (newTextarea) newTextarea.focus();
+                    const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+                    if (newTextarea) {
+                        newTextarea.focus();
+                        // If there was text after the cursor, place cursor at start of that text
+                        if (textAfter) {
+                            newTextarea.setSelectionRange(0, 0);
+                        }
+                    }
                 });
             }
         }
