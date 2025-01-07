@@ -1093,19 +1093,21 @@
         justify-content: space-between;
         align-items: center;
         padding-right: 10px;
+        height: 40px; /* Fixed height to maintain consistent spacing */
     }
 
     .left-buttons {
         display: flex;
         gap: 0.75rem;
         align-items: center;
+        height: 100%; /* Take full height of parent */
     }
 
     .right-buttons {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        min-height: 40px;
+        height: 100%; /* Take full height of parent */
     }
 
     .camera-overlay {
@@ -1224,5 +1226,13 @@
 
     .icon_recordaudio {
         margin: 0 20px;
+    }
+
+    /* Update icon styles */
+    .clickable-icon {
+        display: flex;
+        align-items: center;
+        height: 50px;
+        margin-top: 10px;
     }
 </style>
