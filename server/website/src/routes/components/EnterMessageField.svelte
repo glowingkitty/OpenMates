@@ -803,7 +803,7 @@
                             on:input={(e) => handleInput(e, segment, index)}
                             on:paste={handlePaste}
                             on:blur={() => segment.isEditing = false}
-                            placeholder={index === 0 ? "Enter your message" : ""}
+                            placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl ? "Enter your message" : ""}
                             rows="1"
                             class="message-input {segment.text ? 'has-content' : ''}"
                         ></textarea>
