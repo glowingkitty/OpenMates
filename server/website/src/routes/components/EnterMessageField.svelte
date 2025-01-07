@@ -491,14 +491,19 @@
         }
     }
 
-    // Add new function to handle input events
-    function handleInput(event: Event) {
+    // Update handleInput function to detect spaces using InputEvent
+    function handleInput(event: Event, segment: TextSegment, index: number) {
         const textarea = event.target as HTMLTextAreaElement;
         adjustTextareaHeight(textarea);
         
-        const currentIndex = textSegments.findIndex(s => s.id === activeSegmentId);
-        if (currentIndex !== -1) {
-            handleUrlDetection(textSegments[currentIndex], currentIndex);
+        // Update the segment's text immediately
+        segment.text = textarea.value;
+        
+        // Check if space was typed using InputEvent
+        const inputEvent = event as InputEvent;
+        if (inputEvent.data === ' ') {
+            console.log('Space detected, checking for URLs in:', textarea.value); // Debug log
+            handleUrlDetection(segment, index);
         }
     }
 
@@ -608,39 +613,104 @@
 
     // Replace existing handleUrlDetection function
     function handleUrlDetection(segment: TextSegment, index: number) {
-        // Only proceed if the text ends with a space or if space was just pressed
+        // Only proceed if a space was just typed in the segment text
+        // so that we know the user has potentially finished typing the URL
         if (!segment.text.endsWith(' ')) {
             return;
         }
 
-        const words = segment.text.trim().split(' ');
-        const lastWord = words[words.length - 1]; // Get the last word
+        // We split the entire current segment text by whitespace
+        // to find if there's any newly typed URL anywhere in the text.
+        const words = segment.text.split(/\s+/);
 
-        // Check if the last word is a valid URL
-        if (lastWord && urlRegex.test(lastWord)) {
-            const url = lastWord;
-            const newSegmentId = crypto.randomUUID();
-            const textBeforeUrl = words.slice(0, -1).join(' '); // Everything except URL
+        // If there's no text to process or a webUrl is already attached to this segment, do nothing
+        if (!words.length || segment.webUrl) {
+            return;
+        }
 
-            // Update segments to create web preview
-            textSegments = [
-                ...textSegments.slice(0, index),
-                { ...segment, text: textBeforeUrl },
-                { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: url },
-                { id: newSegmentId, text: '', isEditing: true },
-                ...textSegments.slice(index + 1)
-            ];
+        // Find the index of the last URL that appears in the list of words
+        // This covers the scenario where the user typed text, inserted a URL, 
+        // and then continued typing more text in the same segment.
+        let lastURLIndex = -1;
+        for (let i = 0; i < words.length; i++) {
+            // We test each word against our current urlRegex
+            if (urlRegex.test(words[i])) {
+                lastURLIndex = i;
+            }
+        }
 
-            activeSegmentId = newSegmentId;
+        // If there's no URL found, stop here
+        if (lastURLIndex === -1) {
+            return;
+        }
 
-            // Wait for DOM update then focus the new textarea
-            tick().then(() => {
-                const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-                if (newTextarea) {
-                    newTextarea.focus();
-                }
+        // If we did find a URL, we extract it
+        const url = words[lastURLIndex];
+        console.debug("Detected URL for preview:", url); // Debug-style logging
+
+        // Prepare a new segment ID for the final text portion
+        const newSegmentId = crypto.randomUUID();
+
+        // Split the text into portions before and after the URL
+        // We remove the actual "URL word" from the middle portion, as that goes in its own segment.
+        const textBeforeUrl = words.slice(0, lastURLIndex).join(' ');
+        const textAfterUrl = words.slice(lastURLIndex + 1).join(' ');
+
+        console.debug("Text before URL:", textBeforeUrl);
+        console.debug("Text after URL:", textAfterUrl);
+
+        // We will construct up to three segments:
+        // 1. One for the text before the newly detected URL (if any)
+        // 2. One for the URL itself (the "web preview" segment)
+        // 3. One for any leftover text after the URL, or if there is no text leftover,
+        //    we still place an empty segment so users can keep typing.
+        const newSegments: TextSegment[] = [];
+
+        // If there is text before the URL, create a non-editing segment for that
+        if (textBeforeUrl.trim()) {
+            newSegments.push({
+                id: crypto.randomUUID(),
+                text: textBeforeUrl.trimEnd() + ' ', // preserve trailing space
+                isEditing: false
             });
         }
+
+        // The next segment is the "web preview" itself
+        newSegments.push({
+            id: crypto.randomUUID(),
+            text: '',
+            isEditing: false,
+            webUrl: url
+        });
+
+        // Finally, create a new text segment for whatever remains,
+        // enabling editing so the user can continue typing immediately.
+        newSegments.push({
+            id: newSegmentId,
+            text: textAfterUrl ? textAfterUrl + ' ' : ' ', // preserve space
+            isEditing: true
+        });
+
+        // Now we rebuild our textSegments, splicing out the current one,
+        // and inserting the newly created segments in its place
+        textSegments = [
+            ...textSegments.slice(0, index),
+            ...newSegments,
+            ...textSegments.slice(index + 1)
+        ];
+
+        // Give focus to the last new segment (so user can continue typing seamlessly)
+        activeSegmentId = newSegmentId;
+
+        tick().then(() => {
+            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+            if (newTextarea) {
+                newTextarea.focus();
+                // If there was leftover text after the URL, place cursor at the end of that text
+                const position = newTextarea.value.length;
+                newTextarea.setSelectionRange(position, position);
+            }
+        });
     }
 
     // Replace existing handlePaste function
@@ -721,7 +791,7 @@
                             bind:value={segment.text}
                             on:focus={() => activeSegmentId = segment.id}
                             on:keydown={(e) => handleKeydown(e, index)}
-                            on:input={handleInput}
+                            on:input={(e) => handleInput(e, segment, index)}
                             on:paste={handlePaste}
                             on:blur={() => segment.isEditing = false}
                             placeholder={index === 0 ? "Type your message here..." : ""}
