@@ -12,6 +12,9 @@
     let menuX = 0;
     let menuY = 0;
     
+    // Add state for showing copied message
+    let showCopiedMessage = false;
+    
     // Enhanced URL parsing
     const urlObj = new URL(url);
     const parts = {
@@ -30,7 +33,6 @@
     }
 
     // Get path and query parameters
-    // Only set path if it's more than just a forward slash
     const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
     parts.path = fullPath === '/' ? '' : fullPath;
     
@@ -75,9 +77,13 @@
         }
     }
     
-    // Handle menu actions
-    function handleCopy() {
-        navigator.clipboard.writeText(url);
+    // Handle copy action
+    async function handleCopy() {
+        await navigator.clipboard.writeText(url);
+        showCopiedMessage = true;
+        setTimeout(() => {
+            showCopiedMessage = false;
+        }, 1500);
         showMenu = false;
     }
     
@@ -101,7 +107,7 @@
     
     <!-- URL -->
     <div class="url-container">
-        <div class="url">
+        <div class="url" class:fade-out={showCopiedMessage}>
             <div class="domain-line">
                 <span class="subdomain">{parts.subdomain}</span>
                 <span class="main-domain">{parts.domain}</span>
@@ -110,6 +116,11 @@
                 <span class="path">{parts.path}</span>
             {/if}
         </div>
+        {#if showCopiedMessage}
+            <div class="copied-message fade-in">
+                Copied to clipboard
+            </div>
+        {/if}
     </div>
     
     <PressAndHoldMenu
@@ -117,9 +128,10 @@
         x={menuX}
         y={menuY}
         on:close={() => showMenu = false}
-        on:delete={handleCopy}
-        on:download={handleOpen}
+        on:delete={() => dispatch('delete')}
+        on:copy={handleCopy}
         on:view={handleOpen}
+        type="web"
     />
 </div>
 
@@ -182,5 +194,33 @@
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
+    }
+
+    .copied-message {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 100%;
+        text-align: center;
+        color: #4CAF50;
+        font-weight: 500;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    .fade-out {
+        animation: fadeOut 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
     }
 </style>

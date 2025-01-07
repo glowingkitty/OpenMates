@@ -5,9 +5,10 @@
     export let x: number = 0;  // X position of menu
     export let y: number = 0;  // Y position of menu
     export let show: boolean = false;
+    export let type: 'web' | 'default' = 'default';  // Add type prop
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'view'): void;
+        (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
     } = createEventDispatcher();
     let menuElement: HTMLDivElement;
 
@@ -60,13 +61,25 @@
             <div class="clickable-icon icon_delete"></div>
             Delete
         </button>
-        <button 
-            class="menu-item download"
-            on:click={(event) => handleMenuItemClick('download', event)}
-        >
-            <div class="clickable-icon icon_download"></div>
-            Download
-        </button>
+        
+        {#if type === 'web'}
+            <button 
+                class="menu-item copy"
+                on:click={(event) => handleMenuItemClick('copy', event)}
+            >
+                <div class="clickable-icon icon_copy"></div>
+                Copy link
+            </button>
+        {:else}
+            <button 
+                class="menu-item download"
+                on:click={(event) => handleMenuItemClick('download', event)}
+            >
+                <div class="clickable-icon icon_download"></div>
+                Download
+            </button>
+        {/if}
+
         <button 
             class="menu-item view"
             on:click={(event) => handleMenuItemClick('view', event)}
@@ -113,5 +126,13 @@
 
     .menu-item.delete .clickable-icon {
         background: #E80000;
+    }
+
+    .menu-item.copy {
+        color: #2196F3;
+    }
+
+    .menu-item.copy .clickable-icon {
+        background: #2196F3;
     }
 </style>

@@ -392,20 +392,41 @@
                 const currentText = textarea.value;
                 const prevSegment = textSegments[index - 1];
                 
-                // If previous segment has an attachment, remove it
-                if (prevSegment.imageId || prevSegment.fileId || prevSegment.videoId) {
-                    // Remove the attachment
-                    if (prevSegment.imageId) {
-                        inlineImages = inlineImages.filter(img => img.id !== prevSegment.imageId);
+                if (prevSegment.webUrl) {
+                    const url = prevSegment.webUrl;
+                    // Remove the web preview and append URL to previous text segment
+                    const prevPrevSegment = index > 1 ? textSegments[index - 2] : null;
+                    
+                    if (prevPrevSegment) {
+                        // Append URL to previous text segment without extra space
+                        textSegments = [
+                            ...textSegments.slice(0, index - 2),
+                            {
+                                ...prevPrevSegment,
+                                text: (prevPrevSegment.text + ' ' + url + currentText).trim(),
+                                isEditing: true
+                            },
+                            ...textSegments.slice(index + 1)
+                        ];
+                        activeSegmentId = prevPrevSegment.id;
+                    } else {
+                        // Create new text segment with URL without extra space
+                        textSegments = [
+                            {
+                                id: crypto.randomUUID(),
+                                text: url + currentText,
+                                isEditing: true
+                            },
+                            ...textSegments.slice(index + 1)
+                        ];
+                        activeSegmentId = textSegments[0].id;
                     }
-                    if (prevSegment.fileId) {
-                        fileAttachments = fileAttachments.filter(file => file.id !== prevSegment.fileId);
-                    }
-                    if (prevSegment.videoId) {
-                        videoAttachments = videoAttachments.filter(video => video.id !== prevSegment.videoId);
-                    }
-
-                    // Update the previous segment to remove attachment reference
+                } else if (prevSegment.imageId || prevSegment.fileId || prevSegment.videoId) {
+                    // Existing attachment handling code...
+                    inlineImages = inlineImages.filter(img => img.id !== prevSegment.imageId);
+                    fileAttachments = fileAttachments.filter(file => file.id !== prevSegment.fileId);
+                    videoAttachments = videoAttachments.filter(video => video.id !== prevSegment.videoId);
+                    
                     textSegments = [
                         ...textSegments.slice(0, index - 1),
                         {
@@ -418,7 +439,7 @@
                         },
                         ...textSegments.slice(index + 1)
                     ];
-
+                    
                     activeSegmentId = prevSegment.id;
                 } else {
                     // Regular text merge if no attachments
@@ -431,7 +452,7 @@
                         },
                         ...textSegments.slice(index + 1)
                     ];
-
+                    
                     activeSegmentId = prevSegment.id;
                 }
 
@@ -564,37 +585,30 @@
 
     // Replace existing handleUrlDetection function
     function handleUrlDetection(segment: TextSegment, index: number) {
-        // Only proceed if the text ends with a space
+        // Only proceed if the text ends with a space or if space was just pressed
         if (!segment.text.endsWith(' ')) {
             return;
         }
 
-        const words = segment.text.split(' ');
-        const lastWord = words[words.length - 2]; // Get the word before the space
+        const words = segment.text.trim().split(' ');
+        const lastWord = words[words.length - 1]; // Get the last word
 
         // Check if the last word is a valid URL
         if (lastWord && urlRegex.test(lastWord)) {
             const url = lastWord;
             const newSegmentId = crypto.randomUUID();
+            const textBeforeUrl = words.slice(0, -1).join(' '); // Everything except URL
 
-            // Split text into before URL, URL, and after URL
-            const textBeforeUrl = segment.text.substring(0, segment.text.indexOf(url));
-            const textAfterUrl = segment.text.substring(segment.text.indexOf(url) + url.length);
-
+            // Update segments to create web preview
             textSegments = [
                 ...textSegments.slice(0, index),
-                { ...segment, text: textBeforeUrl.trim() },
+                { ...segment, text: textBeforeUrl },
                 { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: url },
-                { id: newSegmentId, text: textAfterUrl.trim(), isEditing: true },
+                { id: newSegmentId, text: '', isEditing: true },
                 ...textSegments.slice(index + 1)
             ];
 
             activeSegmentId = newSegmentId;
-
-            tick().then(() => {
-                const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-                if (newTextarea) newTextarea.focus();
-            });
         }
     }
 
