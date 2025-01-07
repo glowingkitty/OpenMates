@@ -1168,12 +1168,6 @@
         color: #8A8A8A;
     }
 
-    /* Make text-display look similar to textarea */
-    .text-display:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-        border-radius: 4px;
-    }
-
     .file-attachment {
         display: flex;
         align-items: center;
