@@ -128,6 +128,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.web {
+  background: var(--color-app-web);
+  &::after {
+    background-image: url('/icons/web.svg');
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;

@@ -559,65 +559,79 @@
         });
     }
 
-    // URL detection regex
-    const urlRegex = /https?:\/\/[^\s]+/g;
+    // Update URL detection regex (replace existing urlRegex)
+    const urlRegex = /https?:\/\/[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?/gi;
 
-    // Function to check if text contains a URL
-    function extractUrls(text: string): string[] {
-        return text.match(urlRegex) || [];
-    }
-
-    // Function to handle URL detection and replacement
+    // Replace existing handleUrlDetection function
     function handleUrlDetection(segment: TextSegment, index: number) {
-        const urls = extractUrls(segment.text);
-        
-        if (urls.length > 0) {
-            const url = urls[urls.length - 1];
-            
-            if (segment.text.endsWith(' ') || segment.text.endsWith(url)) {
-                const newSegmentId = crypto.randomUUID();
-                const textBeforeUrl = segment.text.substring(0, segment.text.indexOf(url));
-                const textAfterUrl = segment.text.substring(segment.text.indexOf(url) + url.length);
-                
-                textSegments = [
-                    ...textSegments.slice(0, index),
-                    { ...segment, text: textBeforeUrl.trim() },
-                    { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: url },
-                    { id: newSegmentId, text: textAfterUrl.trim(), isEditing: true },
-                    ...textSegments.slice(index + 1)
-                ];
-                
-                activeSegmentId = newSegmentId;
-                
-                tick().then(() => {
-                    const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-                    if (newTextarea) newTextarea.focus();
-                });
-            }
+        // Only proceed if the text ends with a space
+        if (!segment.text.endsWith(' ')) {
+            return;
+        }
+
+        const words = segment.text.split(' ');
+        const lastWord = words[words.length - 2]; // Get the word before the space
+
+        // Check if the last word is a valid URL
+        if (lastWord && urlRegex.test(lastWord)) {
+            const url = lastWord;
+            const newSegmentId = crypto.randomUUID();
+
+            // Split text into before URL, URL, and after URL
+            const textBeforeUrl = segment.text.substring(0, segment.text.indexOf(url));
+            const textAfterUrl = segment.text.substring(segment.text.indexOf(url) + url.length);
+
+            textSegments = [
+                ...textSegments.slice(0, index),
+                { ...segment, text: textBeforeUrl.trim() },
+                { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: url },
+                { id: newSegmentId, text: textAfterUrl.trim(), isEditing: true },
+                ...textSegments.slice(index + 1)
+            ];
+
+            activeSegmentId = newSegmentId;
+
+            tick().then(() => {
+                const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
+                if (newTextarea) newTextarea.focus();
+            });
         }
     }
 
-    // Add paste handler for URLs
+    // Replace existing handlePaste function
     function handlePaste(event: ClipboardEvent) {
         const textarea = event.target as HTMLTextAreaElement;
         const pastedText = event.clipboardData?.getData('text') || '';
-        
+
+        // Check if pasted text is a valid URL
         if (pastedText.match(urlRegex)) {
             event.preventDefault();
-            
+
             const currentIndex = textSegments.findIndex(s => s.id === activeSegmentId);
             if (currentIndex !== -1) {
                 const segment = textSegments[currentIndex];
                 const cursorPosition = textarea.selectionStart;
-                
-                const newText = 
-                    segment.text.slice(0, cursorPosition) + 
-                    pastedText + 
-                    ' ' + 
-                    segment.text.slice(textarea.selectionEnd);
-                
-                textSegments[currentIndex].text = newText;
-                handleUrlDetection(textSegments[currentIndex], currentIndex);
+
+                // Split the current text at cursor position
+                const textBefore = segment.text.slice(0, cursorPosition);
+                const textAfter = segment.text.slice(textarea.selectionEnd);
+
+                // Create new segments
+                textSegments = [
+                    ...textSegments.slice(0, currentIndex),
+                    { ...segment, text: textBefore.trim() },
+                    { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: pastedText },
+                    { id: crypto.randomUUID(), text: textAfter.trim(), isEditing: true },
+                    ...textSegments.slice(currentIndex + 1)
+                ];
+
+                // Set focus to the last segment
+                activeSegmentId = textSegments[currentIndex + 2].id;
+
+                tick().then(() => {
+                    const newTextarea = document.getElementById(activeSegmentId) as HTMLTextAreaElement;
+                    if (newTextarea) newTextarea.focus();
+                });
             }
         }
     }
