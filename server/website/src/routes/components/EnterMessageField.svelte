@@ -78,11 +78,6 @@
         const prevHasAttachment = index > 0 && Boolean(textSegments[index - 1].imageId || textSegments[index - 1].fileId || textSegments[index - 1].videoId);
         const nextHasAttachment = index < textSegments.length - 1 && Boolean(textSegments[index + 1].imageId || textSegments[index + 1].fileId || textSegments[index + 1].videoId);
 
-        // Show if:
-        // 1. Has content or attachment
-        // 2. Is first segment
-        // 3. Is last segment (for input)
-        // 4. Is between non-attachment segments AND has content
         return Boolean(
             hasContent || 
             hasAttachment || 
@@ -761,6 +756,9 @@
         }
     }
 
+    // Add this variable near the top of the script section with other state variables
+    let isMessageFieldFocused = true;
+
     onMount(() => {
         // Auto-focus the initial textarea on component load
         const initialTextarea = document.getElementById('initial') as HTMLTextAreaElement;
@@ -798,24 +796,41 @@
                         <textarea
                             id={segment.id}
                             bind:value={segment.text}
-                            on:focus={() => activeSegmentId = segment.id}
+                            on:focus={() => {
+                                activeSegmentId = segment.id;
+                                isMessageFieldFocused = true;
+                            }}
+                            on:blur={() => {
+                                segment.isEditing = false;
+                                if (index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl) {
+                                    isMessageFieldFocused = false;
+                                }
+                            }}
                             on:keydown={(e) => handleKeydown(e, index)}
                             on:input={(e) => handleInput(e, segment, index)}
                             on:paste={handlePaste}
-                            on:blur={() => segment.isEditing = false}
-                            placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl ? "Enter your message" : ""}
+                            placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
+                                ? (isMessageFieldFocused ? "Enter your message" : "Click here to enter your message")
+                                : ""}
                             rows="1"
                             class="message-input {segment.text ? 'has-content' : ''}"
                         ></textarea>
                     {:else}
                         <div
                             class="text-display"
-                            on:click={(e) => handleTextClick(segment, e)}
+                            on:click={(e) => {
+                                handleTextClick(segment, e);
+                                isMessageFieldFocused = true;
+                            }}
                             on:keydown={(e) => handleKeyPress(segment, e)}
                             tabindex="0"
                             role="textbox"
                         >
-                            {segment.text || '\u00A0'}
+                            {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
+                                {isMessageFieldFocused ? "Enter your message" : "Click here to enter your message"}
+                            {:else}
+                                {segment.text || '\u00A0'}
+                            {/if}
                         </div>
                     {/if}
                 {/if}
