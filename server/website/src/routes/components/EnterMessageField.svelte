@@ -1060,7 +1060,8 @@
         position: absolute;
         left: 0;
         right: 0;
-        color: #666;
+        color: #8A8A8A;
+        font-weight: 500;
     }
 
     .message-input.has-content::placeholder {
@@ -1087,23 +1088,6 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
-    }
-
-    /* Add styles for the record icon */
-    .icon_record {
-        width: 24px;
-        height: 24px;
-        background-image: url('/icons/recordaudio.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-        border: none;
-        cursor: pointer;
-        opacity: 0.7;
-        transition: opacity 0.2s;
-    }
-
-    .icon_record:hover {
-        opacity: 1;
     }
 
     .camera-overlay {
@@ -1156,12 +1140,11 @@
 
     .text-display {
         width: 100%;
-        min-height: 2em;
-        padding: 0.5rem 0;
         white-space: pre-wrap;
         cursor: text;
-        line-height: 1.5;
-        font-size: 1rem;
+        text-align: center;
+        color: #8A8A8A;
+        font-weight: 500;
     }
 
     /* Make text-display look similar to textarea */
