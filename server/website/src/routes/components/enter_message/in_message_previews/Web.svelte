@@ -154,7 +154,7 @@
     .web-preview-container {
         width: 300px;
         height: 60px;
-        background-color: #F8F8F8;
+        background-color: var(--color-grey-20);
         border-radius: 30px;
         position: relative;
         cursor: pointer;
@@ -165,7 +165,7 @@
     }
 
     .web-preview-container:hover {
-        background-color: #F0F0F0;
+        background-color: var(--color-grey-20);
     }
 
     .url-container {
@@ -196,15 +196,15 @@
     }
 
     .subdomain {
-        color: #7C7C7C;
+        color: var(--color-font-tertiary);
     }
 
     .main-domain {
-        color: #333;
+        color: var(--color-font-primary);
     }
 
     .path {
-        color: #7C7C7C;
+        color: var(--color-font-tertiary);
         display: block;
         text-overflow: ellipsis;
         overflow: hidden;
@@ -217,7 +217,7 @@
         transform: translateY(-50%);
         width: 100%;
         text-align: center;
-        color: #4CAF50;
+        color: var(--color-font-primary);
         font-weight: 500;
     }
 
