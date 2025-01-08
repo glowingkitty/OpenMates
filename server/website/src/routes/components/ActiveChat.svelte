@@ -13,14 +13,12 @@
 
 <style>
     .active-chat-container {
-        /* Use theme variables instead of hard-coded colors */
         background-color: var(--color-grey-20);
         border-radius: 17px;
-        position: absolute;
-        top: 90px;
-        right: 10px;
-        bottom: 10px;
-        left: 10px;
+        flex-grow: 1;
+        position: relative;
+        min-height: 0;
+        height: 100%;
 
         /* Add drop shadow on all sides */
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);

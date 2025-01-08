@@ -12,8 +12,12 @@
 
 <div class="main-content">
     <Header context="webapp" />
-    <Settings />
-    <ActiveChat />
+    <div class="chat-container">
+        <ActiveChat />
+        <div class="settings-wrapper">
+            <Settings />
+        </div>
+    </div>
 </div>
 
 <style>
@@ -54,5 +58,19 @@
 
         /* Add scrolling for overflow content */
         overflow-y: auto;
+    }
+
+    .chat-container {
+        display: flex;
+        flex-direction: row;
+        height: calc(100% - 90px);
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .settings-wrapper {
+        display: flex;
+        align-items: flex-start;
+        min-width: fit-content;
     }
 </style>

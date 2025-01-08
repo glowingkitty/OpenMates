@@ -5,13 +5,11 @@
 </script>
 
 <div class="profile-container">
-    <!-- Main user profile picture -->
     <div 
         class="profile-picture"
         style="background-image: url('{userProfilePicture}');"
     ></div>
     
-    <!-- Team profile picture (shown only if teamProfilePicture is provided) -->
     {#if teamProfilePicture}
         <div 
             class="team-picture"
@@ -22,14 +20,12 @@
 
 <style>
     .profile-container {
-        position: absolute;
-        top: 10px;
-        right: 10px;
         display: inline-block;
         width: 57px;
         height: 57px;
         background-color: #ffffff;
         border-radius: 50%;
+        margin: 0;
     }
 
     .profile-picture {
