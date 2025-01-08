@@ -15,11 +15,18 @@
         { href: routes.docs.main, text: 'Docs' }
     ].filter(item => isPageVisible(item.href));
 
-    const webAppNavItems = [
-        { href: '/app/chat', text: 'Chat' },
-        { href: '/app/settings', text: 'Settings' },
-        { href: '/app/help', text: 'Help' }
-    ];
+    // Define interface for nav items
+    interface NavItem {
+        href: string;
+        text: string;
+    }
+
+    // Add type annotation to webAppNavItems
+    const webAppNavItems: NavItem[] = [
+        // { href: '/app/chat', text: 'Chat' },
+        // { href: '/app/projects', text: 'Projects' },
+        // { href: '/app/workflows', text: 'Workflows' }
+    ]; // TODO add those pages later
 
     // Define the type for social links
     type SocialLink = {
