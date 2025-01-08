@@ -94,7 +94,7 @@
     .menu {
         position: fixed;
         width: 180px;
-        background: white;
+        background: var(--color-grey-0);
         border-radius: 30px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         padding: 8px;
@@ -117,7 +117,7 @@
     }
 
     .menu-item:hover {
-        background-color: #f5f5f5;
+        background-color: var(--color-grey-20);
     }
 
     .menu-item.delete {
