@@ -38,12 +38,12 @@ export function replaceOpenMates(node: HTMLElement) {
                     // For text in anchor tags, preserve link functionality but ensure Mates is black
                     container.innerHTML = text.replace(
                         /OpenMates/g,
-                        '<span><mark>Open</mark><span style="color: black;">Mates</span></span>'
+                        '<span><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></span>'
                     );
                 } else {
                     container.innerHTML = text.replace(
                         /OpenMates/g,
-                        '<strong><mark>Open</mark><span style="color: black;">Mates</span></strong>'
+                        '<strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>'
                     );
                 }
 
