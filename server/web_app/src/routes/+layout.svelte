@@ -34,6 +34,11 @@
         }
         return null;
     }
+
+    // Watch theme changes and update document attribute
+    $: if (browser) {
+        document.documentElement.setAttribute('data-theme', $theme);
+    }
 </script>
 
 <!-- Add theme toggle buttons -->
