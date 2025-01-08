@@ -17,7 +17,7 @@
         background-color: var(--color-grey-20);
         border-radius: 17px;
         position: absolute;
-        top: 10px;
+        top: 90px;
         right: 10px;
         bottom: 10px;
         left: 10px;

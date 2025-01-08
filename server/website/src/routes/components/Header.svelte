@@ -76,7 +76,7 @@
     }
 </script>
 
-<header use:replaceOpenMates>
+<header use:replaceOpenMates class:webapp={context === 'webapp'}>
     <div class="container">
         <nav class:webapp={context === 'webapp'}>
             <div class="left-section">
@@ -150,7 +150,6 @@
 <style>
     header {
         width: 100%;
-        background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, var(--color-grey-20) 100%);
         z-index: 1000;
         padding: 1rem 2rem;
         position: fixed;
@@ -158,8 +157,17 @@
         left: 0;
     }
 
+    /* Add website-specific gradient */
+    header:not(.webapp) {
+        background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, var(--color-grey-20) 100%);
+    }
+
+    /* Update webapp header styles */
+    header.webapp {
+        position: relative;
+    }
+
     .container {
-        /* max-width: 1000px; */
         margin: 0 auto;
         width: 100%;
     }
@@ -170,6 +178,11 @@
         align-items: center;
         max-width: 1400px;
         margin: 0 auto;
+    }
+
+    /* Remove max-width constraint for webapp navigation */
+    nav.webapp {
+        max-width: none;
     }
 
     .left-section {
