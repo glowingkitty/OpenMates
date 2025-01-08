@@ -609,6 +609,12 @@
         transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    @media (max-width: 560px) {
+        .animated-chat-container {
+            width: 90%;
+        }
+    }
+
     :global(.app-title svg) {
         width: 67.98px !important;
         height: 67.98px !important;
