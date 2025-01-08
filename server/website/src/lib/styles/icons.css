@@ -714,6 +714,13 @@ div.clickable-icon {
   }
 }
 
+/* Add this new dark mode style */
+@media (prefers-color-scheme: dark) {
+  .icon.provider-openai::before {
+      filter: invert(1);
+  }
+}
+
 .icon.provider-anthropic {
   &::before {
       background-image: url('/icons/claude.svg');
