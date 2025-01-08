@@ -58,24 +58,6 @@
 <!-- Footer will appear on every page -->
 <Footer />
 
-<!-- Add theme toggle buttons -->
-<div class="theme-controls">
-    <button class="theme-toggle" on:click={toggleTheme}>
-        {#if $theme === 'light'}
-            🌙
-        {:else}
-            ☀️
-        {/if}
-    </button>
-    
-    <!-- Only show reset button if manually overridden -->
-    {#if browser && getThemePreference() === 'manual'}
-        <button class="reset-theme" on:click={resetToSystemPreference}>
-            🔄
-        </button>
-    {/if}
-</div>
-
 <style>
     /* Global styles moved from global.css */
     :global(body) {
