@@ -174,7 +174,7 @@
 
     .nav-link {
         text-decoration: none;
-        color: var(--text-color, #000);
+        color: var(--color-font-primary);
         opacity: 0.5;
         transition: opacity 0.2s ease;
         cursor: pointer;

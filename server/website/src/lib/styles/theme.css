@@ -1,9 +1,9 @@
 :root {
     /* Icon */
-    --icon-background-start: #f3f3f3;
-    --icon-background-end: #e3e3e3;
+    --icon-background-start: var(--color-grey-20);
+    --icon-background-end: var(--color-grey-30);
     --icon-background: linear-gradient(135deg, var(--icon-background-start) 9.04%, var(--icon-background-end) 90.06%);
-    --icon-border-color: #dedede;
+    --icon-border-color: var(--color-grey-20);
     --icon-focus-background-start: #5951D0;
     --icon-focus-background-end: #7D74FF;
     --icon-focus-background: linear-gradient(135deg, var(--icon-focus-background-start) 9.04%, var(--icon-focus-background-end) 90.06%);
@@ -306,6 +306,7 @@
     /* Default theme (light) */
     --color-grey-0: #ffffff;
     --color-grey-20: #f3f3f3;
+    --color-grey-30: #e3e3e3;
     --color-grey-100: #000000;
     --color-grey-blue: #E6EAFF;
 }
@@ -319,8 +320,9 @@ body {
 
 /* Dark theme overrides */
 [data-theme="dark"] {
-    --color-grey-0: #212121;
-    --color-grey-20: #171717;
+    --color-grey-0: #171717;
+    --color-grey-20: #212121;
+    --color-grey-30: #333333;
     --color-grey-100: #ffffff;
     --color-grey-blue: #2d2f35;
 
@@ -332,6 +334,7 @@ body {
     --color-font-primary: #e6e6e6;
     --color-font-secondary: #cfcfcf;
     --color-font-tertiary: #c0c0c0;
+
 }
 
 /* Keep the transition rules */
