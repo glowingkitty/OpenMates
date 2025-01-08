@@ -143,13 +143,6 @@
                     {/if}
                 </div>
             {/if}
-
-            <!-- User profile icon for web app -->
-            {#if context === 'webapp'}
-                <div class="user-profile">
-                    <div class="profile-icon"></div>
-                </div>
-            {/if}
         </nav>
     </div>
 </header>
