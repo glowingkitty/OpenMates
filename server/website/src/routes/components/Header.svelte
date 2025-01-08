@@ -273,7 +273,6 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
             backdrop-filter: blur(10px);
             flex-direction: column;
             justify-content: flex-start;
@@ -289,10 +288,6 @@
 
         .icon-links {
             margin: 1rem 0 0 0;
-        }
-
-        header {
-            background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
         }
     }
 </style> 
