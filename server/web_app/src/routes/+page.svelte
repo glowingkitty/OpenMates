@@ -63,8 +63,8 @@
     .chat-container {
         display: flex;
         flex-direction: row;
-        height: calc(100% - 90px);
-        gap: 10px;
+        height: calc(100% - 80px);
+        gap: 20px;
         padding: 10px;
     }
 

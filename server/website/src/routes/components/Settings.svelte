@@ -18,21 +18,32 @@
     {/if}
 </div>
 
+<div class="settings-menu">
+    <div class="menu-item">Profile Settings</div>
+    <div class="menu-item">Preferences</div>
+    <div class="menu-item">Logout</div>
+</div>
+
 <style>
     .profile-container {
+        position: fixed;
+        top: 10px;
+        right: 10px;
         display: inline-block;
         width: 57px;
         height: 57px;
-        background-color: #ffffff;
         border-radius: 50%;
         margin: 0;
     }
 
     .profile-picture {
         border-radius: 50%;
+        width: 100%;
+        height: 100%;
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
+        background-color: var(--color-grey-20);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -48,5 +59,13 @@
         background-repeat: no-repeat;
         background-color: #c6c6c6;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .settings-menu {
+        background-color: var(--color-grey-20);
+        border-radius: 16px;
+        overflow: hidden;
+        height: 100%;
+        width: 323px;
     }
 </style>
