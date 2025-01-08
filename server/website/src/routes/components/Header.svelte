@@ -122,7 +122,7 @@
 <style>
     header {
         width: 100%;
-        background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
+        background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, var(--color-grey-20) 100%);
         z-index: 1000;
         padding: 1rem 2rem;
         position: fixed;
