@@ -11,6 +11,7 @@
     import { theme, toggleTheme, initializeTheme } from '@website-stores/theme';
     import { replaceOpenMates } from '@website-actions/replaceText';
     import { onMount, onDestroy } from 'svelte';
+    import { browser } from '$app/environment';
 
     // Initialize theme on mount
     onMount(() => {
@@ -19,9 +20,19 @@
 
     // Reset to system preference
     function resetToSystemPreference() {
-        localStorage.removeItem('theme_preference');
-        localStorage.removeItem('theme');
-        initializeTheme();
+        if (browser) {
+            localStorage.removeItem('theme_preference');
+            localStorage.removeItem('theme');
+            initializeTheme();
+        }
+    }
+
+    // Helper function to safely check localStorage
+    function getThemePreference() {
+        if (browser) {
+            return localStorage?.getItem('theme_preference');
+        }
+        return null;
     }
 </script>
 
@@ -36,7 +47,7 @@
     </button>
     
     <!-- Only show reset button if manually overridden -->
-    {#if localStorage?.getItem('theme_preference') === 'manual'}
+    {#if browser && getThemePreference() === 'manual'}
         <button class="reset-theme" on:click={resetToSystemPreference}>
             🔄
         </button>
