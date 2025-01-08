@@ -7,7 +7,7 @@
 </script>
 
 <MetaTags {...meta} />
-<Header />
+<Header context="website" />
 
 <h1 class="text-center">Documentation</h1>
 

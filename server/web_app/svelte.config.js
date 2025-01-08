@@ -14,9 +14,10 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			'@website-static': path.resolve('../website/src/static'),
+			'@website-components': path.resolve('../website/src/routes/components'),
 			'@website-styles': path.resolve('../website/src/lib/styles'),
-			'@website-stores': path.resolve('../website/src/lib/stores')
+			'@website-stores': path.resolve('../website/src/lib/stores'),
+			'@website-actions': path.resolve('../website/src/lib/actions')
 		}
 	}
 };

@@ -2,6 +2,7 @@
     // Import the required components
     import ActivityHistory from '@website-components/ActivityHistory.svelte';
     import ActiveChat from '@website-components/ActiveChat.svelte';
+    import Header from '@website-components/Header.svelte';
 </script>
 
 <div class="sidebar">
@@ -9,6 +10,7 @@
 </div>
 
 <div class="main-content">
+    <Header context="webapp" />
     <ActiveChat />
 </div>
 
@@ -44,7 +46,7 @@
         /* Position relative to accommodate fixed sidebar */
         position: fixed;
         left: calc(var(--sidebar-width) + var(--sidebar-margin));
-        top: 110px;
+        top: var(--sidebar-margin);
         right: var(--sidebar-margin);
         bottom: var(--sidebar-margin);
 

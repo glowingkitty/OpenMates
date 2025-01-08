@@ -1,9 +1,47 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { externalLinks, routes } from '$lib/config/links';
-    import { isPageVisible } from '$lib/config/pages';
-    import { replaceOpenMates } from '$lib/actions/replaceText';
+    import { externalLinks, routes } from '../../lib/config/links';
+    import { isPageVisible } from '../../lib/config/pages';
+    import { replaceOpenMates } from '../../lib/actions/replaceText';
+
+    // Add context prop
+    export let context: 'website' | 'webapp' = 'website';
+
+    // Separate navigation items for web app and website
+    const websiteNavItems = [
+        { href: routes.home, text: 'For all of us' },
+        { href: routes.developers, text: 'For Developers' },
+        { href: routes.docs.main, text: 'Docs' }
+    ].filter(item => isPageVisible(item.href));
+
+    const webAppNavItems = [
+        { href: '/app/chat', text: 'Chat' },
+        { href: '/app/settings', text: 'Settings' },
+        { href: '/app/help', text: 'Help' }
+    ];
+
+    // Social media links
+    const socialLinks = [
+        {
+            href: externalLinks.github,
+            ariaLabel: "Visit our GitHub page",
+            iconClass: "github"
+        }
+    ];
+
+    // Use appropriate nav items based on context
+    $: navItems = context === 'webapp' ? webAppNavItems : websiteNavItems;
+
+    // Only show navigation section if we have at least 2 nav items
+    $: showNavLinks = navItems?.length >= 2;
+    
+    // Show social links only if nav section is visible and we have social links
+    $: showSocialLinks = showNavLinks && socialLinks?.length > 0;
+    
+    // Show social section only for website and if we have social links
+    $: showSocialSection = context === 'website' && showSocialLinks;
+
     // Updated helper function to check if a path is active and visible
     const isActive = (path: string) => {
         if (!isPageVisible(path)) return false;
@@ -15,27 +53,6 @@
         // For other paths, keep exact matching
         return $page.url.pathname === path;
     };
-
-    // Navigation items using centralized routes, filtered by visibility
-    const navItems = [
-        { href: routes.home, text: 'For all of us' },
-        { href: routes.developers, text: 'For Developers' },
-        { href: routes.docs.main, text: 'Docs' }
-    ].filter(item => isPageVisible(item.href));
-
-    // Social media links
-    const socialLinks = [
-        {
-            href: externalLinks.github,
-            ariaLabel: "Visit our GitHub page",
-            iconClass: "github"
-        }
-    ];
-
-    // Only show navigation section if we have at least 2 nav items
-    const showNavLinks = navItems.length >= 2;
-    // Show social links only if nav section is visible
-    const showSocialLinks = showNavLinks && socialLinks.length > 0;
 
     const handleClick = async (event: MouseEvent, path: string, external: boolean = false) => {
         if (external || event.ctrlKey || event.metaKey || event.button === 1) {
@@ -61,7 +78,7 @@
 
 <header use:replaceOpenMates>
     <div class="container">
-        <nav>
+        <nav class:webapp={context === 'webapp'}>
             <div class="left-section">
                 <a
                     href="/"
@@ -72,47 +89,59 @@
                 </a>
             </div>
 
-            <!-- Modified nav-links with mobile support -->
             {#if showNavLinks}
-            <!-- Add hamburger menu button -->
-            <button 
-                class="mobile-menu-button" 
-                on:click={toggleMobileMenu}
-                aria-label="Toggle navigation menu"
-            >
-                <div class:open={isMobileMenuOpen} class="hamburger">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </button>
-            <div class="nav-links" class:mobile-open={isMobileMenuOpen}>
-                {#each navItems as item}
-                    <a
-                        href={item.href}
-                        class="nav-link"
-                        class:active={isActive(item.href)}
-                        on:click={(e) => handleClick(e, item.href)}
+                <!-- Mobile menu button only shown for website -->
+                {#if context === 'website'}
+                    <button 
+                        class="mobile-menu-button" 
+                        on:click={toggleMobileMenu}
+                        aria-label="Toggle navigation menu"
                     >
-                        {item.text}
-                    </a>
-                {/each}
-                {#if showSocialLinks}
-                <div class="icon-links">
-                    {#each socialLinks as link}
+                        <div class:open={isMobileMenuOpen} class="hamburger">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </button>
+                {/if}
+
+                <div class="nav-links" 
+                     class:mobile-open={isMobileMenuOpen} 
+                     class:webapp={context === 'webapp'}>
+                    {#each navItems as item}
                         <a
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="icon-link"
-                            aria-label={link.ariaLabel}
+                            href={item.href}
+                            class="nav-link"
+                            class:active={isActive(item.href)}
+                            on:click={(e) => handleClick(e, item.href)}
                         >
-                            <div class="small-icon {link.iconClass}"></div>
+                            {item.text}
                         </a>
                     {/each}
+                    
+                    {#if showSocialSection}
+                        <div class="icon-links">
+                            {#each socialLinks as link}
+                                <a
+                                    href={link.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="icon-link"
+                                    aria-label={link.ariaLabel}
+                                >
+                                    <div class="small-icon {link.iconClass}"></div>
+                                </a>
+                            {/each}
+                        </div>
+                    {/if}
                 </div>
-                {/if}
-            </div>
+            {/if}
+
+            <!-- User profile icon for web app -->
+            {#if context === 'webapp'}
+                <div class="user-profile">
+                    <div class="profile-icon"></div>
+                </div>
             {/if}
         </nav>
     </div>
@@ -287,6 +316,46 @@
 
         .icon-links {
             margin: 1rem 0 0 0;
+        }
+    }
+
+    /* Add context-specific styles */
+    nav.webapp {
+        grid-template-columns: auto 1fr auto;
+    }
+
+    .nav-links.webapp {
+        justify-content: center;
+        padding: 0 70px; /* Make space for the profile icon */
+    }
+
+    .user-profile {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .profile-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background-color: var(--color-grey-40);
+        background-image: url('/icons/user-profile.svg');
+        background-size: 60%;
+        background-position: center;
+        background-repeat: no-repeat;
+        cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+        .nav-links.webapp {
+            display: flex;
+            position: static;
+            padding: 0 70px;
+            flex-direction: row;
+            background: none;
+            backdrop-filter: none;
         }
     }
 </style> 
