@@ -41,14 +41,18 @@
     position: absolute;
     width: 12px;
     height: 20px;
-    background-image: url('/speechbubble.svg');
-    background-size: contain;
-    background-repeat: no-repeat;
     right: -12px;
     bottom: 10px;
+    /* Use mask for the speech bubble shape */
+    -webkit-mask-image: url('/speechbubble.svg');
+    mask-image: url('/speechbubble.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    /* Apply the same background color as the message */
+    background-color: var(--color-grey-blue);
     transform: scaleX(-1);
-    /* Color the SVG to match the message background */
-    filter: brightness(0) saturate(100%) invert(94%) sepia(5%) saturate(654%) hue-rotate(200deg) brightness(100%) contrast(96%);
 }
 
 /* Add speech bubble pointer for mate messages */
@@ -57,13 +61,17 @@
     position: absolute;
     width: 12px;
     height: 20px;
-    background-image: url('/speechbubble.svg');
-    background-size: contain;
-    background-repeat: no-repeat;
     left: -12px;
     top: 20px;
-    /* Color the SVG to match the white message background */
-    filter: brightness(0) saturate(100%) invert(100%);
+    /* Use mask for the speech bubble shape */
+    -webkit-mask-image: url('/speechbubble.svg');
+    mask-image: url('/speechbubble.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    /* Apply white background color for mate messages */
+    background-color: var(--color-grey-0);
 }
 
 /* Add the fade-in animation keyframes */
