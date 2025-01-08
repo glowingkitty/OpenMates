@@ -308,18 +308,13 @@
     --color-grey-20: #f3f3f3;
     --color-grey-100: #000000;
     --color-grey-blue: #E6EAFF;
-
-    --text-primary: var(--color-grey-100);
-    --text-secondary: var(--color-grey-100);
-    --background-primary: var(--color-grey-0);
-    --background-secondary: var(--color-grey-20);
 }
 
 /* Add these base styles */
 :root, 
 body {
-    color: var(--text-primary);
-    background-color: var(--background-primary);
+    color: var(--color-font-primary);
+    background-color: var(--color-grey-0);
 }
 
 /* Dark theme overrides */
@@ -334,7 +329,7 @@ body {
     --color-app-card-h3: #171717;
     --color-app-card-text: #171717;
 
-    --color-font-primary: #ECECEC;
+    --color-font-primary: #e6e6e6;
     --color-font-secondary: #cfcfcf;
     --color-font-tertiary: #c0c0c0;
 }
