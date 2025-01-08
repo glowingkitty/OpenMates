@@ -276,7 +276,7 @@
         width: 60%;
         min-height: 400px;
         height: 70vh;
-        background-color: #F0F0F0;
+        background-color: var(--color-grey-20);
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         padding: 20px 20px 0 20px;
