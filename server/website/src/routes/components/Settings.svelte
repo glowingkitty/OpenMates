@@ -62,9 +62,11 @@
 
     .settings-menu {
         background-color: var(--color-grey-20);
-        border-radius: 16px;
         overflow: hidden;
         height: 100%;
         width: 323px;
+        background-color: var(--color-grey-20);
+        border-radius: 17px;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
 </style>
