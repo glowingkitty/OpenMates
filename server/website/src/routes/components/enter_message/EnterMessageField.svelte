@@ -838,7 +838,7 @@
                             {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
                                 {isMessageFieldFocused ? "Enter your message" : "Click here to enter your message"}
                             {:else if !segment.text && (segment.imageId || segment.fileId || segment.videoId || segment.webUrl)}
-                                Click here to add text
+                                {'Click here to add text'}
                             {:else}
                                 {segment.text || '\u00A0'}
                             {/if}

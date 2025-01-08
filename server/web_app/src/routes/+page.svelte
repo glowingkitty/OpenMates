@@ -15,7 +15,7 @@
 <style>
     :root {
         --sidebar-width: 325px;
-        --sidebar-margin: 20px;
+        --sidebar-margin: 10px;
     }
     .sidebar {
         /* Fixed positioning relative to viewport */
@@ -35,12 +35,15 @@
 
         /* Add scrolling for overflow content */
         overflow-y: auto;
+
+        /* Add more pronounced inner shadow on right side for better visibility */
+        box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
     }
 
     .main-content {
         /* Position relative to accommodate fixed sidebar */
         position: fixed;
-        left: calc(var(--sidebar-width) + var(--sidebar-margin)); /* sidebar width + 15px margin */
+        left: calc(var(--sidebar-width) + var(--sidebar-margin));
         top: 110px;
         right: var(--sidebar-margin);
         bottom: var(--sidebar-margin);

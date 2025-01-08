@@ -17,10 +17,13 @@
         background-color: var(--color-grey-20);
         border-radius: 17px;
         position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
+        top: 10px;
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+
+        /* Add drop shadow on all sides */
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
 
     .message-input-wrapper {
