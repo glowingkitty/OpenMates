@@ -15,7 +15,8 @@ export default defineConfig({
 			'@website-static': path.resolve(websiteSourcePath, 'static'),
 			'@website-actions': path.resolve(websiteSourcePath, 'lib/actions'),
 			'@website-components': path.resolve(websiteSourcePath, 'routes/components'),
-			'/icons': path.resolve(websiteStaticPath, 'icons')
+			'/icons': path.resolve(websiteStaticPath, 'icons'),
+			'/images': path.resolve(websiteStaticPath, 'images')
 		}
 	},
 	server: {

@@ -1,19 +1,16 @@
 <script>
     // Props for user and team information
-    export let userProfilePicture = '';  // URL of user's profile picture
-    export let teamProfilePicture = '';  // URL of team's profile picture (optional)
+    export let teamSelected = 'xhain';  // slug of the team selected
 </script>
 
 <div class="profile-container">
     <div 
         class="profile-picture"
-        style="background-image: url('{userProfilePicture}');"
     ></div>
     
-    {#if teamProfilePicture}
+    {#if teamSelected}
         <div 
             class="team-picture"
-            style="background-image: url('{teamProfilePicture}');"
         ></div>
     {/if}
 </div>
@@ -44,6 +41,7 @@
         background-position: center;
         background-repeat: no-repeat;
         background-color: var(--color-grey-20);
+        background-image: url('/images/placeholders/userprofileimage.jpeg');
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -57,7 +55,8 @@
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
-        background-color: #c6c6c6;
+        background-color: var(--color-grey-20);
+        background-image: url('/images/placeholders/teamprofileimage.png');
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
