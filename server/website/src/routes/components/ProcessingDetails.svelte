@@ -60,4 +60,9 @@
         align-items: center;
         gap: 0.5rem;
     }
+
+    /* dark mode */
+    :global([data-theme="dark"]) .processing-details::after {
+        filter: invert(0.6);
+    }
 </style>

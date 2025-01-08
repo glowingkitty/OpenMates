@@ -24,6 +24,11 @@
         z-index: -1;
     }
 
+    /* Add filter inversion for dark mode */
+    :global([data-theme="dark"]) .large-separator {
+        filter: invert(1);
+    }
+
     .large-separator.rotate {
         rotate: 180deg;
     }

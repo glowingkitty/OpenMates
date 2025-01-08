@@ -225,4 +225,9 @@
         }
     }
 
+    /* dark mode */
+    :global([data-theme="dark"]) .small-icon.icon_web {
+        filter: invert(0.6);
+    }
+
 </style>
