@@ -165,7 +165,7 @@
     }
 
     .web-preview-container:hover {
-        background-color: var(--color-grey-20);
+        background-color: var(--color-grey-30);
     }
 
     .url-container {

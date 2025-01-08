@@ -79,7 +79,7 @@
     }
 </script>
 
-<div 
+<div
     class="pdf-preview-container"
     role="button"
     tabindex="0"
@@ -90,12 +90,12 @@
 >
     <!-- PDF icon -->
     <div class="icon_rounded pdf"></div>
-    
+
     <!-- Filename -->
     <div class="filename-container">
         <span class="filename">{filename}</span>
     </div>
-    
+
     <PressAndHoldMenu
         show={showMenu}
         x={menuX}
@@ -111,7 +111,7 @@
     .pdf-preview-container {
         width: 300px;
         height: 60px;
-        background-color: #F8F8F8;
+        background-color: var(--color-grey-20);
         border-radius: 30px;
         position: relative;
         cursor: pointer;
@@ -122,7 +122,7 @@
     }
 
     .pdf-preview-container:hover {
-        background-color: #F0F0F0;
+        background-color: var(--color-grey-30);
     }
 
     .filename-container {
@@ -144,7 +144,7 @@
         text-overflow: ellipsis;
         line-height: 1.3;
         font-size: 14px;
-        color: #333;
+        color: var(--color-font-primary);
         width: 100%;
         word-break: break-word;
         max-height: 2.6em;
