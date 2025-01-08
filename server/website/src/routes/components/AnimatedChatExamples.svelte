@@ -611,7 +611,7 @@
 
     @media (max-width: 560px) {
         .animated-chat-container {
-            width: 90%;
+            max-width: 320px;
         }
     }
 
