@@ -21,13 +21,20 @@
         { href: '/app/help', text: 'Help' }
     ];
 
-    // Social media links
-    const socialLinks = [
-        {
-            href: externalLinks.github,
-            ariaLabel: "Visit our GitHub page",
-            iconClass: "github"
-        }
+    // Define the type for social links
+    type SocialLink = {
+        href: string;
+        ariaLabel: string;
+        iconClass: string;
+    };
+
+    // Social media links with explicit type
+    const socialLinks: SocialLink[] = [
+        // {
+        //     href: externalLinks.github,
+        //     ariaLabel: "Visit our GitHub page",
+        //     iconClass: "github"
+        // }
     ];
 
     // Use appropriate nav items based on context
@@ -149,12 +156,12 @@
 
 <style>
     header {
-        width: 100%;
         z-index: 1000;
         padding: 1rem 2rem;
         position: fixed;
         top: 0;
         left: 0;
+        right: 0;
     }
 
     /* Add website-specific gradient */
@@ -266,6 +273,7 @@
 
     /* Add mobile menu styles */
     .mobile-menu-button {
+        all: unset;
         display: none;
         background: none;
         border: none;
