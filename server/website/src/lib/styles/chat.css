@@ -20,17 +20,17 @@
 }
 
 .mate-message-content {
-    background-color: white;
+    background-color: var(--color-grey-0);
     margin-top: var(--mate-profile-margin);
     margin-right: 12px;
 }
 
 .user-message-content {
     position: relative;
-    background-color: #E6EAFF;
+    background-color: var(--color-grey-blue);
     margin-left: 86px;
     margin-right: 12px;
-    color: #000000;
+    color: var(--color-grey-100);
     padding: 12px;
     border-radius: 13px;
 }
