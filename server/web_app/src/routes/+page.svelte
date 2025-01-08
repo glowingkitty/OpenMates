@@ -3,7 +3,7 @@
     import ActivityHistory from '@website-components/ActivityHistory.svelte';
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
-    import UserProfile from '@website-components/UserProfile.svelte';
+    import Settings from '@website-components/Settings.svelte';
 </script>
 
 <div class="sidebar">
@@ -12,7 +12,7 @@
 
 <div class="main-content">
     <Header context="webapp" />
-    <UserProfile />
+    <Settings />
     <ActiveChat />
 </div>
 
