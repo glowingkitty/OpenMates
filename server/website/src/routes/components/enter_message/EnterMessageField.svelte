@@ -1003,7 +1003,7 @@
         width: 100%;
         min-height: 100px;
         max-height: 350px;
-        background-color: var(--color-grey-0);
+        background-color: var(--color-grey-blue);
         border-radius: 24px;
         padding: 0 1rem 50px 1rem;
         box-sizing: border-box;
@@ -1024,7 +1024,7 @@
         position: relative;
         padding-top: 1em;
         scrollbar-width: thin;
-        scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
     }
 
     .scrollable-content::-webkit-scrollbar {
@@ -1061,7 +1061,7 @@
         overflow: hidden;
         box-sizing: border-box;
         text-align: left;
-        caret-color: #000;
+        caret-color: var(--color-font-primary);
         animation: blink-caret 1s step-end infinite;
         height: auto;
         word-break: break-word;
@@ -1069,7 +1069,7 @@
     }
 
     @keyframes blink-caret {
-        from, to { caret-color: #000; }
+        from, to { caret-color: var(--color-font-primary); }
         50% { caret-color: transparent; }
     }
 
@@ -1079,7 +1079,7 @@
         position: absolute;
         left: 0;
         right: 0;
-        color: #8A8A8A;
+        color: var(--color-font-tertiary);
         font-weight: 500;
     }
 
@@ -1099,6 +1099,7 @@
         min-height: unset !important;
         max-height: unset !important;
         box-sizing: content-box !important;
+        color: var(--color-font-primary);
     }
 
     .action-buttons {
@@ -1180,14 +1181,14 @@
         white-space: pre-wrap;
         cursor: text;
         text-align: left; /* Change default alignment to left */
-        color: #000; /* Change default color to black */
+        color: var(--color-font-primary); /* Change default color to black */
         font-weight: 500 !important; 
     }
 
     /* Add a new class for empty text display */
     .text-display.empty {
         text-align: center;
-        color: #8A8A8A;
+        color: var(--color-font-tertiary);
     }
 
     .file-attachment {
@@ -1220,7 +1221,7 @@
         max-width: 80%;
         margin: 0.5rem 0;
         position: relative;
-        background: #f5f5f5;
+        background: var(--color-grey-20);
         border-radius: 8px;
         overflow: hidden;
     }
@@ -1256,11 +1257,11 @@
     .message-input.before-attachment::placeholder,
     .text-display.before-attachment.empty {
         text-align: left;
-        color: #8A8A8A;
+        color: var(--color-font-tertiary);
     }
 
     .text-display.empty:not(.before-attachment) {
         text-align: center;
-        color: #8A8A8A;
+        color: var(--color-font-tertiary);
     }
 </style>
