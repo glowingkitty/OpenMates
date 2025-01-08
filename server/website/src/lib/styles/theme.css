@@ -13,8 +13,6 @@
     --color-primary-end: #5A85EB;
     --color-primary: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
 
-    
-
     /* Font Colors */
     --color-font-primary: #000;
     --color-font-secondary: #A9A9A9;
@@ -310,6 +308,11 @@
     --color-grey-40: #535353;
     --color-grey-100: #000000;
     --color-grey-blue: #E6EAFF;
+
+    /* footer */
+    --color-footer-start: #4867CD;
+    --color-footer-end: #5A85EB;
+    --color-footer: linear-gradient(135deg, var(--color-footer-start) 9.04%, var(--color-footer-end) 90.06%);
 }
 
 /* Add these base styles */
@@ -332,6 +335,8 @@ body {
     --color-font-secondary: #cfcfcf;
     --color-font-tertiary: #c0c0c0;
 
+    --color-footer-start: #293d7f;
+    --color-footer-end: #263969;
 }
 
 /* Keep the transition rules */

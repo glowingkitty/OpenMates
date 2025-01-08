@@ -125,7 +125,7 @@
 
 <style>
     footer {
-        background: var(--color-primary);
+        background: var(--color-footer);
         color: white;
         padding: 4rem 2rem 2rem;
         margin-top: 40px;
