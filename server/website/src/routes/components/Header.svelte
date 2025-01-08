@@ -71,7 +71,9 @@
                     <bold>OpenMates</bold>
                 </a>
             </div>
-            
+
+            <!-- Modified nav-links with mobile support -->
+            {#if showNavLinks}
             <!-- Add hamburger menu button -->
             <button 
                 class="mobile-menu-button" 
@@ -84,9 +86,6 @@
                     <span></span>
                 </div>
             </button>
-
-            <!-- Modified nav-links with mobile support -->
-            {#if showNavLinks}
             <div class="nav-links" class:mobile-open={isMobileMenuOpen}>
                 {#each navItems as item}
                     <a
@@ -245,7 +244,7 @@
         display: block;
         height: 2px;
         width: 100%;
-        background-color: var(--text-color, #000);
+        background-color: var(--color-font-primary);
         transition: all 0.3s ease;
     }
 
