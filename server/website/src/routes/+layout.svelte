@@ -12,6 +12,36 @@
     import Header from './components/Header.svelte';
     import Footer from './components/Footer.svelte';
     import MetaTags from './components/MetaTags.svelte';
+    import { theme, toggleTheme, initializeTheme } from '$lib/stores/theme';
+    import { onMount } from 'svelte';
+    import { browser } from '$app/environment';
+
+    // Initialize theme on mount
+    onMount(() => {
+        initializeTheme();
+    });
+
+    // Reset to system preference
+    function resetToSystemPreference() {
+        if (browser) {
+            localStorage.removeItem('theme_preference');
+            localStorage.removeItem('theme');
+            initializeTheme();
+        }
+    }
+
+    // Helper function to safely check localStorage
+    function getThemePreference() {
+        if (browser) {
+            return localStorage?.getItem('theme_preference');
+        }
+        return null;
+    }
+
+    // Watch theme changes and update document attribute
+    $: if (browser) {
+        document.documentElement.setAttribute('data-theme', $theme);
+    }
 </script>
 
 <!-- Default meta tags for all pages -->
@@ -27,6 +57,24 @@
 
 <!-- Footer will appear on every page -->
 <Footer />
+
+<!-- Add theme toggle buttons -->
+<div class="theme-controls">
+    <button class="theme-toggle" on:click={toggleTheme}>
+        {#if $theme === 'light'}
+            🌙
+        {:else}
+            ☀️
+        {/if}
+    </button>
+    
+    <!-- Only show reset button if manually overridden -->
+    {#if browser && getThemePreference() === 'manual'}
+        <button class="reset-theme" on:click={resetToSystemPreference}>
+            🔄
+        </button>
+    {/if}
+</div>
 
 <style>
     /* Global styles moved from global.css */
@@ -63,5 +111,40 @@
 
     :global(html) {
         overflow-x: hidden;
+    }
+
+    .theme-controls {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        z-index: 1000;
+    }
+
+    .theme-toggle,
+    .reset-theme {
+        padding: 0.5rem;
+        border-radius: 50%;
+        border: none;
+        background: var(--background-secondary);
+        color: var(--text-primary);
+        cursor: pointer;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        box-shadow: 0 2px 4px var(--shadow-color);
+    }
+
+    .theme-toggle:hover,
+    .reset-theme:hover {
+        background: var(--background-primary);
+    }
+
+    .reset-theme {
+        font-size: 1rem;
     }
 </style>
