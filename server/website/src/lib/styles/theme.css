@@ -31,10 +31,10 @@
     --color-button-secondary-pressed: #606060;
 
     /* App Card Colors */
-    --color-app-card-background: #ffffff;
-    --color-app-card-h2: #000000;
-    --color-app-card-h3: #6B6B6B;
-    --color-app-card-text: #6B6B6B;
+    --color-app-card-background: var(--color-grey-20);
+    --color-app-card-h2: var(--color-grey-100);
+    --color-app-card-h3: var(--color-grey-40);
+    --color-app-card-text: var(--color-grey-40);
 
     /* App colors */
 
@@ -307,6 +307,7 @@
     --color-grey-0: #ffffff;
     --color-grey-20: #f3f3f3;
     --color-grey-30: #e3e3e3;
+    --color-grey-40: #535353;
     --color-grey-100: #000000;
     --color-grey-blue: #E6EAFF;
 }
@@ -323,13 +324,9 @@ body {
     --color-grey-0: #171717;
     --color-grey-20: #212121;
     --color-grey-30: #333333;
+    --color-grey-40: #c4c4c4;
     --color-grey-100: #ffffff;
     --color-grey-blue: #2d2f35;
-
-    --color-app-card-background: #2d2f35;
-    --color-app-card-h2: #ffffff;
-    --color-app-card-h3: #171717;
-    --color-app-card-text: #171717;
 
     --color-font-primary: #e6e6e6;
     --color-font-secondary: #cfcfcf;

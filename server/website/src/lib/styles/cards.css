@@ -75,7 +75,7 @@
     right: 0;
     width: 111px;
     height: calc(100% - var(--card-edge));
-    background-color: var(--color-background-secondary, #f5f5f5);
+    background-color: var(--color-grey-30);
     padding: 0 10px;
     display: flex;
     box-sizing: border-box;
@@ -140,7 +140,7 @@
 }
 
 .appointment-indicator.dashed {
-    background-color: white;
+    background-color: var(--color-grey-0);
     border: var(--dashed-border-width) dashed var(--color-app-calendar-start);
 }
 
@@ -170,15 +170,18 @@
 }
 
 .ratings-text::after {
-    /* Use the user icon as a background image */
+    /* Use mask to display the user icon */
     content: '';
     display: inline-block;
     width: 16px; /* Adjust size as needed */
     height: 16px; /* Adjust size as needed */
-    background-image: url('/icons/user.svg'); /* Path to your user icon */
-    background-size: contain;
-    background-repeat: no-repeat;
-    filter: brightness(0) invert(0.4);
+    -webkit-mask-image: url('/icons/user.svg');
+    mask-image: url('/icons/user.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    background-color: var(--color-grey-40);
     position: absolute;
     top: 2px; /* Move the icon further down */
     left: -2px; /* Move the icon further to the left */
@@ -194,15 +197,18 @@
 }
 
 .participants-text::after {
-    /* Use the user icon as a background image */
+    /* Use mask to display the team icon */
     content: '';
     display: inline-block;
     width: 16px; /* Adjust size as needed */
     height: 16px; /* Adjust size as needed */
-    background-image: url('/icons/team.svg'); /* Path to your user icon */
-    background-size: contain;
-    background-repeat: no-repeat;
-    filter: brightness(0) invert(0.4);
+    -webkit-mask-image: url('/icons/team.svg');
+    mask-image: url('/icons/team.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    background-color: var(--color-grey-40);
     position: absolute;
     top: 2px; /* Move the icon further down */
     left: -2px; /* Move the icon further to the left */
