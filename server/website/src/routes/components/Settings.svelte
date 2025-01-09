@@ -25,7 +25,10 @@
 
 <div class="settings-menu">
     <div class="menu-item">
-        <span>Team</span>
+        <div class="menu-item-left">
+            <div class="icon settings_size quicksetting_icon quicksetting_icon_team"></div>
+            <span class="menu-title"><mark>Team</mark></span>
+        </div>
         <Toggle 
             bind:checked={isTeamEnabled}
             name="team"
@@ -33,7 +36,10 @@
         />
     </div>
     <div class="menu-item">
-        <span>Incognito</span>
+        <div class="menu-item-left">
+            <div class="icon settings_size quicksetting_icon quicksetting_icon_incognito"></div>
+            <span class="menu-title"><mark>Incognito</mark></span>
+        </div>
         <Toggle 
             bind:checked={isIncognitoEnabled}
             name="incognito"
@@ -41,7 +47,10 @@
         />
     </div>
     <div class="menu-item">
-        <span>Guest</span>
+        <div class="menu-item-left">
+            <div class="icon settings_size quicksetting_icon quicksetting_icon_guest"></div>
+            <span class="menu-title"><mark>Guest</mark></span>
+        </div>
         <Toggle 
             bind:checked={isGuestEnabled}
             name="guest"
@@ -49,14 +58,70 @@
         />
     </div>
     <div class="menu-item">
-        <span>Offline</span>
+        <div class="menu-item-left">
+            <div class="icon settings_size quicksetting_icon quicksetting_icon_offline"></div>
+            <span class="menu-title"><mark>Offline</mark></span>
+        </div>
         <Toggle 
             bind:checked={isOfflineEnabled}
             name="offline"
             ariaLabel="Toggle offline mode"
         />
     </div>
-    <div class="menu-item">Logout</div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size team"></div>
+            <span class="menu-title"><mark>Team</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size user"></div>
+            <span class="menu-title"><mark>User</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size task"></div>
+            <span class="menu-title"><mark>Usage</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size billing"></div>
+            <span class="menu-title"><mark>Billing</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size app"></div>
+            <span class="menu-title"><mark>Apps</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size mate"></div>
+            <span class="menu-title"><mark>Mates</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size messenger"></div>
+            <span class="menu-title"><mark>Messengers</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size developer"></div>
+            <span class="menu-title"><mark>Developers</mark></span>
+        </div>
+    </div>
+    <div class="menu-item">
+        <div class="menu-item-left">
+            <div class="icon settings_size interface"></div>
+            <span class="menu-title"><mark>Interface</mark></span>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -113,5 +178,15 @@
         justify-content: space-between;
         align-items: center;
         padding: 12px 16px;
+    }
+
+    .menu-item-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .menu-title {
+        text-align: left;
     }
 </style>

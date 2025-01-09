@@ -27,6 +27,59 @@
   }
 }
 
+.icon.settings_size {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.quicksetting_icon{
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--color-primary);
+    -webkit-mask-size: 50%;
+    mask-size: 50%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+}
+
+.quicksetting_icon_team{
+  /* Create overlay with cutout using pseudo-element */
+  &::after {
+    -webkit-mask-image: url('/icons/team.svg');
+    mask-image: url('/icons/team.svg');
+  }
+}
+
+.quicksetting_icon_incognito{
+  &::after {
+    -webkit-mask-image: url('/icons/anonym.svg');
+    mask-image: url('/icons/anonym.svg');
+  }
+}
+
+.quicksetting_icon_guest{
+  &::after {
+    -webkit-mask-image: url('/icons/guest.svg');
+    mask-image: url('/icons/guest.svg');
+  }
+}
+
+.quicksetting_icon_offline{
+  &::after {
+    -webkit-mask-image: url('/icons/offline.svg');
+    mask-image: url('/icons/offline.svg');
+  }
+}
+
 button.clickable-icon {
   /* Reset all previous properties from button css*/
   all: unset;
@@ -403,6 +456,30 @@ div.clickable-icon {
 
   &::before {
       background-image: url('/icons/workflow.svg');
+  }
+}
+
+.icon.messenger {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('/icons/chat.svg');
+  }
+}
+
+.icon.developer {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('/icons/coding.svg');
+  }
+}
+
+.icon.interface {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('/icons/language.svg');
   }
 }
 
