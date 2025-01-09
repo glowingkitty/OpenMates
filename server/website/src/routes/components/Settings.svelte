@@ -274,7 +274,7 @@
         margin: 0;
         font-size: 14px;
         font-weight: bold;
-        color: var(--color-grey-90);
+        color: var(--color-grey-60);
     }
 
     .header-center {
