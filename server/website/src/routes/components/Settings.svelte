@@ -145,7 +145,7 @@
                 <div class="user-info-container">
                     <div class="username">Kitty</div>
                     <div class="credits-container">
-                        <span class="credits-icon">💰</span>
+                        <span class="credits-icon"></span>
                         <div class="credits-text">
                             <span class="credits-amount"><mark>4800 credits</mark> </span>
                             <!-- <span class="add-credits-button" aria-label="Add credits">+</span> -->
@@ -381,6 +381,10 @@
         font-size: 22px;
         font-weight: 500;
         color: var(--color-grey-100);
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .credits-container {
@@ -397,10 +401,24 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .credits-icon {
-        font-size: 16px;
+        width: 19px;
+        height: 19px;
+        -webkit-mask-image: url('/icons/coins.svg');
+        -webkit-mask-size: cover;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: url('/icons/coins.svg');
+        mask-size: cover;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        background: var(--color-primary);
     }
 
     .header-center {
@@ -483,5 +501,13 @@
 
     :global(.active-chat-container.dimmed) {
         opacity: 0.3;
+    }
+
+    .header-center h4 {
+        font-size: 14px;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 </style>
