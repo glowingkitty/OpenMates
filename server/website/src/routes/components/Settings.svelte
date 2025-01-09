@@ -275,6 +275,10 @@
         font-size: 14px;
         font-weight: bold;
         color: var(--color-grey-60);
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .header-center {
