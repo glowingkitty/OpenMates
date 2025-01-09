@@ -128,16 +128,31 @@
     class:overlay={isMenuVisible}
 >
     <div class="settings-header">
-        <div class="header-left">
-            <button 
-                class="clickable-icon icon_search" 
-                aria-label="Search"
-            ></button>
-        </div>
-        <div class="header-center">
-            <h4>Settings</h4>
-        </div>
-        <div class="header-right">
+        <div class="header-container">
+            <div class="header-top">
+                <div class="header-left">
+                    <button 
+                        class="clickable-icon icon_search" 
+                        aria-label="Search"
+                    ></button>
+                </div>
+                <div class="header-center">
+                    <h4>Settings</h4>
+                </div>
+                <div class="header-left"></div>
+            </div>
+            <div class="header-bottom">
+                <div class="user-info-container">
+                    <div class="username">Kitty</div>
+                    <div class="credits-container">
+                        <span class="credits-icon">💰</span>
+                        <div class="credits-text">
+                            <span class="credits-amount"><mark>4800 credits</mark> </span>
+                            <!-- <span class="add-credits-button" aria-label="Add credits">+</span> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="settings-content">
@@ -333,32 +348,69 @@
         top: 0;
         z-index: 10;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
     }
 
-    .header-left {
-        justify-self: start;
+    .header-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .header-bottom {
+        display: flex;
+        align-items: flex-start;
+        padding-top: 8px;
+        border-top: 1px solid var(--color-grey-30);
+    }
+
+    .user-info-container {
+        margin-left: 72px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .username {
+        font-size: 22px;
+        font-weight: 500;
+        color: var(--color-grey-100);
+    }
+
+    .credits-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .credits-text {
+        color: var(--color-grey-100);
+        font-size: 16px;
+        background: none;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .credits-icon {
+        font-size: 16px;
     }
 
     .header-center {
-        justify-self: center;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
     }
 
-    .header-right {
-        justify-self: end;
-    }
-
-    .header-center h4 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: bold;
-        color: var(--color-grey-60);
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
+    .header-left {
+        width: 24px;
     }
 
     .settings-content {
