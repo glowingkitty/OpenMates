@@ -3,7 +3,16 @@
 </script>
 
 <div class="active-chat-container">
-    <!-- Existing ActiveChat content would go here -->
+    <!-- Center content wrapper -->
+    <div class="center-content">
+        <div class="team-profile">
+            <div class="team-image"></div>
+            <div class="welcome-text">
+                <h2>Hey Kitty!</h2>
+                <p>What do you need help with?</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Message input field positioned at bottom center -->
     <div class="message-input-wrapper">
@@ -19,9 +28,50 @@
         position: relative;
         min-height: 0;
         height: 100%;
-
-        /* Add drop shadow on all sides */
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .center-content {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+
+    .team-profile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .team-image {
+        width: 175px;
+        height: 175px;
+        border-radius: 50%;
+        background-image: url('/images/placeholders/teamprofileimage.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .welcome-text h2 {
+        margin: 0;
+        color: var(--color-grey-80);
+        font-size: 24px;
+        font-weight: 600;
+    }
+
+    .welcome-text p {
+        margin: 8px 0 0;
+        color: var(--color-grey-60);
+        font-size: 16px;
     }
 
     .message-input-wrapper {
