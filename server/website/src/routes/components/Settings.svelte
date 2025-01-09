@@ -48,7 +48,14 @@
     }
 </script>
 
-<div class="profile-container" on:click={toggleMenu}>
+<div 
+    class="profile-container" 
+    on:click={toggleMenu}
+    on:keydown={e => e.key === 'Enter' && toggleMenu()}
+    role="button"
+    tabindex="0"
+    aria-label="Open settings menu"
+>
     <div class="profile-picture"></div>
     
     {#if teamSelected}
