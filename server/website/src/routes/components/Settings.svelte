@@ -181,7 +181,7 @@
         <SettingsItem icon="messenger" title="Messengers" onClick={() => {}} />
         <SettingsItem icon="developer" title="Developers" onClick={() => {}} />
         <SettingsItem icon="interface" title="Interface" onClick={() => {}} />
-        <SettingsItem icon="logout" title="Logout" onClick={() => {}} />
+        <SettingsItem icon="quicksetting_icon quicksetting_icon_logout" title="Logout" onClick={() => {}} />
 
         <!-- Documentation links section -->
         <div class="submenu-section">

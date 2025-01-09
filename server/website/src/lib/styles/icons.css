@@ -80,6 +80,13 @@
   }
 }
 
+.quicksetting_icon_logout{
+  &::after {
+    -webkit-mask-image: url('/icons/logout.svg');
+    mask-image: url('/icons/logout.svg');
+  }
+}
+
 button.clickable-icon {
   /* Reset all previous properties from button css*/
   all: unset;
@@ -167,11 +174,6 @@ div.clickable-icon {
 .clickable-icon.icon_search {
   -webkit-mask-image: url('/icons/search.svg');
   mask-image: url('/icons/search.svg');
-}
-
-.clickable-icon.icon_logout {
-  -webkit-mask-image: url('/icons/logout.svg');
-  mask-image: url('/icons/logout.svg');
 }
 
 .icon_rounded {
