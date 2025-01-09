@@ -836,9 +836,9 @@
                             role="textbox"
                         >
                             {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
-                                {isMessageFieldFocused ? "Enter your message" : "Click here to enter your message"}
+                                <span class="placeholder">{isMessageFieldFocused ? "Enter your message" : "Click here to enter your message"}</span>
                             {:else if !segment.text && (segment.imageId || segment.fileId || segment.videoId || segment.webUrl)}
-                                {'Click here to add text'}
+                                <span class="placeholder">Click here to add text</span>
                             {:else}
                                 {segment.text || '\u00A0'}
                             {/if}
@@ -1240,6 +1240,10 @@
     .send-button {
         margin-right: -20px;
         margin-bottom: -10px;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .icon_recordaudio {
@@ -1262,6 +1266,14 @@
 
     .text-display.empty:not(.before-attachment) {
         text-align: center;
+        color: var(--color-font-tertiary);
+    }
+
+    .placeholder {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
         color: var(--color-font-tertiary);
     }
 </style>
