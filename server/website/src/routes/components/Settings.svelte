@@ -63,7 +63,11 @@
     {/if}
 </div>
 
-<div class="settings-menu" class:visible={isMenuVisible}>
+<div 
+    class="settings-menu" 
+    class:visible={isMenuVisible}
+    class:overlay={isMenuVisible}
+>
     <div class="settings-header">
         <div class="header-left">
             <button 
@@ -203,6 +207,19 @@
         flex-direction: column;
         overflow: hidden;
         transition: width 0.3s ease;
+    }
+
+    @media (max-width: 1100px) {
+        .settings-menu {
+            position: fixed;
+            right: 0;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .settings-menu.overlay {
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+        }
     }
 
     .settings-menu.visible {
