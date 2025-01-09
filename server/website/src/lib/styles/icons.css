@@ -154,6 +154,26 @@ div.clickable-icon {
   mask-image: url('/icons/copy.svg');
 }
 
+.clickable-icon.icon_close {
+  -webkit-mask-image: url('/icons/close.svg');
+  mask-image: url('/icons/close.svg');
+}
+
+.clickable-icon.icon_back {
+  -webkit-mask-image: url('/icons/back.svg');
+  mask-image: url('/icons/back.svg');
+}
+
+.clickable-icon.icon_search {
+  -webkit-mask-image: url('/icons/search.svg');
+  mask-image: url('/icons/search.svg');
+}
+
+.clickable-icon.icon_logout {
+  -webkit-mask-image: url('/icons/logout.svg');
+  mask-image: url('/icons/logout.svg');
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;
