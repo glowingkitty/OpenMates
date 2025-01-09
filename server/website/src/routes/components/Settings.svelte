@@ -27,6 +27,12 @@
                 break;
         }
     }
+
+    // Handler for toggle clicks to prevent event bubbling
+    function handleToggleClick(event: Event): void {
+        // Prevent the click event from bubbling up to the menu item
+        event.stopPropagation();
+    }
 </script>
 
 <div class="profile-container">
@@ -47,44 +53,52 @@
             <div class="icon settings_size quicksetting_icon quicksetting_icon_team"></div>
             <span class="menu-title"><mark>Team</mark></span>
         </div>
-        <Toggle 
-            bind:checked={isTeamEnabled}
-            name="team"
-            ariaLabel="Toggle team mode"
-        />
+        <div on:click={handleToggleClick}>
+            <Toggle 
+                bind:checked={isTeamEnabled}
+                name="team"
+                ariaLabel="Toggle team mode"
+            />
+        </div>
     </div>
     <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('incognito')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_incognito"></div>
             <span class="menu-title"><mark>Incognito</mark></span>
         </div>
-        <Toggle 
-            bind:checked={isIncognitoEnabled}
-            name="incognito"
-            ariaLabel="Toggle incognito mode"
-        />
+        <div on:click={handleToggleClick}>
+            <Toggle 
+                bind:checked={isIncognitoEnabled}
+                name="incognito"
+                ariaLabel="Toggle incognito mode"
+            />
+        </div>
     </div>
     <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('guest')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_guest"></div>
             <span class="menu-title"><mark>Guest</mark></span>
         </div>
-        <Toggle 
-            bind:checked={isGuestEnabled}
-            name="guest"
-            ariaLabel="Toggle guest mode"
-        />
+        <div on:click={handleToggleClick}>
+            <Toggle 
+                bind:checked={isGuestEnabled}
+                name="guest"
+                ariaLabel="Toggle guest mode"
+            />
+        </div>
     </div>
     <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('offline')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_offline"></div>
             <span class="menu-title"><mark>Offline</mark></span>
         </div>
-        <Toggle 
-            bind:checked={isOfflineEnabled}
-            name="offline"
-            ariaLabel="Toggle offline mode"
-        />
+        <div on:click={handleToggleClick}>
+            <Toggle 
+                bind:checked={isOfflineEnabled}
+                name="offline"
+                ariaLabel="Toggle offline mode"
+            />
+        </div>
     </div>
     <div class="menu-item">
         <div class="menu-item-left">
