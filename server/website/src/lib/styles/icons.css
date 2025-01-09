@@ -176,6 +176,16 @@ div.clickable-icon {
   mask-image: url('/icons/search.svg');
 }
 
+.clickable-icon.icon_call {
+  -webkit-mask-image: url('/icons/audiocall.svg');
+  mask-image: url('/icons/audiocall.svg');
+}
+
+.clickable-icon.icon_create {
+  -webkit-mask-image: url('/icons/create.svg');
+  mask-image: url('/icons/create.svg');
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;

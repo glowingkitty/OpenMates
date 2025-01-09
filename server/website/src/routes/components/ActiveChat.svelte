@@ -9,6 +9,14 @@
 </script>
 
 <div class="active-chat-container" class:dimmed={isDimmed}>
+    <button 
+        class="clickable-icon icon_create top-button left" 
+        aria-label="New chat"
+    ></button>
+    <button 
+        class="clickable-icon icon_call top-button right" 
+        aria-label="Start audio call"
+    ></button>
     <!-- Center content wrapper -->
     <div class="center-content">
         <div class="team-profile">
@@ -107,5 +115,19 @@
 
     .active-chat-container.dimmed {
         opacity: 0.3;
+    }
+
+    /* Add new styles for button positioning */
+    .top-button {
+        position: absolute;
+        top: 20px;
+    }
+
+    .top-button.left {
+        left: 20px;
+    }
+
+    .top-button.right {
+        right: 20px;
     }
 </style>
