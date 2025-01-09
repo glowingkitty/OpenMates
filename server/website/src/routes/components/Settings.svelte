@@ -180,6 +180,10 @@
         font-size: 14px;
         font-weight: 600;
         margin: 6px 0;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .submenu-link {
@@ -189,6 +193,10 @@
         padding: 6px 0;
         font-size: 14px;
         transition: color 0.2s ease;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .submenu-link:hover {
