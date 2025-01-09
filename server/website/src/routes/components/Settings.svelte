@@ -205,12 +205,29 @@
 
     .settings-menu {
         background-color: var(--color-grey-20);
-        overflow: hidden;
+        overflow-y: auto;
         height: 100%;
         width: 323px;
         background-color: var(--color-grey-20);
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-grey-40) transparent;
+    }
+
+    .settings-menu::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .settings-menu::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .settings-menu::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-40);
+        border-radius: 4px;
+        border: 2px solid var(--color-grey-20);
     }
 
     .menu-item {
