@@ -67,13 +67,26 @@
         display: flex;
         flex-direction: row;
         height: calc(100% - 80px);
-        gap: 0px; /* Default gap when menu is closed */
+        gap: 0px;
         padding: 10px;
-        transition: gap 0.3s ease; /* Smooth transition for gap changes */
+        /* Only apply gap transition on larger screens */
+        @media (min-width: 1100px) {
+            transition: gap 0.3s ease;
+        }
     }
 
-    .chat-container.menu-open {
-        gap: 20px; /* Gap when menu is open */
+    /* Only apply gap on larger screens */
+    @media (min-width: 1100px) {
+        .chat-container.menu-open {
+            gap: 20px;
+        }
+    }
+
+    /* Ensure no gap on mobile */
+    @media (max-width: 1099px) {
+        .chat-container.menu-open {
+            gap: 0px;
+        }
     }
 
     .settings-wrapper {

@@ -33,6 +33,10 @@
         min-height: 0;
         height: 100%;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        /* Add right margin for mobile when menu is open */
+        @media (max-width: 1099px) {
+            margin-right: 0;
+        }
     }
 
     .center-content {
