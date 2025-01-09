@@ -1,12 +1,16 @@
 <script>
     import EnterMessageField from './enter_message/EnterMessageField.svelte';
+    import { teamEnabled } from './Settings.svelte';
+
+    // Subscribe to the store value
+    $: isTeamEnabled = $teamEnabled;
 </script>
 
 <div class="active-chat-container">
     <!-- Center content wrapper -->
     <div class="center-content">
         <div class="team-profile">
-            <div class="team-image"></div>
+            <div class="team-image" class:disabled={!isTeamEnabled}></div>
             <div class="welcome-text">
                 <h2>Hey Kitty!</h2>
                 <p>What do you need help with?</p>
@@ -86,5 +90,11 @@
     .message-input-wrapper :global(> *) {
         max-width: 629px;
         width: 100%;
+    }
+
+    .team-image.disabled {
+        opacity: 0;
+        filter: grayscale(100%);
+        transition: all 0.3s ease;
     }
 </style>

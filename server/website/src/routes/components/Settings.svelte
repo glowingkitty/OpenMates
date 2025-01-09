@@ -1,3 +1,8 @@
+<script lang="ts" context="module">
+    import { writable } from 'svelte/store';
+    export const teamEnabled = writable(true);
+</script>
+
 <script lang="ts">
     import SettingsItem from './SettingsItem.svelte';
     
@@ -15,6 +20,7 @@
         switch(toggleName) {
             case 'team':
                 isTeamEnabled = !isTeamEnabled;
+                teamEnabled.set(isTeamEnabled); // Update the store
                 break;
             case 'incognito':
                 isIncognitoEnabled = !isIncognitoEnabled;
@@ -27,13 +33,18 @@
                 break;
         }
     }
+
+    // Sync the local state with the store on initialization
+    $: {
+        teamEnabled.set(isTeamEnabled);
+    }
 </script>
 
 <div class="profile-container">
     <div class="profile-picture"></div>
     
     {#if teamSelected}
-        <div class="team-picture"></div>
+        <div class="team-picture" class:disabled={!isTeamEnabled}></div>
     {/if}
 </div>
 
@@ -201,5 +212,11 @@
 
     .submenu-link:hover {
         color: var(--color-primary);
+    }
+
+    .team-picture.disabled {
+        opacity: 0;
+        filter: grayscale(100%);
+        transition: all 0.3s ease;
     }
 </style>
