@@ -95,19 +95,31 @@
     }
 </script>
 
-<div 
-    class="profile-container" 
-    on:click={toggleMenu}
-    on:keydown={e => e.key === 'Enter' && toggleMenu()}
-    role="button"
-    tabindex="0"
-    aria-label="Open settings menu"
->
-    <div class="profile-picture"></div>
-    
-    {#if teamSelected}
-        <div class="team-picture" class:disabled={!isTeamEnabled}></div>
-    {/if}
+<div class="profile-container-wrapper">
+    <div 
+        class="profile-container" 
+        class:menu-open={isMenuVisible}
+        on:click={toggleMenu}
+        on:keydown={e => e.key === 'Enter' && toggleMenu()}
+        role="button"
+        tabindex="0"
+        aria-label="Open settings menu"
+    >
+        <div class="profile-picture"></div>
+        
+        {#if teamSelected}
+            <div class="team-picture" class:disabled={!isTeamEnabled}></div>
+        {/if}
+    </div>
+
+    <!-- Close icon in wrapper -->
+    <div class="close-icon-container" class:visible={isMenuVisible}>
+        <button 
+            class="clickable-icon icon_close" 
+            aria-label="Close"
+            on:click={toggleMenu}
+        ></button>
+    </div>
 </div>
 
 <div 
@@ -118,17 +130,12 @@
     <div class="settings-header">
         <div class="header-left">
             <button 
-                class="clickable-icon icon_close" 
-                aria-label="Close"
-                on:click={toggleMenu}
-            ></button>
-            <h4>Settings</h4>
-        </div>
-        <div class="header-center">
-            <button 
                 class="clickable-icon icon_search" 
                 aria-label="Search"
             ></button>
+        </div>
+        <div class="header-center">
+            <h4>Settings</h4>
         </div>
         <div class="header-right">
             <button 
@@ -204,17 +211,48 @@
 </div>
 
 <style>
-    .profile-container {
+    /* Add wrapper to maintain position */
+    .profile-container-wrapper {
         position: fixed;
         top: 10px;
         right: 10px;
-        display: inline-block;
+        width: 57px;
+        height: 57px;
+        z-index: 1005;
+    }
+
+    .profile-container {
+        position: absolute;
+        top: 0;
+        right: 0;
         width: 57px;
         height: 57px;
         border-radius: 50%;
-        margin: 0;
         cursor: pointer;
-        z-index: 1001;
+        transition: transform 0.3s ease;
+    }
+
+    .profile-container.menu-open {
+        transform: translate(-260px, 130px);
+    }
+
+    .close-icon-container {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 57px;
+        height: 57px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .close-icon-container.visible {
+        opacity: 1;
+        visibility: visible;
     }
 
     .profile-picture {
@@ -298,9 +336,32 @@
         top: 0;
         z-index: 10;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
         align-items: center;
+    }
+
+    .header-left {
+        justify-self: start;
+    }
+
+    .header-center {
+        justify-self: center;
+    }
+
+    .header-right {
+        justify-self: end;
+    }
+
+    .header-center h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: bold;
+        color: var(--color-grey-60);
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
 
     .settings-content {
@@ -365,43 +426,6 @@
         opacity: 0;
         filter: grayscale(100%);
         transition: all 0.3s ease;
-    }
-
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex: 1;
-    }
-
-    .header-left h4 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: bold;
-        color: var(--color-grey-60);
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-    }
-
-    .header-center {
-        position: static;
-        transform: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: auto;
-        z-index: 1;
-        flex: 1;
-        display: flex;
-        justify-content: center;
-    }
-
-    .header-right {
-        flex: 1;
-        display: flex;
-        justify-content: flex-end;
     }
 
     :global(.active-chat-container) {
