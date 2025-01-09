@@ -70,66 +70,68 @@
             ></button>
         </div>
     </div>
-    <!-- Quick Settings -->
-    <SettingsItem 
-        icon="quicksetting_icon quicksetting_icon_team"
-        title="Team"
-        hasToggle={true}
-        bind:checked={isTeamEnabled}
-        onClick={() => handleQuickSettingClick('team')}
-    />
-    <SettingsItem 
-        icon="quicksetting_icon quicksetting_icon_incognito"
-        title="Incognito"
-        hasToggle={true}
-        bind:checked={isIncognitoEnabled}
-        onClick={() => handleQuickSettingClick('incognito')}
-    />
-    <SettingsItem 
-        icon="quicksetting_icon quicksetting_icon_guest"
-        title="Guest"
-        hasToggle={true}
-        bind:checked={isGuestEnabled}
-        onClick={() => handleQuickSettingClick('guest')}
-    />
-    <SettingsItem 
-        icon="quicksetting_icon quicksetting_icon_offline"
-        title="Offline"
-        hasToggle={true}
-        bind:checked={isOfflineEnabled}
-        onClick={() => handleQuickSettingClick('offline')}
-    />
+    <div class="settings-content">
+        <!-- Quick Settings -->
+        <SettingsItem 
+            icon="quicksetting_icon quicksetting_icon_team"
+            title="Team"
+            hasToggle={true}
+            bind:checked={isTeamEnabled}
+            onClick={() => handleQuickSettingClick('team')}
+        />
+        <SettingsItem 
+            icon="quicksetting_icon quicksetting_icon_incognito"
+            title="Incognito"
+            hasToggle={true}
+            bind:checked={isIncognitoEnabled}
+            onClick={() => handleQuickSettingClick('incognito')}
+        />
+        <SettingsItem 
+            icon="quicksetting_icon quicksetting_icon_guest"
+            title="Guest"
+            hasToggle={true}
+            bind:checked={isGuestEnabled}
+            onClick={() => handleQuickSettingClick('guest')}
+        />
+        <SettingsItem 
+            icon="quicksetting_icon quicksetting_icon_offline"
+            title="Offline"
+            hasToggle={true}
+            bind:checked={isOfflineEnabled}
+            onClick={() => handleQuickSettingClick('offline')}
+        />
 
-    <!-- Regular Settings -->
-    <SettingsItem icon="team" title="Team" onClick={() => {}} />
-    <SettingsItem icon="user" title="User" onClick={() => {}} />
-    <SettingsItem icon="task" title="Usage" onClick={() => {}} />
-    <SettingsItem icon="billing" title="Billing" onClick={() => {}} />
-    <SettingsItem icon="app" title="Apps" onClick={() => {}} />
-    <SettingsItem icon="mate" title="Mates" onClick={() => {}} />
-    <SettingsItem icon="messenger" title="Messengers" onClick={() => {}} />
-    <SettingsItem icon="developer" title="Developers" onClick={() => {}} />
-    <SettingsItem icon="interface" title="Interface" onClick={() => {}} />
+        <!-- Regular Settings -->
+        <SettingsItem icon="team" title="Team" onClick={() => {}} />
+        <SettingsItem icon="user" title="User" onClick={() => {}} />
+        <SettingsItem icon="task" title="Usage" onClick={() => {}} />
+        <SettingsItem icon="billing" title="Billing" onClick={() => {}} />
+        <SettingsItem icon="app" title="Apps" onClick={() => {}} />
+        <SettingsItem icon="mate" title="Mates" onClick={() => {}} />
+        <SettingsItem icon="messenger" title="Messengers" onClick={() => {}} />
+        <SettingsItem icon="developer" title="Developers" onClick={() => {}} />
+        <SettingsItem icon="interface" title="Interface" onClick={() => {}} />
 
-    <!-- Documentation links section -->
-    <div class="submenu-section">
-        <div class="submenu-group">
-            <h3>Docs</h3>
-            <a href="/user-guide" class="submenu-link">User guide</a>
-            <a href="/api-docs" class="submenu-link">API docs</a>
-        </div>
+        <!-- Documentation links section -->
+        <div class="submenu-section">
+            <div class="submenu-group">
+                <h3>Docs</h3>
+                <a href="/user-guide" class="submenu-link">User guide</a>
+                <a href="/api-docs" class="submenu-link">API docs</a>
+            </div>
 
-        <div class="submenu-group">
-            <h3>Contact</h3>
-            <a href="/discord" class="submenu-link">Discord</a>
-            <a href="/email" class="submenu-link">Email</a>
-        </div>
+            <div class="submenu-group">
+                <h3>Contact</h3>
+                <a href="/discord" class="submenu-link">Discord</a>
+                <a href="/email" class="submenu-link">Email</a>
+            </div>
 
-        <div class="submenu-group">
-            <h3>Legal</h3>
-            <a href="/imprint" class="submenu-link">Imprint</a>
-            <a href="/privacy" class="submenu-link">Privacy</a>
-            <a href="/terms" class="submenu-link">Terms and conditions</a>
+            <div class="submenu-group">
+                <h3>Legal</h3>
+                <a href="/imprint" class="submenu-link">Imprint</a>
+                <a href="/privacy" class="submenu-link">Privacy</a>
+                <a href="/terms" class="submenu-link">Terms and conditions</a>
+            </div>
         </div>
     </div>
 </div>
@@ -175,25 +177,45 @@
 
     .settings-menu {
         background-color: var(--color-grey-20);
-        overflow-y: auto;
         height: 100%;
         width: 323px;
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .settings-header {
+        background-color: var(--color-grey-20);
+        padding: 16px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .settings-content {
+        flex: 1;
+        overflow-y: auto;
+        padding-bottom: 16px;
         
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
     }
 
-    .settings-menu::-webkit-scrollbar {
+    .settings-content::-webkit-scrollbar {
         width: 8px;
     }
 
-    .settings-menu::-webkit-scrollbar-track {
+    .settings-content::-webkit-scrollbar-track {
         background: transparent;
     }
 
-    .settings-menu::-webkit-scrollbar-thumb {
+    .settings-content::-webkit-scrollbar-thumb {
         background-color: var(--color-grey-40);
         border-radius: 4px;
         border: 2px solid var(--color-grey-20);
@@ -241,15 +263,6 @@
         transition: all 0.3s ease;
     }
 
-    .settings-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px;
-        border-bottom: 1px solid var(--color-grey-30);
-        position: relative;
-    }
-
     .header-left {
         display: flex;
         align-items: center;
@@ -259,20 +272,22 @@
 
     .header-left h4 {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 14px;
+        font-weight: bold;
         color: var(--color-grey-90);
     }
 
     .header-center {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
+        position: static;
+        transform: none;
         display: flex;
         align-items: center;
         justify-content: center;
         width: auto;
         z-index: 1;
+        flex: 1;
+        display: flex;
+        justify-content: center;
     }
 
     .header-right {
