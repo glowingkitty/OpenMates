@@ -217,7 +217,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 16px;
+        padding: 8px 16px;
         border-radius: 12px;
         cursor: pointer;
         transition: background-color 0.2s ease;
@@ -246,21 +246,21 @@
     }
 
     .submenu-group {
-        margin-bottom: 24px;
+        margin-bottom: 16px;
     }
 
     .submenu-group h3 {
         color: var(--color-grey-60);
         font-size: 14px;
         font-weight: 600;
-        margin: 8px 0;
+        margin: 6px 0;
     }
 
     .submenu-link {
         display: block;
         color: var(--color-grey-50);
         text-decoration: none;
-        padding: 8px 0;
+        padding: 6px 0;
         font-size: 14px;
         transition: color 0.2s ease;
     }
