@@ -181,7 +181,7 @@
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    background-color: var(--color-grey-40);
+    background-color: var(--color-app-card-text);
     position: absolute;
     top: 2px; /* Move the icon further down */
     left: -2px; /* Move the icon further to the left */
@@ -208,7 +208,7 @@
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    background-color: var(--color-grey-40);
+    background-color: var(--color-app-card-text);
     position: absolute;
     top: 2px; /* Move the icon further down */
     left: -2px; /* Move the icon further to the left */

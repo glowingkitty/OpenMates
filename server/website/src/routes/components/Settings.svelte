@@ -122,6 +122,28 @@
             <span class="menu-title"><mark>Interface</mark></span>
         </div>
     </div>
+
+    <!-- Documentation links section -->
+    <div class="submenu-section">
+        <div class="submenu-group">
+            <h3>Docs</h3>
+            <a href="/user-guide" class="submenu-link">User guide</a>
+            <a href="/api-docs" class="submenu-link">API docs</a>
+        </div>
+
+        <div class="submenu-group">
+            <h3>Contact</h3>
+            <a href="/discord" class="submenu-link">Discord</a>
+            <a href="/email" class="submenu-link">Email</a>
+        </div>
+
+        <div class="submenu-group">
+            <h3>Legal</h3>
+            <a href="/imprint" class="submenu-link">Imprint</a>
+            <a href="/privacy" class="submenu-link">Privacy</a>
+            <a href="/terms" class="submenu-link">Terms and conditions</a>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -188,5 +210,33 @@
 
     .menu-title {
         text-align: left;
+    }
+
+    .submenu-section {
+        padding: 0 16px 16px;
+    }
+
+    .submenu-group {
+        margin-bottom: 24px;
+    }
+
+    .submenu-group h3 {
+        color: var(--color-grey-60);
+        font-size: 14px;
+        font-weight: 600;
+        margin: 8px 0;
+    }
+
+    .submenu-link {
+        display: block;
+        color: var(--color-grey-50);
+        text-decoration: none;
+        padding: 8px 0;
+        font-size: 14px;
+        transition: color 0.2s ease;
+    }
+
+    .submenu-link:hover {
+        color: var(--color-primary);
     }
 </style>

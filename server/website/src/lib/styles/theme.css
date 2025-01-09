@@ -31,8 +31,8 @@
     /* App Card Colors */
     --color-app-card-background: var(--color-grey-20);
     --color-app-card-h2: var(--color-grey-100);
-    --color-app-card-h3: var(--color-grey-40);
-    --color-app-card-text: var(--color-grey-40);
+    --color-app-card-h3: var(--color-grey-80);
+    --color-app-card-text: var(--color-grey-80);
 
     /* App colors */
 
@@ -303,9 +303,15 @@
 
     /* Default theme (light) */
     --color-grey-0: #ffffff;
+    --color-grey-10: #f9f9f9;
     --color-grey-20: #f3f3f3;
     --color-grey-30: #e3e3e3;
-    --color-grey-40: #535353;
+    --color-grey-40: #c4c4c4;
+    --color-grey-50: #a6a6a6;
+    --color-grey-60: #888888;
+    --color-grey-70: #666666;
+    --color-grey-80: #444444;
+    --color-grey-90: #222222;
     --color-grey-100: #000000;
     --color-grey-blue: #E6EAFF;
 
@@ -325,9 +331,15 @@ body {
 /* Dark theme overrides */
 [data-theme="dark"] {
     --color-grey-0: #171717;
+    --color-grey-10: #1c1c1c;
     --color-grey-20: #212121;
-    --color-grey-30: #333333;
-    --color-grey-40: #c4c4c4;
+    --color-grey-30: #2c2c2c;
+    --color-grey-40: #404040;
+    --color-grey-50: #606060;
+    --color-grey-60: #808080;
+    --color-grey-70: #a0a0a0;
+    --color-grey-80: #c0c0c0;
+    --color-grey-90: #e0e0e0;
     --color-grey-100: #ffffff;
     --color-grey-blue: #2d2f35;
 
