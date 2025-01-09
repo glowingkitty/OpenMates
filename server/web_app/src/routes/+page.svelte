@@ -6,7 +6,10 @@
     import Settings from '@website-components/Settings.svelte';
 
     // Subscribe to settings menu visibility state
-    import { settingsMenuVisible } from '@website-components/Settings.svelte';
+    import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
+
+    // Compute gap class based on menu state and view
+    $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 </script>
 
 <div class="sidebar">
@@ -15,7 +18,7 @@
 
 <div class="main-content">
     <Header context="webapp" />
-    <div class="chat-container" class:menu-open={$settingsMenuVisible}>
+    <div class="chat-container" class:menu-open={menuClass}>
         <ActiveChat />
         <div class="settings-wrapper">
             <Settings />

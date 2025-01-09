@@ -1,12 +1,14 @@
 <script>
     import EnterMessageField from './enter_message/EnterMessageField.svelte';
-    import { teamEnabled } from './Settings.svelte';
+    import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
 
-    // Subscribe to the store value
+    // Subscribe to store values
     $: isTeamEnabled = $teamEnabled;
+    // Add class when menu is open AND in mobile view
+    $: isDimmed = $settingsMenuVisible && $isMobileView;
 </script>
 
-<div class="active-chat-container">
+<div class="active-chat-container" class:dimmed={isDimmed}>
     <!-- Center content wrapper -->
     <div class="center-content">
         <div class="team-profile">
@@ -37,6 +39,7 @@
         @media (max-width: 1099px) {
             margin-right: 0;
         }
+        transition: opacity 0.3s ease;
     }
 
     .center-content {
@@ -100,5 +103,9 @@
         opacity: 0;
         filter: grayscale(100%);
         transition: all 0.3s ease;
+    }
+
+    .active-chat-container.dimmed {
+        opacity: 0.3;
     }
 </style>

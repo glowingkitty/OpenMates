@@ -2,10 +2,12 @@
     import { writable } from 'svelte/store';
     export const teamEnabled = writable(true);
     export const settingsMenuVisible = writable(false);
+    export const isMobileView = writable(false);
 </script>
 
 <script lang="ts">
     import SettingsItem from './SettingsItem.svelte';
+    import { onMount } from 'svelte';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -45,6 +47,51 @@
     // Sync the local state with the store on initialization
     $: {
         teamEnabled.set(isTeamEnabled);
+    }
+
+    // Handle window resize
+    function updateMobileState(): void {
+        isMobileView.set(window.innerWidth <= 1100);
+    }
+
+    // Setup listeners
+    onMount(() => {
+        updateMobileState(); // Initial check
+        window.addEventListener('resize', updateMobileState);
+        document.addEventListener('click', handleClickOutside);
+        
+        return () => {
+            window.removeEventListener('resize', updateMobileState);
+            document.removeEventListener('click', handleClickOutside);
+        };
+    });
+
+    // Simplified click outside handler using store value
+    function handleClickOutside(event: MouseEvent): void {
+        if ($isMobileView) {
+            const settingsMenu = document.querySelector('.settings-menu');
+            const profileContainer = document.querySelector('.profile-container');
+            
+            if (settingsMenu && 
+                profileContainer && 
+                !settingsMenu.contains(event.target as Node) && 
+                !profileContainer.contains(event.target as Node)) {
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+            }
+        }
+    }
+
+    // Add reactive statement to handle active-chat opacity
+    $: if (typeof window !== 'undefined') {
+        const activeChatContainer = document.querySelector('.active-chat-container');
+        if (activeChatContainer) {
+            if (window.innerWidth <= 1100 && isMenuVisible) {
+                activeChatContainer.classList.add('dimmed');
+            } else {
+                activeChatContainer.classList.remove('dimmed');
+            }
+        }
     }
 </script>
 
@@ -167,7 +214,7 @@
         border-radius: 50%;
         margin: 0;
         cursor: pointer;
-        z-index: 1000;
+        z-index: 1001;
     }
 
     .profile-picture {
@@ -207,6 +254,7 @@
         flex-direction: column;
         overflow: hidden;
         transition: width 0.3s ease;
+        z-index: 1001;
     }
 
     @media (max-width: 1100px) {
@@ -354,5 +402,13 @@
         flex: 1;
         display: flex;
         justify-content: flex-end;
+    }
+
+    :global(.active-chat-container) {
+        transition: opacity 0.3s ease;
+    }
+
+    :global(.active-chat-container.dimmed) {
+        opacity: 0.3;
     }
 </style>
