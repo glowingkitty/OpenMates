@@ -9,11 +9,17 @@
     // Props for user and team information
     export let teamSelected = 'xhain';
     
-    // State for toggles
+    // State for toggles and menu visibility
+    let isMenuVisible = false;
     let isTeamEnabled = true;
     let isIncognitoEnabled = false;
     let isGuestEnabled = false;
     let isOfflineEnabled = false;
+
+    // Handler for profile click to show menu
+    function toggleMenu(): void {
+        isMenuVisible = !isMenuVisible;
+    }
 
     // Handler for quicksettings menu item clicks
     function handleQuickSettingClick(toggleName: 'team' | 'incognito' | 'guest' | 'offline'): void {
@@ -40,7 +46,7 @@
     }
 </script>
 
-<div class="profile-container">
+<div class="profile-container" on:click={toggleMenu}>
     <div class="profile-picture"></div>
     
     {#if teamSelected}
@@ -48,12 +54,13 @@
     {/if}
 </div>
 
-<div class="settings-menu">
+<div class="settings-menu" class:visible={isMenuVisible}>
     <div class="settings-header">
         <div class="header-left">
             <button 
                 class="clickable-icon icon_close" 
                 aria-label="Close"
+                on:click={toggleMenu}
             ></button>
             <h4>Settings</h4>
         </div>
@@ -146,6 +153,8 @@
         height: 57px;
         border-radius: 50%;
         margin: 0;
+        cursor: pointer;
+        z-index: 1000;
     }
 
     .profile-picture {
@@ -178,12 +187,32 @@
     .settings-menu {
         background-color: var(--color-grey-20);
         height: 100%;
-        width: 323px;
+        width: 0px;
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        transition: width 0.3s ease;
+    }
+
+    .settings-menu.visible {
+        width: 323px;
+        visibility: visible;
+    }
+
+    .settings-header,
+    .settings-content {
+        opacity: 0;
+        /* Quick fade out when closing */
+        transition: opacity 0.3s ease 0s;
+    }
+
+    .settings-menu.visible .settings-header,
+    .settings-menu.visible .settings-content {
+        opacity: 1;
+        /* Delayed fade in when opening */
+        transition: opacity 0.3s ease 0.15s;
     }
 
     .settings-header {
@@ -202,7 +231,6 @@
         flex: 1;
         overflow-y: auto;
         padding-bottom: 16px;
-        
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
     }
