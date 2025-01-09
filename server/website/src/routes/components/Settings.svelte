@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import Toggle from './Toggle.svelte';
     
     // Props for user and team information
@@ -9,6 +9,24 @@
     let isIncognitoEnabled = false;
     let isGuestEnabled = false;
     let isOfflineEnabled = false;
+
+    // Handler for quicksettings menu item clicks
+    function handleQuickSettingClick(toggleName: 'team' | 'incognito' | 'guest' | 'offline'): void {
+        switch(toggleName) {
+            case 'team':
+                isTeamEnabled = !isTeamEnabled;
+                break;
+            case 'incognito':
+                isIncognitoEnabled = !isIncognitoEnabled;
+                break;
+            case 'guest':
+                isGuestEnabled = !isGuestEnabled;
+                break;
+            case 'offline':
+                isOfflineEnabled = !isOfflineEnabled;
+                break;
+        }
+    }
 </script>
 
 <div class="profile-container">
@@ -24,7 +42,7 @@
 </div>
 
 <div class="settings-menu">
-    <div class="menu-item">
+    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('team')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_team"></div>
             <span class="menu-title"><mark>Team</mark></span>
@@ -35,7 +53,7 @@
             ariaLabel="Toggle team mode"
         />
     </div>
-    <div class="menu-item">
+    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('incognito')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_incognito"></div>
             <span class="menu-title"><mark>Incognito</mark></span>
@@ -46,7 +64,7 @@
             ariaLabel="Toggle incognito mode"
         />
     </div>
-    <div class="menu-item">
+    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('guest')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_guest"></div>
             <span class="menu-title"><mark>Guest</mark></span>
@@ -57,7 +75,7 @@
             ariaLabel="Toggle guest mode"
         />
     </div>
-    <div class="menu-item">
+    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('offline')}>
         <div class="menu-item-left">
             <div class="icon settings_size quicksetting_icon quicksetting_icon_offline"></div>
             <span class="menu-title"><mark>Offline</mark></span>
@@ -199,7 +217,18 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
+        padding: 10px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .menu-item:hover {
+        background-color: var(--color-grey-30);
+    }
+
+    .menu-item.quicksetting:hover {
+        background-color: var(--color-grey-30);
     }
 
     .menu-item-left {
