@@ -212,8 +212,10 @@
     @media (max-width: 1100px) {
         .settings-menu {
             position: fixed;
-            right: 0;
-            top: 0;
+            right: 20px;
+            top: 80px;
+            bottom: 25px;
+            height: auto;
             z-index: 1000;
         }
 
