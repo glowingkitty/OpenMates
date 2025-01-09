@@ -49,6 +49,27 @@
 </div>
 
 <div class="settings-menu">
+    <div class="settings-header">
+        <div class="header-left">
+            <button 
+                class="clickable-icon icon_close" 
+                aria-label="Close"
+            ></button>
+            <h4>Settings</h4>
+        </div>
+        <div class="header-center">
+            <button 
+                class="clickable-icon icon_search" 
+                aria-label="Search"
+            ></button>
+        </div>
+        <div class="header-right">
+            <button 
+                class="clickable-icon icon_logout" 
+                aria-label="Logout"
+            ></button>
+        </div>
+    </div>
     <!-- Quick Settings -->
     <SettingsItem 
         icon="quicksetting_icon quicksetting_icon_team"
@@ -218,5 +239,45 @@
         opacity: 0;
         filter: grayscale(100%);
         transition: all 0.3s ease;
+    }
+
+    .settings-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        border-bottom: 1px solid var(--color-grey-30);
+        position: relative;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .header-left h4 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-grey-90);
+    }
+
+    .header-center {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: auto;
+        z-index: 1;
+    }
+
+    .header-right {
+        flex: 1;
+        display: flex;
+        justify-content: flex-end;
     }
 </style>
