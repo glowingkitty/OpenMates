@@ -1,8 +1,8 @@
 <script lang="ts">
-    import Toggle from './Toggle.svelte';
+    import SettingsItem from './SettingsItem.svelte';
     
     // Props for user and team information
-    export let teamSelected = 'xhain';  // slug of the team selected
+    export let teamSelected = 'xhain';
     
     // State for toggles
     let isTeamEnabled = true;
@@ -27,133 +27,57 @@
                 break;
         }
     }
-
-    // Handler for toggle clicks to prevent event bubbling
-    function handleToggleClick(event: Event): void {
-        // Prevent the click event from bubbling up to the menu item
-        event.stopPropagation();
-    }
 </script>
 
 <div class="profile-container">
-    <div 
-        class="profile-picture"
-    ></div>
+    <div class="profile-picture"></div>
     
     {#if teamSelected}
-        <div 
-            class="team-picture"
-        ></div>
+        <div class="team-picture"></div>
     {/if}
 </div>
 
 <div class="settings-menu">
-    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('team')}>
-        <div class="menu-item-left">
-            <div class="icon settings_size quicksetting_icon quicksetting_icon_team"></div>
-            <span class="menu-title"><mark>Team</mark></span>
-        </div>
-        <div on:click={handleToggleClick}>
-            <Toggle 
-                bind:checked={isTeamEnabled}
-                name="team"
-                ariaLabel="Toggle team mode"
-            />
-        </div>
-    </div>
-    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('incognito')}>
-        <div class="menu-item-left">
-            <div class="icon settings_size quicksetting_icon quicksetting_icon_incognito"></div>
-            <span class="menu-title"><mark>Incognito</mark></span>
-        </div>
-        <div on:click={handleToggleClick}>
-            <Toggle 
-                bind:checked={isIncognitoEnabled}
-                name="incognito"
-                ariaLabel="Toggle incognito mode"
-            />
-        </div>
-    </div>
-    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('guest')}>
-        <div class="menu-item-left">
-            <div class="icon settings_size quicksetting_icon quicksetting_icon_guest"></div>
-            <span class="menu-title"><mark>Guest</mark></span>
-        </div>
-        <div on:click={handleToggleClick}>
-            <Toggle 
-                bind:checked={isGuestEnabled}
-                name="guest"
-                ariaLabel="Toggle guest mode"
-            />
-        </div>
-    </div>
-    <div class="menu-item quicksetting" on:click={() => handleQuickSettingClick('offline')}>
-        <div class="menu-item-left">
-            <div class="icon settings_size quicksetting_icon quicksetting_icon_offline"></div>
-            <span class="menu-title"><mark>Offline</mark></span>
-        </div>
-        <div on:click={handleToggleClick}>
-            <Toggle 
-                bind:checked={isOfflineEnabled}
-                name="offline"
-                ariaLabel="Toggle offline mode"
-            />
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size team"></div>
-            <span class="menu-title"><mark>Team</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size user"></div>
-            <span class="menu-title"><mark>User</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size task"></div>
-            <span class="menu-title"><mark>Usage</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size billing"></div>
-            <span class="menu-title"><mark>Billing</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size app"></div>
-            <span class="menu-title"><mark>Apps</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size mate"></div>
-            <span class="menu-title"><mark>Mates</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size messenger"></div>
-            <span class="menu-title"><mark>Messengers</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size developer"></div>
-            <span class="menu-title"><mark>Developers</mark></span>
-        </div>
-    </div>
-    <div class="menu-item">
-        <div class="menu-item-left">
-            <div class="icon settings_size interface"></div>
-            <span class="menu-title"><mark>Interface</mark></span>
-        </div>
-    </div>
+    <!-- Quick Settings -->
+    <SettingsItem 
+        icon="quicksetting_icon quicksetting_icon_team"
+        title="Team"
+        hasToggle={true}
+        bind:checked={isTeamEnabled}
+        onClick={() => handleQuickSettingClick('team')}
+    />
+    <SettingsItem 
+        icon="quicksetting_icon quicksetting_icon_incognito"
+        title="Incognito"
+        hasToggle={true}
+        bind:checked={isIncognitoEnabled}
+        onClick={() => handleQuickSettingClick('incognito')}
+    />
+    <SettingsItem 
+        icon="quicksetting_icon quicksetting_icon_guest"
+        title="Guest"
+        hasToggle={true}
+        bind:checked={isGuestEnabled}
+        onClick={() => handleQuickSettingClick('guest')}
+    />
+    <SettingsItem 
+        icon="quicksetting_icon quicksetting_icon_offline"
+        title="Offline"
+        hasToggle={true}
+        bind:checked={isOfflineEnabled}
+        onClick={() => handleQuickSettingClick('offline')}
+    />
+
+    <!-- Regular Settings -->
+    <SettingsItem icon="team" title="Team" onClick={() => {}} />
+    <SettingsItem icon="user" title="User" onClick={() => {}} />
+    <SettingsItem icon="task" title="Usage" onClick={() => {}} />
+    <SettingsItem icon="billing" title="Billing" onClick={() => {}} />
+    <SettingsItem icon="app" title="Apps" onClick={() => {}} />
+    <SettingsItem icon="mate" title="Mates" onClick={() => {}} />
+    <SettingsItem icon="messenger" title="Messengers" onClick={() => {}} />
+    <SettingsItem icon="developer" title="Developers" onClick={() => {}} />
+    <SettingsItem icon="interface" title="Interface" onClick={() => {}} />
 
     <!-- Documentation links section -->
     <div class="submenu-section">
@@ -222,7 +146,6 @@
         overflow-y: auto;
         height: 100%;
         width: 323px;
-        background-color: var(--color-grey-20);
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         
@@ -242,34 +165,6 @@
         background-color: var(--color-grey-40);
         border-radius: 4px;
         border: 2px solid var(--color-grey-20);
-    }
-
-    .menu-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 16px;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .menu-item:hover {
-        background-color: var(--color-grey-30);
-    }
-
-    .menu-item.quicksetting:hover {
-        background-color: var(--color-grey-30);
-    }
-
-    .menu-item-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .menu-title {
-        text-align: left;
     }
 
     .submenu-section {
