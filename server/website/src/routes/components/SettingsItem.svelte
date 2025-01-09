@@ -8,6 +8,9 @@
     export let checked = false; // Toggle state if hasToggle is true
     export let onClick: (() => void) | undefined = undefined;
 
+    // Check if this is a logout item
+    const isLogout = title.toLowerCase() === 'logout';
+
     // Handler to prevent event bubbling for toggle clicks
     function handleToggleClick(event: Event): void {
         event.stopPropagation();
@@ -31,7 +34,7 @@
     tabindex={onClick ? 0 : undefined}
 >
     <div class="menu-item-left">
-        <div class="icon settings_size {icon}"></div>
+        <div class="{isLogout ? 'clickable-icon icon_logout' : 'icon settings_size'} {icon}"></div>
         <span class="menu-title"><mark>{title}</mark></span>
     </div>
     {#if hasToggle}
@@ -71,6 +74,7 @@
     .clickable:hover {
         background-color: var(--color-grey-30);
     }
+
 
     .menu-item-left {
         display: flex;

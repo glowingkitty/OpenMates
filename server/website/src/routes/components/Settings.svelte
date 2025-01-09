@@ -138,10 +138,6 @@
             <h4>Settings</h4>
         </div>
         <div class="header-right">
-            <button 
-                class="clickable-icon icon_logout" 
-                aria-label="Logout"
-            ></button>
         </div>
     </div>
     <div class="settings-content">
@@ -185,6 +181,7 @@
         <SettingsItem icon="messenger" title="Messengers" onClick={() => {}} />
         <SettingsItem icon="developer" title="Developers" onClick={() => {}} />
         <SettingsItem icon="interface" title="Interface" onClick={() => {}} />
+        <SettingsItem icon="logout" title="Logout" onClick={() => {}} />
 
         <!-- Documentation links section -->
         <div class="submenu-section">
