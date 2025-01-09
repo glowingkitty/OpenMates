@@ -27,8 +27,8 @@
     class:clickable={onClick !== undefined}
     on:click={onClick}
     on:keydown={(e) => onClick && handleKeydown(e, onClick)}
-    role={onClick ? "button" : "listitem"}
-    tabindex={onClick ? "0" : undefined}
+    role="menuitem"
+    tabindex={onClick ? 0 : undefined}
 >
     <div class="menu-item-left">
         <div class="icon settings_size {icon}"></div>
