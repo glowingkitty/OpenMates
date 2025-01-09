@@ -1,6 +1,7 @@
 <script lang="ts" context="module">
     import { writable } from 'svelte/store';
     export const teamEnabled = writable(true);
+    export const settingsMenuVisible = writable(false);
 </script>
 
 <script lang="ts">
@@ -19,6 +20,7 @@
     // Handler for profile click to show menu
     function toggleMenu(): void {
         isMenuVisible = !isMenuVisible;
+        settingsMenuVisible.set(isMenuVisible);
     }
 
     // Handler for quicksettings menu item clicks

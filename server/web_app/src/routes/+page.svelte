@@ -4,6 +4,9 @@
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';
+
+    // Subscribe to settings menu visibility state
+    import { settingsMenuVisible } from '@website-components/Settings.svelte';
 </script>
 
 <div class="sidebar">
@@ -12,7 +15,7 @@
 
 <div class="main-content">
     <Header context="webapp" />
-    <div class="chat-container">
+    <div class="chat-container" class:menu-open={$settingsMenuVisible}>
         <ActiveChat />
         <div class="settings-wrapper">
             <Settings />
@@ -64,8 +67,13 @@
         display: flex;
         flex-direction: row;
         height: calc(100% - 80px);
-        gap: 20px;
+        gap: 0px; /* Default gap when menu is closed */
         padding: 10px;
+        transition: gap 0.3s ease; /* Smooth transition for gap changes */
+    }
+
+    .chat-container.menu-open {
+        gap: 20px; /* Gap when menu is open */
     }
 
     .settings-wrapper {
