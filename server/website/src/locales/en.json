@@ -284,9 +284,13 @@
                     "text": "Apps",
                     "context": "Section heading for Apps feature"
                 },
-                "main_heading": {
-                    "text": "So many apps<br>to transform your<br>personal life & work.",
-                    "context": "Main heading in Apps section"
+                "main_heading_1": {
+                    "text": "So many apps",
+                    "context": "In 'So many apps to transform your personal life & work.'"
+                },
+                "main_heading_2": {
+                    "text": "to transform your<br>personal life & work.",
+                    "context": "In 'So many apps to transform your personal life & work.'"
                 },
                 "paragraph": {
                     "text": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",

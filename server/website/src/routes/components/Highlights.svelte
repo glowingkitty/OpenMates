@@ -22,7 +22,7 @@
 />
 <Highlight
     sub_heading="Apps"
-    main_heading={`<mark>${$_('highlight.sections.apps.main_heading.text')}</mark>`}
+    main_heading={`<mark>${$_('highlight.sections.apps.main_heading_1.text')}</mark><br>${$_('highlight.sections.apps.main_heading_2.text')}`}
     paragraph={`${$_('highlight.sections.apps.paragraph.text')}`}
     text_side="left"
     {target}

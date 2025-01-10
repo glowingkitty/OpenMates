@@ -345,10 +345,15 @@
                     "en_original": "Apps",
                     "context": "Section heading for Apps feature"
                 },
-                "main_heading": {
-                    "text": "So viele Apps<br>um dein privates Leben & deine Arbeit<br>zu transformieren.",
-                    "en_original": "So many apps<br>to transform your<br>personal life & work.",
-                    "context": "Main heading in Apps section"
+                "main_heading_1": {
+                    "text": "So viele Apps",
+                    "en_original": "So many apps",
+                    "context": "In 'So many apps to transform your personal life & work.'"
+                },
+                "main_heading_2": {
+                    "text": "um dein privates Leben & deine Arbeit<br>zu transformieren.",
+                    "en_original": "to transform your<br>personal life & work.",
+                    "context": "In 'So many apps to transform your personal life & work.'"
                 },
                 "paragraph": {
                     "text": "Zum Beispiel:<br>Finde Veranstaltungen<br>auf Meetup, Eventbrite & RA.",
