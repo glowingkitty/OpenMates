@@ -18,7 +18,8 @@ const config = {
 			'@website-styles': path.resolve('../website/src/lib/styles'),
 			'@website-stores': path.resolve('../website/src/lib/stores'),
 			'@website-actions': path.resolve('../website/src/lib/actions'),
-			// '@website-locales': path.resolve('../website/src/locales')
+			'@website-lib': path.resolve('../website/src/lib'),
+			'@website-locales': path.resolve('../website/src/locales')
 		}
 	}
 };

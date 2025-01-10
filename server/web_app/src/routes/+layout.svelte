@@ -8,17 +8,20 @@
     import '@website-styles/chat.css';
     import '@website-styles/mates.css';
     import '@website-styles/theme.css';
-    import { locale } from 'svelte-i18n';
+    import { locale } from '@website-lib/i18n';
     import { theme, toggleTheme, initializeTheme } from '@website-stores/theme';
     import { replaceOpenMates } from '@website-actions/replaceText';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
+    import { waitLocale } from 'svelte-i18n';
 
-    // Initialize theme on mount
+    let loaded = false;
+
     onMount(async () => {
+        await waitLocale();
+        loaded = true;
         initializeTheme();
-        
-        // Set initial language based on browser preference
+
         if (browser) {
             const browserLang = navigator.language.split('-')[0];
             if (browserLang === 'en' || browserLang === 'de') {
@@ -48,11 +51,21 @@
     $: if (browser) {
         document.documentElement.setAttribute('data-theme', $theme);
     }
+
+    // Set initial language based on browser preference or stored setting
+    $: if (browser) {
+        const browserLang = navigator.language.split('-')[0];
+        if (browserLang === 'en' || browserLang === 'de') {
+            $locale = browserLang as 'en' | 'de';
+        }
+    }
 </script>
 
-<main use:replaceOpenMates>
-    <slot />
-</main>
+{#if loaded}
+    <main use:replaceOpenMates>
+        <slot />
+    </main>
+{/if}
 
 <style>
     /* Apply background color to the body */

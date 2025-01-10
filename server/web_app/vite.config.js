@@ -15,7 +15,7 @@ export default defineConfig({
 			'@website-styles': path.resolve(websiteSourcePath, 'lib/styles'),
 			'@website-stores': path.resolve(websiteSourcePath, 'lib/stores'),
 			'@website-actions': path.resolve(websiteSourcePath, 'lib/actions'),
-			'@website-i18n': path.resolve(websiteSourcePath, 'lib/i18n'),
+			'@website-locales': path.resolve(websiteSourcePath, 'locales'),
 			
 			// Static file aliases
 			'/icons': path.resolve(websiteStaticPath, 'icons'),

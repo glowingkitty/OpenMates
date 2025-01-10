@@ -98,39 +98,4 @@
     :global(html) {
         overflow-x: hidden;
     }
-
-    .theme-controls {
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        display: flex;
-        gap: 0.5rem;
-        z-index: 1000;
-    }
-
-    .theme-toggle,
-    .reset-theme {
-        padding: 0.5rem;
-        border-radius: 50%;
-        border: none;
-        background: var(--background-secondary);
-        color: var(--text-primary);
-        cursor: pointer;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        box-shadow: 0 2px 4px var(--shadow-color);
-    }
-
-    .theme-toggle:hover,
-    .reset-theme:hover {
-        background: var(--background-primary);
-    }
-
-    .reset-theme {
-        font-size: 1rem;
-    }
 </style>
