@@ -1,6 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import PressAndHoldMenu from './PressAndHoldMenu.svelte';
+    import { _ } from 'svelte-i18n'; // Import translation function
     
     // Props
     export let url: string;
@@ -133,7 +134,7 @@
         </div>
         {#if showCopiedMessage}
             <div class="copied-message fade-in">
-                Copied to clipboard
+                {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
             </div>
         {/if}
     </div>

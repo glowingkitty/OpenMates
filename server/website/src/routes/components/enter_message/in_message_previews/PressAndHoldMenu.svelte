@@ -1,5 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { _ } from 'svelte-i18n'; // Import translation function
 
     // Props
     export let x: number = 0;  // X position of menu
@@ -59,7 +60,7 @@
             on:click={(event) => handleMenuItemClick('delete', event)}
         >
             <div class="clickable-icon icon_delete"></div>
-            Delete
+            {$_('enter_message.press_and_hold_menu.delete.text')}
         </button>
         
         {#if type === 'web'}
@@ -68,7 +69,7 @@
                 on:click={(event) => handleMenuItemClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
-                Copy link
+                {$_('enter_message.press_and_hold_menu.copy_link.text')}
             </button>
         {:else}
             <button 
@@ -76,7 +77,7 @@
                 on:click={(event) => handleMenuItemClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
-                Download
+                {$_('enter_message.press_and_hold_menu.download.text')}
             </button>
         {/if}
 
@@ -85,7 +86,7 @@
             on:click={(event) => handleMenuItemClick('view', event)}
         >
             <div class="clickable-icon icon_fullscreen"></div>
-            View
+            {$_('enter_message.press_and_hold_menu.view.text')}
         </button>
     </div>
 {/if}

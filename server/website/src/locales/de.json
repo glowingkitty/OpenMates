@@ -355,6 +355,28 @@
                 "text": "Audio aufnehmen",
                 "context": "Button text for recording audio"
             }
+        },
+        "press_and_hold_menu": {
+            "delete": {
+                "text": "Löschen",
+                "context": "Menu option to delete an attachment"
+            },
+            "copy_link": {
+                "text": "Link kopieren",
+                "context": "Menu option to copy web link"
+            },
+            "download": {
+                "text": "Herunterladen",
+                "context": "Menu option to download an attachment"
+            },
+            "view": {
+                "text": "Ansehen",
+                "context": "Menu option to view attachment in full screen"
+            },
+            "copied_to_clipboard": {
+                "text": "Kopiert",
+                "context": "Message shown when a URL has been copied to clipboard"
+            }
         }
     }
 }
