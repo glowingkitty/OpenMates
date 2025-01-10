@@ -1,5 +1,6 @@
 <script lang="ts" context="module">
     import { writable } from 'svelte/store';
+    import { _ } from 'svelte-i18n';
     export const teamEnabled = writable(true);
     export const settingsMenuVisible = writable(false);
     export const isMobileView = writable(false);
@@ -137,7 +138,7 @@
                     ></button>
                 </div>
                 <div class="header-center">
-                    <h4>Settings</h4>
+                    <h4>{$_('settings.settings.text')}</h4>
                 </div>
                 <div class="header-left"></div>
             </div>
@@ -147,7 +148,7 @@
                     <div class="credits-container">
                         <span class="credits-icon"></span>
                         <div class="credits-text">
-                            <span class="credits-amount"><mark>4800 credits</mark> </span>
+                            <span class="credits-amount"><mark>4800 {$_('settings.credits.text')}</mark></span>
                             <!-- <span class="add-credits-button" aria-label="Add credits">+</span> -->
                         </div>
                     </div>
@@ -159,64 +160,64 @@
         <!-- Quick Settings -->
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_team"
-            title="Team"
+            title={$_('settings.team.text')}
             hasToggle={true}
             bind:checked={isTeamEnabled}
             onClick={() => handleQuickSettingClick('team')}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_incognito"
-            title="Incognito"
+            title={$_('settings.incognito.text')}
             hasToggle={true}
             bind:checked={isIncognitoEnabled}
             onClick={() => handleQuickSettingClick('incognito')}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_guest"
-            title="Guest"
+            title={$_('settings.guest.text')}
             hasToggle={true}
             bind:checked={isGuestEnabled}
             onClick={() => handleQuickSettingClick('guest')}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_offline"
-            title="Offline"
+            title={$_('settings.offline.text')}
             hasToggle={true}
             bind:checked={isOfflineEnabled}
             onClick={() => handleQuickSettingClick('offline')}
         />
 
         <!-- Regular Settings -->
-        <SettingsItem icon="team" title="Team" onClick={() => {}} />
-        <SettingsItem icon="user" title="User" onClick={() => {}} />
-        <SettingsItem icon="task" title="Usage" onClick={() => {}} />
-        <SettingsItem icon="billing" title="Billing" onClick={() => {}} />
-        <SettingsItem icon="app" title="Apps" onClick={() => {}} />
-        <SettingsItem icon="mate" title="Mates" onClick={() => {}} />
-        <SettingsItem icon="messenger" title="Messengers" onClick={() => {}} />
-        <SettingsItem icon="developer" title="Developers" onClick={() => {}} />
-        <SettingsItem icon="interface" title="Interface" onClick={() => {}} />
-        <SettingsItem icon="quicksetting_icon quicksetting_icon_logout" title="Logout" onClick={() => {}} />
+        <SettingsItem icon="team" title={$_('settings.team.text')} onClick={() => {}} />
+        <SettingsItem icon="user" title={$_('settings.user.text')} onClick={() => {}} />
+        <SettingsItem icon="task" title={$_('settings.usage.text')} onClick={() => {}} />
+        <SettingsItem icon="billing" title={$_('settings.billing.text')} onClick={() => {}} />
+        <SettingsItem icon="app" title={$_('settings.apps.text')} onClick={() => {}} />
+        <SettingsItem icon="mate" title={$_('settings.mates.text')} onClick={() => {}} />
+        <SettingsItem icon="messenger" title={$_('settings.messengers.text')} onClick={() => {}} />
+        <SettingsItem icon="developer" title={$_('settings.developers.text')} onClick={() => {}} />
+        <SettingsItem icon="interface" title={$_('settings.interface.text')} onClick={() => {}} />
+        <SettingsItem icon="quicksetting_icon quicksetting_icon_logout" title={$_('settings.logout.text')} onClick={() => {}} />
 
         <!-- Documentation links section -->
         <div class="submenu-section">
             <div class="submenu-group">
-                <h3>Docs</h3>
-                <a href="/user-guide" class="submenu-link">User guide</a>
-                <a href="/api-docs" class="submenu-link">API docs</a>
+                <h3>{$_('settings.docs.text')}</h3>
+                <a href="/user-guide" class="submenu-link">{$_('settings.user_guide.text')}</a>
+                <a href="/api-docs" class="submenu-link">{$_('settings.api_docs.text')}</a>
             </div>
 
             <div class="submenu-group">
-                <h3>Contact</h3>
-                <a href="/discord" class="submenu-link">Discord</a>
-                <a href="/email" class="submenu-link">Email</a>
+                <h3>{$_('settings.contact.text')}</h3>
+                <a href="/discord" class="submenu-link">{$_('settings.discord.text')}</a>
+                <a href="/email" class="submenu-link">{$_('settings.email.text')}</a>
             </div>
 
             <div class="submenu-group">
-                <h3>Legal</h3>
-                <a href="/imprint" class="submenu-link">Imprint</a>
-                <a href="/privacy" class="submenu-link">Privacy</a>
-                <a href="/terms" class="submenu-link">Terms and conditions</a>
+                <h3>{$_('settings.legal.text')}</h3>
+                <a href="/imprint" class="submenu-link">{$_('settings.imprint.text')}</a>
+                <a href="/privacy" class="submenu-link">{$_('settings.privacy.text')}</a>
+                <a href="/terms" class="submenu-link">{$_('settings.terms_and_conditions.text')}</a>
             </div>
         </div>
     </div>

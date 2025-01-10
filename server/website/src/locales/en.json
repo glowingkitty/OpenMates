@@ -378,5 +378,107 @@
                 "context": "Message shown when a URL has been copied to clipboard"
             }
         }
+    },
+    "settings": {
+        "settings": {
+            "text": "Settings",
+            "context": "Header text in settings menu"
+        },
+        "team": {
+            "text": "Team",
+            "context": "Team toggle and menu item"
+        },
+        "incognito": {
+            "text": "Incognito",
+            "context": "Incognito mode toggle"
+        },
+        "guest": {
+            "text": "Guest",
+            "context": "Guest mode toggle"
+        },
+        "offline": {
+            "text": "Offline",
+            "context": "Offline mode toggle"
+        },
+        "user": {
+            "text": "User",
+            "context": "User settings menu item"
+        },
+        "usage": {
+            "text": "Usage",
+            "context": "Usage statistics menu item"
+        },
+        "billing": {
+            "text": "Billing",
+            "context": "Billing settings menu item"
+        },
+        "apps": {
+            "text": "Apps",
+            "context": "Apps settings menu item"
+        },
+        "mates": {
+            "text": "Mates",
+            "context": "Mates settings menu item"
+        },
+        "messengers": {
+            "text": "Messengers",
+            "context": "Messengers settings menu item"
+        },
+        "developers": {
+            "text": "Developers",
+            "context": "Developers settings menu item"
+        },
+        "interface": {
+            "text": "Interface",
+            "context": "Interface settings menu item"
+        },
+        "logout": {
+            "text": "Logout",
+            "context": "Logout menu item"
+        },
+        "docs": {
+            "text": "Docs",
+            "context": "Documentation section header"
+        },
+        "user_guide": {
+            "text": "User guide",
+            "context": "User guide documentation link"
+        },
+        "api_docs": {
+            "text": "API docs",
+            "context": "API documentation link"
+        },
+        "contact": {
+            "text": "Contact",
+            "context": "Contact section header"
+        },
+        "discord": {
+            "text": "Discord",
+            "context": "Discord contact link"
+        },
+        "email": {
+            "text": "Email",
+            "context": "Email contact link"
+        },
+        "legal": {
+            "text": "Legal",
+            "context": "Legal section header"
+        },
+        "imprint": {
+            "text": "Imprint",
+            "context": "Imprint legal link"
+        },
+        "privacy": {
+            "text": "Privacy",
+            "context": "Privacy policy link"
+        },
+        "terms_and_conditions": {
+            "text": "Terms and conditions",
+            "context": "Terms and conditions link"
+        },
+        "credits": {
+            "text": "credits",
+            "context": "User credits amount"
+        }
     }
 } 
