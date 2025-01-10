@@ -670,10 +670,15 @@
             }
         },
         "maximum_good": {
-            "headline": {
-                "text": "Maximaler Nutzen,\nstatt maximale Gier.",
-                "en_original": "Maximum good,\nnot maximum greed.",
-                "context": "Main headline for maximum good section"
+            "headline_1": {
+                "text": "Maximaler Nutzen",
+                "en_original": "Maximum good",
+                "context": "Used in 'Maximum good, not maximum greed.'"
+            },
+            "headline_2": {
+                "text": "statt maximale Gier.",
+                "en_original": "not maximum greed.",
+                "context": "Used in 'Maximum good, not maximum greed.'"
             },
             "text": {
                 "text": "In den letzten Jahren haben Profit-um-jeden-Preis Tech-Monopole immer wieder ihre Gier über die Interessen ihrer Nutzer und unseres Planeten gestellt und dabei die negativen Folgen und Zerstörung ignoriert, die diese Entscheidungen verursachen. So können wir nicht weitermachen.",

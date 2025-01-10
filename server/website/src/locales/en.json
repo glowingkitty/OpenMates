@@ -549,9 +549,13 @@
             }
         },
         "maximum_good": {
-            "headline": {
-                "text": "Maximum good,\nnot maximum greed.",
-                "context": "Main headline for maximum good section"
+            "headline_1": {
+                "text": "Maximum good",
+                "context": "Used in 'Maximum good, not maximum greed.'"
+            },
+            "headline_2": {
+                "text": "not maximum greed.",
+                "context": "Used in 'Maximum good, not maximum greed.'"
             },
             "text": {
                 "text": "Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.",

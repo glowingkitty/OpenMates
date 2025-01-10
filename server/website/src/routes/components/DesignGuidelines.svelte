@@ -45,7 +45,7 @@
         <!-- Maximum Good Design Guideline -->
         <DesignGuideline
             main_icon="icon_good"
-            headline="<mark>{$_('design_guidelines.maximum_good.headline.text')}</mark>"
+            headline="<mark>{$_('design_guidelines.maximum_good.headline_1.text')}</mark><br>{$_('design_guidelines.maximum_good.headline_2.text')}"
             subheadings={[
                 {
                     icon: "icon_open_source",
