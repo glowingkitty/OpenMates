@@ -14,6 +14,9 @@
         "discord": "Discord",
         "and_more": "& more"
     },
+    "discord": {
+        "join_server": "Join server"
+    },
     "navigation": {
         "for_all": "For all of us",
         "for_developers": "For Developers",
@@ -72,5 +75,10 @@
                 "app": "app"
             }
         }
+    },
+    "waiting_list": {
+        "discord_members": "Members in our Discord will",
+        "early_access": "get early access.",
+        "first_invites": "First invites in Jan/Feb 2025"
     }
 } 

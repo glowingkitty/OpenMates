@@ -1,5 +1,6 @@
 <script lang="ts">
     import { externalLinks } from '$lib/config/links';
+    import { _ } from 'svelte-i18n';
 </script>
 
 <a
@@ -9,7 +10,7 @@
     class="discord-button"
 >
     <span class="small-icon icon_discord"></span>
-    Join server
+    {$_('discord.join_server')}
 </a>
 
 <style>

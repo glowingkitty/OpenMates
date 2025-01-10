@@ -1,18 +1,22 @@
 <script lang="ts">
     import DiscordButton from './DiscordButton.svelte';
+    import { _ } from 'svelte-i18n';
 </script>
 
 <div class="waiting-list-section">
     <div class="content-wrapper">
         <div class="discord-content">
-            <p class="discord-text">Members in our Discord will<br><mark><bold>get early access.</bold></mark></p>
+            <p class="discord-text">
+                {$_('waiting_list.discord_members')}<br>
+                <mark><bold>{$_('waiting_list.early_access')}</bold></mark>
+            </p>
             <DiscordButton />
         </div>
     </div>
 
     <p class="invites-text">
         <span class="calendar-icon"></span>
-        First invites in Jan/Feb 2025
+        {$_('waiting_list.first_invites')}
     </p>
 </div>
 
