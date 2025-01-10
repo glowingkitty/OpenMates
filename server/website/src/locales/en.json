@@ -1,0 +1,25 @@
+{
+    "digital_team_mates": "Digital Team Mates",
+    "team_mates": "Team Mates",
+    "for_all_of_us": "For all of us.",
+    "activity": {
+        "search": "Search",
+        "filter": "Filter",
+        "close": "Close"
+    },
+    "platforms": {
+        "via": "via",
+        "web": "Web",
+        "mattermost": "Mattermost",
+        "discord": "Discord",
+        "and_more": "& more"
+    },
+    "navigation": {
+        "for_all": "For all of us",
+        "for_developers": "For Developers",
+        "docs": "Docs",
+        "chat": "Chat",
+        "projects": "Projects",
+        "workflows": "Workflows"
+    }
+} 

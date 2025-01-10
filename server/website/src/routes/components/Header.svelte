@@ -4,29 +4,28 @@
     import { externalLinks, routes } from '../../lib/config/links';
     import { isPageVisible } from '../../lib/config/pages';
     import { replaceOpenMates } from '../../lib/actions/replaceText';
+    import { t } from '../../lib/i18n';
 
-    // Add context prop
     export let context: 'website' | 'webapp' = 'website';
 
-    // Separate navigation items for web app and website
-    const websiteNavItems = [
-        { href: routes.home, text: 'For all of us' },
-        { href: routes.developers, text: 'For Developers' },
-        { href: routes.docs.main, text: 'Docs' }
+    // Make navigation items reactive by moving them inside the $: block
+    $: websiteNavItems = [
+        { href: routes.home, text: $t('navigation.for_all') },
+        { href: routes.developers, text: $t('navigation.for_developers') },
+        { href: routes.docs.main, text: $t('navigation.docs') }
     ].filter(item => isPageVisible(item.href));
 
-    // Define interface for nav items
     interface NavItem {
         href: string;
         text: string;
     }
 
-    // Add type annotation to webAppNavItems
-    const webAppNavItems: NavItem[] = [
-        // { href: '/app/chat', text: 'Chat' },
-        // { href: '/app/projects', text: 'Projects' },
-        // { href: '/app/workflows', text: 'Workflows' }
-    ]; // TODO add those pages later
+    // Make webAppNavItems reactive as well
+    $: webAppNavItems = [
+        // { href: '/app/chat', text: $t('navigation.chat') },
+        // { href: '/app/projects', text: $t('navigation.projects') },
+        // { href: '/app/workflows', text: $t('navigation.workflows') }
+    ] as NavItem[];
 
     // Define the type for social links
     type SocialLink = {

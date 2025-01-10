@@ -1,14 +1,18 @@
+<script>
+    import { _ } from 'svelte-i18n'; // Import the translation function
+</script>
+
 <button 
     class="clickable-icon icon_search top-button left" 
-    aria-label="Search"
+    aria-label={$_('activity.search')}
 ></button>
 <button 
     class="clickable-icon icon_filter top-button center" 
-    aria-label="Filter"
+    aria-label={$_('activity.filter')}
 ></button>
 <button 
     class="clickable-icon icon_close top-button right" 
-    aria-label="Close"
+    aria-label={$_('activity.close')}
 ></button>
 
 <style>

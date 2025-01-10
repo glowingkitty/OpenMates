@@ -9,6 +9,7 @@
     import AppIconGrid from './components/AppIconGrid.svelte';
     import { getMetaTags } from '$lib/config/meta';
     import LargeSeparator from './components/LargeSeparator.svelte';
+    import { _ } from 'svelte-i18n'; // Import the translation function
 
     const meta = getMetaTags('for_all_of_us');
 
@@ -35,28 +36,28 @@
                     <span class="app-title">
                         <span class="visually-hidden">{capitalize(currentApp)} </span>
                         <Icon name={currentApp} type="app" size="67.98px" />
-                        Team Mates
+                        {$_('team_mates')}
                     </span>
                 {:else}
-                    Digital Team Mates
+                    {$_('digital_team_mates')}
                 {/if}
-                <mark><br>For all of us.</mark>
+                <mark><br>{$_('for_all_of_us')}</mark>
             </h1>
             <p class="text-center platform-text">
-                via
+                {$_('platforms.via')}
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">Web, </span>
+                    <span class="visually-hidden">{$_('platforms.web')}, </span>
                     <span class="small-icon icon_web"></span>
                 </span>
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">Mattermost, </span>
+                    <span class="visually-hidden">{$_('platforms.mattermost')}, </span>
                     <span class="small-icon icon_mattermost"></span>
                 </span>
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">Discord</span>
+                    <span class="visually-hidden">{$_('platforms.discord')}</span>
                     <span class="small-icon icon_discord"></span>
                 </span>
-                & more
+                {$_('platforms.and_more')}
             </p>
             <div class="chat-container header">
                 <AnimatedChatExamples bind:currentApp={currentApp} />

@@ -22,9 +22,10 @@
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
-		"@fontsource-variable/lexend-deca": "^5.1.0"
+		"@fontsource-variable/lexend-deca": "^5.1.0",
+		"svelte-i18n": "^4.0.1"
 	},
 	"engines": {
-		"node": "18.x"
+		"node": "^20.x"
 	}
 }

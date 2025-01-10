@@ -8,6 +8,7 @@
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
     import '$lib/styles/theme.css';
+    import { locale } from '$lib/i18n';
     import { replaceOpenMates } from '$lib/actions/replaceText';
     import Header from './components/Header.svelte';
     import Footer from './components/Footer.svelte';
@@ -16,8 +17,8 @@
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
 
-    // Initialize theme on mount
-    onMount(() => {
+    // Combined initialization for theme and locale
+    onMount(async () => {
         initializeTheme();
     });
 
@@ -42,21 +43,24 @@
     $: if (browser) {
         document.documentElement.setAttribute('data-theme', $theme);
     }
+
+    // Set initial language based on browser preference or stored setting
+    $: if (browser) {
+        const browserLang = navigator.language.split('-')[0];
+        if (browserLang === 'en' || browserLang === 'de') {
+            $locale = browserLang as 'en' | 'de';
+        }
+    }
 </script>
 
-<!-- Default meta tags for all pages -->
-<MetaTags />
-
-<!-- Header will appear on every page -->
-<Header />
-
-<!-- This is where page-specific content will be rendered -->
-<main use:replaceOpenMates>
-    <slot />
-</main>
-
-<!-- Footer will appear on every page -->
-<Footer />
+<div class="app">
+    <MetaTags />
+    <Header />
+    <main use:replaceOpenMates>
+        <slot />
+    </main>
+    <Footer />
+</div>
 
 <style>
     /* Global styles moved from global.css */
