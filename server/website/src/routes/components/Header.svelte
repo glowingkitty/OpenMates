@@ -10,9 +10,9 @@
 
     // Make navigation items reactive by moving them inside the $: block
     $: websiteNavItems = [
-        { href: routes.home, text: $t('navigation.for_all') },
-        { href: routes.developers, text: $t('navigation.for_developers') },
-        { href: routes.docs.main, text: $t('navigation.docs') }
+        { href: routes.home, text: $t('navigation.for_all.text') },
+        { href: routes.developers, text: $t('navigation.for_developers.text') },
+        { href: routes.docs.main, text: $t('navigation.docs.text') }
     ].filter(item => isPageVisible(item.href));
 
     interface NavItem {
@@ -22,9 +22,9 @@
 
     // Make webAppNavItems reactive as well
     $: webAppNavItems = [
-        // { href: '/app/chat', text: $t('navigation.chat') },
-        // { href: '/app/projects', text: $t('navigation.projects') },
-        // { href: '/app/workflows', text: $t('navigation.workflows') }
+        // { href: '/app/chat', text: $t('navigation.chat.text') },
+        // { href: '/app/projects', text: $t('navigation.projects.text') },
+        // { href: '/app/workflows', text: $t('navigation.workflows.text') }
     ] as NavItem[];
 
     // Define the type for social links

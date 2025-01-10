@@ -19,7 +19,7 @@
             title_key: "footer.sections.website",
             title: "Website",
             links: [
-                { href: routes.home, text: "For everyone", translation_key: "footer.sections.for_everyone", external: false },
+                { href: routes.home, text: "For all of us", translation_key: "footer.sections.for_everyone", external: false },
                 { href: routes.developers, text: "For developers", translation_key: "footer.sections.for_developers", external: false }
             ]
         },
