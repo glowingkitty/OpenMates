@@ -996,6 +996,192 @@
                     "context": "Email contact label"
                 }
             }
+        },
+        "terms": {
+            "title": {
+                "text": "Allgemeine Geschäftsbedingungen",
+                "en_original": "Terms and Conditions",
+                "context": "Title of terms and conditions page"
+            },
+            "last_updated": {
+                "text": "Zuletzt aktualisiert",
+                "en_original": "Last Updated",
+                "context": "Last update date label"
+            },
+            "agreement": {
+                "heading": {
+                    "text": "Zustimmung zu den Bedingungen",
+                    "en_original": "Agreement to Terms",
+                    "context": "Section heading for agreement"
+                },
+                "description": {
+                    "text": "Durch den Zugriff auf und die Nutzung der OpenMates-Website (\"Website\") akzeptieren Sie diese Allgemeinen Geschäftsbedingungen und erklären sich damit einverstanden, an diese gebunden zu sein. Wenn Sie mit einem Teil dieser Bedingungen nicht einverstanden sind, dürfen Sie nicht auf die Website zugreifen.",
+                    "en_original": "By accessing and using the OpenMates website (\"Website\"), you accept and agree to be bound by these Terms and Conditions. If you disagree with any part of these terms, you may not access the Website.",
+                    "context": "Agreement explanation"
+                }
+            },
+            "about": {
+                "heading": {
+                    "text": "Über OpenMates",
+                    "en_original": "About OpenMates",
+                    "context": "Section heading about OpenMates"
+                },
+                "description": {
+                    "text": "OpenMates ist derzeit ein Closed-Source-Softwareprojekt in der ersten Entwicklungsphase. Dieser temporäre Closed-Source-Status wird beibehalten, um Sicherheit und Stabilität während der frühen Entwicklungs- und Beta-Testphasen zu gewährleisten. Das Projekt wird nach Abschluss der ersten Beta-Tests und Sicherheitsüberprüfungen zu Open-Source übergehen. Diese Website dient als Informationsplattform über das OpenMates-Projekt und seinen Entwicklungsfortschritt.",
+                    "en_original": "OpenMates is currently a closed-source software project during its initial development phase. This temporary closed-source status is maintained to ensure security and stability during the early development and beta testing phases. The project will transition to open-source after the completion of initial beta testing and security reviews. This Website serves as an informational platform about the OpenMates project and its development progress.",
+                    "context": "About section text"
+                }
+            },
+            "intellectual_property": {
+                "heading": {
+                    "text": "Geistiges Eigentum",
+                    "en_original": "Intellectual Property Rights",
+                    "context": "Section heading for IP rights"
+                },
+                "description": {
+                    "text": "Der OpenMates-Name, das Logo und alle zugehörigen Inhalte auf dieser Website sind geistiges Eigentum des Website-Betreibers (siehe Impressum) und durch geltende Urheber- und Markenrechte geschützt. Sobald das Projekt zu Open-Source übergeht, werden spezifische Lizenzbedingungen separat durch entsprechende Open-Source-Dokumentation bereitgestellt.",
+                    "en_original": "The OpenMates name, logo, and all related content on this Website are the intellectual property of the website owner (see Imprint) and are protected by applicable copyright and trademark laws. Once the project transitions to open-source, specific licensing terms will be provided separately through appropriate open-source documentation.",
+                    "context": "Intellectual property rights explanation"
+                }
+            },
+            "disclaimer": {
+                "heading": {
+                    "text": "Haftungsausschluss",
+                    "en_original": "Disclaimer",
+                    "context": "Section heading for disclaimer"
+                },
+                "description": {
+                    "text": "Die Materialien und Informationen auf dieser Website werden 'wie besehen' und ohne jegliche Garantien zur Verfügung gestellt. Wir garantieren nicht die Richtigkeit, Vollständigkeit oder Nützlichkeit der Informationen auf dieser Website. Jegliches Vertrauen, das Sie in solche Informationen setzen, erfolgt ausschließlich auf Ihr eigenes Risiko.",
+                    "en_original": "The materials and information on this Website are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information on this Website. Any reliance you place on such information is strictly at your own risk.",
+                    "context": "Disclaimer explanation"
+                }
+            },
+            "limitations": {
+                "heading": {
+                    "text": "Haftungsbeschränkungen",
+                    "en_original": "Limitations",
+                    "context": "Section heading for limitations"
+                },
+                "description": {
+                    "text": "Im größtmöglichen gesetzlich zulässigen Umfang haftet der Website-Betreiber nicht für direkte, indirekte, zufällige, Folge- oder besondere Schäden, die sich ergeben aus oder in irgendeiner Weise verbunden sind mit:",
+                    "en_original": "To the fullest extent permitted by law, the website owner shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in any way connected with:",
+                    "context": "Limitations introduction"
+                },
+                "list": {
+                    "website_use": {
+                        "text": "Der Nutzung oder Unmöglichkeit der Nutzung dieser Website",
+                        "en_original": "The use or inability to use this Website",
+                        "context": "Limitation regarding website use"
+                    },
+                    "information": {
+                        "text": "Den auf dieser Website bereitgestellten Informationen",
+                        "en_original": "The information provided on this Website",
+                        "context": "Limitation regarding information"
+                    },
+                    "technical": {
+                        "text": "Technischen Problemen oder Unterbrechungen",
+                        "en_original": "Any technical issues or interruptions",
+                        "context": "Limitation regarding technical issues"
+                    }
+                }
+            },
+            "governing_law": {
+                "heading": {
+                    "text": "Geltendes Recht",
+                    "en_original": "Governing Law",
+                    "context": "Section heading for governing law"
+                },
+                "explanation": {
+                    "text": "Diese Allgemeinen Geschäftsbedingungen unterliegen dem Recht der Bundesrepublik Deutschland und werden nach diesem ausgelegt. Details zum zuständigen Gerichtsstand und Kontaktinformationen finden Sie in unserem Impressum.",
+                    "en_original": "These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our Imprint.",
+                    "context": "Governing law explanation"
+                }
+            },
+            "contact": {
+                "heading": {
+                    "text": "Kontaktinformationen",
+                    "en_original": "Contact Information",
+                    "context": "Section heading for contact information"
+                },
+                "intro": {
+                    "text": "Bei Fragen zu diesen AGB:",
+                    "en_original": "For questions about these Terms:",
+                    "context": "Contact section introduction"
+                },
+                "email_label": {
+                    "text": "E-Mail",
+                    "en_original": "Email",
+                    "context": "Email label"
+                }
+            },
+            "use_license": {
+                "heading": {
+                    "text": "Nutzungslizenz",
+                    "en_original": "Use License",
+                    "context": "Section heading for use license"
+                },
+                "description": {
+                    "text": "Die Erlaubnis wird erteilt, vorübergehend auf die Materialien auf unserer Website ausschließlich für persönliche, nicht-kommerzielle Informationszwecke zuzugreifen. Dies ist die Gewährung einer Lizenz, nicht die Übertragung eines Titels, und unter dieser Lizenz dürfen Sie nicht:",
+                    "en_original": "Permission is granted to temporarily access the materials on our Website for personal, non-commercial informational purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:",
+                    "context": "License terms explanation"
+                },
+                "restrictions": {
+                    "modify": {
+                        "text": "Die Materialien modifizieren oder kopieren",
+                        "en_original": "Modify or copy the materials",
+                        "context": "License restriction about modification"
+                    },
+                    "commercial": {
+                        "text": "Die Materialien für kommerzielle Zwecke nutzen",
+                        "en_original": "Use the materials for any commercial purpose",
+                        "context": "License restriction about commercial use"
+                    },
+                    "reverse_engineer": {
+                        "text": "Versuchen, jegliche Software auf der Website zurückzuentwickeln",
+                        "en_original": "Attempt to reverse engineer any software contained on the Website",
+                        "context": "License restriction about reverse engineering"
+                    },
+                    "copyright": {
+                        "text": "Urheberrechts- oder andere Eigentumsvermerke aus den Materialien entfernen",
+                        "en_original": "Remove any copyright or other proprietary notations from the materials",
+                        "context": "License restriction about copyright removal"
+                    }
+                }
+            },
+            "discord": {
+                "heading": {
+                    "text": "Discord-Community",
+                    "en_original": "Discord Community",
+                    "context": "Section heading for Discord community"
+                },
+                "description": {
+                    "text": "Der Zugang zu unserer Discord-Community wird als ergänzender Service bereitgestellt. Wenn Sie unserer Discord-Community beitreten, stimmen Sie zu:",
+                    "en_original": "Access to our Discord community is provided as a complementary service. When joining our Discord community, you agree to:",
+                    "context": "Discord community introduction"
+                },
+                "rules": {
+                    "tos": {
+                        "text": "Die Discord-Nutzungsbedingungen und Community-Richtlinien einzuhalten",
+                        "en_original": "Comply with Discord's Terms of Service and Community Guidelines",
+                        "context": "Discord rule about ToS compliance"
+                    },
+                    "age": {
+                        "text": "Mindestens 16 Jahre alt zu sein oder die Zustimmung der Eltern zu haben",
+                        "en_original": "Be at least 16 years old or have parental consent",
+                        "context": "Discord rule about age requirement"
+                    },
+                    "respect": {
+                        "text": "Sich respektvoll gegenüber anderen Community-Mitgliedern zu verhalten",
+                        "en_original": "Behave respectfully towards other community members",
+                        "context": "Discord rule about respectful behavior"
+                    },
+                    "content": {
+                        "text": "Keine unangemessenen, illegalen oder schädlichen Inhalte zu teilen",
+                        "en_original": "Not share inappropriate, illegal, or harmful content",
+                        "context": "Discord rule about content restrictions"
+                    }
+                }
+            }
         }
     }
 }

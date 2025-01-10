@@ -2,6 +2,7 @@
     import { externalLinks } from '$lib/config/links';
     import MetaTags from '../../components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
+    import { _ } from 'svelte-i18n';
 
     const meta = getMetaTags('legalTerms');
 
@@ -16,73 +17,71 @@
 <MetaTags {...meta} />
 
 <div class="legal-container">
-    <h1>Terms and Conditions</h1>
+    <h1>{$_('legal.terms.title.text')}</h1>
     
-    <p class="last-updated">Last Updated: {buildDate}</p>
+    <p class="last-updated">{$_('legal.terms.last_updated.text')}: {buildDate}</p>
 
     <section>
-        <h2>1. Agreement to Terms</h2>
-        <p>By accessing and using the OpenMates website ("Website"), you accept and agree to be bound by these Terms and Conditions. If you disagree with any part of these terms, you may not access the Website.</p>
+        <h2>1. {$_('legal.terms.agreement.heading.text')}</h2>
+        <p>{$_('legal.terms.agreement.description.text')}</p>
     </section>
 
     <section>
-        <h2>2. About OpenMates</h2>
-        <p>OpenMates is currently a closed-source software project during its initial development phase. This temporary closed-source status is maintained to ensure security and stability during the early development and beta testing phases. The project will transition to open-source after the completion of initial beta testing and security reviews.</p>
-        <p>This Website serves as an informational platform about the OpenMates project and its development progress.</p>
+        <h2>2. {$_('legal.terms.about.heading.text')}</h2>
+        <p>{$_('legal.terms.about.description.text')}</p>
     </section>
 
     <section>
-        <h2>3. Intellectual Property Rights</h2>
-        <p>The OpenMates name, logo, and all related content on this Website are the intellectual property of the website owner (see <a href="/legal/imprint">Imprint</a>) and are protected by applicable copyright and trademark laws.</p>
-        <p>Once the project transitions to open-source, specific licensing terms will be provided separately through appropriate open-source documentation.</p>
+        <h2>3. {$_('legal.terms.intellectual_property.heading.text')}</h2>
+        <p>{$_('legal.terms.intellectual_property.description.text')}</p>
     </section>
 
     <section>
-        <h2>4. Use License</h2>
-        <p>Permission is granted to temporarily access the materials on our Website for personal, non-commercial informational purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:</p>
+        <h2>4. {$_('legal.terms.use_license.heading.text')}</h2>
+        <p>{$_('legal.terms.use_license.description.text')}</p>
         <ul>
-            <li>Modify or copy the materials</li>
-            <li>Use the materials for any commercial purpose</li>
-            <li>Attempt to reverse engineer any software contained on the Website</li>
-            <li>Remove any copyright or other proprietary notations from the materials</li>
+            <li>{$_('legal.terms.use_license.restrictions.modify.text')}</li>
+            <li>{$_('legal.terms.use_license.restrictions.commercial.text')}</li>
+            <li>{$_('legal.terms.use_license.restrictions.reverse_engineer.text')}</li>
+            <li>{$_('legal.terms.use_license.restrictions.copyright.text')}</li>
         </ul>
     </section>
 
     <section>
-        <h2>5. Discord Community</h2>
-        <p>Access to our Discord community is provided as a complementary service. When joining our Discord community, you agree to:</p>
+        <h2>5. {$_('legal.terms.discord.heading.text')}</h2>
+        <p>{$_('legal.terms.discord.description.text')}</p>
         <ul>
-            <li>Comply with Discord's Terms of Service and Community Guidelines</li>
-            <li>Be at least 16 years old or have parental consent</li>
-            <li>Behave respectfully towards other community members</li>
-            <li>Not share inappropriate, illegal, or harmful content</li>
+            <li>{$_('legal.terms.discord.rules.tos.text')}</li>
+            <li>{$_('legal.terms.discord.rules.age.text')}</li>
+            <li>{$_('legal.terms.discord.rules.respect.text')}</li>
+            <li>{$_('legal.terms.discord.rules.content.text')}</li>
         </ul>
     </section>
 
     <section>
-        <h2>6. Disclaimer</h2>
-        <p>The materials and information on this Website are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information on this Website. Any reliance you place on such information is strictly at your own risk.</p>
+        <h2>6. {$_('legal.terms.disclaimer.heading.text')}</h2>
+        <p>{$_('legal.terms.disclaimer.description.text')}</p>
     </section>
 
     <section>
-        <h2>7. Limitations</h2>
-        <p>To the fullest extent permitted by law, the website owner shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in any way connected with:</p>
+        <h2>7. {$_('legal.terms.limitations.heading.text')}</h2>
+        <p>{$_('legal.terms.limitations.description.text')}</p>
         <ul>
-            <li>The use or inability to use this Website</li>
-            <li>The information provided on this Website</li>
-            <li>Any technical issues or interruptions</li>
+            <li>{$_('legal.terms.limitations.list.website_use.text')}</li>
+            <li>{$_('legal.terms.limitations.list.information.text')}</li>
+            <li>{$_('legal.terms.limitations.list.technical.text')}</li>
         </ul>
     </section>
 
     <section>
-        <h2>8. Governing Law</h2>
-        <p>These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our <a href="/legal/imprint">Imprint</a>.</p>
+        <h2>8. {$_('legal.terms.governing_law.heading.text')}</h2>
+        <p>{$_('legal.terms.governing_law.explanation.text')}</p>
     </section>
 
     <section>
-        <h2>9. Contact Information</h2>
-        <p>For questions about these Terms:</p>
-        <p>Email: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
+        <h2>9. {$_('legal.terms.contact.heading.text')}</h2>
+        <p>{$_('legal.terms.contact.intro.text')}</p>
+        <p>{$_('legal.terms.contact.email_label.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </div>
 
