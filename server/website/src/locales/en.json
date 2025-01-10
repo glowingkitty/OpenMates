@@ -34,12 +34,32 @@
                 "book_club": "Book Lovers' Social: An Evening of Reading and Discussion",
                 "tech_talk": "TechTalk: AI in Everyday Business",
                 "workshop": "Workshop: Building AI-Powered Applications"
+            },
+            "calendar": {
+                "today": "Today",
+                "dec_15": "Dec 15",
+                "dec_16": "Dec 16"
             }
         },
         "health": {
             "user_question": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
             "mate_initial": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
-            "mate_response": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day."
+            "mate_response": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+            "doctors": {
+                "van_hausen": "Dr. Van Hausen",
+                "williams": "Dr. Williams",
+                "chen": "Dr. Chen",
+                "specialty": "Cardiologist"
+            },
+            "calendar": {
+                "today": "Today",
+                "wed": "Wed, Dec 12",
+                "thu": "Thu, Dec 13",
+                "fri": "Fri, Dec 14"
+            }
+        },
+        "processing": {
+            "career_insights": "Career insights"
         }
     }
 } 
