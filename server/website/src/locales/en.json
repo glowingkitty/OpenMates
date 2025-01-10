@@ -1,84 +1,234 @@
 {
-    "digital_team_mates": "Digital Team Mates",
-    "team_mates": "Team Mates",
-    "for_all_of_us": "For all of us.",
+    "digital_team_mates": {
+        "text": "Digital Team Mates",
+        "context": "Used as main headline on the landing page"
+    },
+    "team_mates": {
+        "text": "Team Mates",
+        "context": "Used in team member listing sections"
+    },
+    "for_all_of_us": {
+        "text": "For all of us.",
+        "context": "Tagline appearing below the main headline"
+    },
     "activity": {
-        "search": "Search",
-        "filter": "Filter",
-        "close": "Close"
+        "search": {
+            "text": "Search",
+            "context": "Used in search input placeholder"
+        },
+        "filter": {
+            "text": "Filter",
+            "context": "Button text for filtering options"
+        },
+        "close": {
+            "text": "Close",
+            "context": "Modal close button"
+        }
     },
     "platforms": {
-        "via": "via",
-        "web": "Web",
-        "mattermost": "Mattermost",
-        "discord": "Discord",
-        "and_more": "& more"
+        "via": {
+            "text": "via",
+            "context": "Preposition used when indicating platform source"
+        },
+        "web": {
+            "text": "Web",
+            "context": "Platform name for browser-based access"
+        },
+        "mattermost": {
+            "text": "Mattermost",
+            "context": "Chat platform name"
+        },
+        "discord": {
+            "text": "Discord",
+            "context": "Chat platform name"
+        },
+        "and_more": {
+            "text": "& more",
+            "context": "Used at the end of platform list"
+        }
     },
     "discord": {
-        "join_server": "Join server"
+        "join_server": {
+            "text": "Join server",
+            "context": "Button text for joining Discord server"
+        }
     },
     "navigation": {
-        "for_all": "For all of us",
-        "for_developers": "For Developers",
-        "docs": "Docs",
-        "chat": "Chat",
-        "projects": "Projects",
-        "workflows": "Workflows"
+        "for_all": {
+            "text": "For all of us",
+            "context": "Main navigation item for general features"
+        },
+        "for_developers": {
+            "text": "For Developers",
+            "context": "Main navigation item for developer features"
+        },
+        "docs": {
+            "text": "Docs",
+            "context": "Navigation item for documentation"
+        },
+        "chat": {
+            "text": "Chat",
+            "context": "Navigation item for chat feature"
+        },
+        "projects": {
+            "text": "Projects",
+            "context": "Navigation item for projects section"
+        },
+        "workflows": {
+            "text": "Workflows",
+            "context": "Navigation item for workflow management"
+        }
     },
     "chat_examples": {
         "career": {
-            "user_question": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
-            "mate_response": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?"
+            "user_question": {
+                "text": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+                "context": "Example question about career change"
+            },
+            "mate_response": {
+                "text": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "context": "AI response to career change question"
+            }
         },
         "events": {
-            "user_question": "What events are happening the coming days?",
-            "mate_response": "There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.",
+            "user_question": {
+                "text": "What events are happening the coming days?",
+                "context": "Example question about upcoming events"
+            },
+            "mate_response": {
+                "text": "There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.",
+                "context": "AI response about upcoming events"
+            },
             "events": {
-                "book_club": "Book Lovers' Social: An Evening of Reading and Discussion",
-                "tech_talk": "TechTalk: AI in Everyday Business",
-                "workshop": "Workshop: Building AI-Powered Applications"
+                "book_club": {
+                    "text": "Book Lovers' Social: An Evening of Reading and Discussion",
+                    "context": "Event title for book club"
+                },
+                "tech_talk": {
+                    "text": "TechTalk: AI in Everyday Business",
+                    "context": "Event title for tech talk"
+                },
+                "workshop": {
+                    "text": "Workshop: Building AI-Powered Applications",
+                    "context": "Event title for workshop"
+                }
             },
             "calendar": {
-                "today": "Today",
-                "dec_15": "Dec 15",
-                "dec_16": "Dec 16"
+                "today": {
+                    "text": "Today",
+                    "context": "Calendar reference to current day"
+                },
+                "dec_15": {
+                    "text": "Dec 15",
+                    "context": "Calendar date"
+                },
+                "dec_16": {
+                    "text": "Dec 16",
+                    "context": "Calendar date"
+                }
             }
         },
         "health": {
-            "user_question": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
-            "mate_initial": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
-            "mate_response": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+            "user_question": {
+                "text": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
+                "context": "Example question about doctor appointment"
+            },
+            "mate_initial": {
+                "text": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
+                "context": "Initial AI response about checking calendar"
+            },
+            "mate_response": {
+                "text": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+                "context": "AI response with found appointment"
+            },
             "doctors": {
-                "van_hausen": "Dr. Van Hausen",
-                "williams": "Dr. Williams",
-                "chen": "Dr. Chen",
-                "specialty": "Cardiologist"
+                "van_hausen": {
+                    "text": "Dr. Van Hausen",
+                    "context": "Doctor name"
+                },
+                "williams": {
+                    "text": "Dr. Williams",
+                    "context": "Doctor name"
+                },
+                "chen": {
+                    "text": "Dr. Chen",
+                    "context": "Doctor name"
+                },
+                "specialty": {
+                    "text": "Cardiologist",
+                    "context": "Medical specialty"
+                }
             },
             "calendar": {
-                "today": "Today",
-                "wed": "Wed, Dec 12",
-                "thu": "Thu, Dec 13",
-                "fri": "Fri, Dec 14"
+                "today": {
+                    "text": "Today",
+                    "context": "Calendar reference to current day"
+                },
+                "wed": {
+                    "text": "Wed, Dec 12",
+                    "context": "Calendar date"
+                },
+                "thu": {
+                    "text": "Thu, Dec 13",
+                    "context": "Calendar date"
+                },
+                "fri": {
+                    "text": "Fri, Dec 14",
+                    "context": "Calendar date"
+                }
             }
         },
         "processing": {
-            "career_insights": "Career insights",
+            "career_insights": {
+                "text": "Career insights",
+                "context": "Title for career insights section"
+            },
             "status": {
-                "loaded": "Loaded",
-                "started": "Started",
-                "using": "Using",
-                "used": "Used"
+                "loaded": {
+                    "text": "Loaded",
+                    "context": "Status indicator for loading state"
+                },
+                "started": {
+                    "text": "Started",
+                    "context": "Status indicator for started state"
+                },
+                "using": {
+                    "text": "Using",
+                    "context": "Status indicator for in-use state"
+                },
+                "used": {
+                    "text": "Used",
+                    "context": "Status indicator for used state"
+                }
             },
             "details": {
-                "preferences": "preferences",
-                "apps": "apps",
-                "app": "app"
+                "preferences": {
+                    "text": "preferences",
+                    "context": "Settings or preferences section"
+                },
+                "apps": {
+                    "text": "apps",
+                    "context": "Plural form of application"
+                },
+                "app": {
+                    "text": "app",
+                    "context": "Single application"
+                }
             }
         }
     },
     "waiting_list": {
-        "discord_members": "Members in our Discord will",
-        "early_access": "get early access.",
-        "first_invites": "First invites in Jan/Feb 2025"
+        "discord_members": {
+            "text": "Members in our Discord will",
+            "context": "Part of waiting list message about Discord members"
+        },
+        "early_access": {
+            "text": "get early access.",
+            "context": "Part of waiting list message about early access"
+        },
+        "first_invites": {
+            "text": "First invites in Jan/Feb 2025",
+            "context": "Timeline for first invites"
+        }
     }
 } 

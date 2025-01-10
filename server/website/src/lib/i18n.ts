@@ -17,7 +17,7 @@ export const t = derived(
     ($locale) => (key: string) => {
         const parts = key.split('.');
         let translation: any = translations[$locale];
-        
+
         for (const part of parts) {
             translation = translation?.[part];
             if (!translation) {
@@ -25,7 +25,7 @@ export const t = derived(
                 return key;
             }
         }
-        
-        return translation;
+
+        return typeof translation === 'object' ? translation.text : translation;
     }
 ); 

@@ -18,13 +18,13 @@
     const getStatusText = (type: ProcessingType, inProgress: boolean): string => {
         switch (type) {
             case 'loaded_preferences':
-                return $_('chat_examples.processing.status.loaded');
+                return $_('chat_examples.processing.status.loaded.text');
             case 'started_focus':
-                return $_('chat_examples.processing.status.started');
+                return $_('chat_examples.processing.status.started.text');
             case 'using_apps':
                 return inProgress 
-                    ? $_('chat_examples.processing.status.using')
-                    : $_('chat_examples.processing.status.used');
+                    ? $_('chat_examples.processing.status.using.text')
+                    : $_('chat_examples.processing.status.used.text');
             default:
                 return '';
         }
@@ -34,13 +34,13 @@
     const getDetailText = (type: ProcessingType): string => {
         switch (type) {
             case 'loaded_preferences':
-                return $_('chat_examples.processing.details.preferences');
+                return $_('chat_examples.processing.details.preferences.text');
             case 'started_focus':
                 return focusName;
             case 'using_apps':
                 return appNames.length > 1 
-                    ? $_('chat_examples.processing.details.apps')
-                    : $_('chat_examples.processing.details.app');
+                    ? $_('chat_examples.processing.details.apps.text')
+                    : $_('chat_examples.processing.details.app.text');
             default:
                 return '';
         }

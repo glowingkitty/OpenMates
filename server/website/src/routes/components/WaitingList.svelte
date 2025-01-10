@@ -7,8 +7,8 @@
     <div class="content-wrapper">
         <div class="discord-content">
             <p class="discord-text">
-                {$_('waiting_list.discord_members')}<br>
-                <mark><bold>{$_('waiting_list.early_access')}</bold></mark>
+                {$_('waiting_list.discord_members.text')}<br>
+                <mark><bold>{$_('waiting_list.early_access.text')}</bold></mark>
             </p>
             <DiscordButton />
         </div>
@@ -16,7 +16,7 @@
 
     <p class="invites-text">
         <span class="calendar-icon"></span>
-        {$_('waiting_list.first_invites')}
+        {$_('waiting_list.first_invites.text')}
     </p>
 </div>
 

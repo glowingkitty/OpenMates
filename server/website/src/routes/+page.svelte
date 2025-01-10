@@ -36,28 +36,28 @@
                     <span class="app-title">
                         <span class="visually-hidden">{capitalize(currentApp)} </span>
                         <Icon name={currentApp} type="app" size="67.98px" />
-                        {$_('team_mates')}
+                        {$_('team_mates.text')}
                     </span>
                 {:else}
-                    {$_('digital_team_mates')}
+                    {$_('digital_team_mates.text')}
                 {/if}
-                <mark><br>{$_('for_all_of_us')}</mark>
+                <mark><br>{$_('for_all_of_us.text')}</mark>
             </h1>
             <p class="text-center platform-text">
-                {$_('platforms.via')}
+                {$_('platforms.via.text')}
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">{$_('platforms.web')}, </span>
+                    <span class="visually-hidden">{$_('platforms.web.text')}, </span>
                     <span class="small-icon icon_web"></span>
                 </span>
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">{$_('platforms.mattermost')}, </span>
+                    <span class="visually-hidden">{$_('platforms.mattermost.text')}, </span>
                     <span class="small-icon icon_mattermost"></span>
                 </span>
                 <span class="platform-wrapper">
-                    <span class="visually-hidden">{$_('platforms.discord')}</span>
+                    <span class="visually-hidden">{$_('platforms.discord.text')}</span>
                     <span class="small-icon icon_discord"></span>
                 </span>
-                {$_('platforms.and_more')}
+                {$_('platforms.and_more.text')}
             </p>
             <div class="chat-container header">
                 <AnimatedChatExamples bind:currentApp={currentApp} />
