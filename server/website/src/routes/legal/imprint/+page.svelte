@@ -2,6 +2,7 @@
     import { externalLinks } from '$lib/config/links';
     import MetaTags from '../../components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
+    import { _ } from 'svelte-i18n';
 
     const meta = getMetaTags('legalImprint');
 </script>
@@ -9,10 +10,10 @@
 <MetaTags {...meta} />
 
 <div class="legal-container">
-    <h1>Legal Notice (Imprint)</h1>
+    <h1>{$_('legal.imprint.title.text')}</h1>
 
     <section>
-        <h2>Information according to § 5 TMG</h2>
+        <h2>{$_('legal.imprint.information_tmg.text')}</h2>
         <p><span class="contact-info info-1"></span></p>
         <p><span class="contact-info info-2"></span></p>
         <p><span class="contact-info info-3"></span></p>
@@ -20,8 +21,8 @@
     </section>
 
     <section>
-        <h2>Contact</h2>
-        <p>Email: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
+        <h2>{$_('legal.imprint.contact.text')}</h2>
+        <p>{$_('legal.imprint.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </div>
 

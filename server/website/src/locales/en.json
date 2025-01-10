@@ -682,5 +682,25 @@
                 "context": "Email contact link"
             }
         }
+    },
+    "legal": {
+        "imprint": {
+            "title": {
+                "text": "Legal Notice (Imprint)",
+                "context": "Title of the legal imprint page"
+            },
+            "information_tmg": {
+                "text": "Information according to § 5 TMG",
+                "context": "Legal information section header"
+            },
+            "contact": {
+                "text": "Contact",
+                "context": "Contact section header in imprint"
+            },
+            "email": {
+                "text": "Email",
+                "context": "Email label in contact section"
+            }
+        }
     }
 } 

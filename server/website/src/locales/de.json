@@ -834,5 +834,29 @@
                 "context": "Email contact link"
             }
         }
+    },
+    "legal": {
+        "imprint": {
+            "title": {
+                "text": "Impressum",
+                "en_original": "Legal Notice (Imprint)",
+                "context": "Title of the legal imprint page"
+            },
+            "information_tmg": {
+                "text": "Angaben gemäß § 5 TMG",
+                "en_original": "Information according to § 5 TMG",
+                "context": "Legal information section header"
+            },
+            "contact": {
+                "text": "Kontakt",
+                "en_original": "Contact",
+                "context": "Contact section header in imprint"
+            },
+            "email": {
+                "text": "E-Mail",
+                "en_original": "Email",
+                "context": "Email label in contact section"
+            }
+        }
     }
 }
