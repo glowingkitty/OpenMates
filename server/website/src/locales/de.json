@@ -298,5 +298,25 @@
                 "context": "Used in 'Events | Search'"
             }
         }
+    },
+    "chat": {
+        "new_chat": {
+            "text": "Neuer Chat",
+            "context": "Button label for creating a new chat"
+        },
+        "start_audio_call": {
+            "text": "Audioanruf starten",
+            "context": "Button label for starting an audio call"
+        },
+        "welcome": {
+            "hey": {
+                "text": "Hallo",
+                "context": "Welcome greeting in chat"
+            },
+            "what_do_you_need_help_with": {
+                "text": "Wie kann man dir helfen?",
+                "context": "Help prompt message in chat"
+            }
+        }
     }
 }

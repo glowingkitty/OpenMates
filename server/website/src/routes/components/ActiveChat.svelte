@@ -1,6 +1,7 @@
 <script>
     import EnterMessageField from './enter_message/EnterMessageField.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
+    import { _ } from 'svelte-i18n'; // Import translation function
 
     // Subscribe to store values
     $: isTeamEnabled = $teamEnabled;
@@ -11,19 +12,19 @@
 <div class="active-chat-container" class:dimmed={isDimmed}>
     <button 
         class="clickable-icon icon_create top-button left" 
-        aria-label="New chat"
+        aria-label={$_('chat.new_chat.text')}
     ></button>
     <button 
         class="clickable-icon icon_call top-button right" 
-        aria-label="Start audio call"
+        aria-label={$_('chat.start_audio_call.text')}
     ></button>
     <!-- Center content wrapper -->
     <div class="center-content">
         <div class="team-profile">
             <div class="team-image" class:disabled={!isTeamEnabled}></div>
             <div class="welcome-text">
-                <h2>Hey Kitty!</h2>
-                <p>What do you need help with?</p>
+                <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
+                <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
             </div>
         </div>
     </div>
