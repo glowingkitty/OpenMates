@@ -1,24 +1,23 @@
 <script lang="ts">
     import DiscordButton from './DiscordButton.svelte';
+    import { _ } from 'svelte-i18n';
 </script>
 
 <div class="community-section">
     <div class="content">
-        <h3>Community</h3>
+        <h3>{$_('community.heading.text')}</h3>
         <!-- Community icon -->
         <div>
             <div class="main-icon icon_team"></div>
-            <h2><mark>Join</mark> the development</h2>
+            <h2><mark>{$_('community.join_development_1.text')}</mark> {$_('community.join_development_2.text')}</h2>
         </div>
 
         <!-- Community text -->
         <p>
-            OpenMates is a community effort. From software developers, to designers, 
-            to users who are just excited about how AI can help them at work and in 
-            everyday life - everyone can contribute in valuable ways.
+            {$_('community.description.text')}
         </p>
         <p class="join-text">
-            For more infos, join us on Discord.
+            {$_('community.join_discord.text')}
         </p>
 
         <!-- Discord button -->

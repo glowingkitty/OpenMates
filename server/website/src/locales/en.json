@@ -578,5 +578,27 @@
                 "context": "Maximum good feature - universal chat"
             }
         }
+    },
+    "community": {
+        "heading": {
+            "text": "Community",
+            "context": "Section heading for community section"
+        },
+        "join_development_1": {
+            "text": "Join",
+            "context": "Used in 'Join the development'"
+        },
+        "join_development_2": {
+            "text": "the development",
+            "context": "Used in 'Join the development'"
+        },
+        "description": {
+            "text": "OpenMates is a community effort. From software developers, to designers, to users who are just excited about how AI can help them at work and in everyday life - everyone can contribute in valuable ways.",
+            "context": "Main description of the community and contribution opportunities"
+        },
+        "join_discord": {
+            "text": "For more infos, join us on Discord.",
+            "context": "Call to action for joining Discord community"
+        }
     }
 } 
