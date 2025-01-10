@@ -241,6 +241,62 @@
                 "text": "cloud & on-device AI models",
                 "context": "Used in 'powered by the leading cloud & on-device AI models'"
             }
+        },
+        "sections": {
+            "ask": {
+                "heading": {
+                    "text": "Ask",
+                    "context": "Used in 'Ask your personalized experts for your questions'"
+                }
+            },
+            "tasks": {
+                "heading": {
+                    "text": "Tasks",
+                    "context": "Section heading for the Tasks feature"
+                }
+            },
+            "apps": {
+                "heading": {
+                    "text": "Apps",
+                    "context": "Section heading for the Apps feature"
+                }
+            }
+        },
+        "api": {
+            "example_input": {
+                "text": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+                "context": "Example API input for career guidance"
+            },
+            "example_output": {
+                "text": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "context": "Example API response for career guidance"
+            },
+            "search_input": {
+                "text": "AI, beginner",
+                "context": "Example search input for events API"
+            },
+            "search_output_title": {
+                "text": "AI, Projects, Resources, and the Future - A Glimpse into Tomorrow",
+                "context": "Example event title in API response"
+            }
+        },
+        "ui": {
+            "calendar": {
+                "text": "Calendar",
+                "context": "Calendar app name in the UI"
+            },
+            "health": {
+                "text": "Health",
+                "context": "Health app name in the UI"
+            },
+            "events": {
+                "text": "Events",
+                 "context": "Used in 'Events | Search'"
+            },
+            "search": {
+                "text": "Search",
+                "context": "Used in 'Events | Search'"
+            }
         }
     }
 } 

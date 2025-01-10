@@ -88,7 +88,7 @@
 >
     <!-- Text content with conditional alignment -->
     <div class={`highlight-content text-${text_side}`}>
-        <h3 class="subheading">{sub_heading}</h3>
+        <h3 class="subheading">{$_(`highlight.sections.${sub_heading.toLowerCase()}.heading.text`)}</h3>
         <h2 class="title">{@html processMarkTags(main_heading)}</h2>
         <p class="description">{@html processMarkTags(paragraph)}</p>
     </div>
@@ -121,9 +121,9 @@
                         <APIexample
                             method="POST"
                             endpoint="/api/v1/mates/ask"
-                            input="I am unhappy in my current job. Any ideas in what direction I could go instead?"
+                            input={$_('highlight.api.example_input.text')}
                             output={{
-                                message: "Of course! Since you mentioned that you have a <b>background in marketing</b> and <b>enjoy storytelling</b>, we could look for roles that leverage those skills.<br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?"
+                                message: $_('highlight.api.example_output.text')
                             }}
                         />
                     {:else}
@@ -144,7 +144,7 @@
                         <div class="icon app-health"></div>
                     </div>
                     <div class="icons-text">
-                        Calendar <mark>+</mark> Health
+                        {$_('highlight.ui.calendar.text')} <mark>+</mark> {$_('highlight.ui.health.text')}
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
@@ -177,7 +177,7 @@
                         <div class="icon skill-icon skill-search"></div>
                     </div>
                     <div class="icons-text">
-                        Events | <mark>Search</mark>
+                        {$_('highlight.ui.events.text')} | <mark>{$_('highlight.ui.search.text')}</mark>
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
@@ -185,16 +185,16 @@
                         <APIexample
                             method="POST"
                             endpoint="/api/v1/apps/events/search"
-                            input="AI, beginner"
+                            input={$_('highlight.api.search_input.text')}
                             output={{
                                 events: [
                                     {
-                                        title: "AI, Projects, Resources, and the Future - A Glimpse into Tomorrow",
+                                        title: $_('highlight.api.search_output_title.text'),
                                         datetime: "2024-12-02T18:30:00Z"
                                     }
-                            ]
-                        }}
-                    />
+                                ]
+                            }}
+                        />
                     {:else}
                         <AnimatedChatExamples
                             currentApp={getAppForSubHeading(sub_heading)}
