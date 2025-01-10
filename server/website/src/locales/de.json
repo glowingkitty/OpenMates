@@ -733,5 +733,106 @@
             "en_original": "For more infos, join us on Discord.",
             "context": "Call to action for joining Discord community"
         }
+    },
+    "footer": {
+        "tagline": {
+            "line1": {
+                "text": "Unsere Welt braucht Veränderung.",
+                "en_original": "Our world needs change.",
+                "context": "First line of footer tagline"
+            },
+            "line2": {
+                "text": "Und Veränderung erfordert Handeln.",
+                "en_original": "And change requires action.",
+                "context": "Second line of footer tagline"
+            },
+            "line3": {
+                "text": "Also lasst uns handeln.",
+                "en_original": "So, let us take action.",
+                "context": "Third line of footer tagline"
+            }
+        },
+        "made_in_eu": {
+            "text": "Entwickelt in der EU",
+            "en_original": "Made in the EU",
+            "context": "Footer text indicating EU origin"
+        },
+        "sections": {
+            "website": {
+                "text": "Website",
+                "en_original": "Website",
+                "context": "Footer section title for website links"
+            },
+            "for_everyone": {
+                "text": "Für alle",
+                "en_original": "For everyone",
+                "context": "Footer link text for general audience section"
+            },
+            "for_developers": {
+                "text": "Für Entwickler",
+                "en_original": "For developers",
+                "context": "Footer link text for developer section"
+            },
+            "docs": {
+                "text": "Docs",
+                "en_original": "Docs",
+                "context": "Footer section title for documentation"
+            },
+            "user_guide": {
+                "text": "Benutzerhandbuch",
+                "en_original": "User guide",
+                "context": "Footer link text for user guide"
+            },
+            "api_docs": {
+                "text": "API Dokumentation",
+                "en_original": "API docs",
+                "context": "Footer link text for API documentation"
+            },
+            "roadmap": {
+                "text": "Roadmap",
+                "en_original": "Roadmap",
+                "context": "Footer link text for roadmap"
+            },
+            "design_guidelines": {
+                "text": "Design-Richtlinien",
+                "en_original": "Design guidelines",
+                "context": "Footer link text for design guidelines"
+            },
+            "legal": {
+                "text": "Rechtliches",
+                "en_original": "Legal",
+                "context": "Legal section header"
+            },
+            "contact": {
+                "text": "Kontakt",
+                "en_original": "Contact",
+                "context": "Contact section header"
+            },
+            "imprint": {
+                "text": "Impressum",
+                "en_original": "Imprint",
+                "context": "Legal imprint link"
+            },
+            "privacy": {
+                "text": "Datenschutz",
+                "en_original": "Privacy",
+                "context": "Privacy policy link"
+            },
+            "terms_and_conditions": {
+                "text": "AGB",
+                "en_original": "Terms and conditions",
+                "context": "Terms and conditions link"
+            },
+            "discord": {
+                "text": "Discord",
+                "en_original": "Discord",
+                "context": "Discord contact link"
+            },
+            "email": {
+                "text": "E-Mail",
+                "en_original": "Email",
+                "context": "Email contact link"
+            }
+        }
     }
 }

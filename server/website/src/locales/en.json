@@ -600,5 +600,87 @@
             "text": "For more infos, join us on Discord.",
             "context": "Call to action for joining Discord community"
         }
+    },
+    "footer": {
+        "tagline": {
+            "line1": {
+                "text": "Our world needs change.",
+                "context": "First line of footer tagline"
+            },
+            "line2": {
+                "text": "And change requires action.",
+                "context": "Second line of footer tagline"
+            },
+            "line3": {
+                "text": "So, let us take action.",
+                "context": "Third line of footer tagline"
+            }
+        },
+        "made_in_eu": {
+            "text": "Made in the EU",
+            "context": "Footer text indicating EU origin"
+        },
+        "sections": {
+            "website": {
+                "text": "Website",
+                "context": "Footer section title for website links"
+            },
+            "for_everyone": {
+                "text": "For everyone",
+                "context": "Footer link text for general audience section"
+            },
+            "for_developers": {
+                "text": "For developers",
+                "context": "Footer link text for developer section"
+            },
+            "docs": {
+                "text": "Docs",
+                "context": "Footer section title for documentation"
+            },
+            "user_guide": {
+                "text": "User guide",
+                "context": "Footer link text for user guide"
+            },
+            "api_docs": {
+                "text": "API docs",
+                "context": "Footer link text for API documentation"
+            },
+            "roadmap": {
+                "text": "Roadmap",
+                "context": "Footer link text for roadmap"
+            },
+            "design_guidelines": {
+                "text": "Design guidelines",
+                "context": "Footer link text for design guidelines"
+            },
+            "legal": {
+                "text": "Legal",
+                "context": "Legal section header"
+            },
+            "contact": {
+                "text": "Contact",
+                "context": "Contact section header"
+            },
+            "imprint": {
+                "text": "Imprint",
+                "context": "Legal imprint link"
+            },
+            "privacy": {
+                "text": "Privacy",
+                "context": "Privacy policy link"
+            },
+            "terms_and_conditions": {
+                "text": "Terms and conditions",
+                "context": "Terms and conditions link"
+            },
+            "discord": {
+                "text": "Discord",
+                "context": "Discord contact link"
+            },
+            "email": {
+                "text": "Email",
+                "context": "Email contact link"
+            }
+        }
     }
 } 

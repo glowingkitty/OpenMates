@@ -3,45 +3,51 @@
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '$lib/config/links';
     import { isPageVisible } from '$lib/config/pages';
+    import { _ } from 'svelte-i18n';
 
     // Type definition for footer links
     type FooterLink = {
         href: string;
         text: string;
+        translation_key: string;
         external?: boolean;
     };
 
     // Define footer sections and their links using the centralized config
-    const footerSections: {title: string, links: FooterLink[]}[] = [
+    const footerSections: {title: string, title_key: string, links: FooterLink[]}[] = [
         {
+            title_key: "footer.sections.website",
             title: "Website",
             links: [
-                { href: routes.home, text: "For everyone", external: false },
-                { href: routes.developers, text: "For developers", external: false }
+                { href: routes.home, text: "For everyone", translation_key: "footer.sections.for_everyone", external: false },
+                { href: routes.developers, text: "For developers", translation_key: "footer.sections.for_developers", external: false }
             ]
         },
         {
+            title_key: "footer.sections.docs",
             title: "Docs",
             links: [
-                { href: routes.docs.userGuide, text: "User guide", external: false },
-                { href: routes.docs.api, text: "API docs", external: false },
-                { href: routes.docs.roadmap, text: "Roadmap", external: false },
-                { href: routes.docs.designGuidelines, text: "Design guidelines", external: false }
+                { href: routes.docs.userGuide, text: "User guide", translation_key: "footer.sections.user_guide", external: false },
+                { href: routes.docs.api, text: "API docs", translation_key: "footer.sections.api_docs", external: false },
+                { href: routes.docs.roadmap, text: "Roadmap", translation_key: "footer.sections.roadmap", external: false },
+                { href: routes.docs.designGuidelines, text: "Design guidelines", translation_key: "footer.sections.design_guidelines", external: false }
             ]
         },
         {
+            title_key: "footer.sections.legal",
             title: "Legal",
             links: [
-                { href: externalLinks.legal.imprint, text: "Imprint", external: false },
-                { href: externalLinks.legal.privacyPolicy, text: "Privacy", external: false },
-                { href: externalLinks.legal.terms, text: "Terms and conditions", external: false }
+                { href: externalLinks.legal.imprint, text: "Imprint", translation_key: "footer.sections.imprint", external: false },
+                { href: externalLinks.legal.privacyPolicy, text: "Privacy", translation_key: "footer.sections.privacy", external: false },
+                { href: externalLinks.legal.terms, text: "Terms and conditions", translation_key: "footer.sections.terms_and_conditions", external: false }
             ]
         },
         {
+            title_key: "footer.sections.contact",
             title: "Contact",
             links: [
-                { href: externalLinks.discord, text: "Discord", external: true },
-                { href: externalLinks.email, text: "E-Mail", external: true }
+                { href: externalLinks.discord, text: "Discord", translation_key: "footer.sections.discord", external: true },
+                { href: externalLinks.email, text: "E-Mail", translation_key: "footer.sections.email", external: true }
             ]
         }
     ].map(section => ({
@@ -84,9 +90,9 @@
                     </a>
                 </div>
                 <div class="tagline mobile-order-1">
-                    <p>Our world needs change.</p>
-                    <p>And change requires action.</p>
-                    <p>So, let us take action.</p>
+                    <p>{$_('footer.tagline.line1.text')}</p>
+                    <p>{$_('footer.tagline.line2.text')}</p>
+                    <p>{$_('footer.tagline.line3.text')}</p>
                 </div>
                 <div class="logo invisible mobile-order-3"></div>
             </div>
@@ -96,7 +102,7 @@
         <div class="footer-nav">
             {#each footerSections as section}
                 <div class="footer-section">
-                    <h3>{section.title}</h3>
+                    <h3>{$_(section.title_key + '.text')}</h3>
                     <ul>
                         {#each section.links as link}
                             <li>
@@ -106,7 +112,7 @@
                                     {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                                     on:click={(e) => handleClick(e, link.href, link.external)}
                                 >
-                                    {link.text}
+                                    {$_(link.translation_key + '.text')}
                                 </a>
                             </li>
                         {/each}
@@ -117,7 +123,7 @@
 
         <!-- Made in EU Section -->
         <div class="footer-bottom">
-            <p>Made in the EU</p>
+            <p>{$_('footer.made_in_eu.text')}</p>
             <div class="flag icon_eu"></div>
         </div>
     </div>
