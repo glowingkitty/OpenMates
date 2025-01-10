@@ -266,14 +266,6 @@
         background-repeat: no-repeat;
     }
 
-    .twitter-icon {
-        width: 24px;
-        height: 24px;
-        background-image: url('/icons/twitter.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-    }
-
     /* Add mobile menu styles */
     .mobile-menu-button {
         all: unset;
@@ -358,18 +350,6 @@
         right: 0;
         top: 50%;
         transform: translateY(-50%);
-    }
-
-    .profile-icon {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        background-color: var(--color-grey-40);
-        background-image: url('/icons/user-profile.svg');
-        background-size: 60%;
-        background-position: center;
-        background-repeat: no-repeat;
-        cursor: pointer;
     }
 
     @media (max-width: 600px) {
