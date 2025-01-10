@@ -59,7 +59,18 @@
             }
         },
         "processing": {
-            "career_insights": "Karriere-Einblicke"
+            "career_insights": "Karriere-Einblicke",
+            "status": {
+                "loaded": "Lade",
+                "started": "Starte",
+                "using": "Benutze",
+                "used": "Benutzte"
+            },
+            "details": {
+                "preferences": "Einstellungen",
+                "apps": "apps",
+                "app": "app"
+            }
         }
     }
 }

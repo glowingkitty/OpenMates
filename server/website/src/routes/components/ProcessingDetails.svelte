@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { _ } from 'svelte-i18n';  // Import translation function
+
     // Define the possible types of processing details
     type ProcessingType = 'loaded_preferences' | 'using_apps' | 'started_focus';
 
@@ -16,11 +18,13 @@
     const getStatusText = (type: ProcessingType, inProgress: boolean): string => {
         switch (type) {
             case 'loaded_preferences':
-                return 'Loaded';
+                return $_('chat_examples.processing.status.loaded');
             case 'started_focus':
-                return 'Started';
+                return $_('chat_examples.processing.status.started');
             case 'using_apps':
-                return inProgress ? 'Using' : 'Used';
+                return inProgress 
+                    ? $_('chat_examples.processing.status.using')
+                    : $_('chat_examples.processing.status.used');
             default:
                 return '';
         }
@@ -30,11 +34,13 @@
     const getDetailText = (type: ProcessingType): string => {
         switch (type) {
             case 'loaded_preferences':
-                return 'preferences';
+                return $_('chat_examples.processing.details.preferences');
             case 'started_focus':
                 return focusName;
             case 'using_apps':
-                return appNames.length > 1 ? `apps` : 'app';
+                return appNames.length > 1 
+                    ? $_('chat_examples.processing.details.apps')
+                    : $_('chat_examples.processing.details.app');
             default:
                 return '';
         }
