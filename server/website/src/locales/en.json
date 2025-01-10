@@ -21,5 +21,25 @@
         "chat": "Chat",
         "projects": "Projects",
         "workflows": "Workflows"
+    },
+    "chat_examples": {
+        "career": {
+            "user_question": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+            "mate_response": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?"
+        },
+        "events": {
+            "user_question": "What events are happening the coming days?",
+            "mate_response": "There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.",
+            "events": {
+                "book_club": "Book Lovers' Social: An Evening of Reading and Discussion",
+                "tech_talk": "TechTalk: AI in Everyday Business",
+                "workshop": "Workshop: Building AI-Powered Applications"
+            }
+        },
+        "health": {
+            "user_question": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
+            "mate_initial": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
+            "mate_response": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day."
+        }
     }
 } 

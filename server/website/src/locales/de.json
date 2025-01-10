@@ -21,5 +21,25 @@
         "chat": "Chat",
         "projects": "Projekte",
         "workflows": "Arbeitsabläufe"
+    },
+    "chat_examples": {
+        "career": {
+            "user_question": "Ich bin unzufrieden in meinem aktuellen Job. Hast du Ideen, in welche Richtung ich mich stattdessen orientieren könnte?",
+            "mate_response": "Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.\n\nUm eine bessere Richtung zu finden, kannst du mir sagen:\n1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?"
+        },
+        "events": {
+            "user_question": "Welche Veranstaltungen finden in den nächsten Tagen statt?",
+            "mate_response": "Es finden einige spannende Veranstaltungen in den nächsten Tagen statt! Sowohl zur Karriereentwicklung als auch zum Netzwerken.",
+            "events": {
+                "book_club": "Bücherliebhaber-Treffen: Ein Abend zum Lesen und Diskutieren",
+                "tech_talk": "TechTalk: KI im Geschäftsalltag",
+                "workshop": "Workshop: Entwicklung KI-gestützter Anwendungen"
+            }
+        },
+        "health": {
+            "user_question": "Was ist der nächste verfügbare Kardiologen-Termin, der sich nicht mit meinem Kalender überschneidet?",
+            "mate_initial": "Ich prüfe schnell deinen Kalender und suche nach verfügbaren Arztterminen. Ich melde mich in einer Minute bei dir.",
+            "mate_response": "Der beste Termin, den ich finden konnte, ist morgen um 9:00 Uhr. Überschneidet sich nicht mit deinem Product Launch Meeting später am Tag."
+        }
     }
 }

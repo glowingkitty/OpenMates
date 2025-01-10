@@ -5,6 +5,7 @@
     import ProcessingDetails from './ProcessingDetails.svelte';
     import { onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
+    import { _ } from 'svelte-i18n';
 
     // Add at the top of the script section
     type ChatExample = {
@@ -12,7 +13,20 @@
         sequence: MessageSequence[];
     };
 
-    // Update the chatExamples declaration
+    // Update type definition
+    type MessageSequence = {
+        type: string;
+        text?: string;
+        waitTime?: number;
+        appNames?: string[];
+        focusName?: string;
+        focusIcon?: string;
+        mateName?: string;
+        in_progress?: boolean;
+        appCards?: any[];
+    };
+
+    // Make chatExamples non-reactive since it contains translations
     const chatExamples: ChatExample[] = [
         // Career advice conversation with loaded preferences
         {
@@ -20,7 +34,7 @@
             sequence: [
                 {
                     type: 'user',
-                    text: 'I am unhappy in my current job. Any ideas in what direction I could go instead?',
+                    text: $_('chat_examples.career.user_question'),
                     waitTime: 2500
                 },
                 {
@@ -38,7 +52,7 @@
                 {
                     type: 'mate',
                     mateName: 'Burton',
-                    text: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?',
+                    text: $_('chat_examples.career.mate_response'),
                     waitTime: 3000
                 }
             ]
@@ -49,7 +63,7 @@
             sequence: [
                 {
                     type: 'user',
-                    text: 'What events are happening the coming days?',
+                    text: $_('chat_examples.events.user_question'),
                     waitTime: 2500
                 },
                 {
@@ -61,7 +75,7 @@
                 {
                     type: 'mate',
                     mateName: 'Lisa',
-                    text: 'There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.',
+                    text: $_('chat_examples.events.mate_response'),
                     waitTime: 3000,
                     appCards: [
                         {
@@ -70,7 +84,7 @@
                                 size: 'small',
                                 date: 'Today',
                                 time: '18:30',
-                                eventName: "Book Lovers' Social: An Evening of Reading and Discussion",
+                                eventName: $_('chat_examples.events.events.book_club'),
                                 participants: 12,
                                 imageUrl: '/images/examples/group1.jpg'
                             }
@@ -81,7 +95,7 @@
                                 size: 'small',
                                 date: 'Dec 15',
                                 time: '19:00',
-                                eventName: 'TechTalk: AI in Everyday Business',
+                                eventName: $_('chat_examples.events.events.tech_talk'),
                                 participants: 76,
                                 imageUrl: '/images/examples/group2.jpg'
                             }
@@ -92,7 +106,7 @@
                                 size: 'small',
                                 date: 'Dec 16',
                                 time: '18:00',
-                                eventName: 'Workshop: Building AI-Powered Applications',
+                                eventName: $_('chat_examples.events.events.workshop'),
                                 participants: 13,
                                 imageUrl: '/images/examples/group2.jpg'
                             }
@@ -107,13 +121,13 @@
             sequence: [
                 {
                     type: 'user',
-                    text: "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
+                    text: $_('chat_examples.health.user_question'),
                     waitTime: 2500
                 },
                 {
                     type: 'mate',
                     mateName: 'Melvin',
-                    text: 'Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.',
+                    text: $_('chat_examples.health.mate_initial'),
                     waitTime: 2500
                 },
                 {
@@ -125,7 +139,7 @@
                 {
                     type: 'mate',
                     mateName: 'Melvin',
-                    text: "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+                    text: $_('chat_examples.health.mate_response'),
                     waitTime: 3000,
                     appCards: [
                             {
@@ -200,19 +214,6 @@
     let currentAnimationId = 0;
 
     let cleanup = () => {};
-
-    // Define a type for the message sequences
-    type MessageSequence = {
-        type: string;
-        text?: string;
-        waitTime?: number;
-        appNames?: string[];
-        focusName?: string;
-        focusIcon?: string;
-        mateName?: string;
-        in_progress?: boolean;
-        appCards?: any[];
-    };
 
     // Add at the top with other types
     type MessagePart = {
