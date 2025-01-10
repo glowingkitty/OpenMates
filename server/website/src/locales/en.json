@@ -516,5 +516,63 @@
             "text": "credits",
             "context": "User credits amount"
         }
+    },
+    "design_guidelines": {
+        "section_title": {
+            "text": "Design Guidelines",
+            "context": "Title of the design guidelines section"
+        },
+        "privacy": {
+            "headline": {
+                "text": "Your privacy matters",
+                "context": "Main headline for privacy section"
+            },
+            "text": {
+                "text": "In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.",
+                "context": "Main text explaining privacy importance"
+            },
+            "subtext": {
+                "text": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "context": "Conclusion for privacy section"
+            },
+            "anonymization": {
+                "text": "Anonymization",
+                "context": "Privacy feature - anonymization"
+            },
+            "local_processing": {
+                "text": "Local processing first",
+                "context": "Privacy feature - local processing"
+            },
+            "self_hosting": {
+                "text": "Self hosting option",
+                "context": "Privacy feature - self hosting"
+            }
+        },
+        "maximum_good": {
+            "headline": {
+                "text": "Maximum good,\nnot maximum greed.",
+                "context": "Main headline for maximum good section"
+            },
+            "text": {
+                "text": "Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.",
+                "context": "Main text explaining maximum good philosophy"
+            },
+            "subtext": {
+                "text": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "context": "Conclusion for maximum good section"
+            },
+            "open_source": {
+                "text": "Open Source",
+                "context": "Maximum good feature - open source"
+            },
+            "provider_independent": {
+                "text": "Provider independent",
+                "context": "Maximum good feature - provider independence"
+            },
+            "chat_anywhere": {
+                "text": "Chat anywhere",
+                "context": "Maximum good feature - universal chat"
+            }
+        }
     }
 } 

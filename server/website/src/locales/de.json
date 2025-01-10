@@ -630,5 +630,76 @@
             "en_original": "credits",
             "context": "User credits amount"
         }
+    },
+    "design_guidelines": {
+        "section_title": {
+            "text": "Design-Richtlinien",
+            "en_original": "Design Guidelines",
+            "context": "Title of the design guidelines section"
+        },
+        "privacy": {
+            "headline": {
+                "text": "Deine Privatsphäre ist wichtig",
+                "en_original": "Your privacy matters",
+                "context": "Main headline for privacy section"
+            },
+            "text": {
+                "text": "In der heutigen turbulenten Welt, in der profitorientierte Unternehmen häufig Nutzerdaten missbrauchen, in der Unternehmen mit unzureichenden Sicherheitsmaßnahmen regelmäßig gehackt werden und die Nutzerdaten in die Hände von böswilligen Akteuren fallen, und in der wir uns nicht immer darauf verlassen können, dass Regierungen die Rechte und das Wohlergehen ihrer Bürger schützen, wird es zunehmend wichtiger, Entscheidungen zum Schutz deiner Privatsphäre zu treffen.",
+                "en_original": "In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.",
+                "context": "Main text explaining privacy importance"
+            },
+            "subtext": {
+                "text": "Deshalb wurde\nOpenMates mit Fokus\nauf Privatsphäre entwickelt.",
+                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "context": "Conclusion for privacy section"
+            },
+            "anonymization": {
+                "text": "Anonymisierung",
+                "en_original": "Anonymization",
+                "context": "Privacy feature - anonymization"
+            },
+            "local_processing": {
+                "text": "Lokale Verarbeitung zuerst",
+                "en_original": "Local processing first",
+                "context": "Privacy feature - local processing"
+            },
+            "self_hosting": {
+                "text": "Self-Hosting Option",
+                "en_original": "Self hosting option",
+                "context": "Privacy feature - self hosting"
+            }
+        },
+        "maximum_good": {
+            "headline": {
+                "text": "Maximaler Nutzen,\nstatt maximale Gier.",
+                "en_original": "Maximum good,\nnot maximum greed.",
+                "context": "Main headline for maximum good section"
+            },
+            "text": {
+                "text": "In den letzten Jahren haben profitorientierte Tech-Monopole immer wieder ihre Gier über die Interessen ihrer Nutzer und unseres Planeten gestellt und dabei die negativen Folgen und Zerstörung ignoriert, die diese Entscheidungen verursachen. So können wir nicht weitermachen.",
+                "en_original": "Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.",
+                "context": "Main text explaining maximum good philosophy"
+            },
+            "subtext": {
+                "text": "Deshalb wurde\nOpenMates mit Fokus auf die\nMaximierung des positiven Einflusses von KI entwickelt.",
+                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "context": "Conclusion for maximum good section"
+            },
+            "open_source": {
+                "text": "Open Source",
+                "en_original": "Open Source",
+                "context": "Maximum good feature - open source"
+            },
+            "provider_independent": {
+                "text": "Anbieter-unabhängig",
+                "en_original": "Provider independent",
+                "context": "Maximum good feature - provider independence"
+            },
+            "chat_anywhere": {
+                "text": "Überall chatten",
+                "en_original": "Chat anywhere",
+                "context": "Maximum good feature - universal chat"
+            }
+        }
     }
 }

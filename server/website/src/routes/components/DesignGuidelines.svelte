@@ -1,70 +1,74 @@
 <script lang="ts">
-    // Import the individual DesignGuideline component
+    import { _, waitLocale } from 'svelte-i18n';
     import DesignGuideline from './DesignGuideline.svelte';
     import LargeSeparator from '../components/LargeSeparator.svelte';
 
     // Export a prop to allow customizing the section title
-    export let sectionTitle = "Design Guidelines";
+    export let sectionTitle = $_('design_guidelines.section_title.text');
 </script>
 
-<LargeSeparator reverse_direction={true} />
-<section class="centered gradient-section">
-    <h3 style="margin-top: 30px">{sectionTitle}</h3>
+{#await waitLocale()}
+    <div></div>
+{:then}
+    <LargeSeparator reverse_direction={true} />
+    <section class="centered gradient-section">
+        <h3 style="margin-top: 30px">{sectionTitle}</h3>
 
-    <!-- Privacy Design Guideline -->
-    <DesignGuideline
-        main_icon="icon_lock"
-        headline="<mark>Your privacy matters</mark>"
-        subheadings={[
-            {
-                icon: "icon_anonym",
-                heading: "Anonymization",
-                // link: "/docs/design_guidelines"
-            },
-            {
-                icon: "icon_laptop",
-                heading: "Local processing first",
-                // link: "/docs/design_guidelines"
-            },
-            {
-                icon: "icon_server",
-                heading: "Self hosting option",
-                // link: "/docs/design_guidelines"
-            }
-        ]}
-        text="In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential."
-        subtext="Therefore,<br>OpenMates is designed<br>with a focus on privacy."
-    />
+        <!-- Privacy Design Guideline -->
+        <DesignGuideline
+            main_icon="icon_lock"
+            headline="<mark>{$_('design_guidelines.privacy.headline.text')}</mark>"
+            subheadings={[
+                {
+                    icon: "icon_anonym",
+                    heading: $_('design_guidelines.privacy.anonymization.text'),
+                    // link: "/docs/design_guidelines"
+                },
+                {
+                    icon: "icon_laptop",
+                    heading: $_('design_guidelines.privacy.local_processing.text'),
+                    // link: "/docs/design_guidelines"
+                },
+                {
+                    icon: "icon_server",
+                    heading: $_('design_guidelines.privacy.self_hosting.text'),
+                    // link: "/docs/design_guidelines"
+                }
+            ]}
+            text={$_('design_guidelines.privacy.text.text')}
+            subtext={$_('design_guidelines.privacy.subtext.text')}
+        />
 
-    <!-- Separator line -->
-    <div class="separator"></div>
+        <!-- Separator line -->
+        <div class="separator"></div>
 
-    <!-- Maximum Good Design Guideline -->
-    <DesignGuideline
-        main_icon="icon_good"
-        headline="<mark>Maximum good,</mark><br>not maximum greed."
-        subheadings={[
-            {
-                icon: "icon_open_source",
-                heading: "Open Source",
-                // link: "/docs/design_guidelines"
-            },
-            {
-                icon: "icon_ai",
-                heading: "Provider independent",
-                // link: "/docs/design_guidelines"
-            },
-            {
-                icon: "icon_chat",
-                heading: "Chat anywhere",
-                // link: "/docs/design_guidelines"
-            }
-        ]}
-        text="Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that."
-        subtext="Therefore,<br>OpenMates is designed<br>with a focus on maximizing the positive impact of AI."
-    />
-</section>
-<LargeSeparator />
+        <!-- Maximum Good Design Guideline -->
+        <DesignGuideline
+            main_icon="icon_good"
+            headline="<mark>{$_('design_guidelines.maximum_good.headline.text')}</mark>"
+            subheadings={[
+                {
+                    icon: "icon_open_source",
+                    heading: $_('design_guidelines.maximum_good.open_source.text'),
+                    // link: "/docs/design_guidelines"
+                },
+                {
+                    icon: "icon_ai",
+                    heading: $_('design_guidelines.maximum_good.provider_independent.text'),
+                    // link: "/docs/design_guidelines"
+                },
+                {
+                    icon: "icon_chat",
+                    heading: $_('design_guidelines.maximum_good.chat_anywhere.text'),
+                    // link: "/docs/design_guidelines"
+                }
+            ]}
+            text={$_('design_guidelines.maximum_good.text.text')}
+            subtext={$_('design_guidelines.maximum_good.subtext.text')}
+        />
+    </section>
+    <LargeSeparator />
+{/await}
 
 <style>
     :root {
