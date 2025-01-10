@@ -644,7 +644,7 @@
                 "context": "Main headline for privacy section"
             },
             "text": {
-                "text": "In der heutigen turbulenten Welt, in der profitorientierte Unternehmen häufig Nutzerdaten missbrauchen, in der Unternehmen mit unzureichenden Sicherheitsmaßnahmen regelmäßig gehackt werden und die Nutzerdaten in die Hände von böswilligen Akteuren fallen, und in der wir uns nicht immer darauf verlassen können, dass Regierungen die Rechte und das Wohlergehen ihrer Bürger schützen, wird es zunehmend wichtiger, Entscheidungen zum Schutz deiner Privatsphäre zu treffen.",
+                "text": "In der heutigen turbulenten Welt, in der Profit-um-jeden-Preis Unternehmen häufig Nutzerdaten missbrauchen, in der Unternehmen mit unzureichenden Sicherheitsmaßnahmen regelmäßig gehackt werden und die Nutzerdaten in die Hände von böswilligen Akteuren fallen, und in der wir uns nicht immer darauf verlassen können, dass Regierungen die Rechte und das Wohlergehen ihrer Bürger schützen, wird es zunehmend wichtiger, Entscheidungen zum Schutz deiner Privatsphäre zu treffen.",
                 "en_original": "In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.",
                 "context": "Main text explaining privacy importance"
             },
@@ -676,12 +676,12 @@
                 "context": "Main headline for maximum good section"
             },
             "text": {
-                "text": "In den letzten Jahren haben profitorientierte Tech-Monopole immer wieder ihre Gier über die Interessen ihrer Nutzer und unseres Planeten gestellt und dabei die negativen Folgen und Zerstörung ignoriert, die diese Entscheidungen verursachen. So können wir nicht weitermachen.",
+                "text": "In den letzten Jahren haben Profit-um-jeden-Preis Tech-Monopole immer wieder ihre Gier über die Interessen ihrer Nutzer und unseres Planeten gestellt und dabei die negativen Folgen und Zerstörung ignoriert, die diese Entscheidungen verursachen. So können wir nicht weitermachen.",
                 "en_original": "Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.",
                 "context": "Main text explaining maximum good philosophy"
             },
             "subtext": {
-                "text": "Deshalb wurde\nOpenMates mit Fokus auf die\nMaximierung des positiven Einflusses von KI entwickelt.",
+                "text": "Deshalb wurde\nOpenMates mit Fokus auf die\nMaximierung des positiven Auswirkungen von KI entwickelt.",
                 "en_original": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
                 "context": "Conclusion for maximum good section"
             },
