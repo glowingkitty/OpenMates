@@ -4,6 +4,7 @@
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';
+    import { _ } from 'svelte-i18n'; // Import the translation function
 
     // Subscribe to settings menu visibility state
     import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';

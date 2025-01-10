@@ -17,7 +17,13 @@
 			"@website-static/*": ["../website/src/static/*"],
 			"@website-stores/*": ["../website/src/lib/stores/*"],
 			"@website-actions/*": ["../website/src/lib/actions/*"],
-			"@website-components/*": ["../website/src/routes/components/*"]
+			"@website-components/*": ["../website/src/routes/components/*"],
+			"@website-i18n": [
+				"../../website/src/lib/i18n"
+			],
+			"@website-i18n/*": [
+				"../../website/src/lib/i18n/*"
+			]
 		}
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias

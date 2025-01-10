@@ -17,7 +17,8 @@ const config = {
 			'@website-components': path.resolve('../website/src/routes/components'),
 			'@website-styles': path.resolve('../website/src/lib/styles'),
 			'@website-stores': path.resolve('../website/src/lib/stores'),
-			'@website-actions': path.resolve('../website/src/lib/actions')
+			'@website-actions': path.resolve('../website/src/lib/actions'),
+			// '@website-locales': path.resolve('../website/src/locales')
 		}
 	}
 };

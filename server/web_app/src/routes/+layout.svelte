@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import '@website-styles/buttons.css';
     import '@website-styles/fonts.css';
     import '@website-styles/icons.css';
@@ -8,14 +8,23 @@
     import '@website-styles/chat.css';
     import '@website-styles/mates.css';
     import '@website-styles/theme.css';
+    import { locale } from 'svelte-i18n';
     import { theme, toggleTheme, initializeTheme } from '@website-stores/theme';
     import { replaceOpenMates } from '@website-actions/replaceText';
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount } from 'svelte';
     import { browser } from '$app/environment';
 
     // Initialize theme on mount
-    onMount(() => {
+    onMount(async () => {
         initializeTheme();
+        
+        // Set initial language based on browser preference
+        if (browser) {
+            const browserLang = navigator.language.split('-')[0];
+            if (browserLang === 'en' || browserLang === 'de') {
+                locale.set(browserLang);
+            }
+        }
     });
 
     // Reset to system preference

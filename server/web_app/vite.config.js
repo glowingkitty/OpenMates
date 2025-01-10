@@ -10,11 +10,14 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
-			// Add aliases to the other project's directories
-			'@website-styles': path.resolve(websiteSourcePath, 'lib/styles'),
-			'@website-static': path.resolve(websiteSourcePath, 'static'),
-			'@website-actions': path.resolve(websiteSourcePath, 'lib/actions'),
+			// Component and library aliases
 			'@website-components': path.resolve(websiteSourcePath, 'routes/components'),
+			'@website-styles': path.resolve(websiteSourcePath, 'lib/styles'),
+			'@website-stores': path.resolve(websiteSourcePath, 'lib/stores'),
+			'@website-actions': path.resolve(websiteSourcePath, 'lib/actions'),
+			'@website-i18n': path.resolve(websiteSourcePath, 'lib/i18n'),
+			
+			// Static file aliases
 			'/icons': path.resolve(websiteStaticPath, 'icons'),
 			'/images': path.resolve(websiteStaticPath, 'images')
 		}
@@ -24,7 +27,7 @@ export default defineConfig({
 			// Allow serving files from one level up to include the website project
 			allow: [
 				// Defaults
-				'.', 
+				'.',
 				'../website/static',
 				websiteStaticPath
 			]
