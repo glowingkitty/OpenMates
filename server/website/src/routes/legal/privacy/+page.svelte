@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { externalLinks } from '$lib/config/links';
+    import { externalLinks, privacyPolicyLinks } from '$lib/config/links';
     import MetaTags from '../../components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
     import { _ } from 'svelte-i18n';
@@ -37,7 +37,12 @@
             <li>{$_('legal.privacy.vercel_hosting.data_points.performance.text')}</li>
             <li>{$_('legal.privacy.vercel_hosting.data_points.server_logs.text')}</li>
         </ul>
-        <p>{$_('legal.privacy.vercel_hosting.more_info.text')}</p>
+        <p>
+            {$_('legal.privacy.vercel_hosting.more_info.text')}
+            <a href={privacyPolicyLinks.vercel} target="_blank" rel="noopener noreferrer">
+                {$_('legal.privacy.vercel_hosting.privacy_policy_link.text')}
+            </a>.
+        </p>
     </section>
 
     <section>
@@ -49,7 +54,12 @@
             <li>{$_('legal.privacy.discord_integration.data_points.communication.text')}</li>
             <li>{$_('legal.privacy.discord_integration.data_points.other.text')}</li>
         </ul>
-        <p>{$_('legal.privacy.discord_integration.admin_access.text')}</p>
+        <p>
+            {$_('legal.privacy.discord_integration.admin_access.text')}
+            <a href={privacyPolicyLinks.discord} target="_blank" rel="noopener noreferrer">
+                {$_('legal.privacy.discord_integration.privacy_policy_link.text')}
+            </a>.
+        </p>
     </section>
 
     <section>

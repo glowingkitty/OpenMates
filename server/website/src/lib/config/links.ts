@@ -34,3 +34,8 @@ export const routes = {
         designSystem: "/docs/design_system"
     }
 } as const;
+
+export const privacyPolicyLinks = {
+    vercel: 'https://vercel.com/legal/privacy-policy',
+    discord: 'https://discord.com/privacy'
+} as const;

@@ -928,6 +928,11 @@
                     "text": "Weitere Informationen zu den Datenpraktiken von Vercel finden Sie in der Vercel-Datenschutzerklärung.",
                     "en_original": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
                     "context": "Reference to Vercel's privacy policy"
+                },
+                "privacy_policy_link": {
+                    "text": "Vercel-Datenschutzerklärung",
+                    "en_original": "Vercel Privacy Policy",
+                    "context": "Link text for Vercel's privacy policy"
                 }
             },
             "discord_integration": {
@@ -967,6 +972,11 @@
                     "text": "Als Discord-Server-Administratoren haben wir Zugang zu allen öffentlichen Kommunikationen, Mitgliederlisten und anderen Informationen, die innerhalb unserer Discord-Community geteilt werden. Diese Informationen werden jedoch von Discord gehostet und hauptsächlich verarbeitet. Wir extrahieren, speichern oder verarbeiten diese Daten nicht außerhalb der Discord-Plattform. Weitere Informationen darüber, wie Discord mit Ihren Daten umgeht, finden Sie in der Discord-Datenschutzerklärung.",
                     "en_original": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
                     "context": "Description of admin access to Discord data"
+                },
+                "privacy_policy_link": {
+                    "text": "Discord-Datenschutzerklärung",
+                    "en_original": "Discord Privacy Policy",
+                    "context": "Link text for Discord's privacy policy"
                 }
             },
             "contact": {

@@ -759,6 +759,10 @@
                 "more_info": {
                     "text": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
                     "context": "Reference to Vercel's privacy policy"
+                },
+                "privacy_policy_link": {
+                    "text": "Vercel Privacy Policy",
+                    "context": "Link text for Vercel's privacy policy"
                 }
             },
             "discord_integration": {
@@ -791,6 +795,10 @@
                 "admin_access": {
                     "text": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
                     "context": "Description of admin access to Discord data"
+                },
+                "privacy_policy_link": {
+                    "text": "Discord Privacy Policy",
+                    "context": "Link text for Discord's privacy policy"
                 }
             },
             "contact": {
