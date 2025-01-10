@@ -1,16 +1,23 @@
 import { browser } from '$app/environment';
-import { init, register } from 'svelte-i18n';
+import { init, register, waitLocale } from 'svelte-i18n';
 
-// Register translations
-register('en', () => import('../../locales/en.json'));
-register('de', () => import('../../locales/de.json'));
+// Initialize translations
+export const setupI18n = async () => {
+    // Register available translations
+    register('en', () => import('../../locales/en.json'));
+    register('de', () => import('../../locales/de.json'));
 
-// Initialize i18n with a default locale
-const initI18n = () => {
+    // Get initial locale from browser or fallback to 'en'
+    const initialLocale = browser 
+        ? window.navigator.language.split('-')[0] 
+        : 'en';
+
+    // Initialize i18n with configuration
     init({
         fallbackLocale: 'en',
-        initialLocale: 'en'  // Always start with 'en' for SSR
+        initialLocale: initialLocale,
     });
-};
 
-export { initI18n }; 
+    // Wait for the initial locale to be loaded
+    return await waitLocale();
+}; 
