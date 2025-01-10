@@ -857,6 +857,135 @@
                 "en_original": "Email",
                 "context": "Email label in contact section"
             }
+        },
+        "privacy": {
+            "title": {
+                "text": "Datenschutzerklärung",
+                "en_original": "Privacy Policy",
+                "context": "Title of privacy policy page"
+            },
+            "last_updated": {
+                "text": "Zuletzt aktualisiert",
+                "en_original": "Last Updated",
+                "context": "Last update date of privacy policy"
+            },
+            "data_protection": {
+                "heading": {
+                    "text": "1. Datenschutz-Übersicht",
+                    "en_original": "1. Data Protection Overview",
+                    "context": "Section heading for data protection overview"
+                },
+                "overview": {
+                    "text": "Diese Datenschutzerklärung erläutert, was mit Ihren Daten geschieht, wenn Sie unsere Website nutzen. Wir legen Wert auf Transparenz im Umgang mit Daten.",
+                    "en_original": "This privacy policy explains what happens to your data when you use our website. We are committed to transparency regarding data handling.",
+                    "context": "Overview of privacy policy purpose"
+                },
+                "current_state": {
+                    "text": "Derzeit erheben, speichern oder verarbeiten wir keine personenbezogenen Daten direkt über diese Website. Die Website wird über Vercel gehostet, und Ihre Interaktion mit dieser Seite unterliegt den Datenschutzpraktiken von Vercel.",
+                    "en_original": "We currently do not collect, store, or process any personal data directly through this website. The website is hosted via Vercel, and your interaction with this site is subject to Vercel's privacy practices.",
+                    "context": "Current state of data collection"
+                }
+            },
+            "vercel_hosting": {
+                "heading": {
+                    "text": "2. Vercel-Hosting",
+                    "en_original": "2. Vercel Hosting",
+                    "context": "Section heading for Vercel hosting information"
+                },
+                "description": {
+                    "text": "Diese Website wird über die Plattform von Vercel gehostet. Wenn Sie diese Website besuchen, wird Ihre Anfrage von Vercel-Servern verarbeitet. Vercel kann technische Informationen erfassen, darunter:",
+                    "en_original": "This website is hosted using Vercel's platform. When you visit this website, your request is processed by Vercel's servers. Vercel may collect technical information including:",
+                    "context": "Description of Vercel hosting"
+                },
+                "data_points": {
+                    "ip": {
+                        "text": "IP-Adressen",
+                        "en_original": "IP addresses",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "browser": {
+                        "text": "Browsertyp und -version",
+                        "en_original": "Browser type and version",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "logs": {
+                        "text": "Grundlegende Zugriffsprotokoll",
+                        "en_original": "Basic access logs",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "performance": {
+                        "text": "Leistungsdaten",
+                        "en_original": "Performance data",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "server_logs": {
+                        "text": "Andere Standard-Serverprotokolle",
+                        "en_original": "Other standard server logs",
+                        "context": "Data point collected by Vercel"
+                    }
+                },
+                "more_info": {
+                    "text": "Weitere Informationen zu den Datenpraktiken von Vercel finden Sie in der Vercel-Datenschutzerklärung.",
+                    "en_original": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
+                    "context": "Reference to Vercel's privacy policy"
+                }
+            },
+            "discord_integration": {
+                "heading": {
+                    "text": "3. Discord-Integration",
+                    "en_original": "3. Discord Integration",
+                    "context": "Section heading for Discord integration"
+                },
+                "description": {
+                    "text": "Wenn Sie über die auf dieser Website bereitgestellten Links unserer Discord-Community beitreten, beachten Sie bitte, dass Discord Ihre Daten gemäß ihrer Datenschutzerklärung erfasst und verarbeitet. Dies umfasst:",
+                    "en_original": "If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes:",
+                    "context": "Description of Discord data collection"
+                },
+                "data_points": {
+                    "account": {
+                        "text": "Kontoinformationen",
+                        "en_original": "Account information",
+                        "context": "Data point collected by Discord"
+                    },
+                    "usage": {
+                        "text": "Nutzungsdaten",
+                        "en_original": "Usage data",
+                        "context": "Data point collected by Discord"
+                    },
+                    "communication": {
+                        "text": "Kommunikationsinhalte",
+                        "en_original": "Communication content",
+                        "context": "Data point collected by Discord"
+                    },
+                    "other": {
+                        "text": "Weitere Informationen gemäß Discord-Datenschutzerklärung",
+                        "en_original": "Other information as outlined in Discord's privacy policy",
+                        "context": "Reference to additional Discord data collection"
+                    }
+                },
+                "admin_access": {
+                    "text": "Als Discord-Server-Administratoren haben wir Zugang zu allen öffentlichen Kommunikationen, Mitgliederlisten und anderen Informationen, die innerhalb unserer Discord-Community geteilt werden. Diese Informationen werden jedoch von Discord gehostet und hauptsächlich verarbeitet. Wir extrahieren, speichern oder verarbeiten diese Daten nicht außerhalb der Discord-Plattform. Weitere Informationen darüber, wie Discord mit Ihren Daten umgeht, finden Sie in der Discord-Datenschutzerklärung.",
+                    "en_original": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
+                    "context": "Description of admin access to Discord data"
+                }
+            },
+            "contact": {
+                "heading": {
+                    "text": "4. Kontaktinformationen",
+                    "en_original": "4. Contact Information",
+                    "context": "Section heading for contact information"
+                },
+                "questions": {
+                    "text": "Bei Fragen zum Datenschutz:",
+                    "en_original": "For questions about data protection:",
+                    "context": "Prompt for data protection questions"
+                },
+                "email": {
+                    "text": "E-Mail",
+                    "en_original": "Email",
+                    "context": "Email contact label"
+                }
+            }
         }
     }
 }

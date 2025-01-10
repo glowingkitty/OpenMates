@@ -2,6 +2,7 @@
     import { externalLinks } from '$lib/config/links';
     import MetaTags from '../../components/MetaTags.svelte';
     import { getMetaTags } from '$lib/config/meta';
+    import { _ } from 'svelte-i18n';
 
     const meta = getMetaTags('legalPrivacy');
 
@@ -16,45 +17,45 @@
 <MetaTags {...meta} />
 
 <div class="legal-container">
-    <h1>Privacy Policy</h1>
+    <h1>{$_('legal.privacy.title.text')}</h1>
 
-    <p class="last-updated">Last Updated: {buildDate}</p>
+    <p class="last-updated">{$_('legal.privacy.last_updated.text')}: {buildDate}</p>
 
     <section>
-        <h2>1. Data Protection Overview</h2>
-        <p>This privacy policy explains what happens to your data when you use our website. We are committed to transparency regarding data handling.</p>
-        <p>We currently do not collect, store, or process any personal data directly through this website. The website is hosted via Vercel, and your interaction with this site is subject to Vercel's privacy practices.</p>
+        <h2>{$_('legal.privacy.data_protection.heading.text')}</h2>
+        <p>{$_('legal.privacy.data_protection.overview.text')}</p>
+        <p>{$_('legal.privacy.data_protection.current_state.text')}</p>
     </section>
 
     <section>
-        <h2>2. Vercel Hosting</h2>
-        <p>This website is hosted using Vercel's platform. When you visit this website, your request is processed by Vercel's servers. Vercel may collect technical information including:</p>
+        <h2>{$_('legal.privacy.vercel_hosting.heading.text')}</h2>
+        <p>{$_('legal.privacy.vercel_hosting.description.text')}</p>
         <ul>
-            <li>IP addresses</li>
-            <li>Browser type and version</li>
-            <li>Basic access logs</li>
-            <li>Performance data</li>
-            <li>Other standard server logs</li>
+            <li>{$_('legal.privacy.vercel_hosting.data_points.ip.text')}</li>
+            <li>{$_('legal.privacy.vercel_hosting.data_points.browser.text')}</li>
+            <li>{$_('legal.privacy.vercel_hosting.data_points.logs.text')}</li>
+            <li>{$_('legal.privacy.vercel_hosting.data_points.performance.text')}</li>
+            <li>{$_('legal.privacy.vercel_hosting.data_points.server_logs.text')}</li>
         </ul>
-        <p>For more information about Vercel's data practices, please refer to the <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Vercel Privacy Policy</a>.</p>
+        <p>{$_('legal.privacy.vercel_hosting.more_info.text')}</p>
     </section>
 
     <section>
-        <h2>3. Discord Integration</h2>
-        <p>If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes:</p>
+        <h2>{$_('legal.privacy.discord_integration.heading.text')}</h2>
+        <p>{$_('legal.privacy.discord_integration.description.text')}</p>
         <ul>
-            <li>Account information</li>
-            <li>Usage data</li>
-            <li>Communication content</li>
-            <li>Other information as outlined in Discord's privacy policy</li>
+            <li>{$_('legal.privacy.discord_integration.data_points.account.text')}</li>
+            <li>{$_('legal.privacy.discord_integration.data_points.usage.text')}</li>
+            <li>{$_('legal.privacy.discord_integration.data_points.communication.text')}</li>
+            <li>{$_('legal.privacy.discord_integration.data_points.other.text')}</li>
         </ul>
-        <p>As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review <a href="https://discord.com/privacy" target="_blank" rel="noopener noreferrer">Discord's Privacy Policy</a>.</p>
+        <p>{$_('legal.privacy.discord_integration.admin_access.text')}</p>
     </section>
 
     <section>
-        <h2>4. Contact Information</h2>
-        <p>For questions about data protection:</p>
-        <p>Email: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
+        <h2>{$_('legal.privacy.contact.heading.text')}</h2>
+        <p>{$_('legal.privacy.contact.questions.text')}</p>
+        <p>{$_('legal.privacy.contact.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </div>
 

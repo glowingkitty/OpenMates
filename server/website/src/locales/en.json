@@ -701,6 +701,112 @@
                 "text": "Email",
                 "context": "Email label in contact section"
             }
+        },
+        "privacy": {
+            "title": {
+                "text": "Privacy Policy",
+                "context": "Title of privacy policy page"
+            },
+            "last_updated": {
+                "text": "Last Updated",
+                "context": "Last update date of privacy policy"
+            },
+            "data_protection": {
+                "heading": {
+                    "text": "1. Data Protection Overview",
+                    "context": "Section heading for data protection overview"
+                },
+                "overview": {
+                    "text": "This privacy policy explains what happens to your data when you use our website. We are committed to transparency regarding data handling.",
+                    "context": "Overview of privacy policy purpose"
+                },
+                "current_state": {
+                    "text": "We currently do not collect, store, or process any personal data directly through this website. The website is hosted via Vercel, and your interaction with this site is subject to Vercel's privacy practices.",
+                    "context": "Current state of data collection"
+                }
+            },
+            "vercel_hosting": {
+                "heading": {
+                    "text": "2. Vercel Hosting",
+                    "context": "Section heading for Vercel hosting information"
+                },
+                "description": {
+                    "text": "This website is hosted using Vercel's platform. When you visit this website, your request is processed by Vercel's servers. Vercel may collect technical information including:",
+                    "context": "Description of Vercel hosting"
+                },
+                "data_points": {
+                    "ip": {
+                        "text": "IP addresses",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "browser": {
+                        "text": "Browser type and version",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "logs": {
+                        "text": "Basic access logs",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "performance": {
+                        "text": "Performance data",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "server_logs": {
+                        "text": "Other standard server logs",
+                        "context": "Data point collected by Vercel"
+                    }
+                },
+                "more_info": {
+                    "text": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
+                    "context": "Reference to Vercel's privacy policy"
+                }
+            },
+            "discord_integration": {
+                "heading": {
+                    "text": "3. Discord Integration",
+                    "context": "Section heading for Discord integration"
+                },
+                "description": {
+                    "text": "If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes:",
+                    "context": "Description of Discord data collection"
+                },
+                "data_points": {
+                    "account": {
+                        "text": "Account information",
+                        "context": "Data point collected by Discord"
+                    },
+                    "usage": {
+                        "text": "Usage data",
+                        "context": "Data point collected by Discord"
+                    },
+                    "communication": {
+                        "text": "Communication content",
+                        "context": "Data point collected by Discord"
+                    },
+                    "other": {
+                        "text": "Other information as outlined in Discord's privacy policy",
+                        "context": "Reference to additional Discord data collection"
+                    }
+                },
+                "admin_access": {
+                    "text": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
+                    "context": "Description of admin access to Discord data"
+                }
+            },
+            "contact": {
+                "heading": {
+                    "text": "4. Contact Information",
+                    "context": "Section heading for contact information"
+                },
+                "questions": {
+                    "text": "For questions about data protection:",
+                    "context": "Prompt for data protection questions"
+                },
+                "email": {
+                    "text": "Email",
+                    "context": "Email contact label"
+                }
+            }
         }
     }
 } 
