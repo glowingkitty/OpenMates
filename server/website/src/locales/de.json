@@ -1,15 +1,15 @@
 {
     "digital_team_mates": {
         "text": "Digitale Kollegen",
-        "context": "Used as main headline on the landing page"
+        "context": "Digital team mates that can help you with tasks. Wording that everyone should be able to grasp, not just tech people."
     },
     "team_mates": {
         "text": "Kollegen",
-        "context": "Used in team member listing sections"
+        "context": "Used behind the logo of various apps. Examples: 'Jobs Team Mates', 'Calendar Team Mates', 'Events Team Mates'"
     },
     "for_all_of_us": {
         "text": "Für uns alle.",
-        "context": "Tagline appearing below the main headline"
+        "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
     },
     "activity": {
         "search": {
@@ -28,23 +28,23 @@
     "platforms": {
         "via": {
             "text": "via",
-            "context": "Preposition used when indicating platform source, e.g., 'Message via Discord'"
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
         },
         "web": {
             "text": "Web",
-            "context": "Platform name for browser-based access"
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
         },
         "mattermost": {
             "text": "Mattermost",
-            "context": "Chat platform name"
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
         },
         "discord": {
             "text": "Discord",
-            "context": "Chat platform name"
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
         },
         "and_more": {
             "text": "& mehr",
-            "context": "Used at the end of platform list to indicate more options"
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
         }
     },
     "discord": {
