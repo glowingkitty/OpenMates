@@ -301,10 +301,15 @@
                     "en_original": "Ask",
                     "context": "Section heading for Ask feature"
                 },
-                "main_heading": {
-                    "text": "Deine persönlichen Experten für deine Fragen.",
-                    "en_original": "Your personalized experts for your questions.",
-                    "context": "Main heading in Ask section"
+                "main_heading_1": {
+                    "text": "Deine persönlichen Experten",
+                    "en_original": "Your personalized experts",
+                    "context": "In 'Your personalized experts for your questions.'"
+                },
+                "main_heading_2": {
+                    "text": "für deine Fragen",
+                    "en_original": "for your questions",
+                    "context": "In 'Your personalized experts for your questions.'"
                 },
                 "paragraph": {
                     "text": "Zum Beispiel:<br>Erhalte Karriereberatung<br>basierend auf deinen Interessen.",
@@ -318,10 +323,15 @@
                     "en_original": "Tasks",
                     "context": "Section heading for Tasks feature"
                 },
-                "main_heading": {
-                    "text": "Lass sie<br>deine Aufgaben<br>mit Apps erledigen.",
-                    "en_original": "Ask them to<br>fulfill your tasks<br>using apps.",
-                    "context": "Main heading in Tasks section"
+                "main_heading_1": {
+                    "text": "Lass sie",
+                    "en_original": "Ask them to",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
+                },
+                "main_heading_2": {
+                    "text": "deine Aufgaben erledigen",
+                    "en_original": "fulfill your tasks",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
                 },
                 "paragraph": {
                     "text": "Zum Beispiel:<br>Finde Arzttermine<br>die nicht mit deinem Kalender kollidieren<br>auf Doctolib & Jameda.",

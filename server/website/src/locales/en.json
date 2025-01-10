@@ -248,9 +248,13 @@
                     "text": "Ask",
                     "context": "Section heading for Ask feature"
                 },
-                "main_heading": {
-                    "text": "Your personalized experts for your questions.",
-                    "context": "Main heading in Ask section"
+                "main_heading_1": {
+                    "text": "Your personalized experts",
+                    "context": "In 'Your personalized experts for your questions.'"
+                },
+                "main_heading_2": {
+                    "text": "for your questions",
+                    "context": "In 'Your personalized experts for your questions.'"
                 },
                 "paragraph": {
                     "text": "For example:<br>Get career advice<br>based on your interests.",
@@ -262,9 +266,13 @@
                     "text": "Tasks",
                     "context": "Section heading for Tasks feature"
                 },
-                "main_heading": {
-                    "text": "Ask them to<br>fulfill your tasks<br>using apps.",
-                    "context": "Main heading in Tasks section"
+                "main_heading_1": {
+                    "text": "Ask them to",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
+                },
+                "main_heading_2": {
+                    "text": "fulfill your tasks",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
                 },
                 "paragraph": {
                     "text": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
