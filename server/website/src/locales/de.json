@@ -299,21 +299,51 @@
                 "heading": {
                     "text": "Frage",
                     "en_original": "Ask",
-                    "context": "Used in 'Ask your personalized experts for your questions'"
+                    "context": "Section heading for Ask feature"
+                },
+                "main_heading": {
+                    "text": "Deine persönlichen Experten für deine Fragen.",
+                    "en_original": "Your personalized experts for your questions.",
+                    "context": "Main heading in Ask section"
+                },
+                "paragraph": {
+                    "text": "Zum Beispiel:<br>Erhalte Karriereberatung<br>basierend auf deinen Interessen.",
+                    "en_original": "For example:<br>Get career advice<br>based on your interests.",
+                    "context": "Example text for Ask section"
                 }
             },
             "tasks": {
                 "heading": {
                     "text": "Aufgaben",
                     "en_original": "Tasks",
-                    "context": "Section heading for the Tasks feature"
+                    "context": "Section heading for Tasks feature"
+                },
+                "main_heading": {
+                    "text": "Lass sie<br>deine Aufgaben<br>mit Apps erledigen.",
+                    "en_original": "Ask them to<br>fulfill your tasks<br>using apps.",
+                    "context": "Main heading in Tasks section"
+                },
+                "paragraph": {
+                    "text": "Zum Beispiel:<br>Finde Arzttermine<br>die nicht mit deinem Kalender kollidieren<br>auf Doctolib & Jameda.",
+                    "en_original": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
+                    "context": "Example text for Tasks section"
                 }
             },
             "apps": {
                 "heading": {
                     "text": "Apps",
                     "en_original": "Apps",
-                    "context": "Section heading for the Apps feature"
+                    "context": "Section heading for Apps feature"
+                },
+                "main_heading": {
+                    "text": "So viele Apps<br>um dein privates Leben & deine Arbeit<br>zu transformieren.",
+                    "en_original": "So many apps<br>to transform your<br>personal life & work.",
+                    "context": "Main heading in Apps section"
+                },
+                "paragraph": {
+                    "text": "Zum Beispiel:<br>Finde Veranstaltungen<br>auf Meetup, Eventbrite & RA.",
+                    "en_original": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
+                    "context": "Example text for Apps section"
                 }
             }
         },
@@ -360,6 +390,36 @@
                 "en_original": "Search",
                 "context": "Used in 'Events | Search'"
             }
+        },
+        "personalized_experts_for_your_questions": {
+            "text": "Deine persönlichen Experten für deine Fragen.",
+            "en_original": "Your personalized experts for your questions.",
+            "context": "Main heading in highlights section about personalized experts"
+        },
+        "get_career_advice": {
+            "text": "Zum Beispiel:<br>Erhalte Karriereberatung<br>basierend auf deinen Interessen.",
+            "en_original": "For example:<br>Get career advice<br>based on your interests.",
+            "context": "Example text for personalized expert assistance"
+        },
+        "fulfill_your_tasks_using_apps": {
+            "text": "Lass sie<br>deine Aufgaben<br>mit Apps erledigen.",
+            "en_original": "Ask them to<br>fulfill your tasks<br>using apps.",
+            "context": "Main heading about task fulfillment"
+        },
+        "find_doctor_appointments": {
+            "text": "Zum Beispiel:<br>Finde Arzttermine<br>die nicht mit deinem Kalender kollidieren<br>auf Doctolib & Jameda.",
+            "en_original": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
+            "context": "Example text for task fulfillment"
+        },
+        "so_many_apps": {
+            "text": "So viele Apps<br>um dein privates Leben & deine Arbeit<br>zu transformieren.",
+            "en_original": "So many apps<br>to transform your<br>personal life & work.",
+            "context": "Main heading about available apps"
+        },
+        "find_events": {
+            "text": "Zum Beispiel:<br>Finde Veranstaltungen<br>auf Meetup, Eventbrite & RA.",
+            "en_original": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
+            "context": "Example text for app usage"
         }
     },
     "chat": {

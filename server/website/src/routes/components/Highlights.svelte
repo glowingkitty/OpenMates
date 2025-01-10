@@ -1,5 +1,6 @@
 <script lang="ts">
     import Highlight from './Highlight.svelte';
+    import { _ } from 'svelte-i18n';
     export let target: string = '';
 </script>
 
@@ -7,22 +8,22 @@
 {#if target === 'for_all'}
 <Highlight
     sub_heading="Ask"
-    main_heading="<mark>Your personalized experts</mark><br> for your questions."
-    paragraph="For example:<br>Get career advice<br>based on your interests."
+    main_heading={`<mark>${$_('highlight.sections.ask.main_heading.text')}</mark>`}
+    paragraph={$_('highlight.sections.ask.paragraph.text')}
     text_side="left"
     {target}
 />
 <Highlight
     sub_heading="Tasks"
-    main_heading="Ask them to<br><mark>fulfill your tasks</mark><br>using apps."
-    paragraph="For example:<br>Find doctor appointments<br>that don’t collide with your calendar<br>on Doctolib & Jameda."
+    main_heading={`<mark>${$_('highlight.sections.tasks.main_heading.text')}</mark>`}
+    paragraph={$_('highlight.sections.tasks.paragraph.text')}
     text_side="right"
     {target}
 />
 <Highlight
     sub_heading="Apps"
-    main_heading="<mark>So many apps</mark><br>to transform your<br>personal life & work."
-    paragraph="For example:<br>Find events<br>on Meetup, Eventbrite & RA."
+    main_heading={`<mark>${$_('highlight.sections.apps.main_heading.text')}</mark>`}
+    paragraph={$_('highlight.sections.apps.paragraph.text')}
     text_side="left"
     {target}
 />
@@ -30,22 +31,22 @@
 {#if target === 'for_developers'}
 <Highlight
     sub_heading="Ask"
-    main_heading="<mark>Your personalized experts</mark><br> for your questions."
-    paragraph="For example:<br>Get career advice<br>based on your interests."
+    main_heading={`<mark>${$_('highlight.sections.ask.main_heading.text')}</mark>`}
+    paragraph={$_('highlight.sections.ask.paragraph.text')}
     text_side="left"
     target="for_developers"
 />
 <Highlight
     sub_heading="Tasks"
-    main_heading="Ask them to<br><mark>fulfill your tasks</mark><br>using apps."
-    paragraph="For example:<br>Find doctor appointments<br>that don’t collide with your calendar<br>on Doctolib & Jameda."
+    main_heading={`<mark>${$_('highlight.sections.tasks.main_heading.text')}</mark>`}
+    paragraph={$_('highlight.sections.tasks.paragraph.text')}
     text_side="right"
     target="for_developers"
 />
 <Highlight
     sub_heading="Apps"
-    main_heading="<mark>So many apps</mark><br>to transform your<br>personal life & work."
-    paragraph="For example:<br>Find events<br>on Meetup, Eventbrite & RA."
+    main_heading={`<mark>${$_('highlight.sections.apps.main_heading.text')}</mark>`}
+    paragraph={$_('highlight.sections.apps.paragraph.text')}
     text_side="left"
     target="for_developers"
 />

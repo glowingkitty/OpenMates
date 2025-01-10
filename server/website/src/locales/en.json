@@ -246,19 +246,43 @@
             "ask": {
                 "heading": {
                     "text": "Ask",
-                    "context": "Used in 'Ask your personalized experts for your questions'"
+                    "context": "Section heading for Ask feature"
+                },
+                "main_heading": {
+                    "text": "Your personalized experts for your questions.",
+                    "context": "Main heading in Ask section"
+                },
+                "paragraph": {
+                    "text": "For example:<br>Get career advice<br>based on your interests.",
+                    "context": "Example text for Ask section"
                 }
             },
             "tasks": {
                 "heading": {
                     "text": "Tasks",
-                    "context": "Section heading for the Tasks feature"
+                    "context": "Section heading for Tasks feature"
+                },
+                "main_heading": {
+                    "text": "Ask them to<br>fulfill your tasks<br>using apps.",
+                    "context": "Main heading in Tasks section"
+                },
+                "paragraph": {
+                    "text": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
+                    "context": "Example text for Tasks section"
                 }
             },
             "apps": {
                 "heading": {
                     "text": "Apps",
-                    "context": "Section heading for the Apps feature"
+                    "context": "Section heading for Apps feature"
+                },
+                "main_heading": {
+                    "text": "So many apps<br>to transform your<br>personal life & work.",
+                    "context": "Main heading in Apps section"
+                },
+                "paragraph": {
+                    "text": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
+                    "context": "Example text for Apps section"
                 }
             }
         },
@@ -297,6 +321,30 @@
                 "text": "Search",
                 "context": "Used in 'Events | Search'"
             }
+        },
+        "personalized_experts_for_your_questions": {
+            "text": "Your personalized experts for your questions.",
+            "context": "Main heading in highlights section about personalized experts"
+        },
+        "get_career_advice": {
+            "text": "For example:<br>Get career advice<br>based on your interests.",
+            "context": "Example text for personalized expert assistance"
+        },
+        "fulfill_your_tasks_using_apps": {
+            "text": "Ask them to<br>fulfill your tasks<br>using apps.",
+            "context": "Main heading about task fulfillment"
+        },
+        "find_doctor_appointments": {
+            "text": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
+            "context": "Example text for task fulfillment"
+        },
+        "so_many_apps": {
+            "text": "So many apps<br>to transform your<br>personal life & work.",
+            "context": "Main heading about available apps"
+        },
+        "find_events": {
+            "text": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
+            "context": "Example text for app usage"
         }
     },
     "chat": {
