@@ -2,6 +2,7 @@
     import AnimatedChatExamples from './AnimatedChatExamples.svelte';
     import APIexample from './APIexample.svelte';
     import { onMount, onDestroy } from 'svelte';
+    import { _ } from 'svelte-i18n';
 
     // Define props for the component
     export let main_heading: string;
@@ -110,7 +111,8 @@
                     <div class="center-content">
                         <div class="icon mate"></div>
                         <div class="powered-text">
-                            powered by the leading<br>cloud & on-device AI models
+                            {$_('highlight.powered_by.powered_by_leading.text')}<br>
+                            {$_('highlight.powered_by.cloud_and_on_device_ai_models.text')}
                         </div>
                     </div>
                 </div>

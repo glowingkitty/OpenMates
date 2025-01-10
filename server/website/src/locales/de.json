@@ -230,5 +230,17 @@
             "text": "Erste Einladungen im Jan/Feb 2025",
             "context": "Timeline for first invites"
         }
+    },
+    "highlight": {
+        "powered_by": {
+            "powered_by_leading": {
+                "text": "verwendet führende",
+                "context": "Used in 'powered by the leading cloud & on-device AI models'"
+            },
+            "cloud_and_on_device_ai_models": {
+                "text": "online & lokale KI Modelle",
+                "context": "Used in 'powered by the leading cloud & on-device AI models'"
+            }
+        }
     }
 }
