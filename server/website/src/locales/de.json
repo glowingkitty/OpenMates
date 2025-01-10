@@ -96,7 +96,7 @@
                 "context": "Example question about upcoming events"
             },
             "mate_response": {
-                "text": "Es finden einige spannende Veranstaltungen in den nächsten Tagen statt! Sowohl zur Karriereentwicklung als auch zum Netzwerken.",
+                "text": "Es finden einige spannende Veranstaltungen in den nächsten Tagen statt! Sowohl zur Karriereentwicklung als auch um neue Leute kennen zu lernen.",
                 "context": "AI response about upcoming events"
             },
             "events": {
@@ -138,7 +138,7 @@
                 "context": "Initial AI response about checking calendar"
             },
             "mate_response": {
-                "text": "Der beste Termin, den ich finden konnte, ist morgen um 9:00 Uhr. Überschneidet sich nicht mit deinem Product Launch Meeting später am Tag.",
+                "text": "Der beste Termin, den ich finden konnte, ist morgen um 9:00 Uhr. Überschneidet sich nicht mit deinem Produktstart Meeting später am Tag.",
                 "context": "AI response with found appointment"
             },
             "doctors": {
