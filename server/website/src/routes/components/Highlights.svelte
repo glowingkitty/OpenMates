@@ -5,6 +5,7 @@
 </script>
 
 {#await waitLocale()}
+    <div></div>
 {:then}
     {#if target === 'for_all'}
         <Highlight
