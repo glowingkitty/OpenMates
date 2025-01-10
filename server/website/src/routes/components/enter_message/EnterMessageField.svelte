@@ -4,6 +4,7 @@
     import PDF from './in_message_previews/PDF.svelte';
     import Web from './in_message_previews/Web.svelte';
     import { onMount } from 'svelte';
+    import { _ } from 'svelte-i18n';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -236,7 +237,11 @@
         const totalSize = currentSize + newFilesSize;
 
         if (totalSize > MAX_TOTAL_SIZE) {
-            alert(`Total file size would exceed ${FILE_SIZE_LIMITS.TOTAL_MAX_SIZE}MB limit. Current size: ${(currentSize / 1024 / 1024).toFixed(1)}MB, Attempted to add: ${(newFilesSize / 1024 / 1024).toFixed(1)}MB`);
+            alert($_('enter_message.file_size_limits.total_exceeded.text', ({
+                size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
+                current: (currentSize / 1024 / 1024).toFixed(1),
+                attempted: (newFilesSize / 1024 / 1024).toFixed(1)
+            } as any)));
             input.value = '';
             return;
         }
@@ -267,7 +272,11 @@
         const totalSize = currentSize + newFilesSize;
 
         if (totalSize > MAX_TOTAL_SIZE) {
-            alert(`Total file size would exceed ${FILE_SIZE_LIMITS.TOTAL_MAX_SIZE}MB limit. Current size: ${(currentSize / 1024 / 1024).toFixed(1)}MB, Attempted to add: ${(newFilesSize / 1024 / 1024).toFixed(1)}MB`);
+            alert($_('enter_message.file_size_limits.total_exceeded.text', ({
+                size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
+                current: (currentSize / 1024 / 1024).toFixed(1),
+                attempted: (newFilesSize / 1024 / 1024).toFixed(1)
+            } as any)));
             input.value = '';
             return;
         }
@@ -295,7 +304,11 @@
                     // Check size before inserting
                     const totalSize = getCurrentAttachmentsSize() + blob.size;
                     if (totalSize > MAX_TOTAL_SIZE) {
-                        alert(`Adding this photo would exceed the ${FILE_SIZE_LIMITS.TOTAL_MAX_SIZE}MB limit. Current size: ${(getCurrentAttachmentsSize() / 1024 / 1024).toFixed(1)}MB`);
+                        alert($_('enter_message.file_size_limits.total_exceeded.text', ({
+                            size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
+                            current: (getCurrentAttachmentsSize() / 1024 / 1024).toFixed(1),
+                            attempted: (blob.size / 1024 / 1024).toFixed(1)
+                        } as any)));
                         return;
                     }
                     insertImageAtCursor(blob);
@@ -817,9 +830,9 @@
                             on:input={(e) => handleInput(e, segment, index)}
                             on:paste={handlePaste}
                             placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
-                                ? "Enter your message"
+                                ? $_('enter_message.enter_your_message.text')
                                 : segment.imageId || segment.fileId || segment.videoId || segment.webUrl 
-                                    ? "Click here to add text"
+                                    ? $_('enter_message.click_to_add_text.text')
                                     : ""}
                             rows="1"
                             class="message-input {segment.text ? 'has-content' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''}"
@@ -836,9 +849,13 @@
                             role="textbox"
                         >
                             {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
-                                <span class="placeholder">{isMessageFieldFocused ? "Enter your message" : "Click here to enter your message"}</span>
+                                <span class="placeholder">
+                                    {isMessageFieldFocused ? 
+                                        $_('enter_message.enter_your_message.text') : 
+                                        $_('enter_message.click_to_enter_message.text')}
+                                </span>
                             {:else if !segment.text && (segment.imageId || segment.fileId || segment.videoId || segment.webUrl)}
-                                <span class="placeholder">Click here to add text</span>
+                                <span class="placeholder">{$_('enter_message.click_to_add_text.text')}</span>
                             {:else}
                                 {segment.text || '\u00A0'}
                             {/if}
@@ -978,21 +995,23 @@
             <button 
                 class="clickable-icon icon_files" 
                 on:click={handleFileSelect} 
-                aria-label="Attach files"
+                aria-label={$_('enter_message.attachments.attach_files.text')}
             ></button>
         </div>
         <div class="right-buttons">
             <button 
                 class="clickable-icon icon_camera" 
                 on:click={handleCameraClick} 
-                aria-label="Take photo or video"
+                aria-label={$_('enter_message.attachments.take_photo.text')}
             ></button>
             <button 
                 class="clickable-icon icon_recordaudio" 
-                aria-label="Record audio"
+                aria-label={$_('enter_message.attachments.record_audio.text')}
             ></button>
             {#if hasContent}
-                <button class="send-button" on:click={handleSend}>Send</button>
+                <button class="send-button" on:click={handleSend}>
+                    {$_('enter_message.send.text')}
+                </button>
             {/if}
         </div>
     </div>

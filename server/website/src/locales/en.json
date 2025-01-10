@@ -318,5 +318,43 @@
                 "context": "Help prompt message in chat"
             }
         }
+    },
+    "enter_message": {
+        "enter_your_message": {
+            "text": "Enter your message",
+            "context": "Placeholder text shown in empty message input field"
+        },
+        "click_to_enter_message": {
+            "text": "Click here to enter your message",
+            "context": "Placeholder text shown when message field is not focused"
+        },
+        "click_to_add_text": {
+            "text": "Click here to add text",
+            "context": "Prompt shown after attachments to add more text"
+        },
+        "send": {
+            "text": "Send",
+            "context": "Button text for sending a message"
+        },
+        "file_size_limits": {
+            "total_exceeded": {
+                "text": "Total file size would exceed {size}MB limit. Current size: {current}MB, Attempted to add: {attempted}MB",
+                "context": "Error message shown when total file size limit is exceeded"
+            }
+        },
+        "attachments": {
+            "take_photo": {
+                "text": "Take photo",
+                "context": "Button text for taking a photo"
+            },
+            "attach_files": {
+                "text": "Attach files", 
+                "context": "Button text for attaching files"
+            },
+            "record_audio": {
+                "text": "Record audio",
+                "context": "Button text for recording audio"
+            }
+        }
     }
 } 
