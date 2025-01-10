@@ -1,8 +1,16 @@
 import '@fontsource-variable/lexend-deca';
-import { initI18n } from '@website-i18n/setup';
+import { browser } from '$app/environment';
+import { init, register } from 'svelte-i18n';
 
 export const prerender = true;
 export const ssr = true;
 
-// Initialize i18n
-initI18n(); 
+
+
+register('en', () => import('../locales/en.json'));
+register('de', () => import('../locales/de.json'));
+
+init({
+    fallbackLocale: 'en',
+    initialLocale: browser ? window.navigator.language : 'en',
+}); 
