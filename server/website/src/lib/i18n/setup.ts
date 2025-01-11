@@ -7,7 +7,7 @@ export const setupI18n = async () => {
     register('en', () => import('../../locales/en.json')); // English
     register('de', () => import('../../locales/de.json')); // German
     register('ja', () => import('../../locales/ja.json')); // Japanese
-    // register('es', () => import('../../locales/es.json')); // Spanish
+    register('es', () => import('../../locales/es.json')); // Spanish
     // register('fr', () => import('../../locales/fr.json')); // French
 
     // Get initial locale from browser or fallback to 'en'
