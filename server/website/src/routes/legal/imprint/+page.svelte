@@ -60,6 +60,13 @@
         user-select: none;
     }
 
+    /* Add filter for dark mode */
+    @media (prefers-color-scheme: dark) {
+        .contact-info {
+            filter: invert(1);
+        }
+    }
+
     .info-1 {
         width: 100%;
         height: 20px;
