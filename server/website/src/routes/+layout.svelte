@@ -1,6 +1,4 @@
 <script lang="ts">
-    import type { Locale } from 'svelte-i18n';
-    import '$lib/i18n/types';  // Import the type declaration
     
     // Import all necessary styles
     import '$lib/styles/fonts.css';
@@ -11,7 +9,6 @@
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
     import '$lib/styles/theme.css';
-    import { locale } from '$lib/i18n';
     import { replaceOpenMates } from '$lib/actions/replaceText';
     import Header from './components/Header.svelte';
     import Footer from './components/Footer.svelte';
@@ -20,7 +17,7 @@
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { SUPPORTED_LOCALES, isValidLocale } from '$lib/i18n/types';
-    import { waitLocale } from 'svelte-i18n';
+    import { waitLocale, locale } from 'svelte-i18n';
 
     // Initialize translations
     let mounted = false;
