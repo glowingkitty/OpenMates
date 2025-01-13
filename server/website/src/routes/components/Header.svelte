@@ -4,16 +4,19 @@
     import { externalLinks, routes } from '../../lib/config/links';
     import { isPageVisible } from '../../lib/config/pages';
     import { replaceOpenMates } from '../../lib/actions/replaceText';
-    import { t } from '../../lib/i18n';
+    import { t } from 'svelte-i18n';
 
     export let context: 'website' | 'webapp' = 'website';
 
-    // Make navigation items reactive by moving them inside the $: block
-    $: websiteNavItems = [
+    // Add a reactive statement to check if translations are ready
+    $: isTranslationsReady = $t !== undefined && typeof $t === 'function';
+
+    // Update the websiteNavItems to only create when translations are ready
+    $: websiteNavItems = isTranslationsReady ? [
         { href: routes.home, text: $t('navigation.for_all.text') },
         { href: routes.developers, text: $t('navigation.for_developers.text') },
         { href: routes.docs.main, text: $t('navigation.docs.text') }
-    ].filter(item => isPageVisible(item.href));
+    ].filter(item => isPageVisible(item.href)) : [];
 
     interface NavItem {
         href: string;
@@ -102,7 +105,7 @@
                 </a>
             </div>
 
-            {#if showNavLinks}
+            {#if showNavLinks && isTranslationsReady}
                 <!-- Mobile menu button only shown for website -->
                 {#if context === 'website'}
                     <button 
