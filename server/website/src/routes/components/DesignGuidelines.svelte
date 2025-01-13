@@ -2,6 +2,7 @@
     import { _, waitLocale } from 'svelte-i18n';
     import DesignGuideline from './DesignGuideline.svelte';
     import LargeSeparator from '../components/LargeSeparator.svelte';
+    import { replaceOpenMates } from '$lib/actions/replaceText';
 
     // Export a prop to allow customizing the section title
     export let sectionTitle = $_('design_guidelines.section_title.text');
@@ -10,64 +11,60 @@
 {#await waitLocale()}
     <div></div>
 {:then}
-    <LargeSeparator reverse_direction={true} />
-    <section class="centered gradient-section">
-        <h3 style="margin-top: 30px">{sectionTitle}</h3>
+    <div use:replaceOpenMates>
+        <LargeSeparator reverse_direction={true} />
+        <section class="centered gradient-section">
+            <h3 style="margin-top: 30px">{sectionTitle}</h3>
 
-        <!-- Privacy Design Guideline -->
-        <DesignGuideline
-            main_icon="icon_lock"
-            headline="<mark>{$_('design_guidelines.privacy.headline.text')}</mark>"
-            subheadings={[
-                {
-                    icon: "icon_anonym",
-                    heading: $_('design_guidelines.privacy.anonymization.text'),
-                    // link: "/docs/design_guidelines"
-                },
-                {
-                    icon: "icon_laptop",
-                    heading: $_('design_guidelines.privacy.local_processing.text'),
-                    // link: "/docs/design_guidelines"
-                },
-                {
-                    icon: "icon_server",
-                    heading: $_('design_guidelines.privacy.self_hosting.text'),
-                    // link: "/docs/design_guidelines"
-                }
-            ]}
-            text={$_('design_guidelines.privacy.text.text')}
-            subtext={$_('design_guidelines.privacy.subtext.text')}
-        />
+            <!-- Privacy Design Guideline -->
+            <DesignGuideline
+                main_icon="icon_lock"
+                headline="<mark>{$_('design_guidelines.privacy.headline.text')}</mark>"
+                subheadings={[
+                    {
+                        icon: "icon_anonym",
+                        heading: $_('design_guidelines.privacy.anonymization.text'),
+                    },
+                    {
+                        icon: "icon_laptop",
+                        heading: $_('design_guidelines.privacy.local_processing.text'),
+                    },
+                    {
+                        icon: "icon_server",
+                        heading: $_('design_guidelines.privacy.self_hosting.text'),
+                    }
+                ]}
+                text={$_('design_guidelines.privacy.text.text')}
+                subtext={$_('design_guidelines.privacy.subtext.text')}
+            />
 
-        <!-- Separator line -->
-        <div class="separator"></div>
+            <!-- Separator line -->
+            <div class="separator"></div>
 
-        <!-- Maximum Good Design Guideline -->
-        <DesignGuideline
-            main_icon="icon_good"
-            headline="<mark>{$_('design_guidelines.maximum_good.headline_1.text')}</mark><br>{$_('design_guidelines.maximum_good.headline_2.text')}"
-            subheadings={[
-                {
-                    icon: "icon_open_source",
-                    heading: $_('design_guidelines.maximum_good.open_source.text'),
-                    // link: "/docs/design_guidelines"
-                },
-                {
-                    icon: "icon_ai",
-                    heading: $_('design_guidelines.maximum_good.provider_independent.text'),
-                    // link: "/docs/design_guidelines"
-                },
-                {
-                    icon: "icon_chat",
-                    heading: $_('design_guidelines.maximum_good.chat_anywhere.text'),
-                    // link: "/docs/design_guidelines"
-                }
-            ]}
-            text={$_('design_guidelines.maximum_good.text.text')}
-            subtext={$_('design_guidelines.maximum_good.subtext.text')}
-        />
-    </section>
-    <LargeSeparator />
+            <!-- Maximum Good Design Guideline -->
+            <DesignGuideline
+                main_icon="icon_good"
+                headline="<mark>{$_('design_guidelines.maximum_good.headline_1.text')}</mark><br>{$_('design_guidelines.maximum_good.headline_2.text')}"
+                subheadings={[
+                    {
+                        icon: "icon_open_source",
+                        heading: $_('design_guidelines.maximum_good.open_source.text'),
+                    },
+                    {
+                        icon: "icon_ai",
+                        heading: $_('design_guidelines.maximum_good.provider_independent.text'),
+                    },
+                    {
+                        icon: "icon_chat",
+                        heading: $_('design_guidelines.maximum_good.chat_anywhere.text'),
+                    }
+                ]}
+                text={$_('design_guidelines.maximum_good.text.text')}
+                subtext={$_('design_guidelines.maximum_good.subtext.text')}
+            />
+        </section>
+        <LargeSeparator />
+    </div>
 {/await}
 
 <style>
