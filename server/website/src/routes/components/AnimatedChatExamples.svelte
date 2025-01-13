@@ -6,6 +6,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
+    import { getLocaleFromNavigator, waitLocale } from 'svelte-i18n';
 
     // Add at the top of the script section
     type ChatExample = {
@@ -26,179 +27,188 @@
         appCards?: any[];
     };
 
-    // Make chatExamples non-reactive since it contains translations
-    const chatExamples: ChatExample[] = [
-        // Career advice conversation with loaded preferences
-        {
-            app: 'ai',
-            sequence: [
-                {
-                    type: 'user',
-                    text: $_('chat_examples.career.user_question.text'),
-                    waitTime: 2500
-                },
-                {
-                    type: 'started_focus',
-                    appNames: ['Jobs'],
-                    focusName: $_('chat_examples.processing.career_insights.text'),
-                    focusIcon: 'insights',
-                    waitTime: 1500
-                },
-                {
-                    type: 'loaded_preferences',
-                    appNames: ['Jobs'],
-                    waitTime: 1500
-                },
-                {
-                    type: 'mate',
-                    mateName: 'Burton',
-                    text: $_('chat_examples.career.mate_response.text'),
-                    waitTime: 3000
-                }
-            ]
-        },
-        // Events conversation
-        {
-            app: 'events',
-            sequence: [
-                {
-                    type: 'user',
-                    text: $_('chat_examples.events.user_question.text'),
-                    waitTime: 2500
-                },
-                {
-                    type: "using_apps",
-                    appNames: ["events"],
-                    in_progress: false,
-                    waitTime: 1500
-                },
-                {
-                    type: 'mate',
-                    mateName: 'Lisa',
-                    text: $_('chat_examples.events.mate_response.text'),
-                    waitTime: 3000,
-                    appCards: [
-                        {
-                            component: EventAppCard,
-                            props: {
-                                size: 'small',
-                                date: $_('chat_examples.events.calendar.today.text'),
-                                time: '18:30',
-                                eventName: $_('chat_examples.events.events.book_club.text'),
-                                participants: 12,
-                                imageUrl: '/images/examples/group1.jpg'
-                            }
-                        },
-                        {
-                            component: EventAppCard,
-                            props: {
-                                size: 'small',
-                                date: $_('chat_examples.events.calendar.dec_15.text'),
-                                time: '19:00',
-                                eventName: $_('chat_examples.events.events.tech_talk.text'),
-                                participants: 76,
-                                imageUrl: '/images/examples/group2.jpg'
-                            }
-                        },
-                        {
-                            component: EventAppCard,
-                            props: {
-                                size: 'small',
-                                date: $_('chat_examples.events.calendar.dec_16.text'),
-                                time: '18:00',
-                                eventName: $_('chat_examples.events.events.workshop.text'),
-                                participants: 13,
-                                imageUrl: '/images/examples/group2.jpg'
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        // Health conversation
-        {
-            app: 'health',
-            sequence: [
-                {
-                    type: 'user',
-                    text: $_('chat_examples.health.user_question.text'),
-                    waitTime: 2500
-                },
-                {
-                    type: 'mate',
-                    mateName: 'Melvin',
-                    text: $_('chat_examples.health.mate_initial.text'),
-                    waitTime: 2500
-                },
-                {
-                    type: "using_apps",
-                    appNames: ["calendar", "health"],
-                    in_progress: false,
-                    waitTime: 2500
-                },
-                {
-                    type: 'mate',
-                    mateName: 'Melvin',
-                    text: $_('chat_examples.health.mate_response.text'),
-                    waitTime: 3000,
-                    appCards: [
+    // Add loading state
+    let isTranslationsLoaded = false;
+    
+    // Initialize empty chat examples array
+    let chatExamples: ChatExample[] = [];
+
+    // Create reactive statement for chat examples
+    $: if ($_) {
+        chatExamples = [
+            // Career advice conversation with loaded preferences
+            {
+                app: 'ai',
+                sequence: [
+                    {
+                        type: 'user',
+                        text: $_('chat_examples.career.user_question.text'),
+                        waitTime: 2500
+                    },
+                    {
+                        type: 'started_focus',
+                        appNames: ['Jobs'],
+                        focusName: $_('chat_examples.processing.career_insights.text'),
+                        focusIcon: 'insights',
+                        waitTime: 1500
+                    },
+                    {
+                        type: 'loaded_preferences',
+                        appNames: ['Jobs'],
+                        waitTime: 1500
+                    },
+                    {
+                        type: 'mate',
+                        mateName: 'Burton',
+                        text: $_('chat_examples.career.mate_response.text'),
+                        waitTime: 3000
+                    }
+                ]
+            },
+            // Events conversation
+            {
+                app: 'events',
+                sequence: [
+                    {
+                        type: 'user',
+                        text: $_('chat_examples.events.user_question.text'),
+                        waitTime: 2500
+                    },
+                    {
+                        type: "using_apps",
+                        appNames: ["events"],
+                        in_progress: false,
+                        waitTime: 1500
+                    },
+                    {
+                        type: 'mate',
+                        mateName: 'Lisa',
+                        text: $_('chat_examples.events.mate_response.text'),
+                        waitTime: 3000,
+                        appCards: [
                             {
-                                component: HealthAppCard,
+                                component: EventAppCard,
                                 props: {
-                                    size: 'large',
-                                    date: $_('chat_examples.health.calendar.wed.text'),
-                                    start: '9:00',
-                                    end: '10:00',
-                                    doctorName: $_('chat_examples.health.doctors.van_hausen.text'),
-                                    specialty: $_('chat_examples.health.doctors.specialty.text'),
-                                    rating: 4.2,
-                                    ratingCount: 85,
-                                    showCalendar: true,
-                                    existingAppointments: [
-                                        {start: '13:00', end: '15:00'}
-                                    ]
+                                    size: 'small',
+                                    date: $_('chat_examples.events.calendar.today.text'),
+                                    time: '18:30',
+                                    eventName: $_('chat_examples.events.events.book_club.text'),
+                                    participants: 12,
+                                    imageUrl: '/images/examples/group1.jpg'
                                 }
                             },
                             {
-                                component: HealthAppCard,
+                                component: EventAppCard,
                                 props: {
-                                    size: 'large',
-                                    date: $_('chat_examples.health.calendar.thu.text'),
-                                    start: '11:30',
-                                    end: '12:30',
-                                    doctorName: $_('chat_examples.health.doctors.williams.text'),
-                                    specialty: $_('chat_examples.health.doctors.specialty.text'),
-                                    rating: 4.8,
-                                    ratingCount: 124,
-                                    showCalendar: true,
-                                    existingAppointments: [
-                                        {start: '14:00', end: '16:00'}
-                                    ]
+                                    size: 'small',
+                                    date: $_('chat_examples.events.calendar.dec_15.text'),
+                                    time: '19:00',
+                                    eventName: $_('chat_examples.events.events.tech_talk.text'),
+                                    participants: 76,
+                                    imageUrl: '/images/examples/group2.jpg'
                                 }
                             },
                             {
-                                component: HealthAppCard,
+                                component: EventAppCard,
                                 props: {
-                                    size: 'large',
-                                    date: $_('chat_examples.health.calendar.fri.text'),
-                                    start: '15:00',
-                                    end: '16:00',
-                                    doctorName: $_('chat_examples.health.doctors.chen.text'),
-                                    specialty: $_('chat_examples.health.doctors.specialty.text'),
-                                    rating: 4.6,
-                                    ratingCount: 93,
-                                    showCalendar: true,
-                                    existingAppointments: [
-                                        {start: '10:00', end: '12:00'}
-                                    ]
+                                    size: 'small',
+                                    date: $_('chat_examples.events.calendar.dec_16.text'),
+                                    time: '18:00',
+                                    eventName: $_('chat_examples.events.events.workshop.text'),
+                                    participants: 13,
+                                    imageUrl: '/images/examples/group2.jpg'
                                 }
                             }
                         ]
-                }
-            ]
-        }
-        // Add more conversations as needed
-    ];
+                    }
+                ]
+            },
+            // Health conversation
+            {
+                app: 'health',
+                sequence: [
+                    {
+                        type: 'user',
+                        text: $_('chat_examples.health.user_question.text'),
+                        waitTime: 2500
+                    },
+                    {
+                        type: 'mate',
+                        mateName: 'Melvin',
+                        text: $_('chat_examples.health.mate_initial.text'),
+                        waitTime: 2500
+                    },
+                    {
+                        type: "using_apps",
+                        appNames: ["calendar", "health"],
+                        in_progress: false,
+                        waitTime: 2500
+                    },
+                    {
+                        type: 'mate',
+                        mateName: 'Melvin',
+                        text: $_('chat_examples.health.mate_response.text'),
+                        waitTime: 3000,
+                        appCards: [
+                                {
+                                    component: HealthAppCard,
+                                    props: {
+                                        size: 'large',
+                                        date: $_('chat_examples.health.calendar.wed.text'),
+                                        start: '9:00',
+                                        end: '10:00',
+                                        doctorName: $_('chat_examples.health.doctors.van_hausen.text'),
+                                        specialty: $_('chat_examples.health.doctors.specialty.text'),
+                                        rating: 4.2,
+                                        ratingCount: 85,
+                                        showCalendar: true,
+                                        existingAppointments: [
+                                            {start: '13:00', end: '15:00'}
+                                        ]
+                                    }
+                                },
+                                {
+                                    component: HealthAppCard,
+                                    props: {
+                                        size: 'large',
+                                        date: $_('chat_examples.health.calendar.thu.text'),
+                                        start: '11:30',
+                                        end: '12:30',
+                                        doctorName: $_('chat_examples.health.doctors.williams.text'),
+                                        specialty: $_('chat_examples.health.doctors.specialty.text'),
+                                        rating: 4.8,
+                                        ratingCount: 124,
+                                        showCalendar: true,
+                                        existingAppointments: [
+                                            {start: '14:00', end: '16:00'}
+                                        ]
+                                    }
+                                },
+                                {
+                                    component: HealthAppCard,
+                                    props: {
+                                        size: 'large',
+                                        date: $_('chat_examples.health.calendar.fri.text'),
+                                        start: '15:00',
+                                        end: '16:00',
+                                        doctorName: $_('chat_examples.health.doctors.chen.text'),
+                                        specialty: $_('chat_examples.health.doctors.specialty.text'),
+                                        rating: 4.6,
+                                        ratingCount: 93,
+                                        showCalendar: true,
+                                        existingAppointments: [
+                                            {start: '10:00', end: '12:00'}
+                                        ]
+                                    }
+                                }
+                            ]
+                    }
+                ]
+            }
+            // Add more conversations as needed
+        ];
+        isTranslationsLoaded = true;
+    }
 
     let currentExampleIndex = 0;
     let visibleMessages: Array<MessageSequence & {animated?: boolean}> = [];
@@ -426,11 +436,10 @@
     }
 
     onMount(() => {
-        // Consolidate IntersectionObserver setup into a dedicated function for clarity
+        // Just keep the intersection observer setup
         initIntersectionObserver();
 
         return () => {
-            // Clean up any pending animations and observers
             observer?.disconnect();
             currentAnimationId++;
             cleanup();
@@ -512,45 +521,48 @@
     }
 </script>
 
-<div
-    class="chat-examples-container"
-    class:in-highlight={inHighlight}
-    bind:this={containerElement}
->
-    <div class="chat-content" class:in-highlight={inHighlight}>
-        <div 
-            class="animated-chat-container"
-            style="--container-margin-top: {containerMarginTop}px;"
-            data-instance={instanceId}
-        >
-            {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
-                <div>
-                    {#if message.type === 'using_apps' || message.type === 'started_focus' || message.type === 'loaded_preferences'}
-                        <ProcessingDetails
-                            type={message.type}
-                            in_progress={message.in_progress}
-                            appNames={message.appNames}
-                            focusName={message.focusName}
-                            focusIcon={message.focusIcon}
-                        />
-                    {:else}
-                        <ChatMessage
-                            role={message.type === 'user' ? 'user' : message.mateName?.toLowerCase() ?? 'mate'}
-                            messageParts={message.appCards && message.text ? [
-                                { type: 'text', content: message.text },
-                                { type: 'app-cards', content: message.appCards }
-                            ] : undefined}
-                            animated={message.animated}
-                            defaultHidden={true}
-                        >
-                            {message.text}
-                        </ChatMessage>
-                    {/if}
-                </div>
-            {/each}
+<!-- Only show content when translations are loaded -->
+{#if isTranslationsLoaded}
+    <div
+        class="chat-examples-container"
+        class:in-highlight={inHighlight}
+        bind:this={containerElement}
+    >
+        <div class="chat-content" class:in-highlight={inHighlight}>
+            <div 
+                class="animated-chat-container"
+                style="--container-margin-top: {containerMarginTop}px;"
+                data-instance={instanceId}
+            >
+                {#each visibleMessages as message (message.type === 'using_apps' ? 'processing' : message)}
+                    <div>
+                        {#if message.type === 'using_apps' || message.type === 'started_focus' || message.type === 'loaded_preferences'}
+                            <ProcessingDetails
+                                type={message.type}
+                                in_progress={message.in_progress}
+                                appNames={message.appNames}
+                                focusName={message.focusName}
+                                focusIcon={message.focusIcon}
+                            />
+                        {:else}
+                            <ChatMessage
+                                role={message.type === 'user' ? 'user' : message.mateName?.toLowerCase() ?? 'mate'}
+                                messageParts={message.appCards && message.text ? [
+                                    { type: 'text', content: message.text },
+                                    { type: 'app-cards', content: message.appCards }
+                                ] : undefined}
+                                animated={message.animated}
+                                defaultHidden={true}
+                            >
+                                {message.text}
+                            </ChatMessage>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
         </div>
     </div>
-</div>
+{/if}
 
 <style>
     .chat-examples-container {
