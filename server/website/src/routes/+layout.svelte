@@ -24,6 +24,7 @@
 
     // Initialize translations
     let mounted = false;
+    let appLoaded = false;
 
     // Combined initialization for theme and locale
     onMount(async () => {
@@ -32,6 +33,7 @@
         
         // Wait for locale to be ready
         await waitLocale();
+        appLoaded = true;
         mounted = true;
     });
 
@@ -76,14 +78,20 @@
     }
 </script>
 
-<div class="app">
-    <MetaTags />
-    <Header />
-    <main use:replaceOpenMates>
-        <slot />
-    </main>
-    <Footer />
-</div>
+{#if !appLoaded}
+    <div class="app-loading">
+        <!-- Optional: Add loading indicator -->
+    </div>
+{:else}
+    <div class="app">
+        <MetaTags />
+        <Header />
+        <main use:replaceOpenMates>
+            <slot />
+        </main>
+        <Footer />
+    </div>
+{/if}
 
 <style>
     /* Global styles moved from global.css */
@@ -120,5 +128,13 @@
 
     :global(html) {
         overflow-x: hidden;
+    }
+
+    .app-loading {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Optional: Add loading animation styles */
     }
 </style>

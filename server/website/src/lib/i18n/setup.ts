@@ -1,6 +1,7 @@
 import { register, init, getLocaleFromNavigator } from 'svelte-i18n';
 import { browser } from '$app/environment';
 import { SUPPORTED_LOCALES, isValidLocale } from './types';
+import { waitForTranslations } from '../stores/i18n';
 
 const loadLocaleData = async (locale: string) => {
     let module;
@@ -13,7 +14,7 @@ const loadLocaleData = async (locale: string) => {
     }
 };
 
-export function setupI18n() {
+export async function setupI18n() {
     // Register all supported locales
     SUPPORTED_LOCALES.forEach(locale => {
         register(locale, () => loadLocaleData(locale));
@@ -26,4 +27,7 @@ export function setupI18n() {
             ? localStorage.getItem('preferredLanguage') || getLocaleFromNavigator() 
             : 'en'
     });
+
+    // Wait for initial translations to load
+    await waitForTranslations();
 } 

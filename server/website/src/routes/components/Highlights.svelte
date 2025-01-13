@@ -1,12 +1,33 @@
 <script lang="ts">
     import Highlight from './Highlight.svelte';
     import { _, waitLocale } from 'svelte-i18n';
+    import { onMount } from 'svelte';
     export let target: string = '';
+
+    let loaded = false;
+    let mounted = false;
+
+    // Initialize on mount
+    onMount(async () => {
+        mounted = true;
+        await waitLocale();
+        loaded = true;
+    });
+
+    // Watch for locale changes
+    $: if (mounted) {
+        waitLocale().then(() => {
+            loaded = true;
+        });
+    }
 </script>
 
-{#await waitLocale()}
-    <div></div>
-{:then}
+<!-- Show loading state or placeholder while waiting -->
+{#if !loaded}
+    <div class="loading-highlights">
+        <!-- Optional: Add loading skeleton or placeholder here -->
+    </div>
+{:else}
     {#if target === 'for_all'}
         <Highlight
             sub_heading="Ask"
@@ -54,4 +75,12 @@
             target="for_developers"
         />
     {/if}
-{/await}
+{/if}
+
+<style>
+    .loading-highlights {
+        min-height: 200px; /* Adjust based on your needs */
+        width: 100%;
+        /* Optional: Add loading animation styles */
+    }
+</style>
