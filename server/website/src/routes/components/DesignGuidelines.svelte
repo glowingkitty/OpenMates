@@ -3,15 +3,32 @@
     import DesignGuideline from './DesignGuideline.svelte';
     import LargeSeparator from '../components/LargeSeparator.svelte';
     import { replaceOpenMates } from '$lib/actions/replaceText';
+    import { onMount, tick } from 'svelte';
 
     // Export a prop to allow customizing the section title
     export let sectionTitle = $_('design_guidelines.section_title.text');
+
+    let contentDiv: HTMLElement;
+    
+    // Function to apply text replacement after translations are loaded
+    async function initializeContent() {
+        await waitLocale();
+        // Wait for next tick to ensure translations are rendered
+        await tick();
+        if (contentDiv) {
+            replaceOpenMates(contentDiv);
+        }
+    }
+
+    onMount(() => {
+        initializeContent();
+    });
 </script>
 
 {#await waitLocale()}
     <div></div>
 {:then}
-    <div use:replaceOpenMates>
+    <div bind:this={contentDiv}>
         <LargeSeparator reverse_direction={true} />
         <section class="centered gradient-section">
             <h3 style="margin-top: 30px">{sectionTitle}</h3>

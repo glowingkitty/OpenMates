@@ -4,57 +4,35 @@
  * Logger used for debugging text replacements
  */
 import { browser } from '$app/environment';
+import { get } from 'svelte/store';
+import { locale } from 'svelte-i18n';
 
 export function replaceOpenMates(node: HTMLElement) {
     if (!browser) {
         return;
     }
 
-    // Create MutationObserver to watch for DOM changes
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            // Process new nodes
-            mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    processNode(node);
-                }
-            });
-        });
-    });
+    let currentLocale = get(locale);
+    let isProcessing = false;
 
-    // Function to process text nodes
     function processNode(node: Node) {
+        if (isProcessing) return;
+
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent || '';
             if (text.includes('OpenMates')) {
-
-                // Create a temporary container to hold our HTML
+                console.log('Processing OpenMates text node:', text);
                 const container = document.createElement('div');
+                const replacement = '<strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>';
+                
+                container.innerHTML = text.replace(/OpenMates/g, replacement);
 
-                // Check if parent is an anchor tag to preserve the link functionality
-                const isInAnchor = node.parentElement?.nodeName === 'A';
-
-                if (isInAnchor) {
-                    // For text in anchor tags, preserve link functionality but ensure Mates is black
-                    container.innerHTML = text.replace(
-                        /OpenMates/g,
-                        '<span><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></span>'
-                    );
-                } else {
-                    container.innerHTML = text.replace(
-                        /OpenMates/g,
-                        '<strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>'
-                    );
-                }
-
-                // Replace the text node with the container's children
                 while (container.firstChild) {
                     node.parentNode?.insertBefore(container.firstChild, node);
                 }
                 node.parentNode?.removeChild(node);
             }
         } else {
-            // Skip processing if node is already styled or inside styled elements
             if (node.nodeName === 'MARK' ||
                 node.nodeName === 'STRONG' ||
                 (node.parentElement &&
@@ -63,23 +41,43 @@ export function replaceOpenMates(node: HTMLElement) {
                 return;
             }
 
-            // Process child nodes
             Array.from(node.childNodes).forEach(processNode);
         }
     }
 
-    // Initial processing
-    processNode(node);
+    function processEntireNode() {
+        isProcessing = true;
+        try {
+            processNode(node);
+        } finally {
+            isProcessing = false;
+        }
+    }
 
-    // Start observing the entire document for changes
-    observer.observe(document.body, {
+    setTimeout(processEntireNode, 0);
+
+    const observer = new MutationObserver((mutations) => {
+        const newLocale = get(locale);
+        if (newLocale !== currentLocale) {
+            currentLocale = newLocale;
+            setTimeout(processEntireNode, 0);
+        } else {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    processNode(node);
+                });
+            });
+        }
+    });
+
+    observer.observe(node, {
         childList: true,
-        subtree: true
+        subtree: true,
+        characterData: true
     });
 
     return {
         destroy() {
-            // Cleanup: disconnect the observer when the action is destroyed
             observer.disconnect();
         }
     };

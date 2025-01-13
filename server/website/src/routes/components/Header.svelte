@@ -4,9 +4,24 @@
     import { externalLinks, routes } from '../../lib/config/links';
     import { isPageVisible } from '../../lib/config/pages';
     import { replaceOpenMates } from '../../lib/actions/replaceText';
-    import { t } from 'svelte-i18n';
+    import { t, waitLocale } from 'svelte-i18n';
+    import { onMount, tick } from 'svelte';
 
     export let context: 'website' | 'webapp' = 'website';
+
+    let headerDiv: HTMLElement;
+    
+    async function initializeContent() {
+        await waitLocale();
+        await tick();
+        if (headerDiv) {
+            replaceOpenMates(headerDiv);
+        }
+    }
+
+    onMount(() => {
+        initializeContent();
+    });
 
     // Add a reactive statement to check if translations are ready
     $: isTranslationsReady = $t !== undefined && typeof $t === 'function';
@@ -92,68 +107,79 @@
     }
 </script>
 
-<header use:replaceOpenMates class:webapp={context === 'webapp'}>
-    <div class="container">
-        <nav class:webapp={context === 'webapp'}>
-            <div class="left-section">
-                <a
-                    href="/"
-                    class="logo-link"
-                    on:click={(e) => handleClick(e, '/')}
-                >
-                    <bold>OpenMates</bold>
-                </a>
-            </div>
-
-            {#if showNavLinks && isTranslationsReady}
-                <!-- Mobile menu button only shown for website -->
-                {#if context === 'website'}
-                    <button 
-                        class="mobile-menu-button" 
-                        on:click={toggleMobileMenu}
-                        aria-label="Toggle navigation menu"
-                    >
-                        <div class:open={isMobileMenuOpen} class="hamburger">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </button>
-                {/if}
-
-                <div class="nav-links" 
-                     class:mobile-open={isMobileMenuOpen} 
-                     class:webapp={context === 'webapp'}>
-                    {#each navItems as item}
-                        <a
-                            href={item.href}
-                            class="nav-link"
-                            class:active={isActive(item.href)}
-                            on:click={(e) => handleClick(e, item.href)}
-                        >
-                            {item.text}
-                        </a>
-                    {/each}
-                    
-                    {#if showSocialSection}
-                        <div class="icon-links">
-                            {#each socialLinks as link}
-                                <a
-                                    href={link.href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="icon-link"
-                                    aria-label={link.ariaLabel}
-                                >
-                                    <div class="small-icon {link.iconClass}"></div>
-                                </a>
-                            {/each}
-                        </div>
-                    {/if}
+<header bind:this={headerDiv} class:webapp={context === 'webapp'}>
+    {#await waitLocale()}
+        <div class="container">
+            <!-- Minimal header content while loading -->
+            <nav class:webapp={context === 'webapp'}>
+                <div class="left-section">
+                    <span class="logo-link">OpenMates</span>
                 </div>
-            {/if}
-        </nav>
-    </div>
+            </nav>
+        </div>
+    {:then}
+        <div class="container">
+            <nav class:webapp={context === 'webapp'}>
+                <div class="left-section">
+                    <a
+                        href="/"
+                        class="logo-link"
+                        on:click={(e) => handleClick(e, '/')}
+                    >
+                        <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
+                    </a>
+                </div>
+
+                {#if showNavLinks && isTranslationsReady}
+                    <!-- Mobile menu button only shown for website -->
+                    {#if context === 'website'}
+                        <button 
+                            class="mobile-menu-button" 
+                            on:click={toggleMobileMenu}
+                            aria-label="Toggle navigation menu"
+                        >
+                            <div class:open={isMobileMenuOpen} class="hamburger">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </button>
+                    {/if}
+
+                    <div class="nav-links" 
+                         class:mobile-open={isMobileMenuOpen} 
+                         class:webapp={context === 'webapp'}>
+                        {#each navItems as item}
+                            <a
+                                href={item.href}
+                                class="nav-link"
+                                class:active={isActive(item.href)}
+                                on:click={(e) => handleClick(e, item.href)}
+                            >
+                                {item.text}
+                            </a>
+                        {/each}
+                        
+                        {#if showSocialSection}
+                            <div class="icon-links">
+                                {#each socialLinks as link}
+                                    <a
+                                        href={link.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="icon-link"
+                                        aria-label={link.ariaLabel}
+                                    >
+                                        <div class="small-icon {link.iconClass}"></div>
+                                    </a>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+            </nav>
+        </div>
+    {/await}
 </header>
 
 <style>
@@ -209,6 +235,20 @@
         gap: 0.25rem;
         text-decoration: none;
         cursor: pointer;
+        color: inherit;
+    }
+
+    .logo-link :global(mark),
+    .logo-link :global(strong),
+    .logo-link :global(span) {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .logo-link :global(mark) {
+        background-color: var(--color-primary);
+        color: var(--color-grey-20);
+        padding: 0 0.2rem;
     }
 
     .nav-links {
