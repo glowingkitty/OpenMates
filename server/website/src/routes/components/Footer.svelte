@@ -98,6 +98,10 @@
             const savedLocale = localStorage.getItem('preferredLanguage');
             if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
                 locale.set(savedLocale);
+            } else {
+                // Set English as default if no saved preference
+                locale.set('en');
+                localStorage.setItem('preferredLanguage', 'en');
             }
         }
     };
@@ -172,7 +176,7 @@
         <!-- Add language selector before the Made in EU Section -->
         <div class="language-selector">
             <select 
-                value={$locale} 
+                value={$locale || 'en'} 
                 on:change={handleLanguageChange}
                 aria-label={$_('footer.language_selector.label.text')}
             >
