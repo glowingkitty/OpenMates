@@ -1,4 +1,7 @@
 <script lang="ts">
+    import type { Locale } from 'svelte-i18n';
+    import '$lib/i18n/types';  // Import the type declaration
+    
     // Import all necessary styles
     import '$lib/styles/fonts.css';
     import '$lib/styles/icons.css';
@@ -16,10 +19,20 @@
     import { theme, toggleTheme, initializeTheme } from '$lib/stores/theme';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
+    import { SUPPORTED_LOCALES, isValidLocale } from '$lib/i18n/types';
+    import { waitLocale } from 'svelte-i18n';
+
+    // Initialize translations
+    let mounted = false;
 
     // Combined initialization for theme and locale
     onMount(async () => {
+        // Initialize theme
         initializeTheme();
+        
+        // Wait for locale to be ready
+        await waitLocale();
+        mounted = true;
     });
 
     // Reset to system preference
@@ -49,6 +62,16 @@
         const browserLang = navigator.language.split('-')[0];
         if (browserLang === 'en' || browserLang === 'de') {
             $locale = browserLang as 'en' | 'de';
+        }
+    }
+
+    // Handle locale changes
+    $: if (mounted && browser) {
+        const savedLocale = localStorage.getItem('preferredLanguage');
+        if (savedLocale && isValidLocale(savedLocale)) {
+            locale.set(savedLocale);
+            // Force a wait for new translations to load
+            waitLocale();
         }
     }
 </script>

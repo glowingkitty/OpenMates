@@ -735,6 +735,13 @@
         }
     },
     "footer": {
+        "language_selector": {
+            "label": {
+                "text": "言語を選択",
+                "en_original": "Select language",
+                "context": "Label for language selector"
+            }
+        },
         "tagline": {
             "line1": {
                 "text": "私たちの世界には変化が必要です。",

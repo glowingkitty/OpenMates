@@ -4,6 +4,9 @@
     import { externalLinks, routes } from '$lib/config/links';
     import { isPageVisible } from '$lib/config/pages';
     import { _ } from 'svelte-i18n';
+    import { locale, locales } from 'svelte-i18n';
+    import { browser } from '$app/environment';
+    import { waitLocale } from 'svelte-i18n';
 
     // Type definition for footer links
     type FooterLink = {
@@ -12,6 +15,21 @@
         translation_key: string;
         external?: boolean;
     };
+
+    // Type definition for supported languages
+    type Language = {
+        code: string;
+        name: string;
+    };
+
+    // Define supported languages
+    const supportedLanguages: Language[] = [
+        { code: 'en', name: 'English' },
+        { code: 'de', name: 'Deutsch' },
+        { code: 'ja', name: '日本語' },
+        { code: 'es', name: 'Español' }
+        // Add more languages as needed
+    ];
 
     // Define footer sections and their links using the centralized config
     const footerSections: {title: string, title_key: string, links: FooterLink[]}[] = [
@@ -73,6 +91,36 @@
         const linkPath = href.replace(/\/$/, '');
         return currentPath === linkPath;
     };
+
+    // Initialize locale from localStorage or default to 'en'
+    const initializeLocale = () => {
+        if (browser) {  // Only access localStorage in browser environment
+            const savedLocale = localStorage.getItem('preferredLanguage');
+            if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
+                locale.set(savedLocale);
+            }
+        }
+    };
+
+    // Call initialization when the component mounts
+    initializeLocale();
+
+    // Handle language change
+    const handleLanguageChange = async (event: Event) => {
+        if (!browser) return;
+        
+        const select = event.target as HTMLSelectElement;
+        const newLocale = select.value;
+        
+        // Set new locale and wait for translations to load
+        await locale.set(newLocale);
+        await waitLocale();
+        
+        localStorage.setItem('preferredLanguage', newLocale);
+        
+        // Force page reload to ensure all components update
+        window.location.reload();
+    };
 </script>
 
 <footer>
@@ -119,6 +167,21 @@
                     </ul>
                 </div>
             {/each}
+        </div>
+
+        <!-- Add language selector before the Made in EU Section -->
+        <div class="language-selector">
+            <select 
+                value={$locale} 
+                on:change={handleLanguageChange}
+                aria-label={$_('footer.language_selector.label.text')}
+            >
+                {#each supportedLanguages as language}
+                    <option value={language.code}>
+                        {language.name}
+                    </option>
+                {/each}
+            </select>
         </div>
 
         <!-- Made in EU Section -->
@@ -291,5 +354,34 @@
         .logo {
             justify-content: center;
         }
+    }
+
+    .language-selector {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .language-selector select {
+        background-color: transparent;
+        color: white;
+        padding: 0.5rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .language-selector select option {
+        background-color: var(--color-footer);
+        color: white;
+    }
+
+    .language-selector select:hover {
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .language-selector select:focus {
+        outline: none;
+        border-color: white;
     }
 </style> 

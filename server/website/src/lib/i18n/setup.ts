@@ -1,26 +1,29 @@
+import { register, init, getLocaleFromNavigator } from 'svelte-i18n';
 import { browser } from '$app/environment';
-import { init, register, waitLocale } from 'svelte-i18n';
+import { SUPPORTED_LOCALES, isValidLocale } from './types';
 
-// Initialize translations
-export const setupI18n = async () => {
-    // Register available translations
-    register('en', () => import('../../locales/en.json')); // English
-    register('de', () => import('../../locales/de.json')); // German
-    register('ja', () => import('../../locales/ja.json')); // Japanese
-    register('es', () => import('../../locales/es.json')); // Spanish
-    // register('fr', () => import('../../locales/fr.json')); // French
+const loadLocaleData = async (locale: string) => {
+    let module;
+    try {
+        module = await import(`../../locales/${locale}.json`);
+        return module.default;
+    } catch (e) {
+        console.error(`Could not load locale data for ${locale}`, e);
+        return null;
+    }
+};
 
-    // Get initial locale from browser or fallback to 'en'
-    const initialLocale = browser 
-        ? window.navigator.language.split('-')[0] 
-        : 'en';
-
-    // Initialize i18n with configuration
-    init({
-        fallbackLocale: 'en',
-        initialLocale: initialLocale,
+export function setupI18n() {
+    // Register all supported locales
+    SUPPORTED_LOCALES.forEach(locale => {
+        register(locale, () => loadLocaleData(locale));
     });
 
-    // Wait for the initial locale to be loaded
-    return await waitLocale();
-}; 
+    // Initialize with fallback locale and load initial data
+    init({
+        fallbackLocale: 'en',
+        initialLocale: browser 
+            ? localStorage.getItem('preferredLanguage') || getLocaleFromNavigator() 
+            : 'en'
+    });
+} 

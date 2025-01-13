@@ -602,6 +602,12 @@
         }
     },
     "footer": {
+        "language_selector": {
+            "label": {
+                "text": "Select language",
+                "context": "Label for language selector"
+            }
+        },
         "tagline": {
             "line1": {
                 "text": "Our world needs change.",

@@ -735,6 +735,13 @@
         }
     },
     "footer": {
+        "language_selector": {
+            "label": {
+                "text": "Sprache auswählen",
+                "en_original": "Select language",
+                "context": "Label for language selector"
+            }
+        },
         "tagline": {
             "line1": {
                 "text": "Unsere Welt braucht Veränderung.",
