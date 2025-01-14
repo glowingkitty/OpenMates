@@ -8,7 +8,7 @@
     import '@website-styles/chat.css';
     import '@website-styles/mates.css';
     import '@website-styles/theme.css';
-    import { locale } from '@website-lib/i18n';
+    import { locale } from 'svelte-i18n';
     import { theme, toggleTheme, initializeTheme } from '@website-stores/theme';
     import { replaceOpenMates } from '@website-actions/replaceText';
     import { onMount } from 'svelte';
