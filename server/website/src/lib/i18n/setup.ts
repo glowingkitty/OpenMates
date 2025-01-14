@@ -30,6 +30,22 @@ const loadLocaleData = async (locale: string) => {
     }
 };
 
+// Function to normalize locale code to match our supported locales
+function normalizeLocale(locale: string): string {
+    // First check if the locale is already supported as-is
+    if (isValidLocale(locale)) {
+        return locale;
+    }
+    
+    // If not, try to match the language part (before the hyphen)
+    const languagePart = locale.split('-')[0].toLowerCase();
+    if (isValidLocale(languagePart)) {
+        return languagePart;
+    }
+    
+    return 'en'; // fallback to English if no match
+}
+
 export async function setupI18n() {
     // Register all supported locales
     SUPPORTED_LOCALES.forEach(locale => {
@@ -40,7 +56,7 @@ export async function setupI18n() {
     init({
         fallbackLocale: 'en',
         initialLocale: browser 
-            ? localStorage.getItem('preferredLanguage') || getLocaleFromNavigator() 
+            ? localStorage.getItem('preferredLanguage') || normalizeLocale(getLocaleFromNavigator() || 'en')
             : 'en',
         warnOnMissingMessages: true
     });

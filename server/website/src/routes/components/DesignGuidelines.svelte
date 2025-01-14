@@ -5,7 +5,10 @@
     import { onMount, tick } from 'svelte';
 
     // Export a prop to allow customizing the section title
-    export let sectionTitle = $_('design_guidelines.section_title.text');
+    export let sectionTitle: string | undefined = undefined;
+    
+    // Make section title reactive to locale changes
+    $: actualTitle = sectionTitle || $_('design_guidelines.section_title.text');
 
     onMount(() => {
         // No need to initialize content as translations are pre-processed
@@ -18,7 +21,7 @@
     <div>
         <LargeSeparator reverse_direction={true} />
         <section class="centered gradient-section">
-            <h3 style="margin-top: 30px">{@html sectionTitle}</h3>
+            <h3 style="margin-top: 30px">{@html actualTitle}</h3>
 
             <!-- Privacy Design Guideline -->
             <DesignGuideline

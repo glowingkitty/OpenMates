@@ -59,8 +59,8 @@
     // Set initial language based on browser preference or stored setting
     $: if (browser) {
         const browserLang = navigator.language.split('-')[0];
-        if (browserLang === 'en' || browserLang === 'de') {
-            $locale = browserLang as 'en' | 'de';
+        if (isValidLocale(browserLang)) {
+            $locale = browserLang;
         }
     }
 
