@@ -2,41 +2,28 @@
     import { _, waitLocale } from 'svelte-i18n';
     import DesignGuideline from './DesignGuideline.svelte';
     import LargeSeparator from '../components/LargeSeparator.svelte';
-    import { replaceOpenMates } from '$lib/actions/replaceText';
     import { onMount, tick } from 'svelte';
 
     // Export a prop to allow customizing the section title
     export let sectionTitle = $_('design_guidelines.section_title.text');
 
-    let contentDiv: HTMLElement;
-    
-    // Function to apply text replacement after translations are loaded
-    async function initializeContent() {
-        await waitLocale();
-        // Wait for next tick to ensure translations are rendered
-        await tick();
-        if (contentDiv) {
-            replaceOpenMates(contentDiv);
-        }
-    }
-
     onMount(() => {
-        initializeContent();
+        // No need to initialize content as translations are pre-processed
     });
 </script>
 
 {#await waitLocale()}
     <div></div>
 {:then}
-    <div bind:this={contentDiv}>
+    <div>
         <LargeSeparator reverse_direction={true} />
         <section class="centered gradient-section">
-            <h3 style="margin-top: 30px">{sectionTitle}</h3>
+            <h3 style="margin-top: 30px">{@html sectionTitle}</h3>
 
             <!-- Privacy Design Guideline -->
             <DesignGuideline
                 main_icon="icon_lock"
-                headline="<mark>{$_('design_guidelines.privacy.headline.text')}</mark>"
+                headline={$_('design_guidelines.privacy.headline.text')}
                 subheadings={[
                     {
                         icon: "icon_anonym",
@@ -61,7 +48,7 @@
             <!-- Maximum Good Design Guideline -->
             <DesignGuideline
                 main_icon="icon_good"
-                headline="<mark>{$_('design_guidelines.maximum_good.headline_1.text')}</mark><br>{$_('design_guidelines.maximum_good.headline_2.text')}"
+                headline="{$_('design_guidelines.maximum_good.headline_1.text')}<br>{$_('design_guidelines.maximum_good.headline_2.text')}"
                 subheadings={[
                     {
                         icon: "icon_open_source",
@@ -136,4 +123,4 @@
         position: relative; /* Ensure separator stays above gradients */
         z-index: 1;
     }
-</style> 
+</style>

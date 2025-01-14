@@ -1,30 +1,31 @@
 /**
  * Svelte action that replaces instances of "OpenMates" with marked up version
  * Handles text nodes within regular elements and anchor tags
- * Logger used for debugging text replacements
  */
 import { browser } from '$app/environment';
 import { get } from 'svelte/store';
-import { locale } from 'svelte-i18n';
+import { locale, waitLocale } from 'svelte-i18n';
 
 export function replaceOpenMates(node: HTMLElement) {
     if (!browser) {
         return;
     }
 
-    let currentLocale = get(locale);
     let isProcessing = false;
+    let observer: MutationObserver | null = null;
+    let currentLocale = get(locale);
 
     function processNode(node: Node) {
-        if (isProcessing) return;
-
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent || '';
             if (text.includes('OpenMates')) {
-                console.log('Processing OpenMates text node:', text);
+                // Don't process if we're in English mode and there's a translation available
+                if (currentLocale === 'en' && node.parentElement?.hasAttribute('data-i18n')) {
+                    return;
+                }
+
                 const container = document.createElement('div');
                 const replacement = '<strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>';
-                
                 container.innerHTML = text.replace(/OpenMates/g, replacement);
 
                 while (container.firstChild) {
@@ -33,6 +34,7 @@ export function replaceOpenMates(node: HTMLElement) {
                 node.parentNode?.removeChild(node);
             }
         } else {
+            // Skip if we're inside a mark or strong tag already
             if (node.nodeName === 'MARK' ||
                 node.nodeName === 'STRONG' ||
                 (node.parentElement &&
@@ -46,6 +48,7 @@ export function replaceOpenMates(node: HTMLElement) {
     }
 
     function processEntireNode() {
+        if (isProcessing) return;
         isProcessing = true;
         try {
             processNode(node);
@@ -54,31 +57,30 @@ export function replaceOpenMates(node: HTMLElement) {
         }
     }
 
-    setTimeout(processEntireNode, 0);
-
-    const observer = new MutationObserver((mutations) => {
-        const newLocale = get(locale);
-        if (newLocale !== currentLocale) {
-            currentLocale = newLocale;
-            setTimeout(processEntireNode, 0);
-        } else {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    processNode(node);
-                });
-            });
-        }
+    // Subscribe to locale changes
+    const unsubscribe = locale.subscribe(value => {
+        currentLocale = value;
+        processEntireNode();
     });
 
+    // Set up mutation observer to handle dynamic text changes
+    observer = new MutationObserver(() => {
+        requestAnimationFrame(() => {
+            processEntireNode();
+        });
+    });
+
+    // Start observing
     observer.observe(node, {
         childList: true,
-        subtree: true,
-        characterData: true
+        characterData: true,
+        subtree: true
     });
 
     return {
         destroy() {
-            observer.disconnect();
+            observer?.disconnect();
+            unsubscribe();
         }
     };
 }

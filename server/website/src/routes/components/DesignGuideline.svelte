@@ -62,7 +62,7 @@
         {/if}
     </div>
 </div>
-<!-- test 2-->
+
 <style>
     .design-guideline {
         position: relative;

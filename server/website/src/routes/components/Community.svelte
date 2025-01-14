@@ -1,31 +1,35 @@
 <script lang="ts">
     import DiscordButton from './DiscordButton.svelte';
-    import { _ } from 'svelte-i18n';
+    import { _, waitLocale } from 'svelte-i18n';
 </script>
 
-<div class="community-section">
-    <div class="content">
-        <h3>{$_('community.heading.text')}</h3>
-        <!-- Community icon -->
-        <div>
-            <div class="main-icon icon_team"></div>
-            <h2><mark>{$_('community.join_development_1.text')}</mark> {$_('community.join_development_2.text')}</h2>
-        </div>
+{#await waitLocale()}
+    <div></div>
+{:then}
+    <div class="community-section">
+        <div class="content">
+            <h3>{@html $_('community.heading.text')}</h3>
+            <!-- Community icon -->
+            <div>
+                <div class="main-icon icon_team"></div>
+                <h2><mark>{@html $_('community.join_development_1.text')}</mark> {@html $_('community.join_development_2.text')}</h2>
+            </div>
 
-        <!-- Community text -->
-        <p>
-            {$_('community.description.text')}
-        </p>
-        <p class="join-text">
-            {$_('community.join_discord.text')}
-        </p>
+            <!-- Community text -->
+            <p>
+                {@html $_('community.description.text')}
+            </p>
+            <p class="join-text">
+                {@html $_('community.join_discord.text')}
+            </p>
 
-        <!-- Discord button -->
-        <div class="button-wrapper">
-            <DiscordButton />
+            <!-- Discord button -->
+            <div class="button-wrapper">
+                <DiscordButton />
+            </div>
         </div>
     </div>
-</div>
+{/await}
 
 <style>
 
@@ -79,4 +83,4 @@
         margin-top: 0.5rem;
     }
 
-</style> 
+</style>
