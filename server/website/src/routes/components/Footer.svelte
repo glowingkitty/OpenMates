@@ -116,12 +116,13 @@
         const select = event.target as HTMLSelectElement;
         const newLocale = select.value;
         
+        // Store the new locale preference
+        localStorage.setItem('preferredLanguage', newLocale);
+        
         // Set new locale and wait for translations to load
         await locale.set(newLocale);
         await waitLocale();
-        
-        localStorage.setItem('preferredLanguage', newLocale);
-        
+
         // Force page reload to ensure all components update
         window.location.reload();
     };

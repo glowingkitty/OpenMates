@@ -28,6 +28,20 @@
         // Initialize theme
         initializeTheme();
         
+        // Initialize locale from stored preference or browser language
+        if (browser) {
+            const savedLocale = localStorage.getItem('preferredLanguage');
+            if (savedLocale && isValidLocale(savedLocale)) {
+                locale.set(savedLocale);
+            } else {
+                const browserLang = navigator.language.split('-')[0];
+                if (isValidLocale(browserLang)) {
+                    locale.set(browserLang);
+                    localStorage.setItem('preferredLanguage', browserLang);
+                }
+            }
+        }
+        
         // Wait for locale to be ready
         await waitLocale();
         appLoaded = true;
@@ -56,21 +70,11 @@
         document.documentElement.setAttribute('data-theme', $theme);
     }
 
-    // Set initial language based on browser preference or stored setting
-    $: if (browser) {
-        const browserLang = navigator.language.split('-')[0];
-        if (isValidLocale(browserLang)) {
-            $locale = browserLang;
-        }
-    }
-
     // Handle locale changes
     $: if (mounted && browser) {
         const savedLocale = localStorage.getItem('preferredLanguage');
         if (savedLocale && isValidLocale(savedLocale)) {
             locale.set(savedLocale);
-            // Force a wait for new translations to load
-            waitLocale();
         }
     }
 </script>
