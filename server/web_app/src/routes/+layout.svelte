@@ -14,6 +14,7 @@
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
+    import { SUPPORTED_LOCALES, isValidLocale } from '@website-lib/i18n/types';
 
     let loaded = false;
 
@@ -23,9 +24,11 @@
         initializeTheme();
 
         if (browser) {
-            const browserLang = navigator.language.split('-')[0];
-            if (browserLang === 'en' || browserLang === 'de') {
+            const browserLang = navigator.language.split('-')[0].toLowerCase();
+            if (isValidLocale(browserLang)) {
                 locale.set(browserLang);
+            } else {
+                locale.set('en'); // fallback to English
             }
         }
     });
@@ -54,9 +57,11 @@
 
     // Set initial language based on browser preference or stored setting
     $: if (browser) {
-        const browserLang = navigator.language.split('-')[0];
-        if (browserLang === 'en' || browserLang === 'de') {
-            $locale = browserLang as 'en' | 'de';
+        const browserLang = navigator.language.split('-')[0].toLowerCase();
+        if (isValidLocale(browserLang)) {
+            $locale = browserLang;
+        } else {
+            $locale = 'en'; // fallback to English
         }
     }
 </script>
