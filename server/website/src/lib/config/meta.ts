@@ -1,3 +1,5 @@
+import { getCurrentLanguage } from '../i18n/setup';
+
 // Define interfaces for type safety
 export interface MetaTagConfig {
     title: string;
@@ -21,15 +23,15 @@ interface PageMetaTags {
 }
 
 // Default meta values
-export const defaultMeta: MetaTagConfig = {
-    title: "OpenMates",
-    description: "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
+export let defaultMeta: MetaTagConfig = {
+    title: '',
+    description: '',
     image: "/images/og-image.jpg",
     imageWidth: 1200,
     imageHeight: 630,
     url: "https://openmates.org",
     type: "website",
-    keywords: ["AI", "artificial intelligence", "team mates", "digital", "virtual assistant", "automation", "productivity", "privacy", "safety"],
+    keywords: [],
     author: "OpenMates Team",
     locale: "en_US",
     siteName: "OpenMates",
@@ -39,64 +41,91 @@ export const defaultMeta: MetaTagConfig = {
 };
 
 // Page-specific meta tags
+export let pageMeta: PageMetaTags;
 
-export const pageMeta: PageMetaTags = {
-    for_all_of_us: {
-        ...defaultMeta,
-        title: "For all of us | OpenMates"
-    },
-    for_developers: {
-        ...defaultMeta,
-        title: "For developers | OpenMates",
-        description: "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project.",
-    },
-    docs: {
-        ...defaultMeta,
-        title: "Docs | OpenMates",
-        description: "Comprehensive documentation for OpenMates - from API documentation, to the Design Guidelines, Roadmap and more.",
-        type: "article"
-    },
-    docsApi: {
-        ...defaultMeta,
-        title: "API docs | OpenMates",
-        description: "API documentation for integrating OpenMates into your applications. Fronm building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project.",
-    },
-    docsDesignGuidelines: {
-        ...defaultMeta,
-        title: "Design guidelines | OpenMates",
-        description: "The Design Guidelines that define how OpenMates is designed and built.",
-    },
-    docsDesignSystem: {
-        ...defaultMeta,
-        title: "Design system | OpenMates",
-        description: "The Design System that shows all the components that are used in OpenMates.",
-    },
-    docsRoadmap: {
-        ...defaultMeta,
-        title: "Roadmap | OpenMates",
-        description: "Learn what is coming next for OpenMates. What the current state of the development is, and what the next milestones are.",
-    },
-    docsUserGuide: {
-        ...defaultMeta,
-        title: "User guide | OpenMates",
-        description: "Learn how to use OpenMates.",
-    },
-    legalImprint: {
-        ...defaultMeta,
-        title: "Imprint | OpenMates",
-        description: "Learn who is behind OpenMates.",
-    },
-    legalPrivacy: {
-        ...defaultMeta,
-        title: "Privacy | OpenMates",
-        description: "Learn how OpenMates handles your personal data.",
-    },
-    legalTerms: {
-        ...defaultMeta,
-        title: "Terms and Conditions | OpenMates",
-        description: "Terms of service for OpenMates.",
-    },
-};
+// Function to load metatags dynamically based on the current language
+async function loadMetaTags() {
+    const currentLanguage = getCurrentLanguage();
+    const metaData = await import(`../../locales/${currentLanguage}.json`);
+    defaultMeta = {
+        title: metaData.metadata.default.title.text,
+        description: metaData.metadata.default.description.text,
+        image: "/images/og-image.jpg",
+        imageWidth: 1200,
+        imageHeight: 630,
+        url: "https://openmates.org",
+        type: "website",
+        keywords: metaData.metadata.default.keywords.text.split(', '),
+        author: "OpenMates Team",
+        locale: "en_US",
+        siteName: "OpenMates",
+        logo: "/images/logo.png",
+        logoWidth: 436,
+        logoHeight: 92,
+    };
+
+    // Update pageMeta after loading
+    pageMeta = {
+        for_all_of_us: {
+            ...defaultMeta,
+            title: metaData.metadata.for_all_of_us.title.text,
+        },
+        for_developers: {
+            ...defaultMeta,
+            title: metaData.metadata.for_developers.title.text,
+            description: metaData.metadata.for_developers.description.text,
+        },
+        docs: {
+            ...defaultMeta,
+            title: metaData.metadata.docs.title.text,
+            description: metaData.metadata.docs.description.text,
+            type: "article"
+        },
+        docsApi: {
+            ...defaultMeta,
+            title: metaData.metadata.docs_api.title.text,
+            description: metaData.metadata.docs_api.description.text,
+        },
+        docsDesignGuidelines: {
+            ...defaultMeta,
+            title: metaData.metadata.docs_design_guidelines.title.text,
+            description: metaData.metadata.docs_design_guidelines.description.text,
+        },
+        docsDesignSystem: {
+            ...defaultMeta,
+            title: metaData.metadata.docs_design_system.title.text,
+            description: metaData.metadata.docs_design_system.description.text,
+        },
+        docsRoadmap: {
+            ...defaultMeta,
+            title: metaData.metadata.docs_roadmap.title.text,
+            description: metaData.metadata.docs_roadmap.description.text,
+        },
+        docsUserGuide: {
+            ...defaultMeta,
+            title: metaData.metadata.docs_user_guide.title.text,
+            description: metaData.metadata.docs_user_guide.description.text,
+        },
+        legalImprint: {
+            ...defaultMeta,
+            title: metaData.metadata.legal_imprint.title.text,
+            description: metaData.metadata.legal_imprint.description.text,
+        },
+        legalPrivacy: {
+            ...defaultMeta,
+            title: metaData.metadata.legal_privacy.title.text,
+            description: metaData.metadata.legal_privacy.description.text,
+        },
+        legalTerms: {
+            ...defaultMeta,
+            title: metaData.metadata.legal_terms.title.text,
+            description: metaData.metadata.legal_terms.description.text,
+        }
+    };
+}
+
+// Load meta tags dynamically
+loadMetaTags();
 
 // Helper function to get meta tags for a specific page
 export function getMetaTags(page: string = 'home'): MetaTagConfig {

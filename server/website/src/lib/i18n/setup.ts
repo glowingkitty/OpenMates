@@ -46,6 +46,14 @@ function normalizeLocale(locale: string): string {
     return 'en'; // fallback to English if no match
 }
 
+// Function to get the current language
+export function getCurrentLanguage(): string {
+    if (browser) {
+        return localStorage.getItem('preferredLanguage') || getLocaleFromNavigator() || 'en';
+    }
+    return 'en'; // Fallback for server-side rendering
+}
+
 export async function setupI18n() {
     // Register all supported locales
     SUPPORTED_LOCALES.forEach(locale => {

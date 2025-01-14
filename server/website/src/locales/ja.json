@@ -1190,5 +1190,161 @@
                 }
             }
         }
+    },
+    "metadata": {
+        "default": {
+            "title": {
+                "text": "OpenMates",
+                "context": "Default title used across the website",
+                "en_original": "OpenMates"
+            },
+            "description": {
+                "text": "あなたのパーソナライズされたデジタルチームメイトは、複雑な質問に答え、タスクを実行し、日常生活や仕事を変革するアプリを使用できます。プライバシーとセキュリティに重点を置いて構築されています。",
+                "context": "Main description of OpenMates used in meta tags",
+                "en_original": "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety."
+            },
+            "keywords": {
+                "text": "AI,人工知能,チームメイト,デジタル,バーチャルアシスタント,自動化,生産性,プライバシー,セキュリティ",
+                "context": "Keywords for SEO, separated by commas",
+                "en_original": "AI,artificial intelligence,team mates,digital,virtual assistant,automation,productivity,privacy,safety"
+            },
+            "author": {
+                "text": "OpenMatesチーム",
+                "context": "Author meta tag",
+                "en_original": "OpenMates Team"
+            },
+            "siteName": {
+                "text": "OpenMates",
+                "context": "Used in meta tags and titles",
+                "en_original": "OpenMates"
+            }
+        },
+        "for_all_of_us": {
+            "title": {
+                "text": "私たち全員のために | OpenMates",
+                "context": "Title for the 'For all of us' page",
+                "en_original": "For all of us | OpenMates"
+            }
+        },
+        "for_developers": {
+            "title": {
+                "text": "開発者向け | OpenMates",
+                "context": "Title for the developers page",
+                "en_original": "For developers | OpenMates"
+            },
+            "description": {
+                "text": "開発者向けの最も汎用性の高いAPI。AIエージェントの構築や、既存のAPIを簡単にプロジェクトに統合するために。",
+                "context": "Description for the developers page",
+                "en_original": "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project."
+            }
+        },
+        "docs": {
+            "title": {
+                "text": "ドキュメント | OpenMates",
+                "context": "Title for the main documentation page",
+                "en_original": "Docs | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesの包括的なドキュメント - APIドキュメント、デザインガイドライン、ロードマップなど。",
+                "context": "Description for the main documentation page",
+                "en_original": "Comprehensive documentation for OpenMates - from API documentation, to the Design Guidelines, Roadmap and more."
+            }
+        },
+        "docs_api": {
+            "title": {
+                "text": "APIドキュメント | OpenMates",
+                "context": "Title for the API documentation page",
+                "en_original": "API docs | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesをアプリケーションに統合するためのAPIドキュメント。独自のAIエージェントやチャットボットの構築から、既存のAPIを簡単にプロジェクトに統合するまで。",
+                "context": "Description for the API documentation page",
+                "en_original": "API documentation for integrating OpenMates into your applications. From building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project."
+            }
+        },
+        "docs_design_guidelines": {
+            "title": {
+                "text": "デザインガイドライン | OpenMates",
+                "context": "Title for the design guidelines page",
+                "en_original": "Design guidelines | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesがどのように設計され、構築されているかを定義するデザインガイドライン。",
+                "context": "Description for the design guidelines page",
+                "en_original": "The Design Guidelines that define how OpenMates is designed and built."
+            }
+        },
+        "docs_design_system": {
+            "title": {
+                "text": "デザインシステム | OpenMates",
+                "context": "Title for the design system page",
+                "en_original": "Design system | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesで使用されているすべてのコンポーネントを示すデザインシステム。",
+                "context": "Description for the design system page",
+                "en_original": "The Design System that shows all the components that are used in OpenMates."
+            }
+        },
+        "docs_roadmap": {
+            "title": {
+                "text": "ロードマップ | OpenMates",
+                "context": "Title for the roadmap page",
+                "en_original": "Roadmap | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesの次の展開を知る。現在の開発状況と次のマイルストーンは何か。",
+                "context": "Description for the roadmap page",
+                "en_original": "Learn what is coming next for OpenMates. What the current state of the development is, and what the next milestones are."
+            }
+        },
+        "docs_user_guide": {
+            "title": {
+                "text": "ユーザーガイド | OpenMates",
+                "context": "Title for the user guide page",
+                "en_original": "User guide | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesの使い方を学ぶ。",
+                "context": "Description for the user guide page",
+                "en_original": "Learn how to use OpenMates."
+            }
+        },
+        "legal_imprint": {
+            "title": {
+                "text": "インプリント | OpenMates",
+                "context": "Title for the imprint page",
+                "en_original": "Imprint | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesの背後にいる人々を知る。",
+                "context": "Description for the imprint page",
+                "en_original": "Learn who is behind OpenMates."
+            }
+        },
+        "legal_privacy": {
+            "title": {
+                "text": "プライバシー | OpenMates",
+                "context": "Title for the privacy policy page",
+                "en_original": "Privacy | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesがあなたの個人データをどのように扱うかを知る。",
+                "context": "Description for the privacy policy page",
+                "en_original": "Learn how OpenMates handles your personal data."
+            }
+        },
+        "legal_terms": {
+            "title": {
+                "text": "利用規約 | OpenMates",
+                "context": "Title for the terms and conditions page",
+                "en_original": "Terms and Conditions | OpenMates"
+            },
+            "description": {
+                "text": "OpenMatesのサービス利用規約。",
+                "context": "Description for the terms and conditions page",
+                "en_original": "Terms of service for OpenMates."
+            }
+        }
     }
 }

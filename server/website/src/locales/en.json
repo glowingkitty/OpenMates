@@ -976,5 +976,135 @@
                 }
             }
         }
+    },
+    "metadata": {
+        "default": {
+            "title": {
+                "text": "OpenMates",
+                "context": "Default title used across the website"
+            },
+            "description": {
+                "text": "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
+                "context": "Main description of OpenMates used in meta tags"
+            },
+            "keywords": {
+                "text": "AI,artificial intelligence,team mates,digital,virtual assistant,automation,productivity,privacy,safety",
+                "context": "Keywords for SEO, separated by commas"
+            },
+            "author": {
+                "text": "OpenMates Team",
+                "context": "Author meta tag"
+            },
+            "siteName": {
+                "text": "OpenMates",
+                "context": "Used in meta tags and titles"
+            }
+        },
+        "for_all_of_us": {
+            "title": {
+                "text": "For all of usss | OpenMates",
+                "context": "Title for the 'For all of us' page"
+            }
+        },
+        "for_developers": {
+            "title": {
+                "text": "For developers | OpenMates",
+                "context": "Title for the developers page"
+            },
+            "description": {
+                "text": "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project.",
+                "context": "Description for the developers page"
+            }
+        },
+        "docs": {
+            "title": {
+                "text": "Docs | OpenMates",
+                "context": "Title for the main documentation page"
+            },
+            "description": {
+                "text": "Comprehensive documentation for OpenMates - from API documentation, to the Design Guidelines, Roadmap and more.",
+                "context": "Description for the main documentation page"
+            }
+        },
+        "docs_api": {
+            "title": {
+                "text": "API docs | OpenMates",
+                "context": "Title for the API documentation page"
+            },
+            "description": {
+                "text": "API documentation for integrating OpenMates into your applications. From building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project.",
+                "context": "Description for the API documentation page"
+            }
+        },
+        "docs_design_guidelines": {
+            "title": {
+                "text": "Design guidelines | OpenMates",
+                "context": "Title for the design guidelines page"
+            },
+            "description": {
+                "text": "The Design Guidelines that define how OpenMates is designed and built.",
+                "context": "Description for the design guidelines page"
+            }
+        },
+        "docs_design_system": {
+            "title": {
+                "text": "Design system | OpenMates",
+                "context": "Title for the design system page"
+            },
+            "description": {
+                "text": "The Design System that shows all the components that are used in OpenMates.",
+                "context": "Description for the design system page"
+            }
+        },
+        "docs_roadmap": {
+            "title": {
+                "text": "Roadmap | OpenMates",
+                "context": "Title for the roadmap page"
+            },
+            "description": {
+                "text": "Learn what is coming next for OpenMates. What the current state of the development is, and what the next milestones are.",
+                "context": "Description for the roadmap page"
+            }
+        },
+        "docs_user_guide": {
+            "title": {
+                "text": "User guide | OpenMates",
+                "context": "Title for the user guide page"
+            },
+            "description": {
+                "text": "Learn how to use OpenMates.",
+                "context": "Description for the user guide page"
+            }
+        },
+        "legal_imprint": {
+            "title": {
+                "text": "Imprint | OpenMates",
+                "context": "Title for the imprint page"
+            },
+            "description": {
+                "text": "Learn who is behind OpenMates.",
+                "context": "Description for the imprint page"
+            }
+        },
+        "legal_privacy": {
+            "title": {
+                "text": "Privacy | OpenMates",
+                "context": "Title for the privacy policy page"
+            },
+            "description": {
+                "text": "Learn how OpenMates handles your personal data.",
+                "context": "Description for the privacy policy page"
+            }
+        },
+        "legal_terms": {
+            "title": {
+                "text": "Terms and Conditions | OpenMates",
+                "context": "Title for the terms and conditions page"
+            },
+            "description": {
+                "text": "Terms of service for OpenMates.",
+                "context": "Description for the terms and conditions page"
+            }
+        }
     }
-} 
+}
