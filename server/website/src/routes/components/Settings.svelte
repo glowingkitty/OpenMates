@@ -116,10 +116,12 @@
     <!-- Close icon in wrapper -->
     <div class="close-icon-container" class:visible={isMenuVisible}>
         <button 
-            class="clickable-icon icon_close" 
+            class="icon-button"
             aria-label="Close"
             on:click={toggleMenu}
-        ></button>
+        >
+            <div class="clickable-icon icon_close"></div>
+        </button>
     </div>
 </div>
 
@@ -266,6 +268,25 @@
     .close-icon-container.visible {
         opacity: 1;
         visibility: visible;
+    }
+
+    /* Add new styles for the button wrapper */
+    .close-icon-container button.icon-button {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    /* Keep the icon itself at its original size */
+    .close-icon-container .clickable-icon {
+        width: 25px;
+        height: 25px;
     }
 
     .profile-picture {
