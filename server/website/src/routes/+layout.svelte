@@ -18,36 +18,44 @@
     import { browser } from '$app/environment';
     import { SUPPORTED_LOCALES, isValidLocale } from '$lib/i18n/types';
     import { waitLocale, locale } from 'svelte-i18n';
+    import { loadMetaTags } from '$lib/config/meta';
 
     // Initialize translations
     let mounted = false;
     let appLoaded = false;
 
-    // Combined initialization for theme and locale
-    onMount(async () => {
-        // Initialize theme
-        initializeTheme();
-        
-        // Initialize locale from stored preference or browser language
-        if (browser) {
-            const savedLocale = localStorage.getItem('preferredLanguage');
-            if (savedLocale && isValidLocale(savedLocale)) {
-                // Only use saved locale if explicitly set by user
-                locale.set(savedLocale);
-            } else {
-                // Use browser language
-                const browserLang = navigator.language.split('-')[0];
-                if (isValidLocale(browserLang)) {
-                    locale.set(browserLang);
+    // Combined initialization
+    async function initializeApp() {
+        try {
+            // Initialize theme
+            initializeTheme();
+            
+            // Initialize i18n
+            if (browser) {
+                const savedLocale = localStorage.getItem('preferredLanguage');
+                if (savedLocale && isValidLocale(savedLocale)) {
+                    locale.set(savedLocale);
                 } else {
-                    locale.set('en');
+                    const browserLang = navigator.language.split('-')[0];
+                    locale.set(isValidLocale(browserLang) ? browserLang : 'en');
                 }
             }
+            
+            // Wait for translations to be ready
+            await waitLocale();
+            
+            // Load meta tags after translations are ready
+            await loadMetaTags();
+            
+            appLoaded = true;
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
+            // Consider showing an error state to the user
         }
-        
-        // Wait for locale to be ready
-        await waitLocale();
-        appLoaded = true;
+    }
+
+    onMount(() => {
+        initializeApp();
         mounted = true;
     });
 
@@ -76,7 +84,8 @@
 
 {#if !appLoaded}
     <div class="app-loading">
-        <!-- Optional: Add loading indicator -->
+        <!-- Add a loading spinner or placeholder -->
+        <div class="loading-spinner">Loading...</div>
     </div>
 {:else}
     <div class="app">
@@ -132,5 +141,13 @@
         align-items: center;
         justify-content: center;
         /* Optional: Add loading animation styles */
+    }
+
+    .loading-spinner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        color: var(--color-text);
     }
 </style>

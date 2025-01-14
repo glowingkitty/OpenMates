@@ -41,87 +41,107 @@ export let defaultMeta: MetaTagConfig = {
 };
 
 // Page-specific meta tags
-export let pageMeta: PageMetaTags;
+export let pageMeta: PageMetaTags = {
+    // Add a default fallback structure
+    for_all_of_us: { ...defaultMeta },
+    for_developers: { ...defaultMeta },
+    docs: { ...defaultMeta },
+    docsApi: { ...defaultMeta },
+    docsDesignGuidelines: { ...defaultMeta },
+    docsDesignSystem: { ...defaultMeta },
+    docsRoadmap: { ...defaultMeta },
+    docsUserGuide: { ...defaultMeta },
+    legalImprint: { ...defaultMeta },
+    legalPrivacy: { ...defaultMeta },
+    legalTerms: { ...defaultMeta }
+};
 
 // Function to load metatags dynamically based on the current language
-async function loadMetaTags() {
-    const currentLanguage = getCurrentLanguage();
-    const metaData = await import(`../../locales/${currentLanguage}.json`);
-    defaultMeta = {
-        title: metaData.metadata.default.title.text,
-        description: metaData.metadata.default.description.text,
-        image: "/images/og-image.jpg",
-        imageWidth: 1200,
-        imageHeight: 630,
-        url: "https://openmates.org",
-        type: "website",
-        keywords: metaData.metadata.default.keywords.text.split(', '),
-        author: "OpenMates Team",
-        locale: "en_US",
-        siteName: "OpenMates",
-        logo: "/images/logo.png",
-        logoWidth: 436,
-        logoHeight: 92,
-    };
+export async function loadMetaTags(): Promise<void> {
+    try {
+        const currentLanguage = getCurrentLanguage();
+        const metaData = await import(`../../locales/${currentLanguage}.json`);
+        
+        // Update defaultMeta
+        defaultMeta = {
+            title: metaData.metadata.default.title.text,
+            description: metaData.metadata.default.description.text,
+            image: "/images/og-image.jpg",
+            imageWidth: 1200,
+            imageHeight: 630,
+            url: "https://openmates.org",
+            type: "website",
+            keywords: metaData.metadata.default.keywords.text.split(', '),
+            author: "OpenMates Team",
+            locale: "en_US",
+            siteName: "OpenMates",
+            logo: "/images/logo.png",
+            logoWidth: 436,
+            logoHeight: 92,
+        };
 
-    // Update pageMeta after loading
-    pageMeta = {
-        for_all_of_us: {
-            ...defaultMeta,
-            title: metaData.metadata.for_all_of_us.title.text,
-        },
-        for_developers: {
-            ...defaultMeta,
-            title: metaData.metadata.for_developers.title.text,
-            description: metaData.metadata.for_developers.description.text,
-        },
-        docs: {
-            ...defaultMeta,
-            title: metaData.metadata.docs.title.text,
-            description: metaData.metadata.docs.description.text,
-            type: "article"
-        },
-        docsApi: {
-            ...defaultMeta,
-            title: metaData.metadata.docs_api.title.text,
-            description: metaData.metadata.docs_api.description.text,
-        },
-        docsDesignGuidelines: {
-            ...defaultMeta,
-            title: metaData.metadata.docs_design_guidelines.title.text,
-            description: metaData.metadata.docs_design_guidelines.description.text,
-        },
-        docsDesignSystem: {
-            ...defaultMeta,
-            title: metaData.metadata.docs_design_system.title.text,
-            description: metaData.metadata.docs_design_system.description.text,
-        },
-        docsRoadmap: {
-            ...defaultMeta,
-            title: metaData.metadata.docs_roadmap.title.text,
-            description: metaData.metadata.docs_roadmap.description.text,
-        },
-        docsUserGuide: {
-            ...defaultMeta,
-            title: metaData.metadata.docs_user_guide.title.text,
-            description: metaData.metadata.docs_user_guide.description.text,
-        },
-        legalImprint: {
-            ...defaultMeta,
-            title: metaData.metadata.legal_imprint.title.text,
-            description: metaData.metadata.legal_imprint.description.text,
-        },
-        legalPrivacy: {
-            ...defaultMeta,
-            title: metaData.metadata.legal_privacy.title.text,
-            description: metaData.metadata.legal_privacy.description.text,
-        },
-        legalTerms: {
-            ...defaultMeta,
-            title: metaData.metadata.legal_terms.title.text,
-            description: metaData.metadata.legal_terms.description.text,
-        }
-    };
+        // Update pageMeta
+        pageMeta = {
+            for_all_of_us: {
+                ...defaultMeta,
+                title: metaData.metadata.for_all_of_us.title.text,
+            },
+            for_developers: {
+                ...defaultMeta,
+                title: metaData.metadata.for_developers.title.text,
+                description: metaData.metadata.for_developers.description.text,
+            },
+            docs: {
+                ...defaultMeta,
+                title: metaData.metadata.docs.title.text,
+                description: metaData.metadata.docs.description.text,
+                type: "article"
+            },
+            docsApi: {
+                ...defaultMeta,
+                title: metaData.metadata.docs_api.title.text,
+                description: metaData.metadata.docs_api.description.text,
+            },
+            docsDesignGuidelines: {
+                ...defaultMeta,
+                title: metaData.metadata.docs_design_guidelines.title.text,
+                description: metaData.metadata.docs_design_guidelines.description.text,
+            },
+            docsDesignSystem: {
+                ...defaultMeta,
+                title: metaData.metadata.docs_design_system.title.text,
+                description: metaData.metadata.docs_design_system.description.text,
+            },
+            docsRoadmap: {
+                ...defaultMeta,
+                title: metaData.metadata.docs_roadmap.title.text,
+                description: metaData.metadata.docs_roadmap.description.text,
+            },
+            docsUserGuide: {
+                ...defaultMeta,
+                title: metaData.metadata.docs_user_guide.title.text,
+                description: metaData.metadata.docs_user_guide.description.text,
+            },
+            legalImprint: {
+                ...defaultMeta,
+                title: metaData.metadata.legal_imprint.title.text,
+                description: metaData.metadata.legal_imprint.description.text,
+            },
+            legalPrivacy: {
+                ...defaultMeta,
+                title: metaData.metadata.legal_privacy.title.text,
+                description: metaData.metadata.legal_privacy.description.text,
+            },
+            legalTerms: {
+                ...defaultMeta,
+                title: metaData.metadata.legal_terms.title.text,
+                description: metaData.metadata.legal_terms.description.text,
+            }
+        };
+    } catch (error) {
+        console.error('Failed to load meta tags:', error);
+        // Keep using default values if loading fails
+    }
 }
 
 // Load meta tags dynamically
@@ -129,6 +149,7 @@ loadMetaTags();
 
 // Helper function to get meta tags for a specific page
 export function getMetaTags(page: string = 'home'): MetaTagConfig {
+    // Ensure we always return a valid meta config even if pageMeta[page] is undefined
     return pageMeta[page] || defaultMeta;
 }
 
