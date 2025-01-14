@@ -14,6 +14,8 @@
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
+    import MetaTags from '@website-components/MetaTags.svelte';
+    import { loadMetaTags } from '@website-lib/config/meta';
     import { SUPPORTED_LOCALES, isValidLocale } from '@website-lib/i18n/types';
 
     let loaded = false;
@@ -21,6 +23,10 @@
     onMount(async () => {
         await waitLocale();
         loaded = true;
+
+        // Load meta tags after translations are ready
+        await loadMetaTags();
+
         initializeTheme();
 
         if (browser) {
@@ -67,6 +73,7 @@
 </script>
 
 {#if loaded}
+    <MetaTags />
     <main use:replaceOpenMates>
         <slot />
     </main>
