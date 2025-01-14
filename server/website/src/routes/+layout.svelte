@@ -32,12 +32,15 @@
         if (browser) {
             const savedLocale = localStorage.getItem('preferredLanguage');
             if (savedLocale && isValidLocale(savedLocale)) {
+                // Only use saved locale if explicitly set by user
                 locale.set(savedLocale);
             } else {
+                // Use browser language
                 const browserLang = navigator.language.split('-')[0];
                 if (isValidLocale(browserLang)) {
                     locale.set(browserLang);
-                    localStorage.setItem('preferredLanguage', browserLang);
+                } else {
+                    locale.set('en');
                 }
             }
         }
@@ -68,14 +71,6 @@
     // Watch theme changes and update document attribute
     $: if (browser) {
         document.documentElement.setAttribute('data-theme', $theme);
-    }
-
-    // Handle locale changes
-    $: if (mounted && browser) {
-        const savedLocale = localStorage.getItem('preferredLanguage');
-        if (savedLocale && isValidLocale(savedLocale)) {
-            locale.set(savedLocale);
-        }
     }
 </script>
 

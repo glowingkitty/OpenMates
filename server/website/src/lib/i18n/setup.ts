@@ -46,10 +46,16 @@ function normalizeLocale(locale: string): string {
     return 'en'; // fallback to English if no match
 }
 
-// Function to get the current language
+// Function to get the current language - simplified to prioritize browser language
 export function getCurrentLanguage(): string {
     if (browser) {
-        return localStorage.getItem('preferredLanguage') || getLocaleFromNavigator() || 'en';
+        // Only use preferredLanguage if explicitly set by user, otherwise use browser language
+        const userPreference = localStorage.getItem('preferredLanguage');
+        if (userPreference) {
+            return userPreference;
+        }
+        const browserLang = normalizeLocale(getLocaleFromNavigator() || 'en');
+        return browserLang;
     }
     return 'en'; // Fallback for server-side rendering
 }
@@ -64,7 +70,7 @@ export async function setupI18n() {
     init({
         fallbackLocale: 'en',
         initialLocale: browser 
-            ? localStorage.getItem('preferredLanguage') || normalizeLocale(getLocaleFromNavigator() || 'en')
+            ? getCurrentLanguage() // Use getCurrentLanguage to determine initial locale
             : 'en',
         warnOnMissingMessages: true
     });

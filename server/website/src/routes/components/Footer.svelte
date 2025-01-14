@@ -92,16 +92,21 @@
         return currentPath === linkPath;
     };
 
-    // Initialize locale from localStorage or default to 'en'
+    // Initialize locale from browser language
     const initializeLocale = () => {
-        if (browser) {  // Only access localStorage in browser environment
+        if (browser) {
             const savedLocale = localStorage.getItem('preferredLanguage');
             if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
+                // Only use saved locale if explicitly set
                 locale.set(savedLocale);
             } else {
-                // Set English as default if no saved preference
-                locale.set('en');
-                localStorage.setItem('preferredLanguage', 'en');
+                // Use browser language
+                const browserLang = navigator.language.split('-')[0];
+                if (supportedLanguages.some(lang => lang.code === browserLang)) {
+                    locale.set(browserLang);
+                } else {
+                    locale.set('en');
+                }
             }
         }
     };
@@ -116,7 +121,7 @@
         const select = event.target as HTMLSelectElement;
         const newLocale = select.value;
         
-        // Store the new locale preference
+        // Only store preference when explicitly changed by user
         localStorage.setItem('preferredLanguage', newLocale);
         
         // Set new locale and wait for translations to load
@@ -177,7 +182,7 @@
         <!-- Add language selector before the Made in EU Section -->
         <div class="language-selector">
             <select 
-                value={$locale || 'en'} 
+                value={localStorage.getItem('preferredLanguage') || navigator.language.split('-')[0]} 
                 on:change={handleLanguageChange}
                 aria-label={$_('footer.language_selector.label.text')}
             >
