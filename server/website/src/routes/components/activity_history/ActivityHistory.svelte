@@ -137,7 +137,7 @@
     .chat-group {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 0;
     }
 
     .group-title {
@@ -147,5 +147,6 @@
         padding: 0 12px;
         font-weight: 500;
         text-transform: capitalize;
+        margin-bottom: 8px;
     }
 </style>

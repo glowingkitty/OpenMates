@@ -48,10 +48,22 @@
 
 <style>
   .chat-item {
-    padding: 8px 12px;
+    padding: 12px 12px;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 0;
     transition: background-color 0.2s ease;
+    margin: 0 0 -1px 0;
+  }
+
+  .chat-item:first-child {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  .chat-item:last-child {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    margin-bottom: 0;
   }
 
   .chat-item:hover {
@@ -65,7 +77,7 @@
   .chat-with-profile {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
   }
 
   .profile-placeholder {
@@ -78,11 +90,11 @@
   .draft-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    color: var(--color-grey-60);
   }
 
   .draft-label {
-    color: var(--color-grey-60);
     font-size: 0.9em;
   }
 
