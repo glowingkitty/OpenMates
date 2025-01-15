@@ -8,7 +8,7 @@
         {
             id: 'draft1',
             isDraft: true,
-            draftContent: 'How do I make',
+            draftContent: 'How do I make a neural network that can...',
             lastUpdated: new Date()
         },
         {
@@ -32,20 +32,50 @@
         {
             id: 'chat3',
             title: 'Legality of Ad-skipping Plugins',
-            profilePicture: '/avatars/user2.jpg',
+            mates: ['burton', 'lisa', 'sophia'],
             lastUpdated: new Date(Date.now() - 24 * 60 * 60 * 1000) // yesterday
         },
         {
             id: 'chat4',
-            title: 'US Time Zones',
-            profilePicture: '/avatars/user3.jpg',
+            title: 'US Time Zones and Meeting Scheduling',
+            mates: ['sophia'],
             lastUpdated: new Date(Date.now() - 24 * 60 * 60 * 1000)
         },
         {
             id: 'chat5',
-            title: 'Gemma 2 2B Hardware requirements',
-            profilePicture: '/avatars/user1.jpg',
-            lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+            title: 'Gemma 2 2B Hardware Requirements Analysis',
+            mates: ['burton', 'lisa'],
+            lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        },
+        {
+            id: 'chat6',
+            title: 'Weekly Team Sync Notes',
+            mates: ['burton', 'sophia'],
+            lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        },
+        {
+            id: 'chat7',
+            title: 'Project Milestone Review',
+            mates: ['lisa'],
+            lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+        },
+        {
+            id: 'chat8',
+            title: 'Database Migration Planning',
+            mates: ['burton', 'lisa', 'sophia'],
+            lastUpdated: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+        },
+        {
+            id: 'chat9',
+            title: 'Customer Feedback Analysis',
+            mates: ['sophia', 'lisa'],
+            lastUpdated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        },
+        {
+            id: 'chat10',
+            title: 'AI Model Training Discussion',
+            mates: ['burton'],
+            lastUpdated: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
         }
     ];
 
