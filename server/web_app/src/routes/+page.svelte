@@ -53,6 +53,29 @@
 
         /* Add more pronounced inner shadow on right side for better visibility */
         box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
+
+        /* Custom scrollbar styling */
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-grey-40) transparent;
+    }
+
+    /* For Webkit browsers */
+    .sidebar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-40);
+        border-radius: 4px;
+        border: 2px solid transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-grey-50);
     }
 
     .main-content {
@@ -65,6 +88,29 @@
 
         /* Add scrolling for overflow content */
         overflow-y: auto;
+
+        /* Custom scrollbar styling */
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-grey-40) transparent;
+    }
+
+    /* For Webkit browsers */
+    .main-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .main-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .main-content::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-40);
+        border-radius: 4px;
+        border: 2px solid transparent;
+    }
+
+    .main-content::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-grey-50);
     }
 
     .chat-container {

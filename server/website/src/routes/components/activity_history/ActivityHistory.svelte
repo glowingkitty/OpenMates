@@ -133,6 +133,29 @@
         padding: 16px;
     }
 
+    .activity-history {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-grey-40) transparent;
+    }
+
+    .activity-history::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .activity-history::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .activity-history::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-40);
+        border-radius: 4px;
+        border: 2px solid transparent;
+    }
+
+    .activity-history::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-grey-50);
+    }
+
     .top-buttons {
         position: relative;
         height: 48px;
