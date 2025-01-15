@@ -37,7 +37,7 @@
       {#if chat.mates && chat.mates.length > 0}
         <div class="mate-profiles-row">
           {#each chat.mates as mate}
-            <div class="mate-profile mate-profile-small {mate}" />
+            <div class="mate-profile mate-profile-small {mate}"></div>
           {/each}
         </div>
       {/if}

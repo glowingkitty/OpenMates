@@ -5,6 +5,7 @@ import path from 'path';
 // Get the absolute path to your other project's source directory
 const websiteSourcePath = path.resolve(__dirname, '../website/src');
 const websiteStaticPath = path.resolve(__dirname, '../website/static');
+const websiteApiPath = path.resolve(__dirname, '../api');
 
 export default defineConfig({
 	plugins: [sveltekit()],
@@ -19,17 +20,20 @@ export default defineConfig({
 			
 			// Static file aliases
 			'/icons': path.resolve(websiteStaticPath, 'icons'),
-			'/images': path.resolve(websiteStaticPath, 'images')
+			'/images': path.resolve(websiteStaticPath, 'images'),
+			
+			// Add mate-images alias pointing to the API images folder
+			'@mate-images': path.resolve(websiteApiPath, 'images/mates/profile_images')
 		}
 	},
 	server: {
 		fs: {
-			// Allow serving files from one level up to include the website project
+			// Allow serving files from one level up to include the website and api projects
 			allow: [
 				// Defaults
 				'.',
-				'../website/static',
-				websiteStaticPath
+				'../website',
+				'../api'
 			]
 		}
 	}
