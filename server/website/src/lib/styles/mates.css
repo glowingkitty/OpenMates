@@ -101,3 +101,34 @@
 .mate-profile.colin {
     background-image: url('@mate-images/colin.jpg');
 }
+
+/* Smaller variant for chat history items */
+.mate-profile-small.mate-profile {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+
+    &::after {
+        bottom: -4px;
+        right: -4px;
+        width: 16px;
+        height: 16px;
+    }
+
+    &::before {
+        bottom: -2px;
+        right: -2px;
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* For multiple profiles in a row */
+.mate-profiles-row {
+    display: flex;
+    align-items: center;
+
+    .mate-profile-small:not(:first-child) {
+        margin-left: -8px; /* Creates overlap effect */
+    }
+}

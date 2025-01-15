@@ -1,6 +1,6 @@
 <script>
     // Import the required components
-    import ActivityHistory from '@website-components/ActivityHistory.svelte';
+    import ActivityHistory from '@website-components/activity_history/ActivityHistory.svelte';
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';

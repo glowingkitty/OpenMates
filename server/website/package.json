@@ -23,6 +23,7 @@
 	},
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.1.0",
+		"date-fns": "^4.1.0",
 		"svelte-i18n": "^4.0.1"
 	},
 	"engines": {
