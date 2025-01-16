@@ -108,6 +108,9 @@
     height: 28px;
     margin: 0;
 
+    animation: unset;
+    opacity: 1;
+
     &::after {
         bottom: -4px;
         right: -4px;
