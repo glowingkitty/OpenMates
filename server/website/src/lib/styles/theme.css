@@ -350,8 +350,3 @@ body {
     --color-footer-start: #293d7f;
     --color-footer-end: #263969;
 }
-
-/* Keep the transition rules */
-* {
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
