@@ -196,6 +196,11 @@ div.clickable-icon {
   mask-image: url('/icons/filter.svg');
 }
 
+.clickable-icon.icon_maps {
+  -webkit-mask-image: url('/icons/maps.svg');
+  mask-image: url('/icons/maps.svg');
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;

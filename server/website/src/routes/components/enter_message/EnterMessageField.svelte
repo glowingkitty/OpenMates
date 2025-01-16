@@ -997,6 +997,11 @@
                 on:click={handleFileSelect} 
                 aria-label={$_('enter_message.attachments.attach_files.text')}
             ></button>
+            <button 
+                class="clickable-icon icon_maps" 
+                on:click={() => {/* Handle maps click */}} 
+                aria-label={$_('enter_message.attachments.share_location.text')}
+            ></button>
         </div>
         <div class="right-buttons">
             <button 
@@ -1294,5 +1299,18 @@
         -moz-user-select: none;
         -ms-user-select: none;
         color: var(--color-font-tertiary);
+    }
+
+    .icon_maps {
+        /* Ensure consistent spacing with other icons */
+        margin-left: 0.75rem;
+    }
+
+    /* Update left-buttons style if needed */
+    .left-buttons {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        height: 100%;
     }
 </style>
