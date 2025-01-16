@@ -136,10 +136,12 @@
         position: relative;
         overflow-y: auto;
         height: 100%;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-grey-40-transparent) transparent;
+        transition: scrollbar-color 0.2s ease;
     }
 
-    .activity-history {
-        scrollbar-width: thin;
+    .activity-history:hover {
         scrollbar-color: var(--color-grey-40) transparent;
     }
 
@@ -152,9 +154,14 @@
     }
 
     .activity-history::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40);
+        background-color: var(--color-grey-40-transparent);
         border-radius: 4px;
         border: 2px solid transparent;
+        transition: background-color 0.2s ease;
+    }
+
+    .activity-history:hover::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-40);
     }
 
     .activity-history::-webkit-scrollbar-thumb:hover {

@@ -458,6 +458,11 @@
         overflow-y: auto;
         padding-bottom: 16px;
         scrollbar-width: thin;
+        scrollbar-color: var(--color-grey-40-transparent) transparent;
+        transition: scrollbar-color 0.2s ease;
+    }
+
+    .settings-content:hover {
         scrollbar-color: var(--color-grey-40) transparent;
     }
 
@@ -470,9 +475,18 @@
     }
 
     .settings-content::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40);
+        background-color: var(--color-grey-40-transparent);
         border-radius: 4px;
         border: 2px solid var(--color-grey-20);
+        transition: background-color 0.2s ease;
+    }
+
+    .settings-content:hover::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-40);
+    }
+
+    .settings-content::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-grey-50);
     }
 
     .submenu-section {
