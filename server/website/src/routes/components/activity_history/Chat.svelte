@@ -41,7 +41,9 @@
         {#if displayMates.length > 0}
           <div class="mate-profiles-row">
             {#each displayMates as mate}
-              <div class="mate-profile mate-profile-small {mate}"></div>
+              <div class="mate-profile-wrapper">
+                <div class="mate-profile mate-profile-small {mate}"></div>
+              </div>
             {/each}
           </div>
         {/if}
@@ -108,22 +110,25 @@
     border-radius: 50%;
     flex-shrink: 0;
     position: relative;
+    transition: opacity 0.2s ease;
   }
 
-  .mate-profiles-row :global(.mate-profile:nth-child(1)) {
-    z-index: 3; /* Rightmost profile (most recent) on top */
+  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(1)) {
+    z-index: 3;
   }
 
-  .mate-profiles-row :global(.mate-profile:nth-child(2)) {
+  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(2)) {
     position: absolute;
     right: 18px;
     z-index: 2;
+    filter: opacity(60%);
   }
 
-  .mate-profiles-row :global(.mate-profile:nth-child(3)) {
+  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(3)) {
     position: absolute;
     right: 36px;
     z-index: 1;
+    filter: opacity(30%);
   }
 
   .chat-title {
