@@ -1,0 +1,819 @@
+<script lang="ts">
+    import { onMount, onDestroy, tick } from 'svelte';
+    import { Editor } from '@tiptap/core';
+    import StarterKit from '@tiptap/starter-kit';
+    import { Node } from '@tiptap/core';
+    import Photos from './in_message_previews/Photos.svelte';
+    import PDF from './in_message_previews/PDF.svelte';
+    import Web from './in_message_previews/Web.svelte';
+    import { _ } from 'svelte-i18n';
+    import type { SvelteComponent } from 'svelte';
+
+    // File size limits in MB
+    const FILE_SIZE_LIMITS = {
+        TOTAL_MAX_SIZE: 100,
+        PER_FILE_MAX_SIZE: 100
+    };
+
+    const MAX_TOTAL_SIZE = FILE_SIZE_LIMITS.TOTAL_MAX_SIZE * 1024 * 1024;
+    const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
+
+    // References for file inputs
+    let fileInput: HTMLInputElement;
+    let cameraInput: HTMLInputElement;
+    let videoElement: HTMLVideoElement;
+    let stream: MediaStream | null = null;
+    let showCamera = false;
+    let editor: Editor;
+    let isMessageFieldFocused = false;
+    let editorElement: HTMLElement | undefined = undefined;
+
+    // Custom node for embedded content (images, files, etc.)
+    const CustomEmbed = Node.create({
+        name: 'customEmbed',
+        group: 'inline',
+        inline: true,
+        selectable: true,
+        draggable: true,
+
+        addAttributes() {
+            return {
+                type: { default: 'image' },
+                src: { default: null },
+                filename: { default: null }
+            }
+        },
+
+        parseHTML() {
+            return [{ tag: 'div[data-type="custom-embed"]' }]
+        },
+
+        renderHTML({ HTMLAttributes }) {
+            if (HTMLAttributes.type === 'image') {
+                return ['img', {
+                    src: HTMLAttributes.src,
+                    'data-filename': HTMLAttributes.filename,
+                    class: 'embedded-image'
+                }]
+            } else if (HTMLAttributes.type === 'pdf') {
+                return ['div', {
+                    class: 'embedded-file'
+                }, [
+                    ['span', { class: 'file-icon' }, '📄'],
+                    ['span', { class: 'file-name' }, HTMLAttributes.filename]
+                ]]
+            }
+            return ['div', { class: 'embedded-unknown' }, HTMLAttributes.filename]
+        }
+    });
+
+    onMount(() => {
+        // Wait for element to be available
+        if (!editorElement) return;
+        
+        editor = new Editor({
+            element: editorElement,
+            extensions: [
+                StarterKit,
+                CustomEmbed,
+            ],
+            content: '',
+            editorProps: {
+                attributes: {
+                    class: 'prose prose-sm focus:outline-none',
+                },
+            },
+            onFocus: () => {
+                isMessageFieldFocused = true;
+            },
+            onBlur: () => {
+                isMessageFieldFocused = false;
+            },
+            onTransaction: () => {
+                // Force Svelte to update
+                editor = editor;
+            }
+        });
+    });
+
+    onDestroy(() => {
+        if (editor) {
+            editor.destroy();
+        }
+        closeCamera();
+    });
+
+    // Function to check if there's content
+    $: hasContent = editor?.isEmpty === false;
+
+    // Handle file selection
+    function handleFileSelect() {
+        fileInput.multiple = true;
+        fileInput.click();
+    }
+
+    async function onFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (!input.files?.length) return;
+
+        const files = Array.from(input.files);
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+        if (totalSize > MAX_TOTAL_SIZE) {
+            console.log('File size limit exceeded');
+            alert($_('enter_message.file_size_limits.total_exceeded.text', {
+                size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
+                current: '0',
+                attempted: (totalSize / 1024 / 1024).toFixed(1)
+            } as any));
+            return;
+        }
+
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                await insertImage(file);
+            } else if (file.type === 'application/pdf') {
+                await insertFile(file);
+            } else if (file.type.startsWith('video/')) {
+                await insertVideo(file);
+            }
+        }
+
+        input.value = '';
+    }
+
+    async function insertImage(file: File) {
+        const url = URL.createObjectURL(file);
+        editor.chain().focus().insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'image',
+                src: url,
+                filename: file.name
+            }
+        }).run();
+    }
+
+    async function insertFile(file: File) {
+        const url = URL.createObjectURL(file);
+        editor.chain().focus().insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'pdf',
+                src: url,
+                filename: file.name
+            }
+        }).run();
+    }
+
+    async function insertVideo(file: File) {
+        console.log('Inserting video:', file.name);
+        const url = URL.createObjectURL(file);
+        editor.chain().focus().insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'video',
+                src: url,
+                filename: file.name,
+                id: crypto.randomUUID()
+            }
+        }).run();
+    }
+
+    function handleCameraClick() {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' },
+                audio: false 
+            })
+            .then(mediaStream => {
+                stream = mediaStream;
+                showCamera = true;
+                tick().then(() => {
+                    if (videoElement) {
+                        videoElement.srcObject = stream;
+                    }
+                });
+            })
+            .catch(err => {
+                console.error('Camera access error:', err);
+                cameraInput.click();
+            });
+        } else {
+            cameraInput.click();
+        }
+    }
+
+    async function capturePhoto() {
+        if (!videoElement) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+            ctx.drawImage(videoElement, 0, 0);
+            canvas.toBlob(async (blob) => {
+                if (blob) {
+                    const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    await insertImage(file);
+                }
+            }, 'image/jpeg');
+        }
+        closeCamera();
+    }
+
+    function closeCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        showCamera = false;
+    }
+
+    function handleSend() {
+        if (!editor) return;
+        
+        const content = editor.getJSON();
+        console.log('Sending message:', content);
+        
+        // Reset editor after sending
+        editor.commands.clearContent();
+    }
+
+    // Add prop for default mention
+    export const defaultMention: string = 'sophia';
+</script>
+
+<div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
+    <!-- Hidden file inputs -->
+    <input
+        bind:this={fileInput}
+        type="file"
+        on:change={onFileSelected}
+        style="display: none"
+        multiple
+    />
+    
+    <input
+        bind:this={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        on:change={onFileSelected}
+        style="display: none"
+        multiple
+    />
+
+    <div class="scrollable-content">
+        <div class="content-wrapper">
+            <div 
+                bind:this={editorElement} 
+                class="editor-content prose"
+            ></div>
+        </div>
+    </div>
+
+    {#if showCamera}
+        <div class="camera-overlay">
+            <video
+                bind:this={videoElement}
+                autoplay
+                playsinline
+                class="camera-preview"
+            >
+                <track kind="captions" />
+            </video>
+            <div class="camera-controls">
+                <button class="camera-button" on:click={closeCamera}>
+                    ❌
+                </button>
+                <button class="camera-button" on:click={capturePhoto}>
+                    📸
+                </button>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Action buttons -->
+    <div class="action-buttons">
+        <div class="left-buttons">
+            <button 
+                class="clickable-icon icon_files" 
+                on:click={handleFileSelect} 
+                aria-label={$_('enter_message.attachments.attach_files.text')}
+            ></button>
+            <button 
+                class="clickable-icon icon_maps" 
+                aria-label={$_('enter_message.attachments.share_location.text')}
+            ></button>
+        </div>
+        <div class="right-buttons">
+            <button 
+                class="clickable-icon icon_camera" 
+                on:click={handleCameraClick} 
+                aria-label={$_('enter_message.attachments.take_photo.text')}
+            ></button>
+            <button 
+                class="clickable-icon icon_recordaudio" 
+                aria-label={$_('enter_message.attachments.record_audio.text')}
+            ></button>
+            {#if hasContent}
+                <button class="send-button" on:click={handleSend}>
+                    {$_('enter_message.send.text')}
+                </button>
+            {/if}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Reuse all your existing styles from EnterMessageField.svelte */
+    .message-container {
+        width: 100%;
+        min-height: 100px;
+        max-height: 350px;
+        background-color: var(--color-grey-blue);
+        border-radius: 24px;
+        padding: 0 1rem 50px 1rem;
+        box-sizing: border-box;
+        position: relative;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: box-shadow 0.2s ease-in-out;
+    }
+
+    .message-container.focused {
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Add Tiptap-specific styles */
+    :global(.ProseMirror) {
+        outline: none;
+        min-height: 2em;
+        padding: 0.5rem 0;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+    }
+
+    :global(.custom-embed) {
+        display: inline-flex;
+        align-items: center;
+        background: #f5f5f5;
+        border-radius: 4px;
+        padding: 4px 8px;
+        margin: 0 2px;
+        cursor: pointer;
+    }
+
+    :global(.custom-embed img) {
+        max-width: 200px;
+        max-height: 200px;
+        object-fit: contain;
+    }
+
+    :global(.custom-embed.file) {
+        background: #e8f0fe;
+    }
+
+    :global(.custom-embed.video) {
+        background: #fce8e8;
+    }
+
+    /* Rest of your existing styles... */
+    /* Copy all remaining styles from your original component */
+
+    .scrollable-content {
+        width: 100%;
+        height: 100%;
+        max-height: 250px;
+        overflow-y: auto;
+        position: relative;
+        padding-top: 1em;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
+    }
+
+    .scrollable-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .scrollable-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .scrollable-content::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+    }
+
+    .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .message-input {
+        width: 100%;
+        min-height: 2em;
+        border: none;
+        outline: none;
+        resize: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1.5;
+        padding: 0.5rem 0;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        text-align: left;
+        caret-color: var(--color-font-primary);
+        animation: blink-caret 1s step-end infinite;
+        height: auto;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    @keyframes blink-caret {
+        from, to { caret-color: var(--color-font-primary); }
+        50% { caret-color: transparent; }
+    }
+
+    .message-input::placeholder {
+        text-align: center;
+        transition: opacity 0.2s ease;
+        position: absolute;
+        left: 0;
+        right: 0;
+        color: var(--color-font-tertiary);
+        font-weight: 500;
+    }
+
+    .message-input.has-content::placeholder {
+        opacity: 0;
+    }
+
+    textarea {
+        /* Reset all properties that could affect textarea height */
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        line-height: normal !important;
+        font-size: unset !important;
+        font-family: unset !important;
+        font-weight: 500 !important;
+        min-height: unset !important;
+        max-height: unset !important;
+        box-sizing: content-box !important;
+        color: var(--color-font-primary);
+    }
+
+    .action-buttons {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 40px;
+    }
+
+    .left-buttons {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        height: 100%;
+    }
+
+    .right-buttons {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        height: 100%;
+    }
+
+    .camera-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .camera-preview {
+        max-width: 100%;
+        max-height: 80vh;
+        background: #000;
+    }
+
+    .camera-controls {
+        position: absolute;
+        bottom: 2rem;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+    }
+
+    .camera-button {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s;
+    }
+
+    .camera-button:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .text-display {
+        width: 100%;
+        white-space: pre-wrap;
+        cursor: text;
+        text-align: left;
+        color: var(--color-font-primary);
+        font-weight: 500 !important; 
+    }
+
+    /* Add a new class for empty text display */
+    .text-display.empty {
+        text-align: center;
+        color: var(--color-font-tertiary);
+    }
+
+    .file-attachment {
+        display: flex;
+        align-items: center;
+        background: #f5f5f5;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        gap: 1rem;
+        max-width: 80%;
+    }
+
+    .file-icon {
+        font-size: 1.5rem;
+    }
+
+    .file-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .file-name {
+        font-weight: 500;
+        word-break: break-all;
+    }
+
+    .video-container {
+        width: 100%;
+        max-width: 80%;
+        margin: 0.5rem 0;
+        position: relative;
+        background: var(--color-grey-20);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .preview-video {
+        width: 100%;
+        max-height: 300px;
+        object-fit: contain;
+        background: #000;
+    }
+
+    .send-button {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+
+    /* Update icon styles */
+    .clickable-icon {
+        display: flex;
+        align-items: center;
+        height: 50px;
+        margin-top: 10px;
+    }
+
+    .message-input.before-attachment::placeholder,
+    .text-display.before-attachment.empty {
+        text-align: left;
+        color: var(--color-font-tertiary);
+    }
+
+    .text-display.empty:not(.before-attachment) {
+        text-align: center;
+        color: var(--color-font-tertiary);
+    }
+
+    .placeholder {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        color: var(--color-font-tertiary);
+    }
+
+    /* Update left-buttons style if needed */
+    .left-buttons {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        height: 100%;
+    }
+
+    .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .mention-display {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .at-symbol {
+        color: var(--color-font-primary);
+        font-weight: 500;
+    }
+
+    .message-input.has-mention {
+        padding-left: 64px !important;
+    }
+
+    .text-display {
+        position: relative;
+        padding-left: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .text-display:has(.mention-display) {
+        padding-left: 64px;
+    }
+
+    /* Add new style to handle placeholder positioning when mate selection is visible */
+    .input-wrapper:has(.mention-display) .message-input::placeholder {
+        text-align: left;
+        left: 64px;
+        right: 0;
+        width: calc(100% - 64px);
+    }
+
+    /* Add essential Tiptap styles */
+    :global(.editor-content) {
+        min-height: 2em;
+        padding: 0.5rem;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        padding: 0.5rem;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+    }
+
+    :global(.custom-embed-container) {
+        display: inline-block;
+        margin: 4px 0;
+        vertical-align: bottom;
+    }
+
+    /* Remove these conflicting styles */
+    :global(.custom-embed) {
+        display: none !important;
+    }
+
+    :global(.custom-embed img) {
+        display: none !important;
+    }
+
+    :global(.custom-embed.file) {
+        display: none !important;
+    }
+
+    :global(.custom-embed.video) {
+        display: none !important;
+    }
+
+    /* Add new styles for proper embedding */
+    :global(.custom-embed-wrapper) {
+        display: inline-block;
+        margin: 4px 0;
+        vertical-align: bottom;
+        max-width: 100%;
+    }
+
+    :global(.ProseMirror .custom-embed-wrapper) {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Ensure the editor can handle the embeds */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        overflow-x: hidden;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        padding: 0.5rem;
+        min-height: 2em;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* Add simple embed styles */
+    :global(.embedded-image) {
+        max-width: 300px;
+        max-height: 200px;
+        border-radius: 8px;
+        margin: 4px 0;
+        object-fit: contain;
+    }
+
+    :global(.embedded-file) {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--color-grey-20);
+        padding: 8px 16px;
+        border-radius: 8px;
+        margin: 4px 0;
+    }
+
+    :global(.file-icon) {
+        font-size: 24px;
+    }
+
+    :global(.file-name) {
+        font-size: 14px;
+        color: var(--color-font-primary);
+    }
+
+    /* Remove all custom-embed related styles */
+    :global(.custom-embed),
+    :global(.custom-embed-wrapper),
+    :global(.custom-embed-container) {
+        display: none;
+    }
+
+    /* Keep essential editor styles */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        padding: 0.5rem;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+    }
+</style>

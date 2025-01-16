@@ -1,5 +1,5 @@
 <script>
-    import EnterMessageField from './enter_message/EnterMessageField.svelte';
+    import EnterMessageFieldTiptap from './enter_message/EnterMessageFieldTiptap.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
 
@@ -31,7 +31,7 @@
 
     <!-- Message input field positioned at bottom center -->
     <div class="message-input-wrapper">
-        <EnterMessageField />
+        <EnterMessageFieldTiptap />
     </div>
 </div>
 
