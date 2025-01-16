@@ -131,6 +131,8 @@
 <style>
     .activity-history {
         padding: 16px;
+        position: relative;
+        overflow: hidden;
     }
 
     .activity-history {
@@ -185,6 +187,7 @@
         display: flex;
         flex-direction: column;
         gap: 24px;
+        position: relative;
     }
 
     .chat-group {
