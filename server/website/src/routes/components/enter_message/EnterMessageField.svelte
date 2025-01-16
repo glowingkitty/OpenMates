@@ -1134,22 +1134,21 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding-right: 10px;
-        height: 40px; /* Fixed height to maintain consistent spacing */
+        height: 40px;
     }
 
     .left-buttons {
         display: flex;
-        gap: 0.75rem;
+        gap: 1rem;
         align-items: center;
-        height: 100%; /* Take full height of parent */
+        height: 100%;
     }
 
     .right-buttons {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        height: 100%; /* Take full height of parent */
+        gap: 1rem;
+        height: 100%;
     }
 
     .camera-overlay {
@@ -1204,8 +1203,8 @@
         width: 100%;
         white-space: pre-wrap;
         cursor: text;
-        text-align: left; /* Change default alignment to left */
-        color: var(--color-font-primary); /* Change default color to black */
+        text-align: left;
+        color: var(--color-font-primary);
         font-weight: 500 !important; 
     }
 
@@ -1257,21 +1256,11 @@
         background: #000;
     }
 
-    .icon_recordaudio {
-        margin: 0 20px;
-    }
-
     .send-button {
-        margin-right: -20px;
-        margin-bottom: -10px;
         user-select: none;
         -webkit-user-select: none;
         -moz-user-select: none;
         -ms-user-select: none;
-    }
-
-    .icon_recordaudio {
-        margin: 0 20px;
     }
 
     /* Update icon styles */
@@ -1303,13 +1292,12 @@
 
     .icon_maps {
         /* Ensure consistent spacing with other icons */
-        margin-left: 0.75rem;
     }
 
     /* Update left-buttons style if needed */
     .left-buttons {
         display: flex;
-        gap: 0.75rem;
+        gap: 1rem;
         align-items: center;
         height: 100%;
     }
