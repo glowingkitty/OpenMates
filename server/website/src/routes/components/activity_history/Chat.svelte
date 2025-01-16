@@ -19,6 +19,9 @@
 
   // Compute if this chat is currently active
   $: isActive = $page.params.chatId === chat.id;
+
+  // Take only the 3 most recent mates
+  $: displayMates = chat.mates ? [...chat.mates].slice(-3).reverse() : [];
 </script>
 
 <div 
@@ -35,9 +38,9 @@
   {:else}
     <div class="chat-with-profile">
       <div class="mate-profiles-container">
-        {#if chat.mates && chat.mates.length > 0}
+        {#if displayMates.length > 0}
           <div class="mate-profiles-row">
-            {#each [...chat.mates].reverse() as mate}
+            {#each displayMates as mate}
               <div class="mate-profile mate-profile-small {mate}"></div>
             {/each}
           </div>
@@ -107,21 +110,20 @@
     position: relative;
   }
 
-  .mate-profiles-row :global(.mate-profile:not(:first-child)) {
-    position: absolute;
-    right: 18px;
+  .mate-profiles-row :global(.mate-profile:nth-child(1)) {
+    z-index: 3; /* Rightmost profile (most recent) on top */
   }
 
   .mate-profiles-row :global(.mate-profile:nth-child(2)) {
+    position: absolute;
     right: 18px;
+    z-index: 2;
   }
 
   .mate-profiles-row :global(.mate-profile:nth-child(3)) {
+    position: absolute;
     right: 36px;
-  }
-
-  .mate-profiles-row :global(.mate-profile:nth-child(4)) {
-    right: 54px;
+    z-index: 1;
   }
 
   .chat-title {
