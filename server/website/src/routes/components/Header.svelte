@@ -6,6 +6,7 @@
     import { replaceOpenMates } from '../../lib/actions/replaceText';
     import { t, waitLocale } from 'svelte-i18n';
     import { onMount, tick } from 'svelte';
+    import { isMenuOpen } from '../../lib/stores/menuState';
 
     export let context: 'website' | 'webapp' = 'website';
 
@@ -105,6 +106,10 @@
     $: if ($page.url.pathname) {
         isMobileMenuOpen = false;
     }
+
+    const toggleMenu = () => {
+        isMenuOpen.set(!$isMenuOpen);
+    };
 </script>
 
 <header bind:this={headerDiv} class:webapp={context === 'webapp'}>
@@ -121,6 +126,13 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
+                    {#if context === 'webapp' && !$isMenuOpen}
+                        <button 
+                            class="clickable-icon icon_menu"
+                            on:click={toggleMenu}
+                            aria-label="Open menu"
+                        ></button>
+                    {/if}
                     <a
                         href="/"
                         class="logo-link"
@@ -404,5 +416,22 @@
             background: none;
             backdrop-filter: none;
         }
+    }
+
+    .left-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .menu-button {
+        all: unset;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+    }
+
+    .menu-button:hover {
+        opacity: 1;
     }
 </style> 

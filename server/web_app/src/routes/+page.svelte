@@ -1,5 +1,5 @@
 <script>
-    // Import the required components
+    import { isMenuOpen } from '../../../website/src/lib/stores/menuState';
     import ActivityHistory from '@website-components/activity_history/ActivityHistory.svelte';
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
@@ -11,13 +11,14 @@
 
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
+    $: sidebarClass = $isMenuOpen ? 'open' : 'closed';
 </script>
 
-<div class="sidebar">
+<div class="sidebar" class:closed={!$isMenuOpen}>
     <ActivityHistory />
 </div>
 
-<div class="main-content">
+<div class="main-content" class:menu-closed={!$isMenuOpen}>
     <Header context="webapp" />
     <div class="chat-container" class:menu-open={menuClass}>
         <ActiveChat />
@@ -57,6 +58,12 @@
         /* Custom scrollbar styling */
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
+
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.closed {
+        transform: translateX(-100%);
     }
 
     /* For Webkit browsers */
@@ -79,19 +86,19 @@
     }
 
     .main-content {
-        /* Position relative to accommodate fixed sidebar */
         position: fixed;
         left: calc(var(--sidebar-width) + var(--sidebar-margin));
-        top: var(--sidebar-margin);
-        right: var(--sidebar-margin);
-        bottom: var(--sidebar-margin);
+        top: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--color-grey-0);
+        z-index: 10;
+        transition: left 0.3s ease;
+    }
 
-        /* Add scrolling for overflow content */
-        overflow-y: auto;
-
-        /* Custom scrollbar styling */
-        scrollbar-width: thin;
-        scrollbar-color: var(--color-grey-40) transparent;
+    .main-content.menu-closed {
+        left: 0;
+        
     }
 
     /* For Webkit browsers */

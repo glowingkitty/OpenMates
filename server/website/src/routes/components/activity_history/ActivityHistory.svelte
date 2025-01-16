@@ -2,6 +2,7 @@
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
     import { formatDistanceToNow } from 'date-fns';
+    import { isMenuOpen } from '../../../lib/stores/menuState';
 
     // Example chats for testing - will be replaced with DB data later
     const exampleChats = [
@@ -98,6 +99,11 @@
         groups[groupKey].push(chat);
         return groups;
     }, {});
+
+    // Function to handle menu close
+    const handleClose = () => {
+        isMenuOpen.set(false);
+    };
 </script>
 
 <div class="activity-history">
@@ -114,6 +120,7 @@
             <button 
                 class="clickable-icon icon_close top-button right" 
                 aria-label={$_('activity.close.text')}
+                on:click={handleClose}
             ></button>
         </div>
     </div>
