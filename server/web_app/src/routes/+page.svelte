@@ -12,6 +12,16 @@
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
     $: sidebarClass = $isMenuOpen ? 'open' : 'closed';
+
+    // Add mobile breakpoint
+    const MOBILE_BREAKPOINT = 730;
+    
+    // Add reactive statement to handle initial mobile state
+    $: if (typeof window !== 'undefined') {
+        if (window.innerWidth < MOBILE_BREAKPOINT) {
+            isMenuOpen.set(false);
+        }
+    }
 </script>
 
 <div class="sidebar" class:closed={!$isMenuOpen}>
@@ -93,12 +103,11 @@
         bottom: 0;
         background-color: var(--color-grey-0);
         z-index: 10;
-        transition: left 0.3s ease;
+        transition: left 0.3s ease, transform 0.3s ease;
     }
 
     .main-content.menu-closed {
-        left: 0;
-        
+        left: var(--sidebar-margin);
     }
 
     /* For Webkit browsers */
@@ -150,5 +159,38 @@
         display: flex;
         align-items: flex-start;
         min-width: fit-content;
+    }
+
+    /* Add mobile styles */
+    @media (max-width: 730px) {
+        .sidebar {
+            width: 100%;
+            /* Ensure sidebar stays in place */
+            transform: none;
+        }
+
+        .sidebar.closed {
+            /* Don't translate sidebar off screen on mobile */
+            transform: none;
+        }
+
+        .main-content {
+            /* Position main content over the sidebar by default */
+            left: 0;
+            right: 0;
+            z-index: 20; /* Higher than sidebar to cover it */
+            transform: translateX(0);
+        }
+
+        /* When menu is open, slide main content right */
+        .main-content:not(.menu-closed) {
+            transform: translateX(100%);
+        }
+
+        /* When menu is closed, keep main content over sidebar */
+        .main-content.menu-closed {
+            left: 0;
+            transform: translateX(0);
+        }
     }
 </style>

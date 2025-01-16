@@ -107,6 +107,23 @@
         isMobileMenuOpen = false;
     }
 
+    // Add mobile breakpoint check
+    let isMobile = false;
+
+    onMount(() => {
+        const checkMobile = () => {
+            isMobile = window.innerWidth < 730;
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+        };
+    });
+
+    // Update menu toggle logic
     const toggleMenu = () => {
         isMenuOpen.set(!$isMenuOpen);
     };
@@ -126,11 +143,11 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    {#if context === 'webapp' && !$isMenuOpen}
+                    {#if context === 'webapp' && (isMobile || !$isMenuOpen)}
                         <button 
                             class="clickable-icon icon_menu"
                             on:click={toggleMenu}
-                            aria-label="Open menu"
+                            aria-label="Toggle menu"
                         ></button>
                     {/if}
                     <a
