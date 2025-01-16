@@ -101,19 +101,21 @@
 </script>
 
 <div class="activity-history">
-    <div class="top-buttons">
-        <button 
-            class="clickable-icon icon_search top-button left" 
-            aria-label={$_('activity.search.text')}
-        ></button>
-        <button 
-            class="clickable-icon icon_filter top-button center" 
-            aria-label={$_('activity.filter.text')}
-        ></button>
-        <button 
-            class="clickable-icon icon_close top-button right" 
-            aria-label={$_('activity.close.text')}
-        ></button>
+    <div class="top-buttons-container">
+        <div class="top-buttons">
+            <button 
+                class="clickable-icon icon_search top-button left" 
+                aria-label={$_('activity.search.text')}
+            ></button>
+            <button 
+                class="clickable-icon icon_filter top-button center" 
+                aria-label={$_('activity.filter.text')}
+            ></button>
+            <button 
+                class="clickable-icon icon_close top-button right" 
+                aria-label={$_('activity.close.text')}
+            ></button>
+        </div>
     </div>
 
     <div class="chat-groups">
@@ -130,9 +132,10 @@
 
 <style>
     .activity-history {
-        padding: 16px;
+        padding: 0;
         position: relative;
-        overflow: hidden;
+        overflow-y: auto;
+        height: 100%;
     }
 
     .activity-history {
@@ -158,10 +161,19 @@
         background-color: var(--color-grey-50);
     }
 
+    .top-buttons-container {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: var(--color-grey-20);
+        padding: 16px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--color-grey-20);
+    }
+
     .top-buttons {
         position: relative;
         height: 48px;
-        margin-bottom: 24px;
     }
 
     /* Position buttons in the top bar */
@@ -188,6 +200,7 @@
         flex-direction: column;
         gap: 24px;
         position: relative;
+        padding: 0 0 16px 0;
     }
 
     .chat-group {
@@ -200,7 +213,7 @@
         font-size: 0.9em;
         color: var(--color-grey-60);
         margin: 0;
-        padding: 0 12px;
+        padding: 0 16px;
         font-weight: 500;
         text-transform: capitalize;
         margin-bottom: 8px;

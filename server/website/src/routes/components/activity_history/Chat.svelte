@@ -25,60 +25,64 @@
 </script>
 
 <div 
-  class="chat-item"
+  class="chat-item-wrapper"
   class:active={isActive}
   role="button"
   tabindex="0"
 >
-  {#if chat.isDraft}
-    <div class="draft-content">
-      <span class="draft-label">Draft:</span>
-      <p class="message-preview">{truncateText(chat.draftContent || '')}</p>
-    </div>
-  {:else}
-    <div class="chat-with-profile">
-      <div class="mate-profiles-container">
-        {#if displayMates.length > 0}
-          <div class="mate-profiles-row">
-            {#each displayMates as mate}
-              <div class="mate-profile-wrapper">
-                <div class="mate-profile mate-profile-small {mate}"></div>
-              </div>
-            {/each}
-          </div>
-        {/if}
+  <div class="chat-item">
+    {#if chat.isDraft}
+      <div class="draft-content">
+        <span class="draft-label">Draft:</span>
+        <p class="message-preview">{truncateText(chat.draftContent || '')}</p>
       </div>
-      <span class="chat-title">{truncateText(chat.title || '')}</span>
-    </div>
-  {/if}
+    {:else}
+      <div class="chat-with-profile">
+        <div class="mate-profiles-container">
+          {#if displayMates.length > 0}
+            <div class="mate-profiles-row">
+              {#each displayMates as mate}
+                <div class="mate-profile-wrapper">
+                  <div class="mate-profile mate-profile-small {mate}"></div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        <span class="chat-title">{truncateText(chat.title || '')}</span>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
-  .chat-item {
-    padding: 12px 12px;
+  .chat-item-wrapper {
     cursor: pointer;
-    border-radius: 0;
     transition: background-color 0.2s ease;
     margin: 0 0 -1px 0;
   }
 
-  .chat-item:first-child {
+  .chat-item-wrapper:first-child {
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
   }
 
-  .chat-item:last-child {
+  .chat-item-wrapper:last-child {
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
     margin-bottom: 0;
   }
 
-  .chat-item:hover {
+  .chat-item-wrapper:hover {
     background-color: var(--color-grey-10);
   }
 
-  .chat-item.active {
+  .chat-item-wrapper.active {
     background-color: var(--color-grey-20);
+  }
+
+  .chat-item {
+    padding: 12px 16px;
   }
 
   .chat-with-profile {
