@@ -458,12 +458,14 @@
         overflow-y: auto;
         padding-bottom: 16px;
         scrollbar-width: thin;
-        scrollbar-color: var(--color-grey-40-transparent) transparent;
+        /* Start with very transparent scrollbar */
+        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
     }
 
+    /* Make scrollbar more visible on container hover */
     .settings-content:hover {
-        scrollbar-color: var(--color-grey-40) transparent;
+        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
     }
 
     .settings-content::-webkit-scrollbar {
@@ -475,18 +477,21 @@
     }
 
     .settings-content::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40-transparent);
+        /* Start very transparent */
+        background-color: rgba(128, 128, 128, 0.2);
         border-radius: 4px;
         border: 2px solid var(--color-grey-20);
         transition: background-color 0.2s ease;
     }
 
+    /* More visible on container hover */
     .settings-content:hover::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40);
+        background-color: rgba(128, 128, 128, 0.5);
     }
 
+    /* Most visible when hovering the scrollbar itself */
     .settings-content::-webkit-scrollbar-thumb:hover {
-        background-color: var(--color-grey-50);
+        background-color: rgba(128, 128, 128, 0.7);
     }
 
     .submenu-section {

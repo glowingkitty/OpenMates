@@ -137,12 +137,12 @@
         overflow-y: auto;
         height: 100%;
         scrollbar-width: thin;
-        scrollbar-color: var(--color-grey-40-transparent) transparent;
+        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
     }
 
     .activity-history:hover {
-        scrollbar-color: var(--color-grey-40) transparent;
+        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
     }
 
     .activity-history::-webkit-scrollbar {
@@ -154,18 +154,18 @@
     }
 
     .activity-history::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40-transparent);
+        background-color: rgba(128, 128, 128, 0.2);
         border-radius: 4px;
         border: 2px solid transparent;
         transition: background-color 0.2s ease;
     }
 
     .activity-history:hover::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40);
+        background-color: rgba(128, 128, 128, 0.5);
     }
 
     .activity-history::-webkit-scrollbar-thumb:hover {
-        background-color: var(--color-grey-50);
+        background-color: rgba(128, 128, 128, 0.7);
     }
 
     .top-buttons-container {
