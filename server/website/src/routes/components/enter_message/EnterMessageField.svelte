@@ -1318,10 +1318,6 @@
         color: var(--color-font-tertiary);
     }
 
-    .icon_maps {
-        /* Ensure consistent spacing with other icons */
-    }
-
     /* Update left-buttons style if needed */
     .left-buttons {
         display: flex;
