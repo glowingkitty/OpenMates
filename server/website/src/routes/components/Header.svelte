@@ -214,7 +214,7 @@
 <style>
     header {
         z-index: 1000;
-        padding: 1rem 2rem;
+        padding: 20px;
         position: fixed;
         top: 0;
         left: 0;

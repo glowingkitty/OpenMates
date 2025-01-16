@@ -132,9 +132,10 @@
     .chat-container {
         display: flex;
         flex-direction: row;
-        height: calc(100% - 80px);
+        height: calc(100% - 90px);
         gap: 0px;
         padding: 10px;
+        padding-right: 20px;
         /* Only apply gap transition on larger screens */
         @media (min-width: 1100px) {
             transition: gap 0.3s ease;
