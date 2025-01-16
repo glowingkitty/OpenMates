@@ -1334,6 +1334,7 @@
         position: relative;
         display: flex;
         align-items: center;
+        width: 100%;
     }
 
     .mention-display {
@@ -1360,6 +1361,8 @@
     .text-display {
         position: relative;
         padding-left: 0;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .text-display:has(.mention-display) {
