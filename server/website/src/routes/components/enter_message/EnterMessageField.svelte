@@ -783,6 +783,20 @@
             isMessageFieldFocused = true; // Set focus state to true on initial load
         }
     });
+
+    // Add new prop for the default mention
+    export let defaultMention: string | undefined = 'sophia';
+
+    // Add new type for mention display
+    type MentionDisplay = {
+        mate: string;
+        element: HTMLElement | null;
+    }
+
+    let currentMention: MentionDisplay | null = defaultMention ? {
+        mate: defaultMention,
+        element: null
+    } : null;
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
@@ -810,33 +824,41 @@
             {#each textSegments as segment, index}
                 {#if shouldShowSegment(segment, index)}
                     {#if segment.isEditing}
-                        <textarea
-                            id={segment.id}
-                            bind:value={segment.text}
-                            on:focus={() => {
-                                activeSegmentId = segment.id;
-                                isMessageFieldFocused = true;
-                            }}
-                            on:blur={() => {
-                                segment.isEditing = false;
-                                setTimeout(() => {
-                                    const activeElement = document.activeElement;
-                                    if (!activeElement || !activeElement.matches('textarea')) {
-                                        isMessageFieldFocused = false;
-                                    }
-                                }, 0);
-                            }}
-                            on:keydown={(e) => handleKeydown(e, index)}
-                            on:input={(e) => handleInput(e, segment, index)}
-                            on:paste={handlePaste}
-                            placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
-                                ? $_('enter_message.enter_your_message.text')
-                                : segment.imageId || segment.fileId || segment.videoId || segment.webUrl 
-                                    ? $_('enter_message.click_to_add_text.text')
-                                    : ""}
-                            rows="1"
-                            class="message-input {segment.text ? 'has-content' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''}"
-                        ></textarea>
+                        <div class="input-wrapper">
+                            {#if index === 0 && currentMention && (segment.text || isMessageFieldFocused)}
+                                <div class="mention-display">
+                                    <span class="at-symbol">@</span>
+                                    <div class="mate-profile mate-profile-small {currentMention.mate}"></div>
+                                </div>
+                            {/if}
+                            <textarea
+                                id={segment.id}
+                                bind:value={segment.text}
+                                on:focus={() => {
+                                    activeSegmentId = segment.id;
+                                    isMessageFieldFocused = true;
+                                }}
+                                on:blur={() => {
+                                    segment.isEditing = false;
+                                    setTimeout(() => {
+                                        const activeElement = document.activeElement;
+                                        if (!activeElement || !activeElement.matches('textarea')) {
+                                            isMessageFieldFocused = false;
+                                        }
+                                    }, 0);
+                                }}
+                                on:keydown={(e) => handleKeydown(e, index)}
+                                on:input={(e) => handleInput(e, segment, index)}
+                                on:paste={handlePaste}
+                                placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
+                                    ? $_('enter_message.enter_your_message.text')
+                                    : segment.imageId || segment.fileId || segment.videoId || segment.webUrl 
+                                        ? $_('enter_message.click_to_add_text.text')
+                                        : ""}
+                                rows="1"
+                                class="message-input {segment.text ? 'has-content' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''} {index === 0 && currentMention ? 'has-mention' : ''}"
+                            ></textarea>
+                        </div>
                     {:else}
                         <div
                             class="text-display {!segment.text ? 'empty' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''}"
@@ -848,6 +870,12 @@
                             tabindex="0"
                             role="textbox"
                         >
+                            {#if index === 0 && currentMention && segment.text}
+                                <div class="mention-display">
+                                    <span class="at-symbol">@</span>
+                                    <div class="mate-profile mate-profile-small {currentMention.mate}"></div>
+                                </div>
+                            {/if}
                             {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
                                 <span class="placeholder">
                                     {isMessageFieldFocused ? 
@@ -1300,5 +1328,49 @@
         gap: 1rem;
         align-items: center;
         height: 100%;
+    }
+
+    .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .mention-display {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .at-symbol {
+        color: var(--color-font-primary);
+        font-weight: 500;
+    }
+
+    .message-input.has-mention {
+        padding-left: 64px !important;
+    }
+
+    .text-display {
+        position: relative;
+        padding-left: 0;
+    }
+
+    .text-display:has(.mention-display) {
+        padding-left: 64px;
+    }
+
+    /* Add new style to handle placeholder positioning when mate selection is visible */
+    .input-wrapper:has(.mention-display) .message-input::placeholder {
+        text-align: left;
+        left: 64px;
+        right: 0;
+        width: calc(100% - 64px);
     }
 </style>
