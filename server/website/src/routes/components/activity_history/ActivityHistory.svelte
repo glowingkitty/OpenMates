@@ -173,14 +173,14 @@
         top: 0;
         z-index: 10;
         background-color: var(--color-grey-20);
-        padding: 16px;
+        padding: 20px;
         margin-bottom: 8px;
         border-bottom: 1px solid var(--color-grey-20);
     }
 
     .top-buttons {
         position: relative;
-        height: 48px;
+        height: 32px;
     }
 
     /* Position buttons in the top bar */
@@ -190,7 +190,7 @@
     }
 
     .top-button.left {
-        left: 20px;
+        left: 0;
     }
 
     .top-button.center {
@@ -199,7 +199,7 @@
     }
 
     .top-button.right {
-        right: 20px;
+        right: 0;
     }
 
     .chat-groups {
