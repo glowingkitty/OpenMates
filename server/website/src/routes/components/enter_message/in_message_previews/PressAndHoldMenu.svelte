@@ -50,10 +50,9 @@
 
 {#if show}
     <div 
-        class="menu"
-        role="menu"
+        class="menu-container {show ? 'show' : ''}"
+        style="--menu-x: {x}px; --menu-y: {y}px;"
         bind:this={menuElement}
-        style="left: {x}px; top: {y}px;"
     >
         <button 
             class="menu-item delete"
@@ -113,18 +112,36 @@
 {/if}
 
 <style>
-    .menu {
-        position: fixed;
-        width: 180px;
-        background: var(--color-grey-0);
-        border-radius: 30px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    .menu-container {
+        position: absolute;
+        left: var(--menu-x);
+        top: var(--menu-y);
+        transform: translate(-50%, -100%);
+        background: var(--color-grey-blue);
+        border-radius: 12px;
         padding: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        transform: translate(-50%, -100%) translateY(-8px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .menu-container.show {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+    /* Add a small arrow at the bottom */
+    .menu-container::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-top: 8px solid var(--color-grey-blue);
     }
 
     .menu-item {

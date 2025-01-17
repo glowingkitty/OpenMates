@@ -635,7 +635,18 @@
             return;
         }
 
+        // Process each file sequentially
         for (const file of files) {
+            if (file.size > MAX_PER_FILE_SIZE) {
+                alert($_('enter_message.file_size_limits.per_file_exceeded.text', {
+                    size: FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE,
+                    filename: file.name,
+                    filesize: (file.size / 1024 / 1024).toFixed(1)
+                } as any));
+                continue;
+            }
+
+            // Insert content at the current cursor position
             if (file.type.startsWith('image/')) {
                 await insertImage(file);
             } else if (file.type === 'application/pdf') {
@@ -643,28 +654,26 @@
             } else if (file.type.startsWith('video/')) {
                 await insertVideo(file);
             }
+            
+            // Add a space after each insert
+            editor.commands.insertContent(' ');
         }
 
         input.value = '';
     }
 
     async function insertImage(file: File): Promise<void> {
-        return new Promise<void>((resolve) => {
-            const url = URL.createObjectURL(file);
-            const id = crypto.randomUUID();
-            
-            // Simple insert without extra commands
-            editor.commands.insertContent({
-                type: 'customEmbed',
-                attrs: {
-                    type: 'image',
-                    src: url,
-                    filename: file.name,
-                    id
-                }
-            });
-            
-            resolve();
+        const url = URL.createObjectURL(file);
+        
+        // Use a simpler insertion approach
+        editor.commands.insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'image',
+                src: url,
+                filename: file.name,
+                id: crypto.randomUUID()
+            }
         });
     }
 
@@ -831,29 +840,26 @@
         const element = document.getElementById(event.detail.elementId);
         if (!element) return;
 
-        // Find the node with this ID
-        let foundNode: any = null;
-        editor.state.doc.descendants((node: any, pos: number) => {
-            if (node.attrs?.id === embedId) {
-                foundNode = { node, pos };
-                return false;
-            }
-            return true;
-        });
-
-        if (!foundNode) return;
-
+        // Get element's position relative to viewport
         const rect = element.getBoundingClientRect();
-        menuX = rect.left + (rect.width / 2);
-        menuY = rect.top;
+        
+        // Calculate position relative to the message container
+        const container = element.closest('.message-container');
+        if (!container) return;
+        
+        const containerRect = container.getBoundingClientRect();
+        
+        // Position menu relative to the clicked element
+        menuX = rect.left - containerRect.left + (rect.width / 2);
+        menuY = rect.top - containerRect.top;
         
         selectedEmbedId = embedId;
         showMenu = true;
 
         // Determine the type of content for the menu
-        const contentType = foundNode.node.attrs.type;
+        const contentType = element.getAttribute('data-type');
         menuType = contentType === 'pdf' ? 'pdf' : 
-                   contentType === 'webPreview' ? 'web' : 
+                   contentType === 'web-preview' ? 'web' : 
                    'default';
     }
 
