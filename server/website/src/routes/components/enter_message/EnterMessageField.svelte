@@ -1119,6 +1119,12 @@
         <CameraView
             bind:videoElement
             on:close={handleCameraClose}
+            on:focusEditor={() => {
+                // Add small delay to ensure DOM is updated
+                setTimeout(() => {
+                    editor?.commands.focus();
+                }, 0);
+            }}
             on:photocaptured={handlePhotoCaptured}
             on:videorecorded={handleVideoRecorded}
         />

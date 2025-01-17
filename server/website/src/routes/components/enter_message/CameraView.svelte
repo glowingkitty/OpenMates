@@ -41,6 +41,7 @@
         if (mediaRecorder && isRecording) {
             mediaRecorder.stop();
         }
+        dispatch('focusEditor');
         dispatch('close');
     }
 
