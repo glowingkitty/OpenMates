@@ -213,7 +213,7 @@
         position: relative;
         padding: 0;
         margin: 0;
-        flex-shrink: 0; /* Prevent buttons from being squeezed */
+        flex-shrink: 0;
     }
 
     .photo-button::before, .video-button::before {
@@ -228,9 +228,10 @@
         opacity: 0.8;
     }
 
-    .photo-button-inner, .video-button-inner {
+    .photo-button-inner {
         width: 100%;
         height: 100%;
+        background: white;
         border-radius: 50%;
         transform: scale(0.93);
     }
