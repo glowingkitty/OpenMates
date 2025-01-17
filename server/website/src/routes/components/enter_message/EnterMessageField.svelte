@@ -12,6 +12,7 @@
     import { Extension } from '@tiptap/core';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import CameraView from './CameraView.svelte';
+    import RecordAudio from './RecordAudio.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -36,6 +37,10 @@
     let menuY = 0;
     let selectedEmbedId: string | null = null;
     let menuType: 'default' | 'pdf' | 'web' = 'default';
+    let showRecordAudio = false;
+    let isRecordButtonPressed = false;
+    let recordStartPosition = { x: 0, y: 0 };
+    let recordStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
 
     // Add this constant near the top of the file, after the imports
     const VALID_MATES = [
@@ -1120,6 +1125,29 @@
         showMenu = false;
         isMenuInteraction = false; // Reset the flag when menu action is complete
     }
+
+    // Add these functions to handle audio recording
+    function handleAudioRecorded(event: CustomEvent) {
+        const { blob } = event.detail;
+        console.log('Received audio blob:', blob);
+        
+        const url = URL.createObjectURL(blob);
+        const filename = `audio_${Date.now()}.webm`;
+        
+        // Add audio embed
+        editor.commands.insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'audio',
+                src: url,
+                filename: filename,
+                id: crypto.randomUUID()
+            }
+        });
+
+        // Force editor update
+        editor.commands.focus();
+    }
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
@@ -1186,7 +1214,42 @@
                 aria-label={$_('enter_message.attachments.take_photo.text')}
             ></button>
             <button 
-                class="clickable-icon icon_recordaudio" 
+                class="clickable-icon icon_recordaudio"
+                style="z-index: 901;"
+                on:mousedown={(event) => {
+                    recordStartPosition = { 
+                        x: event.clientX, 
+                        y: event.clientY 
+                    };
+                    isRecordButtonPressed = true;
+                    // Show overlay immediately
+                    showRecordAudio = true;
+                }}
+                on:mouseup={() => {
+                    isRecordButtonPressed = false;
+                    showRecordAudio = false;
+                    clearTimeout(recordStartTimeout);
+                }}
+                on:mouseleave={() => {
+                    if (isRecordButtonPressed) {
+                        isRecordButtonPressed = false;
+                        showRecordAudio = false;
+                        clearTimeout(recordStartTimeout);
+                    }
+                }}
+                on:touchstart|preventDefault={(event) => {
+                    recordStartPosition = { 
+                        x: event.touches[0].clientX, 
+                        y: event.touches[0].clientY 
+                    };
+                    isRecordButtonPressed = true;
+                    showRecordAudio = true;
+                }}
+                on:touchend={() => {
+                    isRecordButtonPressed = false;
+                    showRecordAudio = false;
+                    clearTimeout(recordStartTimeout);
+                }}
                 aria-label={$_('enter_message.attachments.record_audio.text')}
             ></button>
             {#if hasContent}
@@ -1215,6 +1278,14 @@
             on:download={() => handleMenuAction('download')}
             on:view={() => handleMenuAction('view')}
             on:copy={() => handleMenuAction('copy')}
+        />
+    {/if}
+
+    {#if showRecordAudio}
+        <RecordAudio
+            initialPosition={recordStartPosition}
+            on:audiorecorded={handleAudioRecorded}
+            on:close={() => showRecordAudio = false}
         />
     {/if}
 </div>
