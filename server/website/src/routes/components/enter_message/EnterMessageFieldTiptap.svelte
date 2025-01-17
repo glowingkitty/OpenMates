@@ -8,6 +8,8 @@
     import Web from './in_message_previews/Web.svelte';
     import { _ } from 'svelte-i18n';
     import type { SvelteComponent } from 'svelte';
+    import Placeholder from '@tiptap/extension-placeholder';
+    import type { Editor as EditorType } from '@tiptap/core';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -201,7 +203,16 @@
             extensions: [
                 StarterKit,
                 CustomEmbed,
-                WebPreview, // Add WebPreview extension
+                WebPreview,
+                Placeholder.configure({
+                    placeholder: ({ editor }: { editor: EditorType }) => {
+                        if (editor.isFocused) {
+                            return 'Enter your message';
+                        }
+                        return 'Click here to enter your message';
+                    },
+                    emptyEditorClass: 'is-editor-empty',
+                }),
             ],
             content: '',
             editorProps: {
@@ -221,6 +232,9 @@
                 detectAndReplaceUrls(content);
             }
         });
+
+        // Auto-focus the editor on mount
+        editor.commands.focus();
     });
 
     // Update the URL detection and replacement function
@@ -1182,5 +1196,25 @@
         display: inline-block;
         margin: 4px 0;
         vertical-align: bottom;
+    }
+
+    /* Placeholder styling */
+    :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        content: attr(data-placeholder);
+        float: left;
+        color: var(--color-font-tertiary);
+        pointer-events: none;
+        height: 0;
+    }
+
+    /* Center placeholder when not focused */
+    :global(.ProseMirror:not(:focus) p.is-editor-empty:first-child::before) {
+        text-align: center;
+        width: 100%;
+    }
+
+    /* Left align placeholder when focused */
+    :global(.ProseMirror:focus p.is-editor-empty:first-child::before) {
+        text-align: left;
     }
 </style>
