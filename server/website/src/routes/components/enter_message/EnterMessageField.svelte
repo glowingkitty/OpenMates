@@ -1035,28 +1035,6 @@
         padding: 0 0.5rem;
     }
 
-    .message-input {
-        width: 100%;
-        min-height: 2em;
-        border: none;
-        outline: none;
-        resize: none;
-        background: transparent;
-        font-family: inherit;
-        font-size: 1rem;
-        line-height: 1.5;
-        padding: 0.5rem 0;
-        margin: 0;
-        overflow: hidden;
-        box-sizing: border-box;
-        text-align: left;
-        caret-color: var(--color-font-primary);
-        animation: blink-caret 1s step-end infinite;
-        height: auto;
-        word-break: break-word;
-        white-space: pre-wrap;
-    }
-
     @keyframes blink-caret {
         from, to { caret-color: var(--color-font-primary); }
         50% { caret-color: transparent; }
