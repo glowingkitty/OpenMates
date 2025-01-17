@@ -53,24 +53,41 @@
             console.log('Rendering embed:', HTMLAttributes);
             
             if (HTMLAttributes.type === 'image') {
-                return ['img', {
-                    src: HTMLAttributes.src,
-                    'data-filename': HTMLAttributes.filename,
-                    class: 'embedded-image'
-                }]
-            } else if (HTMLAttributes.type === 'pdf') {
-                // Fixed array structure for PDF rendering
+                // Return the new photo preview structure
                 return ['div', {
-                    class: 'embedded-pdf',
+                    class: 'photo-preview-container',
+                    role: 'button',
+                    tabindex: '0',
+                    'data-type': 'custom-embed',
+                    'data-src': HTMLAttributes.src,
+                    'data-filename': HTMLAttributes.filename
+                },
+                    // Checkerboard background container
+                    ['div', { class: 'checkerboard-background' },
+                        ['img', {
+                            src: HTMLAttributes.src,
+                            alt: 'Preview',
+                            class: 'preview-image fill-container'
+                        }]
+                    ],
+                    // Photos icon
+                    ['div', { class: 'icon_rounded photos' }]
+                ]
+            } else if (HTMLAttributes.type === 'pdf') {
+                // Keep existing PDF rendering
+                return ['div', {
+                    class: 'pdf-preview-container',
+                    role: 'button',
+                    tabindex: '0',
                     'data-type': 'custom-embed',
                     'data-src': HTMLAttributes.src,
                     'data-filename': HTMLAttributes.filename
                 }, 
-                // Content must be a single array, not nested arrays
-                ['div', { class: 'pdf-content' }, 
-                    ['span', { class: 'pdf-icon' }, '📄'],
-                    ['span', { class: 'pdf-filename' }, HTMLAttributes.filename]
-                ]]
+                    ['div', { class: 'icon_rounded pdf' }],
+                    ['div', { class: 'filename-container' },
+                        ['span', { class: 'filename' }, HTMLAttributes.filename]
+                    ]
+                ]
             }
             // Default fallback
             return ['div', { class: 'embedded-unknown' }, HTMLAttributes.filename]
@@ -99,12 +116,26 @@
             onBlur: () => {
                 isMessageFieldFocused = false;
             },
-            onTransaction: () => {
-                // Force Svelte to update
-                editor = editor;
-            }
         });
     });
+
+    // Add a more specific transaction handler if needed
+    $: if (editor) {
+        editor.on('transaction', ({ transaction }) => {
+            // Only update if the transaction affects the doc structure
+            if (transaction.docChanged) {
+                // Check if it's just a text change
+                const isOnlyTextChange = transaction.steps.every(step => 
+                    step.toJSON().stepType === 'replace' && !step.toJSON().mark
+                );
+                
+                // Only force update if it's not just a text change
+                if (!isOnlyTextChange) {
+                    editor = editor;
+                }
+            }
+        });
+    }
 
     onDestroy(() => {
         if (editor) {
@@ -888,5 +919,99 @@
         min-height: 2em;
         padding: 0.5rem;
         color: var(--color-font-primary);
+    }
+
+    /* Remove the old PDF styles */
+    :global(.embedded-pdf),
+    :global(.pdf-content),
+    :global(.pdf-icon),
+    :global(.pdf-filename) {
+        display: none !important;
+    }
+
+    /* Add the new PDF preview styles */
+    :global(.pdf-preview-container) {
+        width: 300px;
+        height: 60px;
+        background-color: var(--color-grey-20);
+        border-radius: 30px;
+        position: relative;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        margin: 4px 0;
+    }
+
+    :global(.pdf-preview-container:hover) {
+        background-color: var(--color-grey-30);
+    }
+
+    :global(.pdf-preview-container .filename-container) {
+        position: absolute;
+        left: 65px;
+        right: 16px;
+        min-height: 40px;
+        padding: 5px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    :global(.pdf-preview-container .filename) {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+        font-size: 14px;
+        color: var(--color-font-primary);
+        width: 100%;
+        word-break: break-word;
+        max-height: 2.6em;
+    }
+
+    /* Add new photo preview styles */
+    :global(.photo-preview-container) {
+        width: 300px;
+        height: 200px;
+        border-radius: 30px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        margin: 4px 0;
+    }
+
+    :global(.checkerboard-background) {
+        width: 100%;
+        height: 100%;
+        background-image: linear-gradient(45deg, var(--color-grey-20) 25%, transparent 25%),
+                          linear-gradient(-45deg, var(--color-grey-20) 25%, transparent 25%),
+                          linear-gradient(45deg, transparent 75%, var(--color-grey-20) 75%),
+                          linear-gradient(-45deg, transparent 75%, var(--color-grey-20) 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        background-color: var(--color-grey-0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    :global(.preview-image) {
+        display: block;
+    }
+
+    :global(.preview-image.fill-container) {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Remove old image preview styles */
+    :global(.embedded-image) {
+        display: none !important;
     }
 </style>
