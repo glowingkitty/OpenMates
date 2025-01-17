@@ -691,22 +691,36 @@
                                 filename: file.name,
                                 id: crypto.randomUUID()
                             }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
                         }
                     ]
                 }]
             });
         } else {
-            // Otherwise just insert the image
-            editor.commands.insertContent({
-                type: 'customEmbed',
-                attrs: {
-                    type: 'image',
-                    src: url,
-                    filename: file.name,
-                    id: crypto.randomUUID()
+            editor.commands.insertContent([
+                {
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'image',
+                        src: url,
+                        filename: file.name,
+                        id: crypto.randomUUID()
+                    }
+                },
+                {
+                    type: 'text',
+                    text: ' '
                 }
-            });
+            ]);
         }
+
+        // Force focus and set cursor position after a short delay
+        setTimeout(() => {
+            editor.commands.focus('end');
+        }, 50);
     }
 
     async function insertFile(file: File) {
@@ -738,35 +752,65 @@
                                 filename: file.name,
                                 id: crypto.randomUUID()
                             }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
                         }
                     ]
                 }]
             });
         } else {
-            editor.commands.insertContent({
-                type: 'customEmbed',
-                attrs: {
-                    type: 'pdf',
-                    src: url,
-                    filename: file.name,
-                    id: crypto.randomUUID()
+            editor.commands.insertContent([
+                {
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'pdf',
+                        src: url,
+                        filename: file.name,
+                        id: crypto.randomUUID()
+                    }
+                },
+                {
+                    type: 'text',
+                    text: ' '
                 }
-            });
+            ]);
         }
+        
+        // Replace the old cursor positioning with the working timeout focus
+        setTimeout(() => {
+            editor.commands.focus('end');
+        }, 50);
     }
 
     async function insertVideo(file: File) {
         console.log('Inserting video:', file.name);
         const url = URL.createObjectURL(file);
-        editor.chain().focus().insertContent({
-            type: 'customEmbed',
-            attrs: {
-                type: 'video',
-                src: url,
-                filename: file.name,
-                id: crypto.randomUUID()
-            }
-        }).run();
+        
+        editor.chain()
+            .focus()
+            .insertContent([
+                {
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'video',
+                        src: url,
+                        filename: file.name,
+                        id: crypto.randomUUID()
+                    }
+                },
+                {
+                    type: 'text',
+                    text: ' '
+                }
+            ])
+            .run();
+        
+        // Replace the old cursor positioning with the working timeout focus
+        setTimeout(() => {
+            editor.commands.focus('end');
+        }, 50);
     }
 
     function handleCameraClick() {
