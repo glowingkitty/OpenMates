@@ -431,31 +431,15 @@
         };
     }
 
-    // Add this helper function to check for actual content
+    // Update this helper function to check for actual content
     function hasActualContent(editor: Editor): boolean {
         if (!editor) return false;
         
-        let contentFound = false;
-        let nodeCount = 0;
+        // First check if editor is completely empty
+        if (editor.isEmpty) return false;
         
-        editor.state.doc.descendants((node) => {
-            nodeCount++;
-            if (node.type.name === 'mate') {
-                // Don't count mate mentions as content
-                return;
-            } else if (node.type.name === 'customEmbed' || node.type.name === 'webPreview') {
-                // Count embeds and web previews as content
-                contentFound = true;
-                return false;
-            } else if (node.type.name === 'text' && node.text?.trim()) {
-                // Count non-empty text as content
-                contentFound = true;
-                return false;
-            }
-        });
-        
-        // Return true only if we found actual content
-        return contentFound;
+        // If not empty, check if it only contains a mate mention
+        return !isContentEmptyExceptMention(editor);
     }
 
     // Add vibration function
@@ -501,6 +485,9 @@
             }
         }
     });
+
+    // Add a reactive variable to track content state
+    let hasContent = false;
 
     onMount(() => {
         // Wait for element to be available
@@ -556,6 +543,9 @@
                 }
             },
             onUpdate: ({ editor }) => {
+                // Update hasContent whenever editor content changes
+                hasContent = !editor.isEmpty && !isContentEmptyExceptMention(editor);
+                
                 const content = editor.getHTML();
                 detectAndReplaceUrls(content);
                 detectAndReplaceMates(content);
@@ -621,9 +611,6 @@
         closeCamera();
         document.removeEventListener('embedclick', (() => {}) as EventListener);
     });
-
-    // Update the hasContent reactive declaration
-    $: hasContent = editor && hasActualContent(editor);
 
     // Handle file selection
     function handleFileSelect() {
