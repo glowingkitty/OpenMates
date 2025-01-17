@@ -814,6 +814,9 @@
         // Clear the editor content and add the default mention
         editor.commands.clearContent();
         
+        // Reset hasContent state
+        hasContent = false;
+        
         // Add the default mention after a short delay to ensure proper rendering
         setTimeout(() => {
             editor.commands.setContent({
