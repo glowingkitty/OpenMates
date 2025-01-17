@@ -431,6 +431,77 @@
         };
     }
 
+    // Add this helper function to check for actual content
+    function hasActualContent(editor: Editor): boolean {
+        if (!editor) return false;
+        
+        let contentFound = false;
+        let nodeCount = 0;
+        
+        editor.state.doc.descendants((node) => {
+            nodeCount++;
+            if (node.type.name === 'mate') {
+                // Don't count mate mentions as content
+                return;
+            } else if (node.type.name === 'customEmbed' || node.type.name === 'webPreview') {
+                // Count embeds and web previews as content
+                contentFound = true;
+                return false;
+            } else if (node.type.name === 'text' && node.text?.trim()) {
+                // Count non-empty text as content
+                contentFound = true;
+                return false;
+            }
+        });
+        
+        // Return true only if we found actual content
+        return contentFound;
+    }
+
+    // Add vibration function
+    function vibrateMessageField() {
+        const container = document.querySelector('.message-container');
+        if (!container) return;
+        
+        container.animate([
+            { transform: 'translateX(-4px)' },
+            { transform: 'translateX(4px)' },
+            { transform: 'translateX(-4px)' },
+            { transform: 'translateX(4px)' },
+            { transform: 'translateX(0)' }
+        ], {
+            duration: 200,
+            easing: 'ease-in-out'
+        });
+        
+        // Also trigger device vibration if available
+        if (navigator.vibrate) {
+            navigator.vibrate(100);
+        }
+    }
+
+    // Update the keyboard shortcuts extension configuration
+    const keyboardExtension = Extension.create({
+        name: 'customKeyboardHandling',
+        priority: 1000,
+        addKeyboardShortcuts() {
+            return {
+                Enter: ({ editor }) => {
+                    if (hasActualContent(editor)) {
+                        handleSend();
+                    } else {
+                        vibrateMessageField();
+                    }
+                    return true;
+                },
+                'Shift-Enter': ({ editor }) => {
+                    editor.commands.setHardBreak();
+                    return true;
+                }
+            }
+        }
+    });
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -448,24 +519,7 @@
                 WebPreview,
                 MateNode,
                 placeholderExtension,
-                Extension.create({
-                    name: 'customKeyboardHandling',
-                    priority: 1000,
-                    addKeyboardShortcuts() {
-                        return {
-                            Enter: ({ editor }) => {
-                                if (!editor.isEmpty) {
-                                    handleSend();
-                                }
-                                return true;
-                            },
-                            'Shift-Enter': ({ editor }) => {
-                                editor.commands.setHardBreak();
-                                return true;
-                            }
-                        }
-                    }
-                })
+                keyboardExtension
             ],
             content: getInitialContent(),
             onFocus: () => {
@@ -569,7 +623,7 @@
     });
 
     // Update the hasContent reactive declaration
-    $: hasContent = editor && !isContentEmptyExceptMention(editor);
+    $: hasContent = editor && hasActualContent(editor);
 
     // Handle file selection
     function handleFileSelect() {
@@ -710,7 +764,10 @@
 
     // Update the handleSend button click handler in the template
     function handleSend() {
-        if (!editor || editor.isEmpty) return;
+        if (!editor || !hasActualContent(editor)) {
+            vibrateMessageField();
+            return;
+        }
         
         let markdown = '';
         let isFirstParagraph = true;
@@ -1567,5 +1624,18 @@
     :global(.ProseMirror.is-editor-empty:first-child::before) {
         opacity: 1;
         display: block;
+    }
+
+    /* Add animation styles */
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-4px); }
+        75% { transform: translateX(4px); }
+    }
+
+    .message-container {
+        /* ... existing styles ... */
+        transform-origin: center;
+        will-change: transform;
     }
 </style>
