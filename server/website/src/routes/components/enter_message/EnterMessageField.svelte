@@ -388,6 +388,38 @@
             .run();
     }
 
+    // Add this helper function to check if content is empty except for mate mention
+    function isContentEmptyExceptMention(editor: Editor): boolean {
+        let isEmpty = true;
+        let hasMention = false;
+        
+        editor.state.doc.descendants((node) => {
+            if (node.type.name === 'mate') {
+                hasMention = true;
+            } else if (node.type.name === 'text' && node.text?.trim()) {
+                isEmpty = false;
+            }
+        });
+        
+        return isEmpty && hasMention;
+    }
+
+    // Update the Placeholder extension configuration
+    const placeholderExtension = Placeholder.configure({
+        placeholder: ({ editor }: { editor: EditorType }) => {
+            // Show different placeholder based on focus state and content
+            if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
+                if (editor.isFocused) {
+                    return $_('enter_message.enter_your_message.text');
+                }
+                return $_('enter_message.click_to_enter_message.text');
+            }
+            return ''; // No placeholder if there's content
+        },
+        emptyEditorClass: 'is-editor-empty',
+        showOnlyWhenEditable: true,
+    });
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -404,15 +436,7 @@
                 CustomEmbed,
                 WebPreview,
                 MateNode,
-                Placeholder.configure({
-                    placeholder: ({ editor }: { editor: EditorType }) => {
-                        if (editor.isFocused) {
-                            return $_('enter_message.enter_your_message.text');
-                        }
-                        return $_('enter_message.click_to_enter_message.text');
-                    },
-                    emptyEditorClass: 'is-editor-empty',
-                }),
+                placeholderExtension,
                 Extension.create({
                     name: 'customKeyboardHandling',
                     priority: 1000,
@@ -455,9 +479,36 @@
             } : '',
             onFocus: () => {
                 isMessageFieldFocused = true;
+                // Show mate mention if it was hidden
+                if (defaultMention && editor.isEmpty) {
+                    editor.commands.setContent({
+                        type: 'doc',
+                        content: [{
+                            type: 'paragraph',
+                            content: [
+                                {
+                                    type: 'mate',
+                                    attrs: {
+                                        name: defaultMention,
+                                        id: crypto.randomUUID()
+                                    }
+                                },
+                                {
+                                    type: 'text',
+                                    text: ' '  // Add space after mention
+                                }
+                            ]
+                        }]
+                    });
+                    editor.commands.focus('end');
+                }
             },
             onBlur: () => {
                 isMessageFieldFocused = false;
+                // Hide mate mention if content is empty
+                if (isContentEmptyExceptMention(editor)) {
+                    editor.commands.setContent('');
+                }
             },
             onUpdate: ({ editor }) => {
                 const content = editor.getHTML();
@@ -554,9 +605,8 @@
         document.removeEventListener('embedclick', (() => {}) as EventListener);
     });
 
-    // Update the hasContent reactive declaration to check editor content
-    $: hasContent = editor?.state?.doc.textContent.length > 0 || 
-        editor?.state?.doc.content.childCount > 1;
+    // Update the hasContent reactive declaration
+    $: hasContent = editor && !isContentEmptyExceptMention(editor);
 
     // Handle file selection
     function handleFileSelect() {
@@ -1436,18 +1486,22 @@
         float: left;
         color: var(--color-font-tertiary);
         pointer-events: none;
-        height: 0;
+        height: auto;
+        position: relative;
+        padding-left: 4px;
     }
 
     /* Center placeholder when not focused */
     :global(.ProseMirror:not(:focus) p.is-editor-empty:first-child::before) {
         text-align: center;
         width: 100%;
+        display: block;
     }
 
     /* Left align placeholder when focused */
     :global(.ProseMirror:focus p.is-editor-empty:first-child::before) {
         text-align: left;
+        display: block;
     }
 
     :global(.photo-preview-container) {
@@ -1493,5 +1547,40 @@
 
     :global(.ProseMirror p:last-child) {
         margin-bottom: 0;
+    }
+
+    /* Update placeholder styling in the style section */
+    :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        content: attr(data-placeholder);
+        float: left;
+        color: var(--color-font-tertiary);
+        pointer-events: none;
+        height: auto;
+        position: relative;
+        padding-left: 4px;
+    }
+
+    /* Update editor content styles */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        position: relative;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        min-height: 2em;
+        padding: 0.5rem;
+        color: var(--color-font-primary);
+        position: relative;
+    }
+
+    /* Add this new style to ensure placeholder text is visible */
+    :global(.ProseMirror.is-editor-empty:first-child::before) {
+        opacity: 1;
+        display: block;
     }
 </style>
