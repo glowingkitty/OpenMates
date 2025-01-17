@@ -648,19 +648,24 @@
         input.value = '';
     }
 
-    async function insertImage(file: File) {
-        const url = URL.createObjectURL(file);
-        const id = crypto.randomUUID();
-        
-        editor.chain().focus().insertContent({
-            type: 'customEmbed',
-            attrs: {
-                type: 'image',
-                src: url,
-                filename: file.name,
-                id
-            }
-        }).run();
+    async function insertImage(file: File): Promise<void> {
+        return new Promise<void>((resolve) => {
+            const url = URL.createObjectURL(file);
+            const id = crypto.randomUUID();
+            
+            // Simple insert without extra commands
+            editor.commands.insertContent({
+                type: 'customEmbed',
+                attrs: {
+                    type: 'image',
+                    src: url,
+                    filename: file.name,
+                    id
+                }
+            });
+            
+            resolve();
+        });
     }
 
     async function insertFile(file: File) {
@@ -709,8 +714,10 @@
     async function handlePhotoCaptured(event: CustomEvent) {
         const { blob } = event.detail;
         const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        await insertImage(file);
         showCamera = false;
+        // Wait for camera to fully close
+        await new Promise(resolve => setTimeout(resolve, 150));
+        await insertImage(file);
     }
 
     async function handleVideoRecorded(event: CustomEvent) {

@@ -81,7 +81,7 @@
         }
     }
 
-    function capturePhoto() {
+    async function capturePhoto() {
         if (!videoElement) return;
         
         const canvas = document.createElement('canvas');
@@ -91,9 +91,16 @@
         
         if (ctx) {
             ctx.drawImage(videoElement, 0, 0);
-            canvas.toBlob((blob) => {
+            canvas.toBlob(async (blob) => {
                 if (blob) {
+                    // Dispatch the event with the photo blob
                     dispatch('photocaptured', { blob });
+                    
+                    // Add a small delay to allow the button animation to complete
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    
+                    // Close the camera view
+                    dispatch('close');
                 }
             }, 'image/jpeg');
         }
@@ -228,6 +235,7 @@
         background: white;
         border-radius: 50%;
         transform: scale(0.93);
+        transition: transform 0.15s ease;
     }
 
     .video-button-inner {
@@ -257,5 +265,9 @@
         width: 25px;
         height: 25px;
         color: white;
+    }
+
+    .photo-button:active .photo-button-inner {
+        transform: scale(0.7);
     }
 </style> 
