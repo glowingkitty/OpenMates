@@ -153,6 +153,8 @@
         border-radius: 25px;
         cursor: pointer;
         transition: background-color 0.2s ease;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .menu-item:hover {
