@@ -207,9 +207,9 @@
                 Placeholder.configure({
                     placeholder: ({ editor }: { editor: EditorType }) => {
                         if (editor.isFocused) {
-                            return 'Enter your message';
+                            return $_('enter_message.enter_your_message.text');
                         }
-                        return 'Click here to enter your message';
+                        return $_('enter_message.click_to_enter_message.text');
                     },
                     emptyEditorClass: 'is-editor-empty',
                 }),
@@ -321,10 +321,9 @@
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
         if (totalSize > MAX_TOTAL_SIZE) {
-            console.log('File size limit exceeded');
             alert($_('enter_message.file_size_limits.total_exceeded.text', {
                 size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
-                current: '0',
+                current: (totalSize / 1024 / 1024).toFixed(1),
                 attempted: (totalSize / 1024 / 1024).toFixed(1)
             } as any));
             return;
