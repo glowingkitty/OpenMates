@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onMount, onDestroy, tick, mount } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { Node } from '@tiptap/core';
@@ -94,6 +94,69 @@
         }
     });
 
+    // Add URL detection regex
+    const urlRegex = /https?:\/\/[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?/gi;
+
+    // Add new WebPreview node type
+    const WebPreview = Node.create({
+        name: 'webPreview',
+        group: 'inline',
+        inline: true,
+        selectable: true,
+        draggable: true,
+
+        addAttributes() {
+            return {
+                url: { default: null }
+            }
+        },
+
+        parseHTML() {
+            return [{ tag: 'div[data-type="web-preview"]' }]
+        },
+
+        renderHTML({ HTMLAttributes }) {
+            // Create container for Web component
+            return ['div', {
+                'data-type': 'web-preview',
+                'data-url': HTMLAttributes.url,
+                class: 'web-preview-container'
+            }]
+        },
+
+        addNodeView() {
+            return ({ node, HTMLAttributes, getPos }) => {
+                const dom = document.createElement('div');
+                dom.setAttribute('data-type', 'web-preview');
+                
+                // Use mount instead of new
+                const component = mount(Web, {
+                    target: dom,
+                    props: { url: node.attrs.url },
+                    events: {
+                        delete: () => {
+                            if (typeof getPos === 'function') {
+                                editor.chain()
+                                    .focus()
+                                    .deleteNode('webPreview')
+                                    .insertContent(node.attrs.url)
+                                    .run();
+                            }
+                        }
+                    }
+                });
+
+                return {
+                    dom,
+                    destroy: () => {
+                        // No explicit cleanup needed in Svelte 5
+                        // Component is automatically destroyed when node is removed
+                    }
+                }
+            }
+        }
+    });
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -103,6 +166,7 @@
             extensions: [
                 StarterKit,
                 CustomEmbed,
+                WebPreview, // Add WebPreview extension
             ],
             content: '',
             editorProps: {
@@ -116,8 +180,55 @@
             onBlur: () => {
                 isMessageFieldFocused = false;
             },
+            // Add input handler for URL detection
+            onUpdate: ({ editor }) => {
+                const content = editor.getHTML();
+                detectAndReplaceUrls(content);
+            }
         });
     });
+
+    // Add URL detection and replacement function
+    function detectAndReplaceUrls(content: string) {
+        if (!editor) return;
+
+        // Get current cursor position
+        const { from } = editor.state.selection;
+        
+        // Get the text content up to the cursor
+        const text = editor.state.doc.textBetween(Math.max(0, from - 1000), from);
+        
+        // Only process if content ends with space or newline
+        const lastChar = text.slice(-1);
+        if (lastChar !== ' ' && lastChar !== '\n') return;
+
+        // Find the last URL before the cursor
+        const matches = Array.from(text.matchAll(urlRegex));
+        if (!matches.length) return;
+        
+        // Get the last match
+        const lastMatch = matches[matches.length - 1];
+        const url = lastMatch[0];
+        
+        // Calculate absolute positions
+        const matchStart = from - text.length + lastMatch.index!;
+        const matchEnd = matchStart + url.length;
+
+        // Check if this URL is already a web preview
+        const nodeAtPos = editor.state.doc.nodeAt(matchStart);
+        if (nodeAtPos?.type.name === 'webPreview') return;
+
+        // Replace URL with web preview node
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: matchStart, to: matchEnd })
+            .insertContent({
+                type: 'webPreview',
+                attrs: { url }
+            })
+            .run();
+    }
 
     // Add a more specific transaction handler if needed
     $: if (editor) {
@@ -1013,5 +1124,12 @@
     /* Remove old image preview styles */
     :global(.embedded-image) {
         display: none !important;
+    }
+
+    /* Add web preview styles */
+    :global(.web-preview-container) {
+        display: inline-block;
+        margin: 4px 0;
+        vertical-align: bottom;
     }
 </style>
