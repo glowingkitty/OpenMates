@@ -474,6 +474,11 @@
                 "text": "Grabar audio",
                 "en_original": "Record audio",
                 "context": "Button text for recording audio"
+            },
+            "share_location": {
+                "text": "Compartir ubicación",
+                "en_original": "Share location",
+                "context": "Button text for sharing location"
             }
         },
         "press_and_hold_menu": {

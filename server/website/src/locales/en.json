@@ -390,6 +390,10 @@
             "record_audio": {
                 "text": "Record audio",
                 "context": "Button text for recording audio"
+            },
+            "share_location": {
+                "text": "Share location",
+                "context": "Button text for sharing location"
             }
         },
         "press_and_hold_menu": {
