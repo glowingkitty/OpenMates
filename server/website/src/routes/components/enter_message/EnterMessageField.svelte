@@ -11,6 +11,7 @@
     import { EditorView } from 'prosemirror-view';
     import { Extension } from '@tiptap/core';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
+    import CameraView from './CameraView.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -608,7 +609,7 @@
         if (editor) {
             editor.destroy();
         }
-        closeCamera();
+        handleCameraClose();
         document.removeEventListener('embedclick', (() => {}) as EventListener);
     });
 
@@ -698,54 +699,24 @@
     }
 
     function handleCameraClick() {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' },
-                audio: false 
-            })
-            .then(mediaStream => {
-                stream = mediaStream;
-                showCamera = true;
-                tick().then(() => {
-                    if (videoElement) {
-                        videoElement.srcObject = stream;
-                    }
-                });
-            })
-            .catch(err => {
-                console.error('Camera access error:', err);
-                cameraInput.click();
-            });
-        } else {
-            cameraInput.click();
-        }
+        showCamera = true;
     }
 
-    async function capturePhoto() {
-        if (!videoElement) return;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = videoElement.videoWidth;
-        canvas.height = videoElement.videoHeight;
-        const ctx = canvas.getContext('2d');
-        
-        if (ctx) {
-            ctx.drawImage(videoElement, 0, 0);
-            canvas.toBlob(async (blob) => {
-                if (blob) {
-                    const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                    await insertImage(file);
-                }
-            }, 'image/jpeg');
-        }
-        closeCamera();
+    function handleCameraClose() {
+        showCamera = false;
     }
 
-    function closeCamera() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
+    async function handlePhotoCaptured(event: CustomEvent) {
+        const { blob } = event.detail;
+        const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        await insertImage(file);
+        showCamera = false;
+    }
+
+    async function handleVideoRecorded(event: CustomEvent) {
+        const { blob } = event.detail;
+        const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
+        await insertVideo(file);
         showCamera = false;
     }
 
@@ -957,24 +928,12 @@
     </div>
 
     {#if showCamera}
-        <div class="camera-overlay">
-            <video
-                bind:this={videoElement}
-                autoplay
-                playsinline
-                class="camera-preview"
-            >
-                <track kind="captions" />
-            </video>
-            <div class="camera-controls">
-                <button class="camera-button" on:click={closeCamera}>
-                    ❌
-                </button>
-                <button class="camera-button" on:click={capturePhoto}>
-                    📸
-                </button>
-            </div>
-        </div>
+        <CameraView
+            bind:videoElement
+            on:close={handleCameraClose}
+            on:photocaptured={handlePhotoCaptured}
+            on:videorecorded={handleVideoRecorded}
+        />
     {/if}
 
     <!-- Action buttons -->
