@@ -36,6 +36,19 @@
     let selectedEmbedId: string | null = null;
     let menuType: 'default' | 'pdf' | 'web' = 'default';
 
+    // Add this constant near the top of the file, after the imports
+    const VALID_MATES = [
+        'burton',
+        'lisa', 
+        'sophia',
+        'melvin',
+        'finn',
+        'elton',
+        'denise',
+        'mark',
+        'colin'
+    ];
+
     // Custom node for embedded content (images, files, etc.)
     const CustomEmbed = Node.create({
         name: 'customEmbed',
@@ -335,16 +348,16 @@
         if (lastChar !== ' ' && lastChar !== '\n') return;
 
         // Match @username pattern
-        const mateRegex = /@(\w+)(?=\s|$)/g;  // Updated regex to match @ followed by word chars
+        const mateRegex = /@(\w+)(?=\s|$)/g;  // Match @ followed by word chars
         const matches = Array.from(text.matchAll(mateRegex));
         if (!matches.length) return;
         
         // Get the last match
         const lastMatch = matches[matches.length - 1];
-        const mateName = lastMatch[1];
+        const mateName = lastMatch[1].toLowerCase(); // Convert to lowercase for comparison
         
-        // Only process known mates (for now just sophia)
-        if (mateName.toLowerCase() !== 'sophia') return;
+        // Only process known mates
+        if (!VALID_MATES.includes(mateName)) return;
 
         // Calculate absolute positions
         const matchStart = from - (text.length - lastMatch.index!);
@@ -363,7 +376,7 @@
                 {
                     type: 'mate',
                     attrs: { 
-                        name: mateName.toLowerCase(),
+                        name: mateName,
                         id: crypto.randomUUID()
                     }
                 },
