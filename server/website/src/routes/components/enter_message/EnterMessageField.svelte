@@ -558,6 +558,30 @@
             const { id } = event.detail;
             handleEmbedInteraction(event, id);
         }) as EventListener);
+
+        // Add this after editor initialization to auto-focus and add default mention
+        setTimeout(() => {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '  // Add space after mention
+                        }
+                    ]
+                }]
+            });
+            editor.commands.focus('end');
+        }, 100); // Small delay to ensure editor is fully initialized
     });
 
     // Update the URL detection and replacement function
@@ -1220,54 +1244,6 @@
         align-items: center;
         gap: 1rem;
         height: 100%;
-    }
-
-    .camera-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.9);
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .camera-preview {
-        max-width: 100%;
-        max-height: 80vh;
-        background: #000;
-    }
-
-    .camera-controls {
-        position: absolute;
-        bottom: 2rem;
-        left: 0;
-        right: 0;
-        display: flex;
-        justify-content: center;
-        gap: 2rem;
-    }
-
-    .camera-button {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
-        font-size: 1.5rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background-color 0.2s;
-    }
-
-    .camera-button:hover {
-        background: rgba(255, 255, 255, 0.3);
     }
     .send-button {
         user-select: none;
