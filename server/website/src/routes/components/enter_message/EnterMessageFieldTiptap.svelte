@@ -10,6 +10,8 @@
     import type { SvelteComponent } from 'svelte';
     import Placeholder from '@tiptap/extension-placeholder';
     import type { Editor as EditorType } from '@tiptap/core';
+    import { EditorView } from 'prosemirror-view';
+    import { Extension } from '@tiptap/core';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -213,12 +215,24 @@
                     },
                     emptyEditorClass: 'is-editor-empty',
                 }),
+                Extension.create({
+                    addKeyboardShortcuts() {
+                        return {
+                            'Enter': ({ editor }) => {
+                                if (!editor.isEmpty) {
+                                    handleSend();
+                                }
+                                return true;
+                            }
+                        }
+                    }
+                })
             ],
             content: '',
             editorProps: {
                 attributes: {
                     class: 'prose prose-sm focus:outline-none',
-                },
+                }
             },
             onFocus: () => {
                 isMessageFieldFocused = true;
@@ -226,7 +240,6 @@
             onBlur: () => {
                 isMessageFieldFocused = false;
             },
-            // Add input handler for URL detection
             onUpdate: ({ editor }) => {
                 const content = editor.getHTML();
                 detectAndReplaceUrls(content);
@@ -304,8 +317,9 @@
         closeCamera();
     });
 
-    // Function to check if there's content
-    $: hasContent = editor?.isEmpty === false;
+    // Update the hasContent reactive declaration to check editor content
+    $: hasContent = editor?.state?.doc.textContent.length > 0 || 
+        editor?.state?.doc.content.childCount > 1;
 
     // Handle file selection
     function handleFileSelect() {
@@ -440,13 +454,14 @@
         showCamera = false;
     }
 
+    // Update the handleSend button click handler in the template
     function handleSend() {
-        if (!editor) return;
+        if (!editor || editor.isEmpty) return;
         
-        const content = editor.getJSON();
-        console.log('Sending message:', content);
+        // Log the message content
+        console.log('Sending message:', editor.getHTML());
         
-        // Reset editor after sending
+        // Clear the editor content
         editor.commands.clearContent();
     }
 
@@ -528,7 +543,11 @@
                 aria-label={$_('enter_message.attachments.record_audio.text')}
             ></button>
             {#if hasContent}
-                <button class="send-button" on:click={handleSend}>
+                <button 
+                    class="send-button" 
+                    on:click={handleSend}
+                    aria-label={$_('enter_message.send.text')}
+                >
                     {$_('enter_message.send.text')}
                 </button>
             {/if}
