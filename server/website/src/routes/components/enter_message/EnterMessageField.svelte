@@ -665,37 +665,94 @@
     async function insertImage(file: File): Promise<void> {
         const url = URL.createObjectURL(file);
         
-        // Use a simpler insertion approach
-        editor.commands.insertContent({
-            type: 'customEmbed',
-            attrs: {
-                type: 'image',
-                src: url,
-                filename: file.name,
-                id: crypto.randomUUID()
-            }
-        });
+        if (editor.isEmpty) {
+            // If empty, first insert default mention
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        {
+                            type: 'customEmbed',
+                            attrs: {
+                                type: 'image',
+                                src: url,
+                                filename: file.name,
+                                id: crypto.randomUUID()
+                            }
+                        }
+                    ]
+                }]
+            });
+        } else {
+            // Otherwise just insert the image
+            editor.commands.insertContent({
+                type: 'customEmbed',
+                attrs: {
+                    type: 'image',
+                    src: url,
+                    filename: file.name,
+                    id: crypto.randomUUID()
+                }
+            });
+        }
     }
 
     async function insertFile(file: File) {
         console.log('Inserting PDF file:', file.name);
         const url = URL.createObjectURL(file);
         
-        // Add unique ID for PDFs
-        editor.chain()
-            .focus()
-            .insertContent({
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        {
+                            type: 'customEmbed',
+                            attrs: {
+                                type: 'pdf',
+                                src: url,
+                                filename: file.name,
+                                id: crypto.randomUUID()
+                            }
+                        }
+                    ]
+                }]
+            });
+        } else {
+            editor.commands.insertContent({
                 type: 'customEmbed',
                 attrs: {
                     type: 'pdf',
                     src: url,
                     filename: file.name,
-                    id: crypto.randomUUID() // Add unique ID for PDFs
+                    id: crypto.randomUUID()
                 }
-            })
-            .run();
-        
-        console.log('PDF insertion complete');
+            });
+        }
     }
 
     async function insertVideo(file: File) {
