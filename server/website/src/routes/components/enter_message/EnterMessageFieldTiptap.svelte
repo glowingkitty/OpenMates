@@ -837,35 +837,6 @@
         50% { caret-color: transparent; }
     }
 
-    .message-input::placeholder {
-        text-align: center;
-        transition: opacity 0.2s ease;
-        position: absolute;
-        left: 0;
-        right: 0;
-        color: var(--color-font-tertiary);
-        font-weight: 500;
-    }
-
-    .message-input.has-content::placeholder {
-        opacity: 0;
-    }
-
-    textarea {
-        /* Reset all properties that could affect textarea height */
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        line-height: normal !important;
-        font-size: unset !important;
-        font-family: unset !important;
-        font-weight: 500 !important;
-        min-height: unset !important;
-        max-height: unset !important;
-        box-sizing: content-box !important;
-        color: var(--color-font-primary);
-    }
-
     .action-buttons {
         position: absolute;
         bottom: 1rem;
@@ -938,64 +909,6 @@
     .camera-button:hover {
         background: rgba(255, 255, 255, 0.3);
     }
-
-    .text-display {
-        width: 100%;
-        white-space: pre-wrap;
-        cursor: text;
-        text-align: left;
-        color: var(--color-font-primary);
-        font-weight: 500 !important; 
-    }
-
-    /* Add a new class for empty text display */
-    .text-display.empty {
-        text-align: center;
-        color: var(--color-font-tertiary);
-    }
-
-    .file-attachment {
-        display: flex;
-        align-items: center;
-        background: #f5f5f5;
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin: 0.5rem 0;
-        gap: 1rem;
-        max-width: 80%;
-    }
-
-    .file-icon {
-        font-size: 1.5rem;
-    }
-
-    .file-info {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .file-name {
-        font-weight: 500;
-        word-break: break-all;
-    }
-
-    .video-container {
-        width: 100%;
-        max-width: 80%;
-        margin: 0.5rem 0;
-        position: relative;
-        background: var(--color-grey-20);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .preview-video {
-        width: 100%;
-        max-height: 300px;
-        object-fit: contain;
-        background: #000;
-    }
-
     .send-button {
         user-select: none;
         -webkit-user-select: none;
@@ -1011,25 +924,6 @@
         margin-top: 10px;
     }
 
-    .message-input.before-attachment::placeholder,
-    .text-display.before-attachment.empty {
-        text-align: left;
-        color: var(--color-font-tertiary);
-    }
-
-    .text-display.empty:not(.before-attachment) {
-        text-align: center;
-        color: var(--color-font-tertiary);
-    }
-
-    .placeholder {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        color: var(--color-font-tertiary);
-    }
-
     /* Update left-buttons style if needed */
     .left-buttons {
         display: flex;
@@ -1038,52 +932,6 @@
         height: 100%;
     }
 
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-    }
-
-    .mention-display {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .at-symbol {
-        color: var(--color-font-primary);
-        font-weight: 500;
-    }
-
-    .message-input.has-mention {
-        padding-left: 64px !important;
-    }
-
-    .text-display {
-        position: relative;
-        padding-left: 0;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .text-display:has(.mention-display) {
-        padding-left: 64px;
-    }
-
-    /* Add new style to handle placeholder positioning when mate selection is visible */
-    .input-wrapper:has(.mention-display) .message-input::placeholder {
-        text-align: left;
-        left: 64px;
-        right: 0;
-        width: calc(100% - 64px);
-    }
 
     /* Add essential Tiptap styles */
     :global(.editor-content) {
