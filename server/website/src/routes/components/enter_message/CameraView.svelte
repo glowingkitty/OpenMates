@@ -203,17 +203,21 @@
         display: flex;
         gap: 20px;
         align-items: center;
-        margin-left: auto; /* Push to right */
+        margin-left: auto;
+        min-width: fit-content;
     }
 
     .photo-button, .video-button {
-        width: 42px;
-        height: 42px;
+        min-width: 35px;
+        max-width: 35px;
+        min-height: 35px;
+        max-height: 35px;
         border-radius: 50%;
         position: relative;
         padding: 0;
         margin: 0;
         flex-shrink: 0;
+        flex-basis: 42px;
     }
 
     .photo-button::before, .video-button::before {
