@@ -221,27 +221,21 @@
                 Extension.create({
                     name: 'customKeyboardHandling',
                     priority: 1000,
-                    onCreate() {
-                        // Add DOM event listener for keydown
-                        this.editor.view.dom.addEventListener('keydown', (event) => {
-                            if (event.key === 'Enter') {
-                                event.preventDefault();
-
-                                if (event.shiftKey) {
-                                    // Shift+Enter: Insert single hard break
-                                    this.editor.chain()
-                                        .focus()
-                                        .setHardBreak()
-                                        .run();
-                                } else {
-                                    // Enter alone: Send message if not empty
-                                    if (!this.editor.isEmpty) {
-                                        handleSend();
-                                    }
+                    addKeyboardShortcuts() {
+                        return {
+                            Enter: ({ editor }) => {
+                                // Handle regular Enter
+                                if (!editor.isEmpty) {
+                                    handleSend();
                                 }
                                 return true;
+                            },
+                            'Shift-Enter': ({ editor }) => {
+                                // Handle Shift+Enter with native TipTap command
+                                editor.commands.setHardBreak();
+                                return true;
                             }
-                        });
+                        }
                     }
                 })
             ],
