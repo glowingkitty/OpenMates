@@ -228,7 +228,7 @@
                                 event.preventDefault();
 
                                 if (event.shiftKey) {
-                                    // Shift+Enter: Insert hard break
+                                    // Shift+Enter: Insert single hard break
                                     this.editor.chain()
                                         .focus()
                                         .setHardBreak()
@@ -245,16 +245,6 @@
                     }
                 })
             ],
-            editorProps: {
-                handleKeyDown: (view, event) => {
-                    if (event.key === 'Enter' && event.shiftKey) {
-                        event.preventDefault();
-                        view.dispatch(view.state.tr.insertText('\n'));
-                        return true;
-                    }
-                    return false;
-                }
-            },
             content: '',
             onFocus: () => {
                 isMessageFieldFocused = true;
