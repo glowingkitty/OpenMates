@@ -694,10 +694,30 @@
     function handleSend() {
         if (!editor || editor.isEmpty) return;
         
-        // Log the message content
-        console.log('Sending message:', editor.getHTML());
+        let markdown = '';
         
-        // Clear the editor content
+        // Process the document directly using editor's state
+        editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'paragraph') {
+                node.content.forEach(child => {
+                    if (child.type.name === 'mate') {
+                        markdown += `@${child.attrs.name}`;
+                    } else if (child.type.name === 'webPreview') {
+                        markdown += child.attrs.url;
+                    } else if (child.type.name === 'customEmbed') {
+                        const { type, src } = child.attrs;
+                        if (type === 'image' || type === 'pdf') {
+                            markdown += `[${src}]`;
+                        }
+                    } else if (child.type.name === 'text') {
+                        markdown += child.text;
+                    }
+                });
+                markdown += '\n';
+            }
+        });
+        
+        console.log('Final markdown:', markdown.trim());
         editor.commands.clearContent();
     }
 
