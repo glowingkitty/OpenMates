@@ -116,7 +116,6 @@
         },
 
         renderHTML({ HTMLAttributes }) {
-            // Create container for Web component
             return ['div', {
                 'data-type': 'web-preview',
                 'data-url': HTMLAttributes.url,
@@ -124,33 +123,71 @@
             }]
         },
 
+        // Update keyboard shortcuts handler
+        addKeyboardShortcuts() {
+            return {
+                Backspace: ({ editor }) => {
+                    const { empty, $anchor } = editor.state.selection
+                    if (!empty) return false
+
+                    // Get the parent node at current position
+                    const pos = $anchor.pos
+                    const node = editor.state.doc.nodeAt(pos - 1)
+
+                    if (node?.type.name === 'webPreview') {
+                        // Get the original URL
+                        const url = node.attrs.url
+                        
+                        // Calculate node position
+                        const from = pos - node.nodeSize
+                        const to = pos
+
+                        // Replace the web preview with original URL
+                        editor
+                            .chain()
+                            .focus()
+                            .deleteRange({ from, to })
+                            .insertContent(url)
+                            .run()
+
+                        return true
+                    }
+                    return false
+                }
+            }
+        },
+
         addNodeView() {
             return ({ node, HTMLAttributes, getPos }) => {
-                const dom = document.createElement('div');
-                dom.setAttribute('data-type', 'web-preview');
+                const dom = document.createElement('div')
+                dom.setAttribute('data-type', 'web-preview')
                 
-                // Use mount instead of new
                 const component = mount(Web, {
                     target: dom,
                     props: { url: node.attrs.url },
                     events: {
                         delete: () => {
                             if (typeof getPos === 'function') {
-                                editor.chain()
+                                const pos = getPos()
+                                // When delete button is clicked, restore the original URL
+                                editor
+                                    .chain()
                                     .focus()
-                                    .deleteNode('webPreview')
-                                    .insertContent(node.attrs.url)
-                                    .run();
+                                    .deleteRange({ from: pos, to: pos + node.nodeSize })
+                                    .insertContent(node.attrs.url, {
+                                        updateSelection: true,
+                                        preserveWhitespace: true
+                                    })
+                                    .run()
                             }
                         }
                     }
-                });
+                })
 
                 return {
                     dom,
                     destroy: () => {
-                        // No explicit cleanup needed in Svelte 5
-                        // Component is automatically destroyed when node is removed
+                        // Component cleanup handled automatically in Svelte 5
                     }
                 }
             }
@@ -188,7 +225,7 @@
         });
     });
 
-    // Add URL detection and replacement function
+    // Update the URL detection and replacement function
     function detectAndReplaceUrls(content: string) {
         if (!editor) return;
 
