@@ -392,16 +392,26 @@
     function isContentEmptyExceptMention(editor: Editor): boolean {
         let isEmpty = true;
         let hasMention = false;
+        let hasOtherContent = false;
         
         editor.state.doc.descendants((node) => {
             if (node.type.name === 'mate') {
                 hasMention = true;
-            } else if (node.type.name === 'text' && node.text?.trim()) {
+            } else if (node.type.name === 'text') {
+                // Only consider non-whitespace text as content
+                if (node.text?.trim()) {
+                    hasOtherContent = true;
+                    isEmpty = false;
+                }
+            } else if (node.type.name !== 'paragraph') {
+                // Any other node type counts as content
+                hasOtherContent = true;
                 isEmpty = false;
             }
         });
         
-        return isEmpty && hasMention;
+        // Return true only if we have the mention and no other content
+        return hasMention && !hasOtherContent;
     }
 
     // Update the Placeholder extension configuration
@@ -458,7 +468,7 @@
                     }
                 })
             ],
-            content: defaultMention ? {
+            content: {
                 type: 'doc',
                 content: [{
                     type: 'paragraph',
@@ -476,39 +486,13 @@
                         }
                     ]
                 }]
-            } : '',
+            },
             onFocus: () => {
                 isMessageFieldFocused = true;
-                // Show mate mention if it was hidden
-                if (defaultMention && editor.isEmpty) {
-                    editor.commands.setContent({
-                        type: 'doc',
-                        content: [{
-                            type: 'paragraph',
-                            content: [
-                                {
-                                    type: 'mate',
-                                    attrs: {
-                                        name: defaultMention,
-                                        id: crypto.randomUUID()
-                                    }
-                                },
-                                {
-                                    type: 'text',
-                                    text: ' '  // Add space after mention
-                                }
-                            ]
-                        }]
-                    });
-                    editor.commands.focus('end');
-                }
             },
             onBlur: () => {
                 isMessageFieldFocused = false;
-                // Hide mate mention if content is empty
-                if (isContentEmptyExceptMention(editor)) {
-                    editor.commands.setContent('');
-                }
+                // Remove the check for empty content since we always want to keep the mention
             },
             onUpdate: ({ editor }) => {
                 const content = editor.getHTML();
@@ -804,8 +788,32 @@
         // Log the markdown for debugging
         console.log('Final markdown:', markdown);
         
-        // Clear the editor content
+        // Clear the editor content and add the default mention
         editor.commands.clearContent();
+        
+        // Add the default mention after a short delay to ensure proper rendering
+        setTimeout(() => {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '  // Add space after mention
+                        }
+                    ]
+                }]
+            });
+            editor.commands.focus('end');
+        }, 0);
     }
 
     // Add prop for default mention
