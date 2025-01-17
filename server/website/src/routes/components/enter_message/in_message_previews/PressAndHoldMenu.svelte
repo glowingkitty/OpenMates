@@ -6,7 +6,7 @@
     export let x: number = 0;  // X position of menu
     export let y: number = 0;  // Y position of menu
     export let show: boolean = false;
-    export let type: 'web' | 'default' = 'default';  // Add type prop
+    export let type: 'default' | 'pdf' | 'web' = 'default';  // Add type prop
 
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
@@ -71,6 +71,28 @@
                 <div class="clickable-icon icon_copy"></div>
                 {$_('enter_message.press_and_hold_menu.copy_link.text')}
             </button>
+            <button 
+                class="menu-item view"
+                on:click={(event) => handleMenuItemClick('view', event)}
+            >
+                <div class="clickable-icon icon_fullscreen"></div>
+                {$_('enter_message.press_and_hold_menu.open_link.text')}
+            </button>
+        {:else if type === 'pdf'}
+            <button 
+                class="menu-item download"
+                on:click={(event) => handleMenuItemClick('download', event)}
+            >
+                <div class="clickable-icon icon_download"></div>
+                {$_('enter_message.press_and_hold_menu.download.text')}
+            </button>
+            <button 
+                class="menu-item view"
+                on:click={(event) => handleMenuItemClick('view', event)}
+            >
+                <div class="clickable-icon icon_fullscreen"></div>
+                {$_('enter_message.press_and_hold_menu.view.text')}
+            </button>
         {:else}
             <button 
                 class="menu-item download"
@@ -79,15 +101,14 @@
                 <div class="clickable-icon icon_download"></div>
                 {$_('enter_message.press_and_hold_menu.download.text')}
             </button>
+            <button 
+                class="menu-item view"
+                on:click={(event) => handleMenuItemClick('view', event)}
+            >
+                <div class="clickable-icon icon_fullscreen"></div>
+                {$_('enter_message.press_and_hold_menu.view.text')}
+            </button>
         {/if}
-
-        <button 
-            class="menu-item view"
-            on:click={(event) => handleMenuItemClick('view', event)}
-        >
-            <div class="clickable-icon icon_fullscreen"></div>
-            {$_('enter_message.press_and_hold_menu.view.text')}
-        </button>
     </div>
 {/if}
 
@@ -127,5 +148,13 @@
 
     .menu-item.delete .clickable-icon {
         background: #E80000;
+    }
+
+    .menu-item.copy {
+        color: var(--color-font-primary);
+    }
+
+    .menu-item.copy .clickable-icon {
+        background: var(--color-font-primary);
     }
 </style>

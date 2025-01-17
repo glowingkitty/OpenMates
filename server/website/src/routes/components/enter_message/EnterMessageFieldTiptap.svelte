@@ -34,6 +34,7 @@
     let menuX = 0;
     let menuY = 0;
     let selectedEmbedId: string | null = null;
+    let menuType: 'default' | 'pdf' | 'web' = 'default';
 
     // Custom node for embedded content (images, files, etc.)
     const CustomEmbed = Node.create({
@@ -60,6 +61,8 @@
             // Add logging to help debug render process
             console.log('Rendering embed:', HTMLAttributes);
 
+            const elementId = `embed-${HTMLAttributes.id}`;
+            
             if (HTMLAttributes.type === 'image') {
                 // Return the new photo preview structure
                 return ['div', {
@@ -70,9 +73,13 @@
                     'data-src': HTMLAttributes.src,
                     'data-filename': HTMLAttributes.filename,
                     'data-id': HTMLAttributes.id,
-                    onclick: `this.dispatchEvent(new CustomEvent('embedclick', { 
+                    id: elementId,
+                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
                         bubbles: true, 
-                        detail: { id: '${HTMLAttributes.id}' }
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
                     }))`,
                 },
                     // Checkerboard background container
@@ -94,7 +101,16 @@
                     tabindex: '0',
                     'data-type': 'custom-embed',
                     'data-src': HTMLAttributes.src,
-                    'data-filename': HTMLAttributes.filename
+                    'data-filename': HTMLAttributes.filename,
+                    'data-id': HTMLAttributes.id,
+                    id: elementId,
+                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                        bubbles: true, 
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
+                    }))`,
                 }, 
                     ['div', { class: 'icon_rounded pdf' }],
                     ['div', { class: 'filename-container' },
@@ -103,7 +119,18 @@
                 ]
             }
             // Default fallback
-            return ['div', { class: 'embedded-unknown' }, HTMLAttributes.filename]
+            return ['div', { 
+                class: 'embedded-unknown',
+                'data-id': HTMLAttributes.id,
+                id: elementId,
+                onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                    bubbles: true, 
+                    detail: { 
+                        id: '${HTMLAttributes.id}',
+                        elementId: '${elementId}'
+                    }
+                }))`,
+            }, HTMLAttributes.filename]
         }
     });
 
@@ -266,10 +293,10 @@
         // Auto-focus the editor on mount
         editor.commands.focus();
 
-        // Add global event listener for embed clicks
+        // Add global event listener for embed clicks with proper typing
         document.addEventListener('embedclick', ((event: CustomEvent) => {
             const { id } = event.detail;
-            handleEmbedInteraction(event as unknown as MouseEvent, id);
+            handleEmbedInteraction(event, id);
         }) as EventListener);
     });
 
@@ -496,19 +523,41 @@
     export const defaultMention: string = 'sophia';
 
     // Add this function to handle press/click on embeds
-    function handleEmbedInteraction(event: MouseEvent, embedId: string) {
+    function handleEmbedInteraction(event: CustomEvent, embedId: string) {
         event.preventDefault();
         
-        const rect = (event.target as HTMLElement).getBoundingClientRect();
+        // Find the element using the elementId from the event detail
+        const element = document.getElementById(event.detail.elementId);
+        if (!element) return;
+
+        // Find the node with this ID
+        let foundNode: any = null;
+        editor.state.doc.descendants((node: any, pos: number) => {
+            if (node.attrs?.id === embedId) {
+                foundNode = { node, pos };
+                return false;
+            }
+            return true;
+        });
+
+        if (!foundNode) return;
+
+        const rect = element.getBoundingClientRect();
         menuX = rect.left + (rect.width / 2);
         menuY = rect.top;
         
         selectedEmbedId = embedId;
         showMenu = true;
+
+        // Determine the type of content for the menu
+        const contentType = foundNode.node.attrs.type;
+        menuType = contentType === 'pdf' ? 'pdf' : 
+                   contentType === 'webPreview' ? 'web' : 
+                   'default';
     }
 
     // Add these handlers for the menu actions
-    function handleMenuAction(action: 'delete' | 'download' | 'view') {
+    function handleMenuAction(action: 'delete' | 'download' | 'view' | 'copy') {
         if (!selectedEmbedId) return;
 
         let foundNode: any = null;
@@ -532,14 +581,20 @@
             case 'download':
                 const a = document.createElement('a');
                 a.href = node.attrs.src;
-                a.download = node.attrs.filename;
+                a.download = node.attrs.filename || '';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 break;
                 
             case 'view':
-                window.open(node.attrs.src, '_blank');
+                window.open(node.attrs.src || node.attrs.url, '_blank');
+                break;
+
+            case 'copy':
+                if (node.attrs.url) {
+                    navigator.clipboard.writeText(node.attrs.url).catch(console.error);
+                }
                 break;
         }
         showMenu = false;
@@ -636,10 +691,12 @@
             x={menuX}
             y={menuY}
             show={showMenu}
+            type={menuType}
             on:close={() => showMenu = false}
             on:delete={() => handleMenuAction('delete')}
             on:download={() => handleMenuAction('download')}
             on:view={() => handleMenuAction('view')}
+            on:copy={() => handleMenuAction('copy')}
         />
     {/if}
 </div>
