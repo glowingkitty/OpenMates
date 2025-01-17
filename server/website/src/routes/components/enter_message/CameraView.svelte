@@ -92,10 +92,9 @@
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(recordedChunks, { type: 'video/webm' });
                     dispatch('videorecorded', { blob });
-                    isRecording = false;
                     dispatch('close');
                 };
-                
+
                 mediaRecorder.start();
                 isRecording = true;
                 startRecordingTimer();
@@ -103,29 +102,35 @@
                 console.error('Audio permission denied:', err);
             }
         } else {
-            mediaRecorder?.stop();
+            isRecording = false;
             stopRecordingTimer();
+
+            if (mediaRecorder) {
+                setTimeout(() => {
+                    mediaRecorder?.stop();
+                }, 300);
+            }
         }
     }
 
     async function capturePhoto() {
         if (!videoElement) return;
-        
+
         const canvas = document.createElement('canvas');
         canvas.width = videoElement.videoWidth;
         canvas.height = videoElement.videoHeight;
         const ctx = canvas.getContext('2d');
-        
+
         if (ctx) {
             ctx.drawImage(videoElement, 0, 0);
             canvas.toBlob(async (blob) => {
                 if (blob) {
                     // Dispatch the event with the photo blob
                     dispatch('photocaptured', { blob });
-                    
+
                     // Add a small delay to allow the button animation to complete
                     await new Promise(resolve => setTimeout(resolve, 150));
-                    
+
                     // Close the camera view
                     dispatch('close');
                 }
@@ -279,18 +284,12 @@
         background: #ff4444;
         border-radius: 50%;
         transform: scale(0.93);
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .video-button.recording .video-button-inner {
         border-radius: 8px;
         transform: scale(0.7);
-    }
-
-    /* Add specific transition for stopping recording */
-    .video-button:not(.recording) .video-button-inner {
-        border-radius: 50%;
-        transform: scale(0.93);
     }
 
     /* Hover effects */
