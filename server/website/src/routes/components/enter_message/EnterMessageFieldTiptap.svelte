@@ -94,7 +94,6 @@
                     ['div', { class: 'icon_rounded photos' }]
                 ]
             } else if (HTMLAttributes.type === 'pdf') {
-                // Keep existing PDF rendering
                 return ['div', {
                     class: 'pdf-preview-container',
                     role: 'button',
@@ -437,10 +436,10 @@
     }
 
     async function insertFile(file: File) {
-        console.log('Inserting PDF file:', file.name); // Add logging
+        console.log('Inserting PDF file:', file.name);
         const url = URL.createObjectURL(file);
         
-        // Force editor focus and insert at current position
+        // Add unique ID for PDFs
         editor.chain()
             .focus()
             .insertContent({
@@ -448,12 +447,13 @@
                 attrs: {
                     type: 'pdf',
                     src: url,
-                    filename: file.name
+                    filename: file.name,
+                    id: crypto.randomUUID() // Add unique ID for PDFs
                 }
             })
             .run();
         
-        console.log('PDF insertion complete'); // Add logging
+        console.log('PDF insertion complete');
     }
 
     async function insertVideo(file: File) {
@@ -602,10 +602,9 @@
                 break;
                 
             case 'view':
-                // Handle both regular embeds and web previews
-                const url = node.type.name === 'webPreview' ? node.attrs.url : node.attrs.src;
-                if (url) {
-                    window.open(url, '_blank');
+                // Use the correct src from the found node
+                if (node.attrs.src) {
+                    window.open(node.attrs.src, '_blank');
                 }
                 break;
 
