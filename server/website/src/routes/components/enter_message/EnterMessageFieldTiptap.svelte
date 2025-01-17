@@ -201,7 +201,12 @@
         editor = new Editor({
             element: editorElement,
             extensions: [
-                StarterKit,
+                StarterKit.configure({
+                    hardBreak: {
+                        keepMarks: true,
+                        HTMLAttributes: {}
+                    },
+                }),
                 CustomEmbed,
                 WebPreview,
                 Placeholder.configure({
@@ -214,28 +219,46 @@
                     emptyEditorClass: 'is-editor-empty',
                 }),
                 Extension.create({
-                    addKeyboardShortcuts() {
-                        return {
-                            'Shift-Enter': () => {
-                                console.log('Shift+Enter pressed');
-                                return this.editor.commands.setHardBreak();
-                            },
-                            'Enter': ({ editor }) => {
-                                if (!editor.isEmpty) {
-                                    handleSend();
+                    name: 'customKeyboardHandling',
+                    priority: 1000,
+                    onCreate() {
+                        // Add DOM event listener for keydown
+                        this.editor.view.dom.addEventListener('keydown', (event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+
+                                if (event.shiftKey) {
+                                    // Shift+Enter: Insert hard break
+                                    this.editor.chain()
+                                        .focus()
+                                        .setHardBreak()
+                                        .run();
+                                } else {
+                                    // Enter alone: Send message if not empty
+                                    if (!this.editor.isEmpty) {
+                                        handleSend();
+                                    }
                                 }
                                 return true;
                             }
-                        }
+                        });
                     }
                 })
             ],
-            content: '',
             editorProps: {
-                attributes: {
-                    class: 'prose prose-sm focus:outline-none',
+                handleKeyDown: (view, event) => {
+                    // Add logging for all key events
+                    console.log('Editor handleKeyDown:', event.key, event.shiftKey);
+                    if (event.key === 'Enter' && event.shiftKey) {
+                        console.log('Shift+Enter caught in handleKeyDown');
+                        event.preventDefault();
+                        view.dispatch(view.state.tr.insertText('\n'));
+                        return true;
+                    }
+                    return false;
                 }
             },
+            content: '',
             onFocus: () => {
                 isMessageFieldFocused = true;
             },
