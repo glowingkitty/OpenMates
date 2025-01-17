@@ -287,6 +287,12 @@
         transform: scale(0.7);
     }
 
+    /* Add specific transition for stopping recording */
+    .video-button:not(.recording) .video-button-inner {
+        border-radius: 50%;
+        transform: scale(0.93);
+    }
+
     /* Hover effects */
     .control-button:hover {
         transform: scale(1.05);

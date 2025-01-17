@@ -835,24 +835,60 @@
         console.log('Inserting video:', file.name);
         const url = URL.createObjectURL(file);
         
-        editor.chain()
-            .focus()
-            .insertContent([
-                {
-                    type: 'customEmbed',
-                    attrs: {
-                        type: 'video',
-                        src: url,
-                        filename: file.name,
-                        id: crypto.randomUUID()
+        if (editor.isEmpty) {
+            // If empty, first insert default mention
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        {
+                            type: 'customEmbed',
+                            attrs: {
+                                type: 'video',
+                                src: url,
+                                filename: file.name,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+        } else {
+            editor.chain()
+                .focus()
+                .insertContent([
+                    {
+                        type: 'customEmbed',
+                        attrs: {
+                            type: 'video',
+                            src: url,
+                            filename: file.name,
+                            id: crypto.randomUUID()
+                        }
+                    },
+                    {
+                        type: 'text',
+                        text: ' '
                     }
-                },
-                {
-                    type: 'text',
-                    text: ' '
-                }
-            ])
-            .run();
+                ])
+                .run();
+        }
         
         // Replace the old cursor positioning with the working timeout focus
         setTimeout(() => {
