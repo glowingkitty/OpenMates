@@ -414,8 +414,12 @@
     // Update the Placeholder extension configuration
     const placeholderExtension = Placeholder.configure({
         placeholder: ({ editor }: { editor: EditorType }) => {
-            // Show placeholder only when editor is empty (no content at all)
-            return editor.isEmpty ? $_('enter_message.click_to_enter_message.text') : '';
+            // Show placeholder when:
+            // 1. Editor is completely empty (no content at all) AND not focused
+            // 2. Editor only contains a mate mention (considered empty) AND not focused
+            return (editor.isEmpty || isContentEmptyExceptMention(editor)) && !isMessageFieldFocused 
+                ? $_('enter_message.click_to_enter_message.text') 
+                : '';
         },
         emptyEditorClass: 'is-editor-empty',
         showOnlyWhenEditable: true,
@@ -490,6 +494,9 @@
     // Add a reactive variable to track content state
     let hasContent = false;
 
+    // Add a flag to track menu interaction
+    let isMenuInteraction = false;
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -538,8 +545,24 @@
             },
             onBlur: () => {
                 isMessageFieldFocused = false;
-                // Clear content when blurring if only mate mention exists
-                if (isContentEmptyExceptMention(editor)) {
+                
+                // Don't clear content if we're interacting with the menu
+                if (isMenuInteraction) {
+                    return;
+                }
+                
+                // Check if editor is truly empty (no content, no embeds, no files)
+                const isEmpty = editor.isEmpty || (
+                    editor.state.doc.textContent.trim() === '' && 
+                    !editor.state.doc.content.content.some(node => 
+                        node.content?.content?.some((n: any) => 
+                            ['customEmbed', 'webPreview'].includes(n.type.name)
+                        )
+                    )
+                );
+
+                if (isEmpty) {
+                    // Clear any remaining content and ensure it's completely empty
                     editor.commands.setContent(getInitialContent());
                 }
             },
@@ -985,6 +1008,9 @@
     function handleEmbedInteraction(event: CustomEvent, embedId: string) {
         event.preventDefault();
         
+        // Set the flag before showing menu
+        isMenuInteraction = true;
+        
         // Find the element using the elementId from the event detail
         const element = document.getElementById(event.detail.elementId);
         if (!element) return;
@@ -1044,7 +1070,6 @@
                 break;
                 
             case 'view':
-                // Use the correct src from the found node
                 if (node.attrs.src) {
                     window.open(node.attrs.src, '_blank');
                 }
@@ -1057,6 +1082,7 @@
                 break;
         }
         showMenu = false;
+        isMenuInteraction = false; // Reset the flag when menu action is complete
     }
 </script>
 
@@ -1139,7 +1165,10 @@
             y={menuY}
             show={showMenu}
             type={menuType}
-            on:close={() => showMenu = false}
+            on:close={() => {
+                showMenu = false;
+                isMenuInteraction = false; // Reset the flag when menu is closed
+            }}
             on:delete={() => handleMenuAction('delete')}
             on:download={() => handleMenuAction('download')}
             on:view={() => handleMenuAction('view')}
