@@ -417,14 +417,8 @@
     // Update the Placeholder extension configuration
     const placeholderExtension = Placeholder.configure({
         placeholder: ({ editor }: { editor: EditorType }) => {
-            // Show different placeholder based on focus state and content
-            if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
-                if (editor.isFocused) {
-                    return $_('enter_message.enter_your_message.text');
-                }
-                return $_('enter_message.click_to_enter_message.text');
-            }
-            return ''; // No placeholder if there's content
+            // Return empty string to remove placeholder
+            return '';
         },
         emptyEditorClass: 'is-editor-empty',
         showOnlyWhenEditable: true,
