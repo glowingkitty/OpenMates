@@ -247,10 +247,7 @@
             ],
             editorProps: {
                 handleKeyDown: (view, event) => {
-                    // Add logging for all key events
-                    console.log('Editor handleKeyDown:', event.key, event.shiftKey);
                     if (event.key === 'Enter' && event.shiftKey) {
-                        console.log('Shift+Enter caught in handleKeyDown');
                         event.preventDefault();
                         view.dispatch(view.state.tr.insertText('\n'));
                         return true;
