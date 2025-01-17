@@ -589,6 +589,8 @@
         padding-top: 1em;
         scrollbar-width: thin;
         scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
+        overflow-x: hidden;
+        box-sizing: border-box;
     }
 
     .scrollable-content::-webkit-scrollbar {
@@ -608,6 +610,9 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 0.5rem;
     }
 
     .message-input {
@@ -889,6 +894,8 @@
     :global(.editor-content) {
         min-height: 2em;
         padding: 0.5rem;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
 
     :global(.ProseMirror) {
@@ -896,10 +903,19 @@
         white-space: pre-wrap;
         word-wrap: break-word;
         padding: 0.5rem;
+        min-height: 2em;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
 
     :global(.ProseMirror p) {
         margin: 0;
+        line-height: 1.5;
+        max-width: 100%;
+        box-sizing: border-box;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
 
     :global(.custom-embed-container) {
