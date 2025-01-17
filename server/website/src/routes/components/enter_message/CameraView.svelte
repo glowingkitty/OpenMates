@@ -9,6 +9,8 @@
     let stream: MediaStream | null = null;
     let mediaRecorder: MediaRecorder | null = null;
     let recordedChunks: Blob[] = [];
+    let recordingTime = 0;
+    let recordingInterval: ReturnType<typeof setInterval>;
     
     onMount(() => {
         // Only request camera permission initially
@@ -31,6 +33,7 @@
 
     onDestroy(() => {
         stopCamera();
+        stopRecordingTimer();
     });
 
     function stopCamera() {
@@ -43,6 +46,26 @@
         }
         dispatch('focusEditor');
         dispatch('close');
+    }
+
+    function startRecordingTimer() {
+        recordingTime = 0;
+        recordingInterval = setInterval(() => {
+            recordingTime++;
+        }, 1000);
+    }
+
+    function stopRecordingTimer() {
+        if (recordingInterval) {
+            clearInterval(recordingInterval);
+            recordingTime = 0;
+        }
+    }
+
+    function formatTime(seconds: number): string {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
     async function toggleRecording() {
@@ -70,15 +93,18 @@
                     const blob = new Blob(recordedChunks, { type: 'video/webm' });
                     dispatch('videorecorded', { blob });
                     isRecording = false;
+                    dispatch('close');
                 };
                 
                 mediaRecorder.start();
                 isRecording = true;
+                startRecordingTimer();
             } catch (err) {
                 console.error('Audio permission denied:', err);
             }
         } else {
             mediaRecorder?.stop();
+            stopRecordingTimer();
         }
     }
 
@@ -126,6 +152,12 @@
                 aria-label="Close camera"
             ></button>
 
+            {#if isRecording}
+                <div class="recording-timer" transition:slide={{ duration: 300 }}>
+                    {formatTime(recordingTime)}
+                </div>
+            {/if}
+
             <div class="main-controls">
                 <button 
                     class="control-button video-button"
@@ -139,6 +171,8 @@
                 <button 
                     class="control-button photo-button"
                     on:click={capturePhoto}
+                    disabled={isRecording}
+                    class:disabled={isRecording}
                     aria-label="Take photo"
                 >
                     <div class="photo-button-inner"></div>
@@ -270,5 +304,38 @@
 
     .photo-button:active .photo-button-inner {
         transform: scale(0.7);
+    }
+
+    .recording-timer {
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #FF0000;
+        color: white;
+        height: 30px;
+        padding: 0 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        font-weight: bold;
+        font-family: monospace;
+        font-size: 16px;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .photo-button.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .photo-button.disabled::before {
+        opacity: 0.4;
+    }
+
+    .photo-button.disabled .photo-button-inner {
+        opacity: 0.5;
     }
 </style> 
