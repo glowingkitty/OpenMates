@@ -13,16 +13,26 @@
     } = createEventDispatcher();
     let menuElement: HTMLDivElement;
 
+    function logDebug(message: string, data?: any) {
+        if (data) {
+            console.log(`[PressAndHoldMenu] ${message}:`, data);
+        } else {
+            console.log(`[PressAndHoldMenu] ${message}`);
+        }
+    }
+
     // Handle clicking outside the menu
     function handleClickOutside(event: MouseEvent | TouchEvent) {
         if (menuElement && !menuElement.contains(event.target as Node)) {
+            logDebug('Click outside menu detected');
             dispatch('close');
         }
     }
 
     // Handle menu item clicks
     function handleMenuItemClick(action: Parameters<typeof dispatch>[0], event: MouseEvent) {
-        event.stopPropagation();  // Stop event from bubbling
+        logDebug('Menu item clicked', { action });
+        event.stopPropagation();
         dispatch(action);
         dispatch('close');
     }
@@ -30,12 +40,19 @@
     // Add scroll handler
     function handleScroll() {
         if (show) {
+            logDebug('Scroll detected, closing menu');
             dispatch('close');
         }
     }
 
+    // Add logging when menu shows/hides
+    $: if (show) {
+        logDebug('Menu shown', { x, y });
+    }
+
     // Add and remove event listeners
     onMount(() => {
+        logDebug('Menu mounted');
         document.addEventListener('mousedown', handleClickOutside);
         document.addEventListener('touchstart', handleClickOutside);
         document.addEventListener('scroll', handleScroll, true);

@@ -205,6 +205,15 @@
         }
     });
 
+    // Add logging utility at the top of the script
+    function logDebug(message: string, data?: any) {
+        if (data) {
+            console.log(`[EnterMessageFieldTiptap] ${message}:`, data);
+        } else {
+            console.log(`[EnterMessageFieldTiptap] ${message}`);
+        }
+    }
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -382,12 +391,16 @@
 
     async function insertImage(file: File) {
         const url = URL.createObjectURL(file);
+        const id = crypto.randomUUID();
+        logDebug('Inserting new image', { filename: file.name, id });
+        
         editor.chain().focus().insertContent({
             type: 'customEmbed',
             attrs: {
                 type: 'image',
                 src: url,
-                filename: file.name
+                filename: file.name,
+                id
             }
         }).run();
     }
@@ -494,49 +507,71 @@
 
     // Add this function to handle press/click on embeds
     function handleEmbedInteraction(event: MouseEvent, embedId: string) {
-        // Prevent default browser context menu
+        logDebug('Embed interaction triggered', { embedId });
         event.preventDefault();
         
-        // Calculate menu position
         const rect = (event.target as HTMLElement).getBoundingClientRect();
         menuX = rect.left + (rect.width / 2);
         menuY = rect.top;
         
         selectedEmbedId = embedId;
+        logDebug('Selected embed ID set to', selectedEmbedId);
         showMenu = true;
     }
 
     // Add these handlers for the menu actions
     function handleMenuAction(action: 'delete' | 'download' | 'view') {
-        if (!selectedEmbedId) return;
+        logDebug('Menu action triggered', { action, selectedEmbedId });
+        
+        if (!selectedEmbedId) {
+            logDebug('No embed ID selected!');
+            return;
+        }
 
-        let embedNode: any;
-        editor.state.doc.descendants((node: any) => {
+        let foundNode: any = null;
+        editor.state.doc.descendants((node: any, pos: number) => {
+            logDebug('Checking node', { 
+                nodeId: node.attrs?.id, 
+                selectedId: selectedEmbedId,
+                nodeType: node.type.name,
+                attrs: node.attrs 
+            });
+            
             if (node.attrs?.id === selectedEmbedId) {
-                embedNode = node;
+                foundNode = { node, pos };
+                logDebug('Found matching node', foundNode);
                 return false;
             }
             return true;
         });
 
-        if (!embedNode) return;
+        if (!foundNode) {
+            logDebug('No matching node found for ID', selectedEmbedId);
+            return;
+        }
+
+        const { node, pos } = foundNode;
+        logDebug('Processing action', { action, node, pos });
 
         switch (action) {
             case 'delete':
-                editor.chain().focus().deleteNode(embedNode).run();
+                logDebug('Deleting node at position', pos);
+                editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run();
                 break;
+                
             case 'download':
-                const url = embedNode.attrs.src;
-                const filename = embedNode.attrs.filename;
+                logDebug('Downloading file', { url: node.attrs.src, filename: node.attrs.filename });
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
+                a.href = node.attrs.src;
+                a.download = node.attrs.filename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 break;
+                
             case 'view':
-                window.open(embedNode.attrs.src, '_blank');
+                logDebug('Opening view', node.attrs.src);
+                window.open(node.attrs.src, '_blank');
                 break;
         }
         showMenu = false;
