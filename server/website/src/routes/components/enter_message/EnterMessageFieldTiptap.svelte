@@ -468,8 +468,13 @@
             }
         });
 
-        // Auto-focus the editor on mount
-        editor.commands.focus();
+        // Update cursor position after editor initialization
+        if (defaultMention) {
+            // Move cursor to end of document
+            editor.commands.focus('end');
+        } else {
+            editor.commands.focus();
+        }
 
         // Add global event listener for embed clicks with proper typing
         document.addEventListener('embedclick', ((event: CustomEvent) => {
