@@ -3,8 +3,6 @@
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { Node } from '@tiptap/core';
-    import Photos from './in_message_previews/Photos.svelte';
-    import PDF from './in_message_previews/PDF.svelte';
     import Web from './in_message_previews/Web.svelte';
     import { _ } from 'svelte-i18n';
     import type { SvelteComponent } from 'svelte';
@@ -218,6 +216,10 @@
                 Extension.create({
                     addKeyboardShortcuts() {
                         return {
+                            'Shift-Enter': () => {
+                                console.log('Shift+Enter pressed');
+                                return this.editor.commands.setHardBreak();
+                            },
                             'Enter': ({ editor }) => {
                                 if (!editor.isEmpty) {
                                     handleSend();
