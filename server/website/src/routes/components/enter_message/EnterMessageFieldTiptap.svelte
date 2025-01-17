@@ -242,6 +242,139 @@
         }
     });
 
+    // Move MateNode definition to the top level, near other node definitions
+    const MateNode = Node.create({
+        name: 'mate',
+        group: 'inline',
+        inline: true,
+        selectable: true,
+        draggable: true,
+
+        addAttributes() {
+            return {
+                name: { default: null },
+                id: { default: () => crypto.randomUUID() }
+            }
+        },
+
+        parseHTML() {
+            return [{ tag: 'span[data-type="mate"]' }]
+        },
+
+        renderHTML({ HTMLAttributes }) {
+            const elementId = `mate-${HTMLAttributes.id}`;
+            return [
+                'span',
+                {
+                    'data-type': 'mate',
+                    'data-id': HTMLAttributes.id,
+                    'data-name': HTMLAttributes.name,
+                    id: elementId,
+                    class: 'mate-mention',
+                    onclick: `document.dispatchEvent(new CustomEvent('mateclick', { 
+                        bubbles: true, 
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
+                    }))`,
+                },
+                ['span', { class: 'at-symbol' }, '@'],
+                ['div', { 
+                    class: `mate-profile mate-profile-small ${HTMLAttributes.name}`
+                }]
+            ];
+        },
+
+        // Add keyboard shortcuts handler
+        addKeyboardShortcuts() {
+            return {
+                Backspace: ({ editor }) => {
+                    const { empty, $anchor } = editor.state.selection
+                    if (!empty) return false
+
+                    const pos = $anchor.pos
+                    const node = editor.state.doc.nodeAt(pos - 1)
+
+                    if (node?.type.name === 'mate') {
+                        const name = node.attrs.name
+                        const from = pos - node.nodeSize
+                        const to = pos
+
+                        // First delete any preceding space
+                        const beforeNode = editor.state.doc.textBetween(Math.max(0, from - 1), from)
+                        const extraOffset = beforeNode === ' ' ? 1 : 0
+
+                        editor
+                            .chain()
+                            .focus()
+                            .deleteRange({ from: from - extraOffset, to })
+                            .insertContent(`@${name}`)
+                            .run()
+
+                        return true
+                    }
+                    return false
+                }
+            }
+        }
+    });
+
+    // Add this function to detect and replace mate mentions
+    function detectAndReplaceMates(content: string) {
+        if (!editor) return;
+
+        // Get current cursor position
+        const { from } = editor.state.selection;
+        
+        // Get the text content up to the cursor
+        const text = editor.state.doc.textBetween(Math.max(0, from - 1000), from);
+        
+        // Only process if content ends with space or newline
+        const lastChar = text.slice(-1);
+        if (lastChar !== ' ' && lastChar !== '\n') return;
+
+        // Match @username pattern
+        const mateRegex = /@(\w+)(?=\s|$)/g;  // Updated regex to match @ followed by word chars
+        const matches = Array.from(text.matchAll(mateRegex));
+        if (!matches.length) return;
+        
+        // Get the last match
+        const lastMatch = matches[matches.length - 1];
+        const mateName = lastMatch[1];
+        
+        // Only process known mates (for now just sophia)
+        if (mateName.toLowerCase() !== 'sophia') return;
+
+        // Calculate absolute positions
+        const matchStart = from - (text.length - lastMatch.index!);
+        const matchEnd = matchStart + lastMatch[0].length;
+
+        // Check if this mention is already a mate node
+        const nodeAtPos = editor.state.doc.nodeAt(matchStart);
+        if (nodeAtPos?.type.name === 'mate') return;
+
+        // Replace text with mate node
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: matchStart, to: matchEnd })
+            .insertContent([
+                {
+                    type: 'mate',
+                    attrs: { 
+                        name: mateName.toLowerCase(),
+                        id: crypto.randomUUID()
+                    }
+                },
+                {
+                    type: 'text',
+                    text: ' '  // Add space after mention
+                }
+            ])
+            .run();
+    }
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -257,6 +390,7 @@
                 }),
                 CustomEmbed,
                 WebPreview,
+                MateNode,
                 Placeholder.configure({
                     placeholder: ({ editor }: { editor: EditorType }) => {
                         if (editor.isFocused) {
@@ -287,7 +421,25 @@
                     }
                 })
             ],
-            content: '',
+            content: defaultMention ? {
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '  // Add space after mention
+                        }
+                    ]
+                }]
+            } : '',
             onFocus: () => {
                 isMessageFieldFocused = true;
             },
@@ -296,7 +448,10 @@
             },
             onUpdate: ({ editor }) => {
                 const content = editor.getHTML();
+                // Process URLs first
                 detectAndReplaceUrls(content);
+                // Then process mates
+                detectAndReplaceMates(content);
             }
         });
 
@@ -1259,5 +1414,36 @@
 
     :global(.photo-preview-container:active) {
         opacity: 0.8;
+    }
+
+    /* Add new styles for mate mentions */
+    :global(.mate-mention) {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 4px;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    :global(.mate-mention .at-symbol) {
+        color: var(--color-font-primary);
+        font-weight: 500;
+    }
+
+    :global(.mate-mention .mate-profile) {
+        width: 24px;
+        height: 24px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    :global(.ProseMirror p:first-child) {
+        margin-top: 0;
+    }
+
+    :global(.ProseMirror p:last-child) {
+        margin-bottom: 0;
     }
 </style>
