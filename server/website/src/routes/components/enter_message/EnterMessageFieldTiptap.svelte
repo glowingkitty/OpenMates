@@ -49,6 +49,9 @@
         },
 
         renderHTML({ HTMLAttributes }) {
+            // Add logging to help debug render process
+            console.log('Rendering embed:', HTMLAttributes);
+            
             if (HTMLAttributes.type === 'image') {
                 return ['img', {
                     src: HTMLAttributes.src,
@@ -56,13 +59,20 @@
                     class: 'embedded-image'
                 }]
             } else if (HTMLAttributes.type === 'pdf') {
+                // Fixed array structure for PDF rendering
                 return ['div', {
-                    class: 'embedded-file'
-                }, [
-                    ['span', { class: 'file-icon' }, '📄'],
-                    ['span', { class: 'file-name' }, HTMLAttributes.filename]
+                    class: 'embedded-pdf',
+                    'data-type': 'custom-embed',
+                    'data-src': HTMLAttributes.src,
+                    'data-filename': HTMLAttributes.filename
+                }, 
+                // Content must be a single array, not nested arrays
+                ['div', { class: 'pdf-content' }, 
+                    ['span', { class: 'pdf-icon' }, '📄'],
+                    ['span', { class: 'pdf-filename' }, HTMLAttributes.filename]
                 ]]
             }
+            // Default fallback
             return ['div', { class: 'embedded-unknown' }, HTMLAttributes.filename]
         }
     });
@@ -155,15 +165,23 @@
     }
 
     async function insertFile(file: File) {
+        console.log('Inserting PDF file:', file.name); // Add logging
         const url = URL.createObjectURL(file);
-        editor.chain().focus().insertContent({
-            type: 'customEmbed',
-            attrs: {
-                type: 'pdf',
-                src: url,
-                filename: file.name
-            }
-        }).run();
+        
+        // Force editor focus and insert at current position
+        editor.chain()
+            .focus()
+            .insertContent({
+                type: 'customEmbed',
+                attrs: {
+                    type: 'pdf',
+                    src: url,
+                    filename: file.name
+                }
+            })
+            .run();
+        
+        console.log('PDF insertion complete'); // Add logging
     }
 
     async function insertVideo(file: File) {
@@ -815,5 +833,60 @@
 
     :global(.ProseMirror p) {
         margin: 0;
+    }
+
+    /* Add new PDF-specific styles */
+    :global(.embedded-pdf) {
+        display: inline-flex !important;
+        background-color: var(--color-grey-20);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin: 4px 2px;
+        max-width: 300px;
+    }
+
+    :global(.pdf-content) {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    :global(.pdf-icon) {
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    :global(.pdf-filename) {
+        font-size: 14px;
+        color: var(--color-font-primary);
+        word-break: break-all;
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Remove conflicting styles */
+    :global(.custom-embed),
+    :global(.custom-embed-wrapper),
+    :global(.custom-embed-container) {
+        display: inline-flex !important;
+    }
+
+    /* Ensure editor content is visible */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        background-color: transparent;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        min-height: 2em;
+        padding: 0.5rem;
+        color: var(--color-font-primary);
     }
 </style>
