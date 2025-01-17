@@ -390,39 +390,46 @@
 
     // Add this helper function to check if content is empty except for mate mention
     function isContentEmptyExceptMention(editor: Editor): boolean {
-        let isEmpty = true;
-        let hasMention = false;
-        let hasOtherContent = false;
+        let hasOnlyMention = true;
+        let mentionCount = 0;
         
         editor.state.doc.descendants((node) => {
             if (node.type.name === 'mate') {
-                hasMention = true;
+                mentionCount++;
             } else if (node.type.name === 'text') {
                 // Only consider non-whitespace text as content
                 if (node.text?.trim()) {
-                    hasOtherContent = true;
-                    isEmpty = false;
+                    hasOnlyMention = false;
                 }
             } else if (node.type.name !== 'paragraph') {
-                // Any other node type counts as content
-                hasOtherContent = true;
-                isEmpty = false;
+                hasOnlyMention = false;
             }
         });
         
-        // Return true only if we have the mention and no other content
-        return hasMention && !hasOtherContent;
+        // Return true only if we have exactly one mention and no other content
+        return hasOnlyMention && mentionCount === 1;
     }
 
     // Update the Placeholder extension configuration
     const placeholderExtension = Placeholder.configure({
         placeholder: ({ editor }: { editor: EditorType }) => {
-            // Return empty string to remove placeholder
-            return '';
+            // Show placeholder only when editor is empty (no content at all)
+            return editor.isEmpty ? $_('enter_message.click_to_enter_message.text') : '';
         },
         emptyEditorClass: 'is-editor-empty',
         showOnlyWhenEditable: true,
     });
+
+    // Add this new function to manage initial content
+    function getInitialContent() {
+        return {
+            type: 'doc',
+            content: [{
+                type: 'paragraph',
+                content: []  // Start with empty content
+            }]
+        };
+    }
 
     onMount(() => {
         // Wait for element to be available
@@ -447,14 +454,12 @@
                     addKeyboardShortcuts() {
                         return {
                             Enter: ({ editor }) => {
-                                // Handle regular Enter
                                 if (!editor.isEmpty) {
                                     handleSend();
                                 }
                                 return true;
                             },
                             'Shift-Enter': ({ editor }) => {
-                                // Handle Shift+Enter with native TipTap command
                                 editor.commands.setHardBreak();
                                 return true;
                             }
@@ -462,50 +467,48 @@
                     }
                 })
             ],
-            content: {
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: {
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: ' '  // Add space after mention
-                        }
-                    ]
-                }]
-            },
+            content: getInitialContent(),
             onFocus: () => {
                 isMessageFieldFocused = true;
+                // Add the mate mention only when focusing an empty editor
+                if (editor.isEmpty) {
+                    editor.commands.setContent({
+                        type: 'doc',
+                        content: [{
+                            type: 'paragraph',
+                            content: [
+                                {
+                                    type: 'mate',
+                                    attrs: {
+                                        name: defaultMention,
+                                        id: crypto.randomUUID()
+                                    }
+                                },
+                                {
+                                    type: 'text',
+                                    text: ' '  // Add space after mention
+                                }
+                            ]
+                        }]
+                    });
+                    editor.commands.focus('end');
+                }
             },
             onBlur: () => {
                 isMessageFieldFocused = false;
-                // Remove the check for empty content since we always want to keep the mention
+                // Clear content when blurring if only mate mention exists
+                if (isContentEmptyExceptMention(editor)) {
+                    editor.commands.setContent(getInitialContent());
+                }
             },
             onUpdate: ({ editor }) => {
                 const content = editor.getHTML();
-                // Process URLs first
                 detectAndReplaceUrls(content);
-                // Then process mates
                 detectAndReplaceMates(content);
             }
         });
 
-        // Update cursor position after editor initialization
-        if (defaultMention) {
-            // Move cursor to end of document
-            editor.commands.focus('end');
-        } else {
-            editor.commands.focus();
-        }
-
-        // Add global event listener for embed clicks with proper typing
+        // Add global event listener for embed clicks
         document.addEventListener('embedclick', ((event: CustomEvent) => {
             const { id } = event.detail;
             handleEmbedInteraction(event, id);
@@ -555,24 +558,6 @@
                 }
             })
             .run();
-    }
-
-    // Add a more specific transaction handler if needed
-    $: if (editor) {
-        editor.on('transaction', ({ transaction }) => {
-            // Only update if the transaction affects the doc structure
-            if (transaction.docChanged) {
-                // Check if it's just a text change
-                const isOnlyTextChange = transaction.steps.every(step => 
-                    step.toJSON().stepType === 'replace' && !step.toJSON().mark
-                );
-                
-                // Only force update if it's not just a text change
-                if (!isOnlyTextChange) {
-                    editor = editor;
-                }
-            }
-        });
     }
 
     onDestroy(() => {
@@ -1489,21 +1474,18 @@
         color: var(--color-font-tertiary);
         pointer-events: none;
         height: auto;
-        position: relative;
-        padding-left: 4px;
-    }
-
-    /* Center placeholder when not focused */
-    :global(.ProseMirror:not(:focus) p.is-editor-empty:first-child::before) {
-        text-align: center;
+        position: absolute;
         width: 100%;
-        display: block;
+        text-align: center;
     }
 
     /* Left align placeholder when focused */
-    :global(.ProseMirror:focus p.is-editor-empty:first-child::before) {
+    :global(.ProseMirror.is-focused p.is-editor-empty:first-child::before) {
         text-align: left;
-        display: block;
+        position: relative;
+        float: left;
+        width: auto;
+        padding-left: 4px;
     }
 
     :global(.photo-preview-container) {
@@ -1558,8 +1540,9 @@
         color: var(--color-font-tertiary);
         pointer-events: none;
         height: auto;
-        position: relative;
-        padding-left: 4px;
+        position: absolute;
+        width: 100%;
+        text-align: center;
     }
 
     /* Update editor content styles */
