@@ -871,6 +871,7 @@
         let markdown = '';
         let isFirstParagraph = true;
         let lastNodeWasEmbed = false;
+        let lastNodeWasMate = false;
         
         // Process the document directly using editor's state
         editor.state.doc.descendants((node, pos) => {
@@ -882,34 +883,57 @@
                 }
                 isFirstParagraph = false;
                 lastNodeWasEmbed = false;
+                lastNodeWasMate = false;
 
                 // Track if we've added content to this paragraph
                 let hasContent = false;
 
-                node.content.forEach((child, index, array) => {
+                node.content.forEach((child: any, pos: number, index: number) => {
                     if (child.type.name === 'mate') {
                         markdown += `@${child.attrs.name}`;
+                        // Always add a space after mate mention if next node exists and is text
+                        const nextNode = child.nextSibling;
+                        if (nextNode && nextNode.type.name === 'text' && !nextNode.text?.startsWith(' ')) {
+                            markdown += ' ';
+                        }
                         hasContent = true;
                         lastNodeWasEmbed = false;
+                        lastNodeWasMate = true;
                     } else if (child.type.name === 'webPreview') {
+                        // Add space after mate if previous node was mate
+                        if (lastNodeWasMate) {
+                            markdown += ' ';
+                        }
                         markdown += `${child.attrs.url}\n`;  // Add newline after web preview
                         hasContent = true;
                         lastNodeWasEmbed = true;
+                        lastNodeWasMate = false;
                     } else if (child.type.name === 'customEmbed') {
+                        // Add space after mate if previous node was mate
+                        if (lastNodeWasMate) {
+                            markdown += ' ';
+                        }
                         const { type, filename } = child.attrs;
                         if (type === 'image' || type === 'pdf') {
                             markdown += `[${filename}]\n`;  // Add newline after image/pdf
                             hasContent = true;
                             lastNodeWasEmbed = true;
+                            lastNodeWasMate = false;
                         }
                     } else if (child.type.name === 'text') {
-                        markdown += child.text;
+                        // Only add space before text if it doesn't start with space and previous node was mate
+                        if (lastNodeWasMate && child.text && !child.text.startsWith(' ')) {
+                            markdown += ' ';
+                        }
+                        markdown += child.text || '';
                         hasContent = true;
                         lastNodeWasEmbed = false;
+                        lastNodeWasMate = false;
                     } else if (child.type.name === 'hardBreak') {
                         markdown += '\n';
                         hasContent = true;
                         lastNodeWasEmbed = false;
+                        lastNodeWasMate = false;
                     }
                 });
 
