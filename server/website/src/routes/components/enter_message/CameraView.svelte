@@ -146,23 +146,13 @@
         bottom: 0;
         left: 0;
         right: 0;
-        height: 490px;
+        height: 400px;
         background: #000;
         z-index: 1000;
         display: flex;
         flex-direction: column;
         border-radius: 24px;
         overflow: hidden;
-    }
-
-    .close-button {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        width: 40px;
-        height: 40px;
-        color: white;
-        z-index: 1001;
     }
 
     .camera-preview {
