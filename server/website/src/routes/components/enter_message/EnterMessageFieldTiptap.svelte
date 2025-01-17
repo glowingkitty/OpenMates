@@ -147,7 +147,8 @@
 
         addAttributes() {
             return {
-                url: { default: null }
+                url: { default: null },
+                id: { default: () => crypto.randomUUID() }
             }
         },
 
@@ -156,10 +157,20 @@
         },
 
         renderHTML({ HTMLAttributes }) {
+            const elementId = `embed-${HTMLAttributes.id}`;
             return ['div', {
                 'data-type': 'web-preview',
                 'data-url': HTMLAttributes.url,
-                class: 'web-preview-container'
+                'data-id': HTMLAttributes.id,
+                id: elementId,
+                class: 'web-preview-container',
+                onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                    bubbles: true, 
+                    detail: { 
+                        id: '${HTMLAttributes.id}',
+                        elementId: '${elementId}'
+                    }
+                }))`,
             }]
         },
 
@@ -337,7 +348,10 @@
             .deleteRange({ from: matchStart, to: matchEnd })
             .insertContent({
                 type: 'webPreview',
-                attrs: { url }
+                attrs: { 
+                    url,
+                    id: crypto.randomUUID()
+                }
             })
             .run();
     }
@@ -588,7 +602,11 @@
                 break;
                 
             case 'view':
-                window.open(node.attrs.src || node.attrs.url, '_blank');
+                // Handle both regular embeds and web previews
+                const url = node.type.name === 'webPreview' ? node.attrs.url : node.attrs.src;
+                if (url) {
+                    window.open(url, '_blank');
+                }
                 break;
 
             case 'copy':

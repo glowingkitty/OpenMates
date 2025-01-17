@@ -76,7 +76,7 @@
                 on:click={(event) => handleMenuItemClick('view', event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
-                {$_('enter_message.press_and_hold_menu.open_link.text')}
+                {$_('enter_message.press_and_hold_menu.view.text')}
             </button>
         {:else if type === 'pdf'}
             <button 
