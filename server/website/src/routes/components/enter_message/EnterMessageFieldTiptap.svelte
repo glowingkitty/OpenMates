@@ -51,7 +51,7 @@
         renderHTML({ HTMLAttributes }) {
             // Add logging to help debug render process
             console.log('Rendering embed:', HTMLAttributes);
-            
+
             if (HTMLAttributes.type === 'image') {
                 // Return the new photo preview structure
                 return ['div', {
@@ -130,23 +130,22 @@
                     const { empty, $anchor } = editor.state.selection
                     if (!empty) return false
 
-                    // Get the parent node at current position
                     const pos = $anchor.pos
                     const node = editor.state.doc.nodeAt(pos - 1)
 
                     if (node?.type.name === 'webPreview') {
-                        // Get the original URL
                         const url = node.attrs.url
-                        
-                        // Calculate node position
                         const from = pos - node.nodeSize
                         const to = pos
 
-                        // Replace the web preview with original URL
+                        // First delete any preceding space
+                        const beforeNode = editor.state.doc.textBetween(Math.max(0, from - 1), from)
+                        const extraOffset = beforeNode === ' ' ? 1 : 0
+
                         editor
                             .chain()
                             .focus()
-                            .deleteRange({ from, to })
+                            .deleteRange({ from: from - extraOffset, to })
                             .insertContent(url)
                             .run()
 
@@ -161,7 +160,7 @@
             return ({ node, HTMLAttributes, getPos }) => {
                 const dom = document.createElement('div')
                 dom.setAttribute('data-type', 'web-preview')
-                
+
                 const component = mount(Web, {
                     target: dom,
                     props: { url: node.attrs.url },
@@ -169,15 +168,14 @@
                         delete: () => {
                             if (typeof getPos === 'function') {
                                 const pos = getPos()
-                                // When delete button is clicked, restore the original URL
+                                const beforeNode = editor.state.doc.textBetween(Math.max(0, pos - 1), pos)
+                                const extraOffset = beforeNode === ' ' ? 1 : 0
+
                                 editor
                                     .chain()
                                     .focus()
-                                    .deleteRange({ from: pos, to: pos + node.nodeSize })
-                                    .insertContent(node.attrs.url, {
-                                        updateSelection: true,
-                                        preserveWhitespace: true
-                                    })
+                                    .deleteRange({ from: pos - extraOffset, to: pos + node.nodeSize })
+                                    .insertContent(node.attrs.url)
                                     .run()
                             }
                         }
