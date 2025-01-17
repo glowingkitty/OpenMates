@@ -1,294 +1,672 @@
 <script lang="ts">
-    import { tick, onDestroy } from 'svelte';
-    import Photos from './in_message_previews/Photos.svelte';
-    import PDF from './in_message_previews/PDF.svelte';
+    import { onMount, onDestroy, tick, mount } from 'svelte';
+    import { Editor } from '@tiptap/core';
+    import StarterKit from '@tiptap/starter-kit';
+    import { Node } from '@tiptap/core';
     import Web from './in_message_previews/Web.svelte';
-    import { onMount } from 'svelte';
     import { _ } from 'svelte-i18n';
+    import type { SvelteComponent } from 'svelte';
+    import Placeholder from '@tiptap/extension-placeholder';
+    import type { Editor as EditorType } from '@tiptap/core';
+    import { EditorView } from 'prosemirror-view';
+    import { Extension } from '@tiptap/core';
+    import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
-        TOTAL_MAX_SIZE: 100,  // Total size limit for all files combined
-        PER_FILE_MAX_SIZE: 100  // Maximum size per individual file
+        TOTAL_MAX_SIZE: 100,
+        PER_FILE_MAX_SIZE: 100
     };
 
-    // Convert MB to bytes for internal use
     const MAX_TOTAL_SIZE = FILE_SIZE_LIMITS.TOTAL_MAX_SIZE * 1024 * 1024;
     const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
 
-    // Add variable declarations
+    // References for file inputs
     let fileInput: HTMLInputElement;
-
-    type TextSegment = {
-        id: string;
-        text: string;
-        isEditing: boolean;
-        imageId?: string;  // Reference to associated image
-        fileId?: string;   // Reference to associated file
-        videoId?: string;  // Reference to associated video
-        webUrl?: string;   // Reference to web preview
-    }
-
-    type InlineImage = { 
-        id: string, 
-        blob: Blob, 
-        filename: string
-    };
-
-    type FileAttachment = {
-        id: string,
-        file: File,
-        filename: string
-    };
-
-    type VideoAttachment = {
-        id: string,
-        blob: Blob,
-        filename: string
-    };
-
-    type VideoURL = {
-        id: string;
-        url: string;
-    };
-
-    let textSegments: TextSegment[] = [{ id: 'initial', text: '', isEditing: true }];
-    let inlineImages: InlineImage[] = [];
-    let activeSegmentId = 'initial';
-    let fileAttachments: FileAttachment[] = [];
-    let videoAttachments: VideoAttachment[] = [];
-    let videoURLs: VideoURL[] = [];
-
-    // References for file input and camera input
     let cameraInput: HTMLInputElement;
     let videoElement: HTMLVideoElement;
     let stream: MediaStream | null = null;
     let showCamera = false;
+    let editor: Editor;
+    let isMessageFieldFocused = false;
+    let editorElement: HTMLElement | undefined = undefined;
+    let showMenu = false;
+    let menuX = 0;
+    let menuY = 0;
+    let selectedEmbedId: string | null = null;
+    let menuType: 'default' | 'pdf' | 'web' = 'default';
 
-    // Add new reactive variable to track if there's content
-    $: hasContent = textSegments.some(segment => segment.text.trim().length > 0) || 
-                    inlineImages.length > 0 || 
-                    fileAttachments.length > 0;
+    // Add this constant near the top of the file, after the imports
+    const VALID_MATES = [
+        'burton',
+        'lisa', 
+        'sophia',
+        'melvin',
+        'finn',
+        'elton',
+        'denise',
+        'mark',
+        'colin'
+    ];
 
-    // Add new function to check if segment should be visible
-    function shouldShowSegment(segment: TextSegment, index: number): boolean {
-        const hasContent = Boolean(segment.text.length > 0);
-        const hasAttachment = Boolean(segment.imageId || segment.fileId || segment.videoId);
-        const isFirstSegment = index === 0;
-        const isLastSegment = index === textSegments.length - 1;
-        const prevHasAttachment = index > 0 && Boolean(textSegments[index - 1].imageId || textSegments[index - 1].fileId || textSegments[index - 1].videoId);
-        const nextHasAttachment = index < textSegments.length - 1 && Boolean(textSegments[index + 1].imageId || textSegments[index + 1].fileId || textSegments[index + 1].videoId);
+    // Custom node for embedded content (images, files, etc.)
+    const CustomEmbed = Node.create({
+        name: 'customEmbed',
+        group: 'inline',
+        inline: true,
+        selectable: true,
+        draggable: true,
 
-        return Boolean(
-            hasContent || 
-            hasAttachment || 
-            isFirstSegment || 
-            isLastSegment || 
-            (!prevHasAttachment && !nextHasAttachment && hasContent)
-        );
-    }
-
-    // Function to handle clicking on a text div
-    function handleTextClick(segment: TextSegment, event: MouseEvent) {
-        const textDiv = event.target as HTMLDivElement;
-        const clickPosition = getClickPosition(textDiv, event);
-        
-        // Make all segments non-editable
-        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
-        
-        // Make clicked segment editable
-        const index = textSegments.findIndex(s => s.id === segment.id);
-        textSegments[index].isEditing = true;
-        activeSegmentId = segment.id;
-        
-        // Wait for textarea to be created and set cursor position
-        tick().then(() => {
-            const textarea = document.getElementById(segment.id) as HTMLTextAreaElement;
-            if (textarea) {
-                // Adjust height before focusing to prevent flicker
-                adjustTextareaHeight(textarea);
-                textarea.focus();
-                textarea.setSelectionRange(clickPosition, clickPosition);
+        addAttributes() {
+            return {
+                type: { default: 'image' },
+                src: { default: null },
+                filename: { default: null },
+                id: { default: () => crypto.randomUUID() }
             }
-        });
-    }
+        },
 
-    // Helper function to calculate click position in text
-    function getClickPosition(element: HTMLElement, event: MouseEvent): number {
-        const range = document.createRange();
-        const selection = window.getSelection();
-        
-        range.setStart(element, 0);
-        range.setEnd(element, 0);
-        
-        const rects = range.getClientRects();
-        const clickX = event.clientX;
-        const text = element.textContent || '';
-        
-        // Simple calculation - can be improved for more accuracy
-        const charWidth = element.offsetWidth / text.length;
-        return Math.round((clickX - element.getBoundingClientRect().left) / charWidth);
-    }
+        parseHTML() {
+            return [{ tag: 'div[data-type="custom-embed"]' }]
+        },
 
-    // Modify insertImageAtCursor to handle edit states
-    function insertImageAtCursor(imageBlob: Blob) {
-        const imageId = crypto.randomUUID();
-        const newSegmentId = crypto.randomUUID();
-        
-        // If imageBlob is a File, use its name, otherwise generate one
-        const filename = (imageBlob instanceof File) ? 
-            imageBlob.name : 
-            `image_${imageId}.jpg`;
-        
-        const newImage: InlineImage = { 
-            id: imageId, 
-            blob: imageBlob, 
-            filename: filename  // Use original filename or generated one
-        };
-        
-        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
-        const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
-        
-        if (!textSegments[activeIndex].text && !textSegments[activeIndex].imageId) {
-            // Use current empty segment for image
-            textSegments[activeIndex] = {
-                ...textSegments[activeIndex],
-                imageId,
-                isEditing: false
-            };
-        } else {
-            // Insert new segment for image
-            textSegments.splice(activeIndex + 1, 0, {
-                id: crypto.randomUUID(),
-                text: '',
-                isEditing: false,
-                imageId,
-                fileId: undefined,
-                videoId: undefined
-            });
-        }
-        
-        // Ensure there's always an empty segment at the end
-        if (!textSegments[textSegments.length - 1].text && !textSegments[textSegments.length - 1].imageId) {
-            activeSegmentId = textSegments[textSegments.length - 1].id;
-            textSegments[textSegments.length - 1].isEditing = true;
-        } else {
-            textSegments.push({
-                id: newSegmentId,
-                text: '',
-                isEditing: true,
-                imageId: undefined,
-                fileId: undefined,
-                videoId: undefined
-            });
-            activeSegmentId = newSegmentId;
-        }
-        
-        inlineImages = [...inlineImages, newImage];
-        
-        tick().then(() => {
-            const newTextarea = document.getElementById(activeSegmentId) as HTMLTextAreaElement;
-            if (newTextarea) newTextarea.focus();
-        });
-    }
+        renderHTML({ HTMLAttributes }) {
+            // Add logging to help debug render process
+            console.log('Rendering embed:', HTMLAttributes);
 
-    // Get complete content in markdown format
-    export function getMarkdownContent(): string {
-        return textSegments.map(segment => {
-            const img = segment.imageId ? inlineImages.find(img => img.id === segment.imageId) : null;
-            const file = segment.fileId ? fileAttachments.find(file => file.id === segment.fileId) : null;
-            const video = segment.videoId ? videoAttachments.find(video => video.id === segment.videoId) : null;
+            const elementId = `embed-${HTMLAttributes.id}`;
             
-            if (video) {
-                return segment.text + `\n[🎥 ${video.filename}](${video.filename})\n`;
-            } else if (img) {
-                return segment.text + `\n![${img.filename}](${img.filename})\n`;
-            } else if (file) {
-                return segment.text + `\n[📎 ${file.filename}](${file.filename})\n`;
+            if (HTMLAttributes.type === 'image') {
+                // Return the new photo preview structure
+                return ['div', {
+                    class: 'photo-preview-container',
+                    role: 'button',
+                    tabindex: '0',
+                    'data-type': 'custom-embed',
+                    'data-src': HTMLAttributes.src,
+                    'data-filename': HTMLAttributes.filename,
+                    'data-id': HTMLAttributes.id,
+                    id: elementId,
+                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                        bubbles: true, 
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
+                    }))`,
+                },
+                    // Checkerboard background container
+                    ['div', { class: 'checkerboard-background' },
+                        ['img', {
+                            src: HTMLAttributes.src,
+                            alt: 'Preview',
+                            class: 'preview-image fill-container'
+                        }]
+                    ],
+                    // Photos icon
+                    ['div', { class: 'icon_rounded photos' }]
+                ]
+            } else if (HTMLAttributes.type === 'pdf') {
+                return ['div', {
+                    class: 'pdf-preview-container',
+                    role: 'button',
+                    tabindex: '0',
+                    'data-type': 'custom-embed',
+                    'data-src': HTMLAttributes.src,
+                    'data-filename': HTMLAttributes.filename,
+                    'data-id': HTMLAttributes.id,
+                    id: elementId,
+                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                        bubbles: true, 
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
+                    }))`,
+                }, 
+                    ['div', { class: 'icon_rounded pdf' }],
+                    ['div', { class: 'filename-container' },
+                        ['span', { class: 'filename' }, HTMLAttributes.filename]
+                    ]
+                ]
             }
-            return segment.text;
-        }).join('');
+            // Default fallback
+            return ['div', { 
+                class: 'embedded-unknown',
+                'data-id': HTMLAttributes.id,
+                id: elementId,
+                onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                    bubbles: true, 
+                    detail: { 
+                        id: '${HTMLAttributes.id}',
+                        elementId: '${elementId}'
+                    }
+                }))`,
+            }, HTMLAttributes.filename]
+        }
+    });
+
+    // Add URL detection regex
+    const urlRegex = /https?:\/\/[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?/gi;
+
+    // Add new WebPreview node type
+    const WebPreview = Node.create({
+        name: 'webPreview',
+        group: 'inline',
+        inline: true,
+        selectable: true,
+        draggable: true,
+
+        addAttributes() {
+            return {
+                url: { default: null },
+                id: { default: () => crypto.randomUUID() }
+            }
+        },
+
+        parseHTML() {
+            return [{ tag: 'div[data-type="web-preview"]' }]
+        },
+
+        renderHTML({ HTMLAttributes }) {
+            const elementId = `embed-${HTMLAttributes.id}`;
+            return ['div', {
+                'data-type': 'web-preview',
+                'data-url': HTMLAttributes.url,
+                'data-id': HTMLAttributes.id,
+                id: elementId,
+                class: 'web-preview-container',
+                onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                    bubbles: true, 
+                    detail: { 
+                        id: '${HTMLAttributes.id}',
+                        elementId: '${elementId}'
+                    }
+                }))`,
+            }]
+        },
+
+        // Update keyboard shortcuts handler
+        addKeyboardShortcuts() {
+            return {
+                Backspace: ({ editor }) => {
+                    const { empty, $anchor } = editor.state.selection
+                    if (!empty) return false
+
+                    const pos = $anchor.pos
+                    const node = editor.state.doc.nodeAt(pos - 1)
+
+                    if (node?.type.name === 'webPreview') {
+                        const url = node.attrs.url
+                        const from = pos - node.nodeSize
+                        const to = pos
+
+                        // First delete any preceding space
+                        const beforeNode = editor.state.doc.textBetween(Math.max(0, from - 1), from)
+                        const extraOffset = beforeNode === ' ' ? 1 : 0
+
+                        editor
+                            .chain()
+                            .focus()
+                            .deleteRange({ from: from - extraOffset, to })
+                            .insertContent(url)
+                            .run()
+
+                        return true
+                    }
+                    return false
+                }
+            }
+        },
+
+        addNodeView() {
+            return ({ node, HTMLAttributes, getPos }) => {
+                const dom = document.createElement('div')
+                dom.setAttribute('data-type', 'web-preview')
+
+                const component = mount(Web, {
+                    target: dom,
+                    props: { url: node.attrs.url },
+                    events: {
+                        delete: () => {
+                            if (typeof getPos === 'function') {
+                                const pos = getPos()
+                                const beforeNode = editor.state.doc.textBetween(Math.max(0, pos - 1), pos)
+                                const extraOffset = beforeNode === ' ' ? 1 : 0
+
+                                editor
+                                    .chain()
+                                    .focus()
+                                    .deleteRange({ from: pos - extraOffset, to: pos + node.nodeSize })
+                                    .insertContent(node.attrs.url)
+                                    .run()
+                            }
+                        }
+                    }
+                })
+
+                return {
+                    dom,
+                    destroy: () => {
+                        // Component cleanup handled automatically in Svelte 5
+                    }
+                }
+            }
+        }
+    });
+
+    // Move MateNode definition to the top level, near other node definitions
+    const MateNode = Node.create({
+        name: 'mate',
+        group: 'inline',
+        inline: true,
+        selectable: true,
+        draggable: true,
+
+        addAttributes() {
+            return {
+                name: { default: null },
+                id: { default: () => crypto.randomUUID() }
+            }
+        },
+
+        parseHTML() {
+            return [{ tag: 'span[data-type="mate"]' }]
+        },
+
+        renderHTML({ HTMLAttributes }) {
+            const elementId = `mate-${HTMLAttributes.id}`;
+            return [
+                'span',
+                {
+                    'data-type': 'mate',
+                    'data-id': HTMLAttributes.id,
+                    'data-name': HTMLAttributes.name,
+                    id: elementId,
+                    class: 'mate-mention',
+                    onclick: `document.dispatchEvent(new CustomEvent('mateclick', { 
+                        bubbles: true, 
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
+                    }))`,
+                },
+                ['span', { class: 'at-symbol' }, '@'],
+                ['div', { 
+                    class: `mate-profile mate-profile-small ${HTMLAttributes.name}`
+                }]
+            ];
+        },
+
+        // Add keyboard shortcuts handler
+        addKeyboardShortcuts() {
+            return {
+                Backspace: ({ editor }) => {
+                    const { empty, $anchor } = editor.state.selection
+                    if (!empty) return false
+
+                    const pos = $anchor.pos
+                    const node = editor.state.doc.nodeAt(pos - 1)
+
+                    if (node?.type.name === 'mate') {
+                        const name = node.attrs.name
+                        const from = pos - node.nodeSize
+                        const to = pos
+
+                        // First delete any preceding space
+                        const beforeNode = editor.state.doc.textBetween(Math.max(0, from - 1), from)
+                        const extraOffset = beforeNode === ' ' ? 1 : 0
+
+                        editor
+                            .chain()
+                            .focus()
+                            .deleteRange({ from: from - extraOffset, to })
+                            .insertContent(`@${name}`)
+                            .run()
+
+                        return true
+                    }
+                    return false
+                }
+            }
+        }
+    });
+
+    // Add this function to detect and replace mate mentions
+    function detectAndReplaceMates(content: string) {
+        if (!editor) return;
+
+        // Get current cursor position
+        const { from } = editor.state.selection;
+        
+        // Get the text content up to the cursor
+        const text = editor.state.doc.textBetween(Math.max(0, from - 1000), from);
+        
+        // Only process if content ends with space or newline
+        const lastChar = text.slice(-1);
+        if (lastChar !== ' ' && lastChar !== '\n') return;
+
+        // Match @username pattern
+        const mateRegex = /@(\w+)(?=\s|$)/g;  // Match @ followed by word chars
+        const matches = Array.from(text.matchAll(mateRegex));
+        if (!matches.length) return;
+        
+        // Get the last match
+        const lastMatch = matches[matches.length - 1];
+        const mateName = lastMatch[1].toLowerCase(); // Convert to lowercase for comparison
+        
+        // Only process known mates
+        if (!VALID_MATES.includes(mateName)) return;
+
+        // Calculate absolute positions
+        const matchStart = from - (text.length - lastMatch.index!);
+        const matchEnd = matchStart + lastMatch[0].length;
+
+        // Check if this mention is already a mate node
+        const nodeAtPos = editor.state.doc.nodeAt(matchStart);
+        if (nodeAtPos?.type.name === 'mate') return;
+
+        // Replace text with mate node
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: matchStart, to: matchEnd })
+            .insertContent([
+                {
+                    type: 'mate',
+                    attrs: { 
+                        name: mateName,
+                        id: crypto.randomUUID()
+                    }
+                },
+                {
+                    type: 'text',
+                    text: ' '  // Add space after mention
+                }
+            ])
+            .run();
     }
 
-    // Add helper function to calculate total size of existing attachments
-    function getCurrentAttachmentsSize(): number {
-        const imageSize = inlineImages.reduce((total, img) => total + img.blob.size, 0);
-        const fileSize = fileAttachments.reduce((total, file) => total + file.file.size, 0);
-        const videoSize = videoAttachments.reduce((total, video) => total + video.blob.size, 0);
-        return imageSize + fileSize + videoSize;
+    onMount(() => {
+        // Wait for element to be available
+        if (!editorElement) return;
+        
+        editor = new Editor({
+            element: editorElement,
+            extensions: [
+                StarterKit.configure({
+                    hardBreak: {
+                        keepMarks: true,
+                        HTMLAttributes: {}
+                    },
+                }),
+                CustomEmbed,
+                WebPreview,
+                MateNode,
+                Placeholder.configure({
+                    placeholder: ({ editor }: { editor: EditorType }) => {
+                        if (editor.isFocused) {
+                            return $_('enter_message.enter_your_message.text');
+                        }
+                        return $_('enter_message.click_to_enter_message.text');
+                    },
+                    emptyEditorClass: 'is-editor-empty',
+                }),
+                Extension.create({
+                    name: 'customKeyboardHandling',
+                    priority: 1000,
+                    addKeyboardShortcuts() {
+                        return {
+                            Enter: ({ editor }) => {
+                                // Handle regular Enter
+                                if (!editor.isEmpty) {
+                                    handleSend();
+                                }
+                                return true;
+                            },
+                            'Shift-Enter': ({ editor }) => {
+                                // Handle Shift+Enter with native TipTap command
+                                editor.commands.setHardBreak();
+                                return true;
+                            }
+                        }
+                    }
+                })
+            ],
+            content: defaultMention ? {
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '  // Add space after mention
+                        }
+                    ]
+                }]
+            } : '',
+            onFocus: () => {
+                isMessageFieldFocused = true;
+            },
+            onBlur: () => {
+                isMessageFieldFocused = false;
+            },
+            onUpdate: ({ editor }) => {
+                const content = editor.getHTML();
+                // Process URLs first
+                detectAndReplaceUrls(content);
+                // Then process mates
+                detectAndReplaceMates(content);
+            }
+        });
+
+        // Update cursor position after editor initialization
+        if (defaultMention) {
+            // Move cursor to end of document
+            editor.commands.focus('end');
+        } else {
+            editor.commands.focus();
+        }
+
+        // Add global event listener for embed clicks with proper typing
+        document.addEventListener('embedclick', ((event: CustomEvent) => {
+            const { id } = event.detail;
+            handleEmbedInteraction(event, id);
+        }) as EventListener);
+    });
+
+    // Update the URL detection and replacement function
+    function detectAndReplaceUrls(content: string) {
+        if (!editor) return;
+
+        // Get current cursor position
+        const { from } = editor.state.selection;
+        
+        // Get the text content up to the cursor
+        const text = editor.state.doc.textBetween(Math.max(0, from - 1000), from);
+        
+        // Only process if content ends with space or newline
+        const lastChar = text.slice(-1);
+        if (lastChar !== ' ' && lastChar !== '\n') return;
+
+        // Find the last URL before the cursor
+        const matches = Array.from(text.matchAll(urlRegex));
+        if (!matches.length) return;
+        
+        // Get the last match
+        const lastMatch = matches[matches.length - 1];
+        const url = lastMatch[0];
+        
+        // Calculate absolute positions
+        const matchStart = from - text.length + lastMatch.index!;
+        const matchEnd = matchStart + url.length;
+
+        // Check if this URL is already a web preview
+        const nodeAtPos = editor.state.doc.nodeAt(matchStart);
+        if (nodeAtPos?.type.name === 'webPreview') return;
+
+        // Replace URL with web preview node
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: matchStart, to: matchEnd })
+            .insertContent({
+                type: 'webPreview',
+                attrs: { 
+                    url,
+                    id: crypto.randomUUID()
+                }
+            })
+            .run();
     }
 
-    // Modify file input to accept multiple files
+    // Add a more specific transaction handler if needed
+    $: if (editor) {
+        editor.on('transaction', ({ transaction }) => {
+            // Only update if the transaction affects the doc structure
+            if (transaction.docChanged) {
+                // Check if it's just a text change
+                const isOnlyTextChange = transaction.steps.every(step => 
+                    step.toJSON().stepType === 'replace' && !step.toJSON().mark
+                );
+                
+                // Only force update if it's not just a text change
+                if (!isOnlyTextChange) {
+                    editor = editor;
+                }
+            }
+        });
+    }
+
+    onDestroy(() => {
+        if (editor) {
+            editor.destroy();
+        }
+        closeCamera();
+        document.removeEventListener('embedclick', (() => {}) as EventListener);
+    });
+
+    // Update the hasContent reactive declaration to check editor content
+    $: hasContent = editor?.state?.doc.textContent.length > 0 || 
+        editor?.state?.doc.content.childCount > 1;
+
+    // Handle file selection
     function handleFileSelect() {
-        // Set multiple attribute before clicking
         fileInput.multiple = true;
         fileInput.click();
     }
 
-    // Update file selection handler
-    function onFileSelected(event: Event) {
+    async function onFileSelected(event: Event) {
         const input = event.target as HTMLInputElement;
-        if (!input.files || input.files.length === 0) return;
+        if (!input.files?.length) return;
 
-        const newFiles = Array.from(input.files);
-        
-        const newFilesSize = newFiles.reduce((total, file) => total + file.size, 0);
-        const currentSize = getCurrentAttachmentsSize();
-        const totalSize = currentSize + newFilesSize;
+        const files = Array.from(input.files);
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
         if (totalSize > MAX_TOTAL_SIZE) {
-            alert($_('enter_message.file_size_limits.total_exceeded.text', ({
+            alert($_('enter_message.file_size_limits.total_exceeded.text', {
                 size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
-                current: (currentSize / 1024 / 1024).toFixed(1),
-                attempted: (newFilesSize / 1024 / 1024).toFixed(1)
-            } as any)));
-            input.value = '';
+                current: (totalSize / 1024 / 1024).toFixed(1),
+                attempted: (totalSize / 1024 / 1024).toFixed(1)
+            } as any));
             return;
         }
 
-        // Process each file
-        newFiles.forEach((file) => {
-            if (file.type.startsWith('video/')) {
-                // Handle video files
-                insertVideoAtCursor(file);
-            } else if (file.type.startsWith('image/')) {
-                insertImageAtCursor(file);
-            } else {
-                insertFileAtCursor(file);
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                await insertImage(file);
+            } else if (file.type === 'application/pdf') {
+                await insertFile(file);
+            } else if (file.type.startsWith('video/')) {
+                await insertVideo(file);
             }
-        });
-
-        input.value = '';
-    }
-
-    // Update camera input to match multiple file handling pattern
-    function onCameraFileSelected(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (!input.files || input.files.length === 0) return;
-
-        const newFiles = Array.from(input.files);
-        const newFilesSize = newFiles.reduce((total, file) => total + file.size, 0);
-        const currentSize = getCurrentAttachmentsSize();
-        const totalSize = currentSize + newFilesSize;
-
-        if (totalSize > MAX_TOTAL_SIZE) {
-            alert($_('enter_message.file_size_limits.total_exceeded.text', ({
-                size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
-                current: (currentSize / 1024 / 1024).toFixed(1),
-                attempted: (newFilesSize / 1024 / 1024).toFixed(1)
-            } as any)));
-            input.value = '';
-            return;
         }
 
-        newFiles.forEach(file => {
-            insertImageAtCursor(file);
-        });
-
         input.value = '';
     }
 
-    // Update the camera capture function to check size before inserting
+    async function insertImage(file: File) {
+        const url = URL.createObjectURL(file);
+        const id = crypto.randomUUID();
+        
+        editor.chain().focus().insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'image',
+                src: url,
+                filename: file.name,
+                id
+            }
+        }).run();
+    }
+
+    async function insertFile(file: File) {
+        console.log('Inserting PDF file:', file.name);
+        const url = URL.createObjectURL(file);
+        
+        // Add unique ID for PDFs
+        editor.chain()
+            .focus()
+            .insertContent({
+                type: 'customEmbed',
+                attrs: {
+                    type: 'pdf',
+                    src: url,
+                    filename: file.name,
+                    id: crypto.randomUUID() // Add unique ID for PDFs
+                }
+            })
+            .run();
+        
+        console.log('PDF insertion complete');
+    }
+
+    async function insertVideo(file: File) {
+        console.log('Inserting video:', file.name);
+        const url = URL.createObjectURL(file);
+        editor.chain().focus().insertContent({
+            type: 'customEmbed',
+            attrs: {
+                type: 'video',
+                src: url,
+                filename: file.name,
+                id: crypto.randomUUID()
+            }
+        }).run();
+    }
+
+    function handleCameraClick() {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' },
+                audio: false 
+            })
+            .then(mediaStream => {
+                stream = mediaStream;
+                showCamera = true;
+                tick().then(() => {
+                    if (videoElement) {
+                        videoElement.srcObject = stream;
+                    }
+                });
+            })
+            .catch(err => {
+                console.error('Camera access error:', err);
+                cameraInput.click();
+            });
+        } else {
+            cameraInput.click();
+        }
+    }
+
     async function capturePhoto() {
         if (!videoElement) return;
 
@@ -299,19 +677,10 @@
         
         if (ctx) {
             ctx.drawImage(videoElement, 0, 0);
-            canvas.toBlob((blob) => {
+            canvas.toBlob(async (blob) => {
                 if (blob) {
-                    // Check size before inserting
-                    const totalSize = getCurrentAttachmentsSize() + blob.size;
-                    if (totalSize > MAX_TOTAL_SIZE) {
-                        alert($_('enter_message.file_size_limits.total_exceeded.text', ({
-                            size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
-                            current: (getCurrentAttachmentsSize() / 1024 / 1024).toFixed(1),
-                            attempted: (blob.size / 1024 / 1024).toFixed(1)
-                        } as any)));
-                        return;
-                    }
-                    insertImageAtCursor(blob);
+                    const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    await insertImage(file);
                 }
             }, 'image/jpeg');
         }
@@ -326,477 +695,152 @@
         showCamera = false;
     }
 
-    onDestroy(() => {
-        closeCamera();
-        // Cleanup video URLs
-        videoURLs.forEach(({ url }) => URL.revokeObjectURL(url));
-    });
-
-    // Add new function to handle file insertions
-    function insertFileAtCursor(file: File) {
-        const fileId = crypto.randomUUID();
-        const newSegmentId = crypto.randomUUID();
-        
-        const newFile: FileAttachment = {
-            id: fileId,
-            file: file,
-            filename: file.name
-        };
-        
-        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
-        
-        const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
-        
-        if (activeIndex === 0 && !textSegments[0].text) {
-            textSegments = [
-                { ...textSegments[0], fileId },  // Associate file with first segment
-                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
-            ];
-        } else {
-            textSegments = [
-                ...textSegments.slice(0, activeIndex + 1),
-                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined }
-            ];
-            // Associate file with the segment at activeIndex
-            textSegments[activeIndex] = { ...textSegments[activeIndex], fileId };
-        }
-        
-        fileAttachments = [...fileAttachments, newFile];
-        activeSegmentId = newSegmentId;
-        
-        tick().then(() => {
-            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-            if (newTextarea) newTextarea.focus();
-        });
-    }
-
-    // Add this new function to adjust textarea height
-    function adjustTextareaHeight(textarea: HTMLTextAreaElement) {
-        // Reset height temporarily to get the correct scrollHeight
-        textarea.style.height = '0';
-        // Set to scrollHeight to get the full content height
-        textarea.style.height = `${textarea.scrollHeight}px`;
-    }
-
-    // Modify the existing handleKeydown function
-    function handleKeydown(event: KeyboardEvent, index: number) {
-        const textarea = event.target as HTMLTextAreaElement;
-        
-        // Adjust height on next tick to ensure content is updated
-        tick().then(() => adjustTextareaHeight(textarea));
-
-        // Handle Enter key
-        if (event.key === 'Enter') {
-            if (!event.shiftKey) {
-                event.preventDefault();
-                if (hasContent) {
-                    handleSend();
-                }
-            }
-        }
-
-        // Handle Backspace key
-        if (event.key === 'Backspace') {
-            if (textarea.selectionStart === 0 && textarea.selectionEnd === 0 && index > 0) {
-                event.preventDefault();
-                
-                const currentText = textarea.value;
-                const prevSegment = textSegments[index - 1];
-                
-                if (prevSegment.webUrl) {
-                    const url = prevSegment.webUrl;
-                    // Remove the web preview and merge segments
-                    const prevPrevSegment = index > 1 ? textSegments[index - 2] : null;
-                    
-                    if (prevPrevSegment) {
-                        // Append URL to previous text segment
-                        const newText = prevPrevSegment.text + (prevPrevSegment.text ? ' ' : '') + url + currentText;
-                        textSegments = [
-                            ...textSegments.slice(0, index - 2),
-                            {
-                                ...prevPrevSegment,
-                                text: newText,
-                                isEditing: true
-                            },
-                            ...textSegments.slice(index + 1)
-                        ];
-                        activeSegmentId = prevPrevSegment.id;
-                        
-                        // Set cursor position after URL
-                        tick().then(() => {
-                            const textarea = document.getElementById(prevPrevSegment.id) as HTMLTextAreaElement;
-                            if (textarea) {
-                                textarea.focus();
-                                const cursorPosition = newText.length - currentText.length;
-                                textarea.setSelectionRange(cursorPosition, cursorPosition);
-                            }
-                        });
-                    } else {
-                        // Create new text segment with URL
-                        const newText = url + currentText;
-                        const newSegmentId = crypto.randomUUID();
-                        textSegments = [
-                            {
-                                id: newSegmentId,
-                                text: newText,
-                                isEditing: true
-                            },
-                            ...textSegments.slice(index + 1)
-                        ];
-                        activeSegmentId = newSegmentId;
-                        
-                        // Set cursor position after URL
-                        tick().then(() => {
-                            const textarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-                            if (textarea) {
-                                textarea.focus();
-                                const cursorPosition = url.length;
-                                textarea.setSelectionRange(cursorPosition, cursorPosition);
-                            }
-                        });
-                    }
-                } else if (prevSegment.imageId || prevSegment.fileId || prevSegment.videoId) {
-                    // Existing attachment handling code...
-                    inlineImages = inlineImages.filter(img => img.id !== prevSegment.imageId);
-                    fileAttachments = fileAttachments.filter(file => file.id !== prevSegment.fileId);
-                    videoAttachments = videoAttachments.filter(video => video.id !== prevSegment.videoId);
-                    
-                    textSegments = [
-                        ...textSegments.slice(0, index - 1),
-                        {
-                            ...prevSegment,
-                            imageId: undefined,
-                            fileId: undefined,
-                            videoId: undefined,
-                            text: prevSegment.text + currentText,
-                            isEditing: true
-                        },
-                        ...textSegments.slice(index + 1)
-                    ];
-                    
-                    activeSegmentId = prevSegment.id;
-                } else {
-                    // Regular text merge if no attachments
-                    textSegments = [
-                        ...textSegments.slice(0, index - 1),
-                        {
-                            ...prevSegment,
-                            text: prevSegment.text + currentText,
-                            isEditing: true
-                        },
-                        ...textSegments.slice(index + 1)
-                    ];
-                    
-                    activeSegmentId = prevSegment.id;
-                }
-
-                setTimeout(() => {
-                    const prevTextarea = document.getElementById(prevSegment.id) as HTMLTextAreaElement;
-                    if (prevTextarea) {
-                        prevTextarea.focus();
-                        const length = prevTextarea.value.length;
-                        prevTextarea.setSelectionRange(length, length);
-                    }
-                }, 0);
-            }
-        }
-    }
-
-    // Update handleInput function to detect spaces using InputEvent
-    function handleInput(event: Event, segment: TextSegment, index: number) {
-        const textarea = event.target as HTMLTextAreaElement;
-        adjustTextareaHeight(textarea);
-        
-        // Update the segment's text immediately
-        segment.text = textarea.value;
-        
-        // Check if space was typed using InputEvent
-        const inputEvent = event as InputEvent;
-        if (inputEvent.data === ' ') {
-            // console.log('Space detected, checking for URLs in:', textarea.value); // Debug log
-            handleUrlDetection(segment, index);
-        }
-    }
-
-    // Add function to handle sending
+    // Update the handleSend button click handler in the template
     function handleSend() {
-        const markdownContent = getMarkdownContent();
-        console.log('Sending message with following markdown content:');
-        console.log('----------------------------------------');
-        console.log(markdownContent);
-        console.log('----------------------------------------');
-
-        // Log attachments for debugging
-        if (inlineImages.length > 0) {
-            console.log('Included images:', inlineImages.map(img => ({
-                filename: img.filename,
-                size: Math.round(img.blob.size / 1024) + 'KB'
-            })));
-        }
+        if (!editor || editor.isEmpty) return;
         
-        if (fileAttachments.length > 0) {
-            console.log('Included files:', fileAttachments.map(file => ({
-                filename: file.filename,
-                size: Math.round(file.file.size / 1024) + 'KB'
-            })));
-        }
-    }
-
-    // Update handleKeyPress to properly handle keyboard events
-    function handleKeyPress(segment: TextSegment, event: KeyboardEvent) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            // Create a fake mouse event at position 0
-            const fakeMouseEvent = {
-                clientX: 0,
-                target: event.target
-            } as MouseEvent;
-            handleTextClick(segment, fakeMouseEvent);
-        }
-    }
-
-    // Add this function back after handleFileSelect
-    async function handleCameraClick() {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' },
-                audio: false 
-            });
-            
-            if (stream) {
-                showCamera = true;
-                await tick();
-                if (videoElement) {
-                    videoElement.srcObject = stream;
+        let markdown = '';
+        let isFirstParagraph = true;
+        let lastNodeWasEmbed = false;
+        
+        // Process the document directly using editor's state
+        editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'paragraph') {
+                // Add newline between paragraphs, but not before the first one
+                // Also don't add extra newline if last node was an embed
+                if (!isFirstParagraph && !lastNodeWasEmbed) {
+                    markdown += '\n';
                 }
-            }
-        } catch (err) {
-            console.error('Camera access error:', err);
-            cameraInput.removeAttribute('capture');
-            cameraInput.click();
-        }
-    }
+                isFirstParagraph = false;
+                lastNodeWasEmbed = false;
 
-    // Add function to insert video
-    function insertVideoAtCursor(videoFile: File) {
-        const videoId = crypto.randomUUID();
-        const newSegmentId = crypto.randomUUID();
-        
-        const newVideo: VideoAttachment = {
-            id: videoId,
-            blob: videoFile,
-            filename: videoFile.name
-        };
-        
-        // Create and store URL
-        const videoURL = URL.createObjectURL(videoFile);
-        videoURLs = [...videoURLs, { id: videoId, url: videoURL }];
-        
-        // Make all existing segments non-editable
-        textSegments = textSegments.map(s => ({ ...s, isEditing: false }));
-        
-        const activeIndex = textSegments.findIndex(s => s.id === activeSegmentId);
-        
-        if (activeIndex === 0 && !textSegments[0].text) {
-            textSegments = [
-                { ...textSegments[0], videoId },
-                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined, videoId: undefined }
-            ];
-        } else {
-            textSegments = [
-                ...textSegments.slice(0, activeIndex + 1),
-                { id: newSegmentId, text: '', isEditing: true, imageId: undefined, fileId: undefined, videoId: undefined }
-            ];
-            textSegments[activeIndex] = { ...textSegments[activeIndex], videoId };
-        }
-        
-        videoAttachments = [...videoAttachments, newVideo];
-        activeSegmentId = newSegmentId;
-        
-        tick().then(() => {
-            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-            if (newTextarea) newTextarea.focus();
-        });
-    }
+                // Track if we've added content to this paragraph
+                let hasContent = false;
 
-    // Update URL detection regex (replace existing urlRegex)
-    const urlRegex = /https?:\/\/[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?/gi;
-
-    // Replace existing handleUrlDetection function
-    function handleUrlDetection(segment: TextSegment, index: number) {
-        // Only proceed if a space was just typed in the segment text
-        // so that we know the user has potentially finished typing the URL
-        if (!segment.text.endsWith(' ')) {
-            return;
-        }
-
-        // We split the entire current segment text by whitespace
-        // to find if there's any newly typed URL anywhere in the text.
-        const words = segment.text.split(/\s+/);
-
-        // If there's no text to process or a webUrl is already attached to this segment, do nothing
-        if (!words.length || segment.webUrl) {
-            return;
-        }
-
-        // Find the index of the last URL that appears in the list of words
-        // This covers the scenario where the user typed text, inserted a URL, 
-        // and then continued typing more text in the same segment.
-        let lastURLIndex = -1;
-        for (let i = 0; i < words.length; i++) {
-            // We test each word against our current urlRegex
-            if (urlRegex.test(words[i])) {
-                lastURLIndex = i;
-            }
-        }
-
-        // If there's no URL found, stop here
-        if (lastURLIndex === -1) {
-            return;
-        }
-
-        // If we did find a URL, we extract it
-        const url = words[lastURLIndex];
-        console.debug("Detected URL for preview:", url); // Debug-style logging
-
-        // Prepare a new segment ID for the final text portion
-        const newSegmentId = crypto.randomUUID();
-
-        // Split the text into portions before and after the URL
-        // We remove the actual "URL word" from the middle portion, as that goes in its own segment.
-        const textBeforeUrl = words.slice(0, lastURLIndex).join(' ');
-        const textAfterUrl = words.slice(lastURLIndex + 1).join(' ');
-
-        console.debug("Text before URL:", textBeforeUrl);
-        console.debug("Text after URL:", textAfterUrl);
-
-        // We will construct up to three segments:
-        // 1. One for the text before the newly detected URL (if any)
-        // 2. One for the URL itself (the "web preview" segment)
-        // 3. One for any leftover text after the URL, or if there is no text leftover,
-        //    we still place an empty segment so users can keep typing.
-        const newSegments: TextSegment[] = [];
-
-        // If there is text before the URL, create a non-editing segment for that
-        if (textBeforeUrl.trim()) {
-            newSegments.push({
-                id: crypto.randomUUID(),
-                text: textBeforeUrl.trimEnd() + ' ', // preserve trailing space
-                isEditing: false
-            });
-        }
-
-        // The next segment is the "web preview" itself
-        newSegments.push({
-            id: crypto.randomUUID(),
-            text: '',
-            isEditing: false,
-            webUrl: url
-        });
-
-        // Finally, create a new text segment for whatever remains,
-        // enabling editing so the user can continue typing immediately.
-        newSegments.push({
-            id: newSegmentId,
-            text: textAfterUrl ? textAfterUrl + ' ' : ' ', // preserve space
-            isEditing: true
-        });
-
-        // Now we rebuild our textSegments, splicing out the current one,
-        // and inserting the newly created segments in its place
-        textSegments = [
-            ...textSegments.slice(0, index),
-            ...newSegments,
-            ...textSegments.slice(index + 1)
-        ];
-
-        // Give focus to the last new segment (so user can continue typing seamlessly)
-        activeSegmentId = newSegmentId;
-
-        tick().then(() => {
-            const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-            if (newTextarea) {
-                newTextarea.focus();
-                // If there was leftover text after the URL, place cursor at the end of that text
-                const position = newTextarea.value.length;
-                newTextarea.setSelectionRange(position, position);
-            }
-        });
-    }
-
-    // Replace existing handlePaste function
-    function handlePaste(event: ClipboardEvent) {
-        const textarea = event.target as HTMLTextAreaElement;
-        const pastedText = event.clipboardData?.getData('text') || '';
-
-        // Check if pasted text is a valid URL
-        if (pastedText.match(urlRegex)) {
-            event.preventDefault();
-
-            const currentIndex = textSegments.findIndex(s => s.id === activeSegmentId);
-            if (currentIndex !== -1) {
-                const segment = textSegments[currentIndex];
-                const cursorPosition = textarea.selectionStart;
-
-                // Split the current text at cursor position
-                const textBefore = segment.text.slice(0, cursorPosition);
-                const textAfter = segment.text.slice(textarea.selectionEnd);
-
-                const newSegmentId = crypto.randomUUID();
-
-                // Create new segments
-                textSegments = [
-                    ...textSegments.slice(0, currentIndex),
-                    { ...segment, text: textBefore.trim() },
-                    { id: crypto.randomUUID(), text: '', isEditing: false, webUrl: pastedText },
-                    { id: newSegmentId, text: textAfter.trim(), isEditing: true },
-                    ...textSegments.slice(currentIndex + 1)
-                ];
-
-                // Set focus to the last segment
-                activeSegmentId = newSegmentId;
-
-                // Ensure focus is set after DOM update
-                tick().then(() => {
-                    const newTextarea = document.getElementById(newSegmentId) as HTMLTextAreaElement;
-                    if (newTextarea) {
-                        newTextarea.focus();
-                        // If there was text after the cursor, place cursor at start of that text
-                        if (textAfter) {
-                            newTextarea.setSelectionRange(0, 0);
+                node.content.forEach((child, index, array) => {
+                    if (child.type.name === 'mate') {
+                        markdown += `@${child.attrs.name}`;
+                        hasContent = true;
+                        lastNodeWasEmbed = false;
+                    } else if (child.type.name === 'webPreview') {
+                        markdown += `${child.attrs.url}\n`;  // Add newline after web preview
+                        hasContent = true;
+                        lastNodeWasEmbed = true;
+                    } else if (child.type.name === 'customEmbed') {
+                        const { type, filename } = child.attrs;
+                        if (type === 'image' || type === 'pdf') {
+                            markdown += `[${filename}]\n`;  // Add newline after image/pdf
+                            hasContent = true;
+                            lastNodeWasEmbed = true;
                         }
+                    } else if (child.type.name === 'text') {
+                        markdown += child.text;
+                        hasContent = true;
+                        lastNodeWasEmbed = false;
+                    } else if (child.type.name === 'hardBreak') {
+                        markdown += '\n';
+                        hasContent = true;
+                        lastNodeWasEmbed = false;
                     }
                 });
+
+                // Add newline after paragraph if it had content and wasn't an embed
+                if (hasContent && !lastNodeWasEmbed) {
+                    markdown += '\n';
+                }
             }
-        }
+        });
+        
+        // Log the markdown for debugging
+        console.log('Final markdown:', markdown);
+        
+        // Clear the editor content
+        editor.commands.clearContent();
     }
 
-    // First, modify the isMessageFieldFocused variable to track actual text field focus
-    let isMessageFieldFocused = false;
+    // Add prop for default mention
+    export const defaultMention: string = 'sophia';
 
-    // Add back onMount with focus state
-    onMount(() => {
-        // Auto-focus the initial textarea on component load
-        const initialTextarea = document.getElementById('initial') as HTMLTextAreaElement;
-        if (initialTextarea) {
-            initialTextarea.focus();
-            isMessageFieldFocused = true; // Set focus state to true on initial load
-        }
-    });
+    // Add this function to handle press/click on embeds
+    function handleEmbedInteraction(event: CustomEvent, embedId: string) {
+        event.preventDefault();
+        
+        // Find the element using the elementId from the event detail
+        const element = document.getElementById(event.detail.elementId);
+        if (!element) return;
 
-    // Add new prop for the default mention
-    export let defaultMention: string | undefined = 'sophia';
+        // Find the node with this ID
+        let foundNode: any = null;
+        editor.state.doc.descendants((node: any, pos: number) => {
+            if (node.attrs?.id === embedId) {
+                foundNode = { node, pos };
+                return false;
+            }
+            return true;
+        });
 
-    // Add new type for mention display
-    type MentionDisplay = {
-        mate: string;
-        element: HTMLElement | null;
+        if (!foundNode) return;
+
+        const rect = element.getBoundingClientRect();
+        menuX = rect.left + (rect.width / 2);
+        menuY = rect.top;
+        
+        selectedEmbedId = embedId;
+        showMenu = true;
+
+        // Determine the type of content for the menu
+        const contentType = foundNode.node.attrs.type;
+        menuType = contentType === 'pdf' ? 'pdf' : 
+                   contentType === 'webPreview' ? 'web' : 
+                   'default';
     }
 
-    let currentMention: MentionDisplay | null = defaultMention ? {
-        mate: defaultMention,
-        element: null
-    } : null;
+    // Add these handlers for the menu actions
+    function handleMenuAction(action: 'delete' | 'download' | 'view' | 'copy') {
+        if (!selectedEmbedId) return;
+
+        let foundNode: any = null;
+        editor.state.doc.descendants((node: any, pos: number) => {
+            if (node.attrs?.id === selectedEmbedId) {
+                foundNode = { node, pos };
+                return false;
+            }
+            return true;
+        });
+
+        if (!foundNode) return;
+
+        const { node, pos } = foundNode;
+
+        switch (action) {
+            case 'delete':
+                editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run();
+                break;
+                
+            case 'download':
+                const a = document.createElement('a');
+                a.href = node.attrs.src;
+                a.download = node.attrs.filename || '';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                break;
+                
+            case 'view':
+                // Use the correct src from the found node
+                if (node.attrs.src) {
+                    window.open(node.attrs.src, '_blank');
+                }
+                break;
+
+            case 'copy':
+                if (node.attrs.url) {
+                    navigator.clipboard.writeText(node.attrs.url).catch(console.error);
+                }
+                break;
+        }
+        showMenu = false;
+    }
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
@@ -814,185 +858,17 @@
         type="file"
         accept="image/*"
         capture="environment"
-        on:change={onCameraFileSelected}
+        on:change={onFileSelected}
         style="display: none"
         multiple
     />
 
     <div class="scrollable-content">
         <div class="content-wrapper">
-            {#each textSegments as segment, index}
-                {#if shouldShowSegment(segment, index)}
-                    {#if segment.isEditing}
-                        <div class="input-wrapper">
-                            {#if index === 0 && currentMention && (segment.text || isMessageFieldFocused)}
-                                <div class="mention-display">
-                                    <span class="at-symbol">@</span>
-                                    <div class="mate-profile mate-profile-small {currentMention.mate}"></div>
-                                </div>
-                            {/if}
-                            <textarea
-                                id={segment.id}
-                                bind:value={segment.text}
-                                on:focus={() => {
-                                    activeSegmentId = segment.id;
-                                    isMessageFieldFocused = true;
-                                }}
-                                on:blur={() => {
-                                    segment.isEditing = false;
-                                    setTimeout(() => {
-                                        const activeElement = document.activeElement;
-                                        if (!activeElement || !activeElement.matches('textarea')) {
-                                            isMessageFieldFocused = false;
-                                        }
-                                    }, 0);
-                                }}
-                                on:keydown={(e) => handleKeydown(e, index)}
-                                on:input={(e) => handleInput(e, segment, index)}
-                                on:paste={handlePaste}
-                                placeholder={index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl 
-                                    ? $_('enter_message.enter_your_message.text')
-                                    : segment.imageId || segment.fileId || segment.videoId || segment.webUrl 
-                                        ? $_('enter_message.click_to_add_text.text')
-                                        : ""}
-                                rows="1"
-                                class="message-input {segment.text ? 'has-content' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''} {index === 0 && currentMention ? 'has-mention' : ''}"
-                            ></textarea>
-                        </div>
-                    {:else}
-                        <div
-                            class="text-display {!segment.text ? 'empty' : ''} {(segment.imageId || segment.fileId || segment.videoId || segment.webUrl) ? 'before-attachment' : ''}"
-                            on:click={(e) => {
-                                handleTextClick(segment, e);
-                                isMessageFieldFocused = true;
-                            }}
-                            on:keydown={(e) => handleKeyPress(segment, e)}
-                            tabindex="0"
-                            role="textbox"
-                        >
-                            {#if index === 0 && currentMention && segment.text}
-                                <div class="mention-display">
-                                    <span class="at-symbol">@</span>
-                                    <div class="mate-profile mate-profile-small {currentMention.mate}"></div>
-                                </div>
-                            {/if}
-                            {#if index === 0 && !segment.text && !segment.imageId && !segment.fileId && !segment.videoId && !segment.webUrl}
-                                <span class="placeholder">
-                                    {isMessageFieldFocused ? 
-                                        $_('enter_message.enter_your_message.text') : 
-                                        $_('enter_message.click_to_enter_message.text')}
-                                </span>
-                            {:else if !segment.text && (segment.imageId || segment.fileId || segment.videoId || segment.webUrl)}
-                                <span class="placeholder">{$_('enter_message.click_to_add_text.text')}</span>
-                            {:else}
-                                {segment.text || '\u00A0'}
-                            {/if}
-                        </div>
-                    {/if}
-                {/if}
-                
-                {#if segment.imageId}
-                    {#if inlineImages.find(img => img.id === segment.imageId)}
-                        {@const image = inlineImages.find(img => img.id === segment.imageId)!}
-                        <Photos 
-                            src={URL.createObjectURL(image.blob)}
-                            filename={image.filename}
-                            on:delete={() => {
-                                // Remove only the specific image
-                                inlineImages = inlineImages.filter(img => img.id !== segment.imageId);
-                                
-                                // Find the current segment index
-                                const currentIndex = textSegments.findIndex(s => s.id === segment.id);
-                                
-                                // Only modify the current segment by removing its image reference
-                                textSegments = textSegments.map((seg, idx) => {
-                                    if (idx === currentIndex) {
-                                        return {
-                                            ...seg,
-                                            imageId: undefined,
-                                            isEditing: true
-                                        };
-                                    }
-                                    return seg;
-                                });
-                                
-                                // Set focus to the current segment
-                                activeSegmentId = textSegments[currentIndex].id;
-                            }}
-                        />
-                    {/if}
-                {:else if segment.fileId}
-                    {#if fileAttachments.find(file => file.id === segment.fileId)}
-                        {@const file = fileAttachments.find(file => file.id === segment.fileId)!}
-                        {#if file.file.type === 'application/pdf'}
-                            <PDF 
-                                src={URL.createObjectURL(file.file)}
-                                filename={file.filename}
-                                on:delete={() => {
-                                    fileAttachments = fileAttachments.filter(f => f.id !== segment.fileId);
-                                    textSegments = textSegments.map((seg, idx) => {
-                                        if (idx === index) {
-                                            return {
-                                                ...seg,
-                                                fileId: undefined,
-                                                isEditing: true
-                                            };
-                                        }
-                                        return seg;
-                                    });
-                                    activeSegmentId = textSegments[index].id;
-                                }}
-                            />
-                        {:else}
-                            <div class="file-attachment">
-                                <div class="file-icon">📎</div>
-                                <div class="file-info">
-                                    <div class="file-name">
-                                        {file.filename}
-                                    </div>
-                                </div>
-                            </div>
-                        {/if}
-                    {/if}
-                {:else if segment.videoId}
-                    {#if videoAttachments.find(video => video.id === segment.videoId)}
-                        <div class="video-container">
-                            <video 
-                                src={videoURLs.find(v => v.id === segment.videoId)?.url}
-                                controls
-                                preload="metadata"
-                                class="preview-video"
-                            >
-                                <track kind="captions">
-                                Your browser does not support the video tag.
-                            </video>
-                        </div>
-                    {/if}
-                {:else if segment.webUrl}
-                    <Web 
-                        url={segment.webUrl} 
-                        on:delete={() => {
-                            const currentIndex = textSegments.findIndex(s => s.id === segment.id);
-                            if (currentIndex !== -1) {
-                                const prevSegment = textSegments[currentIndex - 1];
-                                const nextSegment = textSegments[currentIndex + 1];
-                                
-                                textSegments = [
-                                    ...textSegments.slice(0, currentIndex - 1),
-                                    {
-                                        ...prevSegment,
-                                        text: (prevSegment.text + ' ' + nextSegment.text).trim(),
-                                        isEditing: true
-                                    },
-                                    ...textSegments.slice(currentIndex + 2)
-                                ];
-                                
-                                activeSegmentId = prevSegment.id;
-                            }
-                        }}
-                    />
-                {/if}
-            {/each}
+            <div 
+                bind:this={editorElement} 
+                class="editor-content prose"
+            ></div>
         </div>
     </div>
 
@@ -1027,7 +903,6 @@
             ></button>
             <button 
                 class="clickable-icon icon_maps" 
-                on:click={() => {/* Handle maps click */}} 
                 aria-label={$_('enter_message.attachments.share_location.text')}
             ></button>
         </div>
@@ -1042,15 +917,34 @@
                 aria-label={$_('enter_message.attachments.record_audio.text')}
             ></button>
             {#if hasContent}
-                <button class="send-button" on:click={handleSend}>
+                <button 
+                    class="send-button" 
+                    on:click={handleSend}
+                    aria-label={$_('enter_message.send.text')}
+                >
                     {$_('enter_message.send.text')}
                 </button>
             {/if}
         </div>
     </div>
+
+    {#if showMenu}
+        <PressAndHoldMenu
+            x={menuX}
+            y={menuY}
+            show={showMenu}
+            type={menuType}
+            on:close={() => showMenu = false}
+            on:delete={() => handleMenuAction('delete')}
+            on:download={() => handleMenuAction('download')}
+            on:view={() => handleMenuAction('view')}
+            on:copy={() => handleMenuAction('copy')}
+        />
+    {/if}
 </div>
 
 <style>
+    /* Reuse all your existing styles from EnterMessageField.svelte */
     .message-container {
         width: 100%;
         min-height: 100px;
@@ -1068,6 +962,44 @@
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     }
 
+    /* Add Tiptap-specific styles */
+    :global(.ProseMirror) {
+        outline: none;
+        min-height: 2em;
+        padding: 0.5rem 0;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+    }
+
+    :global(.custom-embed) {
+        display: inline-flex;
+        align-items: center;
+        background: #f5f5f5;
+        border-radius: 4px;
+        padding: 4px 8px;
+        margin: 0 2px;
+        cursor: pointer;
+    }
+
+    :global(.custom-embed img) {
+        max-width: 200px;
+        max-height: 200px;
+        object-fit: contain;
+    }
+
+    :global(.custom-embed.file) {
+        background: #e8f0fe;
+    }
+
+    :global(.custom-embed.video) {
+        background: #fce8e8;
+    }
+
+    /* Rest of your existing styles... */
+    /* Copy all remaining styles from your original component */
+
     .scrollable-content {
         width: 100%;
         height: 100%;
@@ -1077,6 +1009,8 @@
         padding-top: 1em;
         scrollbar-width: thin;
         scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
+        overflow-x: hidden;
+        box-sizing: border-box;
     }
 
     .scrollable-content::-webkit-scrollbar {
@@ -1096,6 +1030,9 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 0.5rem;
     }
 
     .message-input {
@@ -1123,35 +1060,6 @@
     @keyframes blink-caret {
         from, to { caret-color: var(--color-font-primary); }
         50% { caret-color: transparent; }
-    }
-
-    .message-input::placeholder {
-        text-align: center;
-        transition: opacity 0.2s ease;
-        position: absolute;
-        left: 0;
-        right: 0;
-        color: var(--color-font-tertiary);
-        font-weight: 500;
-    }
-
-    .message-input.has-content::placeholder {
-        opacity: 0;
-    }
-
-    textarea {
-        /* Reset all properties that could affect textarea height */
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        line-height: normal !important;
-        font-size: unset !important;
-        font-family: unset !important;
-        font-weight: 500 !important;
-        min-height: unset !important;
-        max-height: unset !important;
-        box-sizing: content-box !important;
-        color: var(--color-font-primary);
     }
 
     .action-buttons {
@@ -1226,64 +1134,6 @@
     .camera-button:hover {
         background: rgba(255, 255, 255, 0.3);
     }
-
-    .text-display {
-        width: 100%;
-        white-space: pre-wrap;
-        cursor: text;
-        text-align: left;
-        color: var(--color-font-primary);
-        font-weight: 500 !important; 
-    }
-
-    /* Add a new class for empty text display */
-    .text-display.empty {
-        text-align: center;
-        color: var(--color-font-tertiary);
-    }
-
-    .file-attachment {
-        display: flex;
-        align-items: center;
-        background: #f5f5f5;
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin: 0.5rem 0;
-        gap: 1rem;
-        max-width: 80%;
-    }
-
-    .file-icon {
-        font-size: 1.5rem;
-    }
-
-    .file-info {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .file-name {
-        font-weight: 500;
-        word-break: break-all;
-    }
-
-    .video-container {
-        width: 100%;
-        max-width: 80%;
-        margin: 0.5rem 0;
-        position: relative;
-        background: var(--color-grey-20);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .preview-video {
-        width: 100%;
-        max-height: 300px;
-        object-fit: contain;
-        background: #000;
-    }
-
     .send-button {
         user-select: none;
         -webkit-user-select: none;
@@ -1299,25 +1149,6 @@
         margin-top: 10px;
     }
 
-    .message-input.before-attachment::placeholder,
-    .text-display.before-attachment.empty {
-        text-align: left;
-        color: var(--color-font-tertiary);
-    }
-
-    .text-display.empty:not(.before-attachment) {
-        text-align: center;
-        color: var(--color-font-tertiary);
-    }
-
-    .placeholder {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        color: var(--color-font-tertiary);
-    }
-
     /* Update left-buttons style if needed */
     .left-buttons {
         display: flex;
@@ -1326,50 +1157,363 @@
         height: 100%;
     }
 
-    .input-wrapper {
-        position: relative;
+
+    /* Add essential Tiptap styles */
+    :global(.editor-content) {
+        min-height: 2em;
+        padding: 0.5rem;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        padding: 0.5rem;
+        min-height: 2em;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+        line-height: 1.5;
+        max-width: 100%;
+        box-sizing: border-box;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    :global(.custom-embed-container) {
+        display: inline-block;
+        margin: 4px 0;
+        vertical-align: bottom;
+    }
+
+    /* Remove these conflicting styles */
+    :global(.custom-embed) {
+        display: none !important;
+    }
+
+    :global(.custom-embed img) {
+        display: none !important;
+    }
+
+    :global(.custom-embed.file) {
+        display: none !important;
+    }
+
+    :global(.custom-embed.video) {
+        display: none !important;
+    }
+
+    /* Add new styles for proper embedding */
+    :global(.custom-embed-wrapper) {
+        display: inline-block;
+        margin: 4px 0;
+        vertical-align: bottom;
+        max-width: 100%;
+    }
+
+    :global(.ProseMirror .custom-embed-wrapper) {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Ensure the editor can handle the embeds */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        overflow-x: hidden;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        padding: 0.5rem;
+        min-height: 2em;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* Add simple embed styles */
+    :global(.embedded-image) {
+        max-width: 300px;
+        max-height: 200px;
+        border-radius: 8px;
+        margin: 4px 0;
+        object-fit: contain;
+    }
+
+    :global(.embedded-file) {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--color-grey-20);
+        padding: 8px 16px;
+        border-radius: 8px;
+        margin: 4px 0;
+    }
+
+    :global(.file-icon) {
+        font-size: 24px;
+    }
+
+    :global(.file-name) {
+        font-size: 14px;
+        color: var(--color-font-primary);
+    }
+
+    /* Remove all custom-embed related styles */
+    :global(.custom-embed),
+    :global(.custom-embed-wrapper),
+    :global(.custom-embed-container) {
+        display: none;
+    }
+
+    /* Keep essential editor styles */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        padding: 0.5rem;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+    }
+
+    /* Add new PDF-specific styles */
+    :global(.embedded-pdf) {
+        display: inline-flex !important;
+        background-color: var(--color-grey-20);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin: 4px 2px;
+        max-width: 300px;
+    }
+
+    :global(.pdf-content) {
         display: flex;
         align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    :global(.pdf-icon) {
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    :global(.pdf-filename) {
+        font-size: 14px;
+        color: var(--color-font-primary);
+        word-break: break-all;
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Remove conflicting styles */
+    :global(.custom-embed),
+    :global(.custom-embed-wrapper),
+    :global(.custom-embed-container) {
+        display: inline-flex !important;
+    }
+
+    /* Ensure editor content is visible */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        background-color: transparent;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        min-height: 2em;
+        padding: 0.5rem;
+        color: var(--color-font-primary);
+    }
+
+    /* Remove the old PDF styles */
+    :global(.embedded-pdf),
+    :global(.pdf-content),
+    :global(.pdf-icon),
+    :global(.pdf-filename) {
+        display: none !important;
+    }
+
+    /* Add the new PDF preview styles */
+    :global(.pdf-preview-container) {
+        width: 300px;
+        height: 60px;
+        background-color: var(--color-grey-20);
+        border-radius: 30px;
+        position: relative;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        margin: 4px 0;
+    }
+
+    :global(.pdf-preview-container:hover) {
+        background-color: var(--color-grey-30);
+    }
+
+    :global(.pdf-preview-container .filename-container) {
+        position: absolute;
+        left: 65px;
+        right: 16px;
+        min-height: 40px;
+        padding: 5px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    :global(.pdf-preview-container .filename) {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+        font-size: 14px;
+        color: var(--color-font-primary);
+        width: 100%;
+        word-break: break-word;
+        max-height: 2.6em;
+    }
+
+    /* Add new photo preview styles */
+    :global(.photo-preview-container) {
+        width: 300px;
+        height: 200px;
+        border-radius: 30px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        margin: 4px 0;
+    }
+
+    :global(.checkerboard-background) {
+        width: 100%;
+        height: 100%;
+        background-image: linear-gradient(45deg, var(--color-grey-20) 25%, transparent 25%),
+                          linear-gradient(-45deg, var(--color-grey-20) 25%, transparent 25%),
+                          linear-gradient(45deg, transparent 75%, var(--color-grey-20) 75%),
+                          linear-gradient(-45deg, transparent 75%, var(--color-grey-20) 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        background-color: var(--color-grey-0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    :global(.preview-image) {
+        display: block;
+    }
+
+    :global(.preview-image.fill-container) {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Remove old image preview styles */
+    :global(.embedded-image) {
+        display: none !important;
+    }
+
+    /* Add web preview styles */
+    :global(.web-preview-container) {
+        display: inline-block;
+        margin: 4px 0;
+        vertical-align: bottom;
+    }
+
+    /* Placeholder styling */
+    :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        content: attr(data-placeholder);
+        float: left;
+        color: var(--color-font-tertiary);
+        pointer-events: none;
+        height: 0;
+    }
+
+    /* Center placeholder when not focused */
+    :global(.ProseMirror:not(:focus) p.is-editor-empty:first-child::before) {
+        text-align: center;
         width: 100%;
     }
 
-    .mention-display {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        z-index: 1;
+    /* Left align placeholder when focused */
+    :global(.ProseMirror:focus p.is-editor-empty:first-child::before) {
+        text-align: left;
     }
 
-    .at-symbol {
+    :global(.photo-preview-container) {
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    :global(.photo-preview-container:hover) {
+        opacity: 0.9;
+    }
+
+    :global(.photo-preview-container:active) {
+        opacity: 0.8;
+    }
+
+    /* Add new styles for mate mentions */
+    :global(.mate-mention) {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 4px;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    :global(.mate-mention .at-symbol) {
         color: var(--color-font-primary);
         font-weight: 500;
     }
 
-    .message-input.has-mention {
-        padding-left: 64px !important;
+    :global(.mate-mention .mate-profile) {
+        width: 24px;
+        height: 24px;
+        display: inline-block;
+        vertical-align: middle;
     }
 
-    .text-display {
-        position: relative;
-        padding-left: 0;
-        width: 100%;
-        box-sizing: border-box;
+    :global(.ProseMirror p:first-child) {
+        margin-top: 0;
     }
 
-    .text-display:has(.mention-display) {
-        padding-left: 64px;
-    }
-
-    /* Add new style to handle placeholder positioning when mate selection is visible */
-    .input-wrapper:has(.mention-display) .message-input::placeholder {
-        text-align: left;
-        left: 64px;
-        right: 0;
-        width: calc(100% - 64px);
+    :global(.ProseMirror p:last-child) {
+        margin-bottom: 0;
     }
 </style>
