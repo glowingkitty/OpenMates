@@ -10,6 +10,7 @@
     import type { Editor as EditorType } from '@tiptap/core';
     import { EditorView } from 'prosemirror-view';
     import { Extension } from '@tiptap/core';
+    import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -29,6 +30,10 @@
     let editor: Editor;
     let isMessageFieldFocused = false;
     let editorElement: HTMLElement | undefined = undefined;
+    let showMenu = false;
+    let menuX = 0;
+    let menuY = 0;
+    let selectedEmbedId: string | null = null;
 
     // Custom node for embedded content (images, files, etc.)
     const CustomEmbed = Node.create({
@@ -42,7 +47,8 @@
             return {
                 type: { default: 'image' },
                 src: { default: null },
-                filename: { default: null }
+                filename: { default: null },
+                id: { default: () => crypto.randomUUID() }
             }
         },
 
@@ -62,7 +68,12 @@
                     tabindex: '0',
                     'data-type': 'custom-embed',
                     'data-src': HTMLAttributes.src,
-                    'data-filename': HTMLAttributes.filename
+                    'data-filename': HTMLAttributes.filename,
+                    'data-id': HTMLAttributes.id,
+                    onclick: `this.dispatchEvent(new CustomEvent('embedclick', { 
+                        bubbles: true, 
+                        detail: { id: '${HTMLAttributes.id}' }
+                    }))`,
                 },
                     // Checkerboard background container
                     ['div', { class: 'checkerboard-background' },
@@ -254,6 +265,12 @@
 
         // Auto-focus the editor on mount
         editor.commands.focus();
+
+        // Add global event listener for embed clicks
+        document.addEventListener('embedclick', ((event: CustomEvent) => {
+            const { id } = event.detail;
+            handleEmbedInteraction(event as unknown as MouseEvent, id);
+        }) as EventListener);
     });
 
     // Update the URL detection and replacement function
@@ -321,6 +338,7 @@
             editor.destroy();
         }
         closeCamera();
+        document.removeEventListener('embedclick', (() => {}) as EventListener);
     });
 
     // Update the hasContent reactive declaration to check editor content
@@ -473,6 +491,56 @@
 
     // Add prop for default mention
     export const defaultMention: string = 'sophia';
+
+    // Add this function to handle press/click on embeds
+    function handleEmbedInteraction(event: MouseEvent, embedId: string) {
+        // Prevent default browser context menu
+        event.preventDefault();
+        
+        // Calculate menu position
+        const rect = (event.target as HTMLElement).getBoundingClientRect();
+        menuX = rect.left + (rect.width / 2);
+        menuY = rect.top;
+        
+        selectedEmbedId = embedId;
+        showMenu = true;
+    }
+
+    // Add these handlers for the menu actions
+    function handleMenuAction(action: 'delete' | 'download' | 'view') {
+        if (!selectedEmbedId) return;
+
+        let embedNode: any;
+        editor.state.doc.descendants((node: any) => {
+            if (node.attrs?.id === selectedEmbedId) {
+                embedNode = node;
+                return false;
+            }
+            return true;
+        });
+
+        if (!embedNode) return;
+
+        switch (action) {
+            case 'delete':
+                editor.chain().focus().deleteNode(embedNode).run();
+                break;
+            case 'download':
+                const url = embedNode.attrs.src;
+                const filename = embedNode.attrs.filename;
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                break;
+            case 'view':
+                window.open(embedNode.attrs.src, '_blank');
+                break;
+        }
+        showMenu = false;
+    }
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
@@ -559,6 +627,18 @@
             {/if}
         </div>
     </div>
+
+    {#if showMenu}
+        <PressAndHoldMenu
+            x={menuX}
+            y={menuY}
+            show={showMenu}
+            on:close={() => showMenu = false}
+            on:delete={() => handleMenuAction('delete')}
+            on:download={() => handleMenuAction('download')}
+            on:view={() => handleMenuAction('view')}
+        />
+    {/if}
 </div>
 
 <style>
@@ -1240,5 +1320,19 @@
     /* Left align placeholder when focused */
     :global(.ProseMirror:focus p.is-editor-empty:first-child::before) {
         text-align: left;
+    }
+
+    :global(.photo-preview-container) {
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    :global(.photo-preview-container:hover) {
+        opacity: 0.9;
+    }
+
+    :global(.photo-preview-container:active) {
+        opacity: 0.8;
     }
 </style>
