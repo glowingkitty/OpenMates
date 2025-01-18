@@ -13,6 +13,7 @@
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte';
+    import { slide } from 'svelte/transition';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -41,6 +42,8 @@
     let isRecordButtonPressed = false;
     let recordStartPosition = { x: 0, y: 0 };
     let recordStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
+    let showRecordHint = false;
+    let recordHintTimeout: ReturnType<typeof setTimeout>;
 
     // Add this constant near the top of the file, after the imports
     const VALID_MATES = [
@@ -1217,18 +1220,36 @@
                 class="clickable-icon icon_recordaudio"
                 style="z-index: 901;"
                 on:mousedown={(event) => {
-                    recordStartPosition = { 
-                        x: event.clientX, 
-                        y: event.clientY 
-                    };
-                    isRecordButtonPressed = true;
-                    // Show overlay immediately
-                    showRecordAudio = true;
+                    // Start a 500ms timer before showing the record overlay
+                    recordStartTimeout = setTimeout(() => {
+                        recordStartPosition = { 
+                            x: event.clientX, 
+                            y: event.clientY 
+                        };
+                        isRecordButtonPressed = true;
+                        showRecordAudio = true;
+                        // Clear any existing hint when starting to record
+                        if (showRecordHint) {
+                            showRecordHint = false;
+                            clearTimeout(recordHintTimeout);
+                        }
+                    }, 500);
                 }}
                 on:mouseup={() => {
+                    // If released before 500ms, show the hint
+                    if (recordStartTimeout) {
+                        clearTimeout(recordStartTimeout);
+                        if (!showRecordAudio) {
+                            showRecordHint = true;
+                            // Auto-hide hint after 2 seconds
+                            clearTimeout(recordHintTimeout);
+                            recordHintTimeout = setTimeout(() => {
+                                showRecordHint = false;
+                            }, 2000);
+                        }
+                    }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
-                    clearTimeout(recordStartTimeout);
                 }}
                 on:mouseleave={() => {
                     if (isRecordButtonPressed) {
@@ -1238,17 +1259,33 @@
                     }
                 }}
                 on:touchstart|preventDefault={(event) => {
-                    recordStartPosition = { 
-                        x: event.touches[0].clientX, 
-                        y: event.touches[0].clientY 
-                    };
-                    isRecordButtonPressed = true;
-                    showRecordAudio = true;
+                    // Similar logic for touch events
+                    recordStartTimeout = setTimeout(() => {
+                        recordStartPosition = { 
+                            x: event.touches[0].clientX, 
+                            y: event.touches[0].clientY 
+                        };
+                        isRecordButtonPressed = true;
+                        showRecordAudio = true;
+                        if (showRecordHint) {
+                            showRecordHint = false;
+                            clearTimeout(recordHintTimeout);
+                        }
+                    }, 500);
                 }}
                 on:touchend={() => {
+                    if (recordStartTimeout) {
+                        clearTimeout(recordStartTimeout);
+                        if (!showRecordAudio) {
+                            showRecordHint = true;
+                            clearTimeout(recordHintTimeout);
+                            recordHintTimeout = setTimeout(() => {
+                                showRecordHint = false;
+                            }, 2000);
+                        }
+                    }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
-                    clearTimeout(recordStartTimeout);
                 }}
                 aria-label={$_('enter_message.attachments.record_audio.text')}
             ></button>
@@ -1287,6 +1324,12 @@
             on:audiorecorded={handleAudioRecorded}
             on:close={() => showRecordAudio = false}
         />
+    {/if}
+
+    {#if showRecordHint}
+        <div class="record-hint" transition:slide={{ duration: 200 }}>
+            {$_('enter_message.record_audio.press_and_hold.text')}
+        </div>
     {/if}
 </div>
 
@@ -1842,5 +1885,21 @@
         /* ... existing styles ... */
         transform-origin: center;
         will-change: transform;
+    }
+
+    .record-hint {
+        position: absolute;
+        right: 130px; /* Move further right to be left of microphone */
+        bottom: 12px;
+        background: var(--color-grey-20);
+        color: var(--color-font-primary);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 901;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateX(0); /* Ensure it animates from the correct position */
     }
 </style>

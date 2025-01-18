@@ -18,6 +18,7 @@
     let recordingStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
     let isCancelled = false;
     let isAudioPermissionGranted = false;
+    let microphonePosition = { x: 0, y: 0 };
 
     // Add logger
     const logger = {
@@ -139,15 +140,20 @@
         
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             isRecording = false;
-            const finalDuration = recordingTime;
             stopRecordingTimer();
             
-            // Only cancel if explicitly dragged left
-            if (isCancelled) {
-                console.log('Recording cancelled by user drag');
+            // Only stop and save if not cancelled
+            if (!isCancelled) {
+                mediaRecorder.stop();
+            } else {
+                // If cancelled, stop recording and clear chunks
+                mediaRecorder.stop();
+                recordedChunks = [];
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                dispatch('close');
             }
-            
-            mediaRecorder.stop();
         } else {
             dispatch('close');
         }
@@ -172,8 +178,16 @@
 
     function checkCancelThreshold() {
         const deltaX = currentPosition.x - startPosition.x;
-        // If moved more than 100px to the left, cancel recording
-        if (deltaX < -100) {
+        const deltaY = currentPosition.y - startPosition.y;
+        // Calculate total distance moved using Pythagorean theorem
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        // Update microphone visual position
+        microphonePosition = { x: deltaX, y: deltaY };
+        
+        // If moved more than 100px in any direction, cancel recording
+        if (distance > 100) {
+            logger.debug('Recording cancelled - distance threshold reached');
             isCancelled = true;
             stopRecording();
         }
@@ -199,7 +213,8 @@
 
             <div class="record-button-wrapper"
                  role="button"
-                 tabindex="0">
+                 tabindex="0"
+                 style="transform: translate({microphonePosition.x}px, {microphonePosition.y}px)">
                 {#if circleSize > 0}
                     <div class="growing-circle" 
                          style="width: {circleSize}px; height: {circleSize}px">
@@ -261,6 +276,8 @@
         gap: 8px;
         color: #4B4B4B;
         font-size: 16px;
+        opacity: 0;
+        transition: opacity 0.2s ease-out;
     }
 
     .cancel-x {
@@ -271,8 +288,10 @@
         position: relative;
         width: 48px;
         height: 48px;
+        transition: transform 0.1s ease-out;
+        will-change: transform;
+        cursor: grab;
     }
-
 
     .growing-circle {
         position: absolute;
@@ -289,5 +308,9 @@
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
+    }
+
+    .cancel-indicator span {
+        content: "Move away to cancel";
     }
 </style> 
