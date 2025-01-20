@@ -505,6 +505,9 @@
     // Add a flag to track menu interaction
     let isMenuInteraction = false;
 
+    // Add a new variable to track if recording has started
+    let hasRecordingStarted = false;
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -1220,7 +1223,7 @@
                 class="record-button {isRecordButtonPressed ? 'recording' : ''}"
                 style="z-index: 901;"
                 on:mousedown={(event) => {
-                    // Start a 500ms timer before showing the record overlay
+                    hasRecordingStarted = false;  // Reset the flag
                     recordStartTimeout = setTimeout(() => {
                         recordStartPosition = { 
                             x: event.clientX, 
@@ -1228,6 +1231,7 @@
                         };
                         isRecordButtonPressed = true;
                         showRecordAudio = true;
+                        hasRecordingStarted = true;  // Set flag when recording starts
                         // Clear any existing hint when starting to record
                         if (showRecordHint) {
                             showRecordHint = false;
@@ -1236,10 +1240,10 @@
                     }, 500);
                 }}
                 on:mouseup={() => {
-                    // If released before 500ms, show the hint
+                    // If released before 500ms and recording hasn't started, show the hint
                     if (recordStartTimeout) {
                         clearTimeout(recordStartTimeout);
-                        if (!showRecordAudio) {
+                        if (!hasRecordingStarted) {
                             showRecordHint = true;
                             // Auto-hide hint after 2 seconds
                             clearTimeout(recordHintTimeout);
@@ -1250,16 +1254,18 @@
                     }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
+                    hasRecordingStarted = false;  // Reset the flag
                 }}
                 on:mouseleave={() => {
                     if (isRecordButtonPressed) {
                         isRecordButtonPressed = false;
                         showRecordAudio = false;
+                        hasRecordingStarted = false;  // Reset the flag
                         clearTimeout(recordStartTimeout);
                     }
                 }}
                 on:touchstart|preventDefault={(event) => {
-                    // Similar logic for touch events
+                    hasRecordingStarted = false;  // Reset the flag
                     recordStartTimeout = setTimeout(() => {
                         recordStartPosition = { 
                             x: event.touches[0].clientX, 
@@ -1267,6 +1273,7 @@
                         };
                         isRecordButtonPressed = true;
                         showRecordAudio = true;
+                        hasRecordingStarted = true;  // Set flag when recording starts
                         if (showRecordHint) {
                             showRecordHint = false;
                             clearTimeout(recordHintTimeout);
@@ -1274,9 +1281,10 @@
                     }, 500);
                 }}
                 on:touchend={() => {
+                    // If released before 500ms and recording hasn't started, show the hint
                     if (recordStartTimeout) {
                         clearTimeout(recordStartTimeout);
-                        if (!showRecordAudio) {
+                        if (!hasRecordingStarted) {
                             showRecordHint = true;
                             clearTimeout(recordHintTimeout);
                             recordHintTimeout = setTimeout(() => {
@@ -1286,6 +1294,7 @@
                     }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
+                    hasRecordingStarted = false;  // Reset the flag
                 }}
                 aria-label={$_('enter_message.attachments.record_audio.text')}
             >
@@ -1330,7 +1339,7 @@
 
     {#if showRecordHint}
         <div class="record-hint" transition:slide={{ duration: 200 }}>
-            {$_('enter_message.record_audio.press_and_hold.text')}
+            {$_('enter_message.record_audio.press_and_hold_reminder.text')}
         </div>
     {/if}
 </div>

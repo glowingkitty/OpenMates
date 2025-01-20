@@ -1,6 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
+    import { _ } from 'svelte-i18n';
     
     const dispatch = createEventDispatcher();
     
@@ -196,7 +197,7 @@
 
 <div class="record-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
     <div class="record-content">
-        <h2 class="header-text">Release to finish</h2>
+        <h2 class="header-text">{$_('enter_message.record_audio.release_to_finish.text')}</h2>
         
         <div class="controls-row">
             {#if isRecording}
@@ -210,7 +211,7 @@
                                {75 - (75 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))}, 
                                {75 - (75 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))})">
                 <div class="cancel-x">✕</div>
-                <span>Slide left to cancel</span>
+                <span>{$_('enter_message.record_audio.slide_left_to_cancel.text')}</span>
             </div>
 
             <div class="record-button-wrapper"

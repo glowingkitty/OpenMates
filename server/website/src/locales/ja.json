@@ -459,6 +459,23 @@
                 "context": "Error message shown when total file size limit is exceeded"
             }
         },
+        "record_audio": {
+            "slide_left_to_cancel": {
+                "text": "左にスライドしてキャンセル",
+                "en_original": "Slide left to cancel",
+                "context": "Text shown when recording is in progress"
+            },
+            "release_to_finish": {
+                "text": "離して終了",
+                "en_original": "Release to finish", 
+                "context": "Text shown when recording is in progress"
+            },
+            "press_and_hold_reminder": {
+                "text": "長押しして録音",
+                "en_original": "Press and hold to record",
+                "context": "Text shown when the user has only pressed the record button for less than 500ms"
+            }
+        },
         "attachments": {
             "take_photo": {
                 "text": "写真を撮る",
