@@ -1219,6 +1219,16 @@
                 on:click={handleCameraClick} 
                 aria-label={$_('enter_message.attachments.take_photo.text')}
             ></button>
+            
+            {#if showRecordHint}
+                <span 
+                    class="record-hint-inline" 
+                    transition:slide={{ duration: 200 }}
+                >
+                    {$_('enter_message.record_audio.press_and_hold_reminder.text')}
+                </span>
+            {/if}
+            
             <button 
                 class="record-button {isRecordButtonPressed ? 'recording' : ''}"
                 style="z-index: 901;"
@@ -1335,12 +1345,6 @@
             on:audiorecorded={handleAudioRecorded}
             on:close={() => showRecordAudio = false}
         />
-    {/if}
-
-    {#if showRecordHint}
-        <div class="record-hint" transition:slide={{ duration: 200 }}>
-            {$_('enter_message.record_audio.press_and_hold_reminder.text')}
-        </div>
     {/if}
 </div>
 
@@ -1965,5 +1969,26 @@
     .record-button:active .clickable-icon,
     .record-button.recording .clickable-icon {
         background-color: white;
+    }
+
+    /* Add new inline hint style */
+    .record-hint-inline {
+        font-size: 14px;
+        color: var(--color-font-secondary);
+        white-space: nowrap;
+        padding: 4px 8px;
+        background: var(--color-grey-20);
+        border-radius: 12px;
+        margin-top: 10px;
+        display: inline-block;
+    }
+
+    /* Update right-buttons to handle inline elements */
+    .right-buttons {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        height: 100%;
+        flex-wrap: nowrap;
     }
 </style>
