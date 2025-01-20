@@ -261,12 +261,11 @@
     }
 
     .timer-pill {
-        background-color: #FF4444;
+        background-color: #FF0000;
         color: white;
         padding: 8px 16px;
         border-radius: 20px;
         font-weight: bold;
-        font-family: monospace;
         font-size: 16px;
     }
 
