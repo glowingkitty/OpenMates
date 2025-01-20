@@ -247,6 +247,20 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.recording {
+  background: var(--color-app-audio);
+  &::after {
+    background-image: url('/icons/recordaudio.svg');
+  }
+}
+
+.icon_rounded.audio {
+  background: var(--color-app-audio);
+  &::after {
+    background-image: url('/icons/audio.svg');
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;

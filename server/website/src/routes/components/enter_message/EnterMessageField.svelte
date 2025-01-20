@@ -71,7 +71,8 @@
                 type: { default: 'image' },
                 src: { default: null },
                 filename: { default: null },
-                id: { default: () => crypto.randomUUID() }
+                id: { default: () => crypto.randomUUID() },
+                duration: { default: null }
             }
         },
 
@@ -139,7 +140,6 @@
                     ]
                 ]
             } else if (HTMLAttributes.type === 'audio' || HTMLAttributes.type === 'recording') {
-                // Update audio preview structure to include icon_rounded
                 return ['div', {
                     class: 'audio-preview-container',
                     role: 'button',
@@ -149,6 +149,7 @@
                     'data-filename': HTMLAttributes.filename,
                     'data-id': HTMLAttributes.id,
                     'data-embed-type': HTMLAttributes.type,
+                    'data-duration': HTMLAttributes.duration || '00:00',
                     id: elementId,
                     onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
                         bubbles: true, 
@@ -162,9 +163,28 @@
                     ['div', { 
                         class: `icon_rounded ${HTMLAttributes.type === 'recording' ? 'recording' : 'audio'}`
                     }],
-                    // Add filename container
-                    ['div', { class: 'filename-container' },
-                        ['span', { class: 'filename' }, HTMLAttributes.filename]
+                    // Add filename container only for uploaded audio files
+                    ...(HTMLAttributes.type === 'audio' ? [
+                        ['div', { class: 'filename-container' },
+                            ['span', { class: 'filename' }, HTMLAttributes.filename]
+                        ]
+                    ] : []),
+                    // Add audio player controls
+                    ['div', { class: 'audio-controls' },
+                        ['div', { class: 'audio-time' },
+                            ['span', { class: 'current-time' }, '00:00'],
+                            ['span', { class: 'duration' }, HTMLAttributes.duration || '00:00']
+                        ],
+                        ['div', { class: 'progress-bar' },
+                            ['div', { class: 'progress', style: 'width: 0%' }]
+                        ],
+                        ['button', { 
+                            class: 'play-button',
+                            onclick: `event.stopPropagation(); document.dispatchEvent(new CustomEvent('audioplayclick', { 
+                                bubbles: true, 
+                                detail: { id: '${HTMLAttributes.id}' }
+                            }))`
+                        }]
                     ]
                 ]
             }
@@ -1162,26 +1182,37 @@
     }
 
     // Add these functions to handle audio recording
-    function handleAudioRecorded(event: CustomEvent) {
-        const { blob } = event.detail;
+    async function handleAudioRecorded(event: CustomEvent) {
+        const { blob, duration } = event.detail;
         console.log('Received audio blob:', blob);
         
         const url = URL.createObjectURL(blob);
         const filename = `audio_${Date.now()}.webm`;
         
+        // Format duration
+        const formattedDuration = formatDuration(duration);
+        
         // Add audio embed
         editor.commands.insertContent({
             type: 'customEmbed',
             attrs: {
-                type: 'audio',
+                type: 'recording',
                 src: url,
                 filename: filename,
+                duration: formattedDuration,
                 id: crypto.randomUUID()
             }
         });
 
         // Force editor update
         editor.commands.focus();
+    }
+
+    // Add helper function to format duration
+    function formatDuration(seconds: number): string {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 </script>
 
@@ -2011,6 +2042,7 @@
         display: flex;
         align-items: center;
         margin: 4px 0;
+        padding-right: 16px;
     }
 
     :global(.audio-preview-container:hover) {
@@ -2018,27 +2050,79 @@
     }
 
     :global(.audio-preview-container .filename-container) {
-        position: absolute;
-        left: 65px;
-        right: 16px;
+        flex: 1;
+        margin-left: 65px;
+        margin-right: 16px;
         min-height: 40px;
-        padding: 5px 0;
         display: flex;
         align-items: center;
     }
 
-    :global(.audio-preview-container .filename) {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
+    :global(.audio-preview-container .audio-controls) {
+        flex: 1;
+        margin-left: 65px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    :global(.audio-controls .audio-time) {
+        display: flex;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--color-font-secondary);
+        white-space: nowrap;
+    }
+
+    :global(.audio-controls .progress-bar) {
+        flex: 1;
+        height: 4px;
+        background-color: var(--color-grey-40);
+        border-radius: 2px;
         overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1.3;
-        font-size: 14px;
-        color: var(--color-font-primary);
-        width: 100%;
-        word-break: break-word;
-        max-height: 2.6em;
+    }
+
+    :global(.audio-controls .progress) {
+        height: 100%;
+        background-color: var(--color-app-audio);
+        transition: width 0.1s linear;
+    }
+
+    :global(.audio-controls .play-button) {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background-color: var(--color-app-audio);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: background-color 0.2s;
+    }
+
+    :global(.audio-controls .play-button::before) {
+        content: '';
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 8px 0 8px 12px;
+        border-color: transparent transparent transparent white;
+        margin-left: 2px;
+    }
+
+    :global(.audio-controls .play-button.playing::before) {
+        width: 12px;
+        height: 12px;
+        border: none;
+        margin: 0;
+        border-style: double;
+        border-width: 0 0 0 12px;
+        border-color: white;
+    }
+
+    :global(.audio-controls .play-button:hover) {
+        background-color: var(--color-app-audio-hover);
     }
 </style>
