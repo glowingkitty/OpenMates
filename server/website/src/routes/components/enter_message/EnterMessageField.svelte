@@ -14,6 +14,9 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte';
     import { slide } from 'svelte/transition';
+    import Photos from './in_message_previews/Photos.svelte';
+    import PDF from './in_message_previews/PDF.svelte';
+    import Audio from './in_message_previews/Audio.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -81,126 +84,49 @@
         },
 
         renderHTML({ HTMLAttributes }) {
-            // Add logging to help debug render process
-            console.log('Rendering embed:', HTMLAttributes);
-
             const elementId = `embed-${HTMLAttributes.id}`;
+            const container = document.createElement('div');
             
             if (HTMLAttributes.type === 'image') {
-                // Return the new photo preview structure
-                return ['div', {
-                    class: 'photo-preview-container',
-                    role: 'button',
-                    tabindex: '0',
-                    'data-type': 'custom-embed',
-                    'data-src': HTMLAttributes.src,
-                    'data-filename': HTMLAttributes.filename,
-                    'data-id': HTMLAttributes.id,
-                    id: elementId,
-                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
-                        bubbles: true, 
-                        detail: { 
-                            id: '${HTMLAttributes.id}',
-                            elementId: '${elementId}'
-                        }
-                    }))`,
-                },
-                    // Checkerboard background container
-                    ['div', { class: 'checkerboard-background' },
-                        ['img', {
-                            src: HTMLAttributes.src,
-                            alt: 'Preview',
-                            class: 'preview-image fill-container'
-                        }]
-                    ],
-                    // Photos icon
-                    ['div', { class: 'icon_rounded photos' }]
-                ]
+                mount(Photos, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id
+                    }
+                });
+                return container;
             } else if (HTMLAttributes.type === 'pdf') {
-                return ['div', {
-                    class: 'pdf-preview-container',
-                    role: 'button',
-                    tabindex: '0',
-                    'data-type': 'custom-embed',
-                    'data-src': HTMLAttributes.src,
-                    'data-filename': HTMLAttributes.filename,
-                    'data-id': HTMLAttributes.id,
-                    id: elementId,
-                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
-                        bubbles: true, 
-                        detail: { 
-                            id: '${HTMLAttributes.id}',
-                            elementId: '${elementId}'
-                        }
-                    }))`,
-                }, 
-                    ['div', { class: 'icon_rounded pdf' }],
-                    ['div', { class: 'filename-container' },
-                        ['span', { class: 'filename' }, HTMLAttributes.filename]
-                    ]
-                ]
+                mount(PDF, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id
+                    }
+                });
+                return container;
             } else if (HTMLAttributes.type === 'audio' || HTMLAttributes.type === 'recording') {
-                return ['div', {
-                    class: 'audio-preview-container',
-                    role: 'button',
-                    tabindex: '0',
-                    'data-type': 'custom-embed',
-                    'data-src': HTMLAttributes.src,
-                    'data-filename': HTMLAttributes.filename,
-                    'data-id': HTMLAttributes.id,
-                    'data-embed-type': HTMLAttributes.type,
-                    'data-duration': HTMLAttributes.duration || '00:00',
-                    id: elementId,
-                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
-                        bubbles: true, 
-                        detail: { 
-                            id: '${HTMLAttributes.id}',
-                            elementId: '${elementId}'
-                        }
-                    }))`,
-                },
-                    // Add icon_rounded for audio
-                    ['div', { 
-                        class: `icon_rounded ${HTMLAttributes.type === 'recording' ? 'recording' : 'audio'}`
-                    }],
-                    // Add filename container only for uploaded audio files
-                    ...(HTMLAttributes.type === 'audio' ? [
-                        ['div', { class: 'filename-container' },
-                            ['span', { class: 'filename' }, HTMLAttributes.filename]
-                        ]
-                    ] : []),
-                    // Add audio player controls
-                    ['div', { class: 'audio-controls' },
-                        ['div', { class: 'audio-time' },
-                            ['span', { class: 'current-time' }, '00:00'],
-                            ['span', { class: 'duration' }, HTMLAttributes.duration || '00:00']
-                        ],
-                        ['div', { class: 'progress-bar' },
-                            ['div', { class: 'progress', style: 'width: 0%' }]
-                        ],
-                        ['button', { 
-                            class: 'play-button',
-                            onclick: `event.stopPropagation(); document.dispatchEvent(new CustomEvent('audioplayclick', { 
-                                bubbles: true, 
-                                detail: { id: '${HTMLAttributes.id}' }
-                            }))`
-                        }]
-                    ]
-                ]
+                mount(Audio, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id,
+                        duration: HTMLAttributes.duration || '00:00',
+                        type: HTMLAttributes.type
+                    }
+                });
+                return container;
             }
+            
             // Default fallback
             return ['div', { 
                 class: 'embedded-unknown',
                 'data-id': HTMLAttributes.id,
-                id: elementId,
-                onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
-                    bubbles: true, 
-                    detail: { 
-                        id: '${HTMLAttributes.id}',
-                        elementId: '${elementId}'
-                    }
-                }))`,
-            }, HTMLAttributes.filename]
+                id: elementId
+            }, HTMLAttributes.filename];
         }
     });
 
@@ -1632,7 +1558,6 @@
         white-space: pre-wrap;
         word-wrap: break-word;
         padding: 0.5rem;
-        min-height: 2em;
     }
 
     :global(.ProseMirror p) {
@@ -2027,102 +1952,5 @@
         gap: 0.5rem;
         height: 100%;
         flex-wrap: nowrap;
-    }
-
-    /* Add audio preview styles */
-    :global(.audio-preview-container) {
-        width: 300px;
-        height: 60px;
-        background-color: var(--color-grey-20);
-        border-radius: 30px;
-        position: relative;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        margin: 4px 0;
-        padding-right: 16px;
-    }
-
-    :global(.audio-preview-container:hover) {
-        background-color: var(--color-grey-30);
-    }
-
-    :global(.audio-preview-container .filename-container) {
-        flex: 1;
-        margin-left: 65px;
-        margin-right: 16px;
-        min-height: 40px;
-        display: flex;
-        align-items: center;
-    }
-
-    :global(.audio-preview-container .audio-controls) {
-        flex: 1;
-        margin-left: 65px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    :global(.audio-controls .audio-time) {
-        display: flex;
-        gap: 8px;
-        font-size: 12px;
-        color: var(--color-font-secondary);
-        white-space: nowrap;
-    }
-
-    :global(.audio-controls .progress-bar) {
-        flex: 1;
-        height: 4px;
-        background-color: var(--color-grey-40);
-        border-radius: 2px;
-        overflow: hidden;
-    }
-
-    :global(.audio-controls .progress) {
-        height: 100%;
-        background-color: var(--color-app-audio);
-        transition: width 0.1s linear;
-    }
-
-    :global(.audio-controls .play-button) {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: none;
-        background-color: var(--color-app-audio);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        transition: background-color 0.2s;
-    }
-
-    :global(.audio-controls .play-button::before) {
-        content: '';
-        width: 0;
-        height: 0;
-        border-style: solid;
-        border-width: 8px 0 8px 12px;
-        border-color: transparent transparent transparent white;
-        margin-left: 2px;
-    }
-
-    :global(.audio-controls .play-button.playing::before) {
-        width: 12px;
-        height: 12px;
-        border: none;
-        margin: 0;
-        border-style: double;
-        border-width: 0 0 0 12px;
-        border-color: white;
-    }
-
-    :global(.audio-controls .play-button:hover) {
-        background-color: var(--color-app-audio-hover);
     }
 </style>

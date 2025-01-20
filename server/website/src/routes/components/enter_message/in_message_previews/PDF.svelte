@@ -1,114 +1,44 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
-    import PressAndHoldMenu from './PressAndHoldMenu.svelte';
-    
-    // Props
     export let src: string;
     export let filename: string;
-    
-    const dispatch = createEventDispatcher();
-    
-    // Menu state
-    let showMenu = false;
-    let menuX = 0;
-    let menuY = 0;
-    
-    // Handle mouse events
-    function handleContextMenu(event: MouseEvent) {
-        event.preventDefault();
-        showMenu = true;
-        menuX = event.clientX;
-        menuY = event.clientY;
-    }
-    
-    // Handle touch events for press & hold
-    function handleTouchStart(event: TouchEvent) {
-        const touch = event.touches[0];
-        const pressTimer = setTimeout(() => {
-            showMenu = true;
-            menuX = touch.clientX;
-            menuY = touch.clientY;
-        }, 500);
-        
-        function cleanup() {
-            clearTimeout(pressTimer);
-            document.removeEventListener('touchend', cleanup);
-            document.removeEventListener('touchmove', cleanup);
-        }
-        
-        document.addEventListener('touchend', cleanup);
-        document.addEventListener('touchmove', cleanup);
-    }
-    
-    // Handle menu actions
-    function handleDelete() {
-        dispatch('delete');
-        showMenu = false;
-    }
-    
-    function handleDownload() {
-        const link = document.createElement('a');
-        link.href = src;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showMenu = false;
-    }
-    
-    function handleView() {
-        window.open(src, '_blank');
-        showMenu = false;
-    }
-    
-    function handleClick(event: MouseEvent) {
-        showMenu = true;
-        menuX = event.clientX;
-        menuY = event.clientY;
-    }
-    
-    function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            showMenu = true;
-            const element = event.currentTarget as HTMLElement;
-            const rect = element.getBoundingClientRect();
-            menuX = rect.left + rect.width / 2;
-            menuY = rect.top + rect.height / 2;
-        }
+    export let id: string;
+
+    function handleClick(e: MouseEvent) {
+        document.dispatchEvent(new CustomEvent('embedclick', { 
+            bubbles: true, 
+            detail: { 
+                id,
+                elementId: `embed-${id}`
+            }
+        }));
     }
 </script>
 
-<div
-    class="pdf-preview-container"
+<div 
+    class="preview-container pdf"
     role="button"
     tabindex="0"
+    data-type="custom-embed"
+    data-src={src}
+    data-filename={filename}
+    data-id={id}
+    id="embed-{id}"
     on:click={handleClick}
-    on:keydown={handleKeyDown}
-    on:contextmenu={handleContextMenu}
-    on:touchstart={handleTouchStart}
+    on:keydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleClick(e as unknown as MouseEvent);
+        }
+    }}
 >
-    <!-- PDF icon -->
     <div class="icon_rounded pdf"></div>
-
-    <!-- Filename -->
     <div class="filename-container">
         <span class="filename">{filename}</span>
     </div>
-
-    <PressAndHoldMenu
-        show={showMenu}
-        x={menuX}
-        y={menuY}
-        on:close={() => showMenu = false}
-        on:delete={handleDelete}
-        on:download={handleDownload}
-        on:view={handleView}
-    />
 </div>
 
 <style>
-    .pdf-preview-container {
+    .preview-container {
         width: 300px;
         height: 60px;
         background-color: var(--color-grey-20);
@@ -119,9 +49,10 @@
         transition: background-color 0.2s;
         display: flex;
         align-items: center;
+        margin: 4px 0;
     }
 
-    .pdf-preview-container:hover {
+    .preview-container:hover {
         background-color: var(--color-grey-30);
     }
 
@@ -149,4 +80,4 @@
         word-break: break-word;
         max-height: 2.6em;
     }
-</style>
+</style> 
