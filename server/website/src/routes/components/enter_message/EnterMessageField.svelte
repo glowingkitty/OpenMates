@@ -210,7 +210,7 @@
 
                 const component = mount(Web, {
                     target: dom,
-                    props: { url: node.attrs.url },
+                    props: { url: node.attrs.url, id: node.attrs.id },
                     events: {
                         delete: () => {
                             if (typeof getPos === 'function') {
@@ -1056,12 +1056,12 @@
         // Determine the type of content for the menu
         const contentType = element.getAttribute('data-type');
         menuType = contentType === 'pdf' ? 'pdf' : 
-                   contentType === 'web-preview' ? 'web' : 
+                   contentType === 'custom-embed' && element.hasAttribute('data-url') ? 'web' : 
                    'default';
     }
 
     // Add these handlers for the menu actions
-    function handleMenuAction(action: 'delete' | 'download' | 'view' | 'copy') {
+    async function handleMenuAction(action: 'delete' | 'download' | 'view' | 'copy') {
         if (!selectedEmbedId) return;
 
         let foundNode: any = null;
@@ -1092,19 +1092,27 @@
                 break;
                 
             case 'view':
-                if (node.attrs.src) {
-                    window.open(node.attrs.src, '_blank');
+                if (node.attrs.src || node.attrs.url) {
+                    window.open(node.attrs.src || node.attrs.url, '_blank');
                 }
                 break;
 
             case 'copy':
                 if (node.attrs.url) {
-                    navigator.clipboard.writeText(node.attrs.url).catch(console.error);
+                    await navigator.clipboard.writeText(node.attrs.url);
+                    // Find the Web component instance and call its showCopiedConfirmation method
+                    const webElement = document.getElementById(`embed-${selectedEmbedId}`);
+                    if (webElement) {
+                        const webComponent = (webElement as any).__svelte_instance__;
+                        if (webComponent && webComponent.showCopiedConfirmation) {
+                            webComponent.showCopiedConfirmation();
+                        }
+                    }
                 }
                 break;
         }
         showMenu = false;
-        isMenuInteraction = false; // Reset the flag when menu action is complete
+        isMenuInteraction = false;
     }
 
     // Add these functions to handle audio recording

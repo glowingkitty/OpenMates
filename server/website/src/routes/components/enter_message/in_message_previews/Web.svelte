@@ -1,22 +1,8 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
-    import PressAndHoldMenu from './PressAndHoldMenu.svelte';
-    import { _ } from 'svelte-i18n'; // Import translation function
-    
-    // Props
+    // Remove unused imports and simplify
     export let url: string;
-    
-    const dispatch = createEventDispatcher();
-    
-    // Menu state
-    let showMenu = false;
-    let menuX = 0;
-    let menuY = 0;
-    
-    // Add state for showing copied message
-    let showCopiedMessage = false;
-    let urlVisible = true;  // New state to control URL visibility
-    
+    export let id: string;  // Add id prop to match PDF component pattern
+
     // Enhanced URL parsing
     const urlObj = new URL(url);
     const parts = {
@@ -37,75 +23,34 @@
     // Get path and query parameters
     const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
     parts.path = fullPath === '/' ? '' : fullPath;
-    
-    // Handle mouse events
-    function handleContextMenu(event: MouseEvent) {
-        event.preventDefault();
-        showMenu = true;
-        menuX = event.clientX;
-        menuY = event.clientY;
+
+    // Simplified click handler to match PDF pattern
+    function handleClick(e: MouseEvent) {
+        document.dispatchEvent(new CustomEvent('embedclick', { 
+            bubbles: true, 
+            detail: { 
+                id,
+                elementId: `embed-${id}`
+            }
+        }));
     }
-    
-    // Handle touch events for press & hold
-    function handleTouchStart(event: TouchEvent) {
-        const touch = event.touches[0];
-        const pressTimer = setTimeout(() => {
-            showMenu = true;
-            menuX = touch.clientX;
-            menuY = touch.clientY;
-        }, 500);
-        
-        function cleanup() {
-            clearTimeout(pressTimer);
-            document.removeEventListener('touchend', cleanup);
-            document.removeEventListener('touchmove', cleanup);
-        }
-        
-        document.addEventListener('touchend', cleanup);
-        document.addEventListener('touchmove', cleanup);
-    }
-    
-    // Handle click to show menu instead of opening URL
-    function handleClick(event: MouseEvent) {
-        // Show menu instead of opening URL
-        showMenu = true;
-        menuX = event.clientX;
-        menuY = event.clientY;
-    }
-    
-    function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            window.open(url, '_blank');
-        }
-    }
-    
-    // Handle copy action with improved animation
-    async function handleCopy() {
-        await navigator.clipboard.writeText(url);
-        
-        // Hide URL first
+
+    // Track URL visibility state
+    let urlVisible = true;
+    let showCopiedMessage = false;
+
+    // Export these functions to be called from parent
+    export function showCopiedConfirmation() {
         urlVisible = false;
-        
-        // Show copied message after URL is hidden
         setTimeout(() => {
             showCopiedMessage = true;
-            
-            // Hide copied message and show URL again after 1500ms
             setTimeout(() => {
                 showCopiedMessage = false;
                 setTimeout(() => {
                     urlVisible = true;
-                }, 300); // Wait for fade out animation to complete
+                }, 300);
             }, 1500);
-        }, 300); // Wait for fade out animation to complete
-        
-        showMenu = false;
-    }
-    
-    function handleOpen() {
-        window.open(url, '_blank');
-        showMenu = false;
+        }, 300);
     }
 </script>
 
@@ -113,10 +58,17 @@
     class="web-preview-container"
     role="button"
     tabindex="0"
+    data-type="custom-embed"
+    data-url={url}
+    data-id={id}
+    id="embed-{id}"
     on:click={handleClick}
-    on:keydown={handleKeyDown}
-    on:contextmenu={handleContextMenu}
-    on:touchstart={handleTouchStart}
+    on:keydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleClick(e as unknown as MouseEvent);
+        }
+    }}
 >
     <!-- Web icon -->
     <div class="icon_rounded web"></div>
@@ -134,21 +86,10 @@
         </div>
         {#if showCopiedMessage}
             <div class="copied-message fade-in">
-                {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+                URL copied to clipboard
             </div>
         {/if}
     </div>
-    
-    <PressAndHoldMenu
-        show={showMenu}
-        x={menuX}
-        y={menuY}
-        on:close={() => showMenu = false}
-        on:delete={() => dispatch('delete')}
-        on:copy={handleCopy}
-        on:view={handleOpen}
-        type="web"
-    />
 </div>
 
 <style>
