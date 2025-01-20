@@ -1915,9 +1915,10 @@
         align-items: center;
         justify-content: center;
         width: 25px;
-        height: 25px;
+        height: 50px; /* Match other icons height */
         min-width: 25px;
         padding: 0;
+        margin-top: 10px; /* Match other icons margin */
     }
 
     .record-button::before {
@@ -1951,7 +1952,7 @@
         opacity: 1;
     }
 
-    /* Reset all spacing for the inner icon */
+    /* Keep the icon itself at its original size */
     .record-button .clickable-icon {
         margin: 0;
         padding: 0;
