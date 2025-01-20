@@ -1910,15 +1910,14 @@
         border: none;
         cursor: pointer;
         background: none;
-        /* Change to flex to center the icon */
         display: flex;
         align-items: center;
         justify-content: center;
         width: 25px;
-        height: 50px; /* Match other icons height */
+        height: 50px;
         min-width: 25px;
         padding: 0;
-        margin-top: 10px; /* Match other icons margin */
+        margin-top: 10px;
     }
 
     .record-button::before {
@@ -1931,35 +1930,31 @@
         height: 0;
         border-radius: 50%;
         background: var(--color-app-audio);
-        /* Add transitions for smooth animation */
         transition: all 0.3s ease-out;
         z-index: -1;
         opacity: 0;
     }
 
-    /* Update the active state to include opacity */
-    .record-button:active::before {
-        background: var(--color-app-audio);
-        width: 60px;
-        height: 60px;
-        opacity: 1;
-    }
-
-    /* Add a class for when recording is active */
+    .record-button:active::before,
     .record-button.recording::before {
         width: 60px;
         height: 60px;
         opacity: 1;
     }
 
-    /* Keep the icon itself at its original size */
     .record-button .clickable-icon {
         margin: 0;
         padding: 0;
         position: relative;
         z-index: 1;
-        /* Match dimensions from icons.css */
         width: 25px;
         height: 25px;
+        transition: background-color 0.3s ease-out;
+    }
+
+    /* Only change icon color while pressed/recording */
+    .record-button:active .clickable-icon,
+    .record-button.recording .clickable-icon {
+        background-color: white;
     }
 </style>

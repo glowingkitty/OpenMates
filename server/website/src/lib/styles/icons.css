@@ -139,6 +139,8 @@ div.clickable-icon {
 .clickable-icon.icon_recordaudio {
   -webkit-mask-image: url('/icons/recordaudio.svg');
   mask-image: url('/icons/recordaudio.svg');
+  /* Add transition for smooth color change */
+  transition: background-color 0.3s ease-out;
 }
 
 .clickable-icon.icon_download {
@@ -946,4 +948,9 @@ div.clickable-icon {
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+/* Add style for the recording state */
+.record-button.recording .clickable-icon.icon_recordaudio {
+  background: white;  /* Change to white when recording */
 }
