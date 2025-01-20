@@ -1361,6 +1361,8 @@
         position: relative;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         transition: box-shadow 0.2s ease-in-out;
+        transform-origin: center;
+        will-change: transform;
     }
 
     .message-container.focused {
@@ -1896,28 +1898,6 @@
         75% { transform: translateX(4px); }
     }
 
-    .message-container {
-        /* ... existing styles ... */
-        transform-origin: center;
-        will-change: transform;
-    }
-
-    .record-hint {
-        position: absolute;
-        right: 130px; /* Move further right to be left of microphone */
-        bottom: 12px;
-        background: var(--color-grey-20);
-        color: var(--color-font-primary);
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 14px;
-        white-space: nowrap;
-        pointer-events: none;
-        z-index: 901;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transform: translateX(0); /* Ensure it animates from the correct position */
-    }
-
     .record-button {
         position: relative;
         border: none;
@@ -1948,7 +1928,6 @@
         opacity: 0;
     }
 
-    .record-button:active::before,
     .record-button.recording::before {
         width: 60px;
         height: 60px;
@@ -1965,8 +1944,6 @@
         transition: background-color 0.3s ease-out;
     }
 
-    /* Only change icon color while pressed/recording */
-    .record-button:active .clickable-icon,
     .record-button.recording .clickable-icon {
         background-color: white;
     }
