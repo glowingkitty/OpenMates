@@ -206,7 +206,9 @@
             {/if}
             
             <div class="cancel-indicator" 
-                 style="opacity: {Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100)}">
+                 style="color: rgb({75 + (180 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))}, 
+                               {75 - (75 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))}, 
+                               {75 - (75 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))})">
                 <div class="cancel-x">✕</div>
                 <span>Slide left to cancel</span>
             </div>
@@ -268,10 +270,8 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        color: #4B4B4B;
         font-size: 16px;
-        opacity: 0;
-        transition: opacity 0.2s ease-out;
+        transition: color 0.1s ease-out;
     }
 
     .cancel-x {
@@ -293,9 +293,5 @@
         height: 48px;
         /* Remove the background from here */
         /* Add a pseudo-element for the background circle */
-    }
-
-    .cancel-indicator span {
-        content: "Move away to cancel";
     }
 </style> 
