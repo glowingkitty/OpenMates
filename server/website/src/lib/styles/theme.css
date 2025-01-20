@@ -315,6 +315,9 @@
     --color-grey-100: #000000;
     --color-grey-blue: #E6EAFF;
 
+    /* Record Audio */
+    --color-record-audio-background: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
+
     /* footer */
     --color-footer-start: #4867CD;
     --color-footer-end: #5A85EB;

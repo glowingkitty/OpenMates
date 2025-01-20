@@ -206,10 +206,7 @@
                 </div>
             {/if}
             
-            <div class="cancel-indicator" 
-                 style="color: rgb({75 + (180 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))}, 
-                               {75 - (75 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))}, 
-                               {75 - (75 * Math.min(1, Math.abs(currentPosition.x - startPosition.x) / 100))})">
+            <div class="cancel-indicator">
                 <div class="cancel-x">✕</div>
                 <span>{$_('enter_message.record_audio.slide_left_to_cancel.text')}</span>
             </div>
@@ -230,7 +227,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        background: rgb(232, 235, 250);
+        background: var(--color-record-audio-background);
         z-index: 900;
         border-radius: 24px;
         overflow: hidden;
@@ -245,7 +242,7 @@
     }
 
     .header-text {
-        color: #4B4B4B;
+        color: white;
         font-size: 18px;
         margin: 0;
     }
@@ -268,6 +265,8 @@
     }
 
     .cancel-indicator {
+        color: white;
+        opacity: 0.5;
         display: flex;
         align-items: center;
         gap: 8px;
