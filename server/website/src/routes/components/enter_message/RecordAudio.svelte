@@ -215,11 +215,6 @@
                  role="button"
                  tabindex="0"
                  style="transform: translate({microphonePosition.x}px, {microphonePosition.y}px)">
-                {#if circleSize > 0}
-                    <div class="growing-circle" 
-                         style="width: {circleSize}px; height: {circleSize}px">
-                    </div>
-                {/if}
                 <div class="microphone-icon" class:recording={isRecording}></div>
             </div>
         </div>
@@ -292,21 +287,12 @@
         cursor: grab;
     }
 
-    .growing-circle {
-        position: absolute;
-        bottom: 50%;
-        left: 50%;
-        transform: translate(-50%, 50%);
-        background: rgba(45, 168, 92, 0.2);
-        border-radius: 50%;
-        z-index: 1;
-        transition: all 0.2s ease-out;
-    }
-
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
+    .microphone-icon {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        /* Remove the background from here */
+        /* Add a pseudo-element for the background circle */
     }
 
     .cancel-indicator span {

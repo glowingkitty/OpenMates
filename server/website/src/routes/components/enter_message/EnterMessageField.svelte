@@ -1217,7 +1217,7 @@
                 aria-label={$_('enter_message.attachments.take_photo.text')}
             ></button>
             <button 
-                class="clickable-icon icon_recordaudio"
+                class="record-button {isRecordButtonPressed ? 'recording' : ''}"
                 style="z-index: 901;"
                 on:mousedown={(event) => {
                     // Start a 500ms timer before showing the record overlay
@@ -1288,7 +1288,9 @@
                     showRecordAudio = false;
                 }}
                 aria-label={$_('enter_message.attachments.record_audio.text')}
-            ></button>
+            >
+                <div class="clickable-icon icon_recordaudio"></div>
+            </button>
             {#if hasContent}
                 <button 
                     class="send-button" 
@@ -1901,5 +1903,62 @@
         z-index: 901;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         transform: translateX(0); /* Ensure it animates from the correct position */
+    }
+
+    .record-button {
+        position: relative;
+        border: none;
+        cursor: pointer;
+        background: none;
+        /* Change to flex to center the icon */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 25px;
+        height: 25px;
+        min-width: 25px;
+        padding: 0;
+    }
+
+    .record-button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: var(--color-app-audio);
+        /* Add transitions for smooth animation */
+        transition: all 0.3s ease-out;
+        z-index: -1;
+        opacity: 0;
+    }
+
+    /* Update the active state to include opacity */
+    .record-button:active::before {
+        background: var(--color-app-audio);
+        width: 60px;
+        height: 60px;
+        opacity: 1;
+    }
+
+    /* Add a class for when recording is active */
+    .record-button.recording::before {
+        width: 60px;
+        height: 60px;
+        opacity: 1;
+    }
+
+    /* Reset all spacing for the inner icon */
+    .record-button .clickable-icon {
+        margin: 0;
+        padding: 0;
+        position: relative;
+        z-index: 1;
+        /* Match dimensions from icons.css */
+        width: 25px;
+        height: 25px;
     }
 </style>
