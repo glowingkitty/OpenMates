@@ -138,6 +138,35 @@
                         ['span', { class: 'filename' }, HTMLAttributes.filename]
                     ]
                 ]
+            } else if (HTMLAttributes.type === 'audio' || HTMLAttributes.type === 'recording') {
+                // Update audio preview structure to include icon_rounded
+                return ['div', {
+                    class: 'audio-preview-container',
+                    role: 'button',
+                    tabindex: '0',
+                    'data-type': 'custom-embed',
+                    'data-src': HTMLAttributes.src,
+                    'data-filename': HTMLAttributes.filename,
+                    'data-id': HTMLAttributes.id,
+                    'data-embed-type': HTMLAttributes.type,
+                    id: elementId,
+                    onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+                        bubbles: true, 
+                        detail: { 
+                            id: '${HTMLAttributes.id}',
+                            elementId: '${elementId}'
+                        }
+                    }))`,
+                },
+                    // Add icon_rounded for audio
+                    ['div', { 
+                        class: `icon_rounded ${HTMLAttributes.type === 'recording' ? 'recording' : 'audio'}`
+                    }],
+                    // Add filename container
+                    ['div', { class: 'filename-container' },
+                        ['span', { class: 'filename' }, HTMLAttributes.filename]
+                    ]
+                ]
             }
             // Default fallback
             return ['div', { 
@@ -1967,5 +1996,49 @@
         gap: 0.5rem;
         height: 100%;
         flex-wrap: nowrap;
+    }
+
+    /* Add audio preview styles */
+    :global(.audio-preview-container) {
+        width: 300px;
+        height: 60px;
+        background-color: var(--color-grey-20);
+        border-radius: 30px;
+        position: relative;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        margin: 4px 0;
+    }
+
+    :global(.audio-preview-container:hover) {
+        background-color: var(--color-grey-30);
+    }
+
+    :global(.audio-preview-container .filename-container) {
+        position: absolute;
+        left: 65px;
+        right: 16px;
+        min-height: 40px;
+        padding: 5px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    :global(.audio-preview-container .filename) {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+        font-size: 14px;
+        color: var(--color-font-primary);
+        width: 100%;
+        word-break: break-word;
+        max-height: 2.6em;
     }
 </style>
