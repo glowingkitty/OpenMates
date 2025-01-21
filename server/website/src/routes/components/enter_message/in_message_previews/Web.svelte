@@ -58,7 +58,7 @@
         display: flex;
         flex-direction: column;
         line-height: 1.3;
-        font-size: 14px;
+        font-size: 16px;
         width: 100%;
         word-break: break-word;
         max-height: 2.6em;

@@ -68,7 +68,7 @@
             <pre><code id="code-{id}" class="hljs language-{language}">{codePreview}</code></pre>
         </div>
         <div class="info-bar">
-            <div class="title-section">
+            <div class="text-container">
                 <span class="filename">{filename}</span>
                 <span class="language">{language}</span>
             </div>
@@ -101,16 +101,28 @@
         bottom: 0;
         left: 0;
         right: 0;
+        border-radius: 30px;
+        height: 60px;
         background-color: var(--color-grey-20);
-        padding: 12px 16px;
         display: flex;
         align-items: center;
+        padding-left: 70px;
+        padding-right: 16px;
     }
 
-    .title-section {
+    /* Add flex column layout for text container */
+    .info-bar {
         display: flex;
-        align-items: center;
-        gap: 12px;
+        align-items: flex-start;  /* Align items to the start for better vertical spacing */
+    }
+
+    /* Create a container for the stacked text */
+    .text-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;  /* Add space between filename and language */
+        justify-content: center;
+        height: 100%;
     }
 
     .filename {
