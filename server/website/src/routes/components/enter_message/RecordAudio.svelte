@@ -3,7 +3,11 @@
     import { slide } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
     
-    const dispatch = createEventDispatcher();
+    const dispatch = createEventDispatcher<{
+        audiorecorded: { blob: Blob; duration: number };
+        close: void;
+        layoutChange: { active: boolean };
+    }>();
     
     let isRecording = false;
     let stream: MediaStream | null = null;
@@ -36,6 +40,9 @@
         startPosition = initialPosition;
         currentPosition = { ...startPosition };
         startRecording();
+        
+        // Dispatch layout change when recording overlay appears
+        dispatch('layoutChange', { active: true });
     });
 
     onDestroy(() => {
@@ -45,6 +52,9 @@
         document.removeEventListener('touchmove', handleTouchMove);
         clearInterval(growthInterval);
         clearTimeout(recordingStartTimeout);
+        
+        // Reset layout when component is destroyed
+        dispatch('layoutChange', { active: false });
     });
 
     function startRecordingTimer() {

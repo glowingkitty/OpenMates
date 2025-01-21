@@ -496,6 +496,13 @@
     // Add a new variable to track if recording has started
     let hasRecordingStarted = false;
 
+    let isRecordingActive = false;
+    
+    // Add handler for layout changes
+    function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
+        isRecordingActive = event.detail.active;
+    }
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -1216,7 +1223,7 @@
     }
 </script>
 
-<div class="message-container {isMessageFieldFocused ? 'focused' : ''}">
+<div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}">
     <!-- Hidden file inputs -->
     <input
         bind:this={fileInput}
@@ -1404,6 +1411,7 @@
             initialPosition={recordStartPosition}
             on:audiorecorded={handleAudioRecorded}
             on:close={() => showRecordAudio = false}
+            on:layoutChange={handleRecordingLayoutChange}
         />
     {/if}
 </div>
@@ -1420,52 +1428,16 @@
         box-sizing: border-box;
         position: relative;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transition: box-shadow 0.2s ease-in-out;
+        transition: all 0.3s ease-in-out; /* Update transition to include all properties */
         transform-origin: center;
-        will-change: transform;
+        will-change: transform, padding-bottom, max-height;
     }
 
-    .message-container.focused {
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    /* Add new style for recording active state */
+    .message-container.recording-active {
+        padding-bottom: 120px; /* Increase padding to make space for recording interface */
+        max-height: 420px; /* Increase max-height by the same amount */
     }
-
-    /* Add Tiptap-specific styles */
-    :global(.ProseMirror) {
-        outline: none;
-        min-height: 2em;
-        padding: 0.5rem 0;
-    }
-
-    :global(.ProseMirror p) {
-        margin: 0;
-    }
-
-    :global(.custom-embed) {
-        display: inline-flex;
-        align-items: center;
-        background: #f5f5f5;
-        border-radius: 4px;
-        padding: 4px 8px;
-        margin: 0 2px;
-        cursor: pointer;
-    }
-
-    :global(.custom-embed img) {
-        max-width: 200px;
-        max-height: 200px;
-        object-fit: contain;
-    }
-
-    :global(.custom-embed.file) {
-        background: #e8f0fe;
-    }
-
-    :global(.custom-embed.video) {
-        background: #fce8e8;
-    }
-
-    /* Rest of your existing styles... */
-    /* Copy all remaining styles from your original component */
 
     .scrollable-content {
         width: 100%;
@@ -1478,19 +1450,7 @@
         scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
         overflow-x: hidden;
         box-sizing: border-box;
-    }
-
-    .scrollable-content::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .scrollable-content::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .scrollable-content::-webkit-scrollbar-thumb {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 3px;
+        transition: max-height 0.3s ease-in-out;
     }
 
     .content-wrapper {
