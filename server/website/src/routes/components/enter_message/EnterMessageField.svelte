@@ -780,10 +780,8 @@
         console.log('Inserting PDF file:', file.name);
         const url = URL.createObjectURL(file);
         
-        // Move cursor to end before inserting
-        editor.commands.focus('end');
-        
         if (editor.isEmpty) {
+            // If empty, first insert default mention
             editor.commands.setContent({
                 type: 'doc',
                 content: [{
@@ -791,7 +789,7 @@
                     content: [
                         {
                             type: 'mate',
-                            attrs: {
+                            attrs: { 
                                 name: defaultMention,
                                 id: crypto.randomUUID()
                             }
@@ -817,30 +815,27 @@
                 }]
             });
         } else {
-            // Get current cursor position
-            const { from } = editor.state.selection;
-            
-            // Insert at current position or end
-            editor
-                .chain()
-                .focus()
-                .insertContentAt(from, [
-                    {
-                        type: 'customEmbed',
-                        attrs: {
-                            type: 'pdf',
-                            src: url,
-                            filename: file.name,
-                            id: crypto.randomUUID()
-                        }
-                    },
-                    {
-                        type: 'text',
-                        text: ' '
+            editor.commands.insertContent([
+                {
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'pdf',
+                        src: url,
+                        filename: file.name,
+                        id: crypto.randomUUID()
                     }
-                ])
-                .run();
+                },
+                {
+                    type: 'text',
+                    text: ' '
+                }
+            ]);
         }
+
+        // Force focus and set cursor position after a short delay
+        setTimeout(() => {
+            editor.commands.focus('end');
+        }, 50);
     }
 
     async function insertVideo(file: File) {
@@ -1645,7 +1640,9 @@
         outline: none;
         white-space: pre-wrap;
         word-wrap: break-word;
+        min-height: 2em;
         padding: 0.5rem;
+        color: var(--color-font-primary);
     }
 
     :global(.ProseMirror p) {
