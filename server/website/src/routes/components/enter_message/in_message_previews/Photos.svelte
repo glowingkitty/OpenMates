@@ -1,55 +1,19 @@
 <script lang="ts">
+    import InlinePreviewBase from './InlinePreviewBase.svelte';
+    
     // Props for the image preview
     export let src: string;
     export let filename: string;
     export let id: string;
-
-    function handleClick(e: MouseEvent) {
-        document.dispatchEvent(new CustomEvent('embedclick', { 
-            bubbles: true, 
-            detail: { 
-                id,
-                elementId: `embed-${id}`
-            }
-        }));
-    }
 </script>
 
-<div 
-    class="preview-container photo"
-    role="button"
-    tabindex="0"
-    data-type="custom-embed"
-    data-src={src}
-    data-filename={filename}
-    data-id={id}
-    id="embed-{id}"
-    on:click={handleClick}
-    on:keydown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleClick(e as unknown as MouseEvent);
-        }
-    }}
->
+<InlinePreviewBase {id} type="photo" {src} {filename} height="200px">
     <div class="checkerboard-background">
         <img {src} alt="Preview" class="preview-image fill-container" />
     </div>
-    <div class="icon_rounded photos"></div>
-</div>
+</InlinePreviewBase>
 
 <style>
-    .preview-container {
-        width: 300px;
-        height: 200px;
-        border-radius: 30px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        cursor: pointer;
-        margin: 4px 0;
-    }
-
     .checkerboard-background {
         width: 100%;
         height: 100%;

@@ -1,4 +1,6 @@
 <script lang="ts">
+    import InlinePreviewBase from './InlinePreviewBase.svelte';
+    
     export let src: string;
     export let filename: string | null = null;
     export let id: string;
@@ -88,26 +90,7 @@
     }
 </script>
 
-<div 
-    class="preview-container audio"
-    role="button"
-    tabindex="0"
-    data-type="custom-embed"
-    data-src={src}
-    data-filename={filename}
-    data-id={id}
-    data-embed-type={type}
-    data-duration={duration}
-    id="embed-{id}"
-    on:click={handleClick}
-    on:keydown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleClick(e as unknown as MouseEvent);
-        }
-    }}
->
-    <div class="icon_rounded {type}"></div>
+<InlinePreviewBase {id} type={type} {src} {filename}>
     {#if type === 'audio' && filename}
         <div class="filename-container">
             <span class="filename">{filename}</span>
@@ -126,37 +109,9 @@
             on:click={handlePlayClick}
         ></button>
     </div>
-</div>
+</InlinePreviewBase>
 
 <style>
-    .preview-container {
-        width: 300px;
-        height: 60px;
-        background-color: var(--color-grey-20);
-        border-radius: 30px;
-        position: relative;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        margin: 4px 0;
-        padding-right: 16px;
-    }
-
-    .preview-container:hover {
-        background-color: var(--color-grey-30);
-    }
-
-    .filename-container {
-        flex: 1;
-        margin-left: 65px;
-        margin-right: 16px;
-        min-height: 40px;
-        display: flex;
-        align-items: center;
-    }
-
     .audio-controls {
         flex: 1;
         margin-left: 65px;

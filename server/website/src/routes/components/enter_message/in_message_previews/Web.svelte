@@ -1,10 +1,10 @@
 <script lang="ts">
     import { _ } from 'svelte-i18n';
-    // Remove unused imports and simplify
+    import InlinePreviewBase from './InlinePreviewBase.svelte';
+    
     export let url: string;
-    export let id: string;  // Add id prop to match PDF component pattern
+    export let id: string;
 
-    // Enhanced URL parsing
     const urlObj = new URL(url);
     const parts = {
         subdomain: '',
@@ -12,7 +12,6 @@
         path: ''
     };
 
-    // Split hostname into parts
     const hostParts = urlObj.hostname.split('.');
     if (hostParts.length > 2) {
         parts.subdomain = hostParts[0] + '.';
@@ -21,46 +20,13 @@
         parts.domain = urlObj.hostname;
     }
 
-    // Get path and query parameters
     const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
     parts.path = fullPath === '/' ? '' : fullPath;
 
-    // Simplified state management
     let showCopied = false;
-
-    // Add back the click handler
-    function handleClick(e: MouseEvent) {
-        document.dispatchEvent(new CustomEvent('embedclick', { 
-            bubbles: true, 
-            detail: { 
-                id,
-                elementId: `embed-${id}`
-            }
-        }));
-    }
 </script>
 
-<div 
-    class="web-preview-container"
-    role="button"
-    tabindex="0"
-    data-type="custom-embed"
-    data-url={url}
-    data-id={id}
-    id="embed-{id}"
-    class:show-copied={showCopied}
-    on:click={handleClick}
-    on:keydown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleClick(e as unknown as MouseEvent);
-        }
-    }}
->
-    <!-- Web icon -->
-    <div class="icon_rounded web"></div>
-    
-    <!-- URL -->
+<InlinePreviewBase {id} type="web" {url} customClass={showCopied ? 'show-copied' : ''}>
     <div class="url-container">
         <div class="url">
             <div class="domain-line">
@@ -71,31 +37,13 @@
                 <span class="path">{parts.path}</span>
             {/if}
         </div>
-        <!-- Always present, toggled via CSS -->
         <div class="copied-message">
             {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
         </div>
     </div>
-</div>
+</InlinePreviewBase>
 
 <style>
-    .web-preview-container {
-        width: 300px;
-        height: 60px;
-        background-color: var(--color-grey-20);
-        border-radius: 30px;
-        position: relative;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-    }
-
-    .web-preview-container:hover {
-        background-color: var(--color-grey-30);
-    }
-
     .url-container {
         position: absolute;
         left: 65px;
@@ -149,11 +97,11 @@
         opacity: 0;
     }
 
-    .show-copied .url {
+    :global(.show-copied .url) {
         opacity: 0;
     }
 
-    .show-copied .copied-message {
+    :global(.show-copied .copied-message) {
         opacity: 1;
     }
 </style>

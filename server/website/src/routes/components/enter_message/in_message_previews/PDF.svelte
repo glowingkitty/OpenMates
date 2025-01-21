@@ -1,60 +1,18 @@
 <script lang="ts">
+    import InlinePreviewBase from './InlinePreviewBase.svelte';
+    
     export let src: string;
     export let filename: string;
     export let id: string;
-
-    function handleClick(e: MouseEvent) {
-        document.dispatchEvent(new CustomEvent('embedclick', { 
-            bubbles: true, 
-            detail: { 
-                id,
-                elementId: `embed-${id}`
-            }
-        }));
-    }
 </script>
 
-<div 
-    class="preview-container pdf"
-    role="button"
-    tabindex="0"
-    data-type="custom-embed"
-    data-src={src}
-    data-filename={filename}
-    data-id={id}
-    id="embed-{id}"
-    on:click={handleClick}
-    on:keydown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleClick(e as unknown as MouseEvent);
-        }
-    }}
->
-    <div class="icon_rounded pdf"></div>
+<InlinePreviewBase {id} type="pdf" {src} {filename}>
     <div class="filename-container">
         <span class="filename">{filename}</span>
     </div>
-</div>
+</InlinePreviewBase>
 
 <style>
-    .preview-container {
-        width: 300px;
-        height: 60px;
-        background-color: var(--color-grey-20);
-        border-radius: 30px;
-        position: relative;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        margin: 4px 0;
-    }
-
-    .preview-container:hover {
-        background-color: var(--color-grey-30);
-    }
 
     .filename-container {
         position: absolute;
