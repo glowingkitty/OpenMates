@@ -120,21 +120,19 @@
     .text-container {
         display: flex;
         flex-direction: column;
-        gap: 4px;  /* Add space between filename and language */
         justify-content: center;
         height: 100%;
+        line-height: 1.3;
     }
 
     .filename {
         font-size: 16px;
         color: var(--color-font-primary);
-        font-weight: 500;
     }
 
     .language {
-        font-size: 14px;
+        font-size: 16px;
         color: var(--color-font-secondary);
-        text-transform: lowercase;
     }
 
     pre {
