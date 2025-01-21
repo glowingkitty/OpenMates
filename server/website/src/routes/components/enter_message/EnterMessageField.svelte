@@ -1125,31 +1125,36 @@
         isMenuInteraction = false;
     }
 
-    // Add these functions to handle audio recording
+    // Update the handleAudioRecorded function
     async function handleAudioRecorded(event: CustomEvent) {
         const { blob, duration } = event.detail;
         console.log('Received audio blob:', blob);
-        
+
         const url = URL.createObjectURL(blob);
         const filename = `audio_${Date.now()}.webm`;
-        
+
         // Format duration
         const formattedDuration = formatDuration(duration);
-        
-        // Add audio embed
-        editor.commands.insertContent({
-            type: 'customEmbed',
-            attrs: {
-                type: 'recording',
-                src: url,
-                filename: filename,
-                duration: formattedDuration,
-                id: crypto.randomUUID()
-            }
-        });
 
-        // Force editor update
+        // Focus editor and ensure cursor position is maintained
         editor.commands.focus();
+
+        // Insert audio embed at current cursor position
+        editor
+            .chain()
+            .focus()
+            .insertContent({
+                type: 'customEmbed',
+                attrs: {
+                    type: 'recording',
+                    src: url,
+                    filename: filename,
+                    duration: formattedDuration,
+                    id: crypto.randomUUID()
+                }
+            })
+            .insertContent(' ') // Add space after the embed
+            .run();
     }
 
     // Add helper function to format duration
