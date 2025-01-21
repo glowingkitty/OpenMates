@@ -1128,12 +1128,10 @@
     // Update the handleAudioRecorded function
     async function handleAudioRecorded(event: CustomEvent) {
         const { blob, duration } = event.detail;
-        console.log('Received audio blob:', blob);
+        console.log('Received audio blob:', { size: blob.size, duration });
 
         const url = URL.createObjectURL(blob);
         const filename = `audio_${Date.now()}.webm`;
-
-        // Format duration
         const formattedDuration = formatDuration(duration);
 
         // If editor is empty, first insert the default mention
@@ -1159,10 +1157,12 @@
             });
         }
 
-        // Now insert the audio embed
+        // Move cursor to end of content before inserting
+        editor.commands.focus('end');
+
+        // Insert the audio embed at current cursor position
         editor
             .chain()
-            .focus()
             .insertContent([
                 {
                     type: 'customEmbed',
@@ -1179,7 +1179,10 @@
                     text: ' ' // Add space after the embed
                 }
             ])
+            .focus('end') // Keep focus at end after insertion
             .run();
+
+        console.log('Added audio recording:', { filename, duration: formattedDuration });
     }
 
     // Add helper function to format duration
