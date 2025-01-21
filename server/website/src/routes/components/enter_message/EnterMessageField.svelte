@@ -1279,13 +1279,10 @@
         const filename = `audio_${Date.now()}.webm`;
         const formattedDuration = formatDuration(duration);
 
-        // Move cursor to end before inserting
-        editor.commands.focus('end');
+        // Get current cursor position before any modifications
+        const currentPos = editor.state.selection.from;
 
-        // Get current cursor position
-        const { from } = editor.state.selection;
-
-        // If editor is empty, first insert the default mention
+        // If editor is empty, handle special case
         if (editor.isEmpty) {
             editor.commands.setContent({
                 type: 'doc',
@@ -1321,11 +1318,11 @@
                 }]
             });
         } else {
-            // Insert at current position
+            // Insert at current cursor position
             editor
                 .chain()
                 .focus()
-                .insertContentAt(from, [
+                .insertContentAt(currentPos, [
                     {
                         type: 'customEmbed',
                         attrs: {
@@ -1344,7 +1341,14 @@
                 .run();
         }
 
-        console.log('Added audio recording:', { filename, duration: formattedDuration });
+        // Move cursor after the inserted content
+        editor.commands.focus();
+
+        console.log('Added audio recording:', { 
+            filename, 
+            duration: formattedDuration, 
+            position: currentPos 
+        });
     }
 
     // Add helper function to format duration
