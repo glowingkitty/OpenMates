@@ -104,7 +104,7 @@
             <span class="duration">{duration}</span>
         </div>
         <button 
-            class="play-button {isPlaying ? 'playing' : ''}"
+            class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
             aria-label={isPlaying ? 'Pause' : 'Play'}
             on:click={handlePlayClick}
         ></button>
@@ -144,43 +144,12 @@
     }
 
     .play-button {
-        all: unset;
-        right: 10px;
+        opacity: 0.5;
+        right: 20px;
         position: absolute;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: none;
-        background-color: var(--color-app-audio);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        transition: background-color 0.2s;
+        width: 25px;
+        height: 25px;
     }
 
-    .play-button::before {
-        content: '';
-        width: 0;
-        height: 0;
-        border-style: solid;
-        border-width: 8px 0 8px 12px;
-        border-color: transparent transparent transparent white;
-        margin-left: 2px;
-    }
-
-    .play-button.playing::before {
-        width: 12px;
-        height: 12px;
-        border: none;
-        margin: 0;
-        border-style: double;
-        border-width: 0 0 0 12px;
-        border-color: white;
-    }
-
-    .play-button:hover {
-        background-color: var(--color-app-audio-hover);
-    }
+    /* Remove all other play button styles as they're now handled by clickable-icon class */
 </style> 
