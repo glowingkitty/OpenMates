@@ -871,21 +871,32 @@
         input.value = '';
     }
 
-    // Add helper function to detect code/text files
+    // Update the isCodeOrTextFile function to include Dockerfile detection
     function isCodeOrTextFile(filename: string): boolean {
+        // First check for Dockerfile (case-insensitive)
+        if (filename.toLowerCase() === 'dockerfile') {
+            return true;
+        }
+
         const codeExtensions = [
             'py', 'js', 'ts', 'html', 'css', 'json', 'svelte',
             'java', 'cpp', 'c', 'rs', 'go', 'rb', 'php', 'swift',
             'kt', 'txt', 'md', 'xml', 'yaml', 'yml', 'sh', 'bash',
-            'sql', 'vue', 'jsx', 'tsx', 'scss', 'less', 'sass'
+            'sql', 'vue', 'jsx', 'tsx', 'scss', 'less', 'sass',
+            'dockerfile'  // Add dockerfile extension support
         ];
         
         const extension = filename.split('.').pop()?.toLowerCase();
         return extension ? codeExtensions.includes(extension) : false;
     }
 
-    // Add function to get language from filename
+    // Update getLanguageFromFilename to include Dockerfile
     function getLanguageFromFilename(filename: string): string {
+        // Special case for Dockerfile (no extension)
+        if (filename.toLowerCase() === 'dockerfile') {
+            return 'dockerfile';
+        }
+
         const ext = filename.split('.').pop()?.toLowerCase() || '';
         const languageMap: { [key: string]: string } = {
             'py': 'python',
@@ -916,7 +927,8 @@
             'tsx': 'typescript',
             'scss': 'scss',
             'less': 'less',
-            'sass': 'sass'
+            'sass': 'sass',
+            'dockerfile': 'dockerfile'  // Add dockerfile mapping
         };
         return languageMap[ext] || 'plaintext';
     }

@@ -3,7 +3,8 @@
     import { onMount } from 'svelte';
     import hljs from 'highlight.js';
     import 'highlight.js/styles/github-dark.css';
-    
+    import 'highlight.js/lib/languages/dockerfile';
+
     export let src: string;
     export let filename: string;
     export let id: string;
@@ -14,6 +15,12 @@
     // Helper function to determine language from filename
     function getLanguageFromFilename(filename: string): string {
         const ext = filename.split('.').pop()?.toLowerCase() || '';
+
+        // Special case for Dockerfile (no extension)
+        if (filename.toLowerCase() === 'dockerfile') {
+            return 'dockerfile';
+        }
+
         const languageMap: { [key: string]: string } = {
             'py': 'python',
             'js': 'javascript',
@@ -32,7 +39,8 @@
             'swift': 'swift',
             'kt': 'kotlin',
             'yml': 'yaml',
-            'yaml': 'yaml'
+            'yaml': 'yaml',
+            'dockerfile': 'dockerfile'  // Add support for Dockerfile
         };
         return languageMap[ext] || 'plaintext';
     }
