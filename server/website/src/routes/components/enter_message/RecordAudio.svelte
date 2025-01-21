@@ -51,14 +51,13 @@
         recordingTime = 0;
         recordingInterval = setInterval(() => {
             recordingTime++;
-            console.log('Recording time:', recordingTime);
+            logger.debug('Recording time:', formatTime(recordingTime));
         }, 1000);
     }
 
     function stopRecordingTimer() {
         if (recordingInterval) {
             clearInterval(recordingInterval);
-            recordingTime = 0;
         }
     }
 
@@ -109,20 +108,27 @@
                 }
             };
             
+            // Modify the mediaRecorder.onstop callback in startRecording():
             mediaRecorder.onstop = () => {
                 if (!isCancelled) {
                     const blob = new Blob(recordedChunks, { type: mimeType });
-                    console.log('Audio recording finished:', { 
-                        blobSize: blob.size,
-                        duration: recordingTime,
+                    const finalDuration = recordingTime;
+                    logger.info('Audio recording finished:', { 
+                        blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
+                        duration: `${finalDuration}s (${formatTime(finalDuration)})`,
                         chunks: recordedChunks.length,
-                        mimeType: blob.type
+                        mimeType: blob.type,
+                        cancelled: isCancelled
                     });
-                    dispatch('audiorecorded', { blob });
+                    dispatch('audiorecorded', { 
+                        blob,
+                        duration: finalDuration // Add duration to the dispatched event
+                    });
                 }
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
+                recordingTime = 0; // Reset the time only after everything is done
                 dispatch('close');
             };
 
@@ -141,13 +147,15 @@
         
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             isRecording = false;
+            
+            const finalDuration = recordingTime;
             stopRecordingTimer();
             
-            // Only stop and save if not cancelled
+            logger.info(`Recording stopped after ${finalDuration} seconds (${formatTime(finalDuration)})`);
+            
             if (!isCancelled) {
                 mediaRecorder.stop();
             } else {
-                // If cancelled, stop recording and clear chunks
                 mediaRecorder.stop();
                 recordedChunks = [];
                 if (stream) {
@@ -159,6 +167,9 @@
             dispatch('close');
         }
     }
+
+    
+
 
     function handleMouseMove(event: MouseEvent) {
         if (!isRecording && !recordingStartTimeout) return;
