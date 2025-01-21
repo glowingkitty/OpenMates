@@ -236,6 +236,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.file {
+  background: var(--color-app-files);
+  &::after {
+    background-image: url('/icons/files.svg');
+  }
+}
+
 .icon_rounded.photos {
   background: var(--color-app-photos);
   &::after {

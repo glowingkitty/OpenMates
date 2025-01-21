@@ -17,6 +17,7 @@
     import Photos from './in_message_previews/Photos.svelte';
     import PDF from './in_message_previews/PDF.svelte';
     import Audio from './in_message_previews/Audio.svelte';
+    import FilePreview from './in_message_previews/File.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -116,6 +117,16 @@
                         id: HTMLAttributes.id,
                         duration: HTMLAttributes.duration || '00:00',
                         type: HTMLAttributes.type
+                    }
+                });
+                return container;
+            } else if (HTMLAttributes.type === 'file') {
+                mount(FilePreview, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id
                     }
                 });
                 return container;
@@ -703,9 +714,12 @@
             if (file.type.startsWith('image/')) {
                 await insertImage(file);
             } else if (file.type === 'application/pdf') {
-                await insertFile(file);
-            } else if (file.type.startsWith('video/')) {
-                await insertVideo(file);
+                await insertFile(file, 'pdf');
+            } else if (file.type.startsWith('audio/')) {
+                await insertAudio(file);
+            } else {
+                // Handle all other file types as generic files
+                await insertFile(file, 'file');
             }
             
             // Add a space after each insert
@@ -776,8 +790,8 @@
         }, 50);
     }
 
-    async function insertFile(file: File) {
-        console.log('Inserting PDF file:', file.name);
+    async function insertFile(file: File, type: 'pdf' | 'file'): Promise<void> {
+        console.log(`Inserting ${type} file:`, file.name);
         const url = URL.createObjectURL(file);
         
         if (editor.isEmpty) {
@@ -801,7 +815,7 @@
                         {
                             type: 'customEmbed',
                             attrs: {
-                                type: 'pdf',
+                                type,
                                 src: url,
                                 filename: file.name,
                                 id: crypto.randomUUID()
@@ -819,7 +833,7 @@
                 {
                     type: 'customEmbed',
                     attrs: {
-                        type: 'pdf',
+                        type,
                         src: url,
                         filename: file.name,
                         id: crypto.randomUUID()
@@ -838,8 +852,8 @@
         }, 50);
     }
 
-    async function insertVideo(file: File) {
-        console.log('Inserting video:', file.name);
+    async function insertAudio(file: File) {
+        console.log('Inserting audio:', file.name);
         const url = URL.createObjectURL(file);
         
         if (editor.isEmpty) {
@@ -863,7 +877,7 @@
                         {
                             type: 'customEmbed',
                             attrs: {
-                                type: 'video',
+                                type: 'audio',
                                 src: url,
                                 filename: file.name,
                                 id: crypto.randomUUID()
@@ -883,7 +897,7 @@
                     {
                         type: 'customEmbed',
                         attrs: {
-                            type: 'video',
+                            type: 'audio',
                             src: url,
                             filename: file.name,
                             id: crypto.randomUUID()
@@ -923,7 +937,7 @@
     async function handleVideoRecorded(event: CustomEvent) {
         const { blob } = event.detail;
         const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        await insertVideo(file);
+        await insertFile(file, 'file');
         showCamera = false;
     }
 
