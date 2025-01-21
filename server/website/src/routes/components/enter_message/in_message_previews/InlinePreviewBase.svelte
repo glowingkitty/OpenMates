@@ -1,7 +1,7 @@
 <script lang="ts">
     // Common props for all preview types
     export let id: string;
-    export let type: 'audio' | 'pdf' | 'photos' | 'web' | 'recording' | 'file' | 'code';
+    export let type: 'audio' | 'pdf' | 'photos' | 'web' | 'recording' | 'file' | 'code' | 'video';
     
     // Optional props with default values
     export let src: string | undefined = undefined;

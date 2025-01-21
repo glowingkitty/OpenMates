@@ -278,6 +278,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.video {
+  background: var(--color-app-videos);
+  &::after {
+    background-image: url('/icons/videos.svg');
+  }
+}
+
 .icon_rounded.code {
   background: var(--color-app-code);
   &::after {

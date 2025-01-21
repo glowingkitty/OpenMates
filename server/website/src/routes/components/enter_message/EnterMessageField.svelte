@@ -19,6 +19,7 @@
     import Audio from './in_message_previews/Audio.svelte';
     import FilePreview from './in_message_previews/File.svelte';
     import Code from './in_message_previews/Code.svelte';
+    import Videos from './in_message_previews/Videos.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -100,6 +101,17 @@
                         src: HTMLAttributes.src,
                         filename: HTMLAttributes.filename,
                         id: HTMLAttributes.id
+                    }
+                });
+                return container;
+            } else if (HTMLAttributes.type === 'video') {
+                mount(Videos, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id,
+                        duration: HTMLAttributes.duration || '00:00'
                     }
                 });
                 return container;
@@ -623,6 +635,8 @@
             // Handle different file types
             if (isCodeOrTextFile(file.name)) {
                 await insertCodeFile(file);
+            } else if (file.type.startsWith('video/')) {
+                await insertVideo(file);
             } else if (file.type.startsWith('image/')) {
                 await insertImage(file);
             } else if (file.type === 'application/pdf') {
@@ -1197,9 +1211,9 @@
     }
 
     async function handleVideoRecorded(event: CustomEvent) {
-        const { blob } = event.detail;
+        const { blob, duration } = event.detail;
         const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        await insertFile(file, 'file');
+        await insertVideo(file, duration);
         showCamera = false;
     }
 
@@ -1508,6 +1522,69 @@
     $: scrollableStyle = isFullscreen ? 
         `max-height: calc(100vh - 190px);` : 
         'max-height: 250px;';  // Add default height when not fullscreen
+
+    // Add new insertVideo function after other insert functions
+    async function insertVideo(file: File, duration?: number) {
+        const url = URL.createObjectURL(file);
+        const formattedDuration = duration ? formatDuration(duration) : '00:42'; // Default duration if not provided
+
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        {
+                            type: 'customEmbed',
+                            attrs: {
+                                type: 'video',
+                                src: url,
+                                filename: file.name,
+                                duration: formattedDuration,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+        } else {
+            editor
+                .chain()
+                .focus()
+                .insertContent([
+                    {
+                        type: 'customEmbed',
+                        attrs: {
+                            type: 'video',
+                            src: url,
+                            filename: file.name,
+                            duration: formattedDuration,
+                            id: crypto.randomUUID()
+                        }
+                    },
+                    {
+                        type: 'text',
+                        text: ' '
+                    }
+                ])
+                .run();
+        }
+    }
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
