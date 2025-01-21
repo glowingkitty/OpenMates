@@ -154,23 +154,36 @@
 
         renderHTML({ HTMLAttributes }) {
             const elementId = `embed-${HTMLAttributes.id}`;
-            return ['div', {
-                'data-type': 'web-preview',
-                'data-url': HTMLAttributes.url,
-                'data-id': HTMLAttributes.id,
-                id: elementId,
-                class: 'web-preview-container',
-                onclick: `document.dispatchEvent(new CustomEvent('embedclick', { 
+            const container = document.createElement('div');
+
+            // Set container attributes
+            container.setAttribute('data-type', 'web-preview');
+            container.setAttribute('data-url', HTMLAttributes.url);
+            container.setAttribute('data-id', HTMLAttributes.id);
+            container.setAttribute('id', elementId);
+            container.className = 'web-preview-container';
+
+            // Mount Web component
+            mount(Web, {
+                target: container,
+                props: { url: HTMLAttributes.url, id: HTMLAttributes.id }
+            });
+
+            // Add click handler
+            container.onclick = () => {
+                document.dispatchEvent(new CustomEvent('embedclick', { 
                     bubbles: true, 
                     detail: { 
-                        id: '${HTMLAttributes.id}',
-                        elementId: '${elementId}'
+                        id: HTMLAttributes.id,
+                        elementId: elementId
                     }
-                }))`,
-            }]
+                }));
+            };
+
+            return container;
         },
 
-        // Update keyboard shortcuts handler
+        // Keep keyboard shortcuts handler
         addKeyboardShortcuts() {
             return {
                 Backspace: ({ editor }) => {
