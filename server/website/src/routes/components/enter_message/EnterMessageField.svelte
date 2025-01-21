@@ -537,6 +537,107 @@
         }
     }
 
+    // Add these new functions for drag & drop and paste handling
+    function handleDragOver(event: DragEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        editorElement?.classList.add('drag-over');
+    }
+
+    function handleDragLeave(event: DragEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        editorElement?.classList.remove('drag-over');
+    }
+
+    async function handleDrop(event: DragEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        editorElement?.classList.remove('drag-over');
+        
+        // Get dropped files
+        const droppedFiles = Array.from(event.dataTransfer?.files || []);
+        if (!droppedFiles.length) return;
+
+        await processFiles(droppedFiles);
+    }
+
+    async function handlePaste(event: ClipboardEvent) {
+        const items = Array.from(event.clipboardData?.items || []);
+        const files: File[] = [];
+
+        // Check for files in clipboard
+        for (const item of items) {
+            // Handle images from clipboard
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) files.push(file);
+                continue;
+            }
+
+            // Handle text content separately to avoid duplicating it
+            // (since TipTap will handle text paste automatically)
+            if (item.type === 'text/plain') {
+                continue;
+            }
+
+            // Handle other file types
+            if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file) files.push(file);
+            }
+        }
+
+        if (files.length > 0) {
+            event.preventDefault(); // Prevent default paste only if we have files
+            await processFiles(files);
+        }
+    }
+
+    // Common function to process files from drag & drop or paste
+    async function processFiles(files: File[]) {
+        console.log('Processing files:', files);
+
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        if (totalSize > MAX_TOTAL_SIZE) {
+            alert($_('enter_message.file_size_limits.total_exceeded.text', {
+                size: FILE_SIZE_LIMITS.TOTAL_MAX_SIZE,
+                current: (totalSize / 1024 / 1024).toFixed(1),
+                attempted: (totalSize / 1024 / 1024).toFixed(1)
+            } as any));
+            return;
+        }
+
+        // Process each file
+        for (const file of files) {
+            if (file.size > MAX_PER_FILE_SIZE) {
+                alert($_('enter_message.file_size_limits.per_file_exceeded.text', {
+                    size: FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE,
+                    filename: file.name,
+                    filesize: (file.size / 1024 / 1024).toFixed(1)
+                } as any));
+                continue;
+            }
+
+            // Handle different file types
+            if (isCodeOrTextFile(file.name)) {
+                await insertCodeFile(file);
+            } else if (file.type.startsWith('image/')) {
+                await insertImage(file);
+            } else if (file.type === 'application/pdf') {
+                await insertFile(file, 'pdf');
+            } else if (file.type.startsWith('audio/')) {
+                await insertAudio(file);
+            } else {
+                await insertFile(file, 'file');
+            }
+            
+            // Add a space after each insert
+            editor.commands.insertContent(' ');
+        }
+    }
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -654,8 +755,12 @@
             resizeObserver.observe(scrollableContent);
         }
 
+        // Add paste event listener to editor element
+        editorElement?.addEventListener('paste', handlePaste);
+
         return () => {
             resizeObserver.disconnect();
+            editorElement?.removeEventListener('paste', handlePaste);
         };
     });
 
@@ -1394,7 +1499,11 @@
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
-     style={containerStyle}>
+     style={containerStyle}
+     on:dragover={handleDragOver}
+     on:dragleave={handleDragLeave}
+     on:drop={handleDrop}
+>
     {#if isScrollable || isFullscreen}
         <button 
             class="fullscreen-button" 
@@ -2087,7 +2196,6 @@
         min-height: 2em;
         padding: 0.5rem;
         color: var(--color-font-primary);
-        position: relative;
     }
 
     /* Add this new style to ensure placeholder text is visible */
@@ -2193,5 +2301,32 @@
 
     .fullscreen-button.active {
         opacity: 1;
+    }
+
+    /* Add drag & drop styles */
+    :global(.drag-over) {
+        background-color: var(--color-grey-20) !important;
+        border: 2px dashed var(--color-primary) !important;
+        border-radius: 12px;
+    }
+
+    :global(.drag-over::after) {
+        content: 'Drop files here';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.2em;
+        color: var(--color-font-secondary);
+        pointer-events: none;
+    }
+
+    /* Update editor content styles to handle drag & drop visual feedback */
+    .editor-content {
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        position: relative;
+        transition: all 0.2s ease-in-out;
     }
 </style>
