@@ -5,9 +5,22 @@
     export let duration: string;
     export let type: 'audio' | 'recording';
 
+    let showCurrentTime = false;
     let currentTime = '00:00';
     let progress = 0;
     let isPlaying = false;
+    
+    // Listen for time updates from the audio player
+    document.addEventListener('audioupdate', ((e: CustomEvent) => {
+        if (e.detail.id === id) {
+            // Format seconds to MM:SS
+            const seconds = Math.floor(e.detail.currentTime);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            currentTime = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+            progress = e.detail.progress;
+        }
+    }) as EventListener);
 
     function handleClick(e: MouseEvent) {
         document.dispatchEvent(new CustomEvent('embedclick', { 
@@ -47,7 +60,9 @@
     {/if}
     <div class="audio-controls">
         <div class="audio-time">
-            <span class="current-time">{currentTime}</span>
+            {#if showCurrentTime}
+                <span class="current-time">{currentTime}</span>
+            {/if}
             <span class="duration">{duration}</span>
         </div>
         <div class="progress-bar">
@@ -58,6 +73,8 @@
             aria-label={isPlaying ? 'Pause' : 'Play'}
             on:click|stopPropagation={() => {
                 isPlaying = !isPlaying;
+                // Show current time only while playing
+                showCurrentTime = isPlaying;
                 document.dispatchEvent(new CustomEvent('audioplayclick', { 
                     bubbles: true, 
                     detail: { id }
@@ -110,6 +127,7 @@
         font-size: 12px;
         color: var(--color-font-secondary);
         white-space: nowrap;
+        min-width: 45px;
     }
 
     .progress-bar {
