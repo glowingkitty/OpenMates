@@ -78,16 +78,6 @@
             detail: { id }
         }));
     }
-
-    function handleClick(e: MouseEvent) {
-        document.dispatchEvent(new CustomEvent('embedclick', { 
-            bubbles: true, 
-            detail: { 
-                id,
-                elementId: `embed-${id}`
-            }
-        }));
-    }
 </script>
 
 <InlinePreviewBase {id} type={type} {src} {filename}>
@@ -129,20 +119,6 @@
         min-width: 45px;
     }
 
-    .progress-bar {
-        flex: 1;
-        height: 4px;
-        background-color: var(--color-grey-40);
-        border-radius: 2px;
-        overflow: hidden;
-    }
-
-    .progress {
-        height: 100%;
-        background-color: var(--color-app-audio);
-        transition: width 0.1s linear;
-    }
-
     .play-button {
         opacity: 0.5;
         right: 20px;
@@ -150,6 +126,4 @@
         width: 25px;
         height: 25px;
     }
-
-    /* Remove all other play button styles as they're now handled by clickable-icon class */
 </style> 

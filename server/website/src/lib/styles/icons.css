@@ -203,6 +203,16 @@ div.clickable-icon {
   mask-image: url('/icons/maps.svg');
 }
 
+.clickable-icon.icon_play {
+  -webkit-mask-image: url('/icons/play.svg');
+  mask-image: url('/icons/play.svg');
+}
+
+.clickable-icon.icon_pause {
+  -webkit-mask-image: url('/icons/pause.svg');
+  mask-image: url('/icons/pause.svg');
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;
@@ -971,12 +981,3 @@ div.clickable-icon {
 
 /* Add these new classes with the other clickable-icon classes */
 
-.clickable-icon.icon_play {
-    -webkit-mask-image: url('/icons/play.svg');
-    mask-image: url('/icons/play.svg');
-}
-
-.clickable-icon.icon_pause {
-    -webkit-mask-image: url('/icons/pause.svg');
-    mask-image: url('/icons/pause.svg');
-}
