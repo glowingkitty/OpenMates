@@ -18,6 +18,7 @@
     import PDF from './in_message_previews/PDF.svelte';
     import Audio from './in_message_previews/Audio.svelte';
     import FilePreview from './in_message_previews/File.svelte';
+    import Code from './in_message_previews/Code.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -76,7 +77,8 @@
                 src: { default: null },
                 filename: { default: null },
                 id: { default: () => crypto.randomUUID() },
-                duration: { default: null }
+                duration: { default: null },
+                language: { default: null }
             }
         },
 
@@ -127,6 +129,17 @@
                         src: HTMLAttributes.src,
                         filename: HTMLAttributes.filename,
                         id: HTMLAttributes.id
+                    }
+                });
+                return container;
+            } else if (HTMLAttributes.type === 'code') {
+                mount(Code, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id,
+                        language: HTMLAttributes.language
                     }
                 });
                 return container;
@@ -710,15 +723,17 @@
                 continue;
             }
 
-            // Insert content at the current cursor position
-            if (file.type.startsWith('image/')) {
+            // Add code file detection
+            const isCodeFile = isCodeOrTextFile(file.name);
+            if (isCodeFile) {
+                await insertCodeFile(file);
+            } else if (file.type.startsWith('image/')) {
                 await insertImage(file);
             } else if (file.type === 'application/pdf') {
                 await insertFile(file, 'pdf');
             } else if (file.type.startsWith('audio/')) {
                 await insertAudio(file);
             } else {
-                // Handle all other file types as generic files
                 await insertFile(file, 'file');
             }
             
@@ -727,6 +742,114 @@
         }
 
         input.value = '';
+    }
+
+    // Add helper function to detect code/text files
+    function isCodeOrTextFile(filename: string): boolean {
+        const codeExtensions = [
+            'py', 'js', 'ts', 'html', 'css', 'json', 'svelte',
+            'java', 'cpp', 'c', 'rs', 'go', 'rb', 'php', 'swift',
+            'kt', 'txt', 'md', 'xml', 'yaml', 'yml', 'sh', 'bash',
+            'sql', 'vue', 'jsx', 'tsx', 'scss', 'less', 'sass'
+        ];
+        
+        const extension = filename.split('.').pop()?.toLowerCase();
+        return extension ? codeExtensions.includes(extension) : false;
+    }
+
+    // Add function to get language from filename
+    function getLanguageFromFilename(filename: string): string {
+        const ext = filename.split('.').pop()?.toLowerCase() || '';
+        const languageMap: { [key: string]: string } = {
+            'py': 'python',
+            'js': 'javascript',
+            'ts': 'typescript',
+            'html': 'html',
+            'css': 'css',
+            'json': 'json',
+            'svelte': 'svelte',
+            'java': 'java',
+            'cpp': 'cpp',
+            'c': 'c',
+            'rs': 'rust',
+            'go': 'go',
+            'rb': 'ruby',
+            'php': 'php',
+            'swift': 'swift',
+            'kt': 'kotlin',
+            'md': 'markdown',
+            'xml': 'xml',
+            'yaml': 'yaml',
+            'yml': 'yaml',
+            'sh': 'bash',
+            'bash': 'bash',
+            'sql': 'sql',
+            'vue': 'vue',
+            'jsx': 'javascript',
+            'tsx': 'typescript',
+            'scss': 'scss',
+            'less': 'less',
+            'sass': 'sass'
+        };
+        return languageMap[ext] || 'plaintext';
+    }
+
+    // Add function to insert code files
+    async function insertCodeFile(file: File): Promise<void> {
+        console.log('Inserting code file:', file.name);
+        const url = URL.createObjectURL(file);
+        const language = getLanguageFromFilename(file.name);
+
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        {
+                            type: 'customEmbed',
+                            attrs: {
+                                type: 'code',
+                                src: url,
+                                filename: file.name,
+                                language: language,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+        } else {
+            editor
+                .chain()
+                .focus()
+                .insertContent({
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'code',
+                        src: url,
+                        filename: file.name,
+                        language: language,
+                        id: crypto.randomUUID()
+                    }
+                })
+                .run();
+        }
     }
 
     async function insertImage(file: File): Promise<void> {

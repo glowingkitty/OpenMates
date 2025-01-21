@@ -27,6 +27,7 @@
 		"@tiptap/extension-placeholder": "^2.11.2",
 		"@tiptap/starter-kit": "^2.11.2",
 		"date-fns": "^4.1.0",
+		"highlight.js": "^11.11.1",
 		"svelte-i18n": "^4.0.1"
 	},
 	"engines": {
