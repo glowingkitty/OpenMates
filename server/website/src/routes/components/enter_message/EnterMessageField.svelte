@@ -1100,13 +1100,10 @@
             case 'copy':
                 if (node.attrs.url) {
                     await navigator.clipboard.writeText(node.attrs.url);
-                    // Find the Web component instance and call its showCopiedConfirmation method
-                    const webElement = document.getElementById(`embed-${selectedEmbedId}`);
-                    if (webElement) {
-                        const webComponent = (webElement as any).__svelte_instance__;
-                        if (webComponent && webComponent.showCopiedConfirmation) {
-                            webComponent.showCopiedConfirmation();
-                        }
+                    const element = document.getElementById(`embed-${selectedEmbedId}`);
+                    if (element) {
+                        element.classList.add('show-copied');
+                        setTimeout(() => element.classList.remove('show-copied'), 2000);
                     }
                 }
                 break;

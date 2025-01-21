@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { _ } from 'svelte-i18n';
     // Remove unused imports and simplify
     export let url: string;
     export let id: string;  // Add id prop to match PDF component pattern
@@ -24,7 +25,10 @@
     const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
     parts.path = fullPath === '/' ? '' : fullPath;
 
-    // Simplified click handler to match PDF pattern
+    // Simplified state management
+    let showCopied = false;
+
+    // Add back the click handler
     function handleClick(e: MouseEvent) {
         document.dispatchEvent(new CustomEvent('embedclick', { 
             bubbles: true, 
@@ -33,24 +37,6 @@
                 elementId: `embed-${id}`
             }
         }));
-    }
-
-    // Track URL visibility state
-    let urlVisible = true;
-    let showCopiedMessage = false;
-
-    // Export these functions to be called from parent
-    export function showCopiedConfirmation() {
-        urlVisible = false;
-        setTimeout(() => {
-            showCopiedMessage = true;
-            setTimeout(() => {
-                showCopiedMessage = false;
-                setTimeout(() => {
-                    urlVisible = true;
-                }, 300);
-            }, 1500);
-        }, 300);
     }
 </script>
 
@@ -62,6 +48,7 @@
     data-url={url}
     data-id={id}
     id="embed-{id}"
+    class:show-copied={showCopied}
     on:click={handleClick}
     on:keydown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -75,7 +62,7 @@
     
     <!-- URL -->
     <div class="url-container">
-        <div class="url" class:fade-out={!urlVisible} class:hidden={!urlVisible}>
+        <div class="url">
             <div class="domain-line">
                 <span class="subdomain">{parts.subdomain}</span>
                 <span class="main-domain">{parts.domain}</span>
@@ -84,11 +71,10 @@
                 <span class="path">{parts.path}</span>
             {/if}
         </div>
-        {#if showCopiedMessage}
-            <div class="copied-message fade-in">
-                URL copied to clipboard
-            </div>
-        {/if}
+        <!-- Always present, toggled via CSS -->
+        <div class="copied-message">
+            {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+        </div>
     </div>
 </div>
 
@@ -156,32 +142,18 @@
     .copied-message {
         position: absolute;
         top: 50%;
-        transform: translateY(-50%);
+        left: 0;
         width: 100%;
+        transform: translateY(-50%);
         text-align: center;
-        color: var(--color-font-primary);
-        font-weight: 500;
+        opacity: 0;
     }
 
-    .hidden {
-        display: none;
+    .show-copied .url {
+        opacity: 0;
     }
 
-    .fade-in {
-        animation: fadeIn 0.3s ease-in;
-    }
-
-    .fade-out {
-        animation: fadeOut 0.3s ease-in;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
+    .show-copied .copied-message {
+        opacity: 1;
     }
 </style>
