@@ -141,7 +141,7 @@
         margin: 0;
         height: 100%;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
+        font-size: 10px;
         line-height: 1.4;
     }
 
