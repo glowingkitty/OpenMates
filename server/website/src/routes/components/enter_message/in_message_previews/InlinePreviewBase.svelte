@@ -1,7 +1,7 @@
 <script lang="ts">
     // Common props for all preview types
     export let id: string;
-    export let type: 'audio' | 'pdf' | 'photo' | 'web' | 'recording';
+    export let type: 'audio' | 'pdf' | 'photos' | 'web' | 'recording';
     
     // Optional props with default values
     export let src: string | undefined = undefined;
@@ -98,7 +98,7 @@
     }
 
     /* Photo preview specific styles */
-    .preview-container.photo {
+    .preview-container.photos {
         overflow: hidden;
     }
 </style> 

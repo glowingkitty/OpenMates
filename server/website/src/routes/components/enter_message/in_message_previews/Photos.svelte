@@ -7,7 +7,7 @@
     export let id: string;
 </script>
 
-<InlinePreviewBase {id} type="photo" {src} {filename} height="200px">
+<InlinePreviewBase {id} type="photos" {src} {filename} height="200px">
     <div class="checkerboard-background">
         <img {src} alt="Preview" class="preview-image fill-container" />
     </div>
