@@ -278,6 +278,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.code {
+  background: var(--color-app-code);
+  &::after {
+    background-image: url('/icons/coding.svg');
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
