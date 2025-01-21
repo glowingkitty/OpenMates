@@ -4,7 +4,7 @@
     export let src: string;
     export let filename: string | null = null;
     export let id: string;
-    export let duration: string;
+    export let duration: string; // Format: "MM:SS"
     export let type: 'audio' | 'recording';
 
     let showCurrentTime = false;
@@ -15,15 +15,35 @@
     // Add audio element reference
     let audioElement: HTMLAudioElement;
     
+    // Logger for debugging
+    const logger = {
+        debug: (...args: any[]) => console.debug('[Audio]', ...args),
+        info: (...args: any[]) => console.info('[Audio]', ...args)
+    };
+
+    // Convert duration string (MM:SS) to seconds
+    function getDurationInSeconds(timeStr: string): number {
+        const [minutes, seconds] = timeStr.split(':').map(Number);
+        return minutes * 60 + seconds;
+    }
+
+    // Format seconds to MM:SS
+    function formatTime(seconds: number): string {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
     // Initialize audio element when component mounts
     function initAudio() {
-        console.log(`Initializing audio player for ${id}`);
+        logger.debug(`Initializing audio player for ${id}`);
         audioElement = new Audio(src);
-        
+
         // Add timeupdate event listener to track progress
         audioElement.addEventListener('timeupdate', () => {
+            const durationInSeconds = getDurationInSeconds(duration);
             currentTime = formatTime(audioElement.currentTime);
-            progress = (audioElement.currentTime / audioElement.duration) * 100;
+            progress = (audioElement.currentTime / durationInSeconds) * 100;
         });
 
         // Add ended event listener to reset state
@@ -35,13 +55,6 @@
         });
     }
 
-    // Format time helper function
-    function formatTime(seconds: number): string {
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-
     // Handle play/pause
     function togglePlay() {
         if (!audioElement) {
@@ -49,10 +62,10 @@
         }
 
         if (isPlaying) {
-            console.log(`Pausing audio ${id}`);
+            logger.debug(`Pausing audio ${id}`);
             audioElement.pause();
         } else {
-            console.log(`Playing audio ${id}`);
+            logger.debug(`Playing audio ${id}`);
             audioElement.play();
         }
         
