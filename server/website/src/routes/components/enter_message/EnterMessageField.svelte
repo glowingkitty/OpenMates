@@ -773,6 +773,9 @@
         console.log('Inserting PDF file:', file.name);
         const url = URL.createObjectURL(file);
         
+        // Move cursor to end before inserting
+        editor.commands.focus('end');
+        
         if (editor.isEmpty) {
             editor.commands.setContent({
                 type: 'doc',
@@ -807,27 +810,30 @@
                 }]
             });
         } else {
-            editor.commands.insertContent([
-                {
-                    type: 'customEmbed',
-                    attrs: {
-                        type: 'pdf',
-                        src: url,
-                        filename: file.name,
-                        id: crypto.randomUUID()
+            // Get current cursor position
+            const { from } = editor.state.selection;
+            
+            // Insert at current position or end
+            editor
+                .chain()
+                .focus()
+                .insertContentAt(from, [
+                    {
+                        type: 'customEmbed',
+                        attrs: {
+                            type: 'pdf',
+                            src: url,
+                            filename: file.name,
+                            id: crypto.randomUUID()
+                        }
+                    },
+                    {
+                        type: 'text',
+                        text: ' '
                     }
-                },
-                {
-                    type: 'text',
-                    text: ' '
-                }
-            ]);
+                ])
+                .run();
         }
-        
-        // Replace the old cursor positioning with the working timeout focus
-        setTimeout(() => {
-            editor.commands.focus('end');
-        }, 50);
     }
 
     async function insertVideo(file: File) {
@@ -1134,6 +1140,12 @@
         const filename = `audio_${Date.now()}.webm`;
         const formattedDuration = formatDuration(duration);
 
+        // Move cursor to end before inserting
+        editor.commands.focus('end');
+
+        // Get current cursor position
+        const { from } = editor.state.selection;
+
         // If editor is empty, first insert the default mention
         if (editor.isEmpty) {
             editor.commands.setContent({
@@ -1150,37 +1162,48 @@
                         },
                         {
                             type: 'text',
-                            text: ' '  // Add space after mention
+                            text: ' '
+                        },
+                        {
+                            type: 'customEmbed',
+                            attrs: {
+                                type: 'recording',
+                                src: url,
+                                filename: filename,
+                                duration: formattedDuration,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
                         }
                     ]
                 }]
             });
-        }
-
-        // Move cursor to end of content before inserting
-        editor.commands.focus('end');
-
-        // Insert the audio embed at current cursor position
-        editor
-            .chain()
-            .insertContent([
-                {
-                    type: 'customEmbed',
-                    attrs: {
-                        type: 'recording',
-                        src: url,
-                        filename: filename,
-                        duration: formattedDuration,
-                        id: crypto.randomUUID()
+        } else {
+            // Insert at current position
+            editor
+                .chain()
+                .focus()
+                .insertContentAt(from, [
+                    {
+                        type: 'customEmbed',
+                        attrs: {
+                            type: 'recording',
+                            src: url,
+                            filename: filename,
+                            duration: formattedDuration,
+                            id: crypto.randomUUID()
+                        }
+                    },
+                    {
+                        type: 'text',
+                        text: ' '
                     }
-                },
-                {
-                    type: 'text',
-                    text: ' ' // Add space after the embed
-                }
-            ])
-            .focus('end') // Keep focus at end after insertion
-            .run();
+                ])
+                .run();
+        }
 
         console.log('Added audio recording:', { filename, duration: formattedDuration });
     }
