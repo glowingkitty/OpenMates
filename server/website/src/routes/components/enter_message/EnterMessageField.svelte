@@ -49,6 +49,9 @@
     let recordStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
     let showRecordHint = false;
     let recordHintTimeout: ReturnType<typeof setTimeout>;
+    let isFullscreen = false;
+    let isScrollable = false;
+    let scrollableContent: HTMLElement;
 
     // Add this constant near the top of the file, after the imports
     const VALID_MATES = [
@@ -527,6 +530,13 @@
         isRecordingActive = event.detail.active;
     }
 
+    // Add function to check if content is scrollable
+    function checkScrollable() {
+        if (scrollableContent) {
+            isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight;
+        }
+    }
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -635,6 +645,18 @@
             });
             editor.commands.focus('end');
         }, 100); // Small delay to ensure editor is fully initialized
+
+        const resizeObserver = new ResizeObserver(() => {
+            checkScrollable();
+        });
+
+        if (scrollableContent) {
+            resizeObserver.observe(scrollableContent);
+        }
+
+        return () => {
+            resizeObserver.disconnect();
+        };
     });
 
     // Update the URL detection and replacement function
@@ -1357,9 +1379,33 @@
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
+
+    // Function to toggle fullscreen mode
+    function toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+    }
+
+    $: containerStyle = isFullscreen ? 
+        `height: calc(100vh - 100px); max-height: calc(100vh - 120px);` : 
+        'height: auto; max-height: 350px;';  // Add default height when not fullscreen
+    $: scrollableStyle = isFullscreen ? 
+        `max-height: calc(100vh - 190px);` : 
+        'max-height: 250px;';  // Add default height when not fullscreen
 </script>
 
-<div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}">
+<div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
+     style={containerStyle}>
+    {#if isScrollable || isFullscreen}
+        <button 
+            class="fullscreen-button" 
+            class:active={isFullscreen}
+            on:click={toggleFullscreen}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+            <div class="clickable-icon icon_fullscreen"></div>
+        </button>
+    {/if}
+
     <!-- Hidden file inputs -->
     <input
         bind:this={fileInput}
@@ -1379,7 +1425,9 @@
         multiple
     />
 
-    <div class="scrollable-content">
+    <div class="scrollable-content"
+         bind:this={scrollableContent}
+         style={scrollableStyle}>
         <div class="content-wrapper">
             <div 
                 bind:this={editorElement} 
@@ -1566,7 +1614,7 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         transition: all 0.3s ease-in-out; /* Update transition to include all properties */
         transform-origin: center;
-        will-change: transform, padding-bottom, max-height;
+        will-change: transform, padding-bottom, max-height, height;
     }
 
     /* Add new style for recording active state */
@@ -1586,7 +1634,7 @@
         scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
         overflow-x: hidden;
         box-sizing: border-box;
-        transition: max-height 0.3s ease-in-out;
+        transition: all 0.3s ease-in-out;
     }
 
     .content-wrapper {
@@ -2124,5 +2172,26 @@
         gap: 0.5rem;
         height: 100%;
         flex-wrap: nowrap;
+    }
+
+    .fullscreen-button {
+        position: absolute;  /* Change back to absolute since it's relative to message-container */
+        top: 8px;
+        right: -10px;
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        opacity: 0.5;
+        transition: opacity 0.2s ease-in-out;
+        z-index: 1000;
+    }
+
+    .fullscreen-button:hover {
+        opacity: 1;
+    }
+
+    .fullscreen-button.active {
+        opacity: 1;
     }
 </style>
