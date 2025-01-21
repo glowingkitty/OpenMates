@@ -1136,24 +1136,49 @@
         // Format duration
         const formattedDuration = formatDuration(duration);
 
-        // Focus editor and ensure cursor position is maintained
-        editor.commands.focus();
+        // If editor is empty, first insert the default mention
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '  // Add space after mention
+                        }
+                    ]
+                }]
+            });
+        }
 
-        // Insert audio embed at current cursor position
+        // Now insert the audio embed
         editor
             .chain()
             .focus()
-            .insertContent({
-                type: 'customEmbed',
-                attrs: {
-                    type: 'recording',
-                    src: url,
-                    filename: filename,
-                    duration: formattedDuration,
-                    id: crypto.randomUUID()
+            .insertContent([
+                {
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'recording',
+                        src: url,
+                        filename: filename,
+                        duration: formattedDuration,
+                        id: crypto.randomUUID()
+                    }
+                },
+                {
+                    type: 'text',
+                    text: ' ' // Add space after the embed
                 }
-            })
-            .insertContent(' ') // Add space after the embed
+            ])
             .run();
     }
 
