@@ -65,6 +65,7 @@
         display: flex;
         align-items: center;
         margin: 4px 0;
+        overflow: hidden;
     }
 
     .preview-container:hover {

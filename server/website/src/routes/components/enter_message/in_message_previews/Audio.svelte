@@ -81,6 +81,15 @@
 </script>
 
 <InlinePreviewBase {id} type={type} {src} {filename}>
+    <div 
+        class="progress-bar" 
+        style="width: {progress}%"
+        aria-label="Audio playback progress"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={progress}
+    ></div>
     {#if type === 'audio' && filename}
         <div class="filename-container">
             <span class="filename">{filename}</span>
@@ -125,5 +134,29 @@
         position: absolute;
         width: 25px;
         height: 25px;
+    }
+
+    .progress-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 0;
+        background-color: var(--color-grey-10);
+        transition: width 0.5s linear;
+        /* Make sure progress bar stays behind content */
+        z-index: 0;
+        opacity: 1;
+    }
+
+    /* Ensure other elements stay above progress bar */
+    .audio-controls {
+        position: relative;
+        z-index: 1;
+    }
+
+    .filename-container {
+        position: relative;
+        z-index: 1;
     }
 </style> 
