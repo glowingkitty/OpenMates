@@ -120,9 +120,6 @@
             {/if}
             <span class="duration">{duration}</span>
         </div>
-        <div class="progress-bar">
-            <div class="progress" style="width: {progress}%"></div>
-        </div>
         <button 
             class="play-button {isPlaying ? 'playing' : ''}"
             aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -192,6 +189,9 @@
     }
 
     .play-button {
+        all: unset;
+        right: 10px;
+        position: absolute;
         width: 32px;
         height: 32px;
         border-radius: 50%;
