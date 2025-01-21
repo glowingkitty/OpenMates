@@ -30,7 +30,9 @@
             'rb': 'ruby',
             'php': 'php',
             'swift': 'swift',
-            'kt': 'kotlin'
+            'kt': 'kotlin',
+            'yml': 'yaml',
+            'yaml': 'yaml'
         };
         return languageMap[ext] || 'plaintext';
     }
@@ -42,9 +44,8 @@
             
             language = getLanguageFromFilename(filename);
             
-            // Create preview (first few lines)
-            codePreview = text.split('\n').slice(0, 8).join('\n').substring(0, 200);
-            if (text.length > 200) codePreview += '...';
+            // Use full text instead of preview
+            codePreview = text;
             
             // Highlight code after render
             setTimeout(() => {
@@ -94,6 +95,7 @@
         bottom: 0;
         padding: 16px;
         overflow: hidden;
+        max-height: 100%;
     }
 
     .info-bar {
