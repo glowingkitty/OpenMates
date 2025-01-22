@@ -155,8 +155,29 @@
                 <track kind="captions" />
             </video>
         {/if}
-        
-        <div class="info-bar">
+
+        <!-- New bottom progress bar that's always visible -->
+        <div class="bottom-progress-container">
+            <div 
+                class="bottom-progress-bar" 
+                style="width: {progress}%"
+                aria-label="Video playback progress"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={progress}
+            ></div>
+        </div>
+
+        <!-- Moved play button outside info-bar -->
+        <button 
+            class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+            on:click={togglePlay}
+        ></button>
+
+        <!-- Added transition for info-bar -->
+        <div class="info-bar" class:hidden={isPlaying}>
             <div 
                 class="progress-bar" 
                 style="width: {progress}%"
@@ -175,11 +196,6 @@
             {:else}
                 <span class="duration">{duration}</span>
             {/if}
-            <button 
-                class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-                on:click={togglePlay}
-            ></button>
         </div>
     </div>
 </InlinePreviewBase>
@@ -216,14 +232,26 @@
         padding-left: 70px;
         padding-right: 16px;
         overflow: hidden;
+        user-select: none;
+        /* Add transition for smooth fade */
+        transition: opacity 0.3s ease-in-out;
+        opacity: 1;
+        z-index: 1;
+    }
+
+    .info-bar.hidden {
+        opacity: 0;
+        pointer-events: none;
     }
 
     .play-button {
         opacity: 0.5;
         right: 20px;
+        bottom: 17px;
         position: absolute;
         width: 25px;
         height: 25px;
+        z-index: 2;
     }
 
     .play-button:hover {
@@ -258,5 +286,26 @@
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         font-variant-numeric: tabular-nums;
         min-width: 40px;
+    }
+
+    /* New styles for bottom progress bar */
+    .bottom-progress-container {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        z-index: 1;
+    }
+
+    .bottom-progress-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 0;
+        background-color: var(--color-grey-10);
+        transition: width 0.5s linear;
+        opacity: 0.8;
     }
 </style>
