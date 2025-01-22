@@ -3,6 +3,7 @@
     import { slide } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
+    import Toggle from '../Toggle.svelte';  // Add Toggle import
     
     // Add import for Leaflet CSS in the script section
     import 'leaflet/dist/leaflet.css';
@@ -203,18 +204,16 @@
 </svelte:head>
 
 <div class="maps-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
-    <div class="map-container" bind:this={mapContainer}></div>
-    
     <div class="precise-toggle">
         <span>{$_('enter_message.location.precise.text')}</span>
-        <button 
-            class="toggle-button {isPrecise ? 'active' : ''}"
-            on:click={togglePrecise}
-            aria-label={$_('enter_message.location.toggle_precise.text')}
-        >
-            <div class="toggle-slider"></div>
-        </button>
+        <Toggle 
+            bind:checked={isPrecise}
+            name="precise-location"
+            ariaLabel={$_('enter_message.location.toggle_precise.text')}
+        />
     </div>
+    
+    <div class="map-container" bind:this={mapContainer}></div>
 
     <div class="bottom-bar">
         <div class="controls">
@@ -265,6 +264,8 @@
         height: 100%;
         background: var(--color-grey-0);
         z-index: 1;
+        overflow: hidden;
+        border-radius: 24px;
     }
 
     .bottom-bar {
@@ -292,25 +293,6 @@
         color: var(--color-font-primary);
     }
 
-    .location-button {
-        background: none;
-        border: none;
-        padding: 8px;
-        cursor: pointer;
-        border-radius: 50%;
-        transition: all 0.3s ease;
-    }
-
-    .location-button:hover {
-        background: var(--color-grey-20);
-    }
-
-    .location-button.loading {
-        animation: spin 1s linear infinite;
-        pointer-events: none;
-        opacity: 0.7;
-    }
-
     .select-button {
         position: absolute;
         left: 50%;
@@ -327,47 +309,18 @@
 
     .precise-toggle {
         position: absolute;
-        top: 20px;
+        top: 0px;
         left: 50%;
         transform: translateX(-50%);
-        background: white;
+        background: var(--color-grey-0);
         padding: 8px 16px;
-        border-radius: 20px;
+        border-radius: 0 0 20px 20px;
         display: flex;
         align-items: center;
         gap: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        z-index: 2;
-    }
-
-    .toggle-button {
-        width: 44px;
-        height: 24px;
-        background: var(--color-grey-0);
-        border-radius: 12px;
-        border: none;
-        position: relative;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-
-    .toggle-button.active {
-        background: var(--color-primary);
-    }
-
-    .toggle-slider {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 20px;
-        height: 20px;
-        background: white;
-        border-radius: 50%;
-        transition: transform 0.3s ease;
-    }
-
-    .toggle-button.active .toggle-slider {
-        transform: translateX(20px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 1001;
+        color: var(--color-font-primary);
     }
 
     @keyframes spin {
@@ -435,14 +388,6 @@
 
     :global(.leaflet-control-zoom-in) {
         border-bottom: 1px solid var(--color-grey-40) !important;
-    }
-
-
-    /* Improve precise toggle visibility */
-    .precise-toggle {
-        background: var(--color-grey-0);
-        color: var(--color-font-primary);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     /* Add transition for smoother dark mode switching */
