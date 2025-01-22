@@ -1591,6 +1591,9 @@
      on:dragover={handleDragOver}
      on:dragleave={handleDragLeave}
      on:drop={handleDrop}
+     role="textbox"
+     aria-multiline="true"
+     tabindex="0"
 >
     {#if isScrollable || isFullscreen}
         <button 
