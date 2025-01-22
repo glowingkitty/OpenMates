@@ -243,7 +243,7 @@
         opacity: 1;
     }
 
-    .time-display {
+    .time-display, .duration {
         z-index: 1;
         display: flex;
         align-items: center;
