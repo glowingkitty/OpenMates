@@ -10,8 +10,8 @@
     const dispatch = createEventDispatcher();
     
     let mapContainer: HTMLElement;
-    let map: Map;
-    let marker: Marker;
+    let map: Map | null = null;
+    let marker: Marker | null = null;
     let L: any; // Will hold Leaflet instance
     let isPrecise = false; // Toggle for precise location
     let isLoading = false;
@@ -24,10 +24,20 @@
     };
 
     onMount(async () => {
+        await initializeMap();
+    });
+
+    onDestroy(() => {
+        cleanupMap();
+    });
+
+    async function initializeMap() {
+        // Clean up existing map if any
+        cleanupMap();
+        
         // Import Leaflet only on client-side
         L = (await import('leaflet')).default;
         
-        // Initialize map with better default settings
         map = L.map(mapContainer, {
             center: [20, 0],
             zoom: 2,
@@ -40,34 +50,37 @@
         const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             subdomains: ['a', 'b', 'c'],
-            errorTileUrl: 'path/to/error-tile.png', // Add a placeholder error tile image
-            retryOnError: true,
             crossOrigin: true
         }).addTo(map);
 
-        // Add event listeners for tile loading
-        tileLayer.on('tileerror', (error: { tile: HTMLElement; coords: { x: number; y: number; z: number } }) => {
-            logger.debug('Tile loading error:', error);
-        });
-
-        tileLayer.on('load', () => {
-            logger.debug('All tiles loaded successfully');
-        });
-
-        // Add attribution control to bottom right
-        L.control.attribution({
-            position: 'bottomright',
-            prefix: '© OpenStreetMap contributors'
-        }).addTo(map);
+        // Force map to update its container size
+        setTimeout(() => {
+            if (map) {
+                map.invalidateSize();
+                
+                // If we have a current location, center on it
+                if (currentLocation) {
+                    map.setView([currentLocation.lat, currentLocation.lon], 16, {
+                        animate: false
+                    });
+                    marker = L.marker([currentLocation.lat, currentLocation.lon]).addTo(map);
+                }
+            }
+        }, 100);
 
         logger.debug('Map initialized');
-    });
+    }
 
-    onDestroy(() => {
+    function cleanupMap() {
+        if (marker) {
+            marker.remove();
+            marker = null;
+        }
         if (map) {
             map.remove();
+            map = null;
         }
-    });
+    }
 
     async function getCurrentLocation() {
         if (!navigator.geolocation) {
@@ -96,13 +109,15 @@
             logger.debug('Got location:', { lat, lon, precise: isPrecise });
 
             // Update map view
-            map.setView([lat, lon], 16);
+            if (map) {
+                map.setView([lat, lon], 16);
 
-            // Add or update marker
-            if (marker) {
-                marker.setLatLng([lat, lon]);
-            } else {
-                marker = L.marker([lat, lon]).addTo(map);
+                // Add or update marker
+                if (marker) {
+                    marker.setLatLng([lat, lon]);
+                } else {
+                    marker = L.marker([lat, lon]).addTo(map);
+                }
             }
 
             // Enable the select button
