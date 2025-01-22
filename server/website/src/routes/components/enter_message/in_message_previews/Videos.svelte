@@ -23,12 +23,19 @@
 
     // Convert duration string (MM:SS) to seconds
     function getDurationInSeconds(timeStr: string): number {
+        // Handle invalid duration string
+        if (!timeStr || timeStr.includes('Infinity') || timeStr.includes('NaN')) {
+            return 0;
+        }
         const [minutes, seconds] = timeStr.split(':').map(Number);
         return minutes * 60 + seconds;
     }
 
     // Format seconds to MM:SS
     function formatTime(seconds: number): string {
+        if (!isFinite(seconds) || isNaN(seconds)) {
+            return '00:00';
+        }
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -36,7 +43,11 @@
 
     // Initialize video element and load metadata
     async function initVideo() {
-        logger.debug(`Initializing video player for ${id}`);
+        logger.debug(`Initializing video player for ${id}`, {
+            initialDuration: duration,
+            src
+        });
+
         if (!videoElement) {
             videoElement = document.createElement('video');
             videoElement.src = src;
@@ -45,10 +56,10 @@
             // Wait for metadata to load to get actual duration
             await new Promise((resolve) => {
                 videoElement.addEventListener('loadedmetadata', () => {
-                    // Update duration with actual video duration
-                    duration = formatTime(videoElement.duration);
+                    logger.debug(`Video metadata loaded, using passed duration: ${duration}`);
+
                     // Set video height based on aspect ratio
-                    videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300; // 300px is max width
+                    videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300;
                     thumbnailLoaded = true;
                     resolve(null);
                 });
@@ -67,28 +78,58 @@
                 showCurrentTime = false;
                 progress = 0;
                 currentTime = '00:00';
+                videoElement.currentTime = 0; // Reset video position to start
+                logger.debug('Video playback ended, reset to beginning');
+            });
+
+            // Add loadeddata event listener to double-check duration
+            videoElement.addEventListener('loadeddata', () => {
+                logger.debug('Video data loaded:', {
+                    duration: videoElement.duration,
+                    readyState: videoElement.readyState,
+                    currentSrc: videoElement.currentSrc
+                });
+
+                // Update duration again if it's valid now
+                if (isFinite(videoElement.duration) && videoElement.duration > 0) {
+                    duration = formatTime(videoElement.duration);
+                    logger.debug(`Updated video duration to ${duration} after data load`);
+                }
+            });
+
+            // Add error listener
+            videoElement.addEventListener('error', (e) => {
+                logger.debug('Video error:', {
+                    error: videoElement.error,
+                    event: e
+                });
             });
         }
     }
 
-    // Handle play/pause
+    // Handle play/pause with better error handling
     async function togglePlay(e: MouseEvent) {
         e.stopPropagation();
         
-        if (!videoElement) {
-            await initVideo();
-        }
+        try {
+            if (!videoElement) {
+                await initVideo();
+            }
 
-        if (isPlaying) {
-            logger.debug(`Pausing video ${id}`);
-            videoElement.pause();
-        } else {
-            logger.debug(`Playing video ${id}`);
-            videoElement.play();
+            if (isPlaying) {
+                logger.debug(`Pausing video ${id}`);
+                await videoElement.pause();
+            } else {
+                logger.debug(`Playing video ${id}`);
+                const playResult = await videoElement.play();
+                logger.debug('Play result:', playResult);
+            }
+            
+            isPlaying = !isPlaying;
+            showCurrentTime = isPlaying;
+        } catch (err) {
+            logger.debug('Error toggling video playback:', err);
         }
-        
-        isPlaying = !isPlaying;
-        showCurrentTime = isPlaying;
     }
 
     // Initialize on mount
@@ -125,9 +166,14 @@
         ></div>
         <div class="info-bar">
             {#if showCurrentTime}
-                <span class="current-time">{currentTime}</span>
+                <span class="time-display">
+                    <span class="current-time">{currentTime}</span>
+                    <span class="time-separator"> / </span>
+                    <span class="duration">{duration}</span>
+                </span>
+            {:else}
+                <span class="duration">{duration}</span>
             {/if}
-            <span class="duration">{duration}</span>
             <button 
                 class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
                 aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -193,7 +239,19 @@
         z-index: 1;
     }
 
+    .time-display {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .time-separator {
+        opacity: 0.7;
+    }
+
     .current-time, .duration {
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        font-variant-numeric: tabular-nums;
+        min-width: 40px;
     }
 </style>

@@ -636,7 +636,7 @@
             if (isCodeOrTextFile(file.name)) {
                 await insertCodeFile(file);
             } else if (file.type.startsWith('video/')) {
-                await insertVideo(file);
+                await insertVideo(file, undefined);
             } else if (file.type.startsWith('image/')) {
                 await insertImage(file);
             } else if (file.type === 'application/pdf') {
@@ -1210,7 +1210,7 @@
         await insertImage(file);
     }
 
-    async function handleVideoRecorded(event: CustomEvent) {
+    async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
         const { blob, duration } = event.detail;
         const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
         await insertVideo(file, duration);
@@ -1524,10 +1524,9 @@
         'max-height: 250px;';  // Add default height when not fullscreen
 
     // Add new insertVideo function after other insert functions
-    async function insertVideo(file: File, duration?: number) {
+    async function insertVideo(file: File, duration?: string) {
         const url = URL.createObjectURL(file);
-        const formattedDuration = duration ? formatDuration(duration) : '00:42'; // Default duration if not provided
-
+        
         if (editor.isEmpty) {
             editor.commands.setContent({
                 type: 'doc',
@@ -1551,7 +1550,7 @@
                                 type: 'video',
                                 src: url,
                                 filename: file.name,
-                                duration: formattedDuration,
+                                duration: duration || '00:00',
                                 id: crypto.randomUUID()
                             }
                         },
@@ -1573,7 +1572,7 @@
                             type: 'video',
                             src: url,
                             filename: file.name,
-                            duration: formattedDuration,
+                            duration: duration || '00:00',
                             id: crypto.randomUUID()
                         }
                     },

@@ -52,13 +52,15 @@
         recordingTime = 0;
         recordingInterval = setInterval(() => {
             recordingTime++;
+            // Format duration while recording
+            const duration = formatTime(recordingTime);
+            console.debug('Recording time:', duration);
         }, 1000);
     }
 
     function stopRecordingTimer() {
         if (recordingInterval) {
             clearInterval(recordingInterval);
-            recordingTime = 0;
         }
     }
 
@@ -73,6 +75,8 @@
         
         if (!isRecording) {
             try {
+                // Reset recording time when starting new recording
+                recordingTime = 0;
                 // Request audio permission only when starting recording
                 const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const tracks = [...stream.getTracks(), ...audioStream.getTracks()];
@@ -91,7 +95,20 @@
                 
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    dispatch('videorecorded', { blob });
+                    const finalDuration = formatTime(recordingTime);
+                    logger.debug('Stopping recording:', {
+                        duration: finalDuration,
+                        recordingTime,
+                        blobSize: blob.size
+                    });
+                    
+                    dispatch('videorecorded', { 
+                        blob,
+                        duration: finalDuration
+                    });
+                    
+                    // Reset recording time after we're done with it
+                    recordingTime = 0;
                     dispatch('close');
                 };
 
@@ -103,11 +120,41 @@
             }
         } else {
             isRecording = false;
+            const finalDuration = formatTime(recordingTime);
+            logger.debug('Recording stopped:', {
+                duration: finalDuration,
+                recordingTime
+            });
+            
+            // Stop the timer but keep the recordingTime value
             stopRecordingTimer();
 
             if (mediaRecorder) {
+                // Use the current recordingTime value when stopping
+                const finalRecordingTime = recordingTime;
                 setTimeout(() => {
-                    mediaRecorder?.stop();
+                    if (mediaRecorder) {
+                        // Store the final duration before stopping
+                        mediaRecorder.onstop = () => {
+                            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                            const finalDuration = formatTime(finalRecordingTime);
+                            logger.debug('Final recording details:', {
+                                duration: finalDuration,
+                                recordingTime: finalRecordingTime,
+                                blobSize: blob.size
+                            });
+                            
+                            dispatch('videorecorded', { 
+                                blob,
+                                duration: finalDuration
+                            });
+                            
+                            // Now we can reset the recording time
+                            recordingTime = 0;
+                            dispatch('close');
+                        };
+                        mediaRecorder.stop();
+                    }
                 }, 300);
             }
         }
@@ -137,6 +184,12 @@
             }, 'image/jpeg');
         }
     }
+
+    // Add logger
+    const logger = {
+        debug: (...args: any[]) => console.debug('[CameraView]', ...args),
+        info: (...args: any[]) => console.info('[CameraView]', ...args)
+    };
 </script>
 
 <div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
