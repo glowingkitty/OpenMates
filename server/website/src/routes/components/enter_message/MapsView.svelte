@@ -64,7 +64,7 @@
         map = L.map(mapContainer, {
             center: [20, 0],
             zoom: 2,
-            zoomControl: true,
+            zoomControl: false,  // Disable default zoom control
             attributionControl: false,
             maxBoundsViscosity: 1.0
         });
@@ -112,6 +112,11 @@
                 }
             }
         }, 100);
+
+        // Add zoom control to the right side
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
 
         logger.debug('Map initialized');
     }
@@ -381,6 +386,7 @@
         border: none !important;
         box-shadow: none !important;
         background: transparent !important;
+        right: 0 !important;  /* Ensure right alignment */
     }
 
     :global(.leaflet-control-zoom-in),
@@ -417,9 +423,6 @@
     :global(.leaflet-bar a) {
         border: none !important;
     }
-
-    /* Add Lexend Deca font import at the top of the style section */
-    @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca&display=swap');
 
     /* Add transition for smoother dark mode switching */
     :global(.leaflet-tile) {
