@@ -310,14 +310,7 @@
             ></div>
         </div>
 
-        <!-- Moved play button outside info-bar -->
-        <button 
-            class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-            on:click={togglePlay}
-        ></button>
-
-        <!-- Added transition for info-bar -->
+        <!-- Updated info-bar section -->
         <div class="info-bar" class:hidden={isPlaying}>
             <div 
                 class="progress-bar" 
@@ -328,15 +321,24 @@
                 aria-valuemax="100"
                 aria-valuenow={progress}
             ></div>
-            {#if showCurrentTime}
-                <span class="time-display">
-                    <span class="current-time">{currentTime}</span>
-                    <span class="time-separator"> / </span>
+            <div class="text-container">
+                {#if filename}
+                    <span class="filename">{filename}</span>
+                {/if}
+                <span class="time-info">
+                    {#if showCurrentTime}
+                        <span class="current-time">{currentTime}</span>
+                        <span class="time-separator"> / </span>
+                    {/if}
                     <span class="duration">{duration}</span>
                 </span>
-            {:else}
-                <span class="duration">{duration}</span>
-            {/if}
+            </div>
+            <!-- Move play button inside info-bar -->
+            <button 
+                class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                on:click={togglePlay}
+            ></button>
         </div>
     </div>
 </InlinePreviewBase>
@@ -371,10 +373,9 @@
         display: flex;
         align-items: center;
         padding-left: 70px;
-        padding-right: 16px;
+        padding-right: 16px; /* Reduce right padding since we're handling spacing in text-container */
         overflow: hidden;
         user-select: none;
-        /* Add transition for smooth fade */
         transition: opacity 0.3s ease-in-out;
         opacity: 1;
         z-index: 1;
@@ -386,13 +387,13 @@
     }
 
     .play-button {
-        opacity: 0.5;
-        right: 20px;
-        bottom: 17px;
         position: absolute;
+        right: 20px;
+        opacity: 0.5;
         width: 25px;
         height: 25px;
         z-index: 2;
+        transition: opacity 0.2s ease;
     }
 
     .play-button:hover {
@@ -407,26 +408,46 @@
         width: 0;
         background-color: var(--color-grey-10);
         transition: width 0.5s linear;
-        /* Make sure progress bar stays behind content */
         z-index: 0;
         opacity: 1;
     }
 
-    .time-display, .duration {
+    .text-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 100%;
+        line-height: 1.3;
         z-index: 1;
+        flex: 1;
+        min-width: 0; /* Enable text truncation */
+        max-width: calc(100% - 40px); /* Leave space for play button */
+        padding-right: 16px; /* Add some spacing between text and play button */
+    }
+
+    .filename {
+        font-size: 14px;
+        color: var(--color-font-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block; /* Ensure the element takes full width */
+    }
+
+    .time-info {
+        font-size: 14px;
+        color: var(--color-font-secondary);
         display: flex;
         align-items: center;
         gap: 4px;
     }
 
-    .time-separator {
-        opacity: 0.7;
+    .current-time, .duration {
+        font-variant-numeric: tabular-nums;
     }
 
-    .current-time, .duration {
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        font-variant-numeric: tabular-nums;
-        min-width: 40px;
+    .time-separator {
+        opacity: 0.7;
     }
 
     /* New styles for bottom progress bar */
