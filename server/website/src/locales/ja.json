@@ -498,6 +498,33 @@
                 "context": "Button text for sharing location"
             }
         },
+        "location": {
+            "precise": {
+                "text": "正確",
+                "en_original": "Precise",
+                "context": "Precise location option"
+            },
+            "toggle_precise": {
+                "text": "正確を切り替える",
+                "en_original": "Toggle precise",
+                "context": "Button text for toggling precise location"
+            },
+            "close": {
+                "text": "閉じる",
+                "en_original": "Close",
+                "context": "Button text for closing location selection"
+            },
+            "select": {
+                "text": "選択",
+                "en_original": "Select",
+                "context": "Button text for selecting location"
+            },
+            "get_location": {
+                "text": "位置を取得",
+                "en_original": "Get location",
+                "context": "Button text for getting current location"
+            }
+        },
         "press_and_hold_menu": {
             "delete": {
                 "text": "削除",

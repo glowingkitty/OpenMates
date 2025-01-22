@@ -498,6 +498,33 @@
                 "context": "Button text for sharing location"
             }
         },
+        "location": {
+            "precise": {
+                "text": "Präzise",
+                "en_original": "Precise",
+                "context": "Precise location option"
+            },
+            "toggle_precise": {
+                "text": "Präzise umschalten",
+                "en_original": "Toggle precise",
+                "context": "Button text for toggling precise location"
+            },
+            "close": {
+                "text": "Schließen",
+                "en_original": "Close",
+                "context": "Button text for closing location selection"
+            },
+            "select": {
+                "text": "Auswählen",
+                "en_original": "Select",
+                "context": "Button text for selecting location"
+            },
+            "get_location": {
+                "text": "Standort ermitteln",
+                "en_original": "Get location",
+                "context": "Button text for getting current location"
+            }
+        },
         "press_and_hold_menu": {
             "delete": {
                 "text": "Löschen",
