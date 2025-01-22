@@ -82,7 +82,8 @@
                 filename: { default: null },
                 id: { default: () => crypto.randomUUID() },
                 duration: { default: null },
-                language: { default: null }
+                language: { default: null },
+                isRecording: { default: false }
             }
         },
 
@@ -111,7 +112,8 @@
                         src: HTMLAttributes.src,
                         filename: HTMLAttributes.filename,
                         id: HTMLAttributes.id,
-                        duration: HTMLAttributes.duration || '00:00'
+                        duration: HTMLAttributes.duration || '00:00',
+                        isRecording: HTMLAttributes.isRecording
                     }
                 });
                 return container;
@@ -1232,7 +1234,7 @@
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
         const { blob, duration } = event.detail;
         const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        await insertVideo(file, duration, true); // Pass true for isRecording
+        await insertVideo(file, duration, true);
         showCamera = false;
     }
 
