@@ -155,16 +155,17 @@
                 <track kind="captions" />
             </video>
         {/if}
-        <div 
-            class="progress-bar" 
-            style="width: {progress}%"
-            aria-label="Video playback progress"
-            role="progressbar"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow={progress}
-        ></div>
+        
         <div class="info-bar">
+            <div 
+                class="progress-bar" 
+                style="width: {progress}%"
+                aria-label="Video playback progress"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={progress}
+            ></div>
             {#if showCurrentTime}
                 <span class="time-display">
                     <span class="current-time">{currentTime}</span>
@@ -214,6 +215,7 @@
         align-items: center;
         padding-left: 70px;
         padding-right: 16px;
+        overflow: hidden;
     }
 
     .play-button {
@@ -234,12 +236,15 @@
         left: 0;
         bottom: 0;
         width: 0;
-        background-color: rgba(255, 255, 255, 0.2);
+        background-color: var(--color-grey-10);
         transition: width 0.5s linear;
-        z-index: 1;
+        /* Make sure progress bar stays behind content */
+        z-index: 0;
+        opacity: 1;
     }
 
     .time-display {
+        z-index: 1;
         display: flex;
         align-items: center;
         gap: 4px;
