@@ -6,6 +6,7 @@
     export let filename: string | null = null;
     export let id: string;
     export let duration: string; // Format: "MM:SS"
+    export let isRecording: boolean = false;
 
     let videoElement: HTMLVideoElement;
     let isPlaying = false;
@@ -73,11 +74,12 @@
         }
     }
 
-    // Update initVideo function with better timeout handling and .mov support
+    // Update initVideo function to properly handle timeupdate event
     async function initVideo() {
         logger.debug(`Initializing video player for ${id}`, {
             initialDuration: duration,
-            src
+            src,
+            isRecording
         });
 
         try {
@@ -85,6 +87,16 @@
                 videoElement = document.createElement('video');
                 videoElement.src = src;
                 videoElement.preload = 'metadata';
+
+                // Add timeupdate event listener
+                videoElement.addEventListener('timeupdate', () => {
+                    const videoDuration = videoElement.duration;
+                    if (isFinite(videoDuration) && videoDuration > 0) {
+                        currentTime = formatTime(videoElement.currentTime);
+                        progress = (videoElement.currentTime / videoDuration) * 100;
+                        logger.debug('Video progress:', { currentTime, progress });
+                    }
+                });
 
                 // For .mov files specifically, we need to be more patient
                 const isMovFile = filename?.toLowerCase().endsWith('.mov');
@@ -150,22 +162,14 @@
                     })
                 ]);
 
-                // Add existing event listeners
-                videoElement.addEventListener('timeupdate', () => {
-                    const videoDuration = videoElement.duration;
-                    if (isFinite(videoDuration) && videoDuration > 0) {
-                        currentTime = formatTime(videoElement.currentTime);
-                        progress = (videoElement.currentTime / videoDuration) * 100;
-                    }
-                });
-
+                // Update ended event handler
                 videoElement.addEventListener('ended', () => {
                     isPlaying = false;
                     showCurrentTime = false;
                     progress = 0;
                     currentTime = '00:00';
                     videoElement.currentTime = 0;
-                    logger.debug('Video playback ended');
+                    logger.debug('Video playback ended, resetting state');
                 });
 
                 videoElement.addEventListener('loadeddata', () => {
@@ -257,6 +261,18 @@
         }
     }
 
+    // Add an explicit ended event handler for the video element
+    function handleVideoEnded() {
+        isPlaying = false;
+        showCurrentTime = false;
+        progress = 0;
+        currentTime = '00:00';
+        if (videoElement) {
+            videoElement.currentTime = 0;
+        }
+        logger.debug('Video ended event handled');
+    }
+
     // Initialize on mount
     initVideo();
 
@@ -283,6 +299,16 @@
                 class="video-element" 
                 src={src}
                 bind:this={videoElement}
+                on:timeupdate={() => {
+                    if (videoElement) {
+                        const videoDuration = videoElement.duration;
+                        if (isFinite(videoDuration) && videoDuration > 0) {
+                            currentTime = formatTime(videoElement.currentTime);
+                            progress = (videoElement.currentTime / videoDuration) * 100;
+                        }
+                    }
+                }}
+                on:ended={handleVideoEnded}
                 on:error={() => logger.debug('Video element error event triggered')}
             >
                 <track kind="captions" />
@@ -322,7 +348,7 @@
                 aria-valuenow={progress}
             ></div>
             <div class="text-container">
-                {#if filename}
+                {#if filename && !isRecording}
                     <span class="filename">{filename}</span>
                 {/if}
                 <span class="time-info">

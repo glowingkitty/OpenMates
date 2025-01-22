@@ -1232,8 +1232,64 @@
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
         const { blob, duration } = event.detail;
         const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        await insertVideo(file, duration);
+        await insertVideo(file, duration, true); // Pass true for isRecording
         showCamera = false;
+    }
+
+    // Update insertVideo function
+    async function insertVideo(file: File, duration?: string, isRecording: boolean = false) {
+        const url = URL.createObjectURL(file);
+        
+        const videoEmbed = {
+            type: 'customEmbed',
+            attrs: {
+                type: 'video',
+                src: url,
+                filename: file.name,
+                duration: duration || '00:00',
+                id: crypto.randomUUID(),
+                isRecording
+            }
+        };
+
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        videoEmbed,
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+        } else {
+            editor
+                .chain()
+                .focus()
+                .insertContent([
+                    videoEmbed,
+                    {
+                        type: 'text',
+                        text: ' '
+                    }
+                ])
+                .run();
+        }
     }
 
     // Update the handleSend button click handler in the template
@@ -1541,68 +1597,6 @@
     $: scrollableStyle = isFullscreen ? 
         `max-height: calc(100vh - 190px);` : 
         'max-height: 250px;';  // Add default height when not fullscreen
-
-    // Add new insertVideo function after other insert functions
-    async function insertVideo(file: File, duration?: string) {
-        const url = URL.createObjectURL(file);
-        
-        if (editor.isEmpty) {
-            editor.commands.setContent({
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: { 
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: ' '
-                        },
-                        {
-                            type: 'customEmbed',
-                            attrs: {
-                                type: 'video',
-                                src: url,
-                                filename: file.name,
-                                duration: duration || '00:00',
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: ' '
-                        }
-                    ]
-                }]
-            });
-        } else {
-            editor
-                .chain()
-                .focus()
-                .insertContent([
-                    {
-                        type: 'customEmbed',
-                        attrs: {
-                            type: 'video',
-                            src: url,
-                            filename: file.name,
-                            duration: duration || '00:00',
-                            id: crypto.randomUUID()
-                        }
-                    },
-                    {
-                        type: 'text',
-                        text: ' '
-                    }
-                ])
-                .run();
-        }
-    }
 
     // Add this helper function near the top with other helper functions
     function isVideoFile(file: File): boolean {
