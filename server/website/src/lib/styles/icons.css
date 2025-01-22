@@ -116,8 +116,6 @@ div.clickable-icon {
   cursor: pointer;
   background: var(--color-primary);
   vertical-align: middle;
-  
-  /* Mask properties */
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
@@ -216,6 +214,16 @@ div.clickable-icon {
 .clickable-icon.icon_pause {
   -webkit-mask-image: url('/icons/pause.svg');
   mask-image: url('/icons/pause.svg');
+}
+
+.clickable-icon.icon_plus {
+  -webkit-mask-image: url('/icons/plus.svg');
+  mask-image: url('/icons/plus.svg');
+}
+
+.clickable-icon.icon_minus {
+  -webkit-mask-image: url('/icons/minus.svg');
+  mask-image: url('/icons/minus.svg');
 }
 
 .icon_rounded {

@@ -389,24 +389,52 @@
         right: 0 !important;
     }
 
+    /* Update Leaflet zoom control styles */
     :global(.leaflet-control-zoom-in),
     :global(.leaflet-control-zoom-out) {
         width: 57px !important;
-        height: 50px !important;
-        background: var(--color-primary) !important;
-        color: white !important;
+        height: 57px !important;
+        background: var(--color-grey-0) !important;
         border: none !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-family: 'Lexend Deca', sans-serif !important;
-        font-size: 24px !important;
-        transition: opacity 0.2s ease !important;
+        font-size: 0 !important; /* Hide the default + and - characters */
+        position: relative !important;
+    }
+
+    /* Use existing clickable-icon classes */
+    :global(.leaflet-control-zoom-in::after),
+    :global(.leaflet-control-zoom-out::after) {
+        content: '';
+        width: 20px;
+        height: 20px;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--color-primary);
+        vertical-align: middle;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        mask-size: contain;
+    }
+
+    :global(.leaflet-control-zoom-in::after) {
+        -webkit-mask-image: url('/icons/plus.svg');
+        mask-image: url('/icons/plus.svg');
+    }
+
+    :global(.leaflet-control-zoom-out::after) {
+        -webkit-mask-image: url('/icons/minus.svg');
+        mask-image: url('/icons/minus.svg');
     }
 
     :global(.leaflet-control-zoom-in) {
         border-radius: 39px 39px 0 0 !important;
-        margin-bottom: 0 !important;
     }
 
     :global(.leaflet-control-zoom-out) {
@@ -414,8 +442,7 @@
     }
 
     :global(.leaflet-control-zoom a:hover) {
-        background: var(--color-primary) !important;
-        opacity: 0.9 !important;
+        background: var(--color-grey-10) !important;
     }
 
     /* Remove default Leaflet zoom control borders */
