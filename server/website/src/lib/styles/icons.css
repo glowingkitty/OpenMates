@@ -203,6 +203,11 @@ div.clickable-icon {
   mask-image: url('/icons/maps.svg');
 }
 
+.clickable-icon.icon_location {
+  -webkit-mask-image: url('/icons/current_location.svg');
+  mask-image: url('/icons/current_location.svg');
+}
+
 .clickable-icon.icon_play {
   -webkit-mask-image: url('/icons/play.svg');
   mask-image: url('/icons/play.svg');

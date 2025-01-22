@@ -235,12 +235,11 @@
             {/if}
 
             <button 
-                class="location-button {isLoading ? 'loading' : ''}"
+                class="clickable-icon icon_location"
                 on:click={getCurrentLocation}
                 disabled={isLoading}
                 aria-label={$_('enter_message.location.get_location.text')}
             >
-                <div class="clickable-icon icon_maps"></div>
             </button>
         </div>
     </div>
