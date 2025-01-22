@@ -20,6 +20,8 @@
     import FilePreview from './in_message_previews/File.svelte';
     import Code from './in_message_previews/Code.svelte';
     import Videos from './in_message_previews/Videos.svelte';
+    // Add this import near the top with other imports
+    import MapsView from './MapsView.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -1728,6 +1730,67 @@
         console.log('Extension check result:', isVideoByExtension);
         return isVideoByExtension;
     }
+
+    // Add this to the script section with other state variables
+    let showMaps = false;
+
+    // Add this function with other handler functions
+    function handleLocationClick() {
+        showMaps = true;
+    }
+
+    // Add this function to handle location selection
+    async function handleLocationSelected(event: CustomEvent<{lat: number, lon: number}>) {
+        const { lat, lon } = event.detail;
+        
+        // Create a maps URL that will be embedded
+        const mapsUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=16`;
+        
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        },
+                        {
+                            type: 'webPreview',
+                            attrs: { 
+                                url: mapsUrl,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+        } else {
+            editor
+                .chain()
+                .focus()
+                .insertContent({
+                    type: 'webPreview',
+                    attrs: { 
+                        url: mapsUrl,
+                        id: crypto.randomUUID()
+                    }
+                })
+                .run();
+        }
+    }
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
@@ -1805,6 +1868,7 @@
             ></button>
             <button 
                 class="clickable-icon icon_maps" 
+                on:click={handleLocationClick}
                 aria-label={$_('enter_message.attachments.share_location.text')}
             ></button>
         </div>
@@ -1942,6 +2006,13 @@
             on:audiorecorded={handleAudioRecorded}
             on:close={() => showRecordAudio = false}
             on:layoutChange={handleRecordingLayoutChange}
+        />
+    {/if}
+
+    {#if showMaps}
+        <MapsView
+            on:close={() => showMaps = false}
+            on:locationselected={handleLocationSelected}
         />
     {/if}
 </div>
