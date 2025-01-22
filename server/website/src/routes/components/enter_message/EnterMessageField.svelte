@@ -1573,14 +1573,21 @@
                 break;
                 
             case 'view':
-                if (node.attrs.src || node.attrs.url) {
-                    window.open(node.attrs.src || node.attrs.url, '_blank');
+                if (node.attrs.src || node.attrs.url || (node.attrs.isYouTube && node.attrs.videoId)) {
+                    const url = node.attrs.isYouTube ? 
+                        `https://www.youtube.com/watch?v=${node.attrs.videoId}` : 
+                        (node.attrs.src || node.attrs.url);
+                    window.open(url, '_blank');
                 }
                 break;
 
             case 'copy':
-                if (node.attrs.url) {
-                    await navigator.clipboard.writeText(node.attrs.url);
+                const urlToCopy = node.attrs.isYouTube ? 
+                    `https://www.youtube.com/watch?v=${node.attrs.videoId}` : 
+                    (node.attrs.url || node.attrs.src);
+                    
+                if (urlToCopy) {
+                    await navigator.clipboard.writeText(urlToCopy);
                     const element = document.getElementById(`embed-${selectedEmbedId}`);
                     if (element) {
                         element.classList.add('show-copied');
@@ -1591,7 +1598,7 @@
         }
         showMenu = false;
         isMenuInteraction = false;
-        selectedNode = null;  // Clear the selected node
+        selectedNode = null;
     }
 
     // Update the handleAudioRecorded function

@@ -63,7 +63,7 @@
             {$_('enter_message.press_and_hold_menu.delete.text')}
         </button>
         
-        {#if type === 'web'}
+        {#if type === 'web' || isYouTube}
             <button 
                 class="menu-item copy"
                 on:click={(event) => handleMenuItemClick('copy', event)}

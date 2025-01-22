@@ -1,6 +1,7 @@
 <script lang="ts">
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     import { onDestroy } from 'svelte';
+    import { _ } from 'svelte-i18n';
     
     export let src: string;
     export let filename: string | null = null;
@@ -17,6 +18,7 @@
     let progress = 0;
     let thumbnailLoaded = false;
     let videoHeight = 0;
+    let showCopied = false;
 
     // Logger for debugging
     const logger = {
@@ -477,6 +479,9 @@
                                 <span class="path">{urlParts.path}</span>
                             {/if}
                         </div>
+                        <div class="copied-message">
+                            {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+                        </div>
                     {:else}
                         <span class="filename">{filename}</span>
                     {/if}
@@ -705,5 +710,25 @@
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
+    }
+
+    /* Add near other styles */
+    .copied-message {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        transform: translateY(-50%);
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    :global(.preview-container.show-copied .url) {
+        opacity: 0;
+    }
+
+    :global(.preview-container.show-copied .copied-message) {
+        opacity: 1;
     }
 </style>
