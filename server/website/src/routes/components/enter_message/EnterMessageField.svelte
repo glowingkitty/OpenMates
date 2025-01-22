@@ -668,6 +668,38 @@
         }
     }
 
+    // Add this URL formatting helper function near the top with other helper functions
+    function formatUrlParts(url: string) {
+        try {
+            const urlObj = new URL(url);
+            const parts = {
+                subdomain: '',
+                domain: '',
+                path: ''
+            };
+
+            const hostParts = urlObj.hostname.split('.');
+            if (hostParts.length > 2) {
+                parts.subdomain = hostParts[0] + '.';
+                parts.domain = hostParts.slice(1).join('.');
+            } else {
+                parts.domain = urlObj.hostname;
+            }
+
+            const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
+            parts.path = fullPath === '/' ? '' : fullPath;
+
+            return parts;
+        } catch (error) {
+            console.error('Error formatting URL:', error);
+            return {
+                subdomain: '',
+                domain: url,
+                path: ''
+            };
+        }
+    }
+
     // Update the URL detection and replacement function
     function detectAndReplaceUrls(content: string) {
         if (!editor) return;
@@ -715,7 +747,7 @@
                     attrs: {
                         type: 'video',
                         src: url,
-                        filename: 'YouTube Video', // Simple generic title
+                        filename: url, // Use the full URL instead of "YouTube Video"
                         id: crypto.randomUUID(),
                         thumbnailUrl: thumbnailUrl,
                         isYouTube: true,

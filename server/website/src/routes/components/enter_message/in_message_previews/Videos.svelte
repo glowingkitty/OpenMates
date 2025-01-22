@@ -352,6 +352,41 @@
     $: if (isYouTube && videoId && (!duration || duration === '00:00')) {
         duration = '--:--';
     }
+
+    // Add this URL formatting helper function near the top of the script section
+    function formatUrlParts(url: string) {
+        try {
+            const urlObj = new URL(url);
+            const parts = {
+                subdomain: '',
+                domain: '',
+                path: ''
+            };
+
+            const hostParts = urlObj.hostname.split('.');
+            if (hostParts.length > 2) {
+                parts.subdomain = hostParts[0] + '.';
+                parts.domain = hostParts.slice(1).join('.');
+            } else {
+                parts.domain = urlObj.hostname;
+            }
+
+            const fullPath = urlObj.pathname + urlObj.search + urlObj.hash;
+            parts.path = fullPath === '/' ? '' : fullPath;
+
+            return parts;
+        } catch (error) {
+            logger.debug('Error formatting URL:', error);
+            return {
+                subdomain: '',
+                domain: filename || '',
+                path: ''
+            };
+        }
+    }
+
+    // Add this computed property
+    $: urlParts = isYouTube && filename ? formatUrlParts(filename) : null;
 </script>
 
 <InlinePreviewBase 
@@ -432,7 +467,19 @@
             ></div>
             <div class="text-container">
                 {#if filename && !isRecording}
-                    <span class="filename">{filename}</span>
+                    {#if isYouTube && urlParts}
+                        <div class="url">
+                            <div class="domain-line">
+                                <span class="subdomain">{urlParts.subdomain}</span>
+                                <span class="main-domain">{urlParts.domain}</span>
+                            </div>
+                            {#if urlParts.path}
+                                <span class="path">{urlParts.path}</span>
+                            {/if}
+                        </div>
+                    {:else}
+                        <span class="filename">{filename}</span>
+                    {/if}
                 {/if}
                 <span class="time-info">
                     {#if !isYouTube}
@@ -625,5 +672,38 @@
         position: absolute;
         top: 0;
         left: 0;
+    }
+
+    .url {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.3;
+        font-size: 14px;
+        width: 100%;
+        word-break: break-word;
+        max-height: 2.6em;
+        overflow: hidden;
+    }
+
+    .domain-line {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+    }
+
+    .subdomain {
+        color: var(--color-font-tertiary);
+    }
+
+    .main-domain {
+        color: var(--color-font-primary);
+    }
+
+    .path {
+        color: var(--color-font-tertiary);
+        display: block;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
 </style>
