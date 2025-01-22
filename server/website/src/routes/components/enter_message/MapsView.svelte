@@ -377,18 +377,49 @@
 
     /* Improve map controls visibility in dark mode */
     :global(.leaflet-control-zoom) {
-        background: var(--color-grey-blue);
-        border-radius: 8px;
-        overflow: hidden;
+        margin: 20px !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
     }
 
-    :global(.leaflet-control-zoom a) {
-        border-color: var(--color-grey-40) !important;
+    :global(.leaflet-control-zoom-in),
+    :global(.leaflet-control-zoom-out) {
+        width: 57px !important;
+        height: 50px !important;
+        background: var(--color-primary) !important;
+        color: white !important;
+        border: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-family: 'Lexend Deca', sans-serif !important;
+        font-size: 24px !important;
+        transition: opacity 0.2s ease !important;
     }
 
     :global(.leaflet-control-zoom-in) {
-        border-bottom: 1px solid var(--color-grey-40) !important;
+        border-radius: 39px 39px 0 0 !important;
+        margin-bottom: 0 !important;
     }
+
+    :global(.leaflet-control-zoom-out) {
+        border-radius: 0 0 39px 39px !important;
+    }
+
+    :global(.leaflet-control-zoom a:hover) {
+        background: var(--color-primary) !important;
+        opacity: 0.9 !important;
+    }
+
+    /* Remove default Leaflet zoom control borders */
+    :global(.leaflet-bar),
+    :global(.leaflet-bar a) {
+        border: none !important;
+    }
+
+    /* Add Lexend Deca font import at the top of the style section */
+    @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca&display=swap');
 
     /* Add transition for smoother dark mode switching */
     :global(.leaflet-tile) {
