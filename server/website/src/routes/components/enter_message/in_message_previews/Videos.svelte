@@ -10,7 +10,6 @@
 
     let videoElement: HTMLVideoElement;
     let isPlaying = false;
-    let showCurrentTime = false;
     let currentTime = '00:00';
     let progress = 0;
     let thumbnailLoaded = false;
@@ -74,7 +73,7 @@
         }
     }
 
-    // Update initVideo function to properly handle timeupdate event
+    // Update initVideo function with better null checks and error handling
     async function initVideo() {
         logger.debug(`Initializing video player for ${id}`, {
             initialDuration: duration,
@@ -83,13 +82,15 @@
         });
 
         try {
-            if (!videoElement) {
+            if (!videoElement && src) {
                 videoElement = document.createElement('video');
                 videoElement.src = src;
                 videoElement.preload = 'metadata';
 
-                // Add timeupdate event listener
+                // Add timeupdate event listener with null check
                 videoElement.addEventListener('timeupdate', () => {
+                    if (!videoElement) return;
+                    
                     const videoDuration = videoElement.duration;
                     if (isFinite(videoDuration) && videoDuration > 0) {
                         currentTime = formatTime(videoElement.currentTime);
@@ -107,6 +108,8 @@
                     let durationFound = false;
 
                     const checkDuration = () => {
+                        if (!videoElement) return;
+                        
                         if (isFinite(videoElement.duration) && videoElement.duration > 0) {
                             duration = formatTime(videoElement.duration);
                             logger.debug('Duration found:', duration);
@@ -116,6 +119,8 @@
                     };
 
                     videoElement.addEventListener('loadedmetadata', () => {
+                        if (!videoElement) return;
+                        
                         logger.debug('Metadata loaded, checking duration...');
                         checkDuration();
 
@@ -134,38 +139,46 @@
                         checkDuration();
                     });
 
-                    // For .mov files, try to force duration calculation
+                    // For .mov files, try to force duration calculation with null check
                     if (isMovFile) {
                         videoElement.addEventListener('canplay', () => {
+                            if (!videoElement || durationFound) return;
+                            
                             logger.debug('Can play, checking duration...');
-                            if (!durationFound) {
-                                // Try seeking to end to force duration calculation
-                                videoElement.currentTime = 24 * 60 * 60; // Seek to 24 hours
-                                setTimeout(() => {
-                                    checkDuration();
-                                    videoElement.currentTime = 0;
-                                }, 100);
-                            }
+                            // Try seeking to end to force duration calculation
+                            videoElement.currentTime = 24 * 60 * 60; // Seek to 24 hours
+                            setTimeout(() => {
+                                if (!videoElement) return;
+                                checkDuration();
+                                videoElement.currentTime = 0;
+                            }, 100);
                         });
                     }
                 });
 
-                // Wait for metadata with timeout
-                await Promise.race([
-                    metadataPromise,
-                    new Promise((_, reject) => {
-                        setTimeout(() => {
-                            if (!isFinite(videoElement.duration) || videoElement.duration === 0) {
-                                reject(new Error(`Video metadata timeout after ${timeoutDuration}ms`));
-                            }
-                        }, timeoutDuration);
-                    })
-                ]);
+                // Wait for metadata with timeout and better error handling
+                try {
+                    await Promise.race([
+                        metadataPromise,
+                        new Promise((_, reject) => {
+                            setTimeout(() => {
+                                if (!videoElement || !isFinite(videoElement.duration) || videoElement.duration === 0) {
+                                    reject(new Error(`Video metadata timeout after ${timeoutDuration}ms`));
+                                }
+                            }, timeoutDuration);
+                        })
+                    ]);
+                } catch (error) {
+                    logger.debug('Error loading video metadata:', error);
+                    // Set a default duration if metadata loading fails
+                    if (!duration || duration === '00:00') {
+                        duration = '00:00';
+                    }
+                }
 
                 // Update ended event handler
                 videoElement.addEventListener('ended', () => {
                     isPlaying = false;
-                    showCurrentTime = false;
                     progress = 0;
                     currentTime = '00:00';
                     videoElement.currentTime = 0;
@@ -206,8 +219,10 @@
             }
         } catch (error) {
             logger.debug('Error initializing video:', error);
-            // Don't throw the error, just log it and continue
-            // This allows the video to still be displayed even if duration isn't immediately available
+            // Set default values in case of error
+            duration = duration || '00:00';
+            progress = 0;
+            currentTime = '00:00';
         }
     }
 
@@ -255,7 +270,6 @@
             }
             
             isPlaying = !isPlaying;
-            showCurrentTime = isPlaying;
         } catch (err) {
             logger.debug('Error toggling video playback:', err);
         }
@@ -264,7 +278,6 @@
     // Add an explicit ended event handler for the video element
     function handleVideoEnded() {
         isPlaying = false;
-        showCurrentTime = false;
         progress = 0;
         currentTime = '00:00';
         if (videoElement) {
@@ -352,10 +365,6 @@
                     <span class="filename">{filename}</span>
                 {/if}
                 <span class="time-info">
-                    {#if showCurrentTime}
-                        <span class="current-time">{currentTime}</span>
-                        <span class="time-separator"> / </span>
-                    {/if}
                     <span class="duration">{duration}</span>
                 </span>
             </div>
@@ -427,11 +436,6 @@
         transition: opacity 0.3s ease-in-out;
     }
 
-    .text-container.hidden {
-        opacity: 0;
-        pointer-events: none;
-    }
-
     .play-button {
         position: absolute;
         bottom: 17px;
@@ -474,14 +478,6 @@
         display: flex;
         align-items: center;
         gap: 4px;
-    }
-
-    .current-time, .duration {
-        font-variant-numeric: tabular-nums;
-    }
-
-    .time-separator {
-        opacity: 0.7;
     }
 
     /* New styles for bottom progress bar */
