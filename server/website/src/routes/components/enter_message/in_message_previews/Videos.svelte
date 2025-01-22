@@ -7,6 +7,9 @@
     export let id: string;
     export let duration: string; // Format: "MM:SS"
     export let isRecording: boolean = false;
+    export let thumbnailUrl: string | undefined = undefined;
+    export let isYouTube: boolean = false;
+    export let videoId: string | undefined = undefined;
 
     let videoElement: HTMLVideoElement;
     let isPlaying = false;
@@ -73,8 +76,15 @@
         }
     }
 
-    // Update initVideo function with improved metadata loading
+    // Update initVideo function
     async function initVideo() {
+        if (isYouTube) {
+            // For YouTube videos, we don't need to initialize the video element
+            // We'll just show the thumbnail and title
+            thumbnailLoaded = true;
+            return;
+        }
+
         logger.debug(`Initializing video player for ${id}`, {
             initialDuration: duration,
             src,
@@ -264,10 +274,16 @@
         return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
-    // Handle play/pause with better error handling
+    // Update togglePlay function
     async function togglePlay(e: MouseEvent) {
         e.stopPropagation();
         
+        if (isYouTube) {
+            // Open YouTube video in new tab
+            window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+            return;
+        }
+
         try {
             if (!videoElement) {
                 await initVideo();
@@ -317,28 +333,45 @@
     {src} 
     {filename} 
     height="200px"
-    customClass={`${isPlaying ? 'playing' : ''} ${videoElement?.error ? 'error' : ''}`}
+    customClass={`${isPlaying ? 'playing' : ''} ${videoElement?.error ? 'error' : ''} ${isYouTube ? 'youtube' : ''}`}
 >
     <div class="video-container">
-        {#if videoElement}
-            <video 
-                class="video-element" 
-                src={src}
-                bind:this={videoElement}
-                on:timeupdate={() => {
-                    if (videoElement) {
-                        const videoDuration = videoElement.duration;
-                        if (isFinite(videoDuration) && videoDuration > 0) {
-                            currentTime = formatTime(videoElement.currentTime);
-                            progress = (videoElement.currentTime / videoDuration) * 100;
+        {#if isYouTube}
+            <div class="youtube-preview">
+                <img 
+                    src={thumbnailUrl} 
+                    alt="YouTube thumbnail" 
+                    class="thumbnail"
+                    on:error={(e) => {
+                        // Fallback to default thumbnail if maxresdefault fails
+                        const img = e.target as HTMLImageElement;
+                        if (img.src.includes('maxresdefault')) {
+                            img.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
                         }
-                    }
-                }}
-                on:ended={handleVideoEnded}
-                on:error={() => logger.debug('Video element error event triggered')}
-            >
-                <track kind="captions" />
-            </video>
+                    }}
+                />
+            </div>
+        {:else}
+            {#if videoElement}
+                <video 
+                    class="video-element" 
+                    src={src}
+                    bind:this={videoElement}
+                    on:timeupdate={() => {
+                        if (videoElement) {
+                            const videoDuration = videoElement.duration;
+                            if (isFinite(videoDuration) && videoDuration > 0) {
+                                currentTime = formatTime(videoElement.currentTime);
+                                progress = (videoElement.currentTime / videoDuration) * 100;
+                            }
+                        }
+                    }}
+                    on:ended={handleVideoEnded}
+                    on:error={() => logger.debug('Video element error event triggered')}
+                >
+                    <track kind="captions" />
+                </video>
+            {/if}
         {/if}
 
         <!-- Show error message if video fails to load -->
@@ -544,5 +577,30 @@
 
     :global(.preview-container.error .play-button) {
         display: none;
+    }
+
+    .youtube-preview {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background-color: var(--color-grey-20);
+    }
+
+    .thumbnail {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    :global(.preview-container.youtube .info-bar) {
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    :global(.preview-container.youtube .filename) {
+        color: white;
+    }
+
+    :global(.preview-container.youtube .time-info) {
+        color: rgba(255, 255, 255, 0.8);
     }
 </style>

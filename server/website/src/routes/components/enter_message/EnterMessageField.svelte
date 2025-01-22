@@ -83,7 +83,10 @@
                 id: { default: () => crypto.randomUUID() },
                 duration: { default: null },
                 language: { default: null },
-                isRecording: { default: false }
+                isRecording: { default: false },
+                thumbnailUrl: { default: null },
+                isYouTube: { default: false },
+                videoId: { default: null }
             }
         },
 
@@ -114,7 +117,10 @@
                         filename: HTMLAttributes.filename,
                         id: HTMLAttributes.id,
                         duration: HTMLAttributes.duration || '00:00',
-                        isRecording: HTMLAttributes.isRecording
+                        isRecording: HTMLAttributes.isRecording,
+                        thumbnailUrl: HTMLAttributes.thumbnailUrl,
+                        isYouTube: HTMLAttributes.isYouTube,
+                        videoId: HTMLAttributes.videoId
                     }
                 });
                 return container;
@@ -174,6 +180,9 @@
 
     // Add URL detection regex
     const urlRegex = /https?:\/\/[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?/gi;
+
+    // Add YouTube URL detection regex
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
     // Add new WebPreview node type
     const WebPreview = Node.create({
@@ -659,6 +668,110 @@
         }
     }
 
+    // Update the URL detection and replacement function
+    function detectAndReplaceUrls(content: string) {
+        if (!editor) return;
+
+        // Get current cursor position
+        const { from } = editor.state.selection;
+        
+        // Get the text content up to the cursor
+        const text = editor.state.doc.textBetween(Math.max(0, from - 1000), from);
+        
+        // Only process if content ends with space or newline
+        const lastChar = text.slice(-1);
+        if (lastChar !== ' ' && lastChar !== '\n') return;
+
+        // Find the last URL before the cursor
+        const matches = Array.from(text.matchAll(urlRegex));
+        if (!matches.length) return;
+        
+        // Get the last match
+        const lastMatch = matches[matches.length - 1];
+        const url = lastMatch[0];
+        
+        // Calculate absolute positions
+        const matchStart = from - text.length + lastMatch.index!;
+        const matchEnd = matchStart + url.length;
+
+        // Check if this URL is already a preview
+        const nodeAtPos = editor.state.doc.nodeAt(matchStart);
+        if (nodeAtPos?.type.name === 'webPreview' || nodeAtPos?.type.name === 'customEmbed') return;
+
+        // Check if it's a YouTube URL
+        const youtubeMatch = url.match(youtubeRegex);
+        if (youtubeMatch) {
+            const videoId = youtubeMatch[1];
+            const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            
+            // Replace URL with video preview node
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: matchStart, to: matchEnd })
+                .insertContent({
+                    type: 'customEmbed',
+                    attrs: {
+                        type: 'video',
+                        src: url,
+                        filename: `YouTube Video (${videoId})`,
+                        id: crypto.randomUUID(),
+                        thumbnailUrl: thumbnailUrl,
+                        isYouTube: true,
+                        videoId: videoId
+                    }
+                })
+                .run();
+
+            // Fetch video title asynchronously
+            fetchYouTubeTitle(videoId).then(title => {
+                if (title) {
+                    // Update the node with the title
+                    const doc = editor.state.doc;
+                    doc.descendants((node, pos) => {
+                        if (node.attrs?.videoId === videoId) {
+                            editor
+                                .chain()
+                                .focus()
+                                .updateAttributes(node.type.name, { filename: title })
+                                .run();
+                            return false;
+                        }
+                    });
+                }
+            });
+        } else {
+            // Handle regular URLs as before
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: matchStart, to: matchEnd })
+                .insertContent({
+                    type: 'webPreview',
+                    attrs: { 
+                        url,
+                        id: crypto.randomUUID()
+                    }
+                })
+                .run();
+        }
+    }
+
+    // Add function to fetch YouTube video title
+    async function fetchYouTubeTitle(videoId: string): Promise<string | null> {
+        try {
+            // Use a proxy or your backend API to fetch the title
+            // This is a placeholder - you'll need to implement the actual API endpoint
+            const response = await fetch(`/api/youtube/title/${videoId}`);
+            if (!response.ok) return null;
+            const data = await response.json();
+            return data.title;
+        } catch (error) {
+            console.error('Error fetching YouTube title:', error);
+            return null;
+        }
+    }
+
     onMount(() => {
         // Wait for element to be available
         if (!editorElement) return;
@@ -784,51 +897,6 @@
             editorElement?.removeEventListener('paste', handlePaste);
         };
     });
-
-    // Update the URL detection and replacement function
-    function detectAndReplaceUrls(content: string) {
-        if (!editor) return;
-
-        // Get current cursor position
-        const { from } = editor.state.selection;
-        
-        // Get the text content up to the cursor
-        const text = editor.state.doc.textBetween(Math.max(0, from - 1000), from);
-        
-        // Only process if content ends with space or newline
-        const lastChar = text.slice(-1);
-        if (lastChar !== ' ' && lastChar !== '\n') return;
-
-        // Find the last URL before the cursor
-        const matches = Array.from(text.matchAll(urlRegex));
-        if (!matches.length) return;
-        
-        // Get the last match
-        const lastMatch = matches[matches.length - 1];
-        const url = lastMatch[0];
-        
-        // Calculate absolute positions
-        const matchStart = from - text.length + lastMatch.index!;
-        const matchEnd = matchStart + url.length;
-
-        // Check if this URL is already a web preview
-        const nodeAtPos = editor.state.doc.nodeAt(matchStart);
-        if (nodeAtPos?.type.name === 'webPreview') return;
-
-        // Replace URL with web preview node
-        editor
-            .chain()
-            .focus()
-            .deleteRange({ from: matchStart, to: matchEnd })
-            .insertContent({
-                type: 'webPreview',
-                attrs: { 
-                    url,
-                    id: crypto.randomUUID()
-                }
-            })
-            .run();
-    }
 
     onDestroy(() => {
         if (editor) {
