@@ -609,7 +609,7 @@
 
     // Common function to process files from drag & drop or paste
     async function processFiles(files: File[]) {
-        console.log('Processing files:', files);
+        console.log('Processing files:', files.map(f => ({ name: f.name, type: f.type })));
 
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
         if (totalSize > MAX_TOTAL_SIZE) {
@@ -632,11 +632,14 @@
                 continue;
             }
 
-            // Handle different file types
-            if (isCodeOrTextFile(file.name)) {
-                await insertCodeFile(file);
-            } else if (file.type.startsWith('video/')) {
+            console.log('Processing file:', file.name);
+            
+            // Check if it's a video file first
+            if (isVideoFile(file)) {
+                console.log('Handling as video:', file.name);
                 await insertVideo(file, undefined);
+            } else if (isCodeOrTextFile(file.name)) {
+                await insertCodeFile(file);
             } else if (file.type.startsWith('image/')) {
                 await insertImage(file);
             } else if (file.type === 'application/pdf') {
@@ -644,6 +647,7 @@
             } else if (file.type.startsWith('audio/')) {
                 await insertAudio(file);
             } else {
+                console.log('Falling back to generic file handler for:', file.name);
                 await insertFile(file, 'file');
             }
             
@@ -842,6 +846,8 @@
         if (!input.files?.length) return;
 
         const files = Array.from(input.files);
+        console.log('Selected files:', files.map(f => ({ name: f.name, type: f.type })));
+
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
         if (totalSize > MAX_TOTAL_SIZE) {
@@ -864,9 +870,13 @@
                 continue;
             }
 
-            // Add code file detection
-            const isCodeFile = isCodeOrTextFile(file.name);
-            if (isCodeFile) {
+            console.log('Processing file:', file.name);
+            
+            // Check if it's a video file first
+            if (isVideoFile(file)) {
+                console.log('Handling as video:', file.name);
+                await insertVideo(file, undefined);
+            } else if (isCodeOrTextFile(file.name)) {
                 await insertCodeFile(file);
             } else if (file.type.startsWith('image/')) {
                 await insertImage(file);
@@ -875,6 +885,7 @@
             } else if (file.type.startsWith('audio/')) {
                 await insertAudio(file);
             } else {
+                console.log('Falling back to generic file handler for:', file.name);
                 await insertFile(file, 'file');
             }
             
@@ -882,6 +893,7 @@
             editor.commands.insertContent(' ');
         }
 
+        // Clear the input
         input.value = '';
     }
 
@@ -1583,6 +1595,34 @@
                 ])
                 .run();
         }
+    }
+
+    // Add this helper function near the top with other helper functions
+    function isVideoFile(file: File): boolean {
+        // List of common video file extensions
+        const videoExtensions = [
+            '.mp4', '.webm', '.ogg', '.mov', '.m4v', 
+            '.mkv', '.avi', '.3gp', '.wmv', '.flv'
+        ];
+        
+        // Log file details for debugging
+        console.log('Checking if file is video:', {
+            fileName: file.name,
+            fileType: file.type,
+            size: file.size
+        });
+        
+        // Check file type first
+        if (file.type.startsWith('video/')) {
+            console.log('Detected video by MIME type:', file.type);
+            return true;
+        }
+        
+        // Fallback to extension check
+        const fileName = file.name.toLowerCase();
+        const isVideoByExtension = videoExtensions.some(ext => fileName.endsWith(ext));
+        console.log('Extension check result:', isVideoByExtension);
+        return isVideoByExtension;
     }
 </script>
 

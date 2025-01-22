@@ -21,6 +21,58 @@
         info: (...args: any[]) => console.info('[Video]', ...args)
     };
 
+    // Add supported video formats
+    const SUPPORTED_VIDEO_FORMATS = [
+        'video/mp4',
+        'video/webm',
+        'video/ogg',
+        'video/quicktime', // .mov files
+        'video/x-m4v',     // .m4v files
+        'video/x-matroska', // .mkv files
+        'video/x-msvideo',  // .avi files
+        'video/3gpp',      // .3gp files
+        'video/x-ms-wmv'   // .wmv files
+    ];
+
+    // Add function to check video playability
+    async function isVideoPlayable(videoElement: HTMLVideoElement): Promise<boolean> {
+        try {
+            // Check if the video metadata can be loaded
+            await new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    reject(new Error('Timeout loading video metadata'));
+                }, 5000); // 5 second timeout
+
+                const handleLoaded = () => {
+                    clearTimeout(timeoutId);
+                    videoElement.removeEventListener('loadedmetadata', handleLoaded);
+                    videoElement.removeEventListener('error', handleError);
+                    resolve(true);
+                };
+
+                const handleError = (error: Event) => {
+                    clearTimeout(timeoutId);
+                    videoElement.removeEventListener('loadedmetadata', handleLoaded);
+                    videoElement.removeEventListener('error', handleError);
+                    reject(error);
+                };
+
+                videoElement.addEventListener('loadedmetadata', handleLoaded);
+                videoElement.addEventListener('error', handleError);
+            });
+
+            // Try to play the video (some browsers require this)
+            await videoElement.play();
+            await videoElement.pause();
+            videoElement.currentTime = 0;
+            
+            return true;
+        } catch (error) {
+            logger.debug('Video playability check failed:', error);
+            return false;
+        }
+    }
+
     // Convert duration string (MM:SS) to seconds
     function getDurationInSeconds(timeStr: string): number {
         // Handle invalid duration string
@@ -41,69 +93,93 @@
         return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
-    // Initialize video element and load metadata
+    // Update initVideo function to include playability check
     async function initVideo() {
         logger.debug(`Initializing video player for ${id}`, {
             initialDuration: duration,
             src
         });
 
-        if (!videoElement) {
-            videoElement = document.createElement('video');
-            videoElement.src = src;
-            videoElement.preload = 'metadata';
+        try {
+            if (!videoElement) {
+                videoElement = document.createElement('video');
+                videoElement.src = src;
+                videoElement.preload = 'metadata';
 
-            // Wait for metadata to load to get actual duration
-            await new Promise((resolve) => {
-                videoElement.addEventListener('loadedmetadata', () => {
-                    logger.debug(`Video metadata loaded, using passed duration: ${duration}`);
-
-                    // Set video height based on aspect ratio
-                    videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300;
-                    thumbnailLoaded = true;
-                    resolve(null);
-                });
-            });
-
-            // Add timeupdate event listener to track progress
-            videoElement.addEventListener('timeupdate', () => {
-                const durationInSeconds = getDurationInSeconds(duration);
-                currentTime = formatTime(videoElement.currentTime);
-                progress = (videoElement.currentTime / durationInSeconds) * 100;
-            });
-
-            // Add ended event listener to reset state
-            videoElement.addEventListener('ended', () => {
-                isPlaying = false;
-                showCurrentTime = false;
-                progress = 0;
-                currentTime = '00:00';
-                videoElement.currentTime = 0; // Reset video position to start
-                logger.debug('Video playback ended, reset to beginning');
-            });
-
-            // Add loadeddata event listener to double-check duration
-            videoElement.addEventListener('loadeddata', () => {
-                logger.debug('Video data loaded:', {
-                    duration: videoElement.duration,
-                    readyState: videoElement.readyState,
-                    currentSrc: videoElement.currentSrc
-                });
-
-                // Update duration again if it's valid now
-                if (isFinite(videoElement.duration) && videoElement.duration > 0) {
-                    duration = formatTime(videoElement.duration);
-                    logger.debug(`Updated video duration to ${duration} after data load`);
+                // Check if video is playable
+                const playable = await isVideoPlayable(videoElement);
+                if (!playable) {
+                    logger.debug('Video is not playable:', src);
+                    throw new Error('Video format not supported');
                 }
-            });
 
-            // Add error listener
-            videoElement.addEventListener('error', (e) => {
-                logger.debug('Video error:', {
-                    error: videoElement.error,
-                    event: e
+                // Wait for metadata to load
+                await new Promise((resolve) => {
+                    videoElement.addEventListener('loadedmetadata', () => {
+                        logger.debug('Video metadata loaded:', {
+                            duration: videoElement.duration,
+                            width: videoElement.videoWidth,
+                            height: videoElement.videoHeight
+                        });
+
+                        // Update video height based on aspect ratio
+                        videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300;
+                        thumbnailLoaded = true;
+                        resolve(null);
+                    });
                 });
-            });
+
+                // Add existing event listeners
+                videoElement.addEventListener('timeupdate', () => {
+                    const durationInSeconds = getDurationInSeconds(duration);
+                    currentTime = formatTime(videoElement.currentTime);
+                    progress = (videoElement.currentTime / durationInSeconds) * 100;
+                });
+
+                videoElement.addEventListener('ended', () => {
+                    isPlaying = false;
+                    showCurrentTime = false;
+                    progress = 0;
+                    currentTime = '00:00';
+                    videoElement.currentTime = 0;
+                    logger.debug('Video playback ended');
+                });
+
+                videoElement.addEventListener('loadeddata', () => {
+                    logger.debug('Video data loaded:', {
+                        duration: videoElement.duration,
+                        readyState: videoElement.readyState,
+                        currentSrc: videoElement.currentSrc
+                    });
+
+                    if (isFinite(videoElement.duration) && videoElement.duration > 0) {
+                        duration = formatTime(videoElement.duration);
+                        logger.debug(`Updated video duration to ${duration}`);
+                    }
+                });
+
+                // Enhanced error handling
+                videoElement.addEventListener('error', (e) => {
+                    const error = videoElement.error;
+                    logger.debug('Video error:', {
+                        code: error?.code,
+                        message: error?.message,
+                        event: e
+                    });
+
+                    // Show user-friendly error message
+                    if (error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                        // Handle unsupported format
+                        logger.debug('Video format not supported');
+                    } else if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
+                        // Handle network error
+                        logger.debug('Network error while loading video');
+                    }
+                });
+            }
+        } catch (error) {
+            logger.debug('Error initializing video:', error);
+            throw error;
         }
     }
 
@@ -150,7 +226,7 @@
     {src} 
     {filename} 
     height="200px"
-    customClass={isPlaying ? 'playing' : ''}
+    customClass={`${isPlaying ? 'playing' : ''} ${videoElement?.error ? 'error' : ''}`}
 >
     <div class="video-container">
         {#if videoElement}
@@ -158,9 +234,18 @@
                 class="video-element" 
                 src={src}
                 bind:this={videoElement}
+                on:error={() => logger.debug('Video element error event triggered')}
             >
                 <track kind="captions" />
             </video>
+        {/if}
+
+        <!-- Show error message if video fails to load -->
+        {#if videoElement?.error}
+            <div class="error-message">
+                <span class="icon_error"></span>
+                <span>Video format not supported</span>
+            </div>
         {/if}
 
         <!-- New bottom progress bar that's always visible -->
@@ -318,6 +403,33 @@
 
     /* Hide the icon_rounded when video is playing */
     :global(.preview-container.playing .icon_rounded) {
+        display: none;
+    }
+
+    /* Add error state styles */
+    .error-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: var(--color-error);
+        text-align: center;
+        padding: 16px;
+    }
+
+    .error-message span {
+        font-size: 14px;
+    }
+
+    :global(.preview-container.error .icon_rounded) {
+        opacity: 0.3;
+    }
+
+    :global(.preview-container.error .play-button) {
         display: none;
     }
 </style>
