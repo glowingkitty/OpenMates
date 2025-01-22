@@ -209,7 +209,7 @@
         left: 0;
         right: 0;
         height: 400px;
-        background: #fff;
+        background: var(--color-grey-0);
         z-index: 1000;
         display: flex;
         flex-direction: column;
@@ -220,7 +220,7 @@
     .map-container {
         width: 100%;
         height: 100%;
-        background: #f5f5f5;
+        background: var(--color-grey-0);
         z-index: 1;
     }
 
