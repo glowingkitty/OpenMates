@@ -181,8 +181,8 @@
     // Add URL detection regex
     const urlRegex = /https?:\/\/[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?/gi;
 
-    // Add YouTube URL detection regex
-    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    // Update YouTube regex to capture more formats
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|v\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
     // Add new WebPreview node type
     const WebPreview = Node.create({
@@ -702,7 +702,8 @@
         const youtubeMatch = url.match(youtubeRegex);
         if (youtubeMatch) {
             const videoId = youtubeMatch[1];
-            const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            // Use HD thumbnail by default
+            const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
             
             // Replace URL with video preview node
             editor
@@ -714,32 +715,15 @@
                     attrs: {
                         type: 'video',
                         src: url,
-                        filename: `YouTube Video (${videoId})`,
+                        filename: 'YouTube Video', // Simple generic title
                         id: crypto.randomUUID(),
                         thumbnailUrl: thumbnailUrl,
                         isYouTube: true,
-                        videoId: videoId
+                        videoId: videoId,
+                        duration: '--:--'
                     }
                 })
                 .run();
-
-            // Fetch video title asynchronously
-            fetchYouTubeTitle(videoId).then(title => {
-                if (title) {
-                    // Update the node with the title
-                    const doc = editor.state.doc;
-                    doc.descendants((node, pos) => {
-                        if (node.attrs?.videoId === videoId) {
-                            editor
-                                .chain()
-                                .focus()
-                                .updateAttributes(node.type.name, { filename: title })
-                                .run();
-                            return false;
-                        }
-                    });
-                }
-            });
         } else {
             // Handle regular URLs as before
             editor
@@ -754,21 +738,6 @@
                     }
                 })
                 .run();
-        }
-    }
-
-    // Add function to fetch YouTube video title
-    async function fetchYouTubeTitle(videoId: string): Promise<string | null> {
-        try {
-            // Use a proxy or your backend API to fetch the title
-            // This is a placeholder - you'll need to implement the actual API endpoint
-            const response = await fetch(`/api/youtube/title/${videoId}`);
-            if (!response.ok) return null;
-            const data = await response.json();
-            return data.title;
-        } catch (error) {
-            console.error('Error fetching YouTube title:', error);
-            return null;
         }
     }
 

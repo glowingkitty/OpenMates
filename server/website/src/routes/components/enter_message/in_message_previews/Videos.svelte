@@ -37,6 +37,24 @@
         'video/x-ms-wmv'   // .wmv files
     ];
 
+    // Add thumbnail quality fallback chain
+    const THUMBNAIL_QUALITIES = [
+        'maxresdefault.jpg',
+        'hqdefault.jpg',
+        'mqdefault.jpg',
+        'sddefault.jpg',
+        'default.jpg'
+    ];
+
+    let currentThumbnailQualityIndex = 0;
+
+    function tryNextThumbnailQuality(img: HTMLImageElement) {
+        currentThumbnailQualityIndex++;
+        if (currentThumbnailQualityIndex < THUMBNAIL_QUALITIES.length && videoId) {
+            img.src = `https://i.ytimg.com/vi/${videoId}/${THUMBNAIL_QUALITIES[currentThumbnailQualityIndex]}`;
+        }
+    }
+
     // Add function to check video playability
     async function isVideoPlayable(videoElement: HTMLVideoElement): Promise<boolean> {
         try {
@@ -76,12 +94,19 @@
         }
     }
 
-    // Update initVideo function
+    // Update initVideo function to handle YouTube videos properly
     async function initVideo() {
         if (isYouTube) {
-            // For YouTube videos, we don't need to initialize the video element
-            // We'll just show the thumbnail and title
+            // For YouTube videos, we'll set some default values and skip video element initialization
             thumbnailLoaded = true;
+            if (!duration || duration === '00:00') {
+                duration = '--:--'; // Placeholder until we can fetch duration
+            }
+            return;
+        }
+
+        if (!src) {
+            logger.debug('No video source provided, skipping initialization');
             return;
         }
 
@@ -92,157 +117,157 @@
         });
 
         try {
-            if (!videoElement && src) {
+            // Create video element only if it doesn't exist
+            if (!videoElement) {
                 videoElement = document.createElement('video');
                 videoElement.src = src;
                 videoElement.preload = 'metadata';
+            }
 
-                // Add timeupdate event listener with null check
-                videoElement.addEventListener('timeupdate', () => {
+            // Add timeupdate event listener with null check
+            videoElement.addEventListener('timeupdate', () => {
+                if (!videoElement) return;
+                
+                const videoDuration = videoElement.duration;
+                if (isFinite(videoDuration) && videoDuration > 0) {
+                    currentTime = formatTime(videoElement.currentTime);
+                    progress = (videoElement.currentTime / videoDuration) * 100;
+                    logger.debug('Video progress:', { currentTime, progress });
+                }
+            });
+
+            // Determine timeout based on file type and size
+            const isMovFile = filename?.toLowerCase().endsWith('.mov');
+            const isLargeFile = src.includes('blob') && src.length > 1000000; // Rough estimate for large files
+            const timeoutDuration = isMovFile || isLargeFile ? 30000 : 15000; // 30 seconds for .mov/large files, 15 for others
+
+            // Create a promise that resolves when metadata is loaded
+            const metadataPromise = new Promise<void>((resolve, reject) => {
+                let metadataLoaded = false;
+                let retryCount = 0;
+                const maxRetries = 3;
+
+                const tryLoadMetadata = () => {
                     if (!videoElement) return;
                     
-                    const videoDuration = videoElement.duration;
-                    if (isFinite(videoDuration) && videoDuration > 0) {
-                        currentTime = formatTime(videoElement.currentTime);
-                        progress = (videoElement.currentTime / videoDuration) * 100;
-                        logger.debug('Video progress:', { currentTime, progress });
-                    }
-                });
-
-                // Determine timeout based on file type and size
-                const isMovFile = filename?.toLowerCase().endsWith('.mov');
-                const isLargeFile = src.includes('blob') && src.length > 1000000; // Rough estimate for large files
-                const timeoutDuration = isMovFile || isLargeFile ? 30000 : 15000; // 30 seconds for .mov/large files, 15 for others
-
-                // Create a promise that resolves when metadata is loaded
-                const metadataPromise = new Promise<void>((resolve, reject) => {
-                    let metadataLoaded = false;
-                    let retryCount = 0;
-                    const maxRetries = 3;
-
-                    const tryLoadMetadata = () => {
-                        if (!videoElement) return;
-                        
-                        if (isFinite(videoElement.duration) && videoElement.duration > 0) {
-                            duration = formatTime(videoElement.duration);
-                            logger.debug('Duration found:', duration);
-                            metadataLoaded = true;
-                            resolve();
-                            return true;
-                        }
-                        return false;
-                    };
-
-                    const retryLoadMetadata = () => {
-                        if (retryCount < maxRetries && !metadataLoaded) {
-                            retryCount++;
-                            logger.debug(`Retrying metadata load, attempt ${retryCount}`);
-                            videoElement.load();
-                        } else if (!metadataLoaded) {
-                            reject(new Error('Failed to load video metadata after retries'));
-                        }
-                    };
-
-                    // Event listeners for metadata loading
-                    const events = ['loadedmetadata', 'durationchange', 'loadeddata'];
-                    events.forEach(event => {
-                        videoElement.addEventListener(event, () => {
-                            if (!metadataLoaded && tryLoadMetadata()) {
-                                // Update video height based on aspect ratio
-                                videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300;
-                                thumbnailLoaded = true;
-                            }
-                        });
-                    });
-
-                    // Handle loading errors
-                    videoElement.addEventListener('error', (e) => {
-                        const error = videoElement.error;
-                        logger.debug('Video loading error:', {
-                            code: error?.code,
-                            message: error?.message,
-                            event: e
-                        });
-                        retryLoadMetadata();
-                    });
-
-                    // Initial load attempt
-                    if (!tryLoadMetadata()) {
-                        videoElement.load();
-                    }
-                });
-
-                // Wait for metadata with timeout and fallback handling
-                try {
-                    await Promise.race([
-                        metadataPromise,
-                        new Promise((_, reject) => {
-                            setTimeout(() => {
-                                if (!videoElement || !isFinite(videoElement.duration) || videoElement.duration === 0) {
-                                    reject(new Error(`Video metadata timeout after ${timeoutDuration}ms`));
-                                }
-                            }, timeoutDuration);
-                        })
-                    ]);
-                } catch (error) {
-                    logger.debug('Error loading video metadata:', error);
-                    // Fallback: Try to get duration from the filename or use default
-                    if (!duration || duration === '00:00') {
-                        // Look for duration pattern in filename (e.g., "video_2m30s.mp4")
-                        const durationMatch = filename?.match(/(\d+)m(\d+)s/);
-                        if (durationMatch) {
-                            const [_, minutes, seconds] = durationMatch;
-                            duration = `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
-                        } else {
-                            duration = '00:00';
-                        }
-                    }
-                }
-
-                // Update ended event handler
-                videoElement.addEventListener('ended', () => {
-                    isPlaying = false;
-                    progress = 0;
-                    currentTime = '00:00';
-                    videoElement.currentTime = 0;
-                    logger.debug('Video playback ended, resetting state');
-                });
-
-                videoElement.addEventListener('loadeddata', () => {
-                    logger.debug('Video data loaded:', {
-                        duration: videoElement.duration,
-                        readyState: videoElement.readyState,
-                        currentSrc: videoElement.currentSrc
-                    });
-
                     if (isFinite(videoElement.duration) && videoElement.duration > 0) {
                         duration = formatTime(videoElement.duration);
-                        logger.debug(`Updated video duration to ${duration}`);
+                        logger.debug('Duration found:', duration);
+                        metadataLoaded = true;
+                        resolve();
+                        return true;
                     }
+                    return false;
+                };
+
+                const retryLoadMetadata = () => {
+                    if (retryCount < maxRetries && !metadataLoaded) {
+                        retryCount++;
+                        logger.debug(`Retrying metadata load, attempt ${retryCount}`);
+                        videoElement.load();
+                    } else if (!metadataLoaded) {
+                        reject(new Error('Failed to load video metadata after retries'));
+                    }
+                };
+
+                // Event listeners for metadata loading
+                const events = ['loadedmetadata', 'durationchange', 'loadeddata'];
+                events.forEach(event => {
+                    videoElement.addEventListener(event, () => {
+                        if (!metadataLoaded && tryLoadMetadata()) {
+                            // Update video height based on aspect ratio
+                            videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300;
+                            thumbnailLoaded = true;
+                        }
+                    });
                 });
 
-                // Enhanced error handling
+                // Handle loading errors
                 videoElement.addEventListener('error', (e) => {
                     const error = videoElement.error;
-                    logger.debug('Video error:', {
+                    logger.debug('Video loading error:', {
                         code: error?.code,
                         message: error?.message,
                         event: e
                     });
-
-                    // Show user-friendly error message
-                    if (error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-                        // Handle unsupported format
-                        logger.debug('Video format not supported');
-                    } else if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
-                        // Handle network error
-                        logger.debug('Network error while loading video');
-                    }
+                    retryLoadMetadata();
                 });
+
+                // Initial load attempt
+                if (!tryLoadMetadata()) {
+                    videoElement.load();
+                }
+            });
+
+            // Wait for metadata with timeout and fallback handling
+            try {
+                await Promise.race([
+                    metadataPromise,
+                    new Promise((_, reject) => {
+                        setTimeout(() => {
+                            if (!videoElement || !isFinite(videoElement.duration) || videoElement.duration === 0) {
+                                reject(new Error(`Video metadata timeout after ${timeoutDuration}ms`));
+                            }
+                        }, timeoutDuration);
+                    })
+                ]);
+            } catch (error) {
+                logger.debug('Error loading video metadata:', error);
+                // Fallback: Try to get duration from the filename or use default
+                if (!duration || duration === '00:00') {
+                    // Look for duration pattern in filename (e.g., "video_2m30s.mp4")
+                    const durationMatch = filename?.match(/(\d+)m(\d+)s/);
+                    if (durationMatch) {
+                        const [_, minutes, seconds] = durationMatch;
+                        duration = `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
+                    } else {
+                        duration = '00:00';
+                    }
+                }
             }
+
+            // Update ended event handler
+            videoElement.addEventListener('ended', () => {
+                isPlaying = false;
+                progress = 0;
+                currentTime = '00:00';
+                videoElement.currentTime = 0;
+                logger.debug('Video playback ended, resetting state');
+            });
+
+            videoElement.addEventListener('loadeddata', () => {
+                logger.debug('Video data loaded:', {
+                    duration: videoElement.duration,
+                    readyState: videoElement.readyState,
+                    currentSrc: videoElement.currentSrc
+                });
+
+                if (isFinite(videoElement.duration) && videoElement.duration > 0) {
+                    duration = formatTime(videoElement.duration);
+                    logger.debug(`Updated video duration to ${duration}`);
+                }
+            });
+
+            // Enhanced error handling
+            videoElement.addEventListener('error', (e) => {
+                const error = videoElement.error;
+                logger.debug('Video error:', {
+                    code: error?.code,
+                    message: error?.message,
+                    event: e
+                });
+
+                // Show user-friendly error message
+                if (error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                    // Handle unsupported format
+                    logger.debug('Video format not supported');
+                } else if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
+                    // Handle network error
+                    logger.debug('Network error while loading video');
+                }
+            });
         } catch (error) {
             logger.debug('Error initializing video:', error);
-            // Set default values in case of error
             duration = duration || '00:00';
             progress = 0;
             currentTime = '00:00';
@@ -278,9 +303,10 @@
     async function togglePlay(e: MouseEvent) {
         e.stopPropagation();
         
-        if (isYouTube) {
-            // Open YouTube video in new tab
-            window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+        if (isYouTube && videoId) {
+            // Open YouTube video in new tab with timestamp if playing
+            const timestamp = videoElement?.currentTime ? `&t=${Math.floor(videoElement.currentTime)}` : '';
+            window.open(`https://www.youtube.com/watch?v=${videoId}${timestamp}`, '_blank');
             return;
         }
 
@@ -325,6 +351,11 @@
             videoElement.remove();
         }
     });
+
+    // Add this near the top of the script section
+    $: if (isYouTube && videoId && (!duration || duration === '00:00')) {
+        duration = '--:--';
+    }
 </script>
 
 <InlinePreviewBase 
@@ -343,11 +374,8 @@
                     alt="YouTube thumbnail" 
                     class="thumbnail"
                     on:error={(e) => {
-                        // Fallback to default thumbnail if maxresdefault fails
                         const img = e.target as HTMLImageElement;
-                        if (img.src.includes('maxresdefault')) {
-                            img.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-                        }
+                        tryNextThumbnailQuality(img);
                     }}
                 />
             </div>
@@ -579,28 +607,23 @@
         display: none;
     }
 
+    /* Update YouTube preview styles */
     .youtube-preview {
         position: relative;
         width: 100%;
-        height: 100%;
+        height: 200px; /* Match the container height */
         background-color: var(--color-grey-20);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .thumbnail {
         width: 100%;
         height: 100%;
         object-fit: cover;
-    }
-
-    :global(.preview-container.youtube .info-bar) {
-        background-color: rgba(0, 0, 0, 0.8);
-    }
-
-    :global(.preview-container.youtube .filename) {
-        color: white;
-    }
-
-    :global(.preview-container.youtube .time-info) {
-        color: rgba(255, 255, 255, 0.8);
+        position: absolute;
+        top: 0;
+        left: 0;
     }
 </style>
