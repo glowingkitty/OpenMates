@@ -4,6 +4,9 @@
     import { _ } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
     
+    // Add import for Leaflet CSS in the script section
+    import 'leaflet/dist/leaflet.css';
+    
     const dispatch = createEventDispatcher();
     
     let mapContainer: HTMLElement;
@@ -24,17 +27,32 @@
         // Import Leaflet only on client-side
         L = (await import('leaflet')).default;
         
+        // Initialize map with better default settings
         map = L.map(mapContainer, {
             center: [20, 0],
             zoom: 2,
-            zoomControl: false,
-            attributionControl: false
+            zoomControl: true,
+            attributionControl: false,
+            maxBoundsViscosity: 1.0
         });
 
-        // Add OpenStreetMap tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19
+        // Add OpenStreetMap tile layer with error handling and retries
+        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            subdomains: ['a', 'b', 'c'],
+            errorTileUrl: 'path/to/error-tile.png', // Add a placeholder error tile image
+            retryOnError: true,
+            crossOrigin: true
         }).addTo(map);
+
+        // Add event listeners for tile loading
+        tileLayer.on('tileerror', (error: { tile: HTMLElement; coords: { x: number; y: number; z: number } }) => {
+            logger.debug('Tile loading error:', error);
+        });
+
+        tileLayer.on('load', () => {
+            logger.debug('All tiles loaded successfully');
+        });
 
         // Add attribution control to bottom right
         L.control.attribution({
@@ -114,6 +132,16 @@
         }
     }
 </script>
+
+<svelte:head>
+    <!-- Ensure Leaflet CSS is properly loaded -->
+    <link 
+        rel="stylesheet" 
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+</svelte:head>
 
 <div class="maps-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
     <div class="map-container" bind:this={mapContainer}></div>
@@ -303,5 +331,19 @@
         font-size: 10px;
         background: rgba(255, 255, 255, 0.8) !important;
         margin-bottom: 53px !important; /* Account for bottom bar */
+    }
+
+    /* Add specific styles for Leaflet tile loading */
+    :global(.leaflet-tile-container) {
+        opacity: 1 !important;
+    }
+
+    :global(.leaflet-tile-loaded) {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    :global(.leaflet-tile-loading) {
+        opacity: 0.5;
     }
 </style> 
