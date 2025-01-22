@@ -73,27 +73,7 @@
         }
     }
 
-    // Convert duration string (MM:SS) to seconds
-    function getDurationInSeconds(timeStr: string): number {
-        // Handle invalid duration string
-        if (!timeStr || timeStr.includes('Infinity') || timeStr.includes('NaN')) {
-            return 0;
-        }
-        const [minutes, seconds] = timeStr.split(':').map(Number);
-        return minutes * 60 + seconds;
-    }
-
-    // Format seconds to MM:SS
-    function formatTime(seconds: number): string {
-        if (!isFinite(seconds) || isNaN(seconds)) {
-            return '00:00';
-        }
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-
-    // Update initVideo function to include playability check
+    // Update initVideo function with better timeout handling and .mov support
     async function initVideo() {
         logger.debug(`Initializing video player for ${id}`, {
             initialDuration: duration,
@@ -106,34 +86,77 @@
                 videoElement.src = src;
                 videoElement.preload = 'metadata';
 
-                // Check if video is playable
-                const playable = await isVideoPlayable(videoElement);
-                if (!playable) {
-                    logger.debug('Video is not playable:', src);
-                    throw new Error('Video format not supported');
-                }
+                // For .mov files specifically, we need to be more patient
+                const isMovFile = filename?.toLowerCase().endsWith('.mov');
+                const timeoutDuration = isMovFile ? 30000 : 10000; // 30 seconds for .mov, 10 for others
 
-                // Wait for metadata to load
-                await new Promise((resolve) => {
+                // Create a promise that resolves when either metadata or data is loaded
+                const metadataPromise = new Promise<void>((resolve) => {
+                    let durationFound = false;
+
+                    const checkDuration = () => {
+                        if (isFinite(videoElement.duration) && videoElement.duration > 0) {
+                            duration = formatTime(videoElement.duration);
+                            logger.debug('Duration found:', duration);
+                            durationFound = true;
+                            resolve();
+                        }
+                    };
+
                     videoElement.addEventListener('loadedmetadata', () => {
-                        logger.debug('Video metadata loaded:', {
-                            duration: videoElement.duration,
-                            width: videoElement.videoWidth,
-                            height: videoElement.videoHeight
-                        });
+                        logger.debug('Metadata loaded, checking duration...');
+                        checkDuration();
 
                         // Update video height based on aspect ratio
                         videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300;
                         thumbnailLoaded = true;
-                        resolve(null);
                     });
+
+                    videoElement.addEventListener('durationchange', () => {
+                        logger.debug('Duration changed, checking...');
+                        checkDuration();
+                    });
+
+                    videoElement.addEventListener('loadeddata', () => {
+                        logger.debug('Data loaded, checking duration...');
+                        checkDuration();
+                    });
+
+                    // For .mov files, try to force duration calculation
+                    if (isMovFile) {
+                        videoElement.addEventListener('canplay', () => {
+                            logger.debug('Can play, checking duration...');
+                            if (!durationFound) {
+                                // Try seeking to end to force duration calculation
+                                videoElement.currentTime = 24 * 60 * 60; // Seek to 24 hours
+                                setTimeout(() => {
+                                    checkDuration();
+                                    videoElement.currentTime = 0;
+                                }, 100);
+                            }
+                        });
+                    }
                 });
+
+                // Wait for metadata with timeout
+                await Promise.race([
+                    metadataPromise,
+                    new Promise((_, reject) => {
+                        setTimeout(() => {
+                            if (!isFinite(videoElement.duration) || videoElement.duration === 0) {
+                                reject(new Error(`Video metadata timeout after ${timeoutDuration}ms`));
+                            }
+                        }, timeoutDuration);
+                    })
+                ]);
 
                 // Add existing event listeners
                 videoElement.addEventListener('timeupdate', () => {
-                    const durationInSeconds = getDurationInSeconds(duration);
-                    currentTime = formatTime(videoElement.currentTime);
-                    progress = (videoElement.currentTime / durationInSeconds) * 100;
+                    const videoDuration = videoElement.duration;
+                    if (isFinite(videoDuration) && videoDuration > 0) {
+                        currentTime = formatTime(videoElement.currentTime);
+                        progress = (videoElement.currentTime / videoDuration) * 100;
+                    }
                 });
 
                 videoElement.addEventListener('ended', () => {
@@ -179,8 +202,34 @@
             }
         } catch (error) {
             logger.debug('Error initializing video:', error);
-            throw error;
+            // Don't throw the error, just log it and continue
+            // This allows the video to still be displayed even if duration isn't immediately available
         }
+    }
+
+    // Update getDurationInSeconds to handle video element duration
+    function getDurationInSeconds(timeStr: string): number {
+        // First check if we have a valid duration from the video element
+        if (videoElement && isFinite(videoElement.duration) && videoElement.duration > 0) {
+            return videoElement.duration;
+        }
+        
+        // Handle invalid duration string
+        if (!timeStr || timeStr.includes('Infinity') || timeStr.includes('NaN')) {
+            return 0;
+        }
+        const [minutes, seconds] = timeStr.split(':').map(Number);
+        return minutes * 60 + seconds;
+    }
+
+    // Update formatTime to handle edge cases better
+    function formatTime(seconds: number): string {
+        if (!isFinite(seconds) || isNaN(seconds)) {
+            return '00:00';
+        }
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
     // Handle play/pause with better error handling
