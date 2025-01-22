@@ -144,7 +144,14 @@
     });
 </script>
 
-<InlinePreviewBase {id} type="video" {src} {filename} height="200px">
+<InlinePreviewBase 
+    {id} 
+    type="video" 
+    {src} 
+    {filename} 
+    height="200px"
+    customClass={isPlaying ? 'playing' : ''}
+>
     <div class="video-container">
         {#if videoElement}
             <video 
@@ -294,7 +301,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        height: 20px;
+        height: 10px;
         z-index: 1;
     }
 
@@ -307,5 +314,10 @@
         background-color: var(--color-grey-10);
         transition: width 0.5s linear;
         opacity: 0.8;
+    }
+
+    /* Hide the icon_rounded when video is playing */
+    :global(.preview-container.playing .icon_rounded) {
+        display: none;
     }
 </style>
