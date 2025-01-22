@@ -725,13 +725,20 @@
                     editor.commands.setContent(getInitialContent());
                 }
             },
-            onUpdate: ({ editor }) => {
-                // Update hasContent whenever editor content changes
+            onUpdate: ({ editor, transaction }) => {
+                // Only process URLs and mates if actual text was added
+                // Check if this update includes text changes
+                if (transaction.docChanged && transaction.steps.some(step => 
+                    step.toJSON().stepType === 'replace' && 
+                    typeof step.toJSON().slice === 'string'
+                )) {
+                    const content = editor.getHTML();
+                    detectAndReplaceUrls(content);
+                    detectAndReplaceMates(content);
+                }
+
+                // Update hasContent state
                 hasContent = !editor.isEmpty && !isContentEmptyExceptMention(editor);
-                
-                const content = editor.getHTML();
-                detectAndReplaceUrls(content);
-                detectAndReplaceMates(content);
             }
         });
 
