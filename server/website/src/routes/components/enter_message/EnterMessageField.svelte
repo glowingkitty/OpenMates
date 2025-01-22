@@ -1447,38 +1447,52 @@
     // Add prop for default mention
     export const defaultMention: string = 'sophia';
 
+    // Add this near other state variables at the top
+    let selectedNode: { node: any; pos: number } | null = null;
+
     // Add this function to handle press/click on embeds
     function handleEmbedInteraction(event: CustomEvent, embedId: string) {
+        // Find the node
+        editor.state.doc.descendants((node: any, pos: number) => {
+            if (node.attrs?.id === embedId) {
+                selectedNode = { node, pos };
+                return false;
+            }
+            return true;
+        });
+
         event.preventDefault();
+        if (!selectedNode) return;  // Add this check
         
-        // Set the flag before showing menu
         isMenuInteraction = true;
         
         // Find the element using the elementId from the event detail
         const element = document.getElementById(event.detail.elementId);
         if (!element) return;
-
-        // Get element's position relative to viewport
-        const rect = element.getBoundingClientRect();
         
-        // Calculate position relative to the message container
+        const rect = element.getBoundingClientRect();
         const container = element.closest('.message-container');
         if (!container) return;
         
-        const containerRect = container.getBoundingClientRect();
-        
-        // Position menu relative to the clicked element
-        menuX = rect.left - containerRect.left + (rect.width / 2);
-        menuY = rect.top - containerRect.top;
+        // Calculate position relative to the message container
+        menuX = rect.left - container.getBoundingClientRect().left + (rect.width / 2);
+        menuY = rect.top - container.getBoundingClientRect().top;
         
         selectedEmbedId = embedId;
         showMenu = true;
 
-        // Determine the type of content for the menu
-        const contentType = element.getAttribute('data-type');
-        menuType = contentType === 'pdf' ? 'pdf' : 
-                   contentType === 'custom-embed' && element.hasAttribute('data-url') ? 'web' : 
-                   'default';
+        // Update the menu type detection logic
+        const node = selectedNode?.node;
+        if (!node) return;
+
+        // Determine the type based on node type and attributes
+        if (node.type.name === 'webPreview') {
+            menuType = 'web';
+        } else if (node.attrs?.type === 'pdf') {
+            menuType = 'pdf';
+        } else {
+            menuType = 'default';
+        }
     }
 
     // Add these handlers for the menu actions
@@ -1531,6 +1545,7 @@
         }
         showMenu = false;
         isMenuInteraction = false;
+        selectedNode = null;  // Clear the selected node
     }
 
     // Update the handleAudioRecorded function
@@ -1855,9 +1870,11 @@
             y={menuY}
             show={showMenu}
             type={menuType}
+            isYouTube={selectedNode?.node?.attrs?.isYouTube || false}
             on:close={() => {
                 showMenu = false;
-                isMenuInteraction = false; // Reset the flag when menu is closed
+                isMenuInteraction = false;
+                selectedNode = null;  // Clear the selected node
             }}
             on:delete={() => handleMenuAction('delete')}
             on:download={() => handleMenuAction('download')}

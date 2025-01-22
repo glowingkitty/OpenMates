@@ -7,6 +7,7 @@
     export let y: number = 0;  // Y position of menu
     export let show: boolean = false;
     export let type: 'default' | 'pdf' | 'web' = 'default';  // Add type prop
+    export let isYouTube: boolean = false;  // Add isYouTube prop
 
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
@@ -93,13 +94,15 @@
                 {$_('enter_message.press_and_hold_menu.view.text')}
             </button>
         {:else}
-            <button 
-                class="menu-item download"
-                on:click={(event) => handleMenuItemClick('download', event)}
-            >
-                <div class="clickable-icon icon_download"></div>
-                {$_('enter_message.press_and_hold_menu.download.text')}
-            </button>
+            {#if !isYouTube && (type === 'default' || type === 'pdf')}
+                <button 
+                    class="menu-item download"
+                    on:click={(event) => handleMenuItemClick('download', event)}
+                >
+                    <div class="clickable-icon icon_download"></div>
+                    {$_('enter_message.press_and_hold_menu.download.text')}
+                </button>
+            {/if}
             <button 
                 class="menu-item view"
                 on:click={(event) => handleMenuItemClick('view', event)}
