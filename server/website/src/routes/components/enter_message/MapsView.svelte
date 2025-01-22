@@ -253,7 +253,7 @@
         left: 0;
         right: 0;
         height: 400px;
-        background: var(--color-background);
+        background: var(--color-grey-0);
         z-index: 1000;
         display: flex;
         flex-direction: column;
@@ -264,7 +264,7 @@
     .map-container {
         width: 100%;
         height: 100%;
-        background: var(--color-background);
+        background: var(--color-grey-0);
         z-index: 1;
     }
 
@@ -274,7 +274,7 @@
         left: 0;
         right: 0;
         height: 53px;
-        background: var(--color-grey-blue);
+        background: var(--color-grey-0);
         border-radius: 24px;
         z-index: 2;
     }
@@ -326,10 +326,6 @@
         transition: all 0.2s ease;
     }
 
-    .select-button:hover {
-        background: var(--color-primary-dark);
-    }
-
     .precise-toggle {
         position: absolute;
         top: 20px;
@@ -348,7 +344,7 @@
     .toggle-button {
         width: 44px;
         height: 24px;
-        background: var(--color-grey-20);
+        background: var(--color-grey-0);
         border-radius: 12px;
         border: none;
         position: relative;
@@ -384,12 +380,12 @@
     :global(.leaflet-container) {
         width: 100%;
         height: 100%;
-        background: var(--color-background) !important;
+        background: var(--color-grey-0) !important;
     }
 
     :global(.leaflet-control-attribution) {
         font-size: 10px;
-        background: var(--color-grey-blue) !important;
+        background: var(--color-grey-0) !important;
         color: var(--color-font-primary) !important;
         margin-bottom: 53px !important; /* Account for bottom bar */
     }
@@ -399,13 +395,13 @@
     }
 
     :global(.leaflet-control-zoom a) {
-        background: var(--color-grey-blue) !important;
+        background: var(--color-grey-0) !important;
         color: var(--color-font-primary) !important;
-        border-color: var(--color-grey-20) !important;
+        border-color: var(--color-grey-0) !important;
     }
 
     :global(.leaflet-control-zoom a:hover) {
-        background: var(--color-grey-20) !important;
+        background: var(--color-grey-0) !important;
     }
 
     /* Add specific styles for Leaflet tile loading */
@@ -445,7 +441,7 @@
 
     /* Improve precise toggle visibility */
     .precise-toggle {
-        background: var(--color-grey-blue);
+        background: var(--color-grey-0);
         color: var(--color-font-primary);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
