@@ -435,17 +435,21 @@
                     <span class="filename">{filename}</span>
                 {/if}
                 <span class="time-info">
-                    <span class="duration">{duration}</span>
+                    {#if !isYouTube}
+                        <span class="duration">{duration}</span>
+                    {/if}
                 </span>
             </div>
         </div>
 
         <!-- Play button outside info-bar -->
-        <button 
-            class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-            on:click={togglePlay}
-        ></button>
+        {#if !isYouTube}
+            <button 
+                class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                on:click={togglePlay}
+            ></button>
+        {/if}
     </div>
 </InlinePreviewBase>
 
