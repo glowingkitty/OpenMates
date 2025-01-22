@@ -101,7 +101,8 @@
                     props: {
                         src: HTMLAttributes.src,
                         filename: HTMLAttributes.filename,
-                        id: HTMLAttributes.id
+                        id: HTMLAttributes.id,
+                        isRecording: HTMLAttributes.isRecording
                     }
                 });
                 return container;
@@ -1026,7 +1027,7 @@
         }
     }
 
-    async function insertImage(file: File): Promise<void> {
+    async function insertImage(file: File, isRecording: boolean = false): Promise<void> {
         const url = URL.createObjectURL(file);
         
         if (editor.isEmpty) {
@@ -1053,7 +1054,8 @@
                                 type: 'image',
                                 src: url,
                                 filename: file.name,
-                                id: crypto.randomUUID()
+                                id: crypto.randomUUID(),
+                                isRecording
                             }
                         },
                         {
@@ -1071,7 +1073,8 @@
                         type: 'image',
                         src: url,
                         filename: file.name,
-                        id: crypto.randomUUID()
+                        id: crypto.randomUUID(),
+                        isRecording
                     }
                 },
                 {
@@ -1228,7 +1231,7 @@
         showCamera = false;
         // Wait for camera to fully close
         await new Promise(resolve => setTimeout(resolve, 150));
-        await insertImage(file);
+        await insertImage(file, true); // Pass true for isRecording
     }
 
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {

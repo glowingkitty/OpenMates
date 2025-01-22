@@ -5,9 +5,10 @@
     export let src: string;
     export let filename: string;
     export let id: string;
+    export let isRecording: boolean = false;
 </script>
 
-<InlinePreviewBase {id} type="photos" {src} {filename} height="200px">
+<InlinePreviewBase {id} type={isRecording ? 'photos_recording' : 'photos'} {src} {filename} height="200px">
     <div class="checkerboard-background">
         <img {src} alt="Preview" class="preview-image fill-container" />
     </div>
