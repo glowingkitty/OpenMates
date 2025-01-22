@@ -310,7 +310,7 @@
             ></div>
         </div>
 
-        <!-- Updated info-bar section -->
+        <!-- Update the info-bar section -->
         <div class="info-bar" class:hidden={isPlaying}>
             <div 
                 class="progress-bar" 
@@ -333,13 +333,14 @@
                     <span class="duration">{duration}</span>
                 </span>
             </div>
-            <!-- Move play button inside info-bar -->
-            <button 
-                class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-                on:click={togglePlay}
-            ></button>
         </div>
+
+        <!-- Play button outside info-bar -->
+        <button 
+            class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+            on:click={togglePlay}
+        ></button>
     </div>
 </InlinePreviewBase>
 
@@ -373,7 +374,7 @@
         display: flex;
         align-items: center;
         padding-left: 70px;
-        padding-right: 16px; /* Reduce right padding since we're handling spacing in text-container */
+        padding-right: 16px;
         overflow: hidden;
         user-select: none;
         transition: opacity 0.3s ease-in-out;
@@ -386,8 +387,28 @@
         pointer-events: none;
     }
 
+    .text-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 100%;
+        line-height: 1.3;
+        z-index: 1;
+        flex: 1;
+        min-width: 0;
+        max-width: calc(100% - 40px);
+        padding-right: 16px;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .text-container.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     .play-button {
         position: absolute;
+        bottom: 17px;
         right: 20px;
         opacity: 0.5;
         width: 25px;
@@ -410,19 +431,6 @@
         transition: width 0.5s linear;
         z-index: 0;
         opacity: 1;
-    }
-
-    .text-container {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        height: 100%;
-        line-height: 1.3;
-        z-index: 1;
-        flex: 1;
-        min-width: 0; /* Enable text truncation */
-        max-width: calc(100% - 40px); /* Leave space for play button */
-        padding-right: 16px; /* Add some spacing between text and play button */
     }
 
     .filename {
