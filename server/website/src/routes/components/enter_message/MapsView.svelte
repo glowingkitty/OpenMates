@@ -382,11 +382,11 @@
 
     /* Improve map controls visibility in dark mode */
     :global(.leaflet-control-zoom) {
-        margin: 20px !important;
+        margin: 6px !important;
         border: none !important;
         box-shadow: none !important;
         background: transparent !important;
-        right: 0 !important;  /* Ensure right alignment */
+        right: 0 !important;
     }
 
     :global(.leaflet-control-zoom-in),
