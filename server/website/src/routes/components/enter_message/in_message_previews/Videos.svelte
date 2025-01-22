@@ -55,10 +55,10 @@
         }
     }
 
-    // Add function to check video playability
+    // Update the isVideoPlayable function to be less aggressive
     async function isVideoPlayable(videoElement: HTMLVideoElement): Promise<boolean> {
         try {
-            // Check if the video metadata can be loaded
+            // Only check if metadata can be loaded
             await new Promise((resolve, reject) => {
                 const timeoutId = setTimeout(() => {
                     reject(new Error('Timeout loading video metadata'));
@@ -81,12 +81,8 @@
                 videoElement.addEventListener('loadedmetadata', handleLoaded);
                 videoElement.addEventListener('error', handleError);
             });
-
-            // Try to play the video (some browsers require this)
-            await videoElement.play();
-            await videoElement.pause();
-            videoElement.currentTime = 0;
             
+            // Remove the play/pause check since it can interfere with other media
             return true;
         } catch (error) {
             logger.debug('Video playability check failed:', error);

@@ -912,10 +912,13 @@
 
             console.log('Processing file:', file.name);
             
+            // Move cursor to end before processing uploaded files
+            editor.commands.focus('end');
+            
             // Check if it's a video file first
             if (isVideoFile(file)) {
                 console.log('Handling as video:', file.name);
-                await insertVideo(file, undefined);
+                await insertVideo(file, undefined, false); // false indicates not a recording
             } else if (isCodeOrTextFile(file.name)) {
                 await insertCodeFile(file);
             } else if (file.type.startsWith('image/')) {
@@ -1275,6 +1278,7 @@
     async function insertVideo(file: File, duration?: string, isRecording: boolean = false) {
         const url = URL.createObjectURL(file);
         
+        // Create the video embed node
         const videoEmbed = {
             type: 'customEmbed',
             attrs: {
@@ -1287,6 +1291,7 @@
             }
         };
 
+        // If editor is empty, handle initial content
         if (editor.isEmpty) {
             editor.commands.setContent({
                 type: 'doc',
@@ -1313,6 +1318,15 @@
                 }]
             });
         } else {
+            // Get current cursor position
+            const { from } = editor.state.selection;
+
+            // For uploaded videos (not recordings), move cursor to end first
+            if (!isRecording) {
+                editor.commands.focus('end');
+            }
+
+            // Insert content at the current position
             editor
                 .chain()
                 .focus()
