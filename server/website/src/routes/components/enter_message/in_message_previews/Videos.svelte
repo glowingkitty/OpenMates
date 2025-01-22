@@ -13,6 +13,7 @@
     let currentTime = '00:00';
     let progress = 0;
     let thumbnailLoaded = false;
+    let videoHeight = 0;
 
     // Logger for debugging
     const logger = {
@@ -33,13 +34,25 @@
         return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
-    // Initialize video element
-    function initVideo() {
+    // Initialize video element and load metadata
+    async function initVideo() {
         logger.debug(`Initializing video player for ${id}`);
         if (!videoElement) {
             videoElement = document.createElement('video');
             videoElement.src = src;
             videoElement.preload = 'metadata';
+
+            // Wait for metadata to load to get actual duration
+            await new Promise((resolve) => {
+                videoElement.addEventListener('loadedmetadata', () => {
+                    // Update duration with actual video duration
+                    duration = formatTime(videoElement.duration);
+                    // Set video height based on aspect ratio
+                    videoHeight = (videoElement.videoHeight / videoElement.videoWidth) * 300; // 300px is max width
+                    thumbnailLoaded = true;
+                    resolve(null);
+                });
+            });
 
             // Add timeupdate event listener to track progress
             videoElement.addEventListener('timeupdate', () => {
@@ -55,20 +68,15 @@
                 progress = 0;
                 currentTime = '00:00';
             });
-
-            // Load thumbnail
-            videoElement.addEventListener('loadeddata', () => {
-                thumbnailLoaded = true;
-            });
         }
     }
 
     // Handle play/pause
-    function togglePlay(e: MouseEvent) {
+    async function togglePlay(e: MouseEvent) {
         e.stopPropagation();
         
         if (!videoElement) {
-            initVideo();
+            await initVideo();
         }
 
         if (isPlaying) {
@@ -81,13 +89,10 @@
         
         isPlaying = !isPlaying;
         showCurrentTime = isPlaying;
-
-        // Dispatch custom event for video play
-        document.dispatchEvent(new CustomEvent('videoplayclick', { 
-            bubbles: true, 
-            detail: { id }
-        }));
     }
+
+    // Initialize on mount
+    initVideo();
 
     // Clean up on component destroy
     onDestroy(() => {
@@ -98,16 +103,15 @@
     });
 </script>
 
-<InlinePreviewBase {id} type="video" {src} {filename}>
+<InlinePreviewBase {id} type="video" {src} {filename} height="200px">
     <div class="video-container">
         {#if videoElement}
             <video 
                 class="video-element" 
                 src={src}
                 bind:this={videoElement}
-                poster={src + '?thumbnail=true'}
             >
-                <track kind="captions" src="" label="English" />
+                <track kind="captions" />
             </video>
         {/if}
         <div 
@@ -119,13 +123,11 @@
             aria-valuemax="100"
             aria-valuenow={progress}
         ></div>
-        <div class="video-controls">
-            <div class="time-display">
-                {#if showCurrentTime}
-                    <span class="current-time">{currentTime}</span>
-                {/if}
-                <span class="duration">{duration}</span>
-            </div>
+        <div class="info-bar">
+            {#if showCurrentTime}
+                <span class="current-time">{currentTime}</span>
+            {/if}
+            <span class="duration">{duration}</span>
             <button 
                 class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
                 aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -138,10 +140,10 @@
 <style>
     .video-container {
         position: relative;
-        width: 100%;
-        height: 100%;
+        width: 300px;
+        min-height: 200px;
         background-color: var(--color-grey-20);
-        border-radius: 8px;
+        border-radius: 24px;
         overflow: hidden;
     }
 
@@ -154,34 +156,26 @@
         object-fit: cover;
     }
 
-    .video-controls {
+    .info-bar {
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
+        border-radius: 30px;
         height: 60px;
-        padding: 0 20px 0 70px;
+        background-color: var(--color-grey-20);
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
-        z-index: 2;
-    }
-
-    .time-display {
-        display: flex;
-        gap: 8px;
-        font-size: 12px;
-        color: var(--color-font-primary);
-        white-space: nowrap;
-        min-width: 45px;
+        padding-left: 70px;
+        padding-right: 16px;
     }
 
     .play-button {
-        opacity: 0.8;
+        opacity: 0.5;
+        right: 20px;
+        position: absolute;
         width: 25px;
         height: 25px;
-        transition: opacity 0.2s;
     }
 
     .play-button:hover {

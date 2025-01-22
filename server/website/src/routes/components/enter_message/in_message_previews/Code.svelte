@@ -118,12 +118,7 @@
         align-items: center;
         padding-left: 70px;
         padding-right: 16px;
-    }
-
-    /* Add flex column layout for text container */
-    .info-bar {
-        display: flex;
-        align-items: flex-start;  /* Align items to the start for better vertical spacing */
+        /* align-items: flex-start; */
     }
 
     /* Create a container for the stacked text */
