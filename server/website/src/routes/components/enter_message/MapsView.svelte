@@ -17,6 +17,25 @@
     let isLoading = false;
     let currentLocation: { lat: number; lon: number } | null = null;
 
+    // Add dark mode detection
+    let isDarkMode = false;
+    let mapStyle: 'light' | 'dark' = 'light';
+    
+    // Function to check if dark mode is active
+    function checkDarkMode() {
+        // Check if system is in dark mode
+        const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Get website dark mode setting - assuming it's stored in CSS variable
+        const websiteDarkMode = getComputedStyle(document.documentElement)
+            .getPropertyValue('--is-dark-mode')
+            .trim() === 'true';
+            
+        isDarkMode = systemDarkMode || websiteDarkMode;
+        mapStyle = isDarkMode ? 'dark' : 'light';
+        
+        logger.debug('Dark mode status:', { isDarkMode, mapStyle });
+    }
+
     // Add logger for debugging
     const logger = {
         debug: (...args: any[]) => console.debug('[MapsView]', ...args),
@@ -38,6 +57,9 @@
         // Import Leaflet only on client-side
         L = (await import('leaflet')).default;
         
+        // Check dark mode before initializing map
+        checkDarkMode();
+        
         map = L.map(mapContainer, {
             center: [20, 0],
             zoom: 2,
@@ -46,12 +68,34 @@
             maxBoundsViscosity: 1.0
         });
 
-        // Add OpenStreetMap tile layer with error handling and retries
-        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            subdomains: ['a', 'b', 'c'],
-            crossOrigin: true
-        }).addTo(map);
+        // Use standard OSM tiles but apply CSS filters for dark mode
+        const tileLayer = L.tileLayer(
+            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {
+                maxZoom: 19,
+                subdomains: ['a', 'b', 'c'],
+                crossOrigin: true,
+                className: isDarkMode ? 'dark-tiles' : '',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }
+        ).addTo(map);
+
+        // Watch for dark mode changes
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', () => {
+            checkDarkMode();
+            if (map) {
+                // Update tile layer class instead of changing URL
+                const tiles = document.querySelectorAll('.leaflet-tile');
+                tiles.forEach(tile => {
+                    if (isDarkMode) {
+                        tile.classList.add('dark-tiles');
+                    } else {
+                        tile.classList.remove('dark-tiles');
+                    }
+                });
+            }
+        });
 
         // Force map to update its container size
         setTimeout(() => {
@@ -209,7 +253,7 @@
         left: 0;
         right: 0;
         height: 400px;
-        background: var(--color-grey-0);
+        background: var(--color-background);
         z-index: 1000;
         display: flex;
         flex-direction: column;
@@ -220,7 +264,7 @@
     .map-container {
         width: 100%;
         height: 100%;
-        background: var(--color-grey-0);
+        background: var(--color-background);
         z-index: 1;
     }
 
@@ -340,12 +384,28 @@
     :global(.leaflet-container) {
         width: 100%;
         height: 100%;
+        background: var(--color-background) !important;
     }
 
     :global(.leaflet-control-attribution) {
         font-size: 10px;
-        background: rgba(255, 255, 255, 0.8) !important;
+        background: var(--color-grey-blue) !important;
+        color: var(--color-font-primary) !important;
         margin-bottom: 53px !important; /* Account for bottom bar */
+    }
+
+    :global(.leaflet-control-attribution a) {
+        color: var(--color-primary) !important;
+    }
+
+    :global(.leaflet-control-zoom a) {
+        background: var(--color-grey-blue) !important;
+        color: var(--color-font-primary) !important;
+        border-color: var(--color-grey-20) !important;
+    }
+
+    :global(.leaflet-control-zoom a:hover) {
+        background: var(--color-grey-20) !important;
     }
 
     /* Add specific styles for Leaflet tile loading */
@@ -360,5 +420,54 @@
 
     :global(.leaflet-tile-loading) {
         opacity: 0.5;
+    }
+
+    /* Dark mode map styles */
+    :global(.dark-tiles) {
+        filter: brightness(0.6) invert(1) contrast(1.1) hue-rotate(180deg) saturate(0.9) !important;
+    }
+
+    /* Improve map controls visibility in dark mode */
+    :global(.leaflet-control-zoom) {
+        background: var(--color-grey-blue);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    :global(.leaflet-control-zoom a) {
+        border-color: var(--color-grey-40) !important;
+    }
+
+    :global(.leaflet-control-zoom-in) {
+        border-bottom: 1px solid var(--color-grey-40) !important;
+    }
+
+    /* Improve marker visibility in dark mode */
+    :global(.leaflet-marker-icon) {
+        filter: brightness(1.2);
+    }
+
+    /* Improve attribution readability */
+    :global(.leaflet-control-attribution) {
+        background: rgba(0, 0, 0, 0.7) !important;
+        color: #ffffff !important;
+        padding: 4px 8px !important;
+        border-radius: 4px;
+    }
+
+    :global(.leaflet-control-attribution a) {
+        color: var(--color-primary-light, #64B5F6) !important;
+    }
+
+    /* Improve precise toggle visibility */
+    .precise-toggle {
+        background: var(--color-grey-blue);
+        color: var(--color-font-primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Add transition for smoother dark mode switching */
+    :global(.leaflet-tile) {
+        transition: filter 0.3s ease;
     }
 </style> 
