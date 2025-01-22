@@ -250,6 +250,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.photos_recording {
+  background: var(--color-app-photos);
+  &::after {
+    background-image: url('/icons/camera.svg');
+  }
+}
+
 .icon_rounded.pdf {
   background: var(--color-app-pdfeditor);
   &::after {
@@ -282,6 +289,13 @@ div.clickable-icon {
   background: var(--color-app-videos);
   &::after {
     background-image: url('/icons/videos.svg');
+  }
+}
+
+.icon_rounded.video_recording {
+  background: var(--color-app-videos);
+  &::after {
+    background-image: url('/icons/camera.svg');
   }
 }
 

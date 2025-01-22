@@ -300,7 +300,7 @@
 
 <InlinePreviewBase 
     {id} 
-    type="video" 
+    type={isRecording ? 'video_recording' : 'video'}
     {src} 
     {filename} 
     height="200px"
