@@ -424,7 +424,7 @@
 
     /* Dark mode map styles */
     :global(.dark-tiles) {
-        filter: brightness(0.6) invert(1) contrast(1.1) hue-rotate(180deg) saturate(0.9) !important;
+        filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
     }
 
     /* Improve map controls visibility in dark mode */
@@ -442,22 +442,6 @@
         border-bottom: 1px solid var(--color-grey-40) !important;
     }
 
-    /* Improve marker visibility in dark mode */
-    :global(.leaflet-marker-icon) {
-        filter: brightness(1.2);
-    }
-
-    /* Improve attribution readability */
-    :global(.leaflet-control-attribution) {
-        background: rgba(0, 0, 0, 0.7) !important;
-        color: #ffffff !important;
-        padding: 4px 8px !important;
-        border-radius: 4px;
-    }
-
-    :global(.leaflet-control-attribution a) {
-        color: var(--color-primary-light, #64B5F6) !important;
-    }
 
     /* Improve precise toggle visibility */
     .precise-toggle {
