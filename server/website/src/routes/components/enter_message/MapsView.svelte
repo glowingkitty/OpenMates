@@ -167,7 +167,7 @@
                     }).addTo(mapRef);
                 }
 
-                // Update circle position during movement
+                // Update circle position during movement if it exists
                 if (!isPrecise && accuracyCircle) {
                     accuracyCircle.setLatLng([center.lat, center.lng]);
                 }
@@ -308,32 +308,35 @@
         }
     }
 
-    // Add function to update accuracy circle
+    // Update the updateAccuracyCircle function
     function updateAccuracyCircle(center: [number, number]) {
         if (!map) return;
 
-        if (accuracyCircle) {
-            accuracyCircle.remove();
-        }
-
-        if (!isPrecise) {
+        // If circle doesn't exist and we're in non-precise mode, create it
+        if (!accuracyCircle && !isPrecise) {
             accuracyCircle = L.circle(center, {
                 radius: ACCURACY_RADIUS,
                 color: 'var(--color-primary)',
-                fillColor: '#FFFFFF',  // Changed to white
-                fillOpacity: 0.2,      // Increased opacity
-                weight: 2,             // Increased border weight
-                opacity: 0.7,          // Increased border opacity
-                className: 'accuracy-circle' // Add custom class
+                fillColor: '#FFFFFF',
+                fillOpacity: 0.2,
+                weight: 2,
+                opacity: 0.7,
+                className: 'accuracy-circle'
             }).addTo(map);
+        } 
+        // If circle exists, just update its position
+        else if (accuracyCircle) {
+            accuracyCircle.setLatLng(center);
         }
     }
 
-    // Update the reactive statement to handle precision changes
+    // Update the reactive statement for precision changes
     $: if (map && mapCenter) {
         if (!isPrecise) {
-            // Show circle without forcing zoom level
-            updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+            // Only create circle if it doesn't exist
+            if (!accuracyCircle) {
+                updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+            }
             // Hide marker completely in non-precise mode
             if (marker) {
                 marker.setOpacity(0);
