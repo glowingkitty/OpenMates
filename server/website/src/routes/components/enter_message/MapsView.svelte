@@ -262,7 +262,6 @@
             if (map) {
                 const mapRef = map;
                 
-                // Create a promise that resolves when the map movement ends
                 await new Promise<void>(resolve => {
                     const onMoveEnd = () => {
                         mapRef.off('moveend', onMoveEnd);
@@ -271,12 +270,11 @@
                     mapRef.on('moveend', onMoveEnd);
                     
                     if (!isPrecise) {
-                        // For non-precise mode, fit to circle bounds
+                        // For non-precise mode, fit to circle bounds without zoom restriction
                         const circleLatLng = L.latLng(lat, lon);
                         const bounds = circleLatLng.toBounds(ACCURACY_RADIUS);
                         mapRef.fitBounds(bounds, {
-                            padding: [50, 50],
-                            maxZoom: 14
+                            padding: [50, 50]
                         });
                     } else {
                         // For precise mode, just center with default zoom
@@ -334,19 +332,8 @@
     // Update the reactive statement to handle precision changes
     $: if (map && mapCenter) {
         if (!isPrecise) {
-            // Show circle and adjust zoom to show full circle when precision is disabled
+            // Show circle without forcing zoom level
             updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
-            
-            // Calculate required zoom level to show full circle
-            const circleLatLng = L.latLng(mapCenter.lat, mapCenter.lon);
-            const circleRadius = ACCURACY_RADIUS;
-            const bounds = circleLatLng.toBounds(circleRadius);
-            
-            // Add some padding to ensure circle is fully visible
-            map.fitBounds(bounds, {
-                padding: [50, 50],
-                maxZoom: 14  // Limit max zoom when zooming to circle
-            });
         } else {
             // Remove circle when precision is enabled
             if (accuracyCircle) {
