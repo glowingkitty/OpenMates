@@ -58,7 +58,7 @@
                     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
                     {
                         headers: {
-                            'User-Agent': 'YourAppName/1.0', // Replace with your app name
+                            'User-Agent': 'OpenMates/1.0', // Replace with your app name
                             'Accept-Language': 'en' // Request English results
                         }
                     }
