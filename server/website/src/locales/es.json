@@ -523,6 +523,16 @@
                 "text": "Obtener ubicación",
                 "en_original": "Get location",
                 "context": "Button text for getting current location"
+            },
+            "current_location": {
+                "text": "Ubicación actual",
+                "en_original": "Current location",
+                "context": "Text for current location"
+            },
+            "selected_location": {
+                "text": "Ubicación seleccionada",
+                "en_original": "Selected location",
+                "context": "Text for selected location"
             }
         },
         "press_and_hold_menu": {

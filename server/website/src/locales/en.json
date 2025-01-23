@@ -430,6 +430,14 @@
             "get_location": {
                 "text": "Get location",
                 "context": "Button text for getting current location"
+            },
+            "current_location": {
+                "text": "Current location",
+                "context": "Text for current location"
+            },
+            "selected_location": {
+                "text": "Selected location",
+                "context": "Text for selected location"
             }
         },
         "press_and_hold_menu": {

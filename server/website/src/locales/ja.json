@@ -523,6 +523,16 @@
                 "text": "位置を取得",
                 "en_original": "Get location",
                 "context": "Button text for getting current location"
+            },
+            "current_location": {
+                "text": "現在の位置",
+                "en_original": "Current location",
+                "context": "Text for current location"
+            },
+            "selected_location": {
+                "text": "選択された位置",
+                "en_original": "Selected location",
+                "context": "Text for selected location"
             }
         },
         "press_and_hold_menu": {

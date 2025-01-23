@@ -244,10 +244,17 @@
         />
     </div>
 
-    <!-- Add location indicator -->
+    <!-- Location indicator above the map -->
     {#if mapCenter}
         <div class="location-indicator">
-            {isCurrentLocation ? 'Current location' : 'Selected location'}
+            <span>{isCurrentLocation ? $_('enter_message.location.current_location.text') || 'Current location' : $_('enter_message.location.selected_location.text') || 'Selected location'}</span>
+            <button 
+                class="select-button" 
+                on:click={handleSelect}
+                transition:slide={{ duration: 200 }}
+            >
+                {$_('enter_message.location.select.text') || 'Select'}
+            </button>
         </div>
     {/if}
     
@@ -260,16 +267,6 @@
                 on:click={handleClose}
                 aria-label={$_('enter_message.location.close.text')}
             ></button>
-
-            {#if mapCenter}
-                <button 
-                    class="select-button" 
-                    on:click={handleSelect}
-                    transition:slide={{ duration: 200 }}
-                >
-                    Select
-                </button>
-            {/if}
 
             <button 
                 class="clickable-icon icon_location"
@@ -332,9 +329,6 @@
     }
 
     .select-button {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
         background: var(--color-primary);
         color: white;
         border: none;
@@ -344,6 +338,7 @@
         cursor: pointer;
         transition: all 0.2s ease;
         font-size: 14px;
+        margin-left: 8px;
     }
 
     .select-button:hover {
@@ -351,7 +346,7 @@
     }
 
     .select-button:active {
-        transform: translateX(-50%) scale(0.98);
+        transform: scale(0.98);
     }
 
     .precise-toggle {
@@ -531,21 +526,24 @@
         mask-position: center;
     }
 
-    /* Add styles for location indicator */
+    /* Update location indicator styles */
     .location-indicator {
         position: absolute;
-        top: 80px; /* Position below the precise toggle */
         left: 50%;
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
+        bottom: 50%;
+        height: 53px;
         background: var(--color-grey-0);
-        padding: 8px 16px;
+        padding: 0 16px;
         border-radius: 20px;
         display: flex;
         align-items: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        gap: 12px;
         z-index: 1001;
         color: var(--color-font-primary);
         font-size: 14px;
         font-weight: 500;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        pointer-events: auto;
     }
 </style> 
