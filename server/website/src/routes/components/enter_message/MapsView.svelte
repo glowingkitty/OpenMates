@@ -125,7 +125,7 @@
             const zoomLevel = isPrecise ? 16 : 14;
             marker = L.marker([currentLocation.lat, currentLocation.lon], { 
                 icon: customIcon,
-                opacity: isPrecise ? 1 : 0.5 
+                opacity: isPrecise ? 1 : 0 
             }).addTo(mapRef);
             mapRef.setView([currentLocation.lat, currentLocation.lon], zoomLevel);
             
@@ -163,7 +163,7 @@
                 } else {
                     marker = L.marker([center.lat, center.lng], { 
                         icon: customIcon,
-                        opacity: isPrecise ? 1 : 0.5 
+                        opacity: isPrecise ? 1 : 0 
                     }).addTo(mapRef);
                 }
 
@@ -291,7 +291,7 @@
                 }
                 marker = L.marker([lat, lon], { 
                     icon: customIcon,
-                    opacity: isPrecise ? 1 : 0.5 
+                    opacity: isPrecise ? 1 : 0 
                 }).addTo(mapRef);
 
                 // Update accuracy circle after setting the view
@@ -334,17 +334,20 @@
         if (!isPrecise) {
             // Show circle without forcing zoom level
             updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+            // Hide marker completely in non-precise mode
+            if (marker) {
+                marker.setOpacity(0);
+            }
         } else {
             // Remove circle when precision is enabled
             if (accuracyCircle) {
                 accuracyCircle.remove();
                 accuracyCircle = null;
             }
-        }
-
-        // Update marker opacity
-        if (marker) {
-            marker.setOpacity(isPrecise ? 1 : 0.5);
+            // Show marker in precise mode
+            if (marker) {
+                marker.setOpacity(1);
+            }
         }
     }
 
