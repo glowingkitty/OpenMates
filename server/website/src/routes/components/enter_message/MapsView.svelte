@@ -262,9 +262,6 @@
             if (map) {
                 const mapRef = map;
                 
-                // Set appropriate zoom level before moving the map
-                const zoomLevel = isPrecise ? 16 : 14;
-                
                 // Create a promise that resolves when the map movement ends
                 await new Promise<void>(resolve => {
                     const onMoveEnd = () => {
@@ -272,7 +269,19 @@
                         resolve();
                     };
                     mapRef.on('moveend', onMoveEnd);
-                    mapRef.setView([lat, lon], zoomLevel);
+                    
+                    if (!isPrecise) {
+                        // For non-precise mode, fit to circle bounds
+                        const circleLatLng = L.latLng(lat, lon);
+                        const bounds = circleLatLng.toBounds(ACCURACY_RADIUS);
+                        mapRef.fitBounds(bounds, {
+                            padding: [50, 50],
+                            maxZoom: 14
+                        });
+                    } else {
+                        // For precise mode, just center with default zoom
+                        mapRef.setView([lat, lon], 16);
+                    }
                 });
 
                 mapCenter = { lat, lon };
@@ -322,22 +331,27 @@
         }
     }
 
-    // Add reactive statement to handle precision changes
+    // Update the reactive statement to handle precision changes
     $: if (map && mapCenter) {
         if (!isPrecise) {
-            // Show circle and zoom out when precision is disabled
+            // Show circle and adjust zoom to show full circle when precision is disabled
             updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
-            if (map.getZoom() > 14) {
-                map.setZoom(14);
-            }
+            
+            // Calculate required zoom level to show full circle
+            const circleLatLng = L.latLng(mapCenter.lat, mapCenter.lon);
+            const circleRadius = ACCURACY_RADIUS;
+            const bounds = circleLatLng.toBounds(circleRadius);
+            
+            // Add some padding to ensure circle is fully visible
+            map.fitBounds(bounds, {
+                padding: [50, 50],
+                maxZoom: 14  // Limit max zoom when zooming to circle
+            });
         } else {
-            // Remove circle and zoom in when precision is enabled
+            // Remove circle when precision is enabled
             if (accuracyCircle) {
                 accuracyCircle.remove();
                 accuracyCircle = null;
-            }
-            if (map.getZoom() < 16) {
-                map.setZoom(16);
             }
         }
 
