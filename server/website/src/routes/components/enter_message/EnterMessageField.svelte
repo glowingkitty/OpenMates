@@ -635,6 +635,31 @@
             return;
         }
 
+        // If editor is empty, initialize it with default mention
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+            // Wait for content to be set
+            await tick();
+        }
+
         // Process each file
         for (const file of files) {
             if (file.size > MAX_PER_FILE_SIZE) {
@@ -647,6 +672,9 @@
             }
 
             console.log('Processing file:', file.name);
+            
+            // Move cursor to end before processing uploaded files
+            editor.commands.focus('end');
             
             // Check if it's a video file first
             if (isVideoFile(file)) {
@@ -915,6 +943,7 @@
         fileInput.click();
     }
 
+    // Update the onFileSelected function
     async function onFileSelected(event: Event) {
         const input = event.target as HTMLInputElement;
         if (!input.files?.length) return;
@@ -931,6 +960,31 @@
                 attempted: (totalSize / 1024 / 1024).toFixed(1)
             } as any));
             return;
+        }
+
+        // If editor is empty, initialize it with default mention
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: { 
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+            // Wait for content to be set
+            await tick();
         }
 
         // Process each file sequentially
