@@ -319,6 +319,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.maps {
+  background: var(--color-app-maps);
+  &::after {
+    background-image: url('/icons/maps.svg');
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
