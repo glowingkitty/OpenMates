@@ -116,7 +116,10 @@
                 subdomains: ['a', 'b', 'c'],
                 crossOrigin: true,
                 className: isDarkMode ? 'dark-tiles' : '',
-                attribution: '© OSM'
+                attribution: '© OSM',
+                updateWhenIdle: false,
+                updateInterval: 150,
+                keepBuffer: 4
             }
         ).addTo(map);
 
