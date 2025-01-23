@@ -22,6 +22,8 @@
     import Videos from './in_message_previews/Videos.svelte';
     // Add this import near the top with other imports
     import MapsView from './MapsView.svelte';
+    // Add this import near the top with other imports
+    import Maps from './in_message_previews/Maps.svelte';
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -79,7 +81,7 @@
 
         addAttributes() {
             return {
-                type: { default: 'image' },
+                type: { default: 'image' },  // can be 'image', 'video', 'pdf', 'file', 'code', 'audio', 'recording', 'maps'
                 src: { default: null },
                 filename: { default: null },
                 id: { default: () => crypto.randomUUID() },
@@ -100,7 +102,17 @@
             const elementId = `embed-${HTMLAttributes.id}`;
             const container = document.createElement('div');
             
-            if (HTMLAttributes.type === 'image') {
+            if (HTMLAttributes.type === 'maps') {
+                mount(Maps, {
+                    target: container,
+                    props: {
+                        src: HTMLAttributes.src,
+                        filename: HTMLAttributes.filename,
+                        id: HTMLAttributes.id
+                    }
+                });
+                return container;
+            } else if (HTMLAttributes.type === 'image') {
                 mount(Photos, {
                     target: container,
                     props: {
@@ -1482,8 +1494,8 @@
                             markdown += ' ';
                         }
                         const { type, filename } = child.attrs;
-                        if (type === 'image' || type === 'pdf') {
-                            markdown += `[${filename}]\n`;  // Add newline after image/pdf
+                        if (type === 'image' || type === 'pdf' || type === 'maps') {
+                            markdown += `[${filename}]\n`;  // Add newline after image/pdf/maps
                             hasContent = true;
                             lastNodeWasEmbed = true;
                             lastNodeWasMate = false;
@@ -1794,11 +1806,16 @@
     }
 
     // Add this function to handle location selection
-    async function handleLocationSelected(event: CustomEvent<{lat: number, lon: number}>) {
-        const { lat, lon } = event.detail;
-        
-        // Create a maps URL that will be embedded
-        const mapsUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=16`;
+    async function handleLocationSelected(event: CustomEvent<{
+        type: string;
+        attrs: {
+            type: string;
+            src: string;
+            filename: string;
+            id: string;
+        };
+    }>) {
+        const previewData = event.detail;
         
         if (editor.isEmpty) {
             editor.commands.setContent({
@@ -1817,13 +1834,7 @@
                             type: 'text',
                             text: ' '
                         },
-                        {
-                            type: 'webPreview',
-                            attrs: { 
-                                url: mapsUrl,
-                                id: crypto.randomUUID()
-                            }
-                        },
+                        previewData,
                         {
                             type: 'text',
                             text: ' '
@@ -1835,13 +1846,13 @@
             editor
                 .chain()
                 .focus()
-                .insertContent({
-                    type: 'webPreview',
-                    attrs: { 
-                        url: mapsUrl,
-                        id: crypto.randomUUID()
+                .insertContent([
+                    previewData,
+                    {
+                        type: 'text',
+                        text: ' '
                     }
-                })
+                ])
                 .run();
         }
     }

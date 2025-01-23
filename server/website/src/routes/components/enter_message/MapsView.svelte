@@ -363,7 +363,18 @@
                 mapCenter : 
                 getRandomLocationInCircle(mapCenter, ACCURACY_RADIUS);
 
-            dispatch('locationselected', selectedLocation);
+            // Create a preview-friendly format for the map
+            const previewData = {
+                type: 'customEmbed',
+                attrs: {
+                    type: 'maps',
+                    src: `https://www.openstreetmap.org/?mlat=${selectedLocation.lat}&mlon=${selectedLocation.lon}&zoom=16`,
+                    filename: `Location ${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lon.toFixed(6)}`,
+                    id: crypto.randomUUID()
+                }
+            };
+
+            dispatch('locationselected', previewData);
             dispatch('close');
         }
     }
