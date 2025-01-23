@@ -46,7 +46,7 @@
             });
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+                attribution: '' // Remove attribution since it's already shown in map selection view
             }).addTo(map);
 
             // Add marker
@@ -233,6 +233,6 @@
     }
 
     :global(.leaflet-control-attribution) {
-        font-size: 8px;
+        display: none;
     }
 </style>
