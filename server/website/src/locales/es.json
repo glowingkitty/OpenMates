@@ -533,6 +533,16 @@
                 "text": "Ubicación seleccionada",
                 "en_original": "Selected location",
                 "context": "Text for selected location"
+            },
+            "current_area": {
+                "text": "Área actual",
+                "en_original": "Current area",
+                "context": "Text for current area"
+            },
+            "selected_area": {
+                "text": "Área seleccionada",
+                "en_original": "Selected area",
+                "context": "Text for selected area"
             }
         },
         "press_and_hold_menu": {

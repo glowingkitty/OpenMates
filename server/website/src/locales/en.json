@@ -438,6 +438,14 @@
             "selected_location": {
                 "text": "Selected location",
                 "context": "Text for selected location"
+            },
+            "current_area": {
+                "text": "Current area",
+                "context": "Text for current area"
+            },
+            "selected_area": {
+                "text": "Selected area",
+                "context": "Text for selected area"
             }
         },
         "press_and_hold_menu": {

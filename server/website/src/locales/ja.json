@@ -533,6 +533,16 @@
                 "text": "選択された位置",
                 "en_original": "Selected location",
                 "context": "Text for selected location"
+            },
+            "current_area": {
+                "text": "現在のエリア",
+                "en_original": "Current area",
+                "context": "Text for current area"
+            },
+            "selected_area": {
+                "text": "選択されたエリア",
+                "en_original": "Selected area",
+                "context": "Text for selected area"
             }
         },
         "press_and_hold_menu": {

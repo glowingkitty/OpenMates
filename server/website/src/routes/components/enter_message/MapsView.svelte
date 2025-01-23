@@ -11,7 +11,7 @@
     let map: Map | null = null;
     let marker: Marker | null = null;
     let L: any; // Will hold Leaflet instance
-    let isPrecise = false; // Toggle for precise location
+    let isPrecise = true; // Changed default to true
     let isLoading = false;
     let currentLocation: { lat: number; lon: number } | null = null;
 
@@ -37,6 +37,15 @@
 
     // Add new variable to track if map is moving
     let isMapMoving = false;
+
+    // Add new variable to control toggle visibility
+    let showPreciseToggle = false;
+
+    // Add new variable to track accuracy circle
+    let accuracyCircle: any = null;
+
+    // Add new variable to track accuracy radius
+    const ACCURACY_RADIUS = 500; // 500 meters radius for non-precise mode
 
     // Function to check if dark mode is active
     function checkDarkMode() {
@@ -113,8 +122,17 @@
 
         if (currentLocation && map) {
             const mapRef = map;
-            marker = L.marker([currentLocation.lat, currentLocation.lon], { icon: customIcon }).addTo(mapRef);
-            mapRef.setView([currentLocation.lat, currentLocation.lon], 16);
+            const zoomLevel = isPrecise ? 16 : 14;
+            marker = L.marker([currentLocation.lat, currentLocation.lon], { 
+                icon: customIcon,
+                opacity: isPrecise ? 1 : 0.5 
+            }).addTo(mapRef);
+            mapRef.setView([currentLocation.lat, currentLocation.lon], zoomLevel);
+            
+            // Initialize accuracy circle if not in precise mode
+            if (!isPrecise) {
+                updateAccuracyCircle([currentLocation.lat, currentLocation.lon]);
+            }
         }
 
         if (map) {
@@ -125,6 +143,10 @@
             
             mapRef.on('moveend', () => {
                 isMapMoving = false;
+                // Always update accuracy circle after movement if not in precise mode
+                if (mapCenter && !isPrecise) {
+                    updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+                }
             });
             
             mapRef.on('move', () => {
@@ -139,7 +161,15 @@
                 if (marker) {
                     marker.setLatLng([center.lat, center.lng]);
                 } else {
-                    marker = L.marker([center.lat, center.lng], { icon: customIcon }).addTo(mapRef);
+                    marker = L.marker([center.lat, center.lng], { 
+                        icon: customIcon,
+                        opacity: isPrecise ? 1 : 0.5 
+                    }).addTo(mapRef);
+                }
+
+                // Update circle position during movement
+                if (!isPrecise && accuracyCircle) {
+                    accuracyCircle.setLatLng([center.lat, center.lng]);
                 }
             });
         }
@@ -175,8 +205,34 @@
         // Reset state
         currentLocation = null;
         mapCenter = null;
+
+        // Remove accuracy circle if it exists
+        if (accuracyCircle) {
+            accuracyCircle.remove();
+            accuracyCircle = null;
+        }
     }
 
+    // Function to get random location within circle
+    function getRandomLocationInCircle(center: { lat: number, lon: number }, radiusMeters: number) {
+        // Convert radius from meters to degrees (approximate)
+        const radiusInDegrees = radiusMeters / 111320;
+        
+        // Generate random angle and radius
+        const angle = Math.random() * 2 * Math.PI;
+        const randomRadius = Math.sqrt(Math.random()) * radiusInDegrees;
+        
+        // Calculate offset
+        const dx = randomRadius * Math.cos(angle);
+        const dy = randomRadius * Math.sin(angle);
+        
+        return {
+            lat: center.lat + dy,
+            lon: center.lon + dx
+        };
+    }
+
+    // Update the getCurrentLocation function
     async function getCurrentLocation() {
         if (!navigator.geolocation) {
             logger.info('Geolocation not supported');
@@ -185,6 +241,7 @@
 
         isLoading = true;
         isGettingLocation = true;
+        showPreciseToggle = true; // Show the toggle when getting location
 
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -202,9 +259,11 @@
             const { latitude: lat, longitude: lon } = position.coords;
             currentLocation = { lat, lon };
             
-            // Update map view and wait for movement to end
             if (map) {
                 const mapRef = map;
+                
+                // Set appropriate zoom level before moving the map
+                const zoomLevel = isPrecise ? 16 : 14;
                 
                 // Create a promise that resolves when the map movement ends
                 await new Promise<void>(resolve => {
@@ -213,49 +272,96 @@
                         resolve();
                     };
                     mapRef.on('moveend', onMoveEnd);
-                    mapRef.setView([lat, lon], 16);
+                    mapRef.setView([lat, lon], zoomLevel);
                 });
 
-                // Now that the map has finished moving, update the state
                 mapCenter = { lat, lon };
                 isCurrentLocation = true;
 
-                // Add or update marker
+                // Update marker with appropriate opacity
                 if (marker) {
-                    marker.setLatLng([lat, lon]);
-                } else {
-                    marker = L.marker([lat, lon], { icon: customIcon }).addTo(mapRef);
+                    marker.remove();
                 }
+                marker = L.marker([lat, lon], { 
+                    icon: customIcon,
+                    opacity: isPrecise ? 1 : 0.5 
+                }).addTo(mapRef);
+
+                // Update accuracy circle after setting the view
+                updateAccuracyCircle([lat, lon]);
             }
 
             logger.debug('Got location:', { lat, lon, precise: isPrecise });
-            isLoading = false;
-            isGettingLocation = false;
-
+            
         } catch (error) {
             logger.debug('Error getting location:', error);
+        } finally {
             isLoading = false;
             isGettingLocation = false;
+        }
+    }
+
+    // Add function to update accuracy circle
+    function updateAccuracyCircle(center: [number, number]) {
+        if (!map) return;
+
+        if (accuracyCircle) {
+            accuracyCircle.remove();
+        }
+
+        if (!isPrecise) {
+            accuracyCircle = L.circle(center, {
+                radius: ACCURACY_RADIUS,
+                color: 'var(--color-primary)',
+                fillColor: '#FFFFFF',  // Changed to white
+                fillOpacity: 0.2,      // Increased opacity
+                weight: 2,             // Increased border weight
+                opacity: 0.7,          // Increased border opacity
+                className: 'accuracy-circle' // Add custom class
+            }).addTo(map);
+        }
+    }
+
+    // Add reactive statement to handle precision changes
+    $: if (map && mapCenter) {
+        if (!isPrecise) {
+            // Show circle and zoom out when precision is disabled
+            updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+            if (map.getZoom() > 14) {
+                map.setZoom(14);
+            }
+        } else {
+            // Remove circle and zoom in when precision is enabled
+            if (accuracyCircle) {
+                accuracyCircle.remove();
+                accuracyCircle = null;
+            }
+            if (map.getZoom() < 16) {
+                map.setZoom(16);
+            }
+        }
+
+        // Update marker opacity
+        if (marker) {
+            marker.setOpacity(isPrecise ? 1 : 0.5);
+        }
+    }
+
+    // Update handleSelect function
+    function handleSelect() {
+        if (mapCenter) {
+            const selectedLocation = isPrecise ? 
+                mapCenter : 
+                getRandomLocationInCircle(mapCenter, ACCURACY_RADIUS);
+
+            dispatch('locationselected', selectedLocation);
+            dispatch('close');
         }
     }
 
     function handleClose() {
         cleanupMap();
         dispatch('close');
-    }
-
-    function handleSelect() {
-        if (mapCenter) {
-            dispatch('locationselected', mapCenter);
-            dispatch('close');
-        }
-    }
-
-    function togglePrecise() {
-        isPrecise = !isPrecise;
-        if (currentLocation) {
-            getCurrentLocation(); // Refresh location with new accuracy setting
-        }
     }
 </script>
 
@@ -264,19 +370,31 @@
     transition:slide={{ duration: 300, axis: 'y' }}
     on:introend={onTransitionEnd}
 >
-    <div class="precise-toggle">
-        <span>{$_('enter_message.location.precise.text')}</span>
-        <Toggle 
-            bind:checked={isPrecise}
-            name="precise-location"
-            ariaLabel={$_('enter_message.location.toggle_precise.text')}
-        />
-    </div>
+    {#if showPreciseToggle}
+        <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
+            <span>{$_('enter_message.location.precise.text')}</span>
+            <Toggle 
+                bind:checked={isPrecise}
+                name="precise-location"
+                ariaLabel={$_('enter_message.location.toggle_precise.text')}
+            />
+        </div>
+    {/if}
 
-    <!-- Location indicator above the map -->
+    <!-- Update location indicator text -->
     {#if mapCenter}
         <div class="location-indicator" class:is-moving={isMapMoving}>
-            <span>{isCurrentLocation ? $_('enter_message.location.current_location.text') || 'Current location' : $_('enter_message.location.selected_location.text') || 'Selected location'}</span>
+            <span>
+                {#if isCurrentLocation}
+                    {isPrecise ? 
+                        ($_('enter_message.location.current_location.text') || 'Current location') : 
+                        ($_('enter_message.location.current_area.text') || 'Current area')}
+                {:else}
+                    {isPrecise ? 
+                        ($_('enter_message.location.selected_location.text') || 'Selected location') : 
+                        ($_('enter_message.location.selected_area.text') || 'Selected area')}
+                {/if}
+            </span>
             <button 
                 on:click={handleSelect}
                 transition:slide={{ duration: 200 }}
@@ -330,6 +448,7 @@
         z-index: 1;
         overflow: hidden;
         border-radius: 24px;
+        position: relative;
     }
 
     .bottom-bar {
@@ -359,7 +478,7 @@
 
     .precise-toggle {
         position: absolute;
-        top: 0px;
+        top: 0;
         left: 50%;
         transform: translateX(-50%);
         background: var(--color-grey-0);
@@ -371,6 +490,7 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         z-index: 1001;
         color: var(--color-font-primary);
+        transition: transform 0.3s ease;
     }
 
     @keyframes spin {
@@ -532,6 +652,7 @@
         mask-repeat: no-repeat;
         -webkit-mask-position: center;
         mask-position: center;
+        transition: opacity 0.3s ease;
     }
 
     /* Update location indicator styles */
@@ -561,5 +682,10 @@
     .location-indicator.is-moving {
         opacity: 0;
         pointer-events: none;
+    }
+
+    /* Add styles for accuracy circle */
+    :global(.accuracy-circle) {
+        z-index: 400 !important; /* Ensure circle appears above tiles but below controls */
     }
 </style> 
