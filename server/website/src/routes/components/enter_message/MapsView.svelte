@@ -35,6 +35,9 @@
     // Add new variable to track if map movement was triggered by getting location
     let isGettingLocation = false;
 
+    // Add new variable to track if map is moving
+    let isMapMoving = false;
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -115,16 +118,24 @@
         }
 
         if (map) {
-            const mapRef = map;  // Store reference to avoid null check issues
+            const mapRef = map;
+            mapRef.on('movestart', () => {
+                isMapMoving = true;
+            });
+            
+            mapRef.on('moveend', () => {
+                isMapMoving = false;
+            });
+            
             mapRef.on('move', () => {
                 const center = mapRef.getCenter();
                 mapCenter = { lat: center.lat, lon: center.lng };
-
+                
                 // Only reset isCurrentLocation if we're not getting location
                 if (!isGettingLocation) {
                     isCurrentLocation = false;
                 }
-
+                
                 if (marker) {
                     marker.setLatLng([center.lat, center.lng]);
                 } else {
@@ -264,7 +275,7 @@
 
     <!-- Location indicator above the map -->
     {#if mapCenter}
-        <div class="location-indicator">
+        <div class="location-indicator" class:is-moving={isMapMoving}>
             <span>{isCurrentLocation ? $_('enter_message.location.current_location.text') || 'Current location' : $_('enter_message.location.selected_location.text') || 'Selected location'}</span>
             <button 
                 on:click={handleSelect}
@@ -541,5 +552,13 @@
         font-weight: 500;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         pointer-events: auto;
+        opacity: 1;
+        transition: opacity 0.2s ease;
+    }
+
+    /* Add moving state styles */
+    .location-indicator.is-moving {
+        opacity: 0;
+        pointer-events: none;
     }
 </style> 
