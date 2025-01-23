@@ -32,6 +32,9 @@
     // Add new variable to track if location was obtained via geolocation
     let isCurrentLocation = false;
 
+    // Add new variable to track if map movement was triggered by getting location
+    let isGettingLocation = false;
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -116,8 +119,12 @@
             mapRef.on('move', () => {
                 const center = mapRef.getCenter();
                 mapCenter = { lat: center.lat, lon: center.lng };
-                isCurrentLocation = false; // Reset when user moves the map
-                
+
+                // Only reset isCurrentLocation if we're not getting location
+                if (!isGettingLocation) {
+                    isCurrentLocation = false;
+                }
+
                 if (marker) {
                     marker.setLatLng([center.lat, center.lng]);
                 } else {
@@ -166,6 +173,7 @@
         }
 
         isLoading = true;
+        isGettingLocation = true;
 
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -180,18 +188,26 @@
                 );
             });
 
-            isCurrentLocation = true; // Set this to true when getting current location
-            
             const { latitude: lat, longitude: lon } = position.coords;
             currentLocation = { lat, lon };
-            mapCenter = currentLocation;
-
-            logger.debug('Got location:', { lat, lon, precise: isPrecise });
-
-            // Update map view
+            
+            // Update map view and wait for movement to end
             if (map) {
-                const mapRef = map;  // Store reference to avoid null check issues
-                mapRef.setView([lat, lon], 16);
+                const mapRef = map;
+                
+                // Create a promise that resolves when the map movement ends
+                await new Promise<void>(resolve => {
+                    const onMoveEnd = () => {
+                        mapRef.off('moveend', onMoveEnd);
+                        resolve();
+                    };
+                    mapRef.on('moveend', onMoveEnd);
+                    mapRef.setView([lat, lon], 16);
+                });
+
+                // Now that the map has finished moving, update the state
+                mapCenter = { lat, lon };
+                isCurrentLocation = true;
 
                 // Add or update marker
                 if (marker) {
@@ -201,12 +217,14 @@
                 }
             }
 
-            // Enable the select button
+            logger.debug('Got location:', { lat, lon, precise: isPrecise });
             isLoading = false;
+            isGettingLocation = false;
 
         } catch (error) {
             logger.debug('Error getting location:', error);
             isLoading = false;
+            isGettingLocation = false;
         }
     }
 
