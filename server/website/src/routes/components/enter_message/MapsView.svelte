@@ -249,7 +249,6 @@
         <div class="location-indicator">
             <span>{isCurrentLocation ? $_('enter_message.location.current_location.text') || 'Current location' : $_('enter_message.location.selected_location.text') || 'Selected location'}</span>
             <button 
-                class="select-button" 
                 on:click={handleSelect}
                 transition:slide={{ duration: 200 }}
             >
@@ -326,27 +325,6 @@
         width: 25px;
         height: 25px;
         color: var(--color-font-primary);
-    }
-
-    .select-button {
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        padding: 8px 24px;
-        border-radius: 20px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-        margin-left: 8px;
-    }
-
-    .select-button:hover {
-        background: var(--color-primary-dark, #4a4af4);
-    }
-
-    .select-button:active {
-        transform: scale(0.98);
     }
 
     .precise-toggle {
