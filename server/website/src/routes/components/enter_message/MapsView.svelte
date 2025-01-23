@@ -19,6 +19,9 @@
     let isDarkMode = false;
     let mapStyle: 'light' | 'dark' = 'light';
     
+    // Add new variable to track map center
+    let mapCenter: { lat: number; lon: number } | null = null;
+    
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -115,6 +118,30 @@
             position: 'topright'
         }).addTo(map);
 
+        // Replace moveend with move event listener to update in real-time
+        const mapInstance = map;  // Capture non-null map reference
+        if (mapInstance) {
+            mapInstance.on('move', () => {
+                const center = mapInstance.getCenter();
+                mapCenter = { lat: center.lat, lon: center.lng };
+                currentLocation = mapCenter;
+
+                if (marker) {
+                    marker.setLatLng([center.lat, center.lng]);
+                } else {
+                    const icon = L.divIcon({
+                        className: 'custom-map-marker',
+                        html: '<div class="marker-icon"></div>',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+                    marker = L.marker([center.lat, center.lng], { icon }).addTo(mapInstance);
+                }
+
+                logger.debug('Map moved, new center:', { lat: center.lat, lng: center.lng });
+            });
+        }
+
         logger.debug('Map initialized');
     }
 
@@ -152,6 +179,7 @@
 
             const { latitude: lat, longitude: lon } = position.coords;
             currentLocation = { lat, lon };
+            mapCenter = currentLocation;
 
             logger.debug('Got location:', { lat, lon, precise: isPrecise });
 
@@ -163,7 +191,13 @@
                 if (marker) {
                     marker.setLatLng([lat, lon]);
                 } else {
-                    marker = L.marker([lat, lon]).addTo(map);
+                    const icon = L.divIcon({
+                        className: 'custom-map-marker',
+                        html: '<div class="marker-icon"></div>',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+                    marker = L.marker([lat, lon], { icon }).addTo(map);
                 }
             }
 
@@ -181,8 +215,8 @@
     }
 
     function handleSelect() {
-        if (currentLocation) {
-            dispatch('locationselected', currentLocation);
+        if (mapCenter) {
+            dispatch('locationselected', mapCenter);
             dispatch('close');
         }
     }
@@ -455,5 +489,24 @@
     /* Add transition for smoother dark mode switching */
     :global(.leaflet-tile) {
         transition: filter 0.3s ease;
+    }
+
+    /* Add custom marker styles */
+    :global(.custom-map-marker) {
+        background: transparent;
+    }
+
+    :global(.marker-icon) {
+        width: 40px;
+        height: 40px;
+        background: var(--color-app-maps);
+        -webkit-mask-image: url('/icons/maps.svg');
+        mask-image: url('/icons/maps.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
     }
 </style> 
