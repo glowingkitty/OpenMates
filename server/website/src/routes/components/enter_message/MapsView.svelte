@@ -280,6 +280,7 @@
             <button 
                 on:click={handleSelect}
                 transition:slide={{ duration: 200 }}
+                style="padding: 15px;"
             >
                 {$_('enter_message.location.select.text') || 'Select'}
             </button>
