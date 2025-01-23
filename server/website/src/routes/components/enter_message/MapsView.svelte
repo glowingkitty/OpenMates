@@ -4,7 +4,7 @@
     import { _ } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
     import Toggle from '../Toggle.svelte';  // Add Toggle import
-    
+    import 'leaflet/dist/leaflet.css';
     const dispatch = createEventDispatcher();
     
     let mapContainer: HTMLElement;
