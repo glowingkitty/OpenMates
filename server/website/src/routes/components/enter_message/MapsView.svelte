@@ -319,8 +319,7 @@
         if (!accuracyCircle && !isPrecise) {
             accuracyCircle = L.circle(center, {
                 radius: ACCURACY_RADIUS,
-                color: 'var(--color-primary)',
-                fillColor: '#FFFFFF',
+                fillColor: 'var(--color-primary-start)',
                 fillOpacity: 0.2,
                 weight: 2,
                 opacity: 0.7,
