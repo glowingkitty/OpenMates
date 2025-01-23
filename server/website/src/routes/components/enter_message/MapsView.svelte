@@ -64,12 +64,12 @@
         map = L.map(mapContainer, {
             center: [20, 0],
             zoom: 2,
-            zoomControl: false,  // Disable default zoom control
-            attributionControl: false,
+            zoomControl: false,
+            attributionControl: true,
             maxBoundsViscosity: 1.0
         });
 
-        // Use standard OSM tiles but apply CSS filters for dark mode
+        // Update tile layer with proper attribution
         const tileLayer = L.tileLayer(
             'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             {
@@ -77,7 +77,7 @@
                 subdomains: ['a', 'b', 'c'],
                 crossOrigin: true,
                 className: isDarkMode ? 'dark-tiles' : '',
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                attribution: '© OSM'
             }
         ).addTo(map);
 
@@ -341,14 +341,28 @@
     }
 
     :global(.leaflet-control-attribution) {
-        font-size: 10px;
+        font-size: 9px !important;
         background: var(--color-grey-0) !important;
-        color: var(--color-font-primary) !important;
-        margin-bottom: 53px !important; /* Account for bottom bar */
+        color: var(--color-font-secondary) !important;
+        margin-bottom: 60px !important;
+        padding: 2px 6px !important;
+        border-radius: 8px 0 0 8px !important;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+    }
+
+    :global(.leaflet-control-attribution:hover) {
+        opacity: 0.9;
     }
 
     :global(.leaflet-control-attribution a) {
-        color: var(--color-primary) !important;
+        color: var(--color-font-secondary) !important;
+        text-decoration: none !important;
+        font-size: 9px !important;
+    }
+
+    :global(.leaflet-control-attribution a:hover) {
+        text-decoration: underline !important;
     }
 
     :global(.leaflet-control-zoom a) {
