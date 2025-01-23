@@ -29,6 +29,9 @@
 
     let isTransitionComplete = false;
 
+    // Add new variable to track if location was obtained via geolocation
+    let isCurrentLocation = false;
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -113,6 +116,7 @@
             mapRef.on('move', () => {
                 const center = mapRef.getCenter();
                 mapCenter = { lat: center.lat, lon: center.lng };
+                isCurrentLocation = false; // Reset when user moves the map
                 
                 if (marker) {
                     marker.setLatLng([center.lat, center.lng]);
@@ -176,6 +180,8 @@
                 );
             });
 
+            isCurrentLocation = true; // Set this to true when getting current location
+            
             const { latitude: lat, longitude: lon } = position.coords;
             currentLocation = { lat, lon };
             mapCenter = currentLocation;
@@ -237,6 +243,13 @@
             ariaLabel={$_('enter_message.location.toggle_precise.text')}
         />
     </div>
+
+    <!-- Add location indicator -->
+    {#if mapCenter}
+        <div class="location-indicator">
+            {isCurrentLocation ? 'Current location' : 'Selected location'}
+        </div>
+    {/if}
     
     <div class="map-container" bind:this={mapContainer}></div>
 
@@ -248,13 +261,13 @@
                 aria-label={$_('enter_message.location.close.text')}
             ></button>
 
-            {#if currentLocation}
+            {#if mapCenter}
                 <button 
                     class="select-button" 
                     on:click={handleSelect}
                     transition:slide={{ duration: 200 }}
                 >
-                    {$_('enter_message.location.select.text')}
+                    Select
                 </button>
             {/if}
 
@@ -330,6 +343,15 @@
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-size: 14px;
+    }
+
+    .select-button:hover {
+        background: var(--color-primary-dark, #4a4af4);
+    }
+
+    .select-button:active {
+        transform: translateX(-50%) scale(0.98);
     }
 
     .precise-toggle {
@@ -507,5 +529,23 @@
         mask-repeat: no-repeat;
         -webkit-mask-position: center;
         mask-position: center;
+    }
+
+    /* Add styles for location indicator */
+    .location-indicator {
+        position: absolute;
+        top: 80px; /* Position below the precise toggle */
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-grey-0);
+        padding: 8px 16px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 1001;
+        color: var(--color-font-primary);
+        font-size: 14px;
+        font-weight: 500;
     }
 </style> 
