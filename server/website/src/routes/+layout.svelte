@@ -9,6 +9,7 @@
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
     import '$lib/styles/theme.css';
+    import '$lib/styles/leaflet.css';
     import { replaceOpenMates } from '$lib/actions/replaceText';
     import Header from './components/Header.svelte';
     import Footer from './components/Footer.svelte';

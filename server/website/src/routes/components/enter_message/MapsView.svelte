@@ -5,9 +5,6 @@
     import type { Map, Marker } from 'leaflet';
     import Toggle from '../Toggle.svelte';  // Add Toggle import
     
-    // Add import for Leaflet CSS in the script section
-    import 'leaflet/dist/leaflet.css';
-    
     const dispatch = createEventDispatcher();
     
     let mapContainer: HTMLElement;
@@ -197,16 +194,6 @@
         }
     }
 </script>
-
-<svelte:head>
-    <!-- Ensure Leaflet CSS is properly loaded -->
-    <link 
-        rel="stylesheet" 
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""
-    />
-</svelte:head>
 
 <div class="maps-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
     <div class="precise-toggle">
