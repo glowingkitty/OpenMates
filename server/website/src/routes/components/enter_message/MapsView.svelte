@@ -22,6 +22,13 @@
     // Add new variable to track map center
     let mapCenter: { lat: number; lon: number } | null = null;
     
+    let tileLayer: any = null; // Add this variable to track tile layer
+
+    // Add at the top of the script
+    let customIcon: any = null;
+
+    let isTransitionComplete = false;
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -48,29 +55,43 @@
     });
 
     onDestroy(() => {
+        logger.debug('Component destroyed');
         cleanupMap();
     });
 
     async function initializeMap() {
-        // Clean up existing map if any
+        // Wait for transition to complete
+        if (!isTransitionComplete) {
+            return;
+        }
+
+        logger.debug('Initializing map...');
+        
         cleanupMap();
         
-        // Import Leaflet only on client-side
         L = (await import('leaflet')).default;
-        
-        // Check dark mode before initializing map
         checkDarkMode();
         
+        customIcon = L.divIcon({
+            className: 'custom-map-marker',
+            html: '<div class="marker-icon"></div>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        
         map = L.map(mapContainer, {
-            center: [20, 0],
-            zoom: 2,
+            center: currentLocation ? [currentLocation.lat, currentLocation.lon] : [20, 0],
+            zoom: currentLocation ? 16 : 2,
             zoomControl: false,
             attributionControl: true,
-            maxBoundsViscosity: 1.0
         });
 
-        // Update tile layer with proper attribution
-        const tileLayer = L.tileLayer(
+        // Force map to recalculate size
+        setTimeout(() => {
+            map?.invalidateSize();
+        }, 100);
+
+        tileLayer = L.tileLayer(
             'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             {
                 maxZoom: 19,
@@ -81,79 +102,57 @@
             }
         ).addTo(map);
 
-        // Watch for dark mode changes
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', () => {
-            checkDarkMode();
-            if (map) {
-                // Update tile layer class instead of changing URL
-                const tiles = document.querySelectorAll('.leaflet-tile');
-                tiles.forEach(tile => {
-                    if (isDarkMode) {
-                        tile.classList.add('dark-tiles');
-                    } else {
-                        tile.classList.remove('dark-tiles');
-                    }
-                });
-            }
-        });
+        if (currentLocation && map) {
+            const mapRef = map;
+            marker = L.marker([currentLocation.lat, currentLocation.lon], { icon: customIcon }).addTo(mapRef);
+            mapRef.setView([currentLocation.lat, currentLocation.lon], 16);
+        }
 
-        // Force map to update its container size
-        setTimeout(() => {
-            if (map) {
-                map.invalidateSize();
-                
-                // If we have a current location, center on it
-                if (currentLocation) {
-                    map.setView([currentLocation.lat, currentLocation.lon], 16, {
-                        animate: false
-                    });
-                    marker = L.marker([currentLocation.lat, currentLocation.lon]).addTo(map);
-                }
-            }
-        }, 100);
-
-        // Add zoom control to the right side
-        L.control.zoom({
-            position: 'topright'
-        }).addTo(map);
-
-        // Replace moveend with move event listener to update in real-time
-        const mapInstance = map;  // Capture non-null map reference
-        if (mapInstance) {
-            mapInstance.on('move', () => {
-                const center = mapInstance.getCenter();
+        if (map) {
+            const mapRef = map;  // Store reference to avoid null check issues
+            mapRef.on('move', () => {
+                const center = mapRef.getCenter();
                 mapCenter = { lat: center.lat, lon: center.lng };
-                currentLocation = mapCenter;
-
+                
                 if (marker) {
                     marker.setLatLng([center.lat, center.lng]);
                 } else {
-                    const icon = L.divIcon({
-                        className: 'custom-map-marker',
-                        html: '<div class="marker-icon"></div>',
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20]
-                    });
-                    marker = L.marker([center.lat, center.lng], { icon }).addTo(mapInstance);
+                    marker = L.marker([center.lat, center.lng], { icon: customIcon }).addTo(mapRef);
                 }
-
-                logger.debug('Map moved, new center:', { lat: center.lat, lng: center.lng });
             });
         }
+    }
 
-        logger.debug('Map initialized');
+    function onTransitionEnd() {
+        isTransitionComplete = true;
+        initializeMap();
     }
 
     function cleanupMap() {
+        logger.debug('Cleaning up map...');
+        
+        // Remove marker if it exists
         if (marker) {
             marker.remove();
             marker = null;
         }
+
+        // Remove tile layer if it exists
+        if (tileLayer) {
+            tileLayer.remove();
+            tileLayer = null;
+        }
+
+        // Remove map if it exists
         if (map) {
+            map.off(); // Remove all event listeners
             map.remove();
             map = null;
         }
+
+        // Reset state
+        currentLocation = null;
+        mapCenter = null;
     }
 
     async function getCurrentLocation() {
@@ -185,19 +184,14 @@
 
             // Update map view
             if (map) {
-                map.setView([lat, lon], 16);
+                const mapRef = map;  // Store reference to avoid null check issues
+                mapRef.setView([lat, lon], 16);
 
                 // Add or update marker
                 if (marker) {
                     marker.setLatLng([lat, lon]);
                 } else {
-                    const icon = L.divIcon({
-                        className: 'custom-map-marker',
-                        html: '<div class="marker-icon"></div>',
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20]
-                    });
-                    marker = L.marker([lat, lon], { icon }).addTo(map);
+                    marker = L.marker([lat, lon], { icon: customIcon }).addTo(mapRef);
                 }
             }
 
@@ -211,6 +205,7 @@
     }
 
     function handleClose() {
+        cleanupMap();
         dispatch('close');
     }
 
@@ -229,7 +224,11 @@
     }
 </script>
 
-<div class="maps-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
+<div 
+    class="maps-overlay" 
+    transition:slide={{ duration: 300, axis: 'y' }}
+    on:introend={onTransitionEnd}
+>
     <div class="precise-toggle">
         <span>{$_('enter_message.location.precise.text')}</span>
         <Toggle 
