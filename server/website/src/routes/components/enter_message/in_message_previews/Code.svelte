@@ -126,14 +126,11 @@
                 previewContainer.style.width = '';
                 previewContainer.style.height = '';
                 previewContainer.style.maxHeight = '';
-                previewContainer.style.transform = '';
             }
         }
         
         // Update size immediately after state change
-        if (isFullscreen) {
-            updateSize();
-        }
+        updateSize();
     }
 
     onMount(async () => {
