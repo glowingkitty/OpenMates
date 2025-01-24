@@ -447,8 +447,37 @@
             ).join(' ');
         };
 
-        // Get address details from the result
-        const address = result.address || {};
+        // Handle airports
+        if (result.class === 'aeroway' && 
+            (result.type === 'aerodrome' || result.type === 'airport')) {
+            
+            // Get airport name
+            const airportName = result.namedetails?.name || 
+                               result.name || 
+                               result.display_name.split(',')[0];
+            
+            // Get IATA code if available
+            const iataCode = result.extratags?.['iata'] || '';
+            
+            // Get city/region
+            const city = result.address?.city || 
+                        result.address?.town || 
+                        result.address?.region || 
+                        result.address?.state || 
+                        '';
+                        
+            logger.debug('Formatting airport result:', {
+                name: airportName,
+                iata: iataCode,
+                city: city,
+                rawResult: result
+            });
+
+            return {
+                mainLine: capitalize(airportName) + (iataCode ? ` (${iataCode})` : ''),
+                subLine: 'Airport' + (city ? ` • ${capitalize(city)}` : '')
+            };
+        }
         
         // Handle railway stations
         if (result.class === 'railway' && result.type === 'station') {
@@ -458,10 +487,10 @@
                                result.display_name.split(',')[0];
             
             // Get city name
-            const city = address.city || 
-                        address.town || 
-                        address.village || 
-                        address.municipality || 
+            const city = result.address?.city || 
+                        result.address?.town || 
+                        result.address?.village || 
+                        result.address?.municipality || 
                         '';
             
             return {
@@ -486,11 +515,11 @@
                              '';
                              
             // Construct the address line
-            const streetNumber = address.house_number || '';
-            const street = address.road || 
-                          address.pedestrian || 
-                          address.footway || 
-                          address.path || 
+            const streetNumber = result.address?.house_number || '';
+            const street = result.address?.road || 
+                          result.address?.pedestrian || 
+                          result.address?.footway || 
+                          result.address?.path || 
                           '';
             
             // Combine street and number in the correct order based on address format
@@ -501,7 +530,7 @@
             logger.debug('Formatting place result:', {
                 name: placeName,
                 address: addressLine,
-                rawAddress: address
+                rawAddress: result.address
             });
 
             return {
@@ -517,16 +546,16 @@
                         result.display_name.split(',')[0];
                         
             // Look for address components
-            const street = address.road || 
-                          address.pedestrian || 
-                          address.footway || 
-                          address.path;
-            const houseNumber = address.house_number;
-            const postalCode = address.postcode;
-            const city = address.city || 
-                        address.town || 
-                        address.village || 
-                        address.municipality;
+            const street = result.address?.road || 
+                          result.address?.pedestrian || 
+                          result.address?.footway || 
+                          result.address?.path;
+            const houseNumber = result.address?.house_number;
+            const postalCode = result.address?.postcode;
+            const city = result.address?.city || 
+                        result.address?.town || 
+                        result.address?.village || 
+                        result.address?.municipality;
 
             // Construct subline based on available information
             let subLine = '';
@@ -553,15 +582,22 @@
     function getTransitTypes(result: any) {
         const tags = result.extratags || {};
         
-        // Initialize transit types object
+        // Initialize transit types object with airport
         const transitTypes = {
             subway: false,
             suburban: false,
             rail: false,
             lightrail: false,
             bus: false,
-            ferry: false
+            ferry: false,
+            airport: false  // Add airport type
         };
+
+        // Check for airports
+        if (result.class === 'aeroway' && 
+            (result.type === 'aerodrome' || result.type === 'airport')) {
+            transitTypes.airport = true;
+        }
 
         // Helper function to check if any tag matches any of the terms
         const hasTag = (tagNames: string[], values: string[]) => {
@@ -634,6 +670,7 @@
             rawTags: {
                 class: result.class,
                 type: result.type,
+                aeroway: tags['aeroway'],
                 publicTransport: tags['public_transport'],
                 railway: tags['railway'],
                 station: tags['station'],
@@ -814,7 +851,12 @@
     }
 
     function getResultIconClass(result: any) {
-        return result.type === 'railway' ? 'icon-travel' : 'icon-maps';
+        if (result.type === 'railway' || 
+            (result.class === 'aeroway' && 
+             (result.type === 'aerodrome' || result.type === 'airport'))) {
+            return 'icon-travel';
+        }
+        return 'icon-maps';
     }
 
     function removeSearchMarkers() {
