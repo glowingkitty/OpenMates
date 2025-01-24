@@ -745,19 +745,35 @@
         }
     }, 300);
 
-    // Modify the addSearchMarkersToMap function to associate markers with result IDs
+    // Update the getResultIconClass function
+    function getResultIconClass(result: any) {
+        // Check for airport first
+        if (result.metadata?.osmClass === 'aeroway' && 
+            (result.metadata?.osmType === 'aerodrome' || result.metadata?.osmType === 'airport')) {
+            return 'icon-travel';
+        }
+        // Then check for railway
+        if (result.type === 'railway') {
+            return 'icon-travel';
+        }
+        return 'icon-maps';
+    }
+
+    // Update the addSearchMarkersToMap function
     function addSearchMarkersToMap() {
         if (!map) return;
         
         removeSearchMarkers();
 
         searchMarkers = searchResults.map(result => {
-            const isTransport = result.type === 'railway' || 
-                               (result.class === 'aeroway' && 
-                                (result.type === 'aerodrome' || result.type === 'airport'));
+            // Check if result is an airport
+            const isAirport = result.metadata?.osmClass === 'aeroway' && 
+                (result.metadata?.osmType === 'aerodrome' || result.metadata?.osmType === 'airport');
+            
+            const isTransport = result.type === 'railway' || isAirport;
             
             const markerIcon = L.divIcon({
-                className: `search-marker-icon ${isTransport ? 'railway' : 'default'}`,
+                className: `search-marker-icon ${isAirport ? 'airport' : isTransport ? 'railway' : 'default'}`,
                 html: `<div class="marker-icon"></div>`,
                 iconSize: [40, 40],
                 iconAnchor: [20, 20]
@@ -772,10 +788,24 @@
             return marker;
         });
 
-        // Fit bounds to show all markers
+        // Fit bounds to show all markers with appropriate zoom
         if (searchMarkers.length > 0) {
             const group = L.featureGroup(searchMarkers);
-            map.fitBounds(group.getBounds(), { padding: [50, 50] });
+            const bounds = group.getBounds();
+            
+            // Check if all results are airports
+            const allAirports = searchResults.every(result => 
+                result.metadata?.osmClass === 'aeroway' && 
+                (result.metadata?.osmType === 'aerodrome' || result.metadata?.osmType === 'airport')
+            );
+
+            // If all results are airports, use a more zoomed out view
+            if (allAirports) {
+                const center = bounds.getCenter();
+                map.setView(center, 11); // Use zoom level 11 for airports
+            } else {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
         }
     }
 
@@ -839,15 +869,6 @@
                 map?.invalidateSize();  // Add optional chaining
             }, 300);
         }
-    }
-
-    function getResultIconClass(result: any) {
-        if (result.type === 'railway' || 
-            (result.class === 'aeroway' && 
-             (result.type === 'aerodrome' || result.type === 'airport'))) {
-            return 'icon-travel';
-        }
-        return 'icon-maps';
     }
 
     function removeSearchMarkers() {
