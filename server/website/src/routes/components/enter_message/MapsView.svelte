@@ -193,13 +193,16 @@
                     isCurrentLocation = false;
                 }
                 
-                if (marker) {
-                    marker.setLatLng([center.lat, center.lng]);
-                } else {
-                    marker = L.marker([center.lat, center.lng], { 
-                        icon: customIcon,
-                        opacity: isPrecise ? 1 : 0 
-                    }).addTo(mapRef);
+                // Only update center marker if search results are not shown
+                if (!showResults) {
+                    if (marker) {
+                        marker.setLatLng([center.lat, center.lng]);
+                    } else {
+                        marker = L.marker([center.lat, center.lng], { 
+                            icon: customIcon,
+                            opacity: isPrecise ? 1 : 0 
+                        }).addTo(mapRef);
+                    }
                 }
 
                 // Update circle position during movement if it exists
@@ -476,11 +479,21 @@
         if (map) {
             const { lat, lon } = result;
             map.setView([lat, lon], 16);
+            
             if (marker) {
                 marker.setLatLng([lat, lon]);
+                marker.setOpacity(isPrecise ? 1 : 0); // Restore normal visibility
+            } else {
+                marker = L.marker([lat, lon], { 
+                    icon: customIcon,
+                    opacity: isPrecise ? 1 : 0 
+                }).addTo(map);
             }
+            
+            mapCenter = { lat, lon };
             searchQuery = '';
             showResults = false;
+            removeSearchMarkers();
         }
     }
 
@@ -505,9 +518,10 @@
         removeSearchMarkers();
 
         searchMarkers = searchResults.map(result => {
+            const isRailway = result.type === 'railway';
             const markerIcon = L.divIcon({
-                className: 'search-marker-icon',
-                html: `<div class="marker-icon ${result.type === 'railway' ? 'travel' : 'maps'}"></div>`,
+                className: `search-marker-icon ${isRailway ? 'railway' : 'default'}`,
+                html: `<div class="marker-icon"></div>`, // Always use map icon
                 iconSize: [40, 40],
                 iconAnchor: [20, 20]
             });
@@ -536,10 +550,15 @@
             active: r === result
         }));
 
-        // Update marker opacities
+        // Update only search result markers
         searchMarkers.forEach((marker, index) => {
             marker.setOpacity(searchResults[index] === result ? 1 : 0.5);
         });
+
+        // Ensure center marker stays hidden during search
+        if (marker && showResults) {
+            marker.setOpacity(0);
+        }
     }
 
     function unhighlightSearchResults() {
@@ -548,8 +567,22 @@
             active: false
         }));
 
-        // Reset all marker opacities
+        // Reset only search result markers
         searchMarkers.forEach(marker => marker.setOpacity(1));
+
+        // Ensure center marker stays hidden during search
+        if (marker && showResults) {
+            marker.setOpacity(0);
+        }
+    }
+
+    // Update marker visibility when search results are shown/hidden
+    $: if (marker && map) {
+        if (showResults) {
+            marker.setOpacity(0); // Always hide marker during search results
+        } else {
+            marker.setOpacity(isPrecise ? 1 : 0); // Normal visibility rules
+        }
     }
 </script>
 
@@ -558,7 +591,7 @@
     transition:slide={{ duration: 300, axis: 'y' }}
     on:introend={onTransitionEnd}
 >
-    {#if showPreciseToggle}
+    {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
             <span>{$_('enter_message.location.precise.text')}</span>
             <Toggle 
@@ -569,8 +602,7 @@
         </div>
     {/if}
 
-    <!-- Update location indicator text -->
-    {#if mapCenter}
+    {#if mapCenter && !showResults}
         <div class="location-indicator" class:is-moving={isMapMoving}>
             <span>
                 {#if isCurrentLocation}
@@ -631,7 +663,6 @@
         </div>
     </div>
 
-    <!-- Add search results container -->
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
             <div class="search-results-header">
@@ -642,7 +673,6 @@
                         showResults = false;
                         searchQuery = '';
                         searchResults = [];
-                        // Remove search result markers from map
                         removeSearchMarkers();
                     }}
                     aria-label={$_('enter_message.location.close_search.text')}
@@ -695,6 +725,7 @@
         width: 100%;
         height: calc(100% - 53px);
         transition: width 0.3s ease;
+        z-index: 1;
     }
 
     .map-container.with-results {
@@ -738,7 +769,7 @@
         align-items: center;
         gap: 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 1001;
+        z-index: 1003;
         color: var(--color-font-primary);
         transition: transform 0.3s ease;
     }
@@ -914,7 +945,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        z-index: 1001;
+        z-index: 1003;
         color: var(--color-font-primary);
         font-size: 14px;
         font-weight: 500;
@@ -966,7 +997,7 @@
         width: 50%;
         height: calc(100% - 53px);
         background: var(--color-grey-0);
-        z-index: 1000;
+        z-index: 2;
         border-right: 1px solid var(--color-grey-20);
     }
 
@@ -988,13 +1019,16 @@
         padding: 10px;
         overflow-y: auto;
         height: calc(100% - 53px);
+        overflow-x: hidden;
     }
 
     .search-result-item {
         width: 100%;
+        height: auto; /* Remove fixed height */
+        min-height: 48px;
         padding: 12px;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 12px;
         text-align: left;
         background: none;
@@ -1003,6 +1037,8 @@
         color: var(--color-font-primary);
         cursor: pointer;
         transition: all 0.2s ease;
+        white-space: normal;
+        word-wrap: break-word;
     }
 
     .search-result-item:hover,
@@ -1043,14 +1079,111 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
+        flex: 1;
+        min-width: 0;
+        height: auto; /* Allow content to determine height */
     }
 
     .result-name {
         font-size: 14px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.4; /* Add line height for better readability */
     }
 
     .result-type {
         font-size: 12px;
         color: var(--color-font-secondary);
+    }
+
+    /* Update marker styles to ensure they appear above the map but below UI */
+    :global(.leaflet-marker-pane) {
+        z-index: 600 !important;
+    }
+
+    :global(.custom-map-marker),
+    :global(.search-marker-icon) {
+        z-index: 600 !important;
+    }
+
+    :global(.search-marker-icon .marker-icon) {
+        width: 40px;
+        height: 40px;
+        -webkit-mask-image: url('/icons/maps.svg') !important;
+        mask-image: url('/icons/maps.svg') !important;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+    }
+
+    :global(.search-marker-icon.default .marker-icon) {
+        background: var(--color-app-maps) !important;
+    }
+
+    :global(.search-marker-icon.railway .marker-icon) {
+        background: var(--color-app-travel) !important;
+    }
+
+    
+
+    /* Update UI element z-indices to ensure they stay on top */
+    .precise-toggle {
+        z-index: 1003;
+    }
+
+    .location-indicator {
+        z-index: 1003;
+    }
+
+    .bottom-bar {
+        z-index: 1003;
+    }
+
+    /* Update search results styles for better text wrapping */
+    .search-results {
+        padding: 10px;
+        overflow-y: auto;
+        height: calc(100% - 53px);
+        overflow-x: hidden;
+    }
+
+    .search-result-item {
+        width: 100%;
+        height: auto; /* Remove fixed height */
+        min-height: 48px;
+        padding: 12px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        text-align: left;
+        background: none;
+        border: none;
+        border-radius: 8px;
+        color: var(--color-font-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+
+    .result-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+        height: auto; /* Allow content to determine height */
+    }
+
+    .result-name {
+        font-size: 14px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.4; /* Add line height for better readability */
     }
 </style> 
