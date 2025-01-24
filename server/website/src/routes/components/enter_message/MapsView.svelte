@@ -608,7 +608,7 @@
                     type="text"
                     bind:value={searchQuery}
                     on:input={() => debouncedSearch(searchQuery)}
-                    placeholder={$_('enter_message.location.search.placeholder') || "Search location..."}
+                    placeholder={$_('enter_message.location.search_placeholder.text') || "Search location..."}
                     class="search-input"
                 />
                 {#if searchQuery}
@@ -616,7 +616,7 @@
                         on:click={() => debouncedSearch(searchQuery)}
                         disabled={isSearching}
                     >
-                        {$_('enter_message.location.search.button') || "Search"}
+                        {$_('enter_message.location.search_button.text') || "Search"}
                     </button>
                 {/if}
             </div>

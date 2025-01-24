@@ -543,6 +543,26 @@
                 "text": "Área seleccionada",
                 "en_original": "Selected area",
                 "context": "Text for selected area"
+            },
+            "search_results": {
+                "text": "Resultados de búsqueda",
+                "en_original": "Search results",
+                "context": "Text for search results"
+            },
+            "close_search": {
+                "text": "Cerrar búsqueda",
+                "en_original": "Close search",
+                "context": "Text for closing search"
+            },
+            "search_placeholder": {
+                "text": "Buscar ubicación...",
+                "en_original": "Search location...",
+                "context": "Placeholder text for search input"
+            },
+            "search_button": {
+                "text": "Buscar",
+                "en_original": "Search",
+                "context": "Text for search button"
             }
         },
         "press_and_hold_menu": {

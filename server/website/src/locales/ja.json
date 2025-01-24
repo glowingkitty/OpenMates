@@ -543,6 +543,26 @@
                 "text": "選択されたエリア",
                 "en_original": "Selected area",
                 "context": "Text for selected area"
+            },
+            "search_results": {
+                "text": "検索結果",
+                "en_original": "Search results",
+                "context": "Text for search results"
+            },
+            "close_search": {
+                "text": "検索を閉じる",
+                "en_original": "Close search",
+                "context": "Text for closing search"
+            },
+            "search_placeholder": {
+                "text": "場所を検索...",
+                "en_original": "Search location...",
+                "context": "Placeholder text for search input"
+            },
+            "search_button": {
+                "text": "検索",
+                "en_original": "Search",
+                "context": "Text for search button"
             }
         },
         "press_and_hold_menu": {

@@ -446,6 +446,22 @@
             "selected_area": {
                 "text": "Selected area",
                 "context": "Text for selected area"
+            },
+            "search_results": {
+                "text": "Search results",
+                "context": "Text for search results"
+            },
+            "close_search": {
+                "text": "Close search",
+                "context": "Text for closing search"
+            },
+            "search_placeholder": {
+                "text": "Search location...",
+                "context": "Placeholder text for search input"
+            },
+            "search_button": {
+                "text": "Search",
+                "context": "Text for search button"
             }
         },
         "press_and_hold_menu": {
