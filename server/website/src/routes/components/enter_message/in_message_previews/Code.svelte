@@ -126,11 +126,14 @@
                 previewContainer.style.width = '';
                 previewContainer.style.height = '';
                 previewContainer.style.maxHeight = '';
+                previewContainer.style.transform = '';
             }
         }
         
         // Update size immediately after state change
-        updateSize();
+        if (isFullscreen) {
+            updateSize();
+        }
     }
 
     onMount(async () => {
