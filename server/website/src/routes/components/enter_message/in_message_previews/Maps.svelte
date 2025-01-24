@@ -177,33 +177,6 @@
         overflow: hidden;
     }
 
-    .map-image {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .loading-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: var(--color-grey-0);
-    }
-
-    .loading-spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid var(--color-grey-20);
-        border-top-color: var(--color-primary);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
     .info-bar {
         position: absolute;
         bottom: 0;
