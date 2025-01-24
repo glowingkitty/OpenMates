@@ -1049,10 +1049,10 @@
 
         const codeExtensions = [
             'py', 'js', 'ts', 'html', 'css', 'json', 'svelte',
-            'java', 'cpp', 'c', 'rs', 'go', 'rb', 'php', 'swift',
+            'java', 'cpp', 'c', 'h', 'hpp', 'rs', 'go', 'rb', 'php', 'swift',  // Added 'h' and 'hpp'
             'kt', 'txt', 'md', 'xml', 'yaml', 'yml', 'sh', 'bash',
             'sql', 'vue', 'jsx', 'tsx', 'scss', 'less', 'sass',
-            'dockerfile'  // Add dockerfile extension support
+            'dockerfile'
         ];
         
         const extension = filename.split('.').pop()?.toLowerCase();
@@ -1078,6 +1078,8 @@
             'java': 'java',
             'cpp': 'cpp',
             'c': 'c',
+            'h': 'c',      // Added .h mapping to C
+            'hpp': 'cpp',  // Added .hpp mapping to C++
             'rs': 'rust',
             'go': 'go',
             'rb': 'ruby',
@@ -1097,7 +1099,7 @@
             'scss': 'scss',
             'less': 'less',
             'sass': 'sass',
-            'dockerfile': 'dockerfile'  // Add dockerfile mapping
+            'dockerfile': 'dockerfile'
         };
         return languageMap[ext] || 'plaintext';
     }

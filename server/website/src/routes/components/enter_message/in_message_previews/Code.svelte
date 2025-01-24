@@ -4,6 +4,21 @@
     import hljs from 'highlight.js';
     import 'highlight.js/styles/github-dark.css';
     import 'highlight.js/lib/languages/dockerfile';
+    import 'highlight.js/lib/languages/c';
+    import 'highlight.js/lib/languages/cpp';
+    import 'highlight.js/lib/languages/java';
+    import 'highlight.js/lib/languages/javascript';
+    import 'highlight.js/lib/languages/python';
+    import 'highlight.js/lib/languages/typescript';
+    import 'highlight.js/lib/languages/css';
+    import 'highlight.js/lib/languages/json';
+    import 'highlight.js/lib/languages/rust';
+    import 'highlight.js/lib/languages/go';
+    import 'highlight.js/lib/languages/ruby';
+    import 'highlight.js/lib/languages/php';
+    import 'highlight.js/lib/languages/swift';
+    import 'highlight.js/lib/languages/kotlin';
+    import 'highlight.js/lib/languages/yaml';
 
     export let src: string;
     export let filename: string;
@@ -21,28 +36,30 @@
             return 'dockerfile';
         }
 
+        // Improved language map with capitalized names for long names
         const languageMap: { [key: string]: string } = {
-            'py': 'python',
-            'js': 'javascript',
-            'ts': 'typescript',
-            'html': 'html',
-            'css': 'css',
-            'json': 'json',
-            'svelte': 'svelte',
-            'java': 'java',
-            'cpp': 'cpp',
-            'c': 'c',
-            'rs': 'rust',
-            'go': 'go',
-            'rb': 'ruby',
-            'php': 'php',
-            'swift': 'swift',
-            'kt': 'kotlin',
-            'yml': 'yaml',
-            'yaml': 'yaml',
-            'dockerfile': 'dockerfile'  // Add support for Dockerfile
+            'py': 'Python',
+            'js': 'JavaScript',
+            'ts': 'TypeScript',
+            'html': 'HTML',
+            'css': 'CSS',
+            'json': 'JSON',
+            'svelte': 'Svelte',
+            'java': 'Java',
+            'cpp': 'C++',
+            'c': 'C',
+            'h': 'C',
+            'rs': 'Rust',
+            'go': 'Go',
+            'rb': 'Ruby',
+            'php': 'PHP',
+            'swift': 'Swift',
+            'kt': 'Kotlin',
+            'yml': 'YAML',
+            'yaml': 'YAML',
+            'dockerfile': 'Dockerfile'  // Add support for Dockerfile
         };
-        return languageMap[ext] || 'plaintext';
+        return languageMap[ext] || 'Plaintext';
     }
 
     onMount(async () => {
