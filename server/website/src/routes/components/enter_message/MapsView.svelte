@@ -1014,7 +1014,7 @@
         top: 0;
         left: 0;
         width: 50%;
-        height: calc(100% - 53px);
+        height: calc(100% - 80px);
         background: var(--color-grey-0);
         z-index: 2;
         border-right: 1px solid var(--color-grey-20);
@@ -1039,6 +1039,36 @@
         overflow-y: auto;
         height: calc(100% - 53px);
         overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+        transition: scrollbar-color 0.2s ease;
+    }
+
+    .search-results:hover {
+        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
+    }
+
+    .search-results::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .search-results::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .search-results::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.2);
+        border-radius: 4px;
+        border: 2px solid transparent;
+        transition: background-color 0.2s ease;
+    }
+
+    .search-results:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.5);
+    }
+
+    .search-results::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(128, 128, 128, 0.7);
     }
 
     .search-result-item {
