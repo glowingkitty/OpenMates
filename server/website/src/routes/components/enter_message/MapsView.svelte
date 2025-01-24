@@ -438,7 +438,7 @@
         };
     }
 
-    // Add this new function to format the address
+    // Update the formatSearchResult function
     function formatSearchResult(result: any) {
         // Helper function to capitalize first letter of each word
         const capitalize = (str: string) => {
@@ -447,40 +447,104 @@
             ).join(' ');
         };
 
-        // Extract components from OSM display_name
-        const parts = result.display_name.split(', ');
+        // Get address details from the result
+        const address = result.address || {};
         
         // Handle railway stations
         if (result.class === 'railway' && result.type === 'station') {
-            // Remove "station", "central", etc. from station name if present
-            const cleanStationName = parts[0].replace(/(station|central|hauptbahnhof|hbf|bahnhof)/gi, '').trim();
+            // Use official name without modifications
+            const stationName = result.namedetails?.name || 
+                               result.name || 
+                               result.display_name.split(',')[0];
             
-            // Get city name based on position from end
-            const hasZipCode = parts[parts.length - 2]?.match(/\d/);
-            const cityIndex = hasZipCode ? parts.length - 3 : parts.length - 2;
-            const city = parts[cityIndex] || '';
+            // Get city name
+            const city = address.city || 
+                        address.town || 
+                        address.village || 
+                        address.municipality || 
+                        '';
             
             return {
-                mainLine: capitalize(cleanStationName),
+                mainLine: capitalize(stationName),
                 subLine: capitalize(city)
             };
         }
         
-        // Handle other locations
+        // Handle places (amenities, shops, etc.)
+        else if (result.class === 'amenity' || 
+                 result.class === 'shop' || 
+                 result.class === 'tourism' ||
+                 result.class === 'leisure') {
+            
+            // Get the place name
+            const placeName = result.namedetails?.name || 
+                             result.name || 
+                             result.address?.amenity ||
+                             result.address?.shop ||
+                             result.address?.tourism ||
+                             result.address?.leisure ||
+                             '';
+                             
+            // Construct the address line
+            const streetNumber = address.house_number || '';
+            const street = address.road || 
+                          address.pedestrian || 
+                          address.footway || 
+                          address.path || 
+                          '';
+            
+            // Combine street and number in the correct order based on address format
+            const addressLine = street && streetNumber ? 
+                `${street} ${streetNumber}` : 
+                street || streetNumber;
+                
+            logger.debug('Formatting place result:', {
+                name: placeName,
+                address: addressLine,
+                rawAddress: address
+            });
+
+            return {
+                mainLine: capitalize(placeName),
+                subLine: capitalize(addressLine)
+            };
+        }
+        
+        // Handle other locations (default case)
         else {
-            const name = parts[0];
-            // Look for postal code and city
-            const postalCodeCity = parts.find((part: string) => part.match(/^\d/)) || ''; // Find part starting with number
-            const city = parts.find((part: string) => 
-                !part.match(/^\d/) && // doesn't start with number
-                !part.includes('(') && // doesn't contain parentheses
-                part !== name && // isn't the name
-                !part.match(/^[A-Z]{2}$/) // isn't a country code
-            ) || '';
+            const name = result.namedetails?.name || 
+                        result.name || 
+                        result.display_name.split(',')[0];
+                        
+            // Look for address components
+            const street = address.road || 
+                          address.pedestrian || 
+                          address.footway || 
+                          address.path;
+            const houseNumber = address.house_number;
+            const postalCode = address.postcode;
+            const city = address.city || 
+                        address.town || 
+                        address.village || 
+                        address.municipality;
+
+            // Construct subline based on available information
+            let subLine = '';
+            if (street && houseNumber) {
+                subLine = `${street} ${houseNumber}`;
+            } else if (street) {
+                subLine = street;
+            }
+            if (city) {
+                subLine = subLine ? `${subLine}, ${city}` : city;
+            }
+            if (postalCode && city) {
+                subLine = `${postalCode} ${subLine}`;
+            }
 
             return {
                 mainLine: capitalize(name),
-                subLine: postalCodeCity ? `${postalCodeCity}, ${capitalize(city)}` : capitalize(city)
+                subLine: capitalize(subLine)
             };
         }
     }
