@@ -100,14 +100,32 @@
         map = L.map(mapContainer, {
             center: currentLocation ? [currentLocation.lat, currentLocation.lon] : [20, 0],
             zoom: currentLocation ? 16 : 2,
-            zoomControl: false,
-            attributionControl: true,
+            zoomControl: false,  // Disable default zoom controls
+            attributionControl: false  // Disable default attribution
         });
 
-        // Force map to recalculate size
+        // Create custom attribution control with higher z-index container
+        const attributionControl = L.control.attribution({
+            position: 'bottomright',
+            prefix: false
+        });
+
+        // Add custom attribution
+        attributionControl.addTo(map);
+
+        // Force the attribution to be visible after a short delay
         setTimeout(() => {
-            map?.invalidateSize();
+            const attributionElement = mapContainer.querySelector('.leaflet-control-attribution');
+            if (attributionElement) {
+                (attributionElement as HTMLElement).style.display = 'block';
+                (attributionElement as HTMLElement).style.zIndex = '9999';
+            }
         }, 100);
+
+        // Add custom zoom control to top-right corner
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
 
         tileLayer = L.tileLayer(
             'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -116,7 +134,7 @@
                 subdomains: ['a', 'b', 'c'],
                 crossOrigin: true,
                 className: isDarkMode ? 'dark-tiles' : '',
-                attribution: '© OSM',
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 updateWhenIdle: false,
                 updateInterval: 150,
                 keepBuffer: 4
@@ -155,6 +173,11 @@
             mapRef.on('move', () => {
                 const center = mapRef.getCenter();
                 mapCenter = { lat: center.lat, lon: center.lng };
+                
+                // Show precise toggle when map is moved
+                if (!showPreciseToggle) {
+                    showPreciseToggle = true;
+                }
                 
                 // Only reset isCurrentLocation if we're not getting location
                 if (!isGettingLocation) {
@@ -525,39 +548,35 @@
         background: var(--color-grey-0) !important;
     }
 
-    :global(.leaflet-control-attribution) {
-        font-size: 9px !important;
+    /* Update attribution styles with more specific selectors */
+    :global(.leaflet-container .leaflet-control-container .leaflet-bottom.leaflet-right .leaflet-control-attribution) {
+        display: block !important;
+        position: absolute !important;
+        bottom: 65px !important;
+        right: 10px !important;
+        font-size: 10px !important;
         background: var(--color-grey-0) !important;
         color: var(--color-font-secondary) !important;
-        margin-bottom: 60px !important;
-        padding: 2px 6px !important;
-        border-radius: 8px 0 0 8px !important;
-        opacity: 0.7;
-        transition: opacity 0.2s ease;
+        padding: 4px 8px !important;
+        border-radius: 8px !important;
+        opacity: 0.8;
+        z-index: 9999 !important;
+        margin: 0 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        pointer-events: auto !important;
+        visibility: visible !important;
+        white-space: nowrap !important;
+        max-width: none !important;
     }
 
-    :global(.leaflet-control-attribution:hover) {
-        opacity: 0.9;
+    :global(.leaflet-container .leaflet-control-container .leaflet-bottom.leaflet-right) {
+        z-index: 9999 !important;
     }
 
-    :global(.leaflet-control-attribution a) {
+    :global(.leaflet-container .leaflet-control-container .leaflet-bottom.leaflet-right .leaflet-control-attribution a) {
         color: var(--color-font-secondary) !important;
         text-decoration: none !important;
-        font-size: 9px !important;
-    }
-
-    :global(.leaflet-control-attribution a:hover) {
-        text-decoration: underline !important;
-    }
-
-    :global(.leaflet-control-zoom a) {
-        background: var(--color-grey-0) !important;
-        color: var(--color-font-primary) !important;
-        border-color: var(--color-grey-0) !important;
-    }
-
-    :global(.leaflet-control-zoom a:hover) {
-        background: var(--color-grey-0) !important;
+        font-size: 10px !important;
     }
 
     /* Add specific styles for Leaflet tile loading */

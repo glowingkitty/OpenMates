@@ -11,6 +11,7 @@
     let address: string = '';
     let coordinates: { lat: number; lon: number } | null = null;
     let L: any;
+    let customIcon: any = null;
 
     // Logger for debugging
     const logger = {
@@ -35,6 +36,18 @@
             // Initialize map first to show something immediately
             L = (await import('leaflet')).default;
             
+            // Create custom icon
+            customIcon = L.divIcon({
+                className: 'custom-map-marker',
+                html: '<div class="marker-icon"></div>',
+                iconSize: [40, 40],
+                iconAnchor: [20, 40]
+            });
+            
+            // Check if dark mode is active
+            const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches || 
+                getComputedStyle(document.documentElement).getPropertyValue('--is-dark-mode').trim() === 'true';
+            
             const map = L.map(mapContainer, {
                 center: [coordinates.lat, coordinates.lon],
                 zoom: parseInt(zoom),
@@ -42,15 +55,19 @@
                 dragging: false,
                 touchZoom: false,
                 scrollWheelZoom: false,
-                doubleClickZoom: false
+                doubleClickZoom: false,
+                attributionControl: false // Disable attribution control
             });
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '' // Remove attribution since it's already shown in map selection view
+                attribution: '', // Empty attribution
+                className: isDarkMode ? 'dark-tiles' : '' // Add dark mode class if needed
             }).addTo(map);
 
-            // Add marker
-            L.marker([coordinates.lat, coordinates.lon]).addTo(map);
+            // Update marker to use custom icon
+            L.marker([coordinates.lat, coordinates.lon], {
+                icon: customIcon
+            }).addTo(map);
 
             try {
                 // Get address using reverse geocoding with proper headers
@@ -232,7 +249,38 @@
         background: var(--color-grey-0);
     }
 
+    /* Hide all attribution elements */
     :global(.leaflet-control-attribution) {
-        display: none;
+        display: none !important;
+    }
+
+    /* Dark mode map styles */
+    :global(.dark-tiles) {
+        filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
+    }
+
+    /* Add transition for smoother dark mode switching */
+    :global(.leaflet-tile) {
+        transition: filter 0.3s ease;
+    }
+
+    /* Add custom marker styles */
+    :global(.custom-map-marker) {
+        background: transparent;
+    }
+
+    :global(.marker-icon) {
+        width: 40px;
+        height: 40px;
+        background: var(--color-app-maps);
+        -webkit-mask-image: url('/icons/maps.svg');
+        mask-image: url('/icons/maps.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        transition: opacity 0.3s ease;
     }
 </style>
