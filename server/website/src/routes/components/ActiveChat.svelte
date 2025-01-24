@@ -7,10 +7,9 @@
     $: isTeamEnabled = $teamEnabled;
     // Add class when menu is open AND in mobile view
     $: isDimmed = $settingsMenuVisible && $isMobileView;
-    let isMessageFieldFullscreen = false;
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:fullscreen-mode={isMessageFieldFullscreen}>
+<div class="active-chat-container" class:dimmed={isDimmed}>
     <button 
         class="clickable-icon icon_create top-button left" 
         aria-label={$_('chat.new_chat.text')}
@@ -20,7 +19,7 @@
         aria-label={$_('chat.start_audio_call.text')}
     ></button>
     <!-- Center content wrapper -->
-    <div class="center-content" class:hidden={isMessageFieldFullscreen}>
+    <div class="center-content">
         <div class="team-profile">
             <div class="team-image" class:disabled={!isTeamEnabled}></div>
             <div class="welcome-text">
@@ -31,11 +30,8 @@
     </div>
 
     <!-- Message input field positioned at bottom center -->
-    <div class="message-input-wrapper" class:fullscreen={isMessageFieldFullscreen}>
-        <EnterMessageField 
-            isFullscreen={isMessageFieldFullscreen}
-            onFullscreenChange={(fullscreen) => isMessageFieldFullscreen = fullscreen}
-        />
+    <div class="message-input-wrapper">
+        <EnterMessageField />
     </div>
 </div>
 
@@ -134,27 +130,5 @@
 
     .top-button.right {
         right: 20px;
-    }
-
-    .message-input-wrapper.fullscreen {
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 15px;
-        background-color: var(--color-grey-20);
-    }
-
-    .message-input-wrapper.fullscreen :global(> *) {
-        max-width: none;
-        height: 100%;
-    }
-
-    .center-content.hidden {
-        display: none;
-    }
-
-    .active-chat-container.fullscreen-mode .top-button {
-        display: none;
     }
 </style>

@@ -1,6 +1,6 @@
 <script lang="ts">
     import InlinePreviewBase from './InlinePreviewBase.svelte';
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount } from 'svelte';
     import hljs from 'highlight.js';
     import 'highlight.js/styles/github-dark.css';
     import 'highlight.js/lib/languages/dockerfile';
@@ -26,10 +26,6 @@
     export let language: string = 'plaintext';
 
     let codePreview: string = '';
-    let isFullscreen = false;
-    let messageFieldElement: HTMLElement | null = null;
-    let resizeObserver: ResizeObserver | null = null;
-    let previewContainer: HTMLElement;
 
     // Helper function to determine language from filename
     function getLanguageFromFilename(filename: string): string {
@@ -66,73 +62,6 @@
         return languageMap[ext] || 'Plaintext';
     }
 
-    // Function to update size based on message field dimensions
-    function updateSize() {
-        if (!isFullscreen || !messageFieldElement || !previewContainer) return;
-        
-        const messageFieldRect = messageFieldElement.getBoundingClientRect();
-        const parentRect = previewContainer.parentElement?.getBoundingClientRect();
-        
-        // Update container dimensions to match message field
-        previewContainer.style.width = `${messageFieldRect.width}px`;
-        previewContainer.style.height = `${messageFieldRect.height}px`;
-        previewContainer.style.maxHeight = `${messageFieldRect.height}px`;
-        
-        // Calculate the vertical offset to align with message field
-        if (parentRect) {
-            const verticalOffset = messageFieldRect.top - parentRect.top;
-            previewContainer.style.transform = `translate(-50%, ${verticalOffset}px)`;
-        }
-        
-        console.log('Updated code preview size:', { 
-            width: messageFieldRect.width, 
-            height: messageFieldRect.height 
-        });
-    }
-
-    // Toggle fullscreen state
-    function toggleFullscreen() {
-        isFullscreen = !isFullscreen;
-        
-        // Find message field component and trigger its fullscreen mode
-        const messageField = document.querySelector('.message-container');
-        if (messageField) {
-            const event = new CustomEvent('fullscreenchange', {
-                detail: { fullscreen: isFullscreen },
-                bubbles: true
-            });
-            messageField.dispatchEvent(event);
-        }
-        
-        // Find message field element if not already found
-        if (!messageFieldElement) {
-            messageFieldElement = document.querySelector('.active-chat-container');
-        }
-        
-        if (isFullscreen) {
-            // Setup resize observer when entering fullscreen
-            if (!resizeObserver && messageFieldElement) {
-                resizeObserver = new ResizeObserver(updateSize);
-                resizeObserver.observe(messageFieldElement);
-            }
-        } else {
-            // Cleanup resize observer when exiting fullscreen
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-                resizeObserver = null;
-            }
-            // Reset container styles
-            if (previewContainer) {
-                previewContainer.style.width = '';
-                previewContainer.style.height = '';
-                previewContainer.style.maxHeight = '';
-            }
-        }
-        
-        // Update size immediately after state change
-        updateSize();
-    }
-
     onMount(async () => {
         try {
             const response = await fetch(src);
@@ -156,33 +85,11 @@
             console.error('Error loading code preview:', error);
             codePreview = 'Error loading code preview';
         }
-
-        // Initial message field element lookup
-        messageFieldElement = document.querySelector('.active-chat-container');
-    });
-
-    onDestroy(() => {
-        // Cleanup resize observer
-        if (resizeObserver) {
-            resizeObserver.disconnect();
-            resizeObserver = null;
-        }
     });
 </script>
 
-<InlinePreviewBase {id} type="code" {src} {filename} height={isFullscreen ? 'auto' : '200px'}>
-    <div 
-        class="preview-container {isFullscreen ? 'fullscreen' : ''}" 
-        bind:this={previewContainer}
-    >
-        <button 
-            class="fullscreen-button" 
-            on:click={toggleFullscreen}
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-            <div class="clickable-icon icon_fullscreen"></div>
-        </button>
-        
+<InlinePreviewBase {id} type="code" {src} {filename} height="200px">
+    <div class="preview-container">
         <div class="code-preview">
             <pre><code id="code-{id}" class="hljs language-{language}">{codePreview}</code></pre>
         </div>
@@ -203,33 +110,6 @@
         background-color: #181818;
         border-radius: 8px;
         overflow: hidden;
-        transition: all 0.3s ease-in-out;
-    }
-
-    .preview-container.fullscreen {
-        position: fixed;
-        top: 60px;
-        left: 50%;
-        z-index: 1000;
-        border-radius: 24px;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-    }
-
-    .fullscreen-button {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: none;
-        border: none;
-        padding: 4px;
-        cursor: pointer;
-        opacity: 0.5;
-        transition: opacity 0.2s ease-in-out;
-        z-index: 10;
-    }
-
-    .fullscreen-button:hover {
-        opacity: 1;
     }
 
     .code-preview {
@@ -237,10 +117,10 @@
         top: 0;
         left: 0;
         right: 0;
-        bottom: 60px; /* Account for info bar */
+        bottom: 0;
         padding: 16px;
-        overflow: auto;
-        max-height: calc(100% - 60px);
+        overflow: hidden;
+        max-height: 100%;
     }
 
     .info-bar {
@@ -255,9 +135,10 @@
         align-items: center;
         padding-left: 70px;
         padding-right: 16px;
-        z-index: 5;
+        /* align-items: flex-start; */
     }
 
+    /* Create a container for the stacked text */
     .text-container {
         display: flex;
         flex-direction: column;
@@ -292,10 +173,5 @@
     :global(.hljs) {
         background: transparent !important;
         padding: 0 !important;
-    }
-
-    /* Ensure code is readable in fullscreen */
-    .preview-container.fullscreen pre {
-        font-size: 14px; /* Larger font size in fullscreen */
     }
 </style>
