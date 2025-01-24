@@ -8,16 +8,96 @@
     export let id: string;
 
     let mapContainer: HTMLDivElement;
-    let address: string = '';
+    let address: string = filename;
     let coordinates: { lat: number; lon: number } | null = null;
     let L: any;
     let customIcon: any = null;
+    let lastGeocodedLocation: string | null = null;
 
     // Logger for debugging
     const logger = {
         debug: (...args: any[]) => console.log('[MapsPreview]', ...args),
         info: (...args: any[]) => console.info('[MapsPreview]', ...args)
     };
+
+    // Function to format address consistently across components
+    function formatAddress(data: any): string {
+        if (!data.address) {
+            return coordinates ? 
+                `${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}` : 
+                'Unknown location';
+        }
+
+        const line1Parts = [];
+        const line2Parts = [];
+        
+        // First line: Street name and number
+        if (data.address.road) {
+            line1Parts.push(data.address.road);
+            if (data.address.house_number) line1Parts.push(data.address.house_number);
+        } else if (data.address.city) {
+            line1Parts.push(data.address.city);
+        } else if (data.address.country) {
+            line1Parts.push(data.address.country);
+        }
+        
+        // Second line: Always try to include city/region and country
+        if (data.address.postcode) line2Parts.push(data.address.postcode);
+        if (data.address.city && !line1Parts.includes(data.address.city)) {
+            line2Parts.push(data.address.city);
+        }
+        if (data.address.state && data.address.state !== data.address.city) {
+            line2Parts.push(data.address.state);
+        }
+        if (data.address.country && !line1Parts.includes(data.address.country)) {
+            line2Parts.push(data.address.country);
+        }
+        
+        // If we have no second line but have coordinates, use them
+        if (line2Parts.length === 0 && coordinates) {
+            line2Parts.push(`${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`);
+        }
+
+        return line2Parts.length > 0 ? 
+            `${line1Parts.join(' ')}\n${line2Parts.join(', ')}` : 
+            line1Parts.join(' ');
+    }
+
+    async function updateAddress(lat: number, lon: number, forceUpdate: boolean = false) {
+        const locationKey = `${lat},${lon}`;
+        
+        // If we already have this location geocoded and it's not a forced update, use cached result
+        if (!forceUpdate && lastGeocodedLocation === locationKey) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+                {
+                    headers: {
+                        'User-Agent': 'OpenMates/1.0',
+                        'Accept-Language': 'en'
+                    }
+                }
+            );
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            address = formatAddress(data);
+            lastGeocodedLocation = locationKey;
+            
+            logger.debug('Updated address:', { address, data });
+        } catch (error) {
+            logger.debug('Error getting address:', error);
+            address = coordinates ? 
+                `${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}` : 
+                'Error loading location';
+        }
+    }
 
     onMount(async () => {
         try {
@@ -56,89 +136,27 @@
                 touchZoom: false,
                 scrollWheelZoom: false,
                 doubleClickZoom: false,
-                attributionControl: false // Disable attribution control
+                attributionControl: false
             });
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '', // Empty attribution
-                className: isDarkMode ? 'dark-tiles' : '' // Add dark mode class if needed
+                attribution: '',
+                className: isDarkMode ? 'dark-tiles' : ''
             }).addTo(map);
 
-            // Update marker to use custom icon
             L.marker([coordinates.lat, coordinates.lon], {
                 icon: customIcon
             }).addTo(map);
 
-            try {
-                // Get address using reverse geocoding with proper headers
-                const response = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-                    {
-                        headers: {
-                            'User-Agent': 'OpenMates/1.0', // Replace with your app name
-                            'Accept-Language': 'en' // Request English results
-                        }
-                    }
-                );
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                // Format address from response
-                if (data.address) {
-                    // Create two lines for the address
-                    const line1Parts = [];
-                    const line2Parts = [];
-                    
-                    // First line: Try street name and number, fallback to city or country
-                    if (data.address.road) {
-                        line1Parts.push(data.address.road);
-                        if (data.address.house_number) line1Parts.push(data.address.house_number);
-                    } else if (data.address.city) {
-                        line1Parts.push(data.address.city);
-                    } else if (data.address.country) {
-                        line1Parts.push(data.address.country);
-                        // If only country is available, show coordinates in second line
-                        if (!data.address.city && !data.address.road) {
-                            line2Parts.push(`${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`);
-                        }
-                    } else {
-                        // Last resort: use coordinates
-                        line1Parts.push(`${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`);
-                    }
-                    
-                    // Second line: ZIP code and city (only if city wasn't used in first line)
-                    if (line2Parts.length === 0 && line1Parts[0] !== data.address.city) {
-                        if (data.address.postcode) line2Parts.push(data.address.postcode);
-                        if (data.address.city) line2Parts.push(data.address.city);
-                    }
-                    
-                    // If second line would be empty but we have a country, show it there
-                    if (line2Parts.length === 0 && data.address.country && line1Parts[0] !== data.address.country) {
-                        line2Parts.push(data.address.country);
-                    }
-                    
-                    // Combine into two separate strings
-                    const line1 = line1Parts.join(' ');
-                    const line2 = line2Parts.join(' ');
-                    
-                    // Store both lines in address (using newline character)
-                    address = line2 ? `${line1}\n${line2}` : line1;
-                } else {
-                    // If no address data at all, use coordinates
-                    address = `${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`;
-                }
+            // Don't do geocoding - use the filename as the address
+            address = filename;
 
-            } catch (geocodeError) {
-                logger.debug('Error getting address:', geocodeError);
-                // Fallback to showing just coordinates if geocoding fails
-                address = `${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`;
-            }
+            // Add zoom end event listener to update address only when zoom changes significantly
+            map.on('zoomend', async () => {
+                const center = map.getCenter();
+                await updateAddress(center.lat, center.lng);
+            });
 
-            logger.debug('Map preview loaded:', { coordinates, address });
         } catch (error) {
             logger.debug('Error loading map preview:', error);
             address = 'Error loading location';
@@ -152,7 +170,9 @@
         <div class="info-bar">
             <div class="icon_rounded maps"></div>
             <div class="text-container">
-                <span class="address">{address}</span>
+                {#each address.split('\n') as line}
+                    <span class="address-line">{line}</span>
+                {/each}
             </div>
         </div>
     </div>
@@ -200,15 +220,20 @@
         line-height: 1.3;
         overflow: hidden;
         padding: 4px 0;
+        gap: 2px;
     }
 
-    .address {
+    .address-line {
         font-size: 16px;
         color: var(--color-font-primary);
-        white-space: pre-line;
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-height: 100%;
+    }
+
+    .address-line:nth-child(2) {
+        font-size: 14px;
+        color: var(--color-font-primary);
     }
 
     @keyframes spin {

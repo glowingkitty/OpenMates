@@ -426,13 +426,8 @@
                 attrs: {
                     type: 'maps',
                     src: `https://www.openstreetmap.org/?mlat=${selectedLocation.lat}&mlon=${selectedLocation.lon}&zoom=${selectedZoomLevel || 16}`,
-                    filename: selectedLocationText ? 
-                        `${selectedLocationText.mainLine}${selectedLocationText.subLine ? ` - ${selectedLocationText.subLine}` : ''}` :
-                        `Location ${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lon.toFixed(6)}`,
-                    id: crypto.randomUUID(),
-                    displayName: selectedLocationText ? 
-                        { mainLine: selectedLocationText.mainLine, subLine: selectedLocationText.subLine } :
-                        null
+                    filename: locationIndicatorText,
+                    id: crypto.randomUUID()
                 }
             };
 
@@ -943,14 +938,17 @@
         }
     }
 
-    // Add this reactive statement to update the location indicator text
+    // Update this reactive statement to maintain the two-line format
     $: {
         if (isCurrentLocation) {
             locationIndicatorText = isPrecise ? 
                 ($_('enter_message.location.current_location.text') || 'Current location') : 
                 ($_('enter_message.location.current_area.text') || 'Current area');
         } else if (selectedLocationText) {
-            locationIndicatorText = `${selectedLocationText.mainLine}${selectedLocationText.subLine ? '\n' + selectedLocationText.subLine : ''}`;
+            // Always use two lines when we have selectedLocationText
+            locationIndicatorText = selectedLocationText.subLine ? 
+                `${selectedLocationText.mainLine}\n${selectedLocationText.subLine}` : 
+                selectedLocationText.mainLine;
         } else {
             locationIndicatorText = isPrecise ? 
                 ($_('enter_message.location.selected_location.text') || 'Selected location') : 
@@ -977,9 +975,11 @@
 
     {#if mapCenter && !showResults}
         <div class="location-indicator" class:is-moving={isMapMoving}>
-            <span>
-                {locationIndicatorText}
-            </span>
+            <div class="location-text">
+                {#each locationIndicatorText.split('\n') as line}
+                    <span class="location-line">{line}</span>
+                {/each}
+            </div>
             <button 
                 on:click={handleSelect}
                 transition:slide={{ duration: 200 }}
@@ -1294,22 +1294,44 @@
         position: absolute;
         left: 50%;
         transform: translate(-50%, -50%);
-        bottom: 230px; /* Move it to 60% from bottom instead of 75% + 20px */
-        height: 53px;
+        bottom: 230px;
+        height: auto;
+        min-height: 53px;
         background: var(--color-grey-0);
-        padding: 0 16px;
+        padding: 8px 16px;
         border-radius: 20px;
         display: flex;
         align-items: center;
         gap: 12px;
         z-index: 1003;
         color: var(--color-font-primary);
-        font-size: 14px;
-        font-weight: 500;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         pointer-events: auto;
         opacity: 1;
         transition: opacity 0.2s ease;
+    }
+
+    .location-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .location-line {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .location-line:first-child {
+        font-size: 16px;
+        font-weight: 500;
+    }
+
+    .location-line:last-child {
+        font-size: 14px;
     }
 
     /* Add moving state styles */
