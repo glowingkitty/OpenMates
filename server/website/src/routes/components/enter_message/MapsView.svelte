@@ -438,7 +438,148 @@
         };
     }
 
-    // Modify the debouncedSearch function to assign unique IDs to each result
+    // Add this new function to format the address
+    function formatSearchResult(result: any) {
+        // Helper function to capitalize first letter of each word
+        const capitalize = (str: string) => {
+            return str.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        };
+
+        // Extract components from OSM display_name
+        const parts = result.display_name.split(', ');
+        
+        // Handle railway stations
+        if (result.class === 'railway' && result.type === 'station') {
+            // Remove "station", "central", etc. from station name if present
+            const cleanStationName = parts[0].replace(/(station|central|hauptbahnhof|hbf|bahnhof)/gi, '').trim();
+            
+            // Get city name based on position from end
+            const hasZipCode = parts[parts.length - 2]?.match(/\d/);
+            const cityIndex = hasZipCode ? parts.length - 3 : parts.length - 2;
+            const city = parts[cityIndex] || '';
+            
+            return {
+                mainLine: capitalize(cleanStationName),
+                subLine: capitalize(city)
+            };
+        }
+        
+        // Handle other locations
+        else {
+            const name = parts[0];
+            // Look for postal code and city
+            const postalCodeCity = parts.find((part: string) => part.match(/^\d/)) || ''; // Find part starting with number
+            const city = parts.find((part: string) => 
+                !part.match(/^\d/) && // doesn't start with number
+                !part.includes('(') && // doesn't contain parentheses
+                part !== name && // isn't the name
+                !part.match(/^[A-Z]{2}$/) // isn't a country code
+            ) || '';
+
+            return {
+                mainLine: capitalize(name),
+                subLine: postalCodeCity ? `${postalCodeCity}, ${capitalize(city)}` : capitalize(city)
+            };
+        }
+    }
+
+    // Add helper function to determine transit types
+    function getTransitTypes(result: any) {
+        const tags = result.extratags || {};
+        
+        // Initialize transit types object
+        const transitTypes = {
+            subway: false,        // Underground/Metro systems
+            suburban: false,      // Suburban/Regional rail
+            rail: false,         // Mainline rail
+            lightrail: false,    // Light rail/Tram
+            bus: false,          // Bus
+            ferry: false         // Ferry/Water transport
+        };
+
+        // Helper function to check if any tag matches any of the terms
+        const hasTag = (tagNames: string[], values: string[]) => {
+            return tagNames.some(tag => {
+                const tagValue = (tags[tag] || '').toLowerCase();
+                return values.some(value => tagValue === value);
+            });
+        };
+
+        // Check if this is any kind of public transport facility
+        if (result.class === 'railway' || 
+            result.class === 'public_transport' || 
+            tags['public_transport'] ||
+            tags['railway']) {
+
+            // Check for subway/metro - using standard OSM tags
+            if (hasTag(
+                ['railway', 'station', 'public_transport'],
+                ['subway', 'metro', 'underground']
+            )) {
+                transitTypes.subway = true;
+            }
+
+            // Check for suburban/regional rail
+            if (hasTag(
+                ['railway', 'service', 'station'],
+                ['suburban', 'regional', 'commuter']
+            )) {
+                transitTypes.suburban = true;
+            }
+
+            // Check for mainline rail
+            if (result.class === 'railway' && 
+                (tags['railway'] === 'station' || 
+                 tags['public_transport'] === 'station')) {
+                transitTypes.rail = true;
+            }
+
+            // Check for light rail/tram
+            if (hasTag(
+                ['railway', 'station', 'public_transport'],
+                ['tram', 'light_rail']
+            )) {
+                transitTypes.lightrail = true;
+            }
+
+            // Check for bus stations/stops
+            if (tags['highway'] === 'bus_stop' || 
+                tags['bus'] === 'yes' ||
+                (tags['public_transport'] === 'platform' && tags['bus'] === 'yes')) {
+                transitTypes.bus = true;
+            }
+
+            // Check for ferry terminals
+            if (tags['amenity'] === 'ferry_terminal' ||
+                tags['ferry'] === 'yes') {
+                transitTypes.ferry = true;
+            }
+
+            // Check usage type if available
+            if (tags['usage'] === 'main' || tags['usage'] === 'branch') {
+                transitTypes.rail = true;
+            }
+        }
+
+        logger.debug('Transit types detected:', {
+            name: result.namedetails?.name || result.name,
+            transitTypes,
+            rawTags: {
+                class: result.class,
+                type: result.type,
+                publicTransport: tags['public_transport'],
+                railway: tags['railway'],
+                station: tags['station'],
+                usage: tags['usage']
+            }
+        });
+        
+        return transitTypes;
+    }
+
+    // Modify the debouncedSearch function to request address details
     const debouncedSearch = debounce(async (query: string) => {
         if (!query.trim()) {
             searchResults = [];
@@ -450,21 +591,56 @@
         isSearching = true;
         try {
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+                `https://nominatim.openstreetmap.org/search?` + 
+                `format=json` +
+                `&q=${encodeURIComponent(query)}` +
+                `&limit=5` +
+                `&addressdetails=1` +  // Request detailed address information
+                `&extratags=1` +       // Get additional tags like opening hours, website, etc.
+                `&namedetails=1`       // Get names in different languages
             );
             const results = await response.json();
             
-            // Assign a unique ID to each search result
-            searchResults = results.map((result: any) => ({
-                id: crypto.randomUUID(), // Add unique ID
-                name: result.display_name,
-                lat: parseFloat(result.lat),
-                lon: parseFloat(result.lon),
-                type: result.class === 'railway' ? 'railway' : 
-                      result.class === 'tourism' && result.type === 'hotel' ? 'hotel' : 
-                      'default',
-                active: false
-            }));
+            logger.debug('Search results with details:', results);
+            
+            // Format and assign a unique ID to each search result
+            searchResults = results.map((result: any) => {
+                const formattedResult = formatSearchResult(result);
+                const transitTypes = getTransitTypes(result);
+                
+                // Format transit types for display
+                const transitServices = [];
+                if (transitTypes.rail) transitServices.push('Railway');
+                if (transitTypes.subway) transitServices.push('Subway');
+                if (transitTypes.suburban) transitServices.push('S-Bahn');
+                if (transitTypes.lightrail) transitServices.push('Tram');
+                if (transitTypes.bus) transitServices.push('Bus');
+                if (transitTypes.ferry) transitServices.push('Ferry');
+
+                // For stations, only show transit types
+                const subLine = result.class === 'railway' ? 
+                    transitServices.join(', ') : 
+                    formattedResult.subLine;
+
+                return {
+                    id: crypto.randomUUID(),
+                    mainLine: formattedResult.mainLine,
+                    subLine: subLine,
+                    lat: parseFloat(result.lat),
+                    lon: parseFloat(result.lon),
+                    type: result.class === 'railway' ? 'railway' : 
+                          result.class === 'tourism' && result.type === 'hotel' ? 'hotel' : 
+                          'default',
+                    active: false,
+                    metadata: {
+                        osmClass: result.class,
+                        osmType: result.type,
+                        importance: result.importance,
+                        extraTags: result.extratags || {},
+                        transitTypes: transitTypes
+                    }
+                };
+            });
             
             showResults = true;
             addSearchMarkersToMap();
@@ -710,9 +886,9 @@
                             <div class={`result-icon ${getResultIconClass(result)}`}></div>
                         </div>
                         <div class="result-info">
-                            <span class="result-name">{result.name}</span>
-                            {#if result.type === 'hotel'}
-                                <span class="result-type">Hotel</span>
+                            <span class="result-name">{result.mainLine}</span>
+                            {#if result.subLine}
+                                <span class="result-location">{result.subLine}</span>
                             {/if}
                         </div>
                     </button>
@@ -1135,10 +1311,15 @@
 
     .result-name {
         font-size: 14px;
-        white-space: pre-wrap;
-        word-break: break-word;
-        overflow-wrap: break-word;
-        line-height: 1.4; /* Add line height for better readability */
+        font-weight: 500;
+        color: var(--color-font-primary);
+        line-height: 1.4;
+    }
+
+    .result-location {
+        font-size: 12px;
+        color: var(--color-font-secondary);
+        line-height: 1.4;
     }
 
     .result-type {
