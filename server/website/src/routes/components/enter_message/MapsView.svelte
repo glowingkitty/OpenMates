@@ -1,10 +1,12 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
-    import { _ } from 'svelte-i18n';
+    import { _, locale } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
     import Toggle from '../Toggle.svelte';  // Add Toggle import
     import 'leaflet/dist/leaflet.css';
+    import { getLocaleFromNavigator } from 'svelte-i18n';
+    import { get } from 'svelte/store';
     const dispatch = createEventDispatcher();
     
     let mapContainer: HTMLElement;
@@ -69,6 +71,13 @@
 
     // Add a new variable to track panel transition
     let isPanelTransitioning = false;
+
+    // Helper function to capitalize first letter of each word
+    function capitalize(str: string) {
+        return str.split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+    }
 
     // Function to check if dark mode is active
     function checkDarkMode() {
@@ -456,14 +465,112 @@
         };
     }
 
+    // Update getCurrentLocale function
+    function getCurrentLocale() {
+        // Get current locale from svelte-i18n store
+        return (get(locale) || getLocaleFromNavigator() || 'en').split('-')[0];
+    }
+
+    // Update debouncedSearch function
+    const debouncedSearch = debounce(async (query: string) => {
+        if (!query.trim()) {
+            searchResults = [];
+            showResults = false;
+            removeSearchMarkers();
+            return;
+        }
+
+        isSearching = true;
+        try {
+            // Get current locale
+            const locale = getCurrentLocale();
+            
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?` + 
+                `format=json` +
+                `&q=${encodeURIComponent(query)}` +
+                `&limit=5` +
+                `&addressdetails=1` +
+                `&extratags=1` +
+                `&namedetails=1` +
+                `&accept-language=${locale}` // Add language parameter
+            );
+            const results = await response.json();
+            
+            logger.debug('Search results with details:', results);
+            
+            // Format and assign a unique ID to each search result
+            searchResults = results.map((result: any) => {
+                const formattedResult = formatSearchResult(result);
+                const transitTypes = getTransitTypes(result);
+                
+                // Format transit types for display
+                const transitServices = [];
+                if (transitTypes.rail) transitServices.push('Railway');
+                if (transitTypes.subway) transitServices.push('Subway');
+                if (transitTypes.suburban) transitServices.push('S-Bahn');
+                if (transitTypes.lightrail) transitServices.push('Tram');
+                if (transitTypes.bus) transitServices.push('Bus');
+                if (transitTypes.ferry) transitServices.push('Ferry');
+
+                // For stations, only show transit types
+                const subLine = result.class === 'railway' ? 
+                    transitServices.join(', ') : 
+                    formattedResult.subLine;
+
+                return {
+                    id: crypto.randomUUID(),
+                    mainLine: formattedResult.mainLine,
+                    subLine: subLine,
+                    lat: parseFloat(result.lat),
+                    lon: parseFloat(result.lon),
+                    type: result.class === 'railway' ? 'railway' : 
+                          result.class === 'tourism' && result.type === 'hotel' ? 'hotel' : 
+                          'default',
+                    active: false,
+                    metadata: {
+                        osmClass: result.class,
+                        osmType: result.type,
+                        importance: result.importance,
+                        extraTags: result.extratags || {},
+                        transitTypes: transitTypes
+                    }
+                };
+            });
+            
+            showResults = true;
+            addSearchMarkersToMap();
+        } catch (error) {
+            logger.debug('Search error:', error);
+            searchResults = [];
+        } finally {
+            isSearching = false;
+        }
+    }, 300);
+
     // Update the formatSearchResult function
     function formatSearchResult(result: any) {
-        // Helper function to capitalize first letter of each word
-        const capitalize = (str: string) => {
-            return str.split(' ').map(word => 
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-            ).join(' ');
-        };
+        const locale = getCurrentLocale();
+        
+        // Helper function to get localized name
+        function getLocalizedName(namedetails: any) {
+            if (!namedetails) return null;
+            
+            // Try to get name in current locale
+            const localizedName = namedetails[`name:${locale}`];
+            if (localizedName) return localizedName;
+            
+            // Fallback to international name if available
+            if (namedetails.name) return namedetails.name;
+            
+            // Final fallback to default name
+            return namedetails.name || null;
+        }
+
+        // Get the most appropriate name
+        const localizedName = getLocalizedName(result.namedetails);
+        const defaultName = result.name || result.display_name.split(',')[0];
+        const name = localizedName || defaultName;
 
         // Handle airports
         if (result.class === 'aeroway' && 
@@ -549,10 +656,6 @@
         
         // Handle other locations (default case)
         else {
-            const name = result.namedetails?.name || 
-                        result.name || 
-                        result.display_name.split(',')[0];
-                        
             // Look for address components
             const street = result.address?.road || 
                           result.address?.pedestrian || 
@@ -689,79 +792,6 @@
         
         return transitTypes;
     }
-
-    // Modify the debouncedSearch function to request address details
-    const debouncedSearch = debounce(async (query: string) => {
-        if (!query.trim()) {
-            searchResults = [];
-            showResults = false;
-            removeSearchMarkers();
-            return;
-        }
-
-        isSearching = true;
-        try {
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?` + 
-                `format=json` +
-                `&q=${encodeURIComponent(query)}` +
-                `&limit=5` +
-                `&addressdetails=1` +  // Request detailed address information
-                `&extratags=1` +       // Get additional tags like opening hours, website, etc.
-                `&namedetails=1`       // Get names in different languages
-            );
-            const results = await response.json();
-            
-            logger.debug('Search results with details:', results);
-            
-            // Format and assign a unique ID to each search result
-            searchResults = results.map((result: any) => {
-                const formattedResult = formatSearchResult(result);
-                const transitTypes = getTransitTypes(result);
-                
-                // Format transit types for display
-                const transitServices = [];
-                if (transitTypes.rail) transitServices.push('Railway');
-                if (transitTypes.subway) transitServices.push('Subway');
-                if (transitTypes.suburban) transitServices.push('S-Bahn');
-                if (transitTypes.lightrail) transitServices.push('Tram');
-                if (transitTypes.bus) transitServices.push('Bus');
-                if (transitTypes.ferry) transitServices.push('Ferry');
-
-                // For stations, only show transit types
-                const subLine = result.class === 'railway' ? 
-                    transitServices.join(', ') : 
-                    formattedResult.subLine;
-
-                return {
-                    id: crypto.randomUUID(),
-                    mainLine: formattedResult.mainLine,
-                    subLine: subLine,
-                    lat: parseFloat(result.lat),
-                    lon: parseFloat(result.lon),
-                    type: result.class === 'railway' ? 'railway' : 
-                          result.class === 'tourism' && result.type === 'hotel' ? 'hotel' : 
-                          'default',
-                    active: false,
-                    metadata: {
-                        osmClass: result.class,
-                        osmType: result.type,
-                        importance: result.importance,
-                        extraTags: result.extratags || {},
-                        transitTypes: transitTypes
-                    }
-                };
-            });
-            
-            showResults = true;
-            addSearchMarkersToMap();
-        } catch (error) {
-            logger.debug('Search error:', error);
-            searchResults = [];
-        } finally {
-            isSearching = false;
-        }
-    }, 300);
 
     // Update the getResultIconClass function
     function getResultIconClass(result: any) {

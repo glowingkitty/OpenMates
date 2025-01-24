@@ -2,6 +2,8 @@
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     import { onMount } from 'svelte';
     import 'leaflet/dist/leaflet.css';
+    import { _, getLocaleFromNavigator, locale } from 'svelte-i18n';
+    import { get } from 'svelte/store';
 
     export let src: string;
     export let filename: string;
@@ -20,8 +22,27 @@
         info: (...args: any[]) => console.info('[MapsPreview]', ...args)
     };
 
+    // Add function to get current locale
+    function getCurrentLocale() {
+        return (get(locale) || getLocaleFromNavigator() || 'en').split('-')[0];
+    }
+
     // Function to format address consistently across components
     function formatAddress(data: any): string {
+        const locale = getCurrentLocale();
+        
+        // Helper function to get localized name
+        function getLocalizedName(obj: any, key: string) {
+            if (!obj) return null;
+            
+            // Try locale-specific name first
+            const localizedKey = `${key}:${locale}`;
+            if (obj[localizedKey]) return obj[localizedKey];
+            
+            // Fallback to default name
+            return obj[key] || null;
+        }
+
         if (!data.address) {
             return coordinates ? 
                 `${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}` : 
@@ -33,24 +54,26 @@
         
         // First line: Street name and number
         if (data.address.road) {
-            line1Parts.push(data.address.road);
+            line1Parts.push(getLocalizedName(data.address, 'road') || data.address.road);
             if (data.address.house_number) line1Parts.push(data.address.house_number);
         } else if (data.address.city) {
-            line1Parts.push(data.address.city);
+            line1Parts.push(getLocalizedName(data.address, 'city') || data.address.city || 
+                           getLocalizedName(data.address, 'town') || data.address.town);
         } else if (data.address.country) {
-            line1Parts.push(data.address.country);
+            line1Parts.push(getLocalizedName(data.address, 'country') || data.address.country);
         }
         
         // Second line: Always try to include city/region and country
         if (data.address.postcode) line2Parts.push(data.address.postcode);
         if (data.address.city && !line1Parts.includes(data.address.city)) {
-            line2Parts.push(data.address.city);
+            line2Parts.push(getLocalizedName(data.address, 'city') || data.address.city || 
+                           getLocalizedName(data.address, 'town') || data.address.town);
         }
         if (data.address.state && data.address.state !== data.address.city) {
-            line2Parts.push(data.address.state);
+            line2Parts.push(getLocalizedName(data.address, 'state') || data.address.state);
         }
         if (data.address.country && !line1Parts.includes(data.address.country)) {
-            line2Parts.push(data.address.country);
+            line2Parts.push(getLocalizedName(data.address, 'country') || data.address.country);
         }
         
         // If we have no second line but have coordinates, use them
@@ -66,18 +89,21 @@
     async function updateAddress(lat: number, lon: number, forceUpdate: boolean = false) {
         const locationKey = `${lat},${lon}`;
         
-        // If we already have this location geocoded and it's not a forced update, use cached result
         if (!forceUpdate && lastGeocodedLocation === locationKey) {
             return;
         }
 
         try {
+            const locale = getCurrentLocale();
+            
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+                `https://nominatim.openstreetmap.org/reverse?` +
+                `lat=${lat}&lon=${lon}` +
+                `&format=json` +
+                `&accept-language=${locale}`,
                 {
                     headers: {
-                        'User-Agent': 'OpenMates/1.0',
-                        'Accept-Language': 'en'
+                        'User-Agent': 'OpenMates/1.0'
                     }
                 }
             );
@@ -90,7 +116,7 @@
             address = formatAddress(data);
             lastGeocodedLocation = locationKey;
             
-            logger.debug('Updated address:', { address, data });
+            logger.debug('Updated address:', { address, data, locale });
         } catch (error) {
             logger.debug('Error getting address:', error);
             address = coordinates ? 
