@@ -438,7 +438,7 @@
         };
     }
 
-    // Create the search function and assign the debounced version
+    // Modify the debouncedSearch function to assign unique IDs to each result
     const debouncedSearch = debounce(async (query: string) => {
         if (!query.trim()) {
             searchResults = [];
@@ -454,7 +454,9 @@
             );
             const results = await response.json();
             
+            // Assign a unique ID to each search result
             searchResults = results.map((result: any) => ({
+                id: crypto.randomUUID(), // Add unique ID
                 name: result.display_name,
                 lat: parseFloat(result.lat),
                 lon: parseFloat(result.lon),
@@ -474,7 +476,63 @@
         }
     }, 300);
 
-    // Add function to handle search result selection
+    // Modify the addSearchMarkersToMap function to associate markers with result IDs
+    function addSearchMarkersToMap() {
+        if (!map) return;
+        
+        removeSearchMarkers();
+
+        searchMarkers = searchResults.map(result => {
+            const isRailway = result.type === 'railway';
+            const markerIcon = L.divIcon({
+                className: `search-marker-icon ${isRailway ? 'railway' : 'default'}`,
+                html: `<div class="marker-icon"></div>`, // Always use map icon
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+
+            const marker = L.marker([result.lat, result.lon], { 
+                icon: markerIcon,
+                opacity: 1
+            }).addTo(map);
+
+            // Associate the marker with its result ID
+            marker.associatedResultId = result.id;
+
+            return marker;
+        });
+
+        // Fit bounds to show all markers
+        if (searchMarkers.length > 0) {
+            const group = L.featureGroup(searchMarkers);
+            map.fitBounds(group.getBounds(), { padding: [50, 50] });
+        }
+    }
+
+    // Update the highlightSearchResult function to adjust opacity based on associated result ID
+    function highlightSearchResult(result: any) {
+        
+        searchResults = searchResults.map(r => ({
+            ...r,
+            active: r.id === result.id // Update active state based on ID
+        }));
+
+        // Update only search result markers based on association
+        searchMarkers.forEach(marker => {
+            if (marker.associatedResultId === result.id) {
+                marker.setOpacity(1); // Highlight hovered marker
+            } else {
+                marker.setOpacity(0.5); // Dim other markers
+            }
+        });
+
+        // Ensure center marker stays hidden during search
+        if (marker && showResults) {
+            marker.setOpacity(0);
+        }
+    }
+
+    // Update the handleSearchResultClick function to reset marker opacities
     function handleSearchResultClick(result: any) {
         if (map) {
             const { lat, lon } = result;
@@ -495,6 +553,11 @@
             showResults = false;
             removeSearchMarkers();
         }
+
+        // Reset all search markers to full opacity when a result is selected
+        searchMarkers.forEach(marker => {
+            marker.setOpacity(0.5);
+        });
     }
 
     // Add inside script section
@@ -512,53 +575,9 @@
         return result.type === 'railway' ? 'icon-travel' : 'icon-maps';
     }
 
-    function addSearchMarkersToMap() {
-        if (!map) return;
-        
-        removeSearchMarkers();
-
-        searchMarkers = searchResults.map(result => {
-            const isRailway = result.type === 'railway';
-            const markerIcon = L.divIcon({
-                className: `search-marker-icon ${isRailway ? 'railway' : 'default'}`,
-                html: `<div class="marker-icon"></div>`, // Always use map icon
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            });
-
-            return L.marker([result.lat, result.lon], { 
-                icon: markerIcon,
-                opacity: 1
-            }).addTo(map);
-        });
-
-        // Fit bounds to show all markers
-        if (searchMarkers.length > 0) {
-            const group = L.featureGroup(searchMarkers);
-            map.fitBounds(group.getBounds(), { padding: [50, 50] });
-        }
-    }
-
     function removeSearchMarkers() {
         searchMarkers.forEach(marker => marker.remove());
         searchMarkers = [];
-    }
-
-    function highlightSearchResult(result: any) {
-        searchResults = searchResults.map(r => ({
-            ...r,
-            active: r === result
-        }));
-
-        // Update only search result markers
-        searchMarkers.forEach((marker, index) => {
-            marker.setOpacity(searchResults[index] === result ? 1 : 0.5);
-        });
-
-        // Ensure center marker stays hidden during search
-        if (marker && showResults) {
-            marker.setOpacity(0);
-        }
     }
 
     function unhighlightSearchResults() {
