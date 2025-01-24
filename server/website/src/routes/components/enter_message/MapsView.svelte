@@ -56,6 +56,20 @@
     // Add these new functions and variables to the script section
     let searchMarkers: any[] = [];
 
+    // Add new state variables to store selected location details
+    let selectedLocationText: { mainLine: string; subLine: string } | null = null;
+    let selectedFromSearch = false;
+    let selectedZoomLevel: number | null = null;
+
+    // Add a new variable to track if the map movement is from search selection
+    let isMovingFromSearch = false;
+
+    // Add this near the top with other state variables
+    let locationIndicatorText: string = '';
+
+    // Add a new variable to track panel transition
+    let isPanelTransitioning = false;
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -173,6 +187,7 @@
             
             mapRef.on('moveend', () => {
                 isMapMoving = false;
+                isMovingFromSearch = false;  // Reset the flag when movement ends
                 // Always update accuracy circle after movement if not in precise mode
                 if (mapCenter && !isPrecise) {
                     updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
@@ -188,8 +203,11 @@
                     showPreciseToggle = true;
                 }
                 
-                // Only reset isCurrentLocation if we're not getting location
-                if (!isGettingLocation) {
+                // Only reset location text if movement is not from search, getting location, or panel transition
+                if (!isGettingLocation && !showResults && !isMovingFromSearch && !isPanelTransitioning) {
+                    selectedLocationText = null;
+                    selectedFromSearch = false;
+                    selectedZoomLevel = null;
                     isCurrentLocation = false;
                 }
                 
@@ -407,9 +425,14 @@
                 type: 'customEmbed',
                 attrs: {
                     type: 'maps',
-                    src: `https://www.openstreetmap.org/?mlat=${selectedLocation.lat}&mlon=${selectedLocation.lon}&zoom=16`,
-                    filename: `Location ${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lon.toFixed(6)}`,
-                    id: crypto.randomUUID()
+                    src: `https://www.openstreetmap.org/?mlat=${selectedLocation.lat}&mlon=${selectedLocation.lon}&zoom=${selectedZoomLevel || 16}`,
+                    filename: selectedLocationText ? 
+                        `${selectedLocationText.mainLine}${selectedLocationText.subLine ? ` - ${selectedLocationText.subLine}` : ''}` :
+                        `Location ${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lon.toFixed(6)}`,
+                    id: crypto.randomUUID(),
+                    displayName: selectedLocationText ? 
+                        { mainLine: selectedLocationText.mainLine, subLine: selectedLocationText.subLine } :
+                        null
                 }
             };
 
@@ -832,15 +855,30 @@
         }
     }
 
-    // Update the handleSearchResultClick function to reset marker opacities
+    // Update the handleSearchResultClick function
     function handleSearchResultClick(result: any) {
         if (map) {
             const { lat, lon } = result;
-            map.setView([lat, lon], 16);
+            
+            // Store the selected location text
+            selectedLocationText = {
+                mainLine: result.mainLine,
+                subLine: result.subLine
+            };
+            selectedFromSearch = true;
+            
+            // Set zoom level based on result type
+            const isAirport = result.metadata?.osmClass === 'aeroway' && 
+                (result.metadata?.osmType === 'aerodrome' || result.metadata?.osmType === 'airport');
+            selectedZoomLevel = isAirport ? 11 : 16;
+            
+            // Set flag before moving map
+            isMovingFromSearch = true;
+            map.setView([lat, lon], selectedZoomLevel);
             
             if (marker) {
                 marker.setLatLng([lat, lon]);
-                marker.setOpacity(isPrecise ? 1 : 0); // Restore normal visibility
+                marker.setOpacity(isPrecise ? 1 : 0);
             } else {
                 marker = L.marker([lat, lon], { 
                     icon: customIcon,
@@ -860,13 +898,18 @@
         });
     }
 
-    // Add inside script section
+    // Update the reactive statement for search results panel
     $: if (map && showResults !== undefined) {
-        if (mapContainer) {  // Add null check for mapContainer
+        if (mapContainer) {
+            isPanelTransitioning = true;  // Set transitioning state
             mapContainer.classList.toggle('with-results', showResults);
             // Trigger a resize event so the map adjusts its viewport
             setTimeout(() => {
-                map?.invalidateSize();  // Add optional chaining
+                map?.invalidateSize();
+                // Give extra time for the transition to complete
+                setTimeout(() => {
+                    isPanelTransitioning = false;  // Reset transitioning state
+                }, 300);
             }, 300);
         }
     }
@@ -899,6 +942,21 @@
             marker.setOpacity(isPrecise ? 1 : 0); // Normal visibility rules
         }
     }
+
+    // Add this reactive statement to update the location indicator text
+    $: {
+        if (isCurrentLocation) {
+            locationIndicatorText = isPrecise ? 
+                ($_('enter_message.location.current_location.text') || 'Current location') : 
+                ($_('enter_message.location.current_area.text') || 'Current area');
+        } else if (selectedLocationText) {
+            locationIndicatorText = `${selectedLocationText.mainLine}${selectedLocationText.subLine ? '\n' + selectedLocationText.subLine : ''}`;
+        } else {
+            locationIndicatorText = isPrecise ? 
+                ($_('enter_message.location.selected_location.text') || 'Selected location') : 
+                ($_('enter_message.location.selected_area.text') || 'Selected area');
+        }
+    }
 </script>
 
 <div 
@@ -920,15 +978,7 @@
     {#if mapCenter && !showResults}
         <div class="location-indicator" class:is-moving={isMapMoving}>
             <span>
-                {#if isCurrentLocation}
-                    {isPrecise ? 
-                        ($_('enter_message.location.current_location.text') || 'Current location') : 
-                        ($_('enter_message.location.current_area.text') || 'Current area')}
-                {:else}
-                    {isPrecise ? 
-                        ($_('enter_message.location.selected_location.text') || 'Selected location') : 
-                        ($_('enter_message.location.selected_area.text') || 'Selected area')}
-                {/if}
+                {locationIndicatorText}
             </span>
             <button 
                 on:click={handleSelect}
