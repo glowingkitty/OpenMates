@@ -1244,7 +1244,7 @@
         position: absolute;
         left: 50%;
         transform: translate(-50%, -50%);
-        bottom: 50%;
+        bottom: 230px; /* Move it to 60% from bottom instead of 75% + 20px */
         height: 53px;
         background: var(--color-grey-0);
         padding: 0 16px;
