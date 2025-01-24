@@ -491,19 +491,19 @@
         
         // Initialize transit types object
         const transitTypes = {
-            subway: false,        // Underground/Metro systems
-            suburban: false,      // Suburban/Regional rail
-            rail: false,         // Mainline rail
-            lightrail: false,    // Light rail/Tram
-            bus: false,          // Bus
-            ferry: false         // Ferry/Water transport
+            subway: false,
+            suburban: false,
+            rail: false,
+            lightrail: false,
+            bus: false,
+            ferry: false
         };
 
         // Helper function to check if any tag matches any of the terms
         const hasTag = (tagNames: string[], values: string[]) => {
             return tagNames.some(tag => {
                 const tagValue = (tags[tag] || '').toLowerCase();
-                return values.some(value => tagValue === value);
+                return values.some(value => tagValue.includes(value));
             });
         };
 
@@ -513,7 +513,7 @@
             tags['public_transport'] ||
             tags['railway']) {
 
-            // Check for subway/metro - using standard OSM tags
+            // Check for subway/metro
             if (hasTag(
                 ['railway', 'station', 'public_transport'],
                 ['subway', 'metro', 'underground']
@@ -529,19 +529,25 @@
                 transitTypes.suburban = true;
             }
 
-            // Check for mainline rail
-            if (result.class === 'railway' && 
-                (tags['railway'] === 'station' || 
-                 tags['public_transport'] === 'station')) {
-                transitTypes.rail = true;
-            }
-
             // Check for light rail/tram
             if (hasTag(
                 ['railway', 'station', 'public_transport'],
                 ['tram', 'light_rail']
             )) {
                 transitTypes.lightrail = true;
+            }
+
+            // Check for mainline rail
+            if (result.class === 'railway' && 
+                (tags['railway'] === 'station' || 
+                 tags['public_transport'] === 'station')) {
+                // Additional check to ensure it's actually a train station
+                if (tags['train'] === 'yes' || 
+                    tags['usage'] === 'main' || 
+                    tags['station'] === 'rail' ||
+                    (!transitTypes.subway && !transitTypes.lightrail)) {
+                    transitTypes.rail = true;
+                }
             }
 
             // Check for bus stations/stops
@@ -556,11 +562,6 @@
                 tags['ferry'] === 'yes') {
                 transitTypes.ferry = true;
             }
-
-            // Check usage type if available
-            if (tags['usage'] === 'main' || tags['usage'] === 'branch') {
-                transitTypes.rail = true;
-            }
         }
 
         logger.debug('Transit types detected:', {
@@ -572,7 +573,8 @@
                 publicTransport: tags['public_transport'],
                 railway: tags['railway'],
                 station: tags['station'],
-                usage: tags['usage']
+                usage: tags['usage'],
+                train: tags['train']
             }
         });
         
