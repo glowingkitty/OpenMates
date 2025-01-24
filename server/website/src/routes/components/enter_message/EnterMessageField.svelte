@@ -24,6 +24,9 @@
     import MapsView from './MapsView.svelte';
     // Add this import near the top with other imports
     import Maps from './in_message_previews/Maps.svelte';
+    import { createEventDispatcher } from 'svelte';
+    
+    const dispatch = createEventDispatcher();
 
     // File size limits in MB
     const FILE_SIZE_LIMITS = {
@@ -178,6 +181,11 @@
                         filename: HTMLAttributes.filename,
                         id: HTMLAttributes.id,
                         language: HTMLAttributes.language
+                    },
+                    events: {
+                        fullscreen: (event) => {
+                            dispatch('codefullscreen', event.detail);
+                        }
                     }
                 });
                 return container;
@@ -1643,7 +1651,21 @@
                 break;
                 
             case 'view':
-                if (node.attrs.src || node.attrs.url || (node.attrs.isYouTube && node.attrs.videoId)) {
+                // Handle code files differently
+                if (node.attrs.type === 'code') {
+                    // Get code content from the source URL
+                    try {
+                        const response = await fetch(node.attrs.src);
+                        const code = await response.text();
+                        dispatch('codefullscreen', {
+                            code,
+                            filename: node.attrs.filename,
+                            language: node.attrs.language
+                        });
+                    } catch (error) {
+                        console.error('Error loading code content:', error);
+                    }
+                } else if (node.attrs.src || node.attrs.url || (node.attrs.isYouTube && node.attrs.videoId)) {
                     const url = node.attrs.isYouTube ? 
                         `https://www.youtube.com/watch?v=${node.attrs.videoId}` : 
                         (node.attrs.src || node.attrs.url);

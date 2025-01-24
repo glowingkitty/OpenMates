@@ -19,6 +19,7 @@
     import 'highlight.js/lib/languages/swift';
     import 'highlight.js/lib/languages/kotlin';
     import 'highlight.js/lib/languages/yaml';
+    import { createEventDispatcher } from 'svelte';
 
     export let src: string;
     export let filename: string;
@@ -26,6 +27,8 @@
     export let language: string = 'plaintext';
 
     let codePreview: string = '';
+
+    const dispatch = createEventDispatcher();
 
     // Helper function to determine language from filename
     function getLanguageFromFilename(filename: string): string {
@@ -86,9 +89,34 @@
             codePreview = 'Error loading code preview';
         }
     });
+
+    // Update the handleFullscreen function
+    async function handleFullscreen() {
+        try {
+            const response = await fetch(src);
+            const code = await response.text();
+            
+            dispatch('fullscreen', {
+                code,
+                filename,
+                language: getLanguageFromFilename(filename)
+            });
+            
+            console.log('Dispatched fullscreen event:', { filename, language });
+        } catch (error) {
+            console.error('Error loading code content:', error);
+        }
+    }
+
+    // Update the handleMenuAction function
+    function handleMenuAction(action: string) {
+        if (action === 'view') {
+            handleFullscreen();
+        }
+    }
 </script>
 
-<InlinePreviewBase {id} type="code" {src} {filename} height="200px">
+<InlinePreviewBase {id} type="code" {src} {filename} height="200px" on:view={e => handleMenuAction('view')} on:fullscreen={handleFullscreen}>
     <div class="preview-container">
         <div class="code-preview">
             <pre><code id="code-{id}" class="hljs language-{language}">{codePreview}</code></pre>

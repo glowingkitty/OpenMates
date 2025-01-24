@@ -1,7 +1,27 @@
-<script>
+<script lang="ts">
     import EnterMessageField from './enter_message/EnterMessageField.svelte';
+    import FullscreenCodePreview from './enter_message/in_message_previews/FullscreenCodePreview.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
+
+    // Add state for code fullscreen
+    let showCodeFullscreen = false;
+    let fullscreenCodeData = {
+        code: '',
+        filename: '',
+        language: ''
+    };
+
+    // Add handler for code fullscreen
+    function handleCodeFullscreen(event: CustomEvent) {
+        fullscreenCodeData = event.detail;
+        showCodeFullscreen = true;
+    }
+
+    // Add handler for closing code fullscreen
+    function handleCloseCodeFullscreen() {
+        showCodeFullscreen = false;
+    }
 
     // Subscribe to store values
     $: isTeamEnabled = $teamEnabled;
@@ -29,9 +49,18 @@
         </div>
     </div>
 
+    {#if showCodeFullscreen}
+        <FullscreenCodePreview 
+            code={fullscreenCodeData.code}
+            filename={fullscreenCodeData.filename}
+            language={fullscreenCodeData.language}
+            onClose={handleCloseCodeFullscreen}
+        />
+    {/if}
+
     <!-- Message input field positioned at bottom center -->
     <div class="message-input-wrapper">
-        <EnterMessageField />
+        <EnterMessageField on:codefullscreen={handleCodeFullscreen} />
     </div>
 </div>
 
