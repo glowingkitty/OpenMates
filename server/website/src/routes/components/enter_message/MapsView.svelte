@@ -47,6 +47,12 @@
     // Add new variable to track accuracy radius
     const ACCURACY_RADIUS = 500; // 500 meters radius for non-precise mode
 
+    // Add new state variables
+    let searchQuery = '';
+    let searchResults: any[] = [];
+    let isSearching = false;
+    let showResults = false;
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -237,6 +243,10 @@
             accuracyCircle.remove();
             accuracyCircle = null;
         }
+
+        searchQuery = '';
+        searchResults = [];
+        showResults = false;
     }
 
     // Function to get random location within circle
@@ -406,6 +416,77 @@
         cleanupMap();
         dispatch('close');
     }
+
+    // Create a debounced search function
+    function debounce(func: Function, wait: number) {
+        let timeout: ReturnType<typeof setTimeout>;
+        
+        return function executedFunction(...args: any[]) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Create the search function and assign the debounced version
+    const debouncedSearch = debounce(async (query: string) => {
+        if (!query.trim()) {
+            searchResults = [];
+            showResults = false;
+            return;
+        }
+
+        isSearching = true;
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+            );
+            const results = await response.json();
+            
+            // Log full results
+            logger.debug('Full search results:', results);
+            
+            searchResults = results.map((result: any) => ({
+                name: result.display_name,
+                lat: parseFloat(result.lat),
+                lon: parseFloat(result.lon)
+            }));
+            showResults = true;
+        } catch (error) {
+            logger.debug('Search error:', error);
+            searchResults = [];
+        } finally {
+            isSearching = false;
+        }
+    }, 300);
+
+    // Add function to handle search result selection
+    function handleSearchResultClick(result: any) {
+        if (map) {
+            const { lat, lon } = result;
+            map.setView([lat, lon], 16);
+            if (marker) {
+                marker.setLatLng([lat, lon]);
+            }
+            searchQuery = '';
+            showResults = false;
+        }
+    }
+
+    // Add inside script section
+    $: if (map && showResults !== undefined) {
+        if (mapContainer) {  // Add null check for mapContainer
+            mapContainer.classList.toggle('with-results', showResults);
+            // Trigger a resize event so the map adjusts its viewport
+            setTimeout(() => {
+                map?.invalidateSize();  // Add optional chaining
+            }, 300);
+        }
+    }
 </script>
 
 <div 
@@ -458,6 +539,24 @@
                 aria-label={$_('enter_message.location.close.text')}
             ></button>
 
+            <div class="search-container">
+                <input
+                    type="text"
+                    bind:value={searchQuery}
+                    on:input={() => debouncedSearch(searchQuery)}
+                    placeholder={$_('enter_message.location.search.placeholder') || "Search location..."}
+                    class="search-input"
+                />
+                {#if searchQuery}
+                    <button 
+                        on:click={() => debouncedSearch(searchQuery)}
+                        disabled={isSearching}
+                    >
+                        {$_('enter_message.location.search.button') || "Search"}
+                    </button>
+                {/if}
+            </div>
+
             <button 
                 class="clickable-icon icon_location"
                 on:click={getCurrentLocation}
@@ -467,6 +566,22 @@
             </button>
         </div>
     </div>
+
+    <!-- Add search results container -->
+    {#if showResults && searchResults.length > 0}
+        <div class="search-results-container" transition:slide={{ duration: 300 }}>
+            <div class="search-results">
+                {#each searchResults as result}
+                    <button 
+                        class="search-result-item"
+                        on:click={() => handleSearchResultClick(result)}
+                    >
+                        {result.name}
+                    </button>
+                {/each}
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -726,5 +841,67 @@
     /* Add styles for accuracy circle */
     :global(.accuracy-circle) {
         z-index: 400 !important; /* Ensure circle appears above tiles but below controls */
+    }
+
+    .search-container {
+        flex: 1;
+        display: flex;
+        gap: 10px;
+        margin: 0 15px;
+        align-items: center;
+    }
+
+    .search-input {
+        flex: 1;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--color-grey-20);
+        border-radius: 18px;
+        background: var(--color-grey-0);
+        color: var(--color-font-primary);
+        font-size: 14px;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+
+    .search-results-container {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+        height: calc(100% - 53px); /* Subtract bottom bar height */
+        background: var(--color-grey-0);
+        z-index: 1000;
+        border-left: 1px solid var(--color-grey-20);
+    }
+
+    .search-results {
+        padding: 10px;
+        overflow-y: auto;
+        height: 100%;
+    }
+
+    .search-result-item {
+        width: 100%;
+        padding: 12px;
+        text-align: left;
+        background: none;
+        border: none;
+        border-radius: 8px;
+        color: var(--color-font-primary);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .search-result-item:hover {
+        background: var(--color-grey-10);
+    }
+
+    /* Update map container style when search results are shown */
+    .map-container.with-results {
+        width: 50%;
     }
 </style> 
