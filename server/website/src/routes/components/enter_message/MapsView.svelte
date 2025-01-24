@@ -53,6 +53,9 @@
     let isSearching = false;
     let showResults = false;
 
+    // Add these new functions and variables to the script section
+    let searchMarkers: any[] = [];
+
     // Function to check if dark mode is active
     function checkDarkMode() {
         // Check if system is in dark mode
@@ -437,6 +440,7 @@
         if (!query.trim()) {
             searchResults = [];
             showResults = false;
+            removeSearchMarkers();
             return;
         }
 
@@ -447,15 +451,18 @@
             );
             const results = await response.json();
             
-            // Log full results
-            logger.debug('Full search results:', results);
-            
             searchResults = results.map((result: any) => ({
                 name: result.display_name,
                 lat: parseFloat(result.lat),
-                lon: parseFloat(result.lon)
+                lon: parseFloat(result.lon),
+                type: result.class === 'railway' ? 'railway' : 
+                      result.class === 'tourism' && result.type === 'hotel' ? 'hotel' : 
+                      'default',
+                active: false
             }));
+            
             showResults = true;
+            addSearchMarkersToMap();
         } catch (error) {
             logger.debug('Search error:', error);
             searchResults = [];
@@ -486,6 +493,63 @@
                 map?.invalidateSize();  // Add optional chaining
             }, 300);
         }
+    }
+
+    function getResultIconClass(result: any) {
+        return result.type === 'railway' ? 'icon-travel' : 'icon-maps';
+    }
+
+    function addSearchMarkersToMap() {
+        if (!map) return;
+        
+        removeSearchMarkers();
+
+        searchMarkers = searchResults.map(result => {
+            const markerIcon = L.divIcon({
+                className: 'search-marker-icon',
+                html: `<div class="marker-icon ${result.type === 'railway' ? 'travel' : 'maps'}"></div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+
+            return L.marker([result.lat, result.lon], { 
+                icon: markerIcon,
+                opacity: 1
+            }).addTo(map);
+        });
+
+        // Fit bounds to show all markers
+        if (searchMarkers.length > 0) {
+            const group = L.featureGroup(searchMarkers);
+            map.fitBounds(group.getBounds(), { padding: [50, 50] });
+        }
+    }
+
+    function removeSearchMarkers() {
+        searchMarkers.forEach(marker => marker.remove());
+        searchMarkers = [];
+    }
+
+    function highlightSearchResult(result: any) {
+        searchResults = searchResults.map(r => ({
+            ...r,
+            active: r === result
+        }));
+
+        // Update marker opacities
+        searchMarkers.forEach((marker, index) => {
+            marker.setOpacity(searchResults[index] === result ? 1 : 0.5);
+        });
+    }
+
+    function unhighlightSearchResults() {
+        searchResults = searchResults.map(r => ({
+            ...r,
+            active: false
+        }));
+
+        // Reset all marker opacities
+        searchMarkers.forEach(marker => marker.setOpacity(1));
     }
 </script>
 
@@ -570,13 +634,38 @@
     <!-- Add search results container -->
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
+            <div class="search-results-header">
+                <h3>{$_('enter_message.location.search_results.text') || 'Search Results'}</h3>
+                <button 
+                    class="clickable-icon icon_close" 
+                    on:click={() => {
+                        showResults = false;
+                        searchQuery = '';
+                        searchResults = [];
+                        // Remove search result markers from map
+                        removeSearchMarkers();
+                    }}
+                    aria-label={$_('enter_message.location.close_search.text')}
+                ></button>
+            </div>
             <div class="search-results">
                 {#each searchResults as result}
                     <button 
                         class="search-result-item"
+                        class:active={result.active}
                         on:click={() => handleSearchResultClick(result)}
+                        on:mouseenter={() => highlightSearchResult(result)}
+                        on:mouseleave={unhighlightSearchResults}
                     >
-                        {result.name}
+                        <div class="result-icon-container">
+                            <div class={`result-icon ${getResultIconClass(result)}`}></div>
+                        </div>
+                        <div class="result-info">
+                            <span class="result-name">{result.name}</span>
+                            {#if result.type === 'hotel'}
+                                <span class="result-type">Hotel</span>
+                            {/if}
+                        </div>
                     </button>
                 {/each}
             </div>
@@ -600,13 +689,16 @@
     }
 
     .map-container {
+        position: absolute;
+        top: 0;
+        right: 0;
         width: 100%;
-        height: 100%;
-        background: var(--color-grey-0);
-        z-index: 1;
-        overflow: hidden;
-        border-radius: 24px;
-        position: relative;
+        height: calc(100% - 53px);
+        transition: width 0.3s ease;
+    }
+
+    .map-container.with-results {
+        width: 50%;
     }
 
     .bottom-bar {
@@ -870,38 +962,95 @@
     .search-results-container {
         position: absolute;
         top: 0;
-        right: 0;
+        left: 0;
         width: 50%;
-        height: calc(100% - 53px); /* Subtract bottom bar height */
+        height: calc(100% - 53px);
         background: var(--color-grey-0);
         z-index: 1000;
-        border-left: 1px solid var(--color-grey-20);
+        border-right: 1px solid var(--color-grey-20);
+    }
+
+    .search-results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        border-bottom: 1px solid var(--color-grey-20);
+    }
+
+    .search-results-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
     }
 
     .search-results {
         padding: 10px;
         overflow-y: auto;
-        height: 100%;
+        height: calc(100% - 53px);
     }
 
     .search-result-item {
         width: 100%;
         padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
         text-align: left;
         background: none;
         border: none;
         border-radius: 8px;
         color: var(--color-font-primary);
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
     }
 
-    .search-result-item:hover {
-        background: var(--color-grey-10);
+    .search-result-item:hover,
+    .search-result-item.active {
+        background: var(--color-grey-20);
     }
 
-    /* Update map container style when search results are shown */
-    .map-container.with-results {
-        width: 50%;
+    .result-icon-container {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+    }
+
+    .result-icon {
+        width: 100%;
+        height: 100%;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+    }
+
+    .result-icon.icon-maps {
+        background: var(--color-app-maps);
+        -webkit-mask-image: url('/icons/maps.svg');
+        mask-image: url('/icons/maps.svg');
+    }
+
+    .result-icon.icon-travel {
+        background: var(--color-app-travel);
+        -webkit-mask-image: url('/icons/travel.svg');
+        mask-image: url('/icons/travel.svg');
+    }
+
+    .result-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .result-name {
+        font-size: 14px;
+    }
+
+    .result-type {
+        font-size: 12px;
+        color: var(--color-font-secondary);
     }
 </style> 
