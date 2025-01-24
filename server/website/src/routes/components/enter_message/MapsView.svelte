@@ -809,8 +809,8 @@
     :global(.leaflet-container .leaflet-control-container .leaflet-bottom.leaflet-right .leaflet-control-attribution) {
         display: block !important;
         position: absolute !important;
-        bottom: 65px !important;
-        right: 10px !important;
+        bottom: 5px !important;
+        right: 5px !important;
         font-size: 10px !important;
         background: var(--color-grey-0) !important;
         color: var(--color-font-secondary) !important;
