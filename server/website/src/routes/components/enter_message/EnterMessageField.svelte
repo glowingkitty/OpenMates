@@ -54,7 +54,6 @@
     let recordStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
     let showRecordHint = false;
     let recordHintTimeout: ReturnType<typeof setTimeout>;
-    let isFullscreen = false;
     let isScrollable = false;
     let scrollableContent: HTMLElement;
 
@@ -935,9 +934,18 @@
         // Add paste event listener to editor element
         editorElement?.addEventListener('paste', handlePaste);
 
+        // Add fullscreen change listener
+        const handleFullscreenChange = (event: CustomEvent) => {
+            isFullscreen = event.detail.fullscreen;
+            onFullscreenChange(isFullscreen);
+        };
+
+        editorElement?.addEventListener('fullscreenchange', handleFullscreenChange as EventListener);
+
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
+            editorElement?.removeEventListener('fullscreenchange', handleFullscreenChange as EventListener);
         };
     });
 
@@ -1764,12 +1772,17 @@
         isFullscreen = !isFullscreen;
     }
 
+    // Add these near the top with other state variables
+    export let isFullscreen = false;
+    export let onFullscreenChange = (fullscreen: boolean) => {};
+
     $: containerStyle = isFullscreen ? 
-        `height: calc(100vh - 100px); max-height: calc(100vh - 120px);` : 
-        'height: auto; max-height: 350px;';  // Add default height when not fullscreen
+        'height: 100%; max-height: 100%;' : 
+        'height: auto; max-height: 350px;';
+    
     $: scrollableStyle = isFullscreen ? 
-        `max-height: calc(100vh - 190px);` : 
-        'max-height: 250px;';  // Add default height when not fullscreen
+        'max-height: calc(100% - 90px);' : 
+        'max-height: 250px;';
 
     // Add this helper function near the top with other helper functions
     function isVideoFile(file: File): boolean {
