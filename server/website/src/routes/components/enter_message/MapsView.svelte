@@ -958,14 +958,6 @@
                     placeholder={$_('enter_message.location.search_placeholder.text') || "Search location..."}
                     class="search-input"
                 />
-                {#if searchQuery}
-                    <button 
-                        on:click={() => debouncedSearch(searchQuery)}
-                        disabled={isSearching}
-                    >
-                        {$_('enter_message.location.search_button.text') || "Search"}
-                    </button>
-                {/if}
             </div>
 
             <button 
@@ -1284,13 +1276,14 @@
     .search-container {
         flex: 1;
         display: flex;
-        gap: 10px;
+        justify-content: center;
         margin: 0 15px;
         align-items: center;
     }
 
     .search-input {
-        flex: 1;
+        width: 80%;
+        max-width: 400px;
         height: 36px;
         padding: 0 12px;
         border: 1px solid var(--color-grey-20);
