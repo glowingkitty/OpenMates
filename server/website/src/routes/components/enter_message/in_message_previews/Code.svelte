@@ -71,11 +71,18 @@
         if (!isFullscreen || !messageFieldElement || !previewContainer) return;
         
         const messageFieldRect = messageFieldElement.getBoundingClientRect();
+        const parentRect = previewContainer.parentElement?.getBoundingClientRect();
         
         // Update container dimensions to match message field
         previewContainer.style.width = `${messageFieldRect.width}px`;
         previewContainer.style.height = `${messageFieldRect.height}px`;
         previewContainer.style.maxHeight = `${messageFieldRect.height}px`;
+        
+        // Calculate the vertical offset to align with message field
+        if (parentRect) {
+            const verticalOffset = messageFieldRect.top - parentRect.top;
+            previewContainer.style.transform = `translate(-50%, ${verticalOffset}px)`;
+        }
         
         console.log('Updated code preview size:', { 
             width: messageFieldRect.width, 
@@ -201,11 +208,10 @@
 
     .preview-container.fullscreen {
         position: fixed;
-        top: -150px;
+        top: 60px;
         left: 50%;
-        transform: translate(-50%, -50%);
         z-index: 1000;
-        border-radius: 24px; /* Match message container border radius */
+        border-radius: 24px;
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
     }
 
