@@ -885,6 +885,9 @@
         if (map) {
             const { lat, lon } = result;
             
+            // Reset current location flag when selecting from search
+            isCurrentLocation = false;
+            
             // Store the selected location text
             selectedLocationText = {
                 mainLine: result.mainLine,
