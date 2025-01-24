@@ -451,31 +451,21 @@
         if (result.class === 'aeroway' && 
             (result.type === 'aerodrome' || result.type === 'airport')) {
             
-            // Get airport name
+            // Get airport name and IATA code
             const airportName = result.namedetails?.name || 
                                result.name || 
                                result.display_name.split(',')[0];
-            
-            // Get IATA code if available
             const iataCode = result.extratags?.['iata'] || '';
             
-            // Get city/region
-            const city = result.address?.city || 
-                        result.address?.town || 
-                        result.address?.region || 
-                        result.address?.state || 
-                        '';
-                        
             logger.debug('Formatting airport result:', {
                 name: airportName,
                 iata: iataCode,
-                city: city,
                 rawResult: result
             });
 
             return {
                 mainLine: capitalize(airportName) + (iataCode ? ` (${iataCode})` : ''),
-                subLine: 'Airport' + (city ? ` • ${capitalize(city)}` : '')
+                subLine: 'Airport' // Simplified second line for airports
             };
         }
         
@@ -762,10 +752,13 @@
         removeSearchMarkers();
 
         searchMarkers = searchResults.map(result => {
-            const isRailway = result.type === 'railway';
+            const isTransport = result.type === 'railway' || 
+                               (result.class === 'aeroway' && 
+                                (result.type === 'aerodrome' || result.type === 'airport'));
+            
             const markerIcon = L.divIcon({
-                className: `search-marker-icon ${isRailway ? 'railway' : 'default'}`,
-                html: `<div class="marker-icon"></div>`, // Always use map icon
+                className: `search-marker-icon ${isTransport ? 'railway' : 'default'}`,
+                html: `<div class="marker-icon"></div>`,
                 iconSize: [40, 40],
                 iconAnchor: [20, 20]
             });
@@ -775,9 +768,7 @@
                 opacity: 1
             }).addTo(map);
 
-            // Associate the marker with its result ID
             marker.associatedResultId = result.id;
-
             return marker;
         });
 
@@ -1466,7 +1457,9 @@
         background: var(--color-app-travel) !important;
     }
 
-    
+    :global(.search-marker-icon.airport .marker-icon) {
+        background: var(--color-app-travel) !important;
+    }
 
     /* Update UI element z-indices to ensure they stay on top */
     .precise-toggle {
