@@ -19,6 +19,11 @@
     import 'highlight.js/lib/languages/swift';
     import 'highlight.js/lib/languages/kotlin';
     import 'highlight.js/lib/languages/yaml';
+    import 'highlight.js/lib/languages/xml';
+    import 'highlight.js/lib/languages/markdown';
+    import 'highlight.js/lib/languages/bash';
+    import 'highlight.js/lib/languages/shell';
+    import 'highlight.js/lib/languages/sql';
     import { createEventDispatcher } from 'svelte';
 
     export let src: string;
@@ -34,13 +39,17 @@
     function getLanguageFromFilename(filename: string): string {
         const ext = filename.split('.').pop()?.toLowerCase() || '';
 
-        // Special case for Dockerfile (no extension)
+        // Special cases for files without extensions
         if (filename.toLowerCase() === 'dockerfile') {
-            return 'dockerfile';
+            return 'Dockerfile';
+        }
+        if (filename.toLowerCase() === 'makefile') {
+            return 'Makefile';
         }
 
-        // Improved language map with capitalized names for long names
+        // Enhanced language map with more languages
         const languageMap: { [key: string]: string } = {
+            // Existing mappings
             'py': 'Python',
             'js': 'JavaScript',
             'ts': 'TypeScript',
@@ -60,8 +69,31 @@
             'kt': 'Kotlin',
             'yml': 'YAML',
             'yaml': 'YAML',
-            'dockerfile': 'Dockerfile'  // Add support for Dockerfile
+            // New mappings
+            'md': 'Markdown',
+            'markdown': 'Markdown',
+            'sh': 'Shell',
+            'bash': 'Bash',
+            'sql': 'SQL',
+            'vue': 'Vue',
+            'jsx': 'JavaScript',
+            'tsx': 'TypeScript',
+            'xml': 'XML',
+            'gradle': 'Gradle',
+            'scala': 'Scala',
+            'r': 'R',
+            'dart': 'Dart',
+            'lua': 'Lua',
+            'toml': 'TOML',
+            'ini': 'INI',
+            'conf': 'Config',
+            'dockerfile': 'Dockerfile',
+            'makefile': 'Makefile'
         };
+        
+        console.log('Detected file extension:', ext);
+        console.log('Mapped language:', languageMap[ext] || 'Plaintext');
+        
         return languageMap[ext] || 'Plaintext';
     }
 
