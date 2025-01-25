@@ -86,7 +86,8 @@
         right: 16px;
         bottom: 16px;
         background-color: #181818;
-        border-radius: 8px;
+        border-radius: 17px;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         padding: 20px;
         overflow: auto;
         scrollbar-width: thin;
