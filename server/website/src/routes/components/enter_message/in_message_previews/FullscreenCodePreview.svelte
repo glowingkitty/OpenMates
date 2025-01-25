@@ -226,5 +226,6 @@
     :global(.hljs) {
         background: transparent !important;
         padding: 0 !important;
+        padding-bottom: 90px !important;
     }
 </style> 
