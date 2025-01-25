@@ -25,6 +25,8 @@
     import 'highlight.js/lib/languages/shell';
     import 'highlight.js/lib/languages/sql';
     import { createEventDispatcher } from 'svelte';
+    import { scale } from 'svelte/transition';
+    import { cubicOut } from 'svelte/easing';
 
     export let src: string;
     export let filename: string;
@@ -32,6 +34,8 @@
     export let language: string = 'plaintext';
 
     let codePreview: string = '';
+    let isTransitioningToFullscreen = false;
+    let isTransitioningFromFullscreen = false;
 
     const dispatch = createEventDispatcher();
 
@@ -125,18 +129,27 @@
     // Update the handleFullscreen function
     async function handleFullscreen() {
         try {
+            isTransitioningToFullscreen = true;
             const response = await fetch(src);
             const code = await response.text();
             
-            dispatch('fullscreen', {
-                code,
-                filename,
-                language: getLanguageFromFilename(filename)
-            });
+            // Add a small delay to allow the scale animation to start
+            setTimeout(() => {
+                dispatch('fullscreen', {
+                    code,
+                    filename,
+                    language: getLanguageFromFilename(filename)
+                });
+                // Reset the flag after the transition
+                setTimeout(() => {
+                    isTransitioningToFullscreen = false;
+                }, 300);
+            }, 150); // Half of the scale-up animation duration
             
             console.log('Dispatched fullscreen event:', { filename, language });
         } catch (error) {
             console.error('Error loading code content:', error);
+            isTransitioningToFullscreen = false;
         }
     }
 
@@ -146,10 +159,23 @@
             handleFullscreen();
         }
     }
+
+    // Function to handle return from fullscreen
+    export function handleReturnFromFullscreen() {
+        isTransitioningFromFullscreen = true;
+        // Reset the flag after animation completes
+        setTimeout(() => {
+            isTransitioningFromFullscreen = false;
+        }, 300);
+    }
 </script>
 
 <InlinePreviewBase {id} type="code" {src} {filename} height="200px" on:view={e => handleMenuAction('view')} on:fullscreen={handleFullscreen}>
-    <div class="preview-container">
+    <div 
+        class="preview-container"
+        class:transitioning={isTransitioningToFullscreen}
+        class:transitioning-in={isTransitioningFromFullscreen}
+    >
         <div class="code-preview">
             <pre><code id="code-{id}" class="hljs language-{language}">{codePreview}</code></pre>
         </div>
@@ -170,6 +196,31 @@
         background-color: #181818;
         border-radius: 8px;
         overflow: hidden;
+        transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                   opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: center center;
+    }
+
+    .preview-container.transitioning {
+        transform: scale(1.15);
+        opacity: 0;
+    }
+
+    .preview-container.transitioning-in {
+        transform: scale(1);
+        opacity: 1;
+        animation: scaleIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(1.15);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
     }
 
     .code-preview {
@@ -181,6 +232,11 @@
         padding: 16px;
         overflow: hidden;
         max-height: 100%;
+        transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .transitioning .code-preview {
+        opacity: 0;
     }
 
     .info-bar {
@@ -196,6 +252,11 @@
         padding-left: 70px;
         padding-right: 16px;
         /* align-items: flex-start; */
+        transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .transitioning .info-bar {
+        opacity: 0;
     }
 
     /* Create a container for the stacked text */

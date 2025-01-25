@@ -1,6 +1,8 @@
 <script lang="ts">
     import hljs from 'highlight.js';
     import { onMount } from 'svelte';
+    import { fade, scale } from 'svelte/transition';
+    import { cubicOut } from 'svelte/easing';
     
     export let code: string;
     export let filename: string;
@@ -8,6 +10,21 @@
     export let onClose: () => void;
 
     let codeElement: HTMLElement;
+
+    // Add function to handle smooth closing
+    function handleClose() {
+        // First start the scale down animation
+        const overlay = document.querySelector('.fullscreen-overlay') as HTMLElement;
+        if (overlay) {
+            overlay.style.transform = 'scale(0.5)';
+            overlay.style.opacity = '0';
+        }
+        
+        // Delay the actual close callback to allow animation to play
+        setTimeout(() => {
+            onClose();
+        }, 300);
+    }
 
     onMount(() => {
         // Highlight code after render
@@ -18,12 +35,21 @@
     });
 </script>
 
-<div class="fullscreen-overlay">
+<div 
+    class="fullscreen-overlay"
+    in:scale={{
+        duration: 300,
+        delay: 0,
+        opacity: 0.5,
+        start: 0.5,
+        easing: cubicOut
+    }}
+>
     <div class="code-container">
         <!-- Update fullscreen button to match EnterMessageField style -->
         <button 
             class="close-button clickable-icon icon_fullscreen" 
-            on:click={onClose}
+            on:click={handleClose}
             aria-label="Close fullscreen view"
         ></button>
 
@@ -56,6 +82,9 @@
         z-index: 100;
         display: flex;
         flex-direction: column;
+        transform-origin: center center;
+        transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .code-container {
