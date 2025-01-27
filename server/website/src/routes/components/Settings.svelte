@@ -9,9 +9,12 @@
 <script lang="ts">
     import SettingsItem from './SettingsItem.svelte';
     import { onMount } from 'svelte';
+    import { fly, fade } from 'svelte/transition';
+    import { cubicOut } from 'svelte/easing';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
+    export let isLoggedIn = false;
     
     // State for toggles and menu visibility
     let isMenuVisible = false;
@@ -96,34 +99,42 @@
     }
 </script>
 
-<div class="profile-container-wrapper">
+{#if isLoggedIn}
     <div 
-        class="profile-container" 
-        class:menu-open={isMenuVisible}
-        on:click={toggleMenu}
-        on:keydown={e => e.key === 'Enter' && toggleMenu()}
-        role="button"
-        tabindex="0"
-        aria-label="Open settings menu"
+        class="profile-container-wrapper"
+        in:fly={{ y: -50, x: window?.innerWidth ? -(window.innerWidth / 2) + 60 : 0, 
+                 duration: 800, 
+                 easing: cubicOut }}
+        out:fade
     >
-        <div class="profile-picture"></div>
-        
-        {#if teamSelected}
-            <div class="team-picture" class:disabled={!isTeamEnabled}></div>
-        {/if}
-    </div>
-
-    <!-- Close icon in wrapper -->
-    <div class="close-icon-container" class:visible={isMenuVisible}>
-        <button 
-            class="icon-button"
-            aria-label="Close"
+        <div 
+            class="profile-container" 
+            class:menu-open={isMenuVisible}
             on:click={toggleMenu}
+            on:keydown={e => e.key === 'Enter' && toggleMenu()}
+            role="button"
+            tabindex="0"
+            aria-label="Open settings menu"
         >
-            <div class="clickable-icon icon_close"></div>
-        </button>
+            <div class="profile-picture"></div>
+            
+            {#if teamSelected}
+                <div class="team-picture" class:disabled={!isTeamEnabled}></div>
+            {/if}
+        </div>
+
+        <!-- Close icon in wrapper -->
+        <div class="close-icon-container" class:visible={isMenuVisible}>
+            <button 
+                class="icon-button"
+                aria-label="Close"
+                on:click={toggleMenu}
+            >
+                <div class="clickable-icon icon_close"></div>
+            </button>
+        </div>
     </div>
-</div>
+{/if}
 
 <div 
     class="settings-menu" 
@@ -226,7 +237,7 @@
 </div>
 
 <style>
-    /* Add wrapper to maintain position */
+    /* Update wrapper styles to handle animation better */
     .profile-container-wrapper {
         position: fixed;
         top: 10px;
@@ -234,6 +245,8 @@
         width: 57px;
         height: 57px;
         z-index: 1005;
+        /* Add smooth transition for opacity */
+        transition: opacity 0.3s ease;
     }
 
     .profile-container {

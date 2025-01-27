@@ -43,9 +43,9 @@
 
     // Update the webAppNavItems based on login state
     $: webAppNavItems = isLoggedIn ? [
-        { href: '/app/chat', text: $t('navigation.chat.text') },
-        { href: '/app/projects', text: $t('navigation.projects.text') },
-        { href: '/app/workflows', text: $t('navigation.workflows.text') }
+        // { href: '/app/chat', text: $t('navigation.chat.text') },
+        // { href: '/app/projects', text: $t('navigation.projects.text') },
+        // { href: '/app/workflows', text: $t('navigation.workflows.text') }
     ] : [];
 
     // Define the type for social links
@@ -125,9 +125,11 @@
         };
     });
 
-    // Update menu toggle logic
+    // Update menu toggle logic to only work when logged in
     const toggleMenu = () => {
-        isMenuOpen.set(!$isMenuOpen);
+        if (isLoggedIn) {
+            isMenuOpen.set(!$isMenuOpen);
+        }
     };
 </script>
 
@@ -209,15 +211,6 @@
                     </div>
                 {/if}
             </nav>
-
-            {#if isLoggedIn && context === 'webapp'}
-                <div class="user-profile" transition:fade>
-                    <!-- Add user profile component here -->
-                    <button class="profile-button" aria-label="User Profile">
-                        <span class="icon icon_user"></span>
-                    </button>
-                </div>
-            {/if}
         </div>
     {/await}
 </header>

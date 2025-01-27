@@ -19,10 +19,20 @@
         try {
             // TODO: Implement actual login logic here
             await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-
-            // Dispatch success event
-            dispatch('loginSuccess');
+            
+            // Log successful login attempt
+            console.log('Login successful, dispatching event');
+            
+            // Dispatch success event with user data
+            dispatch('loginSuccess', {
+                user: {
+                    email: email,
+                    // Add other user data as needed
+                }
+            });
+            
         } catch (error: any) {
+            console.error('Login failed:', error);
             errorMessage = error.message || 'Login failed. Please try again.';
         } finally {
             isLoading = false;

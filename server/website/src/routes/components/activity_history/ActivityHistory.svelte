@@ -104,38 +104,42 @@
     const handleClose = () => {
         isMenuOpen.set(false);
     };
+
+    export let isLoggedIn = false;
 </script>
 
-<div class="activity-history">
-    <div class="top-buttons-container">
-        <div class="top-buttons">
-            <button 
-                class="clickable-icon icon_search top-button left" 
-                aria-label={$_('activity.search.text')}
-            ></button>
-            <button 
-                class="clickable-icon icon_filter top-button center" 
-                aria-label={$_('activity.filter.text')}
-            ></button>
-            <button 
-                class="clickable-icon icon_close top-button right" 
-                aria-label={$_('activity.close.text')}
-                on:click={handleClose}
-            ></button>
+{#if isLoggedIn}
+    <div class="activity-history">
+        <div class="top-buttons-container">
+            <div class="top-buttons">
+                <button 
+                    class="clickable-icon icon_search top-button left" 
+                    aria-label={$_('activity.search.text')}
+                ></button>
+                <button 
+                    class="clickable-icon icon_filter top-button center" 
+                    aria-label={$_('activity.filter.text')}
+                ></button>
+                <button 
+                    class="clickable-icon icon_close top-button right" 
+                    aria-label={$_('activity.close.text')}
+                    on:click={handleClose}
+                ></button>
+            </div>
+        </div>
+
+        <div class="chat-groups">
+            {#each Object.entries(groupedChats) as [groupName, chats]}
+                <div class="chat-group">
+                    <h2 class="group-title">{groupName}</h2>
+                    {#each chats as chat}
+                        <Chat {chat} />
+                    {/each}
+                </div>
+            {/each}
         </div>
     </div>
-
-    <div class="chat-groups">
-        {#each Object.entries(groupedChats) as [groupName, chats]}
-            <div class="chat-group">
-                <h2 class="group-title">{groupName}</h2>
-                {#each chats as chat}
-                    <Chat {chat} />
-                {/each}
-            </div>
-        {/each}
-    </div>
-</div>
+{/if}
 
 <style>
     .activity-history {

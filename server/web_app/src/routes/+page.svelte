@@ -25,20 +25,35 @@
 
     // Force sidebar closed initially
     isMenuOpen.set(false);
+
+    // Add login state management
+    let isLoggedIn = false;
+
+    // Handle login success
+    function handleLoginSuccess() {
+        isLoggedIn = true;
+        // Show sidebar when user logs in
+        isMenuOpen.set(true);
+    }
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen}>
-    <ActivityHistory />
+<div class="sidebar" class:closed={!$isMenuOpen || !isLoggedIn}>
+    {#if isLoggedIn}
+        <ActivityHistory />
+    {/if}
 </div>
 
-<div class="main-content" class:menu-closed={!$isMenuOpen}>
-    <Header context="webapp" />
+<div class="main-content" class:menu-closed={!$isMenuOpen || !isLoggedIn}>
+    <Header context="webapp" {isLoggedIn} />
     <div class="chat-container" class:menu-open={menuClass}>
         <div class="chat-wrapper">
-            <ActiveChat />
+            <ActiveChat 
+                {isLoggedIn}
+                on:loginSuccess={handleLoginSuccess}
+            />
         </div>
         <div class="settings-wrapper">
-            <Settings />
+            <Settings {isLoggedIn} />
         </div>
     </div>
 </div>

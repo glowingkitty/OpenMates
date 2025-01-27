@@ -5,6 +5,9 @@
     import Login from './Login.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
     import { fade } from 'svelte/transition';
+    import { createEventDispatcher } from 'svelte';
+
+    const dispatch = createEventDispatcher();
 
     // Add state for code fullscreen
     let showCodeFullscreen = false;
@@ -14,11 +17,12 @@
         language: ''
     };
 
-    // Add login state
-    let isLoggedIn = false;
+    // Update to receive isLoggedIn as prop
+    export let isLoggedIn = false;
 
     function handleLoginSuccess() {
         isLoggedIn = true;
+        dispatch('loginSuccess');
         console.log('Login successful');
     }
 
