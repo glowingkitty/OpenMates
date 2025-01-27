@@ -9,11 +9,7 @@
     import AppIconGrid from './components/AppIconGrid.svelte';
     import { getMetaTags } from '$lib/config/meta';
     import LargeSeparator from './components/LargeSeparator.svelte';
-    import { _ } from 'svelte-i18n'; // Import the translation function
-    import Login from './components/Login.svelte';
-    import ActivityHistory from './components/activity_history/ActivityHistory.svelte';
-    import { isAuthenticated } from '../lib/stores/authState';
-
+    import { _ } from 'svelte-i18n';
     const meta = getMetaTags('for_all_of_us');
 
     // Add reactive variable for current app
