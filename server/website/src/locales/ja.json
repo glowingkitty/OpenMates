@@ -407,6 +407,73 @@
             }
         }
     },
+    "login": {
+        "login": {
+            "text": "ログイン",
+            "en_original": "Login",
+            "context": "Login page title"
+        },
+        "to_chat_to_your": {
+            "text": "チャットするには",
+            "en_original": "To chat to your",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "digital_team_mates": {
+            "text": "デジタルチームメイトと",
+            "en_original": "digital team mates",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "not_signed_up_yet": {
+            "text": "まだ登録していませんか？",
+            "en_original": "Not signed up yet?",
+            "context": "Asking the user if they are not signed up yet for the app"
+        },
+        "click_here_to_create_a_new_account": {
+            "text": "新しいアカウントを作成するにはここをクリック",
+            "en_original": "Click here to create a new account",
+            "context": "Call to action to create a new account for the app"
+        },
+        "email_placeholder": {
+            "text": "メールアドレスを入力",
+            "en_original": "Enter E-Mail address",
+            "context": "Placeholder text for email input field"
+        },
+        "password_placeholder": {
+            "text": "パスワードを入力",
+            "en_original": "Enter password",
+            "context": "Placeholder text for password input field"
+        },
+        "check_your_2fa_app": {
+            "text": "2FAアプリを確認してください",
+            "en_original": "Check your 2FA app",
+            "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "2fa_code_placeholder": {
+            "text": "6桁のワンタイムコードを入力",
+            "en_original": "Enter 6-digit one-time code",
+            "context": "Placeholder text for 2FA code input field"
+        },
+        "enter_backup_code": {
+            "text": "バックアップコードを入力",
+            "en_original": "Enter backup code",
+            "context": "Placeholder text for backup code input field"
+        },
+        "login_button": {
+            "text": "ログイン",
+            "en_original": "Login",
+            "context": "Button text for logging in"
+        },
+        "error_message": {
+            "text": "ログインに失敗しました。資格情報が間違っているか、アカウントが存在しません。",
+            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+            "context": "Error message shown when login fails"
+        },
+        "forgot_password": {
+            "text": "パスワードを忘れた",
+            "en_original": "Forgot my password",
+            "context": "Starting process of resetting password"
+        }
+    },
     "chat": {
         "new_chat": {
             "text": "新しいチャット",

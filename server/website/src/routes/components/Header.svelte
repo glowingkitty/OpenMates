@@ -7,8 +7,10 @@
     import { t, waitLocale } from 'svelte-i18n';
     import { onMount, tick } from 'svelte';
     import { isMenuOpen } from '../../lib/stores/menuState';
+    import { fade } from 'svelte/transition';
 
     export let context: 'website' | 'webapp' = 'website';
+    export let isLoggedIn = false;
 
     let headerDiv: HTMLElement;
     
@@ -39,12 +41,12 @@
         text: string;
     }
 
-    // Make webAppNavItems reactive as well
-    $: webAppNavItems = [
-        // { href: '/app/chat', text: $t('navigation.chat.text') },
-        // { href: '/app/projects', text: $t('navigation.projects.text') },
-        // { href: '/app/workflows', text: $t('navigation.workflows.text') }
-    ] as NavItem[];
+    // Update the webAppNavItems based on login state
+    $: webAppNavItems = isLoggedIn ? [
+        { href: '/app/chat', text: $t('navigation.chat.text') },
+        { href: '/app/projects', text: $t('navigation.projects.text') },
+        { href: '/app/workflows', text: $t('navigation.workflows.text') }
+    ] : [];
 
     // Define the type for social links
     type SocialLink = {
@@ -207,6 +209,15 @@
                     </div>
                 {/if}
             </nav>
+
+            {#if isLoggedIn && context === 'webapp'}
+                <div class="user-profile" transition:fade>
+                    <!-- Add user profile component here -->
+                    <button class="profile-button" aria-label="User Profile">
+                        <span class="icon icon_user"></span>
+                    </button>
+                </div>
+            {/if}
         </div>
     {/await}
 </header>
@@ -450,5 +461,17 @@
 
     .menu-button:hover {
         opacity: 1;
+    }
+
+    .profile-button {
+        all: unset;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+
+    .profile-button:hover {
+        background-color: var(--color-grey-20);
     }
 </style> 

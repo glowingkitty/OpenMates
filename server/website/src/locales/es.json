@@ -407,6 +407,73 @@
             }
         }
     },
+    "login": {
+        "login": {
+            "text": "Iniciar sesión",
+            "en_original": "Login",
+            "context": "Login page title"
+        },
+        "to_chat_to_your": {
+            "text": "Para chatear con tus",
+            "en_original": "To chat to your",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "digital_team_mates": {
+            "text": "compañeros digitales",
+            "en_original": "digital team mates",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "not_signed_up_yet": {
+            "text": "¿Aún no te has registrado?",
+            "en_original": "Not signed up yet?",
+            "context": "Asking the user if they are not signed up yet for the app"
+        },
+        "click_here_to_create_a_new_account": {
+            "text": "Haz clic aquí para crear una nueva cuenta",
+            "en_original": "Click here to create a new account",
+            "context": "Call to action to create a new account for the app"
+        },
+        "email_placeholder": {
+            "text": "Introduce tu dirección de correo electrónico",
+            "en_original": "Enter E-Mail address",
+            "context": "Placeholder text for email input field"
+        },
+        "password_placeholder": {
+            "text": "Introduce tu contraseña",
+            "en_original": "Enter password",
+            "context": "Placeholder text for password input field"
+        },
+        "check_your_2fa_app": {
+            "text": "Revisa tu aplicación 2FA",
+            "en_original": "Check your 2FA app",
+            "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "2fa_code_placeholder": {
+            "text": "Introduce el código único de 6 dígitos",
+            "en_original": "Enter 6-digit one-time code",
+            "context": "Placeholder text for 2FA code input field"
+        },
+        "enter_backup_code": {
+            "text": "Introduce el código de respaldo",
+            "en_original": "Enter backup code",
+            "context": "Placeholder text for backup code input field"
+        },
+        "login_button": {
+            "text": "Iniciar sesión",
+            "en_original": "Login",
+            "context": "Button text for logging in"
+        },
+        "error_message": {
+            "text": "Error de inicio de sesión. Tus credenciales son incorrectas o tu cuenta no existe.",
+            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+            "context": "Error message shown when login fails"
+        },
+        "forgot_password": {
+            "text": "Olvidé mi contraseña",
+            "en_original": "Forgot my password",
+            "context": "Starting process of resetting password"
+        }
+    },
     "chat": {
         "new_chat": {
             "text": "Nuevo chat",

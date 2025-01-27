@@ -5,6 +5,9 @@
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import the translation function
+    import Login from '@website-components/Login.svelte';
+    import { fade } from 'svelte/transition';
+    import { onMount } from 'svelte';
 
     // Subscribe to settings menu visibility state
     import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
@@ -22,17 +25,37 @@
             isMenuOpen.set(false);
         }
     }
+
+    // Add login state
+    let isLoggedIn = false;
+    let isInitialLoad = true;
+
+    onMount(() => {
+        // TODO: Check actual login status
+        isInitialLoad = false;
+    });
+
+    function handleLoginSuccess() {
+        isLoggedIn = true;
+    }
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen}>
+<div class="sidebar" class:closed={!$isMenuOpen || !isLoggedIn}>
     <ActivityHistory />
 </div>
 
-<div class="main-content" class:menu-closed={!$isMenuOpen}>
-    <Header context="webapp" />
-    <div class="chat-container" class:menu-open={menuClass}>
-        <ActiveChat />
-        <div class="settings-wrapper">
+<div class="main-content" class:menu-closed={!$isMenuOpen || !isLoggedIn}>
+    <Header context="webapp" {isLoggedIn} />
+    <div class="chat-container" class:menu-open={menuClass} class:full-width={!isLoggedIn}>
+        {#if !isLoggedIn && !isInitialLoad}
+            <div class="login-wrapper" transition:fade={{ duration: 300 }}>
+                <Login on:loginSuccess={handleLoginSuccess} />
+            </div>
+        {/if}
+        <div class="chat-wrapper" class:hidden={!isLoggedIn}>
+            <ActiveChat />
+        </div>
+        <div class="settings-wrapper" class:hidden={!isLoggedIn}>
             <Settings />
         </div>
     </div>
@@ -193,5 +216,32 @@
             left: 0;
             transform: translateX(0);
         }
+    }
+
+    .chat-container.full-width {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .login-wrapper {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+    }
+
+    .chat-wrapper,
+    .settings-wrapper {
+        transition: opacity 0.3s ease;
+    }
+
+    .chat-wrapper.hidden,
+    .settings-wrapper.hidden {
+        opacity: 0;
+        pointer-events: none;
     }
 </style>

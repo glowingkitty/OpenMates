@@ -335,6 +335,60 @@
             }
         }
     },
+    "login": {
+        "login": {
+            "text": "Login",
+            "context": "Login page title"
+        },
+        "to_chat_to_your": {
+            "text": "To chat to your",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "digital_team_mates": {
+            "text": "digital team mates",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "not_signed_up_yet": {
+            "text": "Not signed up yet?",
+            "context": "Asking the user if they are not signed up yet for the app"
+        },
+        "click_here_to_create_a_new_account": {
+            "text": "Click here to create a new account",
+            "context": "Call to action to create a new account for the app"
+        },
+        "email_placeholder": {
+            "text": "Enter E-Mail address",
+            "context": "Placeholder text for email input field"
+        },
+        "password_placeholder": {
+            "text": "Enter password",
+            "context": "Placeholder text for password input field"
+        },
+        "check_your_2fa_app": {
+            "text": "Check your 2FA app",
+            "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "2fa_code_placeholder": {
+            "text": "Enter 6-digit one-time code",
+            "context": "Placeholder text for 2FA code input field"
+        },
+        "enter_backup_code": {
+            "text": "Enter backup code",
+            "context": "Placeholder text for backup code input field"
+        },
+        "login_button": {
+            "text": "Login",
+            "context": "Button text for logging in"
+        },
+        "error_message": {
+            "text": "Login failed. Either your credentials are wrong or your account does not exist.",
+            "context": "Error message shown when login fails"
+        },
+        "forgot_password": {
+            "text": "Forgot my password",
+            "context": "Starting process of resetting password"
+        }
+    },
     "chat": {
         "new_chat": {
             "text": "New chat",
