@@ -36,8 +36,7 @@
     <div class="login-content">
         <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
             <h1><mark>{$_('login.login.text')}</mark></h1>
-            <h2>{$_('login.to_chat_to_your.text')}</h2>
-            <h2><mark>{$_('login.digital_team_mates.text')}</mark></h2>
+            <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
 
             <!-- <p>{$_('login.not_signed_up_yet.text')}</p>
             <a href="/signup"><mark>{$_('login.click_here_to_create_a_new_account.text')}</mark></a> -->
@@ -49,7 +48,7 @@
                     </div>
                 {/if}
 
-                <div class="input-group">
+                <div class="input-group" style="margin-top: 35px">
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_mail"></span>
                         <input 
