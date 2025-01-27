@@ -67,7 +67,7 @@
     },
     "navigation": {
         "for_all": {
-            "text": "Para todos nosotros",
+            "text": "Para todos",
             "en_original": "For all of us",
             "context": "Main navigation item for general features"
         },
@@ -100,40 +100,40 @@
     "chat_examples": {
         "career": {
             "user_question": {
-                "text": "No estoy contento en mi trabajo actual. ¿Tienes ideas sobre qué dirección podría tomar?",
+                "text": "Estoy insatisfecho en mi trabajo actual. ¿Tienes ideas sobre en qué dirección podría orientarme?",
                 "en_original": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
                 "context": "Example question about career change"
             },
             "mate_response": {
-                "text": "¡Por supuesto! Ya que mencionaste que tienes experiencia en marketing y te gusta contar historias, podríamos buscar roles que aprovechen esas habilidades.\n\nPara tener una mejor idea de la dirección, ¿podrías decirme:\n1. ¿Qué aspectos de tus trabajos anteriores te resultaron más satisfactorios?",
+                "text": "¡Claro! Como mencionaste que tienes experiencia en marketing y disfrutas contar historias, podríamos buscar roles que aprovechen esas habilidades.\n\nPara tener una mejor idea, ¿puedes decirme:\n1. ¿Qué aspectos de tus trabajos anteriores encontraste más satisfactorios?",
                 "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "AI response to career change question"
             }
         },
         "events": {
             "user_question": {
-                "text": "¿Qué eventos hay en los próximos días?",
+                "text": "¿Qué eventos ocurrirán en los próximos días?",
                 "en_original": "What events are happening the coming days?",
                 "context": "Example question about upcoming events"
             },
             "mate_response": {
-                "text": "¡Hay algunos eventos emocionantes en los próximos días! Tanto para ayudarte a aprender para una mejor carrera como para socializar más.",
+                "text": "¡Hay algunos eventos emocionantes en los próximos días! Algunos para avanzar en tu carrera y otros para socializar.",
                 "en_original": "There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.",
                 "context": "AI response about upcoming events"
             },
             "events": {
                 "book_club": {
-                    "text": "Club de Lectura Social: Una Noche de Lectura y Discusión",
+                    "text": "Reunión de amantes de los libros: Una noche de lectura y debate",
                     "en_original": "Book Lovers' Social: An Evening of Reading and Discussion",
                     "context": "Event title for book club meeting"
                 },
                 "tech_talk": {
-                    "text": "TechTalk: IA en los Negocios Cotidianos",
+                    "text": "TechTalk: IA en la vida diaria empresarial",
                     "en_original": "TechTalk: AI in Everyday Business",
                     "context": "Event title for tech talk"
                 },
                 "workshop": {
-                    "text": "Taller: Construyendo Aplicaciones Impulsadas por IA",
+                    "text": "Taller: Creación de aplicaciones impulsadas por IA",
                     "en_original": "Workshop: Building AI-Powered Applications",
                     "context": "Event title for workshop"
                 }
@@ -158,17 +158,17 @@
         },
         "health": {
             "user_question": {
-                "text": "¿Cuál es la próxima cita disponible con el cardiólogo que no se superponga con mi calendario?",
+                "text": "¿Cuál es la próxima cita disponible con un cardiólogo que no choque con mi calendario?",
                 "en_original": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
                 "context": "Example question about doctor appointment"
             },
             "mate_initial": {
-                "text": "Déjame revisar rápidamente tu calendario y buscar citas médicas disponibles. Volveré contigo en un minuto.",
+                "text": "Déjame revisar rápidamente tu calendario y buscar citas disponibles con médicos. Te responderé en un minuto.",
                 "en_original": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
                 "context": "Initial AI response about checking calendar"
             },
             "mate_response": {
-                "text": "La mejor cita que pude encontrar es mañana a las 9:00. No se superpone con tu reunión de lanzamiento de producto más tarde ese día.",
+                "text": "La mejor cita que encontré es mañana a las 9:00. No interfiere con tu reunión de lanzamiento del producto más tarde ese día.",
                 "en_original": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
                 "context": "AI response with found appointment"
             },
@@ -219,7 +219,7 @@
         },
         "processing": {
             "career_insights": {
-                "text": "Perspectivas profesionales",
+                "text": "Perspectivas de carrera",
                 "en_original": "Career insights",
                 "context": "Title for career insights section"
             },
@@ -266,17 +266,17 @@
     },
     "waiting_list": {
         "discord_members": {
-            "text": "Los miembros de nuestro Discord",
+            "text": "Miembros en nuestro Discord recibirán",
             "en_original": "Members in our Discord will",
             "context": "Part of waiting list message about Discord members"
         },
         "early_access": {
-            "text": "obtendrán acceso anticipado.",
+            "text": "acceso anticipado.",
             "en_original": "get early access.",
             "context": "Part of waiting list message about early access"
         },
         "first_invites": {
-            "text": "Primeras invitaciones en enero/febrero 2025",
+            "text": "Primeras invitaciones en enero/febrero de 2025",
             "en_original": "First invites in Jan/Feb 2025",
             "context": "Timeline for first invites"
         }
@@ -284,7 +284,7 @@
     "highlight": {
         "powered_by": {
             "powered_by_leading": {
-                "text": "impulsado por los principales",
+                "text": "impulsado por los líderes en",
                 "en_original": "powered by the leading",
                 "context": "Used in 'powered by the leading cloud & on-device AI models'"
             },
@@ -312,7 +312,7 @@
                     "context": "In 'Your personalized experts for your questions.'"
                 },
                 "paragraph": {
-                    "text": "Por ejemplo:<br>Obtén consejos profesionales<br>basados en tus intereses.",
+                    "text": "Por ejemplo:<br>Obtén asesoramiento profesional<br>basado en tus intereses.",
                     "en_original": "For example:<br>Get career advice<br>based on your interests.",
                     "context": "Example text for Ask section"
                 }
@@ -334,7 +334,7 @@
                     "context": "In 'Ask them to fulfill your tasks using apps.'"
                 },
                 "paragraph": {
-                    "text": "Por ejemplo:<br>Encuentra citas médicas<br>que no se superpongan con tu calendario<br>en Doctolib y Jameda.",
+                    "text": "Por ejemplo:<br>Encuentra citas médicas<br>que no coincidan con tu calendario<br>en Doctolib y Jameda.",
                     "en_original": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
                     "context": "Example text for Tasks section"
                 }
@@ -356,7 +356,7 @@
                     "context": "In 'So many apps to transform your personal life & work.'"
                 },
                 "paragraph": {
-                    "text": "Por ejemplo:<br>Encuentra eventos<br>en Meetup, Eventbrite y RA.",
+                    "text": "Por ejemplo:<br>Descubre eventos<br>en Meetup, Eventbrite y RA.",
                     "en_original": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
                     "context": "Example text for Apps section"
                 }
