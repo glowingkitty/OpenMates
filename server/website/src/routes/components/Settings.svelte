@@ -11,6 +11,7 @@
     import { onMount } from 'svelte';
     import { fly, fade } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
+    import { isAuthenticated, currentUser, logout } from '../../lib/stores/authState';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -97,12 +98,21 @@
             }
         }
     }
+
+    async function handleLogout(): Promise<void> {
+        console.log('Logging out...');
+        await logout();
+        
+        // Redirect to login page
+        window.location.href = '/';
+    }
 </script>
 
 {#if isLoggedIn}
     <div 
         class="profile-container-wrapper"
-        in:fly={{ y: -50, x: window?.innerWidth ? -(window.innerWidth / 2) + 60 : 0, 
+        in:fly={{ y: -window.innerHeight/2 + 60, 
+                 x: 0, 
                  duration: 800, 
                  easing: cubicOut }}
         out:fade
@@ -210,7 +220,11 @@
         <SettingsItem icon="messenger" title={$_('settings.messengers.text')} onClick={() => {}} />
         <SettingsItem icon="developer" title={$_('settings.developers.text')} onClick={() => {}} />
         <SettingsItem icon="interface" title={$_('settings.interface.text')} onClick={() => {}} />
-        <SettingsItem icon="quicksetting_icon quicksetting_icon_logout" title={$_('settings.logout.text')} onClick={() => {}} />
+        <SettingsItem 
+            icon="quicksetting_icon quicksetting_icon_logout" 
+            title={$_('settings.logout.text')} 
+            onClick={handleLogout} 
+        />
 
         <!-- Documentation links section -->
         <div class="submenu-section">

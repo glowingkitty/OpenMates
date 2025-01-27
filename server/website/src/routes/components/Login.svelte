@@ -3,7 +3,7 @@
     import { _ } from 'svelte-i18n';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { isAuthenticated, currentUser } from '../../lib/stores/authState';
+    import { login } from '../../lib/stores/authState';
 
     const dispatch = createEventDispatcher();
 
@@ -18,20 +18,18 @@
         errorMessage = '';
 
         try {
-            // TODO: Implement actual login logic here
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+            // TODO: Replace with actual API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Update auth state
-            isAuthenticated.set(true);
-            currentUser.set({ email: email });
+            // Create a mock token that will pass validation
+            const mockToken = createMockToken();
+            const userData = { email };
             
-            console.log('Login successful, dispatching event');
+            // Update auth state with the token and user data
+            login(mockToken, userData);
             
-            dispatch('loginSuccess', {
-                user: {
-                    email: email,
-                }
-            });
+            console.log('Login successful');
+            dispatch('loginSuccess', { user: userData });
             
         } catch (error: any) {
             console.error('Login failed:', error);
@@ -39,6 +37,18 @@
         } finally {
             isLoading = false;
         }
+    }
+
+    // Helper function to create a mock JWT token for testing
+    function createMockToken(): string {
+        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+        const payload = btoa(JSON.stringify({
+            sub: '123',
+            email: email,
+            exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour from now
+        }));
+        const signature = btoa('mock_signature');
+        return `${header}.${payload}.${signature}`;
     }
 </script>
 
@@ -132,18 +142,7 @@
         max-width: 440px;
         text-align: center;
     }
-
-    h1 {
-        margin: 0 0 0.5rem;
-        font-size: 2rem;
-    }
-
-    h2 {
-        margin: 0 0 1.5rem;
-        font-size: 1.25rem;
-        color: var(--color-grey-60);
-    }
-
+    
     .input-group {
         margin-bottom: 1rem;
     }

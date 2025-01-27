@@ -24,7 +24,7 @@
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
-    function handleLoginSuccess(event) {
+    function handleLoginSuccess(event: CustomEvent) {
         console.log('Login successful:', event.detail.user);
     }
 </script>

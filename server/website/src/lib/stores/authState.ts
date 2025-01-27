@@ -1,9 +1,62 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
+import { AuthService } from '../services/authService';
+import { browser } from '$app/environment';
 
-interface User {
+export interface User {
     email: string;
+    // Add other user properties as needed
 }
 
-// Create a store for authentication state
-export const isAuthenticated = writable(false);
-export const currentUser = writable<User | null>(null); 
+interface AuthState {
+    isAuthenticated: boolean;
+    user: User | null;
+    token: string | null;
+}
+
+// Create the main auth store with initial state from storage
+function createAuthStore() {
+    // Initialize with stored data if in browser
+    let initialState: AuthState = {
+        isAuthenticated: false,
+        user: null,
+        token: null
+    };
+
+    if (browser) {
+        const { token, userData } = AuthService.loadStoredAuth();
+        if (token && userData && AuthService.isTokenValid(token)) {
+            initialState = {
+                isAuthenticated: true,
+                user: userData,
+                token
+            };
+        }
+    }
+
+    const { subscribe, set, update } = writable<AuthState>(initialState);
+
+    return {
+        subscribe,
+        login: (token: string, userData: User) => {
+            AuthService.persistAuth(token, userData);
+            set({
+                isAuthenticated: true,
+                user: userData,
+                token
+            });
+        },
+        logout: () => {
+            AuthService.clearAuth();
+            set({
+                isAuthenticated: false,
+                user: null,
+                token: null
+            });
+        }
+    };
+}
+
+const authStore = createAuthStore();
+export const isAuthenticated = derived(authStore, $auth => $auth.isAuthenticated);
+export const currentUser = derived(authStore, $auth => $auth.user);
+export const { login, logout } = authStore; 

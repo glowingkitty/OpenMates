@@ -5,9 +5,11 @@
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import the translation function
+    import { isAuthenticated } from '../../../website/src/lib/stores/authState';
 
     // Subscribe to settings menu visibility state
     import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
+    import { onMount } from 'svelte';
 
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
@@ -16,44 +18,42 @@
     // Add mobile breakpoint
     const MOBILE_BREAKPOINT = 730;
     
-    // Add reactive statement to handle initial mobile state
-    $: if (typeof window !== 'undefined') {
+    // Handle initial sidebar state based on auth
+    $: if ($isAuthenticated) {
+        isMenuOpen.set(true);
+    } else {
+        isMenuOpen.set(false);
+    }
+
+    onMount(() => {
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
         }
-    }
+    });
 
-    // Force sidebar closed initially
-    isMenuOpen.set(false);
-
-    // Add login state management
-    let isLoggedIn = false;
-
-    // Handle login success
     function handleLoginSuccess() {
-        isLoggedIn = true;
-        // Show sidebar when user logs in
-        isMenuOpen.set(true);
+        if (window.innerWidth >= MOBILE_BREAKPOINT) {
+            isMenuOpen.set(true);
+        }
     }
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen || !isLoggedIn}>
-    {#if isLoggedIn}
+<div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
+    {#if $isAuthenticated}
         <ActivityHistory />
     {/if}
 </div>
 
-<div class="main-content" class:menu-closed={!$isMenuOpen || !isLoggedIn}>
-    <Header context="webapp" {isLoggedIn} />
+<div class="main-content" class:menu-closed={!$isMenuOpen || !$isAuthenticated}>
+    <Header context="webapp" isLoggedIn={$isAuthenticated} />
     <div class="chat-container" class:menu-open={menuClass}>
         <div class="chat-wrapper">
             <ActiveChat 
-                {isLoggedIn}
                 on:loginSuccess={handleLoginSuccess}
             />
         </div>
         <div class="settings-wrapper">
-            <Settings {isLoggedIn} />
+            <Settings isLoggedIn={$isAuthenticated} />
         </div>
     </div>
 </div>

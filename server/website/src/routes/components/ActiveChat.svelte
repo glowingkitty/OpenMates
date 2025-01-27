@@ -6,6 +6,7 @@
     import { _ } from 'svelte-i18n'; // Import translation function
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
+    import { isAuthenticated } from '../../lib/stores/authState';
 
     const dispatch = createEventDispatcher();
 
@@ -17,13 +18,11 @@
         language: ''
     };
 
-    // Update to receive isLoggedIn as prop
-    export let isLoggedIn = false;
+    // No need for local isLoggedIn prop, use the store value directly
+    $: isLoggedIn = $isAuthenticated;
 
     function handleLoginSuccess() {
-        isLoggedIn = true;
         dispatch('loginSuccess');
-        console.log('Login successful');
     }
 
     // Add handler for code fullscreen
@@ -43,8 +42,8 @@
     $: isDimmed = $settingsMenuVisible && $isMobileView;
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!isLoggedIn}>
-    {#if !isLoggedIn}
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated}>
+    {#if !$isAuthenticated}
         <div class="login-wrapper" transition:fade={{ duration: 300 }}>
             <Login on:loginSuccess={handleLoginSuccess} />
         </div>
