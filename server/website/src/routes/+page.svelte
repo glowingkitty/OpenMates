@@ -93,15 +93,6 @@
     <Community />
 </section>
 
-{#if !$isAuthenticated}
-    <Login on:loginSuccess={handleLoginSuccess} />
-{:else}
-    <div class="app-layout">
-        <!-- Add your app layout here -->
-        <ActivityHistory />
-    </div>
-{/if}
-
 <style>
     .hero-header {
         background-color: var(--color-grey-20);
