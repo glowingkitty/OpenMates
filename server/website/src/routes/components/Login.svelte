@@ -211,9 +211,14 @@
         }
     }
 
-    @media (max-width: 768px) {
+    /* Add media query for small screens */
+    @media (max-width: 370px) {
+        .login-content {
+            max-width: 100%;
+        }
+
         .login-box {
-            padding: 2rem;
+            max-width: calc(100% - 20px);
         }
     }
 </style>

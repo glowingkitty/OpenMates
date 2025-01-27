@@ -200,20 +200,9 @@
         }
     }
 
-    .chat-container.full-width {
-        padding: 10px;
-        margin: 0;
-    }
-
     .chat-wrapper,
     .settings-wrapper {
         transition: opacity 0.3s ease;
-    }
-
-    .chat-wrapper.hidden,
-    .settings-wrapper.hidden {
-        opacity: 0;
-        pointer-events: none;
     }
 
     .chat-wrapper {
