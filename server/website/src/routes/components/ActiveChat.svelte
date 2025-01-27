@@ -194,13 +194,4 @@
         height: 100%;
         overflow: hidden;
     }
-
-    .login-wrapper :global(.login-container) {
-        flex: 1;
-        height: 100%;
-        overflow: auto;
-        background-color: var(--color-grey-20);
-        width: 100%;
-        max-width: 100%;
-    }
 </style>

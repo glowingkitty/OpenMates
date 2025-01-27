@@ -96,7 +96,6 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin-top: -5rem;
     }
 
     .icon-column:nth-child(2) {

@@ -100,6 +100,12 @@
         height: 100%;
         position: relative;
         background-color: var(--color-grey-20);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        position: relative;
+        max-width: 100%;
     }
 
     .login-content {
@@ -148,10 +154,10 @@
 
     input {
         width: 100%;
-        padding: 0.75rem 1rem 0.75rem 2.5rem; /* Adjust padding to accommodate the icon */
+        padding: 12px 16px 12px 45px; /* Adjust padding to accommodate the icon in px */
         border: 2px solid var(--color-grey-0);
         border-radius: 24px;
-        font-size: 1rem;
+        font-size: 16px;
         transition: border-color 0.2s;
         background-color: var(--color-grey-0);
         color: var(--color-grey-100);
