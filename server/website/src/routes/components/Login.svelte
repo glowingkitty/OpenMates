@@ -171,14 +171,6 @@
 
     .login-button {
         width: 100%;
-        padding: 0.75rem;
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 0.5rem;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: opacity 0.2s;
         margin: 1.5rem 0 1rem;
     }
 
