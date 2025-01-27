@@ -35,12 +35,12 @@
 
     <div class="login-content">
         <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
-            <h1>{$_('login.login.text')}</h1>
+            <h1><mark>{$_('login.login.text')}</mark></h1>
             <h2>{$_('login.to_chat_to_your.text')}</h2>
             <h2><mark>{$_('login.digital_team_mates.text')}</mark></h2>
 
-            <p>{$_('login.not_signed_up_yet.text')}</p>
-            <a href="/signup"><mark>{$_('login.click_here_to_create_a_new_account.text')}</mark></a>
+            <!-- <p>{$_('login.not_signed_up_yet.text')}</p>
+            <a href="/signup"><mark>{$_('login.click_here_to_create_a_new_account.text')}</mark></a> -->
 
             <form on:submit|preventDefault={handleSubmit}>
                 {#if errorMessage}
@@ -51,24 +51,26 @@
 
                 <div class="input-group">
                     <div class="input-wrapper">
-                        <span class="icon icon_mail"></span>
+                        <span class="clickable-icon icon_mail"></span>
                         <input 
                             type="email" 
                             bind:value={email}
                             placeholder={$_('login.email_placeholder.text')}
                             required
+                            autocomplete="email"
                         />
                     </div>
                 </div>
 
                 <div class="input-group">
                     <div class="input-wrapper">
-                        <span class="icon icon_lock"></span>
+                        <span class="clickable-icon icon_secret"></span>
                         <input 
                             type="password" 
                             bind:value={password}
                             placeholder={$_('login.password_placeholder.text')}
                             required
+                            autocomplete="current-password"
                         />
                     </div>
                 </div>
@@ -81,9 +83,9 @@
                     {/if}
                 </button>
 
-                <div class="links">
+                <!-- <div class="links">
                     <a href="/forgot-password">{$_('login.forgot_password.text')}</a>
-                </div>
+                </div> -->
             </form>
         </div>
     </div>
@@ -110,11 +112,6 @@
     }
 
     .login-box {
-        background: var(--color-grey-0);
-        padding: 2.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-        width: 100%;
         max-width: 440px;
         text-align: center;
     }
@@ -138,25 +135,31 @@
         position: relative;
         display: flex;
         align-items: center;
+        background-color: var(--color-grey-20);
     }
 
-    .input-wrapper .icon {
-        position: absolute;
-        left: 1rem;
+    /* Adjust the icon to be inside the input field */
+    .input-wrapper .clickable-icon {
+        position: absolute; /* Keep it absolute */
+        left: 1rem; /* Position it inside the input */
         color: var(--color-grey-60);
+        z-index: 1; /* Ensure it appears above the input */
     }
 
     input {
         width: 100%;
-        padding: 0.75rem 1rem 0.75rem 2.5rem;
-        border: 1px solid var(--color-grey-40);
-        border-radius: 0.5rem;
+        padding: 0.75rem 1rem 0.75rem 2.5rem; /* Adjust padding to accommodate the icon */
+        border: 2px solid var(--color-grey-0);
+        border-radius: 24px;
         font-size: 1rem;
         transition: border-color 0.2s;
+        background-color: var(--color-grey-0);
+        color: var(--color-grey-100);
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
 
     input:focus {
-        border-color: var(--color-primary);
+        border-color: var(--color-grey-50);
         outline: none;
     }
 
@@ -176,26 +179,6 @@
     .login-button:disabled {
         opacity: 0.7;
         cursor: not-allowed;
-    }
-
-    .links {
-        display: flex;
-        justify-content: center;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    .links a {
-        color: var(--color-primary);
-        text-decoration: none;
-    }
-
-    .links a:hover {
-        text-decoration: underline;
-    }
-
-    .separator {
-        color: var(--color-grey-40);
     }
 
     .error-message {

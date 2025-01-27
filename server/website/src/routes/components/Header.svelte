@@ -145,7 +145,7 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    {#if context === 'webapp' && (isMobile || !$isMenuOpen)}
+                    {#if context === 'webapp' && isLoggedIn && (isMobile || !$isMenuOpen)}
                         <button 
                             class="clickable-icon icon_menu"
                             on:click={toggleMenu}
@@ -161,7 +161,7 @@
                     </a>
                 </div>
 
-                {#if showNavLinks && isTranslationsReady}
+                {#if showNavLinks && isTranslationsReady && (context !== 'webapp' || isLoggedIn)}
                     <!-- Mobile menu button only shown for website -->
                     {#if context === 'website'}
                         <button 

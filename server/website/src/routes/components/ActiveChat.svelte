@@ -2,7 +2,9 @@
     import EnterMessageField from './enter_message/EnterMessageField.svelte';
     import FullscreenCodePreview from './enter_message/in_message_previews/FullscreenCodePreview.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
+    import Login from './Login.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
+    import { fade } from 'svelte/transition';
 
     // Add state for code fullscreen
     let showCodeFullscreen = false;
@@ -11,6 +13,14 @@
         filename: '',
         language: ''
     };
+
+    // Add login state
+    let isLoggedIn = false;
+
+    function handleLoginSuccess() {
+        isLoggedIn = true;
+        console.log('Login successful');
+    }
 
     // Add handler for code fullscreen
     function handleCodeFullscreen(event: CustomEvent) {
@@ -29,39 +39,45 @@
     $: isDimmed = $settingsMenuVisible && $isMobileView;
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed}>
-    <button 
-        class="clickable-icon icon_create top-button left" 
-        aria-label={$_('chat.new_chat.text')}
-    ></button>
-    <button 
-        class="clickable-icon icon_call top-button right" 
-        aria-label={$_('chat.start_audio_call.text')}
-    ></button>
-    <!-- Center content wrapper -->
-    <div class="center-content">
-        <div class="team-profile">
-            <div class="team-image" class:disabled={!isTeamEnabled}></div>
-            <div class="welcome-text">
-                <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
-                <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!isLoggedIn}>
+    {#if !isLoggedIn}
+        <div class="login-wrapper" transition:fade={{ duration: 300 }}>
+            <Login on:loginSuccess={handleLoginSuccess} />
+        </div>
+    {:else}
+        <button 
+            class="clickable-icon icon_create top-button left" 
+            aria-label={$_('chat.new_chat.text')}
+        ></button>
+        <button 
+            class="clickable-icon icon_call top-button right" 
+            aria-label={$_('chat.start_audio_call.text')}
+        ></button>
+        <!-- Center content wrapper -->
+        <div class="center-content">
+            <div class="team-profile">
+                <div class="team-image" class:disabled={!isTeamEnabled}></div>
+                <div class="welcome-text">
+                    <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
+                    <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+                </div>
             </div>
         </div>
-    </div>
 
-    {#if showCodeFullscreen}
-        <FullscreenCodePreview 
-            code={fullscreenCodeData.code}
-            filename={fullscreenCodeData.filename}
-            language={fullscreenCodeData.language}
-            onClose={handleCloseCodeFullscreen}
-        />
+        {#if showCodeFullscreen}
+            <FullscreenCodePreview 
+                code={fullscreenCodeData.code}
+                filename={fullscreenCodeData.filename}
+                language={fullscreenCodeData.language}
+                onClose={handleCloseCodeFullscreen}
+            />
+        {/if}
+
+        <!-- Message input field positioned at bottom center -->
+        <div class="message-input-wrapper">
+            <EnterMessageField on:codefullscreen={handleCodeFullscreen} />
+        </div>
     {/if}
-
-    <!-- Message input field positioned at bottom center -->
-    <div class="message-input-wrapper">
-        <EnterMessageField on:codefullscreen={handleCodeFullscreen} />
-    </div>
 </div>
 
 <style>
@@ -78,6 +94,11 @@
             margin-right: 0;
         }
         transition: opacity 0.3s ease;
+        overflow: hidden;
+    }
+
+    .active-chat-container.login-mode {
+        background-color: var(--color-grey-0);
     }
 
     .center-content {
@@ -159,5 +180,27 @@
 
     .top-button.right {
         right: 20px;
+    }
+
+    .login-wrapper {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .login-wrapper :global(.login-container) {
+        flex: 1;
+        height: 100%;
+        overflow: auto;
+        background-color: var(--color-grey-20);
+        width: 100%;
+        max-width: 100%;
     }
 </style>

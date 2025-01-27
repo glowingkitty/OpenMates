@@ -108,6 +108,7 @@ button.clickable-icon {
 }
 
 /* New class for non-button clickable icons */
+span.clickable-icon,
 div.clickable-icon {
   /* Base properties for div icons */
   display: inline-block;
@@ -224,6 +225,16 @@ div.clickable-icon {
 .clickable-icon.icon_minus {
   -webkit-mask-image: url('/icons/minus.svg');
   mask-image: url('/icons/minus.svg');
+}
+
+.clickable-icon.icon_mail {
+  -webkit-mask-image: url('/icons/mail.svg');
+  mask-image: url('/icons/mail.svg');
+}
+
+.clickable-icon.icon_secret {
+  -webkit-mask-image: url('/icons/secret.svg');
+  mask-image: url('/icons/secret.svg');
 }
 
 .icon_rounded {
@@ -1033,6 +1044,3 @@ div.clickable-icon {
 .record-button.recording .clickable-icon.icon_recordaudio {
   background: white;  /* Change to white when recording */
 }
-
-/* Add these new classes with the other clickable-icon classes */
-
