@@ -10,6 +10,9 @@
     import { getMetaTags } from '$lib/config/meta';
     import LargeSeparator from './components/LargeSeparator.svelte';
     import { _ } from 'svelte-i18n'; // Import the translation function
+    import Login from './components/Login.svelte';
+    import ActivityHistory from './components/activity_history/ActivityHistory.svelte';
+    import { isAuthenticated } from '../lib/stores/authState';
 
     const meta = getMetaTags('for_all_of_us');
 
@@ -19,6 +22,10 @@
     // Helper function to capitalize first letter
     function capitalize(str: string) {
         return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function handleLoginSuccess(event) {
+        console.log('Login successful:', event.detail.user);
     }
 </script>
 
@@ -85,6 +92,15 @@
 <section>
     <Community />
 </section>
+
+{#if !$isAuthenticated}
+    <Login on:loginSuccess={handleLoginSuccess} />
+{:else}
+    <div class="app-layout">
+        <!-- Add your app layout here -->
+        <ActivityHistory />
+    </div>
+{/if}
 
 <style>
     .hero-header {
@@ -229,6 +245,11 @@
     /* dark mode */
     :global([data-theme="dark"]) .small-icon.icon_web {
         filter: invert(0.6);
+    }
+
+    .app-layout {
+        height: 100%;
+        width: 100%;
     }
 
 </style>

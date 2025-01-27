@@ -3,6 +3,7 @@
     import Chat from './Chat.svelte';
     import { formatDistanceToNow } from 'date-fns';
     import { isMenuOpen } from '../../../lib/stores/menuState';
+    import { isAuthenticated } from '../../../lib/stores/authState';
 
     // Example chats for testing - will be replaced with DB data later
     const exampleChats = [
@@ -104,11 +105,9 @@
     const handleClose = () => {
         isMenuOpen.set(false);
     };
-
-    export let isLoggedIn = false;
 </script>
 
-{#if isLoggedIn}
+{#if $isAuthenticated}
     <div class="activity-history">
         <div class="top-buttons-container">
             <div class="top-buttons">

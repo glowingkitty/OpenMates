@@ -3,6 +3,7 @@
     import { _ } from 'svelte-i18n';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
+    import { isAuthenticated, currentUser } from '../../lib/stores/authState';
 
     const dispatch = createEventDispatcher();
 
@@ -20,14 +21,15 @@
             // TODO: Implement actual login logic here
             await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
             
-            // Log successful login attempt
+            // Update auth state
+            isAuthenticated.set(true);
+            currentUser.set({ email: email });
+            
             console.log('Login successful, dispatching event');
             
-            // Dispatch success event with user data
             dispatch('loginSuccess', {
                 user: {
                     email: email,
-                    // Add other user data as needed
                 }
             });
             
