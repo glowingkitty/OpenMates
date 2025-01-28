@@ -327,6 +327,7 @@
 /* Add these base styles */
 :root, 
 body {
+    margin: 0px;
     color: var(--color-font-primary);
     background-color: var(--color-grey-0);
 }

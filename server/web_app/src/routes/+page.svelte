@@ -105,6 +105,11 @@
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
     }
+
+    :global(body) {
+        overflow: hidden;
+    }
+
     .page-container {
         min-height: 100vh;
         display: flex;
@@ -165,7 +170,7 @@
     }
 
     .main-content {
-        height: calc(100vh - 20px); /* Set exact height instead of min-height */
+        height: 100vh; /* Set exact height instead of min-height */
         margin-left: calc(var(--sidebar-width) + var(--sidebar-margin));
         background-color: var(--color-grey-0);
         z-index: 10;
@@ -227,17 +232,6 @@
         display: flex;
         align-items: flex-start;
         min-width: fit-content;
-    }
-
-    /* Update mobile styles */
-    @media (max-width: 730px) {
-        .main-content {
-            margin-left: 0;
-            position: fixed;
-            left: 0;
-            right: 0;
-            height: 100vh; /* Full height on mobile */
-        }
     }
 
     .chat-wrapper,

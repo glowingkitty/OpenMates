@@ -44,6 +44,11 @@ function createAuthStore() {
                 user: userData,
                 token
             });
+            
+            // Set body overflow to hidden when logged in
+            if (typeof document !== 'undefined') {
+                document.body.style.overflow = 'hidden';
+            }
         },
         logout: () => {
             // Use AuthService to clear storage
@@ -66,6 +71,11 @@ function createAuthStore() {
                     .replace(/^ +/, "")
                     .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
             });
+            
+            // Reset body overflow when logged out
+            if (typeof document !== 'undefined') {
+                document.body.style.overflow = 'scroll';
+            }
         }
     };
 }
@@ -73,4 +83,11 @@ function createAuthStore() {
 const authStore = createAuthStore();
 export const isAuthenticated = derived(authStore, $auth => $auth.isAuthenticated);
 export const currentUser = derived(authStore, $auth => $auth.user);
-export const { login, logout } = authStore; 
+export const { login, logout } = authStore;
+
+// Add reactive store subscription to handle initial state
+if (typeof document !== 'undefined') {
+    isAuthenticated.subscribe(($isAuthenticated) => {
+        document.body.style.overflow = $isAuthenticated ? 'hidden' : 'scroll';
+    });
+} 

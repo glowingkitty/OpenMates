@@ -4,6 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { login } from '../../lib/stores/authState';
+    import { onMount } from 'svelte';
 
     const dispatch = createEventDispatcher();
 
