@@ -46,11 +46,24 @@ function createAuthStore() {
             });
         },
         logout: () => {
+            // Use AuthService to clear storage
             AuthService.clearAuth();
+            
+            // Reset store values
             set({
                 isAuthenticated: false,
                 user: null,
                 token: null
+            });
+            
+            // Clear any sensitive data from sessionStorage
+            sessionStorage.clear();
+            
+            // Clear cookies
+            document.cookie.split(";").forEach(cookie => {
+                document.cookie = cookie
+                    .replace(/^ +/, "")
+                    .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
             });
         }
     };

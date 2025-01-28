@@ -131,6 +131,16 @@
             isMenuOpen.set(!$isMenuOpen);
         }
     };
+
+    // Add reactive statement to update nav items when auth state changes
+    $: {
+        if (!isLoggedIn) {
+            // Reset to website navigation when logged out
+            navItems = websiteNavItems;
+        } else {
+            navItems = webAppNavItems;
+        }
+    }
 </script>
 
 <header bind:this={headerDiv} class:webapp={context === 'webapp'}>

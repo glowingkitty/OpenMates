@@ -4,7 +4,7 @@
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import Login from './Login.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
-    import { fade } from 'svelte/transition';
+    import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
     import { isAuthenticated } from '../../lib/stores/authState';
 
@@ -40,45 +40,61 @@
     $: isTeamEnabled = $teamEnabled;
     // Add class when menu is open AND in mobile view
     $: isDimmed = $settingsMenuVisible && $isMobileView;
+
+    // Add transition for the login wrapper
+    let loginTransitionProps = {
+        duration: 300,
+        y: 20,
+        opacity: 0
+    };
 </script>
 
 <div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated}>
     {#if !$isAuthenticated}
-        <div class="login-wrapper" transition:fade={{ duration: 300 }}>
+        <div 
+            class="login-wrapper" 
+            in:fly={loginTransitionProps} 
+            out:fade={{ duration: 200 }}
+        >
             <Login on:loginSuccess={handleLoginSuccess} />
         </div>
     {:else}
-        <button 
-            class="clickable-icon icon_create top-button left" 
-            aria-label={$_('chat.new_chat.text')}
-        ></button>
-        <button 
-            class="clickable-icon icon_call top-button right" 
-            aria-label={$_('chat.start_audio_call.text')}
-        ></button>
-        <!-- Center content wrapper -->
-        <div class="center-content">
-            <div class="team-profile">
-                <div class="team-image" class:disabled={!isTeamEnabled}></div>
-                <div class="welcome-text">
-                    <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
-                    <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+        <div 
+            in:fade={{ duration: 300 }} 
+            out:fade={{ duration: 200 }}
+        >
+            <button 
+                class="clickable-icon icon_create top-button left" 
+                aria-label={$_('chat.new_chat.text')}
+            ></button>
+            <button 
+                class="clickable-icon icon_call top-button right" 
+                aria-label={$_('chat.start_audio_call.text')}
+            ></button>
+            <!-- Center content wrapper -->
+            <div class="center-content">
+                <div class="team-profile">
+                    <div class="team-image" class:disabled={!isTeamEnabled}></div>
+                    <div class="welcome-text">
+                        <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
+                        <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        {#if showCodeFullscreen}
-            <FullscreenCodePreview 
-                code={fullscreenCodeData.code}
-                filename={fullscreenCodeData.filename}
-                language={fullscreenCodeData.language}
-                onClose={handleCloseCodeFullscreen}
-            />
-        {/if}
+            {#if showCodeFullscreen}
+                <FullscreenCodePreview 
+                    code={fullscreenCodeData.code}
+                    filename={fullscreenCodeData.filename}
+                    language={fullscreenCodeData.language}
+                    onClose={handleCloseCodeFullscreen}
+                />
+            {/if}
 
-        <!-- Message input field positioned at bottom center -->
-        <div class="message-input-wrapper">
-            <EnterMessageField on:codefullscreen={handleCodeFullscreen} />
+            <!-- Message input field positioned at bottom center -->
+            <div class="message-input-wrapper">
+                <EnterMessageField on:codefullscreen={handleCodeFullscreen} />
+            </div>
         </div>
     {/if}
 </div>
@@ -92,12 +108,17 @@
         min-height: 0;
         height: 100%;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        /* Add right margin for mobile when menu is open */
-        @media (max-width: 1099px) {
-            margin-right: 0;
-        }
         transition: opacity 0.3s ease;
         overflow: hidden;
+        padding-top: 90px; /* Add fixed padding for header */
+        box-sizing: border-box;
+    }
+
+    /* Add right margin for mobile when menu is open */
+    @media (max-width: 1099px) {
+        .active-chat-container {
+            margin-right: 0;
+        }
     }
 
     .active-chat-container.login-mode {

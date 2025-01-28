@@ -36,6 +36,16 @@
             isMenuOpen.set(true);
         }
     }
+
+    // Add reactive statement to handle auth state changes
+    $: {
+        if (!$isAuthenticated) {
+            // Close sidebar when logged out
+            isMenuOpen.set(false);
+            // Close settings if open
+            settingsMenuVisible.set(false);
+        }
+    }
 </script>
 
 <div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
@@ -89,11 +99,13 @@
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
 
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        opacity: 1;
     }
 
     .sidebar.closed {
         transform: translateX(-100%);
+        opacity: 0;
     }
 
     /* For Webkit browsers */
@@ -224,5 +236,10 @@
         flex: 1;
         display: flex;
         min-width: 0;
+    }
+
+    /* Smooth transition for main content */
+    .main-content {
+        transition: left 0.3s ease, transform 0.3s ease;
     }
 </style>

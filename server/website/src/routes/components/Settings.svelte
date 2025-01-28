@@ -12,6 +12,7 @@
     import { fly, fade } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { isAuthenticated, currentUser, logout } from '../../lib/stores/authState';
+    import { isMenuOpen } from '../../lib/stores/menuState';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -101,10 +102,22 @@
 
     async function handleLogout(): Promise<void> {
         console.log('Logging out...');
-        await logout();
         
-        // Redirect to login page
-        window.location.href = '/';
+        // First close the settings menu
+        isMenuVisible = false;
+        settingsMenuVisible.set(false);
+        
+        // Small delay to allow settings menu to close
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Close the sidebar menu
+        isMenuOpen.set(false);
+        
+        // Small delay to allow sidebar animation
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Finally perform the actual logout
+        logout();
     }
 </script>
 
