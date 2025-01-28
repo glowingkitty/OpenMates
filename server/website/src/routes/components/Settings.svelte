@@ -25,10 +25,21 @@
     let isGuestEnabled = false;
     let isOfflineEnabled = false;
 
+    // Add reference to settings content element
+    let settingsContentElement: HTMLElement;
+
     // Handler for profile click to show menu
     function toggleMenu(): void {
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
+        
+        // If menu is being closed, reset scroll position
+        if (!isMenuVisible && settingsContentElement) {
+            // Use setTimeout to ensure the scroll reset happens after the closing animation
+            setTimeout(() => {
+                settingsContentElement.scrollTop = 0;
+            }, 300);
+        }
     }
 
     // Handler for quicksettings menu item clicks
@@ -102,6 +113,11 @@
 
     async function handleLogout(): Promise<void> {
         console.log('Logging out...');
+        
+        // Reset scroll position
+        if (settingsContentElement) {
+            settingsContentElement.scrollTop = 0;
+        }
         
         // First close the settings menu
         isMenuVisible = false;
@@ -192,7 +208,10 @@
             </div>
         </div>
     </div>
-    <div class="settings-content">
+    <div 
+        class="settings-content"
+        bind:this={settingsContentElement}
+    >
         <!-- Quick Settings -->
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_team"
