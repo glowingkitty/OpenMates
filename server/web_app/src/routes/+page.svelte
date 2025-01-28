@@ -99,12 +99,11 @@
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
 
-        transition: transform 0.3s ease, opacity 0.3s ease;
+        transition: opacity 0.3s ease;
         opacity: 1;
     }
 
     .sidebar.closed {
-        transform: translateX(-100%);
         opacity: 0;
     }
 

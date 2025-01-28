@@ -141,6 +141,25 @@
             navItems = webAppNavItems;
         }
     }
+
+    // Add custom transition function
+    function slideFade(node: HTMLElement, { 
+        duration = 200 
+    }) {
+        const width = node.offsetWidth; // Get the natural width
+        
+        return {
+            duration,
+            css: (t: number) => {
+                const eased = t; // Linear easing, but you can use different easing functions
+                return `
+                    width: ${eased * width}px;
+                    opacity: ${eased};
+                    overflow: hidden;
+                `;
+            }
+        };
+    }
 </script>
 
 <header bind:this={headerDiv} class:webapp={context === 'webapp'}>
@@ -158,11 +177,13 @@
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
                     {#if context === 'webapp' && isLoggedIn && (isMobile || !$isMenuOpen)}
-                        <button 
-                            class="clickable-icon icon_menu"
-                            on:click={toggleMenu}
-                            aria-label="Toggle menu"
-                        ></button>
+                        <div transition:slideFade={{ duration: 200 }}>
+                            <button 
+                                class="clickable-icon icon_menu"
+                                on:click={toggleMenu}
+                                aria-label="Toggle menu"
+                            ></button>
+                        </div>
                     {/if}
                     <a
                         href="/"
