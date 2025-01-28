@@ -25,10 +25,17 @@
         isMenuOpen.set(false);
     }
 
+    // Add flag to control initial load animation
+    let isInitialLoad = true;
+    
     onMount(() => {
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
         }
+        // Set initial load to false after a brief delay to prevent animation
+        setTimeout(() => {
+            isInitialLoad = false;
+        }, 100);
     });
 
     function handleLoginSuccess() {
@@ -54,7 +61,9 @@
     {/if}
 </div>
 
-<div class="main-content" class:menu-closed={!$isMenuOpen || !$isAuthenticated}>
+<div class="main-content" 
+    class:menu-closed={!$isMenuOpen || !$isAuthenticated}
+    class:no-transition={isInitialLoad}>
     <Header context="webapp" isLoggedIn={$isAuthenticated} />
     <div class="chat-container" class:menu-open={menuClass}>
         <div class="chat-wrapper">
@@ -207,22 +216,20 @@
         }
 
         .main-content {
-            /* Position main content over the sidebar by default */
+            /* Remove default transform */
+            transform: none;
             left: 0;
             right: 0;
-            z-index: 20; /* Higher than sidebar to cover it */
-            transform: translateX(0);
+            z-index: 20;
         }
 
-        /* When menu is open, slide main content right */
-        .main-content:not(.menu-closed) {
+        /* Only apply transform when menu is explicitly opened */
+        .main-content:not(.menu-closed):not(.no-transition) {
             transform: translateX(100%);
         }
 
-        /* When menu is closed, keep main content over sidebar */
         .main-content.menu-closed {
-            left: 0;
-            transform: translateX(0);
+            transform: none;
         }
     }
 
@@ -240,5 +247,10 @@
     /* Smooth transition for main content */
     .main-content {
         transition: left 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Add new style to disable transitions during initial load */
+    .no-transition {
+        transition: none !important;
     }
 </style>
