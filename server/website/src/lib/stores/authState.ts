@@ -56,7 +56,8 @@ function createAuthStore() {
                 token: null
             });
             
-            // Clear any sensitive data from sessionStorage
+            // Clear all browser storage
+            localStorage.clear();
             sessionStorage.clear();
             
             // Clear cookies
