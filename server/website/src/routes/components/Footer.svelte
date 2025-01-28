@@ -1,8 +1,8 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { externalLinks, routes } from '$lib/config/links';
-    import { isPageVisible } from '$lib/config/pages';
+    import { externalLinks, routes } from '@website-lib/config/links';
+    import { isPageVisible } from '@website-lib/config/pages';
     import { _ } from 'svelte-i18n';
     import { locale, locales } from 'svelte-i18n';
     import { browser } from '$app/environment';

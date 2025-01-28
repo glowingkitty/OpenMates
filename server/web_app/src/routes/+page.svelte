@@ -1,15 +1,17 @@
 <script>
-    import { isMenuOpen } from '../../../website/src/lib/stores/menuState';
+    import { isMenuOpen } from '@website-lib/stores/menuState';
     import ActivityHistory from '@website-components/activity_history/ActivityHistory.svelte';
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import the translation function
-    import { isAuthenticated } from '../../../website/src/lib/stores/authState';
+    import { isAuthenticated } from '@website-lib/stores/authState';
+    import { fade } from 'svelte/transition';
 
     // Subscribe to settings menu visibility state
     import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
     import { onMount } from 'svelte';
+    import Footer from '@website-components/Footer.svelte';
 
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
@@ -62,28 +64,40 @@
             settingsMenuVisible.set(false);
         }
     }
+
+    // Add transition state for footer
+    $: footerClass = $isAuthenticated ? 'footer-hidden' : 'footer-visible';
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
-    {#if $isAuthenticated}
-        <ActivityHistory />
-    {/if}
-</div>
+<div class="page-container">
+    <div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
+        {#if $isAuthenticated}
+            <ActivityHistory />
+        {/if}
+    </div>
 
-<div class="main-content" 
-    class:menu-closed={!$isMenuOpen || !$isAuthenticated}
-    class:no-transition={isInitialLoad}>
-    <Header context="webapp" isLoggedIn={$isAuthenticated} />
-    <div class="chat-container" class:menu-open={menuClass}>
-        <div class="chat-wrapper">
-            <ActiveChat 
-                on:loginSuccess={handleLoginSuccess}
-            />
-        </div>
-        <div class="settings-wrapper">
-            <Settings isLoggedIn={$isAuthenticated} />
+    <div class="main-content" 
+        class:menu-closed={!$isMenuOpen || !$isAuthenticated}
+        class:no-transition={isInitialLoad}>
+        <Header context="webapp" isLoggedIn={$isAuthenticated} />
+        <div class="chat-container" class:menu-open={menuClass}>
+            <div class="chat-wrapper">
+                <ActiveChat 
+                    on:loginSuccess={handleLoginSuccess}
+                />
+            </div>
+            <div class="settings-wrapper">
+                <Settings isLoggedIn={$isAuthenticated} />
+            </div>
         </div>
     </div>
+
+    <!-- Footer outside main content -->
+    {#if !$isAuthenticated}
+        <div class="footer-wrapper" transition:fade>
+            <Footer />
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -91,6 +105,12 @@
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
     }
+    .page-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
     .sidebar {
         /* Fixed positioning relative to viewport */
         position: fixed;
@@ -145,18 +165,16 @@
     }
 
     .main-content {
-        position: fixed;
-        left: calc(var(--sidebar-width) + var(--sidebar-margin));
-        top: 0;
-        right: 0;
-        bottom: 0;
+        height: calc(100vh - 20px); /* Set exact height instead of min-height */
+        margin-left: calc(var(--sidebar-width) + var(--sidebar-margin));
         background-color: var(--color-grey-0);
         z-index: 10;
-        transition: left 0.3s ease, transform 0.3s ease;
+        transition: margin-left 0.3s ease;
+        overflow: hidden; /* Prevent content from spilling out */
     }
 
     .main-content.menu-closed {
-        left: var(--sidebar-margin);
+        margin-left: var(--sidebar-margin);
     }
 
     /* For Webkit browsers */
@@ -179,9 +197,9 @@
     }
 
     .chat-container {
+        height: calc(100% - 90px); /* Adjust for header height */
         display: flex;
         flex-direction: row;
-        height: calc(100% - 90px);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -211,34 +229,14 @@
         min-width: fit-content;
     }
 
-    /* Add mobile styles */
+    /* Update mobile styles */
     @media (max-width: 730px) {
-        .sidebar {
-            width: 100%;
-            /* Ensure sidebar stays in place */
-            transform: none;
-        }
-
-        .sidebar.closed {
-            /* Don't translate sidebar off screen on mobile */
-            transform: none;
-        }
-
         .main-content {
-            /* Remove default transform */
-            transform: none;
+            margin-left: 0;
+            position: fixed;
             left: 0;
             right: 0;
-            z-index: 20;
-        }
-
-        /* Only apply transform when menu is explicitly opened */
-        .main-content:not(.menu-closed):not(.no-transition) {
-            transform: translateX(100%);
-        }
-
-        .main-content.menu-closed {
-            transform: none;
+            height: 100vh; /* Full height on mobile */
         }
     }
 
@@ -255,11 +253,24 @@
 
     /* Smooth transition for main content */
     .main-content {
-        transition: left 0.3s ease, transform 0.3s ease;
+        transition: margin-left 0.3s ease;
     }
 
     /* Add new style to disable transitions during initial load */
     .no-transition {
         transition: none !important;
+    }
+
+    /* Add footer transition styles */
+    .footer-wrapper {
+        transition: height 0.3s ease, opacity 0.3s ease;
+        height: auto;
+        opacity: 1;
+        overflow: hidden;
+    }
+
+    .footer-wrapper.hidden {
+        height: 0;
+        opacity: 0;
     }
 </style>

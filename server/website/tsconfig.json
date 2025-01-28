@@ -9,7 +9,19 @@
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"moduleResolution": "bundler"
+		"moduleResolution": "bundler",
+		"paths": {
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"],
+			"@website-styles/*": ["./src/lib/styles/*"],
+			"@website-static/*": ["./src/static/*"],
+			"@website-stores/*": ["./src/lib/stores/*"],
+			"@website-actions/*": ["./src/lib/actions/*"],
+			"@website-components/*": ["./src/routes/components/*"],
+			"@website-lib": ["./src/lib"],
+			"@website-lib/*": ["./src/lib/*"],
+			"@website-locales": ["./src/locales"],
+		}
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
