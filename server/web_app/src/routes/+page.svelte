@@ -20,7 +20,12 @@
     
     // Handle initial sidebar state based on auth
     $: if ($isAuthenticated) {
-        isMenuOpen.set(true);
+        // Only open sidebar on desktop view when authenticated
+        if (window.innerWidth >= MOBILE_BREAKPOINT) {
+            isMenuOpen.set(true);
+        } else {
+            isMenuOpen.set(false);
+        }
     } else {
         isMenuOpen.set(false);
     }
@@ -39,8 +44,12 @@
     });
 
     function handleLoginSuccess() {
+        // Only open sidebar on desktop view
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
+        } else {
+            // Ensure sidebar is closed on mobile after login
+            isMenuOpen.set(false);
         }
     }
 
