@@ -106,14 +106,11 @@
         --sidebar-margin: 10px;
     }
 
-    :global(body) {
-        overflow: hidden;
-    }
-
     .page-container {
         min-height: 100vh;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
 
     .sidebar {
@@ -170,12 +167,12 @@
     }
 
     .main-content {
-        height: 100vh; /* Set exact height instead of min-height */
+        height: calc(100vh - 20px);
         margin-left: calc(var(--sidebar-width) + var(--sidebar-margin));
         background-color: var(--color-grey-0);
         z-index: 10;
         transition: margin-left 0.3s ease;
-        overflow: hidden; /* Prevent content from spilling out */
+        overflow-y: auto;
     }
 
     .main-content.menu-closed {
@@ -202,16 +199,13 @@
     }
 
     .chat-container {
-        height: calc(100% - 90px); /* Adjust for header height */
+        height: calc(100% - 90px);
         display: flex;
         flex-direction: row;
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
-        /* Only apply gap transition on larger screens */
-        @media (min-width: 1100px) {
-            transition: gap 0.3s ease;
-        }
+        overflow-y: auto;
     }
 
     /* Only apply gap on larger screens */
