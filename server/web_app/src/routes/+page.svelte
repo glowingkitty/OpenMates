@@ -222,6 +222,38 @@
         }
     }
 
+
+    /* Add mobile styles */
+    @media (max-width: 730px) {
+        .sidebar {
+            width: 100%;
+            /* Ensure sidebar stays in place */
+            transform: none;
+        }
+
+        .sidebar.closed {
+            /* Don't translate sidebar off screen on mobile */
+            transform: none;
+        }
+
+        .main-content {
+            /* Remove default transform */
+            transform: none;
+            left: 0;
+            right: 0;
+            z-index: 20;
+        }
+
+        /* Only apply transform when menu is explicitly opened */
+        .main-content:not(.menu-closed):not(.no-transition) {
+            transform: translateX(100%);
+        }
+
+        .main-content.menu-closed {
+            transform: none;
+        }
+    }
+
     .settings-wrapper {
         display: flex;
         align-items: flex-start;
