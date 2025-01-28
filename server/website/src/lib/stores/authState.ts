@@ -30,6 +30,8 @@ function createAuthStore() {
                 user: userData,
                 token
             };
+            // Set initial overflow state if user is authenticated
+            document.body.style.overflow = 'hidden';
         }
     }
 
@@ -39,6 +41,10 @@ function createAuthStore() {
         subscribe,
         login: (token: string, userData: User) => {
             AuthService.persistAuth(token, userData);
+            // Set body overflow to hidden when user logs in
+            if (browser) {
+                document.body.style.overflow = 'hidden';
+            }
             set({
                 isAuthenticated: true,
                 user: userData,
@@ -47,6 +53,10 @@ function createAuthStore() {
         },
         logout: () => {
             AuthService.clearAuth();
+            // Remove overflow hidden style when user logs out
+            if (browser) {
+                document.body.style.overflow = '';
+            }
             set({
                 isAuthenticated: false,
                 user: null,

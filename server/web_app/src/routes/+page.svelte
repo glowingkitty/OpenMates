@@ -167,7 +167,7 @@
     }
 
     .main-content {
-        height: calc(100vh - 20px);
+        height: 100vh;
         margin-left: calc(var(--sidebar-width) + var(--sidebar-margin));
         background-color: var(--color-grey-0);
         z-index: 10;
