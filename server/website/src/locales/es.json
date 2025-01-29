@@ -936,6 +936,11 @@
                 "en_original": "For developers",
                 "context": "Footer link text for developer section"
             },
+            "webapp": {
+                "text": "Web App",
+                "en_original": "Web App",
+                "context": "Footer link text for web app section"
+            },
             "docs": {
                 "text": "Documentación",
                 "en_original": "Docs",
