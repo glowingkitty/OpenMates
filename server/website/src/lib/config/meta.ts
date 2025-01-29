@@ -53,7 +53,8 @@ export let pageMeta: PageMetaTags = {
     docsUserGuide: { ...defaultMeta },
     legalImprint: { ...defaultMeta },
     legalPrivacy: { ...defaultMeta },
-    legalTerms: { ...defaultMeta }
+    legalTerms: { ...defaultMeta },
+    webapp: { ...defaultMeta },
 };
 
 // Function to load metatags dynamically based on the current language
@@ -136,7 +137,13 @@ export async function loadMetaTags(): Promise<void> {
                 ...defaultMeta,
                 title: metaData.metadata.legal_terms.title.text,
                 description: metaData.metadata.legal_terms.description.text,
-            }
+            },
+            webapp: {
+                ...defaultMeta,
+                title: metaData.metadata.webapp.title.text,
+                description: metaData.metadata.webapp.description.text,
+                type: "website"
+            },
         };
     } catch (error) {
         console.error('Failed to load meta tags:', error);

@@ -76,6 +76,12 @@ export const pages: Record<string, PageConfig> = {
         title: 'Terms and Conditions',
         inDev: true,
         inProd: true
+    },
+    webapp: {
+        path: '/webapp',
+        title: 'Web App',
+        inDev: true,
+        inProd: false
     }
 };
 

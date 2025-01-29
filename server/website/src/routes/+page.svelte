@@ -234,9 +234,4 @@
         filter: invert(0.6);
     }
 
-    .app-layout {
-        height: 100%;
-        width: 100%;
-    }
-
 </style>

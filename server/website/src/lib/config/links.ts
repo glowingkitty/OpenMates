@@ -18,29 +18,7 @@ export const externalLinks = {
     }
 } as const;
 
-/**
- * Internal route paths used across the website
- * Centralizing these makes it easier to update routes if they change
- */
-export const routes = {
-    home: "/",
-    developers: "/developers",
-    docs: {
-        main: "/docs",
-        userGuide: "/docs/user_guide",
-        api: "/docs/api",
-        roadmap: "/docs/roadmap",
-        designGuidelines: "/docs/design_guidelines",
-        designSystem: "/docs/design_system"
-    }
-} as const;
-
-export const privacyPolicyLinks = {
-    vercel: 'https://vercel.com/legal/privacy-policy',
-    discord: 'https://discord.com/privacy'
-} as const;
-
-// Add base URL configuration
+// Add base URL configuration first
 export const baseUrls = {
     website: {
         development: 'http://localhost:5173', // Default Vite port for website
@@ -57,6 +35,30 @@ export function getBaseUrl(app: 'website' | 'webapp'): string {
     const isDev = import.meta.env.DEV;
     return isDev ? baseUrls[app].development : baseUrls[app].production;
 }
+
+// Helper to get webapp URL
+export function getWebappUrl(): string {
+    return getBaseUrl('webapp');
+}
+
+export const routes = {
+    home: "/",
+    developers: "/developers",
+    webapp: getBaseUrl('webapp'), // Use getBaseUrl directly instead of getWebappUrl
+    docs: {
+        main: "/docs",
+        userGuide: "/docs/user_guide",
+        api: "/docs/api",
+        roadmap: "/docs/roadmap",
+        designGuidelines: "/docs/design_guidelines",
+        designSystem: "/docs/design_system"
+    }
+} as const;
+
+export const privacyPolicyLinks = {
+    vercel: 'https://vercel.com/legal/privacy-policy',
+    discord: 'https://discord.com/privacy'
+} as const;
 
 // Update routes to include full URLs when needed
 export function getWebsiteUrl(path: string): string {

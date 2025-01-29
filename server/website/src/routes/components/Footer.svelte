@@ -38,7 +38,8 @@
             title: "Website",
             links: [
                 { href: routes.home, text: "For all of us", translation_key: "footer.sections.for_everyone", external: false },
-                { href: routes.developers, text: "For developers", translation_key: "footer.sections.for_developers", external: false }
+                { href: routes.developers, text: "For developers", translation_key: "footer.sections.for_developers", external: false },
+                { href: routes.webapp, text: "Web App", translation_key: "footer.sections.webapp", external: true }
             ]
         },
         {
