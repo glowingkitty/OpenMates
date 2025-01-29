@@ -17,10 +17,14 @@
 
     // Add state for mobile view
     let isMobile = false;
+    let emailInput: HTMLInputElement; // Reference to the email input element
     
     onMount(() => {
         // Set initial mobile state
         isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+        
+        // Focus on the email input field when the component mounts
+        emailInput.focus(); // Focus the email input
         
         // Update mobile state on resize
         const handleResize = () => {
@@ -94,6 +98,7 @@
                             placeholder={$_('login.email_placeholder.text')}
                             required
                             autocomplete="email"
+                            bind:this={emailInput}
                         />
                     </div>
                 </div>
