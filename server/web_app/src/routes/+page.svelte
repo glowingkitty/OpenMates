@@ -25,10 +25,17 @@
         isMenuOpen.set(false);
     }
 
+    // Add state for initial load
+    let isInitialLoad = true;
+    
     onMount(() => {
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
         }
+        // Remove initial load state after a small delay to ensure proper rendering
+        setTimeout(() => {
+            isInitialLoad = false;
+        }, 100);
     });
 
     function handleLoginSuccess() {
@@ -54,7 +61,9 @@
     {/if}
 </div>
 
-<div class="main-content" class:menu-closed={!$isMenuOpen || !$isAuthenticated}>
+<div class="main-content" 
+    class:menu-closed={!$isMenuOpen || !$isAuthenticated}
+    class:initial-load={isInitialLoad}>
     <Header context="webapp" isLoggedIn={$isAuthenticated} />
     <div class="chat-container" class:menu-open={menuClass}>
         <div class="chat-wrapper">
@@ -196,6 +205,9 @@
 
     /* Add mobile styles */
     @media (max-width: 730px) {
+        .chat-container{
+            padding-right: 10px;
+        }
         .sidebar {
             width: 100%;
             /* Ensure sidebar stays in place */
@@ -241,5 +253,10 @@
     /* Smooth transition for main content */
     .main-content {
         transition: left 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Disable transitions during initial load */
+    .main-content.initial-load {
+        transition: none;
     }
 </style>
