@@ -1377,9 +1377,9 @@
         },
         "for_all_of_us": {
             "title": {
-                "text": "Para todos nosotros | OpenMates",
+                "text": "OpenMates | Compañeros de equipo digitales para todos nosotros",
                 "context": "Title for the 'For all of us' page",
-                "en_original": "For all of us | OpenMates"
+                "en_original": "OpenMates | Digital team mates for all of us"
             }
         },
         "for_developers": {
@@ -1392,6 +1392,18 @@
                 "text": "La API más versátil para desarrolladores. Para construir agentes de IA o simplemente integrar una amplia gama de APIs existentes fácilmente en tu proyecto.",
                 "context": "Description for the developers page",
                 "en_original": "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project."
+            }
+        },
+        "webapp": {
+            "title": {
+                "text": "Web App | OpenMates",
+                "context": "Title for the web app page",
+                "en_original": "Web App | OpenMates"
+            },
+            "description": {
+                "text": "La Web App de OpenMates te permite interactuar con OpenMates a través de tu navegador.",
+                "context": "Description for the web app page",
+                "en_original": "The OpenMates Web App allows you to interact with OpenMates via your browser."
             }
         },
         "docs": {

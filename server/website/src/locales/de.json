@@ -936,6 +936,11 @@
                 "en_original": "For developers",
                 "context": "Footer link text for developer section"
             },
+            "webapp": {
+                "text": "Web App",
+                "en_original": "Web App",
+                "context": "Footer link text for web app section"
+            },
             "docs": {
                 "text": "Docs",
                 "en_original": "Docs",
@@ -1377,9 +1382,9 @@
         },
         "for_all_of_us": {
             "title": {
-                "text": "Für uns alle | OpenMates",
+                "text": "OpenMates | Digitale Teamkollegen für uns alle",
                 "context": "Title for the 'For all of us' page",
-                "en_original": "For all of us | OpenMates"
+                "en_original": "OpenMates | Digital team mates for all of us"
             }
         },
         "for_developers": {
@@ -1392,6 +1397,18 @@
                 "text": "Die vielseitigste API für Entwickler. Zum Erstellen von KI-Agenten oder einfach zur Integration einer Vielzahl bestehender APIs in Ihr Projekt.",
                 "context": "Description for the developers page",
                 "en_original": "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project."
+            }
+        },
+        "webapp": {
+            "title": {
+                "text": "Web App | OpenMates",
+                "context": "Title for the web app page",
+                "en_original": "Web App | OpenMates"
+            },
+            "description": {
+                "text": "Mit der OpenMates Web App kannst du auf OpenMates mit deinem Browser zugreifen.",
+                "context": "Description for the web app page",
+                "en_original": "The OpenMates Web App allows you to interact with OpenMates via your browser."
             }
         },
         "docs": {
