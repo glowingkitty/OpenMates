@@ -42,11 +42,12 @@ function createAuthStore() {
         subscribe,
         login: (token: string, userData: User, isMobile: boolean = false) => {
             AuthService.persistAuth(token, userData);
-            // Set body overflow to hidden when user logs in
             if (browser) {
                 document.body.style.overflow = 'hidden';
-                // Only set isMenuOpen to true if not on mobile
-                if (!isMobile) {
+                // Always keep menu closed on mobile login
+                if (isMobile) {
+                    isMenuOpen.set(false);
+                } else {
                     isMenuOpen.set(true);
                 }
             }

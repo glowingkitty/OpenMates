@@ -36,18 +36,15 @@
         errorMessage = '';
 
         try {
-            // TODO: Replace with actual API call
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Create a mock token that will pass validation
             const mockToken = createMockToken();
             const userData = { email };
             
-            // Update auth state with the token and user data
+            // Pass the current mobile state to login
             login(mockToken, userData, isMobile);
             
             console.log('Login successful');
-            dispatch('loginSuccess', { user: userData });
+            dispatch('loginSuccess', { user: userData, isMobile });
             
         } catch (error: any) {
             console.error('Login failed:', error);
