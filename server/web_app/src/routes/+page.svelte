@@ -1,17 +1,15 @@
 <script>
-    import { isMenuOpen } from '@website-lib/stores/menuState';
+    import { isMenuOpen } from '../../../website/src/lib/stores/menuState';
     import ActivityHistory from '@website-components/activity_history/ActivityHistory.svelte';
     import ActiveChat from '@website-components/ActiveChat.svelte';
     import Header from '@website-components/Header.svelte';
     import Settings from '@website-components/Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import the translation function
-    import { isAuthenticated } from '@website-lib/stores/authState';
-    import { fade } from 'svelte/transition';
+    import { isAuthenticated } from '../../../website/src/lib/stores/authState';
 
     // Subscribe to settings menu visibility state
     import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
     import { onMount } from 'svelte';
-    import Footer from '@website-components/Footer.svelte';
 
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
@@ -22,36 +20,20 @@
     
     // Handle initial sidebar state based on auth
     $: if ($isAuthenticated) {
-        // Only open sidebar on desktop view when authenticated
-        if (window.innerWidth >= MOBILE_BREAKPOINT) {
-            isMenuOpen.set(true);
-        } else {
-            isMenuOpen.set(false);
-        }
+        isMenuOpen.set(true);
     } else {
         isMenuOpen.set(false);
     }
 
-    // Add flag to control initial load animation
-    let isInitialLoad = true;
-    
     onMount(() => {
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
         }
-        // Set initial load to false after a brief delay to prevent animation
-        setTimeout(() => {
-            isInitialLoad = false;
-        }, 100);
     });
 
     function handleLoginSuccess() {
-        // Only open sidebar on desktop view
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
-        } else {
-            // Ensure sidebar is closed on mobile after login
-            isMenuOpen.set(false);
         }
     }
 
@@ -64,40 +46,26 @@
             settingsMenuVisible.set(false);
         }
     }
-
-    // Add transition state for footer
-    $: footerClass = $isAuthenticated ? 'footer-hidden' : 'footer-visible';
 </script>
 
-<div class="page-container">
-    <div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
-        {#if $isAuthenticated}
-            <ActivityHistory />
-        {/if}
-    </div>
-
-    <div class="main-content" 
-        class:menu-closed={!$isMenuOpen || !$isAuthenticated}
-        class:no-transition={isInitialLoad}>
-        <Header context="webapp" isLoggedIn={$isAuthenticated} />
-        <div class="chat-container" class:menu-open={menuClass}>
-            <div class="chat-wrapper">
-                <ActiveChat 
-                    on:loginSuccess={handleLoginSuccess}
-                />
-            </div>
-            <div class="settings-wrapper">
-                <Settings isLoggedIn={$isAuthenticated} />
-            </div>
-        </div>
-    </div>
-
-    <!-- Footer outside main content -->
-    {#if !$isAuthenticated}
-        <div class="footer-wrapper" transition:fade>
-            <Footer />
-        </div>
+<div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
+    {#if $isAuthenticated}
+        <ActivityHistory />
     {/if}
+</div>
+
+<div class="main-content" class:menu-closed={!$isMenuOpen || !$isAuthenticated}>
+    <Header context="webapp" isLoggedIn={$isAuthenticated} />
+    <div class="chat-container" class:menu-open={menuClass}>
+        <div class="chat-wrapper">
+            <ActiveChat 
+                on:loginSuccess={handleLoginSuccess}
+            />
+        </div>
+        <div class="settings-wrapper">
+            <Settings isLoggedIn={$isAuthenticated} />
+        </div>
+    </div>
 </div>
 
 <style>
@@ -105,14 +73,6 @@
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
     }
-
-    .page-container {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
-
     .sidebar {
         /* Fixed positioning relative to viewport */
         position: fixed;
@@ -139,11 +99,12 @@
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
 
-        transition: opacity 0.3s ease;
+        transition: transform 0.3s ease, opacity 0.3s ease;
         opacity: 1;
     }
 
     .sidebar.closed {
+        transform: translateX(-100%);
         opacity: 0;
     }
 
@@ -167,16 +128,18 @@
     }
 
     .main-content {
-        height: 100vh;
-        margin-left: calc(var(--sidebar-width) + var(--sidebar-margin));
+        position: fixed;
+        left: calc(var(--sidebar-width) + var(--sidebar-margin));
+        top: 0;
+        right: 0;
+        bottom: 0;
         background-color: var(--color-grey-0);
         z-index: 10;
-        transition: margin-left 0.3s ease;
-        overflow-y: auto;
+        transition: left 0.3s ease, transform 0.3s ease;
     }
 
     .main-content.menu-closed {
-        margin-left: var(--sidebar-margin);
+        left: var(--sidebar-margin);
     }
 
     /* For Webkit browsers */
@@ -199,13 +162,16 @@
     }
 
     .chat-container {
-        height: calc(100% - 90px);
         display: flex;
         flex-direction: row;
+        height: calc(100% - 90px);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
-        overflow-y: auto;
+        /* Only apply gap transition on larger screens */
+        @media (min-width: 1100px) {
+            transition: gap 0.3s ease;
+        }
     }
 
     /* Only apply gap on larger screens */
@@ -222,6 +188,11 @@
         }
     }
 
+    .settings-wrapper {
+        display: flex;
+        align-items: flex-start;
+        min-width: fit-content;
+    }
 
     /* Add mobile styles */
     @media (max-width: 730px) {
@@ -237,27 +208,23 @@
         }
 
         .main-content {
-            /* Remove default transform */
-            transform: none;
+            /* Position main content over the sidebar by default */
             left: 0;
             right: 0;
-            z-index: 20;
+            z-index: 20; /* Higher than sidebar to cover it */
+            transform: translateX(0);
         }
 
-        /* Only apply transform when menu is explicitly opened */
-        .main-content:not(.menu-closed):not(.no-transition) {
+        /* When menu is open, slide main content right */
+        .main-content:not(.menu-closed) {
             transform: translateX(100%);
         }
 
+        /* When menu is closed, keep main content over sidebar */
         .main-content.menu-closed {
-            transform: none;
+            left: 0;
+            transform: translateX(0);
         }
-    }
-
-    .settings-wrapper {
-        display: flex;
-        align-items: flex-start;
-        min-width: fit-content;
     }
 
     .chat-wrapper,
@@ -273,24 +240,6 @@
 
     /* Smooth transition for main content */
     .main-content {
-        transition: margin-left 0.3s ease;
-    }
-
-    /* Add new style to disable transitions during initial load */
-    .no-transition {
-        transition: none !important;
-    }
-
-    /* Add footer transition styles */
-    .footer-wrapper {
-        transition: height 0.3s ease, opacity 0.3s ease;
-        height: auto;
-        opacity: 1;
-        overflow: hidden;
-    }
-
-    .footer-wrapper.hidden {
-        height: 0;
-        opacity: 0;
+        transition: left 0.3s ease, transform 0.3s ease;
     }
 </style>
