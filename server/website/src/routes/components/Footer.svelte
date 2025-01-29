@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { externalLinks, routes } from '@website-lib/config/links';
+    import { externalLinks, routes, getWebsiteUrl } from '@website-lib/config/links';
     import { isPageVisible } from '@website-lib/config/pages';
     import { _ } from 'svelte-i18n';
     import { locale, locales } from 'svelte-i18n';
@@ -75,18 +75,41 @@
         )
     })).filter(section => section.links.length > 0); // Remove sections with no visible links
 
-    // Handle click events
-    const handleClick = async (event: MouseEvent, path: string, external: boolean = false) => {
-        if (external || event.ctrlKey || event.metaKey || event.button === 1) {
+    // Add prop to determine context
+    export let context: 'website' | 'webapp' = 'website';
+
+    // Update footer sections to use full URLs in webapp context
+    $: processedFooterSections = footerSections.map(section => ({
+        ...section,
+        links: section.links.map(link => ({
+            ...link,
+            // Only transform internal links (non-external) in webapp context
+            href: context === 'webapp' && !link.external ? 
+                getWebsiteUrl(link.href) : link.href
+        }))
+    }));
+
+    // Update click handler to handle external URLs
+    const handleClick = (event: MouseEvent, href: string) => {
+        event.preventDefault();
+        
+        // If we're in webapp context or it's an external link, use window.location
+        if (context === 'webapp' || href.startsWith('http')) {
+            window.location.href = href;
             return;
         }
-        event.preventDefault();
-        await goto(path, { replaceState: false });
-    }
 
-    // Helper function to check if a link is active
+        // Otherwise use goto for internal navigation in website context
+        goto(href);
+    };
+
+    // Update isActive check to handle full URLs
     const isActive = (href: string): boolean => {
-        // Remove trailing slashes for consistent comparison
+        if (context === 'webapp') {
+            // Never highlight links in webapp context
+            return false;
+        }
+        // Original logic for website context
         const currentPath = $page.url.pathname.replace(/\/$/, '');
         const linkPath = href.replace(/\/$/, '');
         return currentPath === linkPath;
@@ -158,7 +181,7 @@
 
         <!-- Navigation Sections -->
         <div class="footer-nav">
-            {#each footerSections as section}
+            {#each processedFooterSections as section}
                 <div class="footer-section">
                     <h3>{$_(section.title_key + '.text')}</h3>
                     <ul>
@@ -167,8 +190,8 @@
                                 <a
                                     href={link.href}
                                     class:active={isActive(link.href)}
-                                    {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                                    on:click={(e) => handleClick(e, link.href, link.external)}
+                                    on:click={(e) => handleClick(e, link.href)}
+                                    {...link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
                                 >
                                     {$_(link.translation_key + '.text')}
                                 </a>

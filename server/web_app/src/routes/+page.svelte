@@ -88,7 +88,7 @@
 <!-- Footer outside main content -->
 {#if !$isAuthenticated}
 <div class="footer-wrapper" transition:fade>
-    <Footer />
+    <Footer context="webapp" />
 </div>
 {/if}
 

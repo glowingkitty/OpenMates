@@ -39,3 +39,26 @@ export const privacyPolicyLinks = {
     vercel: 'https://vercel.com/legal/privacy-policy',
     discord: 'https://discord.com/privacy'
 } as const;
+
+// Add base URL configuration
+export const baseUrls = {
+    website: {
+        development: 'http://localhost:5173', // Default Vite port for website
+        production: 'https://openmates.org'
+    },
+    webapp: {
+        development: 'http://localhost:5174', // Separate port for web app
+        production: 'https://app.openmates.org'
+    }
+} as const;
+
+// Helper to get correct base URL
+export function getBaseUrl(app: 'website' | 'webapp'): string {
+    const isDev = import.meta.env.DEV;
+    return isDev ? baseUrls[app].development : baseUrls[app].production;
+}
+
+// Update routes to include full URLs when needed
+export function getWebsiteUrl(path: string): string {
+    return `${getBaseUrl('website')}${path}`;
+}
