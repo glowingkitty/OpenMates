@@ -7,6 +7,7 @@
     import { locale, locales } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
+    import { loadMetaTags, getMetaTags } from '@website-lib/config/meta';
 
     // Type definition for footer links
     type FooterLink = {
@@ -76,7 +77,8 @@
         )
     })).filter(section => section.links.length > 0); // Remove sections with no visible links
 
-    // Add prop to determine context
+    // Add prop for meta key
+    export let metaKey: string = 'for_all_of_us'; // default to home page
     export let context: 'website' | 'webapp' = 'website';
 
     // Update footer sections to use full URLs in webapp context
@@ -145,15 +147,57 @@
         const select = event.target as HTMLSelectElement;
         const newLocale = select.value;
         
-        // Only store preference when explicitly changed by user
+        console.log('Changing language to:', newLocale);
+
+        // Store preference in localStorage
         localStorage.setItem('preferredLanguage', newLocale);
         
-        // Set new locale and wait for translations to load
-        await locale.set(newLocale);
-        await waitLocale();
+        try {
+            // Set new locale and wait for translations to load
+            await locale.set(newLocale);
+            await waitLocale();
 
-        // Force page reload to ensure all components update
-        window.location.reload();
+            // Update HTML lang attribute
+            document.documentElement.setAttribute('lang', newLocale);
+
+            // Reload meta tags with new language
+            await loadMetaTags();
+
+            // Get updated meta tags for the current page
+            const metaTags = getMetaTags(metaKey);
+
+            // Update meta tags
+            document.title = metaTags.title;
+            
+            const metaDescription = document.querySelector('meta[name="description"]');
+            if (metaDescription) {
+                metaDescription.setAttribute('content', metaTags.description);
+            }
+
+            const metaKeywords = document.querySelector('meta[name="keywords"]');
+            if (metaKeywords) {
+                metaKeywords.setAttribute('content', metaTags.keywords.join(', '));
+            }
+
+            // Update OpenGraph meta tags if they exist
+            const ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) {
+                ogTitle.setAttribute('content', metaTags.title);
+            }
+
+            const ogDescription = document.querySelector('meta[property="og:description"]');
+            if (ogDescription) {
+                ogDescription.setAttribute('content', metaTags.description);
+            }
+
+            const ogLocale = document.querySelector('meta[property="og:locale"]');
+            if (ogLocale) {
+                ogLocale.setAttribute('content', `${newLocale}_${newLocale.toUpperCase()}`);
+            }
+
+        } catch (error) {
+            console.error('Error changing language:', error);
+        }
     };
 </script>
 

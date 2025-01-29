@@ -29,7 +29,7 @@
         try {
             // Initialize theme
             initializeTheme();
-            
+
             // Initialize i18n
             if (browser) {
                 const savedLocale = localStorage.getItem('preferredLanguage');
@@ -40,13 +40,13 @@
                     locale.set(isValidLocale(browserLang) ? browserLang : 'en');
                 }
             }
-            
+
             // Wait for translations to be ready
             await waitLocale();
-            
+
             // Load meta tags after translations are ready
             await loadMetaTags();
-            
+
             appLoaded = true;
         } catch (error) {
             console.error('Failed to initialize app:', error);

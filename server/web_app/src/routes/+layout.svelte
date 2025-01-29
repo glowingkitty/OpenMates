@@ -29,14 +29,22 @@
 
         initializeTheme();
 
+        // Initialize i18n
         if (browser) {
-            const browserLang = navigator.language.split('-')[0].toLowerCase();
-            if (isValidLocale(browserLang)) {
-                locale.set(browserLang);
+            const savedLocale = localStorage.getItem('preferredLanguage');
+            if (savedLocale && isValidLocale(savedLocale)) {
+                locale.set(savedLocale);
             } else {
-                locale.set('en'); // fallback to English
+                const browserLang = navigator.language.split('-')[0];
+                locale.set(isValidLocale(browserLang) ? browserLang : 'en');
             }
         }
+        
+        // Wait for translations to be ready
+        await waitLocale();
+        
+        // Load meta tags after translations are ready
+        await loadMetaTags();
     });
 
     // Reset to system preference
