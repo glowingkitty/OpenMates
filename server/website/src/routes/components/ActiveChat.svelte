@@ -182,6 +182,14 @@
         width: 100%;
     }
 
+    @media (max-width: 730px) {
+        .message-input-wrapper {
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+        }
+    }
+
     .team-image.disabled {
         opacity: 0;
         filter: grayscale(100%);
