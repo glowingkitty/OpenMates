@@ -5,6 +5,7 @@
     import { createEventDispatcher } from 'svelte';
     import { login } from '../../lib/stores/authState';
     import { onMount } from 'svelte';
+    import { MOBILE_BREAKPOINT } from '../../lib/constants';
 
     const dispatch = createEventDispatcher();
 
@@ -13,6 +14,22 @@
     let password = '';
     let isLoading = false;
     let errorMessage = '';
+
+    // Add state for mobile view
+    let isMobile = false;
+    
+    onMount(() => {
+        // Set initial mobile state
+        isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+        
+        // Update mobile state on resize
+        const handleResize = () => {
+            isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    });
 
     async function handleSubmit() {
         isLoading = true;
@@ -27,7 +44,7 @@
             const userData = { email };
             
             // Update auth state with the token and user data
-            login(mockToken, userData);
+            login(mockToken, userData, isMobile);
             
             console.log('Login successful');
             dispatch('loginSuccess', { user: userData });

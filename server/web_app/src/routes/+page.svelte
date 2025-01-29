@@ -6,11 +6,11 @@
     import Settings from '@website-components/Settings.svelte';
     import { _ } from 'svelte-i18n'; // Import the translation function
     import { isAuthenticated } from '../../../website/src/lib/stores/authState';
-
+    import { fade } from 'svelte/transition';
     // Subscribe to settings menu visibility state
     import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
     import { onMount } from 'svelte';
-
+    import Footer from '@website-components/Footer.svelte';
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
     $: sidebarClass = $isMenuOpen ? 'open' : 'closed';
@@ -63,7 +63,8 @@
 
 <div class="main-content" 
     class:menu-closed={!$isMenuOpen || !$isAuthenticated}
-    class:initial-load={isInitialLoad}>
+    class:initial-load={isInitialLoad}
+    class:login-mode={!$isAuthenticated}>
     <Header context="webapp" isLoggedIn={$isAuthenticated} />
     <div class="chat-container" class:menu-open={menuClass}>
         <div class="chat-wrapper">
@@ -76,6 +77,13 @@
         </div>
     </div>
 </div>
+
+<!-- Footer outside main content -->
+{#if !$isAuthenticated}
+<div class="footer-wrapper" transition:fade>
+    <Footer />
+</div>
+{/if}
 
 <style>
     :root {
@@ -137,6 +145,7 @@
     }
 
     .main-content {
+        /* Change from fixed to absolute positioning when in login mode */
         position: fixed;
         left: calc(var(--sidebar-width) + var(--sidebar-margin));
         top: 0;
@@ -145,6 +154,13 @@
         background-color: var(--color-grey-0);
         z-index: 10;
         transition: left 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Add new login mode styles */
+    .main-content.login-mode {
+        position: absolute;
+        bottom: auto; /* Remove bottom constraint */
+        min-height: 100vh; /* Ensure it takes at least full viewport height */
     }
 
     .main-content.menu-closed {
@@ -173,7 +189,8 @@
     .chat-container {
         display: flex;
         flex-direction: row;
-        height: calc(100% - 90px);
+        /* Update height calculation */
+        height: calc(100vh - 90px); /* Use viewport height instead of percentage */
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -181,6 +198,12 @@
         @media (min-width: 1100px) {
             transition: gap 0.3s ease;
         }
+    }
+
+    /* Add specific height for login mode */
+    .main-content.login-mode .chat-container {
+        height: calc(100vh - 90px); /* Keep full height in login mode */
+        min-height: calc(100vh - 90px); /* Ensure minimum height */
     }
 
     /* Only apply gap on larger screens */
@@ -237,6 +260,11 @@
             left: 0;
             transform: translateX(0);
         }
+
+        .main-content.login-mode {
+            transform: none;
+            left: 0;
+        }
     }
 
     .chat-wrapper,
@@ -258,5 +286,14 @@
     /* Disable transitions during initial load */
     .main-content.initial-load {
         transition: none;
+    }
+
+    /* Update footer wrapper styles */
+    .footer-wrapper {
+        position: relative; /* Change from absolute to relative */
+        width: 100%;
+        z-index: 5; /* Ensure it's below main content */
+        margin-top: -90px; /* Adjust based on your footer height */
+        padding-top: calc(100vh + 90px); /* Push footer below viewport initially */
     }
 </style>

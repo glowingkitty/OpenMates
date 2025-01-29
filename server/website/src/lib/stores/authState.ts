@@ -1,6 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import { AuthService } from '../services/authService';
 import { browser } from '$app/environment';
+import { isMenuOpen } from './menuState';
 
 export interface User {
     email: string;
@@ -39,11 +40,15 @@ function createAuthStore() {
 
     return {
         subscribe,
-        login: (token: string, userData: User) => {
+        login: (token: string, userData: User, isMobile: boolean = false) => {
             AuthService.persistAuth(token, userData);
             // Set body overflow to hidden when user logs in
             if (browser) {
                 document.body.style.overflow = 'hidden';
+                // Only set isMenuOpen to true if not on mobile
+                if (!isMobile) {
+                    isMenuOpen.set(true);
+                }
             }
             set({
                 isAuthenticated: true,
