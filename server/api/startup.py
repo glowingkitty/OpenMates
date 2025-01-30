@@ -8,6 +8,7 @@ from server.api.models.users.users_create import UsersCreateInput
 import requests
 import sys
 import time
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 

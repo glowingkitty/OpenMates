@@ -9,6 +9,7 @@ import os
 from pydantic import BaseModel
 from fastapi import Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
+from server.api.security.crypto import hashing, verify_hash
 
 logger = logging.getLogger(__name__)
 
@@ -485,67 +486,81 @@ async def login_for_access_token(
     """
     Authenticate user and return JWT tokens
     """
-    logger.debug(f"Login attempt received:")
-    logger.debug(f"Request headers: {dict(request.headers)}")
-    logger.debug(f"Login attempt for user: {form_data.username}")
     
     # Get credentials from environment
-    env_email = os.getenv("ADMIN_EMAIL")
-    env_password = os.getenv("ADMIN_PASSWORD")
+    env_email = os.getenv("WEB_APP_ADMIN_EMAIL")
+    env_password = os.getenv("WEB_APP_ADMIN_PASSWORD")
     
     if not env_email or not env_password:
-        logger.error("Admin credentials not configured")
+        logger.error("Admin credentials not configured in environment")
         raise HTTPException(
             status_code=500,
             detail="Server configuration error"
         )
 
-    # Log credential check (don't log actual values!)
-    logger.debug(f"Checking credentials for: {form_data.username}")
-    logger.debug(f"Admin email configured: {bool(env_email)}")
-    
-    # Validate credentials
-    if form_data.username != env_email or form_data.password != env_password:
-        logger.warning(f"Failed login attempt for: {form_data.username}")
+    # First check if email matches
+    if form_data.username != env_email:
+        logger.warning(f"Failed login attempt - email mismatch")
         raise HTTPException(
             status_code=401,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Create tokens
-    access_token = create_access_token(
-        data={"sub": form_data.username}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": form_data.username}
-    )
+    # Hash the provided password and verify
+    try:
+        # Hash the provided password before comparing
+        hashed_input = hashing(form_data.password)
+        
+        if verify_hash(hashed_input, env_password):
+            logger.info(f"Successful login for user")
+            
+            # Create tokens
+            access_token = create_access_token(
+                data={"sub": form_data.username}
+            )
+            refresh_token = create_refresh_token(
+                data={"sub": form_data.username}
+            )
 
-    # Set cookies
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {access_token}",
-        httponly=True,
-        secure=True,  # Only send cookie over HTTPS
-        samesite="lax",  # CSRF protection
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
-    
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
-    )
+            # Set cookies
+            response.set_cookie(
+                key="access_token",
+                value=f"Bearer {access_token}",
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            )
+            
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+            )
 
-    logger.info(f"Successful login for user: {form_data.username}")
-    return Token(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer"
-    )
+            return Token(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type="bearer"
+            )
+        else:
+            logger.warning(f"Failed login attempt - password mismatch")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except Exception as e:
+        logger.error(f"Error during password verification: {str(e)}")
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication error",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 @users_router.post("/v1/auth/refresh")
 async def refresh_token(

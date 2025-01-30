@@ -9,12 +9,11 @@ export class AuthService {
      */
     static async login(email: string, password: string): Promise<any> {
         try {
-            console.log('Attempting login with email:', email);
+            console.log('Attempting login...');
             const formData = new FormData();
-            formData.append('username', email);
+            formData.append('username', email.trim());  // Trim whitespace
             formData.append('password', password);
 
-            console.log('Making fetch request to:', `${API_BASE_URL}/v1/auth/login`);
             const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -26,20 +25,26 @@ export class AuthService {
             });
 
             console.log('Response status:', response.status);
-            console.log('Response headers:', [...response.headers.entries()]);
 
             if (!response.ok) {
-                const error = await response.json().catch(e => ({ detail: 'Could not parse error response' }));
-                console.error('Error response:', error);
-                throw new Error(error.detail || 'Login failed');
+                const errorData = await response.json().catch(() => ({ 
+                    detail: 'Could not parse error response' 
+                }));
+                
+                // Log more details about the error
+                console.error('Login failed:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorData
+                });
+                
+                throw new Error(errorData.detail || 'Login failed');
             }
 
             const data = await response.json();
-            console.log('Login successful, received data:', data);
+            console.log('Login successful');
             return {
-                user: {
-                    email: email
-                }
+                user: { email }
             };
         } catch (error) {
             console.error('Login error:', error);
