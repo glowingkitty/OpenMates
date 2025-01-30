@@ -47,7 +47,7 @@ from server.api.models.mates.mates_update import (
     MatesUpdateInput
 )
 from server.api.endpoints.mates.ask_mate import ask_mate as ask_mate_processing
-from server.api.endpoints.mates.call_mate import call_mate as call_mate_processing
+# from server.api.endpoints.mates.call_mate import call_mate as call_mate_processing
 from server.api.endpoints.mates.create_mate import create_mate as create_mate_processing
 from server.api.endpoints.mates.delete_mate import delete_mate as delete_mate_processing
 from server.api.endpoints.mates.get_mate import get_mate as get_mate_processing
@@ -130,7 +130,7 @@ from server.api.endpoints.apps.ai.estimate_cost import estimate_cost as skill_ai
 from server.api.models.apps.audio.skills_audio_generate_transcript import (
     AudioGenerateTranscriptInput, AudioGenerateTranscriptOutput, AudioTranscriptAiProvider
 )
-from server.api.endpoints.apps.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
+# from server.api.endpoints.apps.audio.generate_transcript import generate_transcript as skill_audio_generate_transcript_processing
 
 # Books
 from server.api.endpoints.tasks.tasks import book_translate_task

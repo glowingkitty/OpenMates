@@ -28,6 +28,7 @@ def is_cms_online():
 
 async def check_for_admin():
     # wait for Strapi to be ready
+    # TODO update for using new cms
     logger.info("Waiting for Strapi CMS to come online...")
 
     attempts = 0
@@ -81,6 +82,12 @@ async def api_startup():
     # get server config
     server_config = get_server_config()
 
+    logger.info("Starting up FastAPI application")
+    logger.info(f"FRONTEND_URL: {os.getenv('FRONTEND_URL')}")
+    logger.info(f"JWT_SECRET_KEY configured: {bool(os.getenv('JWT_SECRET_KEY'))}")
+    logger.info(f"ADMIN_EMAIL configured: {bool(os.getenv('ADMIN_EMAIL'))}")
+    logger.info(f"ADMIN_PASSWORD configured: {bool(os.getenv('ADMIN_PASSWORD'))}")
+
     # # TODO check if the apps exist in strapi, if not create them (based on server/configs/apps/apps.yml - check each app, make sure the app is allowed and if so, it is in strapi)
     # await check_for_apps()
 
@@ -95,6 +102,6 @@ async def api_startup():
 
     # # TODO if no user with server admin rights exists:
     # if DEFAULT_ADMIN_USERNAME and DEFAULT_ADMIN_PASSWORD are set, create the user. Else, show in log and ask user to create one via the webapp
-    await check_for_admin()
+    # await check_for_admin()
 
     logger.info("API startup complete.")

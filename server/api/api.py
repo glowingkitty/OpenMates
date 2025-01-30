@@ -1,6 +1,14 @@
 from server.api import *
 from server.api.docs.docs import setup_docs, bearer_scheme
 from server.server_config import get_server_config
+from datetime import datetime, timedelta
+from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from typing import Optional
+import os
+from pydantic import BaseModel
+from fastapi import Response, Cookie
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -149,14 +157,22 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add logging for CORS configuration
+logger.debug("Setting up CORS middleware with following configuration:")
+allowed_origins = [
+    os.getenv("FRONTEND_URL", "http://localhost:5174"),
+    os.getenv("PRODUCTION_URL", "https://app.openmates.org")
+]
+logger.debug(f"Allowed origins: {allowed_origins}")
 
 # Add CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin"],  # Added 'Origin'
+    expose_headers=["*"],
 )
 
 
@@ -442,6 +458,200 @@ async def get_team(
 # Explaination:
 # User accounts are used to store user data like what projects the user is working on, what they are interested in, what their goals are, etc.
 # The OpenMates admin can choose if users who message mates via the chat software (mattermost, slack, etc.) are required to have an account. If not, the user will be treated as a guest without personalized responses.
+
+
+
+
+
+##### For auth testing only #####
+
+# Constants for JWT
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Short-lived access token
+REFRESH_TOKEN_EXPIRE_DAYS = 7     # Longer-lived refresh token
+ALGORITHM = "HS256"
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+@users_router.post("/v1/auth/login", response_model=Token)
+@limiter.limit("5/minute")
+async def login_for_access_token(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    response: Response = None
+) -> Token:
+    """
+    Authenticate user and return JWT tokens
+    """
+    logger.debug(f"Login attempt received:")
+    logger.debug(f"Request headers: {dict(request.headers)}")
+    logger.debug(f"Login attempt for user: {form_data.username}")
+    
+    # Get credentials from environment
+    env_email = os.getenv("ADMIN_EMAIL")
+    env_password = os.getenv("ADMIN_PASSWORD")
+    
+    if not env_email or not env_password:
+        logger.error("Admin credentials not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error"
+        )
+
+    # Log credential check (don't log actual values!)
+    logger.debug(f"Checking credentials for: {form_data.username}")
+    logger.debug(f"Admin email configured: {bool(env_email)}")
+    
+    # Validate credentials
+    if form_data.username != env_email or form_data.password != env_password:
+        logger.warning(f"Failed login attempt for: {form_data.username}")
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Create tokens
+    access_token = create_access_token(
+        data={"sub": form_data.username}
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": form_data.username}
+    )
+
+    # Set cookies
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {access_token}",
+        httponly=True,
+        secure=True,  # Only send cookie over HTTPS
+        samesite="lax",  # CSRF protection
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+
+    logger.info(f"Successful login for user: {form_data.username}")
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
+    )
+
+@users_router.post("/v1/auth/refresh")
+async def refresh_token(
+    response: Response,
+    refresh_token: str = Cookie(None)
+) -> Token:
+    """
+    Use refresh token to get new access token
+    """
+    if not refresh_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Refresh token missing"
+        )
+
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            os.getenv("JWT_SECRET_KEY"),
+            algorithms=[ALGORITHM]
+        )
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid refresh token"
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid refresh token"
+        )
+
+    # Create new tokens
+    new_access_token = create_access_token(data={"sub": email})
+    new_refresh_token = create_refresh_token(data={"sub": email})
+
+    # Set new cookies
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {new_access_token}",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+
+    return Token(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        token_type="bearer"
+    )
+
+@users_router.post("/v1/auth/logout")
+async def logout(response: Response):
+    """
+    Clear auth cookies
+    """
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    return {"message": "Successfully logged out"}
+
+# Helper functions
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({
+        "exp": expire,
+        "type": "access"
+    })
+    
+    return jwt.encode(
+        to_encode,
+        os.getenv("JWT_SECRET_KEY"),
+        algorithm=ALGORITHM
+    )
+
+def create_refresh_token(data: dict) -> str:
+    """Create JWT refresh token"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    
+    to_encode.update({
+        "exp": expire,
+        "type": "refresh"
+    })
+    
+    return jwt.encode(
+        to_encode,
+        os.getenv("JWT_SECRET_KEY"),
+        algorithm=ALGORITHM
+    )
 
 # GET /users (get all users on a team)
 @users_router.get("/v1/{team_slug}/users/", **users_endpoints["get_all_users"])
@@ -837,7 +1047,7 @@ async def skill_audio_generate_transcript(
             ),
             stream=stream
         )
-    )
+)
 
 
 # # POST /apps/audio/generate_speech (generate speech)

@@ -1,12 +1,13 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# Install dependencies
-RUN apt-get update && \
-    apt-get install -y wget xz-utils libegl1 libopengl0 libxcb-cursor0 portaudio19-dev gcc g++ && \
-    wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# TODO causes issues with docker build
+# # Install dependencies
+# RUN apt-get update && \
+#     apt-get install -y wget xz-utils libegl1 libopengl0 libxcb-cursor0 portaudio19-dev gcc g++ && \
+#     wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
+#     apt-get clean && \
+#     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /usr/src/app/server/api

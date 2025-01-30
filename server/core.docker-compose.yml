@@ -28,7 +28,6 @@
 # only read access to files if possible, limit cpu/memory usage, strapi input parameterized, turn off strapi interface (except when in development mode) etc. etc.)
 
 name: openmates-core
-version: '3.8'
 
 services:
 

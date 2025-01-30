@@ -11,72 +11,49 @@ export interface User {
 interface AuthState {
     isAuthenticated: boolean;
     user: User | null;
-    token: string | null;
 }
 
-// Create the main auth store with initial state from storage
+// Create the main auth store with initial state
 function createAuthStore() {
-    // Initialize with stored data if in browser
-    let initialState: AuthState = {
+    const { subscribe, set, update } = writable<AuthState>({
         isAuthenticated: false,
         user: null,
-        token: null
-    };
-
-    if (browser) {
-        const { token, userData } = AuthService.loadStoredAuth();
-        if (token && userData && AuthService.isTokenValid(token)) {
-            initialState = {
-                isAuthenticated: true,
-                user: userData,
-                token
-            };
-            // Set initial overflow state if user is authenticated
-            document.body.style.overflow = 'hidden';
-        }
-    }
-
-    const { subscribe, set, update } = writable<AuthState>(initialState);
+    });
 
     return {
         subscribe,
-        login: (token: string, userData: User, isMobile: boolean = false) => {
-            AuthService.persistAuth(token, userData);
-            if (browser) {
-                document.body.style.overflow = 'hidden';
-                // Always keep menu closed on mobile login
-                if (isMobile) {
-                    isMenuOpen.set(false);
-                } else {
-                    isMenuOpen.set(true);
-                }
-            }
+        login: (userData: User) => {
             set({
                 isAuthenticated: true,
                 user: userData,
-                token
             });
+            // Set overflow hidden style if user is authenticated
+            if (browser) {
+                document.body.style.overflow = 'hidden';
+                isMenuOpen.set(true);
+            }
         },
         logout: () => {
-            AuthService.clearAuth();
+            AuthService.logout();
+            set({
+                isAuthenticated: false,
+                user: null,
+            });
             // Remove overflow hidden style when user logs out
             if (browser) {
                 document.body.style.overflow = '';
             }
-            set({
-                isAuthenticated: false,
-                user: null,
-                token: null
-            });
-            
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            document.cookie.split(";").forEach(cookie => {
-                document.cookie = cookie
-                    .replace(/^ +/, "")
-                    .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-            });
+        },
+        checkAuth: async () => {
+            if (browser) {
+                const isAuthed = await AuthService.checkAuth();
+                if (!isAuthed) {
+                    set({
+                        isAuthenticated: false,
+                        user: null
+                    });
+                }
+            }
         }
     };
 }
@@ -84,4 +61,4 @@ function createAuthStore() {
 const authStore = createAuthStore();
 export const isAuthenticated = derived(authStore, $auth => $auth.isAuthenticated);
 export const currentUser = derived(authStore, $auth => $auth.user);
-export const { login, logout } = authStore; 
+export const { login, logout, checkAuth } = authStore; 

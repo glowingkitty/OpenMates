@@ -36,5 +36,6 @@ newspaper3k==0.2.8
 lxml_html_clean==0.2.2
 reportlab==4.2.2
 elevenlabs==1.9.0
-assemblyai[extras]==0.33.0
+# assemblyai[extras]==0.33.0 # causes issues with docker build
 googlemaps==4.10.0
+python-jose==3.3.0

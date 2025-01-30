@@ -1,77 +1,95 @@
-// Constants for storage keys
-const AUTH_TOKEN_KEY = 'auth_token';
-const USER_DATA_KEY = 'user_data';
+import { API_BASE_URL } from '../constants';
 
 /**
  * Service to handle authentication-related operations
  */
 export class AuthService {
     /**
-     * Store authentication data securely
+     * Attempt login with credentials
      */
-    static persistAuth(token: string, userData: any): void {
-        // Store token in httpOnly cookie (should be done by backend)
-        // Here we'll use localStorage as a fallback, but in production
-        // you should use secure httpOnly cookies set by the server
+    static async login(email: string, password: string): Promise<any> {
         try {
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
-            localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+            console.log('Attempting login with email:', email);
+            const formData = new FormData();
+            formData.append('username', email);
+            formData.append('password', password);
+
+            console.log('Making fetch request to:', `${API_BASE_URL}/v1/auth/login`);
+            const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: formData,
+                credentials: 'include'
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', [...response.headers.entries()]);
+
+            if (!response.ok) {
+                const error = await response.json().catch(e => ({ detail: 'Could not parse error response' }));
+                console.error('Error response:', error);
+                throw new Error(error.detail || 'Login failed');
+            }
+
+            const data = await response.json();
+            console.log('Login successful, received data:', data);
+            return {
+                user: {
+                    email: email
+                }
+            };
         } catch (error) {
-            console.error('Failed to persist auth data:', error);
+            console.error('Login error:', error);
+            throw error;
         }
     }
 
     /**
-     * Load stored authentication data
+     * Refresh the access token
      */
-    static loadStoredAuth(): { token: string | null; userData: any | null } {
+    static async refreshToken(): Promise<boolean> {
         try {
-            const token = localStorage.getItem(AUTH_TOKEN_KEY);
-            const userDataStr = localStorage.getItem(USER_DATA_KEY);
-            const userData = userDataStr ? JSON.parse(userDataStr) : null;
-            return { token, userData };
-        } catch (error) {
-            console.error('Failed to load stored auth data:', error);
-            return { token: null, userData: null };
-        }
-    }
+            const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include'
+            });
 
-    /**
-     * Clear stored authentication data
-     */
-    static clearAuth(): void {
-        try {
-            localStorage.removeItem(AUTH_TOKEN_KEY);
-            localStorage.removeItem(USER_DATA_KEY);
-        } catch (error) {
-            console.error('Failed to clear auth data:', error);
-        }
-    }
-
-    /**
-     * Validate stored token (implement proper validation logic)
-     */
-    static isTokenValid(token: string): boolean {
-        try {
-            // Basic check if token exists
-            if (!token) return false;
-
-            // If using JWT, decode and check expiration
-            const tokenParts = token.split('.');
-            if (tokenParts.length !== 3) return false;
-
-            const payload = JSON.parse(atob(tokenParts[1]));
-            const expirationTime = payload.exp * 1000; // Convert to milliseconds
-            
-            // Check if token is expired
-            if (Date.now() >= expirationTime) {
-                console.log('Token expired');
-                return false;
+            if (!response.ok) {
+                throw new Error('Token refresh failed');
             }
 
             return true;
         } catch (error) {
-            console.error('Error validating token:', error);
+            console.error('Token refresh failed:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Logout user
+     */
+    static async logout(): Promise<void> {
+        try {
+            await fetch(`${API_BASE_URL}/v1/auth/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    }
+
+    /**
+     * Check if user is authenticated
+     */
+    static async checkAuth(): Promise<boolean> {
+        try {
+            // Try to refresh token
+            return await this.refreshToken();
+        } catch {
             return false;
         }
     }

@@ -6,6 +6,7 @@
     import { login } from '../../lib/stores/authState';
     import { onMount } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../../lib/constants';
+    import { AuthService } from '../../lib/services/authService';
 
     const dispatch = createEventDispatcher();
 
@@ -40,34 +41,28 @@
         errorMessage = '';
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const mockToken = createMockToken();
-            const userData = { email };
+            await AuthService.login(email, password);
             
-            // Pass the current mobile state to login
-            login(mockToken, userData, isMobile);
+            // Just use the email we already have
+            login({
+                email: email,
+            });
             
             console.log('Login successful');
-            dispatch('loginSuccess', { user: userData, isMobile });
+            dispatch('loginSuccess', { 
+                user: { email: email },
+                isMobile 
+            });
             
         } catch (error: any) {
-            console.error('Login failed:', error);
-            errorMessage = error.message || 'Login failed. Please try again.';
+            console.error('Login error details:', error);
+            // More user-friendly error message
+            errorMessage = error.message === 'Failed to fetch' 
+                ? 'Unable to connect to the server. Please check your connection and try again.'
+                : error.message || 'Login failed. Please check your credentials and try again.';
         } finally {
             isLoading = false;
         }
-    }
-
-    // Helper function to create a mock JWT token for testing
-    function createMockToken(): string {
-        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-        const payload = btoa(JSON.stringify({
-            sub: '123',
-            email: email,
-            exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour from now
-        }));
-        const signature = btoa('mock_signature');
-        return `${header}.${payload}.${signature}`;
     }
 </script>
 
