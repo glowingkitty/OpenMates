@@ -1,7 +1,7 @@
 from server.api import *
 from server.api.docs.docs import setup_docs, bearer_scheme
 from server.server_config import get_server_config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from typing import Optional, Set
@@ -651,6 +651,7 @@ async def logout(
     """
     try:
         logger.info("Processing logout request")
+        # TODO add to separate file, also, add tests?
         
         # If there's a refresh token, add it to the blocklist
         if refresh_token:
@@ -684,16 +685,19 @@ async def logout(
 
 # Helper functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token"""
+    """
+    Create JWT access token with explicit UTC timestamps
+    """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({
         "exp": expire,
-        "type": "access"
+        "type": "access",
+        "iat": datetime.now(timezone.utc)  # Add issued at time
     })
     
     return jwt.encode(
@@ -703,13 +707,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
 
 def create_refresh_token(data: dict) -> str:
-    """Create JWT refresh token"""
+    """
+    Create JWT refresh token with explicit UTC timestamps
+    """
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     
     to_encode.update({
         "exp": expire,
-        "type": "refresh"
+        "type": "refresh",
+        "iat": datetime.now(timezone.utc)  # Add issued at time
     })
     
     return jwt.encode(
