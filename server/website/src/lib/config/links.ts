@@ -30,6 +30,12 @@ export const baseUrls = {
     }
 } as const;
 
+// Add API URL configuration
+export const apiUrls = {
+    development: 'http://localhost:8000',
+    production: 'https://api.openmates.org'
+} as const;
+
 // Helper to get correct base URL
 export function getBaseUrl(app: 'website' | 'webapp'): string {
     const isDev = import.meta.env.DEV;
@@ -39,6 +45,12 @@ export function getBaseUrl(app: 'website' | 'webapp'): string {
 // Helper to get webapp URL
 export function getWebappUrl(): string {
     return getBaseUrl('webapp');
+}
+
+// Helper to get API URL
+export function getApiUrl(): string {
+    const isDev = import.meta.env.DEV;
+    return isDev ? apiUrls.development : apiUrls.production;
 }
 
 export const routes = {

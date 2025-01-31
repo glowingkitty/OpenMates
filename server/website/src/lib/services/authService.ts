@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../constants';
+import { getApiUrl } from '../config/links';
 
 /**
  * Service to handle authentication-related operations
@@ -14,7 +14,7 @@ export class AuthService {
             formData.append('username', email.trim());  // Trim whitespace
             formData.append('password', password);
 
-            const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
+            const response = await fetch(`${getApiUrl()}/v1/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
@@ -58,7 +58,7 @@ export class AuthService {
     static async refreshToken(): Promise<{success: boolean, email?: string}> {
         try {
             console.log('Attempting to refresh token...');
-            const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
+            const response = await fetch(`${getApiUrl()}/v1/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -91,7 +91,7 @@ export class AuthService {
      */
     static async logout(): Promise<void> {
         try {
-            await fetch(`${API_BASE_URL}/v1/auth/logout`, {
+            await fetch(`${getApiUrl()}/v1/auth/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });

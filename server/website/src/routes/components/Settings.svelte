@@ -13,8 +13,8 @@
     import { cubicOut } from 'svelte/easing';
     import { isAuthenticated, currentUser, logout } from '../../lib/stores/authState';
     import { isMenuOpen } from '../../lib/stores/menuState';
-    import { API_BASE_URL } from '../../lib/constants';
     import { isCheckingAuth } from '../../lib/stores/authCheckState';
+    import { getApiUrl } from '../../lib/config/links';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -121,7 +121,7 @@
             isCheckingAuth.set(false);
             
             // First make the logout request to the server
-            const response = await fetch(`${API_BASE_URL}/v1/auth/logout`, {
+            const response = await fetch(`${getApiUrl()}/v1/auth/logout`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
