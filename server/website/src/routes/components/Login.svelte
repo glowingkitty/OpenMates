@@ -274,13 +274,6 @@
         }
     }
 
-    .loading-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-    }
-
     .form-container {
         position: relative;
         min-height: 250px; /* Adjust based on your form height */
