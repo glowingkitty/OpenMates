@@ -19,7 +19,7 @@ function createAuthStore() {
     const { subscribe, set, update } = writable<AuthState>({
         isAuthenticated: false,
         user: null,
-        isInitialized: false
+        isInitialized: true  // Start as initialized to show login screen immediately
     });
 
     return {
@@ -51,6 +51,7 @@ function createAuthStore() {
         checkAuth: async () => {
             if (browser) {
                 console.log('Checking auth state...');
+                // Don't set isInitialized to false anymore
                 const authResult = await AuthService.checkAuth();
                 console.log('Auth check result:', authResult);
                 

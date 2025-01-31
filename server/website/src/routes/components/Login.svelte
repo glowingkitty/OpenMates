@@ -20,10 +20,16 @@
     let isMobile = false;
     let emailInput: HTMLInputElement; // Reference to the email input element
     
+    // Add state for checking initial auth
+    let isCheckingAuth = true;
+
     onMount(() => {
         // Immediately invoke async function
         (async () => {
+            // Start auth check
+            isCheckingAuth = true;
             await checkAuth();
+            isCheckingAuth = false;
             
             // Set initial mobile state
             isMobile = window.innerWidth < MOBILE_BREAKPOINT;
@@ -72,19 +78,21 @@
     }
 </script>
 
-{#if $isAuthInitialized}
-    {#if !$isAuthenticated}
-        <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
-            <AppIconGrid side="left" />
+{#if !$isAuthenticated}
+    <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
+        <AppIconGrid side="left" />
 
-            <div class="login-content">
-                <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
-                    <h1><mark>{$_('login.login.text')}</mark></h1>
-                    <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
+        <div class="login-content">
+            <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
+                <h1><mark>{$_('login.login.text')}</mark></h1>
+                <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
 
-                    <!-- <p>{$_('login.not_signed_up_yet.text')}</p>
-                    <a href="/signup"><mark>{$_('login.click_here_to_create_a_new_account.text')}</mark></a> -->
-
+                {#if isCheckingAuth}
+                    <div class="checking-auth">
+                        <span class="loading-spinner"></span>
+                        <p>{$_('login.checking_auth.text', { default: 'Logging in...' })}</p>
+                    </div>
+                {:else}
                     <form on:submit|preventDefault={handleSubmit}>
                         {#if errorMessage}
                             <div class="error-message" in:fade>
@@ -126,21 +134,12 @@
                                 {$_('login.login_button.text')}
                             {/if}
                         </button>
-
-                        <!-- <div class="links">
-                            <a href="/forgot-password">{$_('login.forgot_password.text')}</a>
-                        </div> -->
                     </form>
-                </div>
+                {/if}
             </div>
-
-            <AppIconGrid side="right" />
         </div>
-    {/if}
-{:else}
-    <!-- Optional: Show loading spinner while checking auth -->
-    <div class="loading-container">
-        <span class="loading-spinner"></span>
+
+        <AppIconGrid side="right" />
     </div>
 {/if}
 
@@ -259,5 +258,18 @@
         justify-content: center;
         align-items: center;
         height: 100vh;
+    }
+
+    .checking-auth {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 35px; /* Match the form's margin-top */
+    }
+
+    .checking-auth p {
+        color: var(--color-grey-80);
+        font-size: 1.1rem;
     }
 </style>

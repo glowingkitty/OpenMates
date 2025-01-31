@@ -106,8 +106,13 @@ export class AuthService {
     static async checkAuth(): Promise<{isAuthenticated: boolean, email?: string}> {
         try {
             console.log('Checking authentication...');
+            
+            // Add delay to ensure loading state is visible for better UX
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             const refreshResult = await this.refreshToken();
             console.log('Auth check result:', refreshResult);
+            
             return {
                 isAuthenticated: refreshResult.success,
                 email: refreshResult.email
