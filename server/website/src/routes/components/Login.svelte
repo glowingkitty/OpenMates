@@ -3,7 +3,7 @@
     import { _ } from 'svelte-i18n';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { login } from '../../lib/stores/authState';
+    import { login, isAuthenticated, isAuthInitialized, checkAuth } from '../../lib/stores/authState';
     import { onMount } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../../lib/constants';
     import { AuthService } from '../../lib/services/authService';
@@ -21,13 +21,19 @@
     let emailInput: HTMLInputElement; // Reference to the email input element
     
     onMount(() => {
-        // Set initial mobile state
-        isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+        // Immediately invoke async function
+        (async () => {
+            await checkAuth();
+            
+            // Set initial mobile state
+            isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+            
+            if (!$isAuthenticated && emailInput) {
+                emailInput.focus();
+            }
+        })();
         
-        // Focus on the email input field when the component mounts
-        emailInput.focus(); // Focus the email input
-        
-        // Update mobile state on resize
+        // Handle resize events
         const handleResize = () => {
             isMobile = window.innerWidth < MOBILE_BREAKPOINT;
         };
@@ -66,68 +72,77 @@
     }
 </script>
 
-<div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
-    <AppIconGrid side="left" />
+{#if $isAuthInitialized}
+    {#if !$isAuthenticated}
+        <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
+            <AppIconGrid side="left" />
 
-    <div class="login-content">
-        <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
-            <h1><mark>{$_('login.login.text')}</mark></h1>
-            <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
+            <div class="login-content">
+                <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
+                    <h1><mark>{$_('login.login.text')}</mark></h1>
+                    <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
 
-            <!-- <p>{$_('login.not_signed_up_yet.text')}</p>
-            <a href="/signup"><mark>{$_('login.click_here_to_create_a_new_account.text')}</mark></a> -->
+                    <!-- <p>{$_('login.not_signed_up_yet.text')}</p>
+                    <a href="/signup"><mark>{$_('login.click_here_to_create_a_new_account.text')}</mark></a> -->
 
-            <form on:submit|preventDefault={handleSubmit}>
-                {#if errorMessage}
-                    <div class="error-message" in:fade>
-                        {errorMessage}
-                    </div>
-                {/if}
+                    <form on:submit|preventDefault={handleSubmit}>
+                        {#if errorMessage}
+                            <div class="error-message" in:fade>
+                                {errorMessage}
+                            </div>
+                        {/if}
 
-                <div class="input-group" style="margin-top: 35px">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_mail"></span>
-                        <input 
-                            type="email" 
-                            bind:value={email}
-                            placeholder={$_('login.email_placeholder.text')}
-                            required
-                            autocomplete="email"
-                            bind:this={emailInput}
-                        />
-                    </div>
+                        <div class="input-group" style="margin-top: 35px">
+                            <div class="input-wrapper">
+                                <span class="clickable-icon icon_mail"></span>
+                                <input 
+                                    type="email" 
+                                    bind:value={email}
+                                    placeholder={$_('login.email_placeholder.text')}
+                                    required
+                                    autocomplete="email"
+                                    bind:this={emailInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <div class="input-wrapper">
+                                <span class="clickable-icon icon_secret"></span>
+                                <input 
+                                    type="password" 
+                                    bind:value={password}
+                                    placeholder={$_('login.password_placeholder.text')}
+                                    required
+                                    autocomplete="current-password"
+                                />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="login-button" disabled={isLoading}>
+                            {#if isLoading}
+                                <span class="loading-spinner"></span>
+                            {:else}
+                                {$_('login.login_button.text')}
+                            {/if}
+                        </button>
+
+                        <!-- <div class="links">
+                            <a href="/forgot-password">{$_('login.forgot_password.text')}</a>
+                        </div> -->
+                    </form>
                 </div>
+            </div>
 
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_secret"></span>
-                        <input 
-                            type="password" 
-                            bind:value={password}
-                            placeholder={$_('login.password_placeholder.text')}
-                            required
-                            autocomplete="current-password"
-                        />
-                    </div>
-                </div>
-
-                <button type="submit" class="login-button" disabled={isLoading}>
-                    {#if isLoading}
-                        <span class="loading-spinner"></span>
-                    {:else}
-                        {$_('login.login_button.text')}
-                    {/if}
-                </button>
-
-                <!-- <div class="links">
-                    <a href="/forgot-password">{$_('login.forgot_password.text')}</a>
-                </div> -->
-            </form>
+            <AppIconGrid side="right" />
         </div>
+    {/if}
+{:else}
+    <!-- Optional: Show loading spinner while checking auth -->
+    <div class="loading-container">
+        <span class="loading-spinner"></span>
     </div>
-
-    <AppIconGrid side="right" />
-</div>
+{/if}
 
 <style>
     .login-container {
@@ -237,5 +252,12 @@
         .login-box {
             max-width: calc(100% - 20px);
         }
+    }
+
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
     }
 </style>

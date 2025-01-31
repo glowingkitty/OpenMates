@@ -4,7 +4,7 @@ from server.server_config import get_server_config
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from typing import Optional
+from typing import Optional, Set
 import os
 from pydantic import BaseModel
 from fastapi import Response, Cookie
@@ -475,6 +475,10 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
+    email: str
+
+# Add a simple in-memory blocklist (TODO: Replace with Redis)
+REFRESH_TOKEN_BLOCKLIST: Set[str] = set()
 
 @users_router.post("/v1/auth/login", response_model=Token)
 @limiter.limit("5/minute")
@@ -545,7 +549,8 @@ async def login_for_access_token(
             return Token(
                 access_token=access_token,
                 refresh_token=refresh_token,
-                token_type="bearer"
+                token_type="bearer",
+                email=form_data.username
             )
         else:
             logger.warning(f"Failed login attempt - password mismatch")
@@ -576,6 +581,14 @@ async def refresh_token(
             detail="Refresh token missing"
         )
 
+    # Check if token is in blocklist
+    if refresh_token in REFRESH_TOKEN_BLOCKLIST:
+        logger.warning("Attempt to use blocked refresh token")
+        raise HTTPException(
+            status_code=401,
+            detail="Token has been invalidated"
+        )
+
     try:
         payload = jwt.decode(
             refresh_token,
@@ -588,49 +601,86 @@ async def refresh_token(
                 status_code=401,
                 detail="Invalid refresh token"
             )
+
+        # Create new tokens
+        new_access_token = create_access_token(data={"sub": email})
+        new_refresh_token = create_refresh_token(data={"sub": email})
+
+        # Add the old refresh token to blocklist
+        REFRESH_TOKEN_BLOCKLIST.add(refresh_token)
+        logger.debug("Added old refresh token to blocklist during refresh")
+
+        # Set cookies
+        response.set_cookie(
+            key="access_token",
+            value=f"Bearer {new_access_token}",
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+        )
+
+        return Token(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            email=email
+        )
     except JWTError:
         raise HTTPException(
             status_code=401,
             detail="Invalid refresh token"
         )
 
-    # Create new tokens
-    new_access_token = create_access_token(data={"sub": email})
-    new_refresh_token = create_refresh_token(data={"sub": email})
-
-    # Set new cookies
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {new_access_token}",
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
-
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
-    )
-
-    return Token(
-        access_token=new_access_token,
-        refresh_token=new_refresh_token,
-        token_type="bearer"
-    )
-
 @users_router.post("/v1/auth/logout")
-async def logout(response: Response):
+async def logout(
+    response: Response,
+    refresh_token: str = Cookie(None)
+):
     """
-    Clear auth cookies
+    Clear auth cookies and invalidate refresh token
     """
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
-    return {"message": "Successfully logged out"}
+    try:
+        logger.info("Processing logout request")
+        
+        # If there's a refresh token, add it to the blocklist
+        if refresh_token:
+            # TODO replace with dragonfly/redis
+            REFRESH_TOKEN_BLOCKLIST.add(refresh_token)
+            logger.debug("Added refresh token to blocklist")
+
+        # Clear cookies with same settings they were set with
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            secure=True,
+            samesite="lax"
+        )
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=True,
+            samesite="lax"
+        )
+        
+        logger.info("Successfully cleared auth cookies")
+        return {"message": "Successfully logged out"}
+        
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error during logout process"
+        )
 
 # Helper functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -1082,11 +1132,7 @@ async def skill_audio_generate_transcript(
 #         user_api_token=token
 #     )
 
-#     return await skill_audio_generate_speech_processing(
-#         input=parameters
-#     )
-
-
+#
 # TODO add websocket endpoint for generate_transcript
 # TODO add websocket endpoint for generate_speech
 
@@ -1901,3 +1947,31 @@ def register_all_routers(app: FastAPI) -> None:
 
 # Register all routers
 register_all_routers(app)
+
+# Add a cleanup function to remove expired tokens from blocklist
+# This could be called periodically using a background task
+async def cleanup_token_blocklist():
+    """Remove expired tokens from the blocklist"""
+    try:
+        to_remove = set()
+        for token in REFRESH_TOKEN_BLOCKLIST:
+            try:
+                # Try to decode the token
+                payload = jwt.decode(
+                    token,
+                    os.getenv("JWT_SECRET_KEY"),
+                    algorithms=[ALGORITHM]
+                )
+                # If token is expired, mark it for removal
+                exp = payload.get("exp")
+                if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+                    to_remove.add(token)
+            except JWTError:
+                # If token is invalid/expired, mark it for removal
+                to_remove.add(token)
+        
+        # Remove the expired tokens
+        REFRESH_TOKEN_BLOCKLIST.difference_update(to_remove)
+        logger.debug(f"Cleaned up {len(to_remove)} expired tokens from blocklist")
+    except Exception as e:
+        logger.error(f"Error during token blocklist cleanup: {str(e)}")

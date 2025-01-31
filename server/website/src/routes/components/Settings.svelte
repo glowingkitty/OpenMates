@@ -13,6 +13,7 @@
     import { cubicOut } from 'svelte/easing';
     import { isAuthenticated, currentUser, logout } from '../../lib/stores/authState';
     import { isMenuOpen } from '../../lib/stores/menuState';
+    import { API_BASE_URL } from '../../lib/constants';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -112,28 +113,49 @@
     }
 
     async function handleLogout(): Promise<void> {
-        console.log('Logging out...');
-        
-        // Reset scroll position
-        if (settingsContentElement) {
-            settingsContentElement.scrollTop = 0;
+        try {
+            console.log('Logging out...');
+            
+            // First make the logout request to the server
+            const response = await fetch(`${API_BASE_URL}/v1/auth/logout`, {
+                method: 'POST',
+                credentials: 'include', // Important for cookie handling
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.error('Logout request failed:', response.statusText);
+                // Continue with client-side logout even if server request fails
+            }
+            
+            // Reset scroll position
+            if (settingsContentElement) {
+                settingsContentElement.scrollTop = 0;
+            }
+            
+            // Close the settings menu
+            isMenuVisible = false;
+            settingsMenuVisible.set(false);
+            
+            // Small delay to allow settings menu to close
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Close the sidebar menu
+            isMenuOpen.set(false);
+            
+            // Small delay to allow sidebar animation
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Finally perform the client-side logout
+            logout();
+
+        } catch (error) {
+            console.error('Error during logout:', error);
+            // Continue with client-side logout even if there's an error
+            logout();
         }
-        
-        // First close the settings menu
-        isMenuVisible = false;
-        settingsMenuVisible.set(false);
-        
-        // Small delay to allow settings menu to close
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Close the sidebar menu
-        isMenuOpen.set(false);
-        
-        // Small delay to allow sidebar animation
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Finally perform the actual logout
-        logout();
     }
 </script>
 

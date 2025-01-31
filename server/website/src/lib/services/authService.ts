@@ -55,21 +55,34 @@ export class AuthService {
     /**
      * Refresh the access token
      */
-    static async refreshToken(): Promise<boolean> {
+    static async refreshToken(): Promise<{success: boolean, email?: string}> {
         try {
+            console.log('Attempting to refresh token...');
             const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
+            console.log('Refresh response status:', response.status);
+
             if (!response.ok) {
-                throw new Error('Token refresh failed');
+                console.log('Token refresh failed - response not ok');
+                return { success: false };
             }
 
-            return true;
+            const data = await response.json();
+            console.log('Refresh token response data:', data);
+            
+            return { 
+                success: true,
+                email: data.email
+            };
         } catch (error) {
-            console.error('Token refresh failed:', error);
-            return false;
+            console.error('Token refresh failed with error:', error);
+            return { success: false };
         }
     }
 
@@ -90,12 +103,18 @@ export class AuthService {
     /**
      * Check if user is authenticated
      */
-    static async checkAuth(): Promise<boolean> {
+    static async checkAuth(): Promise<{isAuthenticated: boolean, email?: string}> {
         try {
-            // Try to refresh token
-            return await this.refreshToken();
-        } catch {
-            return false;
+            console.log('Checking authentication...');
+            const refreshResult = await this.refreshToken();
+            console.log('Auth check result:', refreshResult);
+            return {
+                isAuthenticated: refreshResult.success,
+                email: refreshResult.email
+            };
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            return { isAuthenticated: false };
         }
     }
 } 
