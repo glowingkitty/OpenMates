@@ -14,6 +14,7 @@
     import { isAuthenticated, currentUser, logout } from '../../lib/stores/authState';
     import { isMenuOpen } from '../../lib/stores/menuState';
     import { API_BASE_URL } from '../../lib/constants';
+    import { isCheckingAuth } from '../../lib/stores/authCheckState';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -116,10 +117,13 @@
         try {
             console.log('Logging out...');
             
+            // Reset the checking auth state immediately
+            isCheckingAuth.set(false);
+            
             // First make the logout request to the server
             const response = await fetch(`${API_BASE_URL}/v1/auth/logout`, {
                 method: 'POST',
-                credentials: 'include', // Important for cookie handling
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -127,7 +131,6 @@
 
             if (!response.ok) {
                 console.error('Logout request failed:', response.statusText);
-                // Continue with client-side logout even if server request fails
             }
             
             // Reset scroll position
@@ -153,7 +156,6 @@
 
         } catch (error) {
             console.error('Error during logout:', error);
-            // Continue with client-side logout even if there's an error
             logout();
         }
     }

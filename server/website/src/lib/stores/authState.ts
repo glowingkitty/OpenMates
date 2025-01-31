@@ -19,7 +19,7 @@ function createAuthStore() {
     const { subscribe, set, update } = writable<AuthState>({
         isAuthenticated: false,
         user: null,
-        isInitialized: true  // Start as initialized to show login screen immediately
+        isInitialized: true  // Keep this true by default
     });
 
     return {
@@ -51,19 +51,28 @@ function createAuthStore() {
         checkAuth: async () => {
             if (browser) {
                 console.log('Checking auth state...');
-                // Don't set isInitialized to false anymore
-                const authResult = await AuthService.checkAuth();
-                console.log('Auth check result:', authResult);
                 
-                if (authResult.isAuthenticated && authResult.email) {
-                    console.log('Setting auth state to authenticated:', authResult.email);
-                    set({
-                        isAuthenticated: true,
-                        user: { email: authResult.email },
-                        isInitialized: true
-                    });
-                } else {
-                    console.log('Setting auth state to not authenticated');
+                try {
+                    const authResult = await AuthService.checkAuth();
+                    console.log('Auth check result:', authResult);
+                    
+                    if (authResult.isAuthenticated && authResult.email) {
+                        console.log('Setting auth state to authenticated:', authResult.email);
+                        set({
+                            isAuthenticated: true,
+                            user: { email: authResult.email },
+                            isInitialized: true
+                        });
+                    } else {
+                        console.log('Setting auth state to not authenticated');
+                        set({
+                            isAuthenticated: false,
+                            user: null,
+                            isInitialized: true
+                        });
+                    }
+                } catch (error) {
+                    console.error('Auth check failed:', error);
                     set({
                         isAuthenticated: false,
                         user: null,

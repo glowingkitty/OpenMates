@@ -107,9 +107,7 @@ export class AuthService {
         try {
             console.log('Checking authentication...');
             
-            // Add delay to ensure loading state is visible for better UX
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
+            // Try refresh token - let server determine if there's a valid session
             const refreshResult = await this.refreshToken();
             console.log('Auth check result:', refreshResult);
             

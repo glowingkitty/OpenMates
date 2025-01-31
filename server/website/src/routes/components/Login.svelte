@@ -7,6 +7,7 @@
     import { onMount } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../../lib/constants';
     import { AuthService } from '../../lib/services/authService';
+    import { isCheckingAuth } from '../../lib/stores/authCheckState';
 
     const dispatch = createEventDispatcher();
 
@@ -19,17 +20,14 @@
     // Add state for mobile view
     let isMobile = false;
     let emailInput: HTMLInputElement; // Reference to the email input element
-    
-    // Add state for checking initial auth
-    let isCheckingAuth = true;
 
     onMount(() => {
         // Immediately invoke async function
         (async () => {
-            // Start auth check
-            isCheckingAuth = true;
+            // Always check auth on mount - server will determine if session exists
+            $isCheckingAuth = true;
             await checkAuth();
-            isCheckingAuth = false;
+            $isCheckingAuth = false;
             
             // Set initial mobile state
             isMobile = window.innerWidth < MOBILE_BREAKPOINT;
@@ -87,7 +85,7 @@
                 <h1><mark>{$_('login.login.text')}</mark></h1>
                 <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
 
-                {#if isCheckingAuth}
+                {#if $isCheckingAuth}
                     <div class="checking-auth">
                         <span class="loading-spinner"></span>
                         <p>{$_('login.checking_auth.text', { default: 'Logging in...' })}</p>
