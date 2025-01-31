@@ -8,6 +8,7 @@
     import { MOBILE_BREAKPOINT } from '../../lib/constants';
     import { AuthService } from '../../lib/services/authService';
     import { isCheckingAuth } from '../../lib/stores/authCheckState';
+    import { tick } from 'svelte';
 
     const dispatch = createEventDispatcher();
 
@@ -21,12 +22,27 @@
     let isMobile = false;
     let emailInput: HTMLInputElement; // Reference to the email input element
 
+    // Add state for minimum loading time control
+    let showLoadingUntil = 0;
+
+    // Add state to control form visibility
+    let showForm = false;
+
     onMount(() => {
-        // Immediately invoke async function
         (async () => {
-            // Always check auth on mount - server will determine if session exists
+            showLoadingUntil = Date.now() + 500;
+            
             $isCheckingAuth = true;
             await checkAuth();
+            
+            const remainingTime = showLoadingUntil - Date.now();
+            if (remainingTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
+            
+            await tick();
+            showForm = true; // Show form before removing loading state
+            await tick();
             $isCheckingAuth = false;
             
             // Set initial mobile state
@@ -85,13 +101,13 @@
                 <h1><mark>{$_('login.login.text')}</mark></h1>
                 <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
 
-                {#if $isCheckingAuth}
-                    <div class="checking-auth">
-                        <span class="loading-spinner"></span>
-                        <p>{$_('login.checking_auth.text', { default: 'Logging in...' })}</p>
-                    </div>
-                {:else}
-                    <form on:submit|preventDefault={handleSubmit}>
+                <div class="form-container">
+                    <!-- Form is always rendered but initially hidden -->
+                    <form 
+                        on:submit|preventDefault={handleSubmit} 
+                        class:visible={showForm}
+                        class:hidden={!showForm}
+                    >
                         {#if errorMessage}
                             <div class="error-message" in:fade>
                                 {errorMessage}
@@ -133,7 +149,14 @@
                             {/if}
                         </button>
                     </form>
-                {/if}
+
+                    {#if $isCheckingAuth}
+                        <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
+                            <span class="loading-spinner"></span>
+                            <p>{$_('login.checking_auth.text', { default: 'Loading...' })}</p>
+                        </div>
+                    {/if}
+                </div>
             </div>
         </div>
 
@@ -258,12 +281,38 @@
         height: 100vh;
     }
 
+    .form-container {
+        position: relative;
+        min-height: 250px; /* Adjust based on your form height */
+        margin-top: 35px;
+    }
+
+    form {
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    form.visible {
+        opacity: 1;
+    }
+
+    form.hidden {
+        opacity: 0;
+    }
+
     .checking-auth {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 1rem;
-        margin-top: 35px; /* Match the form's margin-top */
+        background-color: var(--color-grey-20); /* Match parent background */
+        z-index: 1;
     }
 
     .checking-auth p {
