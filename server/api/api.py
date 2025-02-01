@@ -194,11 +194,11 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 ######### Web interface ##########
 ##################################
 
-# GET / (get the index.html file)
-@app.get("/",include_in_schema=False)
-@limiter.limit("20/minute")
-def read_root(request: Request):
-    return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
+# # GET / (get the index.html file)
+# @app.get("/",include_in_schema=False)
+# @limiter.limit("20/minute")
+# def read_root(request: Request):
+#     return FileResponse(os.path.join(os.path.dirname(__file__), 'endpoints/index.html'))
 
 
 ##########################################################
