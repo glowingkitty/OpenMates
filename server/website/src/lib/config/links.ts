@@ -55,15 +55,15 @@ export function getApiUrl(): string {
 
 export const routes = {
     home: "/",
-    developers: "/developers",
-    webapp: getBaseUrl('webapp'), // Use getBaseUrl directly instead of getWebappUrl
+    developers: import.meta.env.DEV ? "/developers" : null,
+    webapp: import.meta.env.DEV ? getBaseUrl('webapp') : null,
     docs: {
-        main: "/docs",
-        userGuide: "/docs/user_guide",
-        api: "/docs/api",
-        roadmap: "/docs/roadmap",
-        designGuidelines: "/docs/design_guidelines",
-        designSystem: "/docs/design_system"
+        main: import.meta.env.DEV ? "/docs" : null,
+        userGuide: import.meta.env.DEV ? "/docs/user_guide" : null,
+        api: import.meta.env.DEV ? "/docs/api" : null,
+        roadmap: import.meta.env.DEV ? "/docs/roadmap" : null,
+        designGuidelines: import.meta.env.DEV ? "/docs/design_guidelines" : null,
+        designSystem: import.meta.env.DEV ? "/docs/design_system" : null
     }
 } as const;
 

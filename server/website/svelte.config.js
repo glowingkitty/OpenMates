@@ -20,6 +20,24 @@ const config = {
 			'@website-actions': path.resolve('./src/lib/actions'),
 			'@website-lib': path.resolve('./src/lib'),
 			'@website-locales': path.resolve('./src/locales')
+		},
+		// Add prerender configuration
+		prerender: {
+			handleHttpError: ({ path, referrer, message }) => {
+				// Ignore 404s for pages that are not meant to be in production
+				if (message.includes('404') && (
+					path.includes('/developers') ||
+					path.includes('/docs') ||
+					path.includes('/docs/api') ||
+					path.includes('/docs/design_guidelines') ||
+					path.includes('/docs/design_system') ||
+					path.includes('/docs/roadmap')
+				)) {
+					return;
+				}
+				// Otherwise throw the error
+				throw new Error(message);
+			}
 		}
 	}
 };

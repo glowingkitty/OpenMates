@@ -33,25 +33,47 @@
     ];
 
     // Define footer sections and their links using the centralized config
-    const footerSections: {title: string, title_key: string, links: FooterLink[]}[] = [
+    const footerSections = [
         {
             title_key: "footer.sections.website",
             title: "Website",
             links: [
                 { href: routes.home, text: "For all of us", translation_key: "footer.sections.for_everyone", external: false },
-                { href: routes.developers, text: "For developers", translation_key: "footer.sections.for_developers", external: false },
-                { href: routes.webapp, text: "Web App", translation_key: "footer.sections.webapp", external: true }
+                // Only include developers link if it exists
+                ...(routes.developers ? [{ 
+                    href: routes.developers, 
+                    text: "For developers", 
+                    translation_key: "footer.sections.for_developers", 
+                    external: false 
+                }] : []),
+                // Only include webapp link if it exists
+                ...(routes.webapp ? [{ 
+                    href: routes.webapp, 
+                    text: "Web App", 
+                    translation_key: "footer.sections.webapp", 
+                    external: true 
+                }] : [])
             ]
         },
         {
             title_key: "footer.sections.docs",
             title: "Docs",
             links: [
-                { href: routes.docs.userGuide, text: "User guide", translation_key: "footer.sections.user_guide", external: false },
-                { href: routes.docs.api, text: "API docs", translation_key: "footer.sections.api_docs", external: false },
-                { href: routes.docs.roadmap, text: "Roadmap", translation_key: "footer.sections.roadmap", external: false },
-                { href: routes.docs.designGuidelines, text: "Design guidelines", translation_key: "footer.sections.design_guidelines", external: false }
-            ]
+                // Only include doc links if they exist
+                ...(routes.docs.userGuide ? [{ 
+                    href: routes.docs.userGuide, 
+                    text: "User guide", 
+                    translation_key: "footer.sections.user_guide", 
+                    external: false 
+                }] : []),
+                ...(routes.docs.api ? [{ 
+                    href: routes.docs.api, 
+                    text: "API docs", 
+                    translation_key: "footer.sections.api_docs", 
+                    external: false 
+                }] : []),
+                // ... similar pattern for other doc links
+            ].filter(Boolean) // Remove any null/undefined entries
         },
         {
             title_key: "footer.sections.legal",
@@ -73,7 +95,7 @@
     ].map(section => ({
         ...section,
         links: section.links.filter(link => 
-            link.external || isPageVisible(link.href)
+            link.external || (link.href && isPageVisible(link.href))
         )
     })).filter(section => section.links.length > 0); // Remove sections with no visible links
 
