@@ -1,6 +1,5 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "cd ../.. && pnpm install && cd server/web_app && pnpm build",
   "outputDirectory": ".svelte-kit/output",
-  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": "sveltekit"
 } 
