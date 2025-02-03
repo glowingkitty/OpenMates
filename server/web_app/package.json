@@ -11,7 +11,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^3.0.0",
+		"@sveltejs/adapter-vercel": "^5.1.0",
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^4.0.0",
 		"@types/node": "^20.0.0",
@@ -30,9 +30,9 @@
 		"highlight.js": "^11.11.1",
 		"leaflet": "^1.9.4",
 		"svelte-i18n": "^4.0.1",
-		"@openmates/website": "file:../website"
+		"@openmates/website": "workspace:*"
 	},
 	"engines": {
-		"node": "^20.x"
+		"node": "20.x"
 	}
 }
