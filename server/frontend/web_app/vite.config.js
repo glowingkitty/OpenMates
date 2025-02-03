@@ -12,11 +12,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			// Component and library aliases
-			'@website-components': path.resolve(websiteSourcePath, 'routes/components'),
-			'@website-styles': path.resolve(websiteSourcePath, 'lib/styles'),
-			'@website-stores': path.resolve(websiteSourcePath, 'lib/stores'),
-			'@website-actions': path.resolve(websiteSourcePath, 'lib/actions'),
-			'@website-locales': path.resolve(websiteSourcePath, 'locales'),
+			'@local/shared': path.resolve(__dirname, '../shared'),
 			
 			// Static file aliases
 			'/icons': path.resolve(websiteStaticPath, 'icons'),
