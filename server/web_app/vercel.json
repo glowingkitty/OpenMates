@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && pnpm install && cd server/web_app && pnpm build",
+  "buildCommand": "cd ../.. && rm -rf node_modules && npm install && cd server/web_app && pnpm install && pnpm build",
   "outputDirectory": ".svelte-kit/output",
   "framework": "sveltekit"
 } 
