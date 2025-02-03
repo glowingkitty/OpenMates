@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && npx pnpm@8.15.1 install && cd server/web_app && pnpm build",
+  "buildCommand": "cd ../.. && npx pnpm@8.15.1 install && cd server/web_app && pnpm svelte-kit sync && pnpm build",
   "outputDirectory": ".svelte-kit/output",
   "framework": "sveltekit"
 } 
