@@ -186,3 +186,7 @@ valid_api_tokens.yaml
 hidden__*
 node_modules
 _backup
+
+# Vercel
+.vercel
+.env*.local

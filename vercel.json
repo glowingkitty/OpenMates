@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd server/web_app && pnpm run build",
+  "outputDirectory": "server/web_app/.svelte-kit/output",
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "framework": "sveltekit"
+}
