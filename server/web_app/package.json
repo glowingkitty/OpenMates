@@ -30,7 +30,7 @@
 		"highlight.js": "^11.11.1",
 		"leaflet": "^1.9.4",
 		"svelte-i18n": "^4.0.1",
-		"@openmates/website": "file:../website"
+		"@openmates/website": "workspace:*"
 	},
 	"engines": {
 		"node": "20.x"
