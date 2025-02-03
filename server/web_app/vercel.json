@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm run build",
+  "outputDirectory": ".svelte-kit/output",
+  "installCommand": "cd ../.. && pnpm install",
+  "framework": "sveltekit"
+} 
