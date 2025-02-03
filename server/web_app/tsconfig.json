@@ -21,6 +21,8 @@
 			"@website-lib": ["../website/src/lib"],
 			"@website-lib/*": ["../website/src/lib/*"],
 			"@website-locales": ["../website/src/locales"],
+			"@openmates/website": ["../website/src/lib/index.ts"],
+			"@openmates/website/*": ["../website/src/lib/*"]
 		}
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias

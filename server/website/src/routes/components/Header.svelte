@@ -34,7 +34,7 @@
         { href: routes.home, text: $t('navigation.for_all.text') },
         { href: routes.developers, text: $t('navigation.for_developers.text') },
         { href: routes.docs.main, text: $t('navigation.docs.text') }
-    ].filter(item => isPageVisible(item.href)) : [];
+    ].filter(item => item.href && isPageVisible(item.href)) : [];
 
     interface NavItem {
         href: string;
@@ -77,8 +77,8 @@
     $: showSocialSection = context === 'website' && showSocialLinks;
 
     // Updated helper function to check if a path is active and visible
-    const isActive = (path: string) => {
-        if (!isPageVisible(path)) return false;
+    const isActive = (path: string | null) => {
+        if (!path || !isPageVisible(path)) return false;
         
         // For docs section, check if current path starts with docs path
         if (path === routes.docs.main) {
@@ -88,8 +88,8 @@
         return $page.url.pathname === path;
     };
 
-    const handleClick = async (event: MouseEvent, path: string, external: boolean = false) => {
-        if (external || event.ctrlKey || event.metaKey || event.button === 1) {
+    const handleClick = async (event: MouseEvent, path: string | null, external: boolean = false) => {
+        if (!path || external || event.ctrlKey || event.metaKey || event.button === 1) {
             return;
         }
         event.preventDefault();

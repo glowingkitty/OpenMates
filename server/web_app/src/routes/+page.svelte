@@ -1,19 +1,11 @@
 <script>
-    import { isMenuOpen } from '../../../website/src/lib/stores/menuState';
-    import ActivityHistory from '@website-components/activity_history/ActivityHistory.svelte';
-    import ActiveChat from '@website-components/ActiveChat.svelte';
-    import Header from '@website-components/Header.svelte';
-    import Settings from '@website-components/Settings.svelte';
+    import { isAuthenticated, isMenuOpen, settingsMenuVisible, isMobileView, ActivityHistory, ActiveChat, Header, Settings, Footer } from '@openmates/website';
     import { _ } from 'svelte-i18n'; // Import the translation function
-    import { isAuthenticated } from '../../../website/src/lib/stores/authState';
     import { fade } from 'svelte/transition';
     // Subscribe to settings menu visibility state
-    import { settingsMenuVisible, isMobileView } from '@website-components/Settings.svelte';
     import { onMount } from 'svelte';
-    import Footer from '@website-components/Footer.svelte';
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
-    $: sidebarClass = $isMenuOpen ? 'open' : 'closed';
 
     // Add mobile breakpoint
     const MOBILE_BREAKPOINT = 730;

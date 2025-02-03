@@ -1,5 +1,5 @@
 {
-	"name": "web-app",
+	"name": "@openmates/web-app",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -29,6 +29,7 @@
 		"date-fns": "^4.1.0",
 		"highlight.js": "^11.11.1",
 		"leaflet": "^1.9.4",
-		"svelte-i18n": "^4.0.1"
+		"svelte-i18n": "^4.0.1",
+		"@openmates/website": "workspace:*"
 	}
 }

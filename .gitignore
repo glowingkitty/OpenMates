@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+./lib/
 lib64/
 parts/
 sdist/
@@ -162,7 +162,10 @@ cython_debug/
 #.idea/
 
 
-secrets*
+secrets.txt
+secrets.yml
+secrets.yaml
+secrets.json
 *.env*
 
 .DS_Store
@@ -181,3 +184,5 @@ profile_details.yaml
 valid_api_tokens.yaml
 
 hidden__*
+node_modules
+_backup
