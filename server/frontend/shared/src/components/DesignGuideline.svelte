@@ -1,7 +1,7 @@
 <script lang="ts">
     // Import necessary Svelte components
     import { goto } from '$app/navigation';
-    import { routes } from '$lib/config/links';
+    import { routes } from '../config/links';
 
     // Props definition
     export let main_icon = '';

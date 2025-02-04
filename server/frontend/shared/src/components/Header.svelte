@@ -1,13 +1,12 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { externalLinks, routes } from '../../lib/config/links';
-    import { isPageVisible } from '../../lib/config/pages';
-    import { replaceOpenMates } from '../../lib/actions/replaceText';
+    import { externalLinks, routes } from '../config/links';
+    import { isPageVisible } from '../config/pages';
+    import { replaceOpenMates } from '../actions/replaceText';
     import { t, waitLocale } from 'svelte-i18n';
     import { onMount, tick } from 'svelte';
-    import { isMenuOpen } from '../../lib/stores/menuState';
-    import { fade } from 'svelte/transition';
+    import { isMenuOpen } from '../stores/menuState';
 
     export let context: 'website' | 'webapp' = 'website';
     export let isLoggedIn = false;

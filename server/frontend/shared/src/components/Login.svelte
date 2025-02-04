@@ -3,11 +3,11 @@
     import { _ } from 'svelte-i18n';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { login, isAuthenticated, isAuthInitialized, checkAuth } from '../../lib/stores/authState';
+    import { login, isAuthenticated, isAuthInitialized, checkAuth } from '../stores/authState';
     import { onMount } from 'svelte';
-    import { MOBILE_BREAKPOINT } from '../../lib/constants';
-    import { AuthService } from '../../lib/services/authService';
-    import { isCheckingAuth } from '../../lib/stores/authCheckState';
+    import { MOBILE_BREAKPOINT } from '../styles/constants';
+    import { AuthService } from '../services/authService';
+    import { isCheckingAuth } from '../stores/authCheckState';
     import { tick } from 'svelte';
 
     const dispatch = createEventDispatcher();

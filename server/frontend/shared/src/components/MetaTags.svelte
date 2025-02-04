@@ -1,6 +1,5 @@
 <script lang="ts">
-    import type { MetaTagConfig } from '$lib/config/meta';
-    import { defaultMeta } from '$lib/config/meta';
+    import { defaultMeta } from '../config/meta';
 
     export let title: string = defaultMeta.title;
     export let description: string = defaultMeta.description;

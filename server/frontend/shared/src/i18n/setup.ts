@@ -21,7 +21,7 @@ function processTranslations(translations: any): any {
 const loadLocaleData = async (locale: string) => {
     let module;
     try {
-        module = await import(`../../locales/${locale}.json`);
+        module = await import(`./locales/${locale}.json`);
         // Process translations before returning
         return processTranslations(module.default);
     } catch (e) {

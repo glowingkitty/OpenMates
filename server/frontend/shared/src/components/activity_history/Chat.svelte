@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  
   export let chat: {
     id?: string;
     title?: string;
@@ -8,6 +6,7 @@
     draftContent?: string;
     mates?: string[]; // Array of mate names (e.g., ['burton', 'lisa'])
   };
+  export let activeChatId: string | undefined = undefined;
   
   // Truncate text to fit in two lines
   function truncateText(text: string, maxLength: number = 60) {
@@ -18,7 +17,7 @@
   }
 
   // Compute if this chat is currently active
-  $: isActive = $page.params.chatId === chat.id;
+  $: isActive = activeChatId === chat.id;
 
   // Take only the most recent mate instead of 3
   $: displayMate = chat.mates ? chat.mates[chat.mates.length - 1] : null;

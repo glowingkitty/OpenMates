@@ -1,13 +1,13 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { externalLinks, routes, getWebsiteUrl } from '@website-lib/config/links';
-    import { isPageVisible } from '@website-lib/config/pages';
+    import { externalLinks, routes, getWebsiteUrl } from '../config/links';
+    import { isPageVisible } from '../config/pages';
     import { _ } from 'svelte-i18n';
     import { locale, locales } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
-    import { loadMetaTags, getMetaTags } from '@website-lib/config/meta';
+    import { loadMetaTags, getMetaTags } from '../config/meta';
 
     // Type definition for footer links
     type FooterLink = {

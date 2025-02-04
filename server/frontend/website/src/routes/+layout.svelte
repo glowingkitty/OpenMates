@@ -1,6 +1,5 @@
 <script lang="ts">
     // Import styles directly
-    import '@openmates/shared/src/styles/global.css';
     import '@openmates/shared/src/styles/buttons.css';
     import '@openmates/shared/src/styles/fields.css';
     import '@openmates/shared/src/styles/cards.css';
@@ -107,7 +106,6 @@
 {/if}
 
 <style>
-    /* Global styles moved from global.css */
     :global(body) {
         margin: 0;
         overflow-x: hidden;

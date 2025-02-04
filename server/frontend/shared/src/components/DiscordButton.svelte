@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { externalLinks } from '$lib/config/links';
+    import { externalLinks } from '../config/links';
     import { _ } from 'svelte-i18n';
 </script>
 

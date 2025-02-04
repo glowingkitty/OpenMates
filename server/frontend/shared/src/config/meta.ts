@@ -61,7 +61,7 @@ export let pageMeta: PageMetaTags = {
 export async function loadMetaTags(): Promise<void> {
     try {
         const currentLanguage = getCurrentLanguage();
-        const metaData = await import(`../../locales/${currentLanguage}.json`);
+        const metaData = await import(`../i18n/locales/${currentLanguage}.json`);
         
         // Update defaultMeta
         defaultMeta = {

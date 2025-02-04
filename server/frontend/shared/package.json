@@ -15,6 +15,7 @@
     },
     "dependencies": {
       "@fontsource-variable/lexend-deca": "^5.1.0",
+      "@sveltejs/kit": "^2.0.0",
       "@tiptap/core": "^2.11.2",
       "@tiptap/extension-placeholder": "^2.11.2",
       "@tiptap/starter-kit": "^2.11.2",

@@ -11,10 +11,10 @@
     import { onMount } from 'svelte';
     import { fly, fade } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
-    import { isAuthenticated, currentUser, logout } from '../../lib/stores/authState';
-    import { isMenuOpen } from '../../lib/stores/menuState';
-    import { isCheckingAuth } from '../../lib/stores/authCheckState';
-    import { getApiUrl } from '../../lib/config/links';
+    import { isAuthenticated, currentUser, logout } from '../stores/authState';
+    import { isMenuOpen } from '../stores/menuState';
+    import { isCheckingAuth } from '../stores/authCheckState';
+    import { getApiUrl } from '../config/links';
     
     // Props for user and team information
     export let teamSelected = 'xhain';

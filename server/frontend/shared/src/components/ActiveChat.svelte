@@ -6,7 +6,7 @@
     import { _ } from 'svelte-i18n'; // Import translation function
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { isAuthenticated } from '../../lib/stores/authState';
+    import { isAuthenticated } from '../stores/authState';
 
     const dispatch = createEventDispatcher();
 
