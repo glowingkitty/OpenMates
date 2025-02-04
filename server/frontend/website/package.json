@@ -37,7 +37,7 @@
 		"svelte-i18n": "^4.0.1"
 	},
 	"engines": {
-		"node": "^20.x"
+		"node": "^22.x"
 	},
 	"packageManager": "pnpm@9.15.4",
 	"pnpm": {
