@@ -1,21 +1,32 @@
 <script lang="ts">
-    
-    // Import all necessary styles
-    import '$lib/styles/fonts.css';
-    import '$lib/styles/icons.css';
-    import '$lib/styles/buttons.css';
-    import '$lib/styles/fields.css';
-    import '$lib/styles/cards.css';
-    import '$lib/styles/chat.css';
-    import '$lib/styles/mates.css';
-    import '$lib/styles/theme.css';
-    import { replaceOpenMates, Header, Footer, MetaTags } from '@openmates/shared';
-    import { theme, toggleTheme, initializeTheme } from '$lib/stores/theme';
+    // Import styles directly
+    import '@openmates/shared/src/styles/global.css';
+    import '@openmates/shared/src/styles/buttons.css';
+    import '@openmates/shared/src/styles/fields.css';
+    import '@openmates/shared/src/styles/cards.css';
+    import '@openmates/shared/src/styles/chat.css';
+    import '@openmates/shared/src/styles/mates.css';
+    import '@openmates/shared/src/styles/theme.css';
+    import '@openmates/shared/src/styles/fonts.css';
+    import '@openmates/shared/src/styles/icons.css';
+    import { 
+        // components
+        Header,
+        Footer,
+        MetaTags,
+        // Actions
+        replaceOpenMates,
+        // Config
+        loadMetaTags,
+        // Stores
+        theme,
+        initializeTheme,
+        // i18n
+        isValidLocale
+    } from '@openmates/shared';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { SUPPORTED_LOCALES, isValidLocale } from '$lib/i18n/types';
     import { waitLocale, locale } from 'svelte-i18n';
-    import { loadMetaTags } from '$lib/config/meta';
 
     // Initialize translations
     let mounted = false;

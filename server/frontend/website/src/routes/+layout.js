@@ -1,5 +1,5 @@
 import '@fontsource-variable/lexend-deca';
-import { setupI18n } from '$lib/i18n/setup';
+import { setupI18n } from '@openmates/shared';
 
 export const prerender = true;
 export const ssr = true;
