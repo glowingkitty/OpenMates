@@ -2,8 +2,8 @@
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
     import { formatDistanceToNow } from 'date-fns';
-    import { isMenuOpen } from '../../../lib/stores/menuState';
-    import { isAuthenticated } from '../../../lib/stores/authState';
+    import { isMenuOpen } from '../../stores/menuState';
+    import { isAuthenticated } from '../../stores/authState';
 
     // Example chats for testing - will be replaced with DB data later
     const exampleChats = [
