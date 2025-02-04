@@ -13,7 +13,7 @@
 
 <MetaTags {...meta} />
 
-<div class="legal-container">
+<section class="legal-container">
     <h1>{$_('legal.imprint.title.text')}</h1>
 
     <section>
@@ -28,7 +28,7 @@
         <h2>{$_('legal.imprint.contact.text')}</h2>
         <p>{$_('legal.imprint.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
-</div>
+</section>
 
 <style>
     .legal-container {
