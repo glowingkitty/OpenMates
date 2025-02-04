@@ -3,7 +3,7 @@
     import { _ } from 'svelte-i18n';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { login, isAuthenticated, isAuthInitialized, checkAuth } from '../stores/authState';
+    import { login, isAuthenticated, checkAuth } from '../stores/authState';
     import { onMount } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { AuthService } from '../services/authService';
