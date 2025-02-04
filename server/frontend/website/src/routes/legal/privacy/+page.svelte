@@ -5,12 +5,12 @@
         MetaTags,
         getMetaTags
     } from '@openmates/shared';
-    import { _ } from 'svelte-i18n';
+    import { _, locale } from 'svelte-i18n';
 
     const meta = getMetaTags('legalPrivacy');
 
-    // Get current build date and format it
-    const buildDate = new Date().toLocaleDateString('en-US', {
+    // Get current build date and format it using the active locale, fallback to 'en' if undefined
+    $: buildDate = new Date().toLocaleDateString($locale || 'en', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -80,7 +80,7 @@
     <section>
         <h2>{@html sanitizeHtml($_('legal.privacy.contact.heading.text'))}</h2>
         <p>{@html sanitizeHtml($_('legal.privacy.contact.questions.text'))}</p>
-        <p>{@html sanitizeHtml(`${$_('legal.privacy.contact.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a>`)}</p>
+        <p>{@html sanitizeHtml($_('legal.privacy.contact.email.text'))}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </div>
 

@@ -6,12 +6,12 @@
         getMetaTags,
         externalLinks
     } from '@openmates/shared';
-    import { _ } from 'svelte-i18n';
+    import { _, locale } from 'svelte-i18n';
 
     const meta = getMetaTags('legalTerms');
 
-    // Get current build date and format it
-    const buildDate = new Date().toLocaleDateString('de-DE', {
+    // Get current build date and format it using the active locale, fallback to 'en' if undefined
+    $: buildDate = new Date().toLocaleDateString($locale || 'en', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
