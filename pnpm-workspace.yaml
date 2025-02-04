@@ -1,0 +1,4 @@
+packages:
+  - "server/frontend/website"
+  - "server/frontend/web_app"
+  - "server/frontend/shared"

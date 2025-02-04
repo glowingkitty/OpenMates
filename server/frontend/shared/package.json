@@ -1,13 +1,17 @@
 {
-    "name": "@local/shared",
+    "name": "@openmates/shared",
     "private": true,
     "version": "1.0.0",
     "type": "module",
-    "main": "index.js",
+    "main": "./index.js",
+    "exports": {
+      ".": "./index.js"
+    },
     "devDependencies": {
-        "@tsconfig/svelte": "^5.0.4",
-        "svelte": "^5.0.0",
-        "svelte-check": "^4.0.0",
-        "typescript": "^5.0.0"
+      "@tsconfig/svelte": "^5.0.4",
+      "svelte": "^5.0.0",
+      "svelte-check": "^4.0.0",
+      "typescript": "^5.0.0"
     }
-}
+  }
+  

@@ -6,6 +6,8 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
+			// Alias for shared package
+			'@openmates/shared': path.resolve(__dirname, '../shared'),
 			// Alias for mate images pointing to the API images folder
 			'@mate-images': path.resolve(__dirname, '../api/images/mates/profile_images')
 		}

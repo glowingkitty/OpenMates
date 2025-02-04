@@ -11,8 +11,8 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
-			// Component and library aliases
-			'@local/shared': path.resolve(__dirname, '../shared'),
+			// Alias for shared package
+			'@openmates/shared': path.resolve(__dirname, '../shared'),
 			
 			// Static file aliases
 			'/icons': path.resolve(websiteStaticPath, 'icons'),
@@ -20,7 +20,6 @@ export default defineConfig({
 			
 			// Add mate-images alias pointing to the API images folder
 			'@mate-images': path.resolve(websiteApiPath, 'images/mates/profile_images'),
-			'@website': path.resolve('../website/src')
 		}
 	},
 	server: {
