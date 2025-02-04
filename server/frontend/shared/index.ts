@@ -21,13 +21,16 @@ export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
 
+export * from "./src/components/Settings.svelte";
+
 // i18n exports
 export * from "./src/i18n/setup";
 export * from "./src/i18n/types";
 
 // Stores
 export * from "./src/stores/theme";
-
+export * from "./src/stores/authState";
+export * from "./src/stores/menuState";
 // Styles
 export * from "./src/styles/constants";
 import "./src/styles/buttons.css";

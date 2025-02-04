@@ -9,9 +9,6 @@ export default defineConfig({
 			// Alias for shared package
 			'@openmates/shared': path.resolve(__dirname, '../shared'),
 
-			// Static file aliases
-			'/static': path.resolve(__dirname, '../shared/static'),
-
 			// Add mate-images alias pointing to the API images folder
 			'@openmates/mate-images': path.resolve(__dirname, '../../api/images/mates/profile_images'),
 		}

@@ -1,5 +1,19 @@
 <script>
-    import { isAuthenticated, isMenuOpen, settingsMenuVisible, isMobileView, ActivityHistory, ActiveChat, Header, Settings, Footer } from '@openmates/website';
+    import {
+        // components
+        ActivityHistory,
+        ActiveChat,
+        Header,
+        Settings,
+        Footer,
+        isAuthenticated,
+        // constants
+        MOBILE_BREAKPOINT,
+        // stores
+        isMenuOpen,
+        settingsMenuVisible,
+        isMobileView,
+    } from '@openmates/shared';
     import { _ } from 'svelte-i18n'; // Import the translation function
     import { fade } from 'svelte/transition';
     // Subscribe to settings menu visibility state
@@ -7,9 +21,6 @@
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 
-    // Add mobile breakpoint
-    const MOBILE_BREAKPOINT = 730;
-    
     // Handle initial sidebar state based on auth
     $: if ($isAuthenticated) {
         // Only open menu on desktop when authenticated

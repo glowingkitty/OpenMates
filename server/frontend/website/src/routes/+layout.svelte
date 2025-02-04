@@ -8,7 +8,7 @@
     import '@openmates/shared/src/styles/theme.css';
     import '@openmates/shared/src/styles/fonts.css';
     import '@openmates/shared/src/styles/icons.css';
-    import { 
+    import {
         // components
         Header,
         Footer,

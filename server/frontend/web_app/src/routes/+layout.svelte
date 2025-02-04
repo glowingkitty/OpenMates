@@ -1,22 +1,28 @@
 <script lang="ts">
-    import '@website-styles/buttons.css';
-    import '@website-styles/fonts.css';
-    import '@website-styles/icons.css';
-    import '@website-styles/buttons.css';
-    import '@website-styles/fields.css';
-    import '@website-styles/cards.css';
-    import '@website-styles/chat.css';
-    import '@website-styles/mates.css';
-    import '@website-styles/theme.css';
-    import { locale } from 'svelte-i18n';
-    import { theme, toggleTheme, initializeTheme } from '@website-stores/theme';
-    import { replaceOpenMates } from '@website-actions/replaceText';
+    import '@openmates/shared/src/styles/buttons.css';
+    import '@openmates/shared/src/styles/fields.css';
+    import '@openmates/shared/src/styles/cards.css';
+    import '@openmates/shared/src/styles/chat.css';
+    import '@openmates/shared/src/styles/mates.css';
+    import '@openmates/shared/src/styles/theme.css';
+    import '@openmates/shared/src/styles/fonts.css';
+    import '@openmates/shared/src/styles/icons.css';
+    import {
+        // components
+        MetaTags,
+        // Actions
+        replaceOpenMates,
+        // Config
+        loadMetaTags,
+        // Stores
+        theme,
+        initializeTheme,
+        // i18n
+        isValidLocale
+    } from '@openmates/shared';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { waitLocale } from 'svelte-i18n';
-    import MetaTags from '@website-components/MetaTags.svelte';
-    import { loadMetaTags } from '@website-lib/config/meta';
-    import { SUPPORTED_LOCALES, isValidLocale } from '@website-lib/i18n/types';
+    import { waitLocale, locale } from 'svelte-i18n';
 
     let loaded = false;
 
@@ -39,10 +45,10 @@
                 locale.set(isValidLocale(browserLang) ? browserLang : 'en');
             }
         }
-        
+
         // Wait for translations to be ready
         await waitLocale();
-        
+
         // Load meta tags after translations are ready
         await loadMetaTags();
     });
