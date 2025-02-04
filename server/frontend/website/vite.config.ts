@@ -6,6 +6,7 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
+			'@tsconfig/svelte/tsconfig.json': require.resolve('@tsconfig/svelte/tsconfig.json'),
 			// Alias for shared package
 			'@openmates/shared': path.resolve(__dirname, '../shared'),
 
