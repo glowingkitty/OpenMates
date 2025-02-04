@@ -43,8 +43,8 @@
         width: 16px;
         height: 16px;
         background: var(--color-primary);
-        -webkit-mask-image: url('/icons/ai.svg');
-        mask-image: url('/icons/ai.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/ai.svg');
+        mask-image: url('@openmates/shared/static/icons/ai.svg');
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
@@ -67,39 +67,39 @@
 }
 
 .mate-profile.burton {
-    background-image: url('@mate-images/burton.jpg');
+    background-image: url('@openmates/mate-images/burton.jpg');
 }
 
 .mate-profile.lisa {
-    background-image: url('@mate-images/lisa.jpg');
+    background-image: url('@openmates/mate-images/lisa.jpg');
 }
 
 .mate-profile.sophia {
-    background-image: url('@mate-images/sophia.jpg');
+    background-image: url('@openmates/mate-images/sophia.jpg');
 }
 
 .mate-profile.melvin {
-    background-image: url('@mate-images/melvin.jpg');
+    background-image: url('@openmates/mate-images/melvin.jpg');
 }
 
 .mate-profile.finn {
-    background-image: url('@mate-images/finn.jpg');
+    background-image: url('@openmates/mate-images/finn.jpg');
 }
 
 .mate-profile.elton {
-    background-image: url('@mate-images/elton.jpg');
+    background-image: url('@openmates/mate-images/elton.jpg');
 }
 
 .mate-profile.denise {
-    background-image: url('@mate-images/denise.jpg');
+    background-image: url('@openmates/mate-images/denise.jpg');
 }
 
 .mate-profile.mark {
-    background-image: url('@mate-images/mark.jpg');
+    background-image: url('@openmates/mate-images/mark.jpg');
 }
 
 .mate-profile.colin {
-    background-image: url('@mate-images/colin.jpg');
+    background-image: url('@openmates/mate-images/colin.jpg');
 }
 
 /* Smaller variant for chat history items */

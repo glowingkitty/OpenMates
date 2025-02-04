@@ -380,7 +380,7 @@
         background-position: center;
         background-repeat: no-repeat;
         background-color: var(--color-grey-20);
-        background-image: url('/images/placeholders/userprofileimage.jpeg');
+        background-image: url('@openmates/shared/static/images/placeholders/userprofileimage.jpeg');
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -395,7 +395,7 @@
         background-position: center;
         background-repeat: no-repeat;
         background-color: var(--color-grey-20);
-        background-image: url('/images/placeholders/teamprofileimage.png');
+        background-image: url('@openmates/shared/static/images/placeholders/teamprofileimage.png');
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -515,11 +515,11 @@
     .credits-icon {
         width: 19px;
         height: 19px;
-        -webkit-mask-image: url('/icons/coins.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/coins.svg');
         -webkit-mask-size: cover;
         -webkit-mask-position: center;
         -webkit-mask-repeat: no-repeat;
-        mask-image: url('/icons/coins.svg');
+        mask-image: url('@openmates/shared/static/icons/coins.svg');
         mask-size: cover;
         mask-position: center;
         mask-repeat: no-repeat;

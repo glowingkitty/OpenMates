@@ -148,7 +148,7 @@
         width: 175px;
         height: 175px;
         border-radius: 50%;
-        background-image: url('/images/placeholders/teamprofileimage.png');
+        background-image: url('@openmates/shared/static/images/placeholders/teamprofileimage.png');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;

@@ -297,8 +297,8 @@
         width: 40px;
         height: 40px;
         background: var(--color-app-maps);
-        -webkit-mask-image: url('/icons/maps.svg');
-        mask-image: url('/icons/maps.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/maps.svg');
+        mask-image: url('@openmates/shared/static/icons/maps.svg');
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-repeat: no-repeat;

@@ -70,24 +70,24 @@
     .info-1 {
         width: 100%;
         height: 20px;
-        background-image: url('/images/legal/1.svg');
+        background-image: url('@openmates/shared/static/images/legal/1.svg');
     }
 
     .info-2 {
         width: 100%;
         height: 20px;
-        background-image: url('/images/legal/2.svg');
+        background-image: url('@openmates/shared/static/images/legal/2.svg');
     }
 
     .info-3 {
         width: 100%;
         height: 20px;
-        background-image: url('/images/legal/3.svg');
+        background-image: url('@openmates/shared/static/images/legal/3.svg');
     }
 
     .info-4 {
         width: 100%;
         height: 20px;
-        background-image: url('/images/legal/4.svg');
+        background-image: url('@openmates/shared/static/images/legal/4.svg');
     }
 </style> 

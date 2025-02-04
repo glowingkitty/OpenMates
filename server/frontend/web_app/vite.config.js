@@ -10,11 +10,10 @@ export default defineConfig({
 			'@openmates/shared': path.resolve(__dirname, '../shared'),
 
 			// Static file aliases
-			'/icons': path.resolve(__dirname, '../shared/static/icons'),
-			'/images': path.resolve(__dirname, '../shared/static/images'),
+			'/static': path.resolve(__dirname, '../shared/static'),
 
 			// Add mate-images alias pointing to the API images folder
-			'@mate-images': path.resolve(__dirname, '../../api/images/mates/profile_images'),
+			'@openmates/mate-images': path.resolve(__dirname, '../../api/images/mates/profile_images'),
 		}
 	},
 	server: {

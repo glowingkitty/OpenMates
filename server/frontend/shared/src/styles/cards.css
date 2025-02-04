@@ -175,8 +175,8 @@
     display: inline-block;
     width: 16px; /* Adjust size as needed */
     height: 16px; /* Adjust size as needed */
-    -webkit-mask-image: url('/icons/user.svg');
-    mask-image: url('/icons/user.svg');
+    -webkit-mask-image: url('@openmates/shared/static/icons/user.svg');
+    mask-image: url('@openmates/shared/static/icons/user.svg');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -202,8 +202,8 @@
     display: inline-block;
     width: 16px; /* Adjust size as needed */
     height: 16px; /* Adjust size as needed */
-    -webkit-mask-image: url('/icons/team.svg');
-    mask-image: url('/icons/team.svg');
+    -webkit-mask-image: url('@openmates/shared/static/icons/team.svg');
+    mask-image: url('@openmates/shared/static/icons/team.svg');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;

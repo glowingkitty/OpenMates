@@ -44,8 +44,8 @@
     right: -12px;
     bottom: 10px;
     /* Use mask for the speech bubble shape */
-    -webkit-mask-image: url('/speechbubble.svg');
-    mask-image: url('/speechbubble.svg');
+    -webkit-mask-image: url('@openmates/shared/static/speechbubble.svg');
+    mask-image: url('@openmates/shared/static/speechbubble.svg');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -64,8 +64,8 @@
     left: -12px;
     top: 20px;
     /* Use mask for the speech bubble shape */
-    -webkit-mask-image: url('/speechbubble.svg');
-    mask-image: url('/speechbubble.svg');
+    -webkit-mask-image: url('@openmates/shared/static/speechbubble.svg');
+    mask-image: url('@openmates/shared/static/speechbubble.svg');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -117,7 +117,7 @@
     position: absolute;
     width: 16px;
     height: 16px;
-    background-image: url('/icons/open.svg');
+    background-image: url('@openmates/shared/static/icons/open.svg');
     background-size: contain;
     background-repeat: no-repeat;
     right: 0;

@@ -359,7 +359,7 @@
     .github-icon {
         width: 24px;
         height: 24px;
-        background-image: url('/icons/github.svg');
+        background-image: url('@openmates/shared/static/icons/github.svg');
         background-size: contain;
         background-repeat: no-repeat;
     }
@@ -367,7 +367,7 @@
     .opencollective-icon {
         width: 24px;
         height: 24px;
-        background-image: url('/icons/opencollective.svg');
+        background-image: url('@openmates/shared/static/icons/opencollective.svg');
         background-size: contain;
         background-repeat: no-repeat;
     }

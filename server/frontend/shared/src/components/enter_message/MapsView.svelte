@@ -1270,13 +1270,13 @@
     }
 
     :global(.leaflet-control-zoom-in::after) {
-        -webkit-mask-image: url('/icons/plus.svg');
-        mask-image: url('/icons/plus.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/plus.svg');
+        mask-image: url('@openmates/shared/static/icons/plus.svg');
     }
 
     :global(.leaflet-control-zoom-out::after) {
-        -webkit-mask-image: url('/icons/minus.svg');
-        mask-image: url('/icons/minus.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/minus.svg');
+        mask-image: url('@openmates/shared/static/icons/minus.svg');
     }
 
     :global(.leaflet-control-zoom-in) {
@@ -1311,8 +1311,8 @@
         width: 40px;
         height: 40px;
         background: var(--color-app-maps);
-        -webkit-mask-image: url('/icons/maps.svg');
-        mask-image: url('/icons/maps.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/maps.svg');
+        mask-image: url('@openmates/shared/static/icons/maps.svg');
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-repeat: no-repeat;
@@ -1508,14 +1508,14 @@
 
     .result-icon.icon-maps {
         background: var(--color-app-maps);
-        -webkit-mask-image: url('/icons/maps.svg');
-        mask-image: url('/icons/maps.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/maps.svg');
+        mask-image: url('@openmates/shared/static/icons/maps.svg');
     }
 
     .result-icon.icon-travel {
         background: var(--color-app-travel);
-        -webkit-mask-image: url('/icons/travel.svg');
-        mask-image: url('/icons/travel.svg');
+        -webkit-mask-image: url('@openmates/shared/static/icons/travel.svg');
+        mask-image: url('@openmates/shared/static/icons/travel.svg');
     }
 
     .result-info {
@@ -1558,8 +1558,8 @@
     :global(.search-marker-icon .marker-icon) {
         width: 40px;
         height: 40px;
-        -webkit-mask-image: url('/icons/maps.svg') !important;
-        mask-image: url('/icons/maps.svg') !important;
+        -webkit-mask-image: url('@openmates/shared/static/icons/maps.svg') !important;
+        mask-image: url('@openmates/shared/static/icons/maps.svg') !important;
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-repeat: no-repeat;

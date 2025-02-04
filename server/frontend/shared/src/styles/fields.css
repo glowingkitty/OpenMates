@@ -74,17 +74,17 @@ input[type="number"]:focus {
 }
 
 .icon-field.search-field::before {
-    background-image: url('/icons/search.svg');
+    background-image: url('@openmates/shared/static/icons/search.svg');
 }
 
 .icon-field.apikey-field::before {
-    background-image: url('/icons/secret.svg');
+    background-image: url('@openmates/shared/static/icons/secret.svg');
 }
 
 .icon-field.teamslug-field::before {
-    background-image: url('/icons/team.svg');
+    background-image: url('@openmates/shared/static/icons/team.svg');
 }
 
 .icon-field.email-field::before {
-    background-image: url('/icons/mail.svg');
+    background-image: url('@openmates/shared/static/icons/mail.svg');
 }

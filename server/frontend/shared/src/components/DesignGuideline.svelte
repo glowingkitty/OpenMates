@@ -96,11 +96,11 @@
     }
 
     .main-icon.icon_lock {
-        mask-image: url('/icons/lock.svg');
+        mask-image: url('@openmates/shared/static/icons/lock.svg');
     }
 
     .main-icon.icon_good {
-        mask-image: url('/icons/good.svg');
+        mask-image: url('@openmates/shared/static/icons/good.svg');
     }
 
 
@@ -172,11 +172,11 @@
     }
 
     .background-icon.icon_lock {
-        mask-image: url('/icons/lock.svg');
+        mask-image: url('@openmates/shared/static/icons/lock.svg');
     }
 
     .background-icon.icon_good {
-        mask-image: url('/icons/good.svg');
+        mask-image: url('@openmates/shared/static/icons/good.svg');
     }
 
     .background-icon-left {

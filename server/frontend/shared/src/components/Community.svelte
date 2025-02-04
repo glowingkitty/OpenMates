@@ -50,7 +50,7 @@
     }
 
     .main-icon.icon_team {
-        mask-image: url('/icons/team.svg');
+        mask-image: url('@openmates/shared/static/icons/team.svg');
     }
 
     .community-section {
