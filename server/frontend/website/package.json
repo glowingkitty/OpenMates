@@ -44,5 +44,8 @@
 		"overrides": {
 		"semver@<7.5.2": ">=7.5.2"
 		}
-  }
+  	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/"
+	}
 }
