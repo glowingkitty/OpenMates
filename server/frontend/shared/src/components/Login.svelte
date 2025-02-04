@@ -213,20 +213,20 @@
     }
 
     input {
-        width: 100%;
-        padding: 12px 16px 12px 45px; /* Adjust padding to accommodate the icon in px */
-        border: 2px solid var(--color-grey-0);
-        border-radius: 24px;
-        font-size: 16px;
-        transition: border-color 0.2s;
-        background-color: var(--color-grey-0);
-        color: var(--color-grey-100);
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        width: 100% !important;
+        padding: 12px 16px 12px 45px !important; /* Adjust padding to accommodate the icon in px */
+        border: 2px solid var(--color-grey-0) !important;
+        border-radius: 24px !important;
+        font-size: 16px !important;
+        transition: border-color 0.2s !important;
+        background-color: var(--color-grey-0) !important;
+        color: var(--color-grey-100) !important;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25) !important;
     }
 
     input:focus {
-        border-color: var(--color-grey-50);
-        outline: none;
+        border-color: var(--color-grey-50) !important;
+        outline: none !important;
     }
 
     .login-button {
