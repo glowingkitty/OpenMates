@@ -94,7 +94,7 @@
                                     time: '18:30',
                                     eventName: $_('chat_examples.events.events.book_club.text'),
                                     participants: 12,
-                                    imageUrl: '/images/examples/group1.jpg'
+                                    imageUrl: '@openmates/shared/static/images/examples/group1.jpg'
                                 }
                             },
                             {
@@ -105,7 +105,7 @@
                                     time: '19:00',
                                     eventName: $_('chat_examples.events.events.tech_talk.text'),
                                     participants: 76,
-                                    imageUrl: '/images/examples/group2.jpg'
+                                    imageUrl: '@openmates/shared/static/images/examples/group2.jpg'
                                 }
                             },
                             {
@@ -116,7 +116,7 @@
                                     time: '18:00',
                                     eventName: $_('chat_examples.events.events.workshop.text'),
                                     participants: 13,
-                                    imageUrl: '/images/examples/group2.jpg'
+                                    imageUrl: '@openmates/shared/static/images/examples/group2.jpg'
                                 }
                             }
                         ]
