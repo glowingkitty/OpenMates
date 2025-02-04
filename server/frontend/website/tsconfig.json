@@ -13,14 +13,8 @@
 		"paths": {
 			"$lib": ["./src/lib"],
 			"$lib/*": ["./src/lib/*"],
-			"@website-styles/*": ["./src/lib/styles/*"],
-			"@website-static/*": ["./src/static/*"],
-			"@website-stores/*": ["./src/lib/stores/*"],
-			"@website-actions/*": ["./src/lib/actions/*"],
-			"@website-components/*": ["./src/routes/components/*"],
-			"@website-lib": ["./src/lib"],
-			"@website-lib/*": ["./src/lib/*"],
-			"@website-locales": ["./src/locales"],
+			"@openmates/shared": ["../shared"],
+			"@openmates/shared/*": ["../shared/*"]
 		}
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias

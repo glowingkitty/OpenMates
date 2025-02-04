@@ -9,10 +9,7 @@
     import '$lib/styles/chat.css';
     import '$lib/styles/mates.css';
     import '$lib/styles/theme.css';
-    import { replaceOpenMates } from '$lib/actions/replaceText';
-    import Header from './components/Header.svelte';
-    import Footer from './components/Footer.svelte';
-    import MetaTags from './components/MetaTags.svelte';
+    import { replaceOpenMates, Header, Footer, MetaTags } from '@openmates/shared';
     import { theme, toggleTheme, initializeTheme } from '$lib/stores/theme';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';

@@ -14,12 +14,7 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			'@website-components': path.resolve('./src/routes/components'),
-			'@website-styles': path.resolve('./src/lib/styles'),
-			'@website-stores': path.resolve('./src/lib/stores'),
-			'@website-actions': path.resolve('./src/lib/actions'),
-			'@website-lib': path.resolve('./src/lib'),
-			'@website-locales': path.resolve('./src/locales')
+			'@openmates/shared': path.resolve(__dirname, '../shared'),
 		},
 		// Add prerender configuration
 		prerender: {

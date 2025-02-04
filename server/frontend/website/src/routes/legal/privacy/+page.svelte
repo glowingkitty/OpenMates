@@ -1,7 +1,5 @@
 <script lang="ts">
-    import { externalLinks, privacyPolicyLinks } from '$lib/config/links';
-    import MetaTags from '../../components/MetaTags.svelte';
-    import { getMetaTags } from '$lib/config/meta';
+    import { externalLinks, privacyPolicyLinks, MetaTags, getMetaTags } from '@openmates/shared';
     import { _ } from 'svelte-i18n';
 
     const meta = getMetaTags('legalPrivacy');
