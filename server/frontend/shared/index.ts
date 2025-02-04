@@ -13,6 +13,13 @@ export { default as DesignGuidelines } from "./src/components/DesignGuidelines.s
 export { default as Community } from "./src/components/Community.svelte";
 export { default as AppIconGrid } from "./src/components/AppIconGrid.svelte";
 export { default as LargeSeparator } from "./src/components/LargeSeparator.svelte";
+export { default as APIexample } from "./src/components/APIexample.svelte";
+export { default as ProcessingDetails } from "./src/components/ProcessingDetails.svelte";
+export { default as ChatMessage } from "./src/components/ChatMessage.svelte";
+export { default as Field } from "./src/components/Field.svelte";
+export { default as Button } from "./src/components/Button.svelte";
+export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
+export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
 
 // i18n exports
 export * from "./src/i18n/setup";

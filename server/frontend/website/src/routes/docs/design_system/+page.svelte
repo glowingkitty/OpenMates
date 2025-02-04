@@ -1,15 +1,17 @@
 <script lang="ts">
-    import Header from '../../components/Header.svelte';
-    import Icon from '../../components/Icon.svelte';
-    import Button from '../../components/Button.svelte';
-    import Field from '../../components/Field.svelte';
-    import ChatMessage from '../../components/ChatMessage.svelte';
-    import HealthAppCard from '../../components/cards/HealthAppCard.svelte';
-    import EventAppCard from '../../components/cards/EventAppCard.svelte';
-    import ProcessingDetails from '../../components/ProcessingDetails.svelte';
-    import MetaTags from '../../components/MetaTags.svelte';
-    import { getMetaTags } from '$lib/config/meta';
-
+    import {
+        // Components
+        Icon,
+        Button,
+        Field,
+        ChatMessage,
+        HealthAppCard,
+        EventAppCard,
+        ProcessingDetails,
+        MetaTags,
+        // Config
+        getMetaTags
+    } from '@openmates/shared';
     const meta = getMetaTags('docsDesignSystem');
 
     // Define icon groups

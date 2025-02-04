@@ -13,6 +13,9 @@ importers:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.1.0
         version: 5.1.1
+      '@sveltejs/adapter-auto':
+        specifier: ^3.3.1
+        version: 3.3.1(@sveltejs/kit@2.17.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.19.6)(vite@6.0.11(@types/node@22.13.0)))(svelte@5.19.6)(vite@6.0.11(@types/node@22.13.0)))
       '@sveltejs/kit':
         specifier: ^2.0.0
         version: 2.17.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.19.6)(vite@6.0.11(@types/node@22.13.0)))(svelte@5.19.6)(vite@6.0.11(@types/node@22.13.0))
@@ -43,7 +46,13 @@ importers:
       svelte-i18n:
         specifier: ^4.0.1
         version: 4.0.1(svelte@5.19.6)
+      vite:
+        specifier: ^6.0.11
+        version: 6.0.11(@types/node@22.13.0)
     devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.3
+        version: 5.0.3(svelte@5.19.6)(vite@6.0.11(@types/node@22.13.0))
       '@tsconfig/svelte':
         specifier: ^5.0.4
         version: 5.0.4

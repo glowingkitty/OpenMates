@@ -1,5 +1,10 @@
 <script lang="ts">
-    import { externalLinks, privacyPolicyLinks, MetaTags, getMetaTags } from '@openmates/shared';
+    import {
+        externalLinks,
+        privacyPolicyLinks,
+        MetaTags,
+        getMetaTags
+    } from '@openmates/shared';
     import { _ } from 'svelte-i18n';
 
     const meta = getMetaTags('legalPrivacy');

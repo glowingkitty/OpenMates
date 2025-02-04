@@ -1,14 +1,17 @@
 <script lang="ts">
-    import Icon from '../components/Icon.svelte';
-    import AnimatedChatExamples from '../components/AnimatedChatExamples.svelte';
-    import WaitingList from '../components/WaitingList.svelte';
-    import Highlights from '../components/Highlights.svelte';
-    import DesignGuidelines from '../components/DesignGuidelines.svelte';
-    import Community from '../components/Community.svelte';
-    import MetaTags from '../components/MetaTags.svelte';
-    import APIexample from '../components/APIexample.svelte';
-    import AppIconGrid from '../components/AppIconGrid.svelte';
-    import { getMetaTags } from '$lib/config/meta';
+    import {
+        // Components
+        Icon,
+        WaitingList,
+        Highlights,
+        DesignGuidelines,
+        Community,
+        APIexample,
+        AppIconGrid,
+        // Config
+        MetaTags,
+        getMetaTags
+    } from '@openmates/shared';
 
     const meta = getMetaTags('for_developers');
 

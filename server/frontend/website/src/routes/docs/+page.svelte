@@ -1,7 +1,11 @@
 <script lang="ts">
-    import Header from '../components/Header.svelte';
-    import MetaTags from '../components/MetaTags.svelte';
-    import { getMetaTags } from '$lib/config/meta';
+    import {
+        // Components
+        Header,
+        MetaTags,
+        // Config
+        getMetaTags
+    } from '@openmates/shared';
 
     const meta = getMetaTags('docs');
 </script>

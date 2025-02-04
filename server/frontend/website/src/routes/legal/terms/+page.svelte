@@ -1,7 +1,11 @@
 <script lang="ts">
-    import { externalLinks } from '$lib/config/links';
-    import MetaTags from '../../components/MetaTags.svelte';
-    import { getMetaTags } from '$lib/config/meta';
+    import {
+        // Components
+        MetaTags,
+        // Config
+        getMetaTags,
+        externalLinks
+    } from '@openmates/shared';
     import { _ } from 'svelte-i18n';
 
     const meta = getMetaTags('legalTerms');

@@ -1,6 +1,10 @@
 <script lang="ts">
-    import MetaTags from '../../components/MetaTags.svelte';
-    import { getMetaTags } from '$lib/config/meta';
+    import {
+        // Components
+        MetaTags,
+        // Config
+        getMetaTags
+    } from '@openmates/shared';
 
     const meta = getMetaTags('docsDesignGuidelines');
 </script>

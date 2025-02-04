@@ -16,7 +16,7 @@
             "$lib": ["./src"],
             "$lib/*": ["./src/*"]
         },
-        "types": ["svelte"]
+        "types": ["svelte", "@sveltejs/kit"]
     },
     "include": [
         "src/**/*.d.ts",
