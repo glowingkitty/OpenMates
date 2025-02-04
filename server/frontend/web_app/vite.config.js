@@ -2,24 +2,19 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import path from 'path';
 
-// Get the absolute path to your other project's source directory
-const websiteSourcePath = path.resolve(__dirname, '../website/src');
-const websiteStaticPath = path.resolve(__dirname, '../website/static');
-const websiteApiPath = path.resolve(__dirname, '../api');
-
 export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
 			// Alias for shared package
 			'@openmates/shared': path.resolve(__dirname, '../shared'),
-			
+
 			// Static file aliases
-			'/icons': path.resolve(websiteStaticPath, 'icons'),
-			'/images': path.resolve(websiteStaticPath, 'images'),
-			
+			'/icons': path.resolve(__dirname, '../shared/static/icons'),
+			'/images': path.resolve(__dirname, '../shared/static/images'),
+
 			// Add mate-images alias pointing to the API images folder
-			'@mate-images': path.resolve(websiteApiPath, 'images/mates/profile_images'),
+			'@mate-images': path.resolve(__dirname, '../../api/images/mates/profile_images'),
 		}
 	},
 	server: {
@@ -28,8 +23,8 @@ export default defineConfig({
 			allow: [
 				// Defaults
 				'.',
-				'../website',
-				'../api'
+				'../shared',
+				'../../api'
 			]
 		}
 	}
