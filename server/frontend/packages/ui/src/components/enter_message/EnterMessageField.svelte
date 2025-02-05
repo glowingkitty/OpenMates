@@ -2109,21 +2109,30 @@
     // Global variable to store the microphone stream.
     let audioStream: MediaStream | null = null;
 
-    // Function to immediately request microphone access.
-    // This ensures that on iOS/macOS the getUserMedia call is directly triggered
-    // by a user gesture, which is required for microphone permission to work.
+    // Flag to track if microphone permission has been granted
+    let micPermissionGranted: boolean = false;
+
+    // Modified preRequestMicAccess function that updates the flag
     async function preRequestMicAccess(event: MouseEvent | TouchEvent): Promise<void> {
-      console.log('[EnterMessageField] preRequestMicAccess triggered on', event.type);
-      try {
-        // Request an audio stream and store it so we can stop it later.
-        audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true }
-        });
-        console.log('[EnterMessageField] Microphone access granted:', audioStream);
-      } catch (err) {
-        console.log('[EnterMessageField] Error requesting microphone access:', err);
-        // Optionally, provide user feedback if microphone access is denied.
-      }
+        console.log('[EnterMessageField] preRequestMicAccess triggered on', event.type);
+        if (micPermissionGranted) {
+            // Permission was already granted. No need to request again.
+            console.log('[EnterMessageField] Microphone permission already granted.');
+            return;
+        }
+        try {
+            // Request an audio stream; this will prompt the user to grant permission
+            audioStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true }
+            });
+            micPermissionGranted = true; // Mark permission as granted
+            console.log('[EnterMessageField] Microphone permission granted:', audioStream);
+            // Stop the tracks immediately since we only need this to unlock permission
+            audioStream.getTracks().forEach((track) => track.stop());
+        } catch (err) {
+            console.log('[EnterMessageField] Error requesting microphone access:', err);
+            // Optionally, notify the user or adjust the UI if permission is denied
+        }
     }
 
     // Function to clean up the audio stream when recording stops.
@@ -2240,22 +2249,30 @@
                 class="record-button {isRecordButtonPressed ? 'recording' : ''}"
                 style="z-index: 901;"
                 on:mousedown={(event) => {
-                    preRequestMicAccess(event); // Immediately trigger mic access.
+                    // Only initiate the press-and-hold recording if permission is already granted.
+                    if (!micPermissionGranted) {
+                        // First time: request permission and show an inline hint.
+                        preRequestMicAccess(event);
+                        showRecordHint = true; // This hint can instruct the user: "Please press again to record"
+                        return; // Do not start the press-and-hold timer yet.
+                    }
+                    // If already granted, start the press-and-hold timer normally.
                     hasRecordingStarted = false;  // Reset the recording flag.
                     recordStartTimeout = setTimeout(() => {
+                        // Store starting coordinates (for any UI animations/feedback)
                         recordStartPosition = { 
                             x: event.clientX, 
                             y: event.clientY 
                         };
                         isRecordButtonPressed = true;
                         showRecordAudio = true;
-                        hasRecordingStarted = true;  // Mark that recording has started.
-                        // Clear any active record hint.
+                        hasRecordingStarted = true;  // Mark that recording has begun.
+                        // Clear the record hint if it was showing
                         if (showRecordHint) {
                             showRecordHint = false;
                             clearTimeout(recordHintTimeout);
                         }
-                    }, 500);
+                    }, 500); // Adjust the delay as needed for your UX.
                 }}
                 on:mouseup={() => {
                     if (recordStartTimeout) {
@@ -2281,8 +2298,13 @@
                     }
                 }}
                 on:touchstart|preventDefault={(event) => {
-                    preRequestMicAccess(event); // Immediately trigger mic access.
-                    hasRecordingStarted = false;  // Reset the recording flag.
+                    // Similar logic for touch events.
+                    if (!micPermissionGranted) {
+                        preRequestMicAccess(event);
+                        showRecordHint = true;
+                        return;
+                    }
+                    hasRecordingStarted = false;
                     recordStartTimeout = setTimeout(() => {
                         recordStartPosition = { 
                             x: event.touches[0].clientX, 
@@ -2291,7 +2313,6 @@
                         isRecordButtonPressed = true;
                         showRecordAudio = true;
                         hasRecordingStarted = true;
-                        // Clear any active record hint.
                         if (showRecordHint) {
                             showRecordHint = false;
                             clearTimeout(recordHintTimeout);
@@ -2301,13 +2322,6 @@
                 on:touchend={() => {
                     if (recordStartTimeout) {
                         clearTimeout(recordStartTimeout);
-                        if (!hasRecordingStarted) {
-                            showRecordHint = true;
-                            clearTimeout(recordHintTimeout);
-                            recordHintTimeout = setTimeout(() => {
-                                showRecordHint = false;
-                            }, 2000);
-                        }
                     }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
