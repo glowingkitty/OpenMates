@@ -1,12 +1,12 @@
 <script lang="ts">
-    import '@openmates/shared/src/styles/buttons.css';
-    import '@openmates/shared/src/styles/fields.css';
-    import '@openmates/shared/src/styles/cards.css';
-    import '@openmates/shared/src/styles/chat.css';
-    import '@openmates/shared/src/styles/mates.css';
-    import '@openmates/shared/src/styles/theme.css';
-    import '@openmates/shared/src/styles/fonts.css';
-    import '@openmates/shared/src/styles/icons.css';
+    import '@repo/ui/src/styles/buttons.css';
+    import '@repo/ui/src/styles/fields.css';
+    import '@repo/ui/src/styles/cards.css';
+    import '@repo/ui/src/styles/chat.css';
+    import '@repo/ui/src/styles/mates.css';
+    import '@repo/ui/src/styles/theme.css';
+    import '@repo/ui/src/styles/fonts.css';
+    import '@repo/ui/src/styles/icons.css';
     import {
         // components
         MetaTags,
@@ -19,7 +19,7 @@
         initializeTheme,
         // i18n
         isValidLocale
-    } from '@openmates/shared';
+    } from '@repo/ui';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { waitLocale, locale } from 'svelte-i18n';
