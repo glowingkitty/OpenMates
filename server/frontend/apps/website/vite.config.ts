@@ -19,7 +19,7 @@ export default defineConfig({
 				// Defaults
 				'.',
 				'../shared',
-				'../../api',
+				'../../../api',
 				'../../packages/ui'
 			]
 		}
