@@ -2,6 +2,7 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
     import NativeCamera from './NativeCamera.svelte'; // Import our native camera component
+    import type { SvelteComponent } from 'svelte';
     
     const dispatch = createEventDispatcher();
     
@@ -29,6 +30,15 @@
         debug: (...args: any[]) => console.debug('[CameraView]', ...args),
         info: (...args: any[]) => console.info('[CameraView]', ...args)
     };
+
+    // Extend the SvelteComponent type with the openCamera method
+    type NativeCameraInstance = SvelteComponent & { openCamera: () => void };
+
+    // Reference to the NativeCamera component instance with proper typing.
+    let nativeCameraRef: NativeCameraInstance;
+
+    // Reference to the fallback file input element for devices that do not support native capture.
+    let fallbackInput: HTMLInputElement;
 
     // onMount to initialize things. We check for mobile device here.
     onMount(() => {
@@ -58,6 +68,10 @@
                 console.error('Camera access error:', err);
             });
         }
+
+        // Simple user agent check to determine native capture support.
+        const isNativeCameraSupported = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        console.debug('[CameraView] isNativeCameraSupported:', isNativeCameraSupported);
     });
 
     onDestroy(() => {
@@ -243,18 +257,45 @@
     }
 
     /**
-     * Handler for media captured using the native camera controls.
-     * The event.detail.file contains the captured media file (image or video).
-     *
-     * @param event The custom event from the NativeCamera component.
+     * Handles the event when media is captured from the NativeCamera component.
+     * @param event - The CustomEvent containing the captured file.
      */
-    function handleMediaCaptured(event) {
+    function handleNativeMediaCaptured(event: CustomEvent) {
         const { file } = event.detail;
         console.debug('[CameraView] Native media captured:', file);
-        // Dispatch an event so that parent components know a file has been captured.
-        dispatch('mediaCaptured', { file });
-        // Optionally close the camera view.
-        initiateClose();
+        // TODO: Add further processing for the captured file.
+    }
+
+    /**
+     * Handles the fallback file input change event (for devices not supporting native capture).
+     * @param event - The change event from the fallback file input.
+     */
+    function handleFallbackChange(event: Event) {
+        const target = event.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) {
+            const file = target.files[0];
+            console.debug('[CameraView] Fallback media captured:', file);
+            // TODO: Add further processing for the captured file.
+        }
+    }
+
+    /**
+     * Triggered when the user clicks the main camera button.
+     * Depending on device support, either the native camera or fallback file input is opened.
+     */
+    function onCameraButtonClick() {
+        if (nativeCameraRef) {
+            console.debug('[CameraView] Opening native camera via NativeCamera component');
+            // Calls the openCamera() method from NativeCamera.
+            nativeCameraRef.openCamera();
+        } else if (fallbackInput) {
+            // Reset the value to allow selecting the same file more than once.
+            fallbackInput.value = "";
+            console.debug('[CameraView] Opening fallback file input');
+            fallbackInput.click();
+        } else {
+            console.error('[CameraView] No camera input method available.');
+        }
     }
 </script>
 
@@ -262,7 +303,9 @@
 {#if isMobile}
     <!-- On mobile devices, use the native camera which shows the device's regular camera controls -->
     <div class="native-camera-container">
-        <NativeCamera on:mediaCaptured={handleMediaCaptured} />
+        <button on:click={onCameraButtonClick} class="camera-button" aria-label="Open Camera">
+            Open Camera
+        </button>
     </div>
 {:else}
     <!-- On desktop or non-mobile devices, use the custom camera overlay -->
@@ -315,6 +358,25 @@
         </div>
     </div>
     {/if}
+{/if}
+
+<!-- Conditionally include either the NativeCamera component or the fallback file input -->
+{#if /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)}
+    <!-- On supported devices, include NativeCamera (hidden from view) to control the camera capture behavior -->
+    <NativeCamera
+        bind:this={nativeCameraRef}
+        on:mediaCaptured={handleNativeMediaCaptured}
+        style="display: none;"
+    />
+{:else}
+    <!-- Fallback file input for devices that do not support the native capture mode -->
+    <input
+        bind:this={fallbackInput}
+        type="file"
+        accept="image/*,video/*"
+        on:change={handleFallbackChange}
+        style="display: none;"
+    />
 {/if}
 
 <style>
@@ -472,5 +534,20 @@
 
     .photo-button.disabled .photo-button-inner {
         opacity: 0.5;
+    }
+
+    /* Styling for the main camera button */
+    .camera-button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    .camera-button:hover {
+        background-color: #0056b3;
     }
 </style> 

@@ -1,65 +1,68 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
 
-  // Create event dispatcher to notify the parent component when media is captured.
+  // Allow passing a custom style from the parent.
+  export let style: string = "";
+
+  // Create an event dispatcher to communicate the captured media back to the parent.
   const dispatch = createEventDispatcher();
 
   // Reference to the hidden file input element.
   let inputFile: HTMLInputElement;
 
   /**
-   * Triggered when a file is selected via the native camera.
-   * We then dispatch this file (which can be an image or video) up to the parent.
+   * Handles the file selection event from the hidden file input.
+   * When the user captures an image or video, this function dispatches the file to the parent.
    *
-   * @param event The change event from the file input.
+   * @param event - The change event from the file input.
    */
   function handleFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
       const file = target.files[0];
-      // Log the file details.
+      // Log debug information.
       console.debug('[NativeCamera] File captured:', file);
-      // Dispatch event with the captured file for further processing (e.g. uploading)
+      // Dispatch the 'mediaCaptured' event with the file.
       dispatch('mediaCaptured', { file });
     }
   }
 
   /**
-   * Opens the native camera by triggering a click on the hidden file input.
+   * Opens the native camera by programmatically triggering the click on the hidden file input.
+   * This function is exported so parent components can use it.
    */
-  function openCamera() {
+  export function openCamera() {
     if (inputFile) {
-      // Reset input to allow selecting the same file more than once.
+      // Reset input to allow the same file to be selected more than once.
       inputFile.value = "";
-      // Trigger the file input click to open the native camera control.
+      // Trigger the file input click event to open the native camera (if supported).
       inputFile.click();
     } else {
       console.error('[NativeCamera] inputFile element is not available.');
     }
   }
 
-  // Optional: Any onMount initialization if needed.
+  // Log when the component is mounted.
   onMount(() => {
     console.debug('[NativeCamera] Component mounted.');
   });
 </script>
 
-<!-- Hidden file input that leverages the native camera control when clicked.
-     The 'capture' attribute causes the device to use the rear camera.
-     Accept attribute limits file types to images and videos. -->
-<input
-  bind:this={inputFile}
-  type="file"
-  accept="image/*,video/*"
-  capture="environment"
-  style="display: none;"
-  on:change={handleFileChange}
-/>
-
-<!-- Button which the user taps to launch the native camera -->
-<button class="native-camera-button" on:click={openCamera} aria-label="Open native camera">
-  Open Camera
-</button>
+<!--
+  Hidden file input for capturing media.
+  The "capture" attribute (set to "environment") should trigger the rear camera by default on supported devices.
+  The "accept" attribute ensures only images and videos are selectable.
+-->
+<div style={style}>
+  <input
+    bind:this={inputFile}
+    type="file"
+    accept="image/*,video/*"
+    capture="environment"
+    style="display: none;"
+    on:change={handleFileChange}
+  />
+</div>
 
 <style>
   /* Style for the native camera trigger button */
