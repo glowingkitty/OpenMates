@@ -2106,32 +2106,32 @@
         }
     }
 
-    // Global variable to store the microphone stream.
-    let audioStream: MediaStream | null = null;
+    // Global variable to store the microphone stream for recording.
+    let recordingStream: MediaStream | null = null;
 
     // Flag to track if microphone permission has been granted
     let micPermissionGranted: boolean = false;
 
-    // Modified preRequestMicAccess function that updates the flag
+    // Modified preRequestMicAccess: request mic access immediately on user gesture.
     async function preRequestMicAccess(event: MouseEvent | TouchEvent): Promise<void> {
         console.log('[EnterMessageField] preRequestMicAccess triggered on', event.type);
         if (micPermissionGranted) {
-            // Permission was already granted. No need to request again.
             console.log('[EnterMessageField] Microphone permission already granted.');
             return;
         }
         try {
-            // Request an audio stream; this will prompt the user to grant permission
-            audioStream = await navigator.mediaDevices.getUserMedia({
+            // Request the audio stream directly.
+            const audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true }
             });
-            micPermissionGranted = true; // Mark permission as granted
-            console.log('[EnterMessageField] Microphone permission granted:', audioStream);
-            // Stop the tracks immediately since we only need this to unlock permission
-            audioStream.getTracks().forEach((track) => track.stop());
+            // Mark permission as granted.
+            micPermissionGranted = true;
+            // Save the obtained stream so that RecordAudio can reuse it.
+            recordingStream = audioStream;
+            console.log('[EnterMessageField] Microphone permission granted and recordingStream set:', audioStream);
+            // Do not stop the tracks here; they must remain active during recording.
         } catch (err) {
             console.log('[EnterMessageField] Error requesting microphone access:', err);
-            // Optionally, notify the user or adjust the UI if permission is denied
         }
     }
 
@@ -2139,11 +2139,11 @@
     // This will stop all tracks and release the microphone.
     function handleStopRecording(): void {
       showRecordAudio = false;
-      if (audioStream) {
-        audioStream.getTracks().forEach((track) => {
+      if (recordingStream) {
+        recordingStream.getTracks().forEach((track) => {
           track.stop(); // Stops the track and releases the microphone.
         });
-        audioStream = null;
+        recordingStream = null;
         console.log('[EnterMessageField] Audio stream stopped, microphone released.');
       }
     }
@@ -2369,6 +2369,7 @@
           it dispatches a "cancel" event.
         -->
         <RecordAudio 
+            externalStream={recordingStream} 
             initialPosition={recordStartPosition} 
             on:audiorecorded={handleAudioRecorded} 
             on:close={handleStopRecording}

@@ -31,6 +31,7 @@
         info: (...args: any[]) => console.info('[RecordAudio]', ...args)
     };
 
+    export let externalStream: MediaStream | null = null;
     export let initialPosition: { x: number; y: number };
 
     onMount(() => {
@@ -79,21 +80,24 @@
 
     async function startRecording() {
         try {
-            console.log('Requesting audio permission...');
-            const audioStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true
-                }
-            });
-            stream = audioStream;
+            if (externalStream) {
+                logger.info('Using external stream provided from parent.');
+                stream = externalStream;
+            } else {
+                logger.debug('Requesting audio permission via getUserMedia...');
+                const audioStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                stream = audioStream;
+            }
             
-            // Start timer and animation first
             startRecordingTimer();
             isRecording = true;
             isAudioPermissionGranted = true;
             
-            // Start growing circle animation
             circleSize = 0;
             growthInterval = setInterval(() => {
                 if (circleSize < 60) {
@@ -101,7 +105,6 @@
                 }
             }, 16);
 
-            // Setup recording
             recordedChunks = [];
             const mimeType = MediaRecorder.isTypeSupported('audio/webm')
                 ? 'audio/webm'
@@ -118,7 +121,6 @@
                 }
             };
             
-            // Modify the mediaRecorder.onstop callback in startRecording():
             mediaRecorder.onstop = () => {
                 if (!isCancelled) {
                     const blob = new Blob(recordedChunks, { type: mimeType });
@@ -132,18 +134,18 @@
                     });
                     dispatch('audiorecorded', { 
                         blob,
-                        duration: finalDuration // Add duration to the dispatched event
+                        duration: finalDuration
                     });
                 }
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
-                recordingTime = 0; // Reset the time only after everything is done
+                recordingTime = 0;
                 dispatch('close');
             };
 
             mediaRecorder.start(100);
-            console.log('Recording started successfully');
+            logger.info('Recording started successfully');
 
         } catch (err) {
             console.error('Audio permission denied or error:', err);
