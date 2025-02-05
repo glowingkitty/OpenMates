@@ -1395,7 +1395,7 @@
         border-radius: 18px;
         background: var(--color-grey-0);
         color: var(--color-font-primary);
-        font-size: 14px;
+        font-size: 16px;
     }
 
     .search-input:focus {
