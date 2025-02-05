@@ -1,0 +1,253 @@
+/* Define card padding variable for consistent spacing */
+:root {
+    --card-padding: 13px;
+    --card-edge: 8px;
+    --dashed-border-width: 3px;
+    --card-margin: 5px;
+}
+
+
+.app-card {
+    margin: var(--card-margin);
+    border-radius: 19px;
+    background: var(--color-app-card-background);
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    padding: var(--card-padding);
+    box-sizing: border-box;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer; /* Shows clickable cursor on hover */
+    background-repeat: no-repeat;
+    background-size: 100% var(--card-edge);
+    background-image: linear-gradient(to right, var(--color-app-health) 100%, transparent 0);
+    display: inline-block;
+    vertical-align: top;
+    flex-shrink: 0;
+}
+
+.app-card.large {
+    width: 320px;
+    height: 200px;
+}
+
+.app-card.small {
+    width: 150px;
+    height: 200px;
+}
+
+.app-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.app-card-header {
+    position: absolute;
+    bottom: 43px;
+    left: var(--card-padding);
+    right: var(--card-padding);
+}
+
+.app-card-header.app-card-header-events {
+    bottom: unset;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-top: 10px;
+}
+
+.app-card-subheader-bottom {
+    position: absolute;
+    bottom: var(--card-padding);
+    left: var(--card-padding);
+    right: var(--card-padding);
+}
+
+/* App Card Backgrounds */
+
+.health {
+    background-image: var(--color-app-health);
+}
+
+.app-card-secondary-app {
+    position: absolute;
+    top: var(--card-edge);
+    right: 0;
+    width: 111px;
+    height: calc(100% - var(--card-edge));
+    background-color: var(--color-grey-30);
+    padding: 0 10px;
+    display: flex;
+    box-sizing: border-box;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: calc(-1 * var(--card-edge));
+        left: 0;
+        width: 100%;
+        height: var(--card-edge);
+    }
+}
+
+.app-card-secondary-app.calendar {
+    &::before {
+        background-image: var(--color-app-calendar);
+    }
+}
+
+.app-card-secondary-app.travel {
+    &::before {
+        background-image: var(--color-app-travel);
+    }
+}
+
+.time-slots {
+    display: grid;
+    grid-template-rows: repeat(5, 35px);
+    width: 100%;
+    padding-top: var(--card-edge);
+    position: relative;
+}
+
+/* Style for time slot text */
+.app-card-text {
+    align-self: start;
+    user-select: none;
+}
+
+/* Base styles for appointment indicators */
+.appointment-indicator {
+    position: absolute;
+    left: 45px;
+    width: 45px;
+    border-radius: 8px;
+
+    /* These will be set inline via HTML attributes */
+    --start-hour: 0;
+    --start-minute: 0;
+    --end-hour: 0;
+    --end-minute: 0;
+    --slot-height: 35px;
+    --slot-padding: calc(var(--dashed-border-width)*2 + 1px);
+    --total-minutes: calc((var(--end-hour) - var(--start-hour)) * 60 + (var(--end-minute) - var(--start-minute)));
+
+    /* Calculate top position based on start time, add small offset */
+    top: calc(calc(var(--start-hour) * var(--slot-height) + (var(--start-minute) / 60) * var(--slot-height)) + var(--card-padding) - var(--dashed-border-width) + 1px);
+
+    /* Calculate height based on duration, subtract padding to prevent overlap */
+    height: calc(var(--total-minutes) / 60 * var(--slot-height) - var(--slot-padding));
+}
+
+.appointment-indicator.dashed {
+    background-color: var(--color-grey-0);
+    border: var(--dashed-border-width) dashed var(--color-app-calendar-start);
+}
+
+.appointment-indicator.solid {
+    background-color: color-mix(in srgb, var(--color-app-calendar-start) 50%, transparent);
+    border: var(--dashed-border-width) solid color-mix(in srgb, var(--color-app-calendar-start) 0%, transparent);
+}
+
+/* Add after the app-card styles */
+.app-cards-container {
+    /* Use flex to handle wrapping and spacing */
+    display: flex;
+    flex-wrap: wrap;
+    /* Negative margin to counteract the cards' margins */
+    margin: calc(-1 * var(--card-margin));
+    /* Add padding to ensure container has some space from its surroundings */
+    padding: var(--card-margin);
+}
+
+.ratings-text {
+    /* Hide the text by moving it out of view */
+    text-indent: -9999px;
+    display: inline-block;
+    position: relative;
+    width: 16px; /* Width of the icon */
+    height: 16px; /* Height of the icon */
+}
+
+.ratings-text::after {
+    /* Use mask to display the user icon */
+    content: '';
+    display: inline-block;
+    width: 16px; /* Adjust size as needed */
+    height: 16px; /* Adjust size as needed */
+    -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
+    mask-image: url('@openmates/ui/static/icons/user.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    background-color: var(--color-app-card-text);
+    position: absolute;
+    top: 2px; /* Move the icon further down */
+    left: -2px; /* Move the icon further to the left */
+}
+
+.participants-text {
+    /* Hide the text by moving it out of view */
+    text-indent: -9999px;
+    display: inline-block;
+    position: relative;
+    width: 16px; /* Width of the icon */
+    height: 16px; /* Height of the icon */
+}
+
+.participants-text::after {
+    /* Use mask to display the team icon */
+    content: '';
+    display: inline-block;
+    width: 16px; /* Adjust size as needed */
+    height: 16px; /* Adjust size as needed */
+    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
+    mask-image: url('@openmates/ui/static/icons/team.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    background-color: var(--color-app-card-text);
+    position: absolute;
+    top: 2px; /* Move the icon further down */
+    left: -2px; /* Move the icon further to the left */
+}
+
+.events {
+    background-image: var(--color-app-events);
+}
+
+.event-header {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.event-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: var(--color-background-primary);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+    /* Add fade-in animation */
+    opacity: 0;
+    animation: fadeInEventImage 0.3s ease-in forwards;
+    /* animation-delay: 800ms; */
+}
+
+/* Add the animation keyframes */
+@keyframes fadeInEventImage {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

@@ -1,12 +1,19 @@
 {
-  "name": "OpenMates",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "openmates",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "prettier-plugin-svelte": "^3.3.3",
+    "turbo": "^2.4.0"
+  },
+  "packageManager": "pnpm@8.15.6",
+  "engines": {
+    "node": ">=18"
+  }
 }
