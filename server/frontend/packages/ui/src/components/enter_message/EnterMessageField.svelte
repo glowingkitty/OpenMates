@@ -2106,6 +2106,39 @@
         }
     }
 
+    // Global variable to store the microphone stream.
+    let audioStream: MediaStream | null = null;
+
+    // Function to immediately request microphone access.
+    // This ensures that on iOS/macOS the getUserMedia call is directly triggered
+    // by a user gesture, which is required for microphone permission to work.
+    async function preRequestMicAccess(event: MouseEvent | TouchEvent): Promise<void> {
+      console.log('[EnterMessageField] preRequestMicAccess triggered on', event.type);
+      try {
+        // Request an audio stream and store it so we can stop it later.
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true }
+        });
+        console.log('[EnterMessageField] Microphone access granted:', audioStream);
+      } catch (err) {
+        console.log('[EnterMessageField] Error requesting microphone access:', err);
+        // Optionally, provide user feedback if microphone access is denied.
+      }
+    }
+
+    // Function to clean up the audio stream when recording stops.
+    // This will stop all tracks and release the microphone.
+    function handleStopRecording(): void {
+      showRecordAudio = false;
+      if (audioStream) {
+        audioStream.getTracks().forEach((track) => {
+          track.stop(); // Stops the track and releases the microphone.
+        });
+        audioStream = null;
+        console.log('[EnterMessageField] Audio stream stopped, microphone released.');
+      }
+    }
+
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
@@ -2207,7 +2240,8 @@
                 class="record-button {isRecordButtonPressed ? 'recording' : ''}"
                 style="z-index: 901;"
                 on:mousedown={(event) => {
-                    hasRecordingStarted = false;  // Reset the flag
+                    preRequestMicAccess(event); // Immediately trigger mic access.
+                    hasRecordingStarted = false;  // Reset the recording flag.
                     recordStartTimeout = setTimeout(() => {
                         recordStartPosition = { 
                             x: event.clientX, 
@@ -2215,8 +2249,8 @@
                         };
                         isRecordButtonPressed = true;
                         showRecordAudio = true;
-                        hasRecordingStarted = true;  // Set flag when recording starts
-                        // Clear any existing hint when starting to record
+                        hasRecordingStarted = true;  // Mark that recording has started.
+                        // Clear any active record hint.
                         if (showRecordHint) {
                             showRecordHint = false;
                             clearTimeout(recordHintTimeout);
@@ -2224,12 +2258,10 @@
                     }, 500);
                 }}
                 on:mouseup={() => {
-                    // If released before 500ms and recording hasn't started, show the hint
                     if (recordStartTimeout) {
                         clearTimeout(recordStartTimeout);
                         if (!hasRecordingStarted) {
                             showRecordHint = true;
-                            // Auto-hide hint after 2 seconds
                             clearTimeout(recordHintTimeout);
                             recordHintTimeout = setTimeout(() => {
                                 showRecordHint = false;
@@ -2238,18 +2270,19 @@
                     }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
-                    hasRecordingStarted = false;  // Reset the flag
+                    hasRecordingStarted = false;  // Reset the flag after releasing.
                 }}
                 on:mouseleave={() => {
                     if (isRecordButtonPressed) {
                         isRecordButtonPressed = false;
                         showRecordAudio = false;
-                        hasRecordingStarted = false;  // Reset the flag
+                        hasRecordingStarted = false;
                         clearTimeout(recordStartTimeout);
                     }
                 }}
                 on:touchstart|preventDefault={(event) => {
-                    hasRecordingStarted = false;  // Reset the flag
+                    preRequestMicAccess(event); // Immediately trigger mic access.
+                    hasRecordingStarted = false;  // Reset the recording flag.
                     recordStartTimeout = setTimeout(() => {
                         recordStartPosition = { 
                             x: event.touches[0].clientX, 
@@ -2257,7 +2290,8 @@
                         };
                         isRecordButtonPressed = true;
                         showRecordAudio = true;
-                        hasRecordingStarted = true;  // Set flag when recording starts
+                        hasRecordingStarted = true;
+                        // Clear any active record hint.
                         if (showRecordHint) {
                             showRecordHint = false;
                             clearTimeout(recordHintTimeout);
@@ -2265,7 +2299,6 @@
                     }, 500);
                 }}
                 on:touchend={() => {
-                    // If released before 500ms and recording hasn't started, show the hint
                     if (recordStartTimeout) {
                         clearTimeout(recordStartTimeout);
                         if (!hasRecordingStarted) {
@@ -2278,7 +2311,7 @@
                     }
                     isRecordButtonPressed = false;
                     showRecordAudio = false;
-                    hasRecordingStarted = false;  // Reset the flag
+                    hasRecordingStarted = false;
                 }}
                 aria-label={$_('enter_message.attachments.record_audio.text')}
             >
@@ -2316,11 +2349,16 @@
     {/if}
 
     {#if showRecordAudio}
-        <RecordAudio
-            initialPosition={recordStartPosition}
-            on:audiorecorded={handleAudioRecorded}
-            on:close={() => showRecordAudio = false}
-            on:layoutChange={handleRecordingLayoutChange}
+        <!--
+          Added the on:cancel event handler along with on:close.
+          Ensure that if the RecordAudio component detects a slide-to-cancel action,
+          it dispatches a "cancel" event.
+        -->
+        <RecordAudio 
+            initialPosition={recordStartPosition} 
+            on:audiorecorded={handleAudioRecorded} 
+            on:close={handleStopRecording}
+            on:cancel={handleStopRecording} 
         />
     {/if}
 
