@@ -3,6 +3,7 @@ export { default as Map } from './components/Map.svelte';
 
 
 // Components
+export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
