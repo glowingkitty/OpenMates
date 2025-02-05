@@ -1432,8 +1432,20 @@
         }
     }
 
+    /**
+     * Handles the camera button click.
+     * On mobile devices, directly triggers the hidden camera input.
+     * Otherwise, shows the CameraView overlay.
+     */
     function handleCameraClick() {
-        showCamera = true;
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+            // Directly open the native camera (no extra button needed)
+            cameraInput.click();
+        } else {
+            // On desktop, show the custom camera overlay
+            showCamera = true;
+        }
     }
 
     function handleCameraClose() {
@@ -2547,7 +2559,6 @@
 
     :global(.ProseMirror) {
         outline: none;
-
         white-space: pre-wrap;
         word-wrap: break-word;
         min-height: 2em;
