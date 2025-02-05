@@ -18,7 +18,7 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0
 
-  server/frontend/apps/docs:
+  server/frontend/apps/web_app:
     dependencies:
       '@repo/ui':
         specifier: workspace:*
@@ -67,7 +67,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.13.1)
 
-  server/frontend/apps/web:
+  server/frontend/apps/website:
     dependencies:
       '@repo/ui':
         specifier: workspace:*
