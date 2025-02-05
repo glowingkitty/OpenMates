@@ -337,6 +337,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.book {
+  background: var(--color-app-books);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/book.svg');
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;

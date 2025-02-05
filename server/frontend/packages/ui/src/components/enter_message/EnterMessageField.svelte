@@ -1,4 +1,5 @@
 <script lang="ts">
+    // SHAME ON ME, for this uggly file...
     import { onMount, onDestroy, tick } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
@@ -20,10 +21,10 @@
     import FilePreview from './in_message_previews/File.svelte';
     import Code from './in_message_previews/Code.svelte';
     import Videos from './in_message_previews/Videos.svelte';
-    // Add this import near the top with other imports
     import MapsView from './MapsView.svelte';
-    // Add this import near the top with other imports
     import Maps from './in_message_previews/Maps.svelte';
+    import Books from './in_message_previews/Books.svelte';
+    import JSZip from 'jszip';
     import { createEventDispatcher } from 'svelte';
     
     const dispatch = createEventDispatcher();
@@ -61,6 +62,22 @@
     let isScrollable = false;
     let scrollableContent: HTMLElement;
 
+    // Add these interfaces at the top of your file
+    interface EpubMetadata {
+        title?: string;
+        creator?: string;
+    }
+
+    interface EPub {
+        metadata: {
+            title?: string;
+            creator?: string;
+        };
+        on(event: string, callback: () => void): void;
+        parse(): void;
+    }
+
+
     // Add this constant near the top of the file, after the imports
     const VALID_MATES = [
         'burton',
@@ -84,7 +101,7 @@
 
         addAttributes() {
             return {
-                type: { default: 'image' },  // can be 'image', 'video', 'pdf', 'file', 'code', 'audio', 'recording', 'maps'
+                type: { default: 'image' },  // can be 'image', 'video', 'pdf', 'file', 'code', 'audio', 'recording', 'maps', 'book'
                 src: { default: null },
                 filename: { default: null },
                 id: { default: () => crypto.randomUUID() },
@@ -93,7 +110,8 @@
                 isRecording: { default: false },
                 thumbnailUrl: { default: null },
                 isYouTube: { default: false },
-                videoId: { default: null }
+                videoId: { default: null },
+                coverUrl: { default: null } // Add this for book covers
             }
         },
 
@@ -161,6 +179,16 @@
                     filename: HTMLAttributes.filename,
                     id: HTMLAttributes.id,
                     language: HTMLAttributes.language
+                });
+                return container;
+            } else if (HTMLAttributes.type === 'book') {
+                mountComponent(Books, container, {
+                    src: HTMLAttributes.src,
+                    filename: HTMLAttributes.filename,
+                    id: HTMLAttributes.id,
+                    bookname: HTMLAttributes.bookname,
+                    author: HTMLAttributes.author,
+                    coverUrl: HTMLAttributes.coverUrl
                 });
                 return container;
             }
@@ -684,6 +712,7 @@
                 console.log('Falling back to generic file handler for:', file.name);
                 await insertFile(file, 'file');
             }
+            // Note: removed ebook processing again for now, since the processing was still too broken
             
             // Add a space after each insert
             editor.commands.insertContent(' ');
@@ -1011,6 +1040,8 @@
                 console.log('Falling back to generic file handler for:', file.name);
                 await insertFile(file, 'file');
             }
+
+            // Note: removed ebook processing again for now, since the processing was still too broken
             
             // Add a space after each insert
             editor.commands.insertContent(' ');
@@ -1330,6 +1361,75 @@
         setTimeout(() => {
             editor.commands.focus('end');
         }, 50);
+    }
+
+    // Updated insertEpub function to forward the extracted book metadata to the embedded preview.
+    // The preview component expects the book's title under the key 'bookname' and the author under 'author'.
+    async function insertEpub(file: File): Promise<void> {
+        try {
+            // Get cover preview if available.
+            const coverUrl = await handleEpubPreview(file);
+            
+            // Extract book metadata: title and creator.
+            const epubMetadata = await getEpubMetadata(file);
+            const { title, creator } = epubMetadata;
+            
+            // Get the current cursor position.
+            const currentPos = editor.state.selection.from;
+            
+            // Construct the embed node with the correct attribute names for the preview component.
+            const bookEmbed = {
+                type: 'customEmbed',
+                attrs: {
+                    type: 'book',
+                    src: URL.createObjectURL(file),
+                    filename: file.name,
+                    id: crypto.randomUUID(),
+                    size: file.size,
+                    thumbnailUrl: coverUrl || undefined,
+                    file: file,
+                    // Forward the metadata using the attribute names 'bookname' and 'author'.
+                    bookname: title || undefined,
+                    author: creator || undefined
+                }
+            };
+        
+            if (editor.isEmpty) {
+                // If the editor is empty, set the content with a default mention and the embed.
+                editor.commands.setContent({
+                    type: 'doc',
+                    content: [{
+                        type: 'paragraph',
+                        content: [
+                            { 
+                                type: 'mate', 
+                                attrs: { 
+                                    name: defaultMention,
+                                    id: crypto.randomUUID()
+                                } 
+                            },
+                            { type: 'text', text: ' ' },
+                            bookEmbed,
+                            { type: 'text', text: ' ' }
+                        ]
+                    }]
+                });
+            } else {
+                // Otherwise, insert the embed at the current cursor position.
+                editor
+                    .chain()
+                    .focus()
+                    .insertContentAt(currentPos, [bookEmbed, { type: 'text', text: ' ' }])
+                    .run();
+            }
+            
+            // Ensure the editor is focused after insertion.
+            editor.commands.focus();
+        } catch (error) {
+            console.error('Error inserting EPUB:', error);
+            // Fallback to a generic file insertion if EPUB processing fails.
+            await insertFile(file, 'file');
+        }
     }
 
     function handleCameraClick() {
@@ -1852,6 +1952,148 @@
                 .run();
         }
     }
+
+    // Add this function to extract EPUB cover
+    async function extractEpubCover(file: File): Promise<string | null> {
+        try {
+            const zip = new JSZip();
+            const contents = await zip.loadAsync(file);
+            
+            const commonCoverPaths = [
+                'OEBPS/images/cover.jpg',
+                'OEBPS/images/cover.jpeg',
+                'OEBPS/images/cover.png',
+                'OPS/images/cover.jpg',
+                'OPS/images/cover.jpeg',
+                'OPS/images/cover.png',
+                'cover.jpg',
+                'cover.jpeg',
+                'cover.png'
+            ];
+
+            // Try common paths first
+            for (const path of commonCoverPaths) {
+                const coverFile = contents.file(path);
+                if (coverFile) {
+                    const blob = await coverFile.async('blob');
+                    return URL.createObjectURL(blob);
+                }
+            }
+
+            // If not found, try metadata
+            const containerXml = await contents.file('META-INF/container.xml')?.async('text');
+            if (containerXml) {
+                const parser = new DOMParser();
+                const containerDoc = parser.parseFromString(containerXml, 'text/xml');
+                const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+                
+                if (opfPath) {
+                    const opfContent = await contents.file(opfPath)?.async('text');
+                    const opfDoc = parser.parseFromString(opfContent, 'text/xml');
+                    
+                    const coverId = opfDoc.querySelector('meta[name="cover"]')?.getAttribute('content');
+                    if (coverId) {
+                        const coverItem = opfDoc.querySelector(`item[id="${coverId}"]`);
+                        if (coverItem) {
+                            const coverPath = coverItem.getAttribute('href');
+                            const fullPath = opfPath.split('/').slice(0, -1).concat(coverPath).join('/');
+                            const coverFile = contents.file(fullPath);
+                            if (coverFile) {
+                                const blob = await coverFile.async('blob');
+                                return URL.createObjectURL(blob);
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error('Error extracting EPUB cover:', error);
+            return null;
+        }
+    }
+
+    // Add this helper function near the top of your file
+    function isEpubFile(file: File): boolean {
+        console.log('Checking if file is EPUB:', file.name, file.type);
+        return (
+            file.type === 'application/epub+zip' ||
+            file.name.toLowerCase().endsWith('.epub') ||
+            file.type === 'application/x-epub+zip'
+        );
+    }
+
+    async function handleEpubPreview(file: File): Promise<string | null> {
+        try {
+            // Extract cover using the existing extractEpubCover function
+            const coverUrl = await extractEpubCover(file);
+            
+            if (coverUrl) {
+                console.log('Successfully extracted EPUB cover: ', coverUrl);
+                return coverUrl;
+            } else {
+                console.log('No cover found for EPUB');
+                return null;
+            }
+        } catch (error) {
+            console.error('Error handling EPUB preview:', error);
+            return null;
+        }
+    }
+
+    // Updated getEpubMetadata function without non-error console logs.
+    // This function opens the EPUB archive using JSZip, reads META-INF/container.xml
+    // to find the OPF file, and then extracts the <title> and <creator> from the OPF XML.
+    async function getEpubMetadata(file: File): Promise<EpubMetadata> {
+        try {
+            // Load the EPUB file as a ZIP archive using JSZip.
+            const zip = await JSZip.loadAsync(file);
+            
+            // Locate and read the container.xml file from the META-INF folder.
+            const containerFile = zip.file("META-INF/container.xml");
+            if (!containerFile) {
+                throw new Error("container.xml not found in EPUB file");
+            }
+            const containerXml = await containerFile.async("text");
+            
+            // Parse container.xml to extract the location of the OPF file.
+            const parser = new DOMParser();
+            const containerDoc = parser.parseFromString(containerXml, "application/xml");
+            const rootfileElement = containerDoc.querySelector("rootfile");
+            if (!rootfileElement) {
+                throw new Error("rootfile element not found in container.xml");
+            }
+            
+            // The OPF file location is specified in the 'full-path' attribute.
+            const opfPath = rootfileElement.getAttribute("full-path");
+            if (!opfPath) {
+                throw new Error("OPF path not specified in container.xml");
+            }
+            
+            // Get the OPF file using the provided path.
+            const opfFile = zip.file(opfPath);
+            if (!opfFile) {
+                throw new Error("OPF file not found in EPUB file");
+            }
+            const opfXml = await opfFile.async("text");
+            
+            // Parse the OPF XML and extract the title and creator.
+            const opfDoc = parser.parseFromString(opfXml, "application/xml");
+            const titleEl = opfDoc.querySelector("metadata > title");
+            const creatorEl = opfDoc.querySelector("metadata > creator");
+            
+            // Return the extracted metadata.
+            return {
+                title: titleEl ? titleEl.textContent?.trim() || undefined : undefined,
+                creator: creatorEl ? creatorEl.textContent?.trim() || undefined : undefined,
+            };
+        } catch (error) {
+            // Log errors only.
+            console.error("Error extracting EPUB metadata:", error);
+            throw error;
+        }
+    }
+
 </script>
 
 <div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
@@ -2305,6 +2547,7 @@
 
     :global(.ProseMirror) {
         outline: none;
+
         white-space: pre-wrap;
         word-wrap: break-word;
         min-height: 2em;
