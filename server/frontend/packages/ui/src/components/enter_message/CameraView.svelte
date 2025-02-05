@@ -228,6 +228,7 @@
                 bind:this={videoElement}
                 autoplay
                 playsinline
+                muted
                 class="camera-preview"
             >
                 <track kind="captions" />
