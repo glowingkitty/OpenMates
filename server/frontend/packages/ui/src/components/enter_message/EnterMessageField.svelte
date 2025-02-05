@@ -1871,10 +1871,10 @@
     }
 
     $: containerStyle = isFullscreen ? 
-        `height: calc(100vh - 100px); max-height: calc(100vh - 120px);` : 
+        `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 
         'height: auto; max-height: 350px;';  // Add default height when not fullscreen
     $: scrollableStyle = isFullscreen ? 
-        `max-height: calc(100vh - 190px);` : 
+        `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 
         'max-height: 250px;';  // Add default height when not fullscreen
 
     // Add this helper function near the top with other helper functions
