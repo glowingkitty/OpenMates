@@ -1,8 +1,12 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
+    import NativeCamera from './NativeCamera.svelte'; // Import our native camera component
     
     const dispatch = createEventDispatcher();
+    
+    // Flag to detect if we're on a mobile device (iOS/Android)
+    let isMobile: boolean = false;
     
     export let videoElement: HTMLVideoElement;
     let isRecording = false;
@@ -12,9 +16,34 @@
     let recordingTime = 0;
     let recordingInterval: ReturnType<typeof setInterval>;
     
+    // New flag to control when the custom overlay is rendered.
+    // By default it is false so that when we set it to true on mount,
+    // the overlay is newly inserted in the DOM (triggering the slide transition).
+    let showOverlay = false;
+    
+    // New variable to store a captured photo until the closing transition completes.
+    let pendingPhoto: Blob | null = null;
+    
+    // Logger using console.debug (as per Svelte logging best practices)
+    const logger = {
+        debug: (...args: any[]) => console.debug('[CameraView]', ...args),
+        info: (...args: any[]) => console.info('[CameraView]', ...args)
+    };
+
+    // onMount to initialize things. We check for mobile device here.
     onMount(() => {
-        // Only request camera permission initially
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        // Simple user agent check for mobile platforms.
+        isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        logger.debug('isMobile:', isMobile);
+
+        // For non-mobile devices, trigger the slide transition by setting
+        // showOverlay to true so that the custom overlay gets added after mount.
+        if (!isMobile) {
+            showOverlay = true;
+        }
+
+        // Only request camera permission when not on mobile.
+        if (!isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' },
                 audio: false
@@ -36,6 +65,31 @@
         stopRecordingTimer();
     });
 
+    function initiateClose() {
+        if (isMobile) {
+            dispatch('close');
+        } else {
+            if (showOverlay) {
+                showOverlay = false;
+            }
+        }
+    }
+
+    /**
+     * Triggered when the slide-out (exit) transition completes.
+     * If a photo was captured, dispatches the 'photocaptured' event,
+     * then dispatches the 'close' event.
+     */
+    function onOutroEnd() {
+        // If a photo was captured, dispatch the photocaptured event.
+        if (pendingPhoto) {
+            dispatch('photocaptured', { blob: pendingPhoto });
+            pendingPhoto = null;
+        }
+        // Finally, dispatch the close event to let the parent unmount the component.
+        dispatch('close');
+    }
+
     function stopCamera() {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -45,14 +99,14 @@
             mediaRecorder.stop();
         }
         dispatch('focusEditor');
-        dispatch('close');
+        initiateClose();
     }
 
     function startRecordingTimer() {
         recordingTime = 0;
         recordingInterval = setInterval(() => {
             recordingTime++;
-            // Format duration while recording
+            // Log formatted recording time for debugging
             const duration = formatTime(recordingTime);
             console.debug('Recording time:', duration);
         }, 1000);
@@ -75,15 +129,15 @@
         
         if (!isRecording) {
             try {
-                // Reset recording time when starting new recording
+                // Reset the recording time for a new recording session.
                 recordingTime = 0;
-                // Request audio permission only when starting recording
+                // Request audio permission when starting a recording.
                 const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const tracks = [...stream.getTracks(), ...audioStream.getTracks()];
                 stream = new MediaStream(tracks);
                 videoElement.srcObject = stream;
                 
-                // Start recording
+                // Prepare for recording by clearing previous chunks.
                 recordedChunks = [];
                 mediaRecorder = new MediaRecorder(stream);
                 
@@ -107,9 +161,9 @@
                         duration: finalDuration
                     });
                     
-                    // Reset recording time after we're done with it
+                    // Reset recording time and close view.
                     recordingTime = 0;
-                    dispatch('close');
+                    initiateClose();
                 };
 
                 mediaRecorder.start();
@@ -126,15 +180,13 @@
                 recordingTime
             });
             
-            // Stop the timer but keep the recordingTime value
+            // Stop the timer while retaining the final recordingTime.
             stopRecordingTimer();
 
             if (mediaRecorder) {
-                // Use the current recordingTime value when stopping
                 const finalRecordingTime = recordingTime;
                 setTimeout(() => {
                     if (mediaRecorder) {
-                        // Store the final duration before stopping
                         mediaRecorder.onstop = () => {
                             const blob = new Blob(recordedChunks, { type: 'video/webm' });
                             const finalDuration = formatTime(finalRecordingTime);
@@ -149,9 +201,8 @@
                                 duration: finalDuration
                             });
                             
-                            // Now we can reset the recording time
                             recordingTime = 0;
-                            dispatch('close');
+                            initiateClose();
                         };
                         mediaRecorder.stop();
                     }
@@ -160,85 +211,111 @@
         }
     }
 
+    /**
+     * Captures a photo from the video preview.
+     * Instead of dispatching the event immediately, stores the photo in pendingPhoto,
+     * then triggers the smooth close transition.
+     */
     async function capturePhoto() {
         if (!videoElement) return;
 
+        // Create a canvas that matches the video dimensions.
         const canvas = document.createElement('canvas');
         canvas.width = videoElement.videoWidth;
         canvas.height = videoElement.videoHeight;
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
+            // Draw the current frame of the video into the canvas.
             ctx.drawImage(videoElement, 0, 0);
-            canvas.toBlob(async (blob) => {
+            // Convert the drawn frame into a JPEG blob.
+            canvas.toBlob((blob) => {
                 if (blob) {
-                    // Dispatch the event with the photo blob
-                    dispatch('photocaptured', { blob });
-
-                    // Add a small delay to allow the button animation to complete
-                    await new Promise(resolve => setTimeout(resolve, 150));
-
-                    // Close the camera view
-                    dispatch('close');
+                    // Store the blob in pendingPhoto instead of dispatching immediately.
+                    pendingPhoto = blob;
+                    // Optional delay to allow button animation to complete.
+                    setTimeout(() => {
+                        initiateClose();
+                    }, 150);
                 }
             }, 'image/jpeg');
         }
     }
 
-    // Add logger
-    const logger = {
-        debug: (...args: any[]) => console.debug('[CameraView]', ...args),
-        info: (...args: any[]) => console.info('[CameraView]', ...args)
-    };
+    /**
+     * Handler for media captured using the native camera controls.
+     * The event.detail.file contains the captured media file (image or video).
+     *
+     * @param event The custom event from the NativeCamera component.
+     */
+    function handleMediaCaptured(event) {
+        const { file } = event.detail;
+        console.debug('[CameraView] Native media captured:', file);
+        // Dispatch an event so that parent components know a file has been captured.
+        dispatch('mediaCaptured', { file });
+        // Optionally close the camera view.
+        initiateClose();
+    }
 </script>
 
-<div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
-    <video
-        bind:this={videoElement}
-        autoplay
-        playsinline
-        class="camera-preview"
-    >
-        <track kind="captions" />
-    </video>
-    
-    <div class="bottom-bar">
-        <div class="camera-controls">
-            <button 
-                class="clickable-icon icon_close" 
-                on:click={stopCamera}
-                aria-label="Close camera"
-            ></button>
+<!-- Conditionally render based on the platform -->
+{#if isMobile}
+    <!-- On mobile devices, use the native camera which shows the device's regular camera controls -->
+    <div class="native-camera-container">
+        <NativeCamera on:mediaCaptured={handleMediaCaptured} />
+    </div>
+{:else}
+    <!-- On desktop or non-mobile devices, use the custom camera overlay -->
+    {#if showOverlay}
+    <div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }} on:outroend={onOutroEnd}>
+        <video
+            bind:this={videoElement}
+            autoplay
+            playsinline
+            class="camera-preview"
+        >
+            <track kind="captions" />
+        </video>
+        
+        <div class="bottom-bar">
+            <div class="camera-controls">
+                <button 
+                    class="clickable-icon icon_close" 
+                    on:click={stopCamera}
+                    aria-label="Close camera"
+                ></button>
 
-            {#if isRecording}
-                <div class="recording-timer" transition:slide={{ duration: 300 }}>
-                    {formatTime(recordingTime)}
+                {#if isRecording}
+                    <div class="recording-timer" transition:slide={{ duration: 300 }}>
+                        {formatTime(recordingTime)}
+                    </div>
+                {/if}
+
+                <div class="main-controls">
+                    <button 
+                        class="control-button video-button"
+                        class:recording={isRecording}
+                        on:click={toggleRecording}
+                        aria-label={isRecording ? "Stop recording" : "Start recording"}
+                    >
+                        <div class="video-button-inner"></div>
+                    </button>
+                    
+                    <button 
+                        class="control-button photo-button"
+                        on:click={capturePhoto}
+                        disabled={isRecording}
+                        class:disabled={isRecording}
+                        aria-label="Take photo"
+                    >
+                        <div class="photo-button-inner"></div>
+                    </button>
                 </div>
-            {/if}
-
-            <div class="main-controls">
-                <button 
-                    class="control-button video-button"
-                    class:recording={isRecording}
-                    on:click={toggleRecording}
-                    aria-label={isRecording ? "Stop recording" : "Start recording"}
-                >
-                    <div class="video-button-inner"></div>
-                </button>
-                
-                <button 
-                    class="control-button photo-button"
-                    on:click={capturePhoto}
-                    disabled={isRecording}
-                    class:disabled={isRecording}
-                    aria-label="Take photo"
-                >
-                    <div class="photo-button-inner"></div>
-                </button>
             </div>
         </div>
     </div>
-</div>
+    {/if}
+{/if}
 
 <style>
     .camera-overlay {
