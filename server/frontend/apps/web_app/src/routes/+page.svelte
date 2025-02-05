@@ -198,8 +198,10 @@
     .chat-container {
         display: flex;
         flex-direction: row;
-        /* Update height calculation */
-        height: calc(100vh - 90px); /* Use viewport height instead of percentage */
+        /* Fallback for browsers that don't support dvh */
+        height: calc(100vh - 90px);
+        /* Modern browsers will use this */
+        height: calc(100dvh - 90px);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -211,8 +213,10 @@
 
     /* Add specific height for login mode */
     .main-content.login-mode .chat-container {
-        height: calc(100vh - 90px); /* Keep full height in login mode */
-        min-height: calc(100vh - 90px); /* Ensure minimum height */
+        height: calc(100vh - 90px); /* Fallback for browsers that don't support dvh */
+        height: calc(100dvh - 90px); /* Keep full height in login mode */
+        min-height: calc(100vh - 90px); /* Fallback for browsers that don't support dvh */
+        min-height: calc(100dvh - 90px); /* Ensure minimum height */
     }
 
     /* Only apply gap on larger screens */

@@ -22,8 +22,8 @@
     <title>{title}</title>
 
     <!-- Add favicon links -->
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <link rel="alternate icon" type="image/jpeg" href="/static/favicon.jpg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/jpeg" href="/favicon.jpg" />
 
     <meta name="description" content={description} />
     <meta name="keywords" content={keywords.join(', ')} />
