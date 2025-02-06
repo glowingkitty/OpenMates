@@ -1636,4 +1636,29 @@
         overflow-wrap: break-word;
         line-height: 1.4; /* Add line height for better readability */
     }
+
+    /* 
+       Media query for screens with a maximum width of 600px.
+       This adjusts the padding, margin, and width of the search elements to ensure that
+       the search bar doesn't consume too much horizontal space.
+    */
+    @media (max-width: 600px) {
+        /* Reduce the horizontal padding in the controls container to give more room */
+        .controls {
+            padding: 0;
+        }
+
+        /* Reduce the margin on the search container */
+        .search-container {
+            margin: 0 5px;
+        }
+
+        /* Make the search input use the full width of its container without a fixed max-width,
+           so it adapts to the available space on mobile */
+        .search-input {
+            width: 100%;
+            max-width: 100%;
+            padding: 0 10px;  /* Adjust padding if necessary */
+        }
+    }
 </style> 
