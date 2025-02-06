@@ -80,11 +80,13 @@
 
     async function startRecording() {
         try {
+            // Check if an external stream is provided from the parent.
             if (externalStream) {
                 logger.info('Using external stream provided from parent.');
                 stream = externalStream;
             } else {
                 logger.debug('Requesting audio permission via getUserMedia...');
+                // Request microphone access with parameters improving call quality.
                 const audioStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
                         echoCancellation: true,
@@ -94,33 +96,49 @@
                 stream = audioStream;
             }
             
+            // Start a timer to update the recording duration on the UI.
             startRecordingTimer();
             isRecording = true;
             isAudioPermissionGranted = true;
             
+            // Initialize a circle size counter for any UI animation.
             circleSize = 0;
             growthInterval = setInterval(() => {
                 if (circleSize < 60) {
                     circleSize += 2;
                 }
             }, 16);
-
+            
+            // Reset the recorded chunks array.
             recordedChunks = [];
-            const mimeType = MediaRecorder.isTypeSupported('audio/webm')
-                ? 'audio/webm'
-                : 'audio/ogg';
-
+            
+            // Determine an appropriate MIME type.
+            // "audio/webm" works on many desktop browsers,
+            // but iOS often prefers "audio/mp4" so we check both.
+            let mimeType = "";
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                mimeType = 'audio/webm';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            } else {
+                mimeType = 'audio/ogg';
+            }
+            
+            // Create the MediaRecorder using the chosen MIME type and bit rate.
             mediaRecorder = new MediaRecorder(stream, {
                 mimeType,
                 audioBitsPerSecond: 128000
             });
             
+            // When data is available, add it to our chunks array.
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) {
                     recordedChunks.push(e.data);
                 }
             };
             
+            // When recording ends, combine the chunks into a Blob
+            // and dispatch an "audiorecorded" event.
             mediaRecorder.onstop = () => {
                 if (!isCancelled) {
                     const blob = new Blob(recordedChunks, { type: mimeType });
@@ -137,6 +155,7 @@
                         duration: finalDuration
                     });
                 }
+                // Stop and clean up the audio stream.
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
@@ -144,9 +163,10 @@
                 dispatch('close');
             };
 
-            mediaRecorder.start(100);
+            // Start recording without a timeslice for broader compatibility (including iOS).
+            mediaRecorder.start();
             logger.info('Recording started successfully');
-
+            
         } catch (err) {
             console.error('Audio permission denied or error:', err);
             dispatch('close');
