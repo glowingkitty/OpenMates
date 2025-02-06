@@ -25,7 +25,9 @@ export { default as Field } from "./src/components/Field.svelte";
 export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
-
+export { default as Imprint } from "./src/components/Imprint.svelte";
+export { default as Privacy } from "./src/components/Privacy.svelte";
+export { default as Terms } from "./src/components/Terms.svelte";
 export * from "./src/components/Settings.svelte";
 
 // i18n exports
