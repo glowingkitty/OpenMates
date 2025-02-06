@@ -118,6 +118,12 @@
     const handleClick = (event: MouseEvent, href: string) => {
         event.preventDefault();
         
+        // Handle mailto: links
+        if (href.startsWith('mailto:')) {
+            window.location.href = href;
+            return;
+        }
+        
         // If we're in webapp context or it's an external link, use window.location
         if (context === 'webapp' || href.startsWith('http')) {
             window.location.href = href;

@@ -15,6 +15,7 @@
     import { isMenuOpen } from '../stores/menuState';
     import { isCheckingAuth } from '../stores/authCheckState';
     import { getApiUrl } from '../config/links';
+    import { externalLinks, getWebsiteUrl } from '../config/links';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -286,21 +287,54 @@
         <div class="submenu-section">
             <div class="submenu-group">
                 <h3>{$_('settings.docs.text')}</h3>
-                <a href="/user-guide" class="submenu-link">{$_('settings.user_guide.text')}</a>
-                <a href="/api-docs" class="submenu-link">{$_('settings.api_docs.text')}</a>
+                <a 
+                    href={getWebsiteUrl('/docs/user-guide')} 
+                    class="submenu-link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >{$_('settings.user_guide.text')}</a>
+                <a 
+                    href={getWebsiteUrl('/docs/api-docs')} 
+                    class="submenu-link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >{$_('settings.api_docs.text')}</a>
             </div>
 
             <div class="submenu-group">
                 <h3>{$_('settings.contact.text')}</h3>
-                <a href="/discord" class="submenu-link">{$_('settings.discord.text')}</a>
-                <a href="/email" class="submenu-link">{$_('settings.email.text')}</a>
+                <a 
+                    href={externalLinks.discord} 
+                    class="submenu-link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >{$_('settings.discord.text')}</a>
+                <a 
+                    href={externalLinks.email} 
+                    class="submenu-link"
+                >{$_('settings.email.text')}</a>
             </div>
 
             <div class="submenu-group">
                 <h3>{$_('settings.legal.text')}</h3>
-                <a href="/imprint" class="submenu-link">{$_('settings.imprint.text')}</a>
-                <a href="/privacy" class="submenu-link">{$_('settings.privacy.text')}</a>
-                <a href="/terms" class="submenu-link">{$_('settings.terms_and_conditions.text')}</a>
+                <a 
+                    href={getWebsiteUrl(externalLinks.legal.imprint)} 
+                    class="submenu-link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >{$_('settings.imprint.text')}</a>
+                <a 
+                    href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
+                    class="submenu-link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >{$_('settings.privacy.text')}</a>
+                <a 
+                    href={getWebsiteUrl(externalLinks.legal.terms)} 
+                    class="submenu-link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >{$_('settings.terms_and_conditions.text')}</a>
             </div>
         </div>
     </div>
