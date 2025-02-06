@@ -1382,12 +1382,12 @@
         flex: 1;
         display: flex;
         justify-content: center;
-        margin: 0 15px;
+        margin: 0 10px;
         align-items: center;
     }
 
     .search-input {
-        width: 80%;
+        width: 100%;
         max-width: 400px;
         height: 36px;
         padding: 0 12px;
@@ -1643,22 +1643,27 @@
        the search bar doesn't consume too much horizontal space.
     */
     @media (max-width: 600px) {
-        /* Reduce the horizontal padding in the controls container to give more room */
+        /* Keep minimal padding in the controls container */
         .controls {
-            padding: 0;
+            padding: 0 10px;
+            gap: 8px; /* Add small gap between elements */
         }
 
-        /* Reduce the margin on the search container */
+        /* Reduce the width of the search container */
         .search-container {
-            margin: 0 5px;
+            margin: 0;
         }
 
-        /* Make the search input use the full width of its container without a fixed max-width,
-           so it adapts to the available space on mobile */
+        /* Adjust the search input to fit within the container */
         .search-input {
             width: 100%;
-            max-width: 100%;
-            padding: 0 10px;  /* Adjust padding if necessary */
+            min-width: 120px; /* Ensure minimum usable width */
+            padding: 0 12px;
+        }
+
+        /* Ensure icons maintain their original size */
+        .clickable-icon {
+            flex-shrink: 0; /* Prevent icons from shrinking */
         }
     }
 </style> 
