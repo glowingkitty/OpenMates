@@ -50,21 +50,21 @@ messages_connect_output_example = {
             "name": "Sophia",
             "description": "App development expert",
             "connect_links": {
-                "discord": "https://discord.com/api/oauth2/authorize?client_id=123456789012345678&permissions=8&redirect_uri=https%3A%2F%2Fopenmates.com&response_type=code&scope=bot"
+                "discord": "https://discord.com/api/oauth2/authorize?client_id=123456789012345678&permissions=8&redirect_uri=https%3A%2F%2Fopenmates.org&response_type=code&scope=bot"
             }
         },
         {
             "name": "Mark",
             "description": "Marketing expert",
             "connect_links": {
-                "discord": "https://discord.com/api/oauth2/authorize?client_id=234567890123456789&permissions=8&redirect_uri=https%3A%2F%2Fopenmates.com&response_type=code&scope=bot"
+                "discord": "https://discord.com/api/oauth2/authorize?client_id=234567890123456789&permissions=8&redirect_uri=https%3A%2F%2Fopenmates.org&response_type=code&scope=bot"
             }
         },
         {
             "name": "Elton",
             "description": "Electrical engineering expert",
             "connect_links": {
-                "discord": "https://discord.com/api/oauth2/authorize?client_id=345678901234567890&permissions=8&redirect_uri=https%3A%2F%2Fopenmates.com&response_type=code&scope=bot"
+                "discord": "https://discord.com/api/oauth2/authorize?client_id=345678901234567890&permissions=8&redirect_uri=https%3A%2F%2Fopenmates.org&response_type=code&scope=bot"
             }
         }
     ]
