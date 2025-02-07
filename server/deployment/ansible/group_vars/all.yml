@@ -15,7 +15,7 @@ dns_check_delay: 15
 # Applications configuration
 applications:
   plane:
-    subdomain: "apps-projectmanagement-plane.{{ domain_name }}"
+    subdomain: "apps-plane.{{ domain_name }}"
     port: 8081
   # Add other applications here
 

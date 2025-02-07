@@ -29,13 +29,6 @@ variable "deploy_env" {
   default     = "development"
 }
 
-# New variable to control installation of plane and nginx roles
-variable "app_project_management_plane_install" {
-  description = "Flag to determine if the Plane and Nginx roles should be installed"
-  type        = bool
-  default     = false
-}
-
 # Map of applications with their subdomains and ports
 variable "applications" {
   description = "Map of applications with their subdomains and corresponding ports"
@@ -45,9 +38,16 @@ variable "applications" {
   }))
   default = {
     plane = {
-      subdomain = "apps-projectmanagement-plane.openmates.org"
+      subdomain = "apps-plane.openmates.org"
       port      = 8081
     }
     # Add other applications here
   }
+}
+
+# New variable to control installation of plane and nginx roles
+variable "app_project_management_plane_install" {
+  description = "Flag to determine if the Plane and Nginx roles should be installed"
+  type        = bool
+  default     = false
 }

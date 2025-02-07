@@ -102,7 +102,60 @@ resource "null_resource" "ansible_provisioner" {
     server_id         = hcloud_server.grafana_server.id
     # Using the content of the inventory file instead of its hash
     inventory_content = local_file.ansible_inventory.content
+    domain_name       = var.domain_name
+    admin_email       = var.admin_email
+    nginx_port        = var.nginx_port
+    deploy_env        = var.deploy_env
+    app_hosting_grafana_install = var.app_hosting_grafana_install
+    app_hosting_grafana_admin_password = var.app_hosting_grafana_admin_password
+    app_hosting_grafana_admin_user = var.app_hosting_grafana_admin_user
+    app_hosting_grafana_allow_signup = var.app_hosting_grafana_allow_signup
+    app_hosting_grafana_default_role = var.app_hosting_grafana_default_role
+    app_hosting_grafana_basic_auth = var.app_hosting_grafana_basic_auth
   }
+}
+
+# Define firewall rules for apps server
+resource "hcloud_firewall" "apps_firewall" {
+  name = "apps-firewall"
+
+  # SSH access
+  rule {
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "22"
+    source_ips  = ["0.0.0.0/0"]
+  }
+
+  # HTTP access
+  rule {
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "80"
+    source_ips  = ["0.0.0.0/0"]
+  }
+
+  # HTTPS access
+  rule {
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "443"
+    source_ips  = ["0.0.0.0/0"]
+  }
+
+  # Add additional ports as needed for other apps
+  # rule {
+  #   direction   = "in"
+  #   protocol    = "tcp"
+  #   port        = "other_port"
+  #   source_ips  = ["0.0.0.0/0"]
+  # }
+}
+
+# Apply firewall to Grafana server
+resource "hcloud_firewall_attachment" "grafana_firewall" {
+  firewall_id = hcloud_firewall.grafana_firewall.id
+  server_ids  = [hcloud_server.grafana_server.id]
 }
 
 # Output the server IP address for reference

@@ -14,7 +14,6 @@ variable "domain_name" {
 variable "admin_email" {
   description = "Email for SSL certificate registration"
   type        = string
-  # sensitive   = true
 }
 
 variable "nginx_port" {
@@ -23,35 +22,40 @@ variable "nginx_port" {
   default     = 8080
 }
 
-variable "grafana_install_dir" {
-  description = "Installation directory for Grafana"
-  type        = string
-  default     = "grafana"
-}
-
 variable "deploy_env" {
   description = "Deployment environment (development/production)"
   type        = string
   default     = "development"
 }
 
-variable "standalone" {
-  description = "Whether Grafana is being deployed standalone or as part of apps server"
+# Map of applications with their subdomains and ports
+variable "applications" {
+  description = "Map of applications with their subdomains and corresponding ports"
+  type = map(object({
+    subdomain = string
+    port      = number
+  }))
+  default = {
+    plane = {
+      subdomain = "apps-plane.openmates.org"
+      port      = 8081
+    }
+    # Add other applications here
+  }
+}
+
+# New variable to control installation of plane and nginx roles
+variable "app_hosting_grafana_install" {
+  description = "Flag to determine if the Grafana and Nginx roles should be installed"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "app_hosting_grafana_admin_password" {
   description = "Admin password for Grafana"
   type        = string
-  # sensitive   = true
 }
 
-variable "app_hosting_grafana_install" {
-  description = "Whether to install Grafana"
-  type        = bool
-  default     = true
-}
 
 variable "app_hosting_grafana_admin_user" {
   description = "Admin user for Grafana"
