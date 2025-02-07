@@ -86,11 +86,6 @@
     }
 </script>
 
-<svelte:head>
-	<meta name="theme-color" content="var(--color-grey-0)">
-    <meta name="background-color" content="var(--color-grey-0)">
-</svelte:head>
-
 {#if loaded}
     <MetaTags />
     <main use:replaceOpenMates>

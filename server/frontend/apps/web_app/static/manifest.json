@@ -3,6 +3,8 @@
     "short_name": "OpenMates",
     "start_url": "/",
     "display": "standalone",
+    "background_color": "#171717",
+    "theme_color": "#171717",
     "icons": [
       {
         "src": "/favicon.png",
