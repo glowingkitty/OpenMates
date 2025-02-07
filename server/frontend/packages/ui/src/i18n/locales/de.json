@@ -463,6 +463,11 @@
             "en_original": "Login",
             "context": "Button text for logging in"
         },
+        "loading": {
+            "text": "Lade...",
+            "en_original": "Loading...",
+            "context": "Text shown when checking authentication"
+        },
         "error_message": {
             "text": "Anmeldung fehlgeschlagen. Entweder sind deine Anmeldedaten falsch oder dein Konto existiert nicht.",
             "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",

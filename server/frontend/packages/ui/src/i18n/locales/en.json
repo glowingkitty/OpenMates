@@ -380,6 +380,10 @@
             "text": "Login",
             "context": "Button text for logging in"
         },
+        "loading": {
+            "text": "Loading...",
+            "context": "Text shown when checking authentication"
+        },
         "error_message": {
             "text": "Login failed. Either your credentials are wrong or your account does not exist.",
             "context": "Error message shown when login fails"

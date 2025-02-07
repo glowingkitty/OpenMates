@@ -153,7 +153,7 @@
                     {#if $isCheckingAuth}
                         <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                             <span class="loading-spinner"></span>
-                            <p>{$_('login.checking_auth.text', { default: 'Loading...' })}</p>
+                            <p>{$_('login.loading.text')}</p>
                         </div>
                     {/if}
                 </div>

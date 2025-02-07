@@ -463,6 +463,11 @@
             "en_original": "Login",
             "context": "Button text for logging in"
         },
+        "loading": {
+            "text": "読み込み中...",
+            "en_original": "Loading...",
+            "context": "Text shown when checking authentication"
+        },
         "error_message": {
             "text": "ログインに失敗しました。資格情報が間違っているか、アカウントが存在しません。",
             "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
