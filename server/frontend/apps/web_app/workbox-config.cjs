@@ -4,8 +4,22 @@ module.exports = {
   swDest: 'static/sw.js',
   runtimeCaching: [
     {
-      urlPattern: ({ request }) => request.mode === 'navigate', // Cache HTML pages
-      handler: 'NetworkFirst', // Try network first, fallback to cache
+      urlPattern: ({ url }) => url.protocol.startsWith('ws'),
+      handler: 'NetworkOnly',
+      options: {
+        cacheName: 'network-only-ws',
+      },
+    },
+    {
+      urlPattern: ({ url }) => url.pathname.startsWith('/.svelte-kit/'),
+      handler: 'NetworkOnly',
+      options: {
+        cacheName: 'network-only-sveltekit',
+      },
+    },
+    {
+      urlPattern: ({ request }) => request.mode === 'navigate',
+      handler: 'NetworkFirst',
       options: {
         cacheName: 'html-cache',
       },

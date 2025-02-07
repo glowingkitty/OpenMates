@@ -9,7 +9,6 @@ export class AuthService {
      */
     static async login(email: string, password: string): Promise<any> {
         try {
-            console.log('Attempting login...');
             const formData = new FormData();
             formData.append('username', email.trim());  // Trim whitespace
             formData.append('password', password);
@@ -23,8 +22,6 @@ export class AuthService {
                 body: formData,
                 credentials: 'include'
             });
-
-            console.log('Response status:', response.status);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ 
@@ -57,7 +54,6 @@ export class AuthService {
      */
     static async refreshToken(): Promise<{success: boolean, email?: string}> {
         try {
-            console.log('Attempting to refresh token...');
             const response = await fetch(`${getApiUrl()}/v1/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include',
@@ -66,15 +62,12 @@ export class AuthService {
                 }
             });
 
-            console.log('Refresh response status:', response.status);
-
             if (!response.ok) {
                 console.log('Token refresh failed - response not ok');
                 return { success: false };
             }
 
             const data = await response.json();
-            console.log('Refresh token response data:', data);
             
             return { 
                 success: true,
@@ -105,11 +98,8 @@ export class AuthService {
      */
     static async checkAuth(): Promise<{isAuthenticated: boolean, email?: string}> {
         try {
-            console.log('Checking authentication...');
-            
             // Try refresh token - let server determine if there's a valid session
             const refreshResult = await this.refreshToken();
-            console.log('Auth check result:', refreshResult);
             
             return {
                 isAuthenticated: refreshResult.success,

@@ -54,17 +54,14 @@ function createAuthStore() {
                 
                 try {
                     const authResult = await AuthService.checkAuth();
-                    console.log('Auth check result:', authResult);
                     
                     if (authResult.isAuthenticated && authResult.email) {
-                        console.log('Setting auth state to authenticated:', authResult.email);
                         set({
                             isAuthenticated: true,
                             user: { email: authResult.email },
                             isInitialized: true
                         });
                     } else {
-                        console.log('Setting auth state to not authenticated');
                         set({
                             isAuthenticated: false,
                             user: null,
