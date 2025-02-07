@@ -2393,7 +2393,7 @@
         max-height: 350px;
         background-color: var(--color-grey-blue);
         border-radius: 24px;
-        padding: 0 1rem 50px 1rem;
+        padding: 0px 0px 60px 0px;
         box-sizing: border-box;
         position: relative;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -2425,10 +2425,8 @@
     .content-wrapper {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
         width: 100%;
         box-sizing: border-box;
-        padding: 0 0.5rem;
     }
 
     @keyframes blink-caret {
