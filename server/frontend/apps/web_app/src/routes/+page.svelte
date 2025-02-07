@@ -128,10 +128,12 @@
 
         transition: transform 0.3s ease, opacity 0.3s ease;
         opacity: 1;
+        display: block;
     }
 
     .sidebar.closed {
         opacity: 0;
+        display: none;
     }
 
     /* For Webkit browsers */
@@ -247,11 +249,6 @@
         .sidebar {
             width: 100%;
             /* Ensure sidebar stays in place */
-            transform: none;
-        }
-
-        .sidebar.closed {
-            /* Don't translate sidebar off screen on mobile */
             transform: none;
         }
 
