@@ -30,6 +30,9 @@
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
 
+  // Add prop for message input height
+  export let messageInputHeight = 0;
+
   /**
    * Exposed function to add a new message to the chat.
    * This is called from the ActiveChat component when a new message is sent.
@@ -88,9 +91,15 @@
     - Takes full height and is scrollable.
     - Uses flexbox with justify-content: flex-end so that messages appear at the bottom.
 -->
-<div class="chat-history-container" bind:this={container}>
+<div 
+    class="chat-history-container" 
+    bind:this={container}
+    style="bottom: {messageInputHeight}px;"
+>
+  <!-- Add a spacer div to push content to bottom -->
+  <div class="spacer"></div>
+  
   {#each messages as msg (msg.id)}
-    <!-- Each message fades in from the bottom with alignment based on role -->
     <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
       <div in:fade>
         <ChatMessage role={msg.role} messageParts={msg.messageParts} />
@@ -101,22 +110,41 @@
 
 <style>
   .chat-history-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: flex-end;
     align-items: center;
     padding: 10px;
     box-sizing: border-box;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
 
-  /* Add a wrapper to push messages to the bottom when content is smaller than container */
-  .chat-history-container::after {
-    content: '';
-    flex: 1;
+  /* Make sure the container can be scrolled */
+  .chat-history-container::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-history-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-history-container::-webkit-scrollbar-thumb {
+    background-color: var(--color-grey-40);
+    border-radius: 4px;
+  }
+
+  /* Remove the ::after pseudo-element since we don't need it anymore */
+
+  /* Add spacer to push content to bottom when there's not enough messages */
+  .spacer {
+    flex-grow: 1;
+    min-height: 0;
   }
 
   .message-wrapper {
@@ -124,6 +152,7 @@
     width: 100%;
     max-width: 900px;
     display: flex;
+    flex-shrink: 0;
   }
 
   .message-wrapper.user {

@@ -2076,246 +2076,272 @@
       }
     }
 
+    let messageInputWrapper: HTMLElement;
+
+    // Monitor height changes
+    function updateHeight() {
+        if (messageInputWrapper) {
+            const height = messageInputWrapper.offsetHeight;
+            dispatch('heightchange', { height });
+        }
+    }
+
+    // Use ResizeObserver to monitor height changes
+    onMount(() => {
+        const resizeObserver = new ResizeObserver(() => {
+            updateHeight();
+        });
+        
+        if (messageInputWrapper) {
+            resizeObserver.observe(messageInputWrapper);
+        }
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    });
 </script>
 
-<div class="message-container {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
-     style={containerStyle}
-     on:dragover={handleDragOver}
-     on:dragleave={handleDragLeave}
-     on:drop={handleDrop}
-     role="textbox"
-     aria-multiline="true"
-     tabindex="0"
->
-    {#if isScrollable || isFullscreen}
-        <button 
-            class="fullscreen-button" 
-            class:active={isFullscreen}
-            on:click={toggleFullscreen}
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-            <div class="clickable-icon icon_fullscreen"></div>
-        </button>
-    {/if}
+<div bind:this={messageInputWrapper}>
+    <div class="message-field {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
+         style={containerStyle}
+         on:dragover={handleDragOver}
+         on:dragleave={handleDragLeave}
+         on:drop={handleDrop}
+         role="textbox"
+         aria-multiline="true"
+         tabindex="0"
+    >
+        {#if isScrollable || isFullscreen}
+            <button 
+                class="fullscreen-button" 
+                class:active={isFullscreen}
+                on:click={toggleFullscreen}
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+                <div class="clickable-icon icon_fullscreen"></div>
+            </button>
+        {/if}
 
-    <!-- Hidden file inputs -->
-    <input
-        bind:this={fileInput}
-        type="file"
-        on:change={onFileSelected}
-        style="display: none"
-        multiple
-    />
-    
-    <input
-        bind:this={cameraInput}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        on:change={onFileSelected}
-        style="display: none"
-        multiple
-    />
-
-    <div class="scrollable-content"
-         bind:this={scrollableContent}
-         style={scrollableStyle}>
-        <div class="content-wrapper">
-            <div 
-                bind:this={editorElement} 
-                class="editor-content prose"
-            ></div>
-        </div>
-    </div>
-
-    {#if showCamera}
-        <CameraView
-            bind:videoElement
-            on:close={handleCameraClose}
-            on:focusEditor={() => {
-                // Add small delay to ensure DOM is updated
-                setTimeout(() => {
-                    editor?.commands.focus();
-                }, 0);
-            }}
-            on:photocaptured={handlePhotoCaptured}
-            on:videorecorded={handleVideoRecorded}
+        <!-- Hidden file inputs -->
+        <input
+            bind:this={fileInput}
+            type="file"
+            on:change={onFileSelected}
+            style="display: none"
+            multiple
         />
-    {/if}
+        
+        <input
+            bind:this={cameraInput}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            on:change={onFileSelected}
+            style="display: none"
+            multiple
+        />
 
-    <!-- Action buttons -->
-    <div class="action-buttons">
-        <div class="left-buttons">
-            <button 
-                class="clickable-icon icon_files" 
-                on:click={handleFileSelect} 
-                aria-label={$_('enter_message.attachments.attach_files.text')}
-            ></button>
-            <button 
-                class="clickable-icon icon_maps" 
-                on:click={handleLocationClick}
-                aria-label={$_('enter_message.attachments.share_location.text')}
-            ></button>
+        <div class="scrollable-content"
+             bind:this={scrollableContent}
+             style={scrollableStyle}>
+            <div class="content-wrapper">
+                <div 
+                    bind:this={editorElement} 
+                    class="editor-content prose"
+                ></div>
+            </div>
         </div>
-        <div class="right-buttons">
-            <button 
-                class="clickable-icon icon_camera" 
-                on:click={handleCameraClick} 
-                aria-label={$_('enter_message.attachments.take_photo.text')}
-            ></button>
-            
-            {#if showRecordHint}
-                <span 
-                    class="record-hint-inline" 
-                    transition:slide={{ duration: 200 }}
-                >
-                    {$_('enter_message.record_audio.press_and_hold_reminder.text')}
-                </span>
-            {/if}
-            
-            <button 
-                class="record-button {isRecordButtonPressed ? 'recording' : ''}"
-                style="z-index: 901;"
-                on:mousedown={(event) => {
-                    // Only initiate the press-and-hold recording if permission is already granted.
-                    if (!micPermissionGranted) {
-                        // First time: request permission and show an inline hint.
-                        preRequestMicAccess(event);
-                        showRecordHint = true; // This hint can instruct the user: "Please press again to record"
-                        return; // Do not start the press-and-hold timer yet.
-                    }
-                    // If already granted, start the press-and-hold timer normally.
-                    hasRecordingStarted = false;  // Reset the recording flag.
-                    recordStartTimeout = setTimeout(() => {
-                        // Store starting coordinates (for any UI animations/feedback)
-                        recordStartPosition = { 
-                            x: event.clientX, 
-                            y: event.clientY 
-                        };
-                        isRecordButtonPressed = true;
-                        showRecordAudio = true;
-                        hasRecordingStarted = true;  // Mark that recording has begun.
-                        // Clear the record hint if it was showing
-                        if (showRecordHint) {
-                            showRecordHint = false;
-                            clearTimeout(recordHintTimeout);
-                        }
-                    }, 500); // Adjust the delay as needed for your UX.
+
+        {#if showCamera}
+            <CameraView
+                bind:videoElement
+                on:close={handleCameraClose}
+                on:focusEditor={() => {
+                    // Add small delay to ensure DOM is updated
+                    setTimeout(() => {
+                        editor?.commands.focus();
+                    }, 0);
                 }}
-                on:mouseup={() => {
-                    if (recordStartTimeout) {
-                        clearTimeout(recordStartTimeout);
-                        if (!hasRecordingStarted) {
-                            showRecordHint = true;
-                            clearTimeout(recordHintTimeout);
-                            recordHintTimeout = setTimeout(() => {
+                on:photocaptured={handlePhotoCaptured}
+                on:videorecorded={handleVideoRecorded}
+            />
+        {/if}
+
+        <!-- Action buttons -->
+        <div class="action-buttons">
+            <div class="left-buttons">
+                <button 
+                    class="clickable-icon icon_files" 
+                    on:click={handleFileSelect} 
+                    aria-label={$_('enter_message.attachments.attach_files.text')}
+                ></button>
+                <button 
+                    class="clickable-icon icon_maps" 
+                    on:click={handleLocationClick}
+                    aria-label={$_('enter_message.attachments.share_location.text')}
+                ></button>
+            </div>
+            <div class="right-buttons">
+                <button 
+                    class="clickable-icon icon_camera" 
+                    on:click={handleCameraClick} 
+                    aria-label={$_('enter_message.attachments.take_photo.text')}
+                ></button>
+                
+                {#if showRecordHint}
+                    <span 
+                        class="record-hint-inline" 
+                        transition:slide={{ duration: 200 }}
+                    >
+                        {$_('enter_message.record_audio.press_and_hold_reminder.text')}
+                    </span>
+                {/if}
+                
+                <button 
+                    class="record-button {isRecordButtonPressed ? 'recording' : ''}"
+                    style="z-index: 901;"
+                    on:mousedown={(event) => {
+                        // Only initiate the press-and-hold recording if permission is already granted.
+                        if (!micPermissionGranted) {
+                            // First time: request permission and show an inline hint.
+                            preRequestMicAccess(event);
+                            showRecordHint = true; // This hint can instruct the user: "Please press again to record"
+                            return; // Do not start the press-and-hold timer yet.
+                        }
+                        // If already granted, start the press-and-hold timer normally.
+                        hasRecordingStarted = false;  // Reset the recording flag.
+                        recordStartTimeout = setTimeout(() => {
+                            // Store starting coordinates (for any UI animations/feedback)
+                            recordStartPosition = { 
+                                x: event.clientX, 
+                                y: event.clientY 
+                            };
+                            isRecordButtonPressed = true;
+                            showRecordAudio = true;
+                            hasRecordingStarted = true;  // Mark that recording has begun.
+                            // Clear the record hint if it was showing
+                            if (showRecordHint) {
                                 showRecordHint = false;
-                            }, 2000);
+                                clearTimeout(recordHintTimeout);
+                            }
+                        }, 500); // Adjust the delay as needed for your UX.
+                    }}
+                    on:mouseup={() => {
+                        if (recordStartTimeout) {
+                            clearTimeout(recordStartTimeout);
+                            if (!hasRecordingStarted) {
+                                showRecordHint = true;
+                                clearTimeout(recordHintTimeout);
+                                recordHintTimeout = setTimeout(() => {
+                                    showRecordHint = false;
+                                }, 2000);
+                            }
                         }
-                    }
-                    isRecordButtonPressed = false;
-                    showRecordAudio = false;
-                    hasRecordingStarted = false;  // Reset the flag after releasing.
-                }}
-                on:mouseleave={() => {
-                    if (isRecordButtonPressed) {
+                        isRecordButtonPressed = false;
+                        showRecordAudio = false;
+                        hasRecordingStarted = false;  // Reset the flag after releasing.
+                    }}
+                    on:mouseleave={() => {
+                        if (isRecordButtonPressed) {
+                            isRecordButtonPressed = false;
+                            showRecordAudio = false;
+                            hasRecordingStarted = false;
+                            clearTimeout(recordStartTimeout);
+                        }
+                    }}
+                    on:touchstart|preventDefault={(event) => {
+                        // Similar logic for touch events.
+                        if (!micPermissionGranted) {
+                            preRequestMicAccess(event);
+                            showRecordHint = true;
+                            return;
+                        }
+                        hasRecordingStarted = false;
+                        recordStartTimeout = setTimeout(() => {
+                            recordStartPosition = { 
+                                x: event.touches[0].clientX, 
+                                y: event.touches[0].clientY 
+                            };
+                            isRecordButtonPressed = true;
+                            showRecordAudio = true;
+                            hasRecordingStarted = true;
+                            if (showRecordHint) {
+                                showRecordHint = false;
+                                clearTimeout(recordHintTimeout);
+                            }
+                        }, 500);
+                    }}
+                    on:touchend={() => {
+                        if (recordStartTimeout) {
+                            clearTimeout(recordStartTimeout);
+                        }
                         isRecordButtonPressed = false;
                         showRecordAudio = false;
                         hasRecordingStarted = false;
-                        clearTimeout(recordStartTimeout);
-                    }
-                }}
-                on:touchstart|preventDefault={(event) => {
-                    // Similar logic for touch events.
-                    if (!micPermissionGranted) {
-                        preRequestMicAccess(event);
-                        showRecordHint = true;
-                        return;
-                    }
-                    hasRecordingStarted = false;
-                    recordStartTimeout = setTimeout(() => {
-                        recordStartPosition = { 
-                            x: event.touches[0].clientX, 
-                            y: event.touches[0].clientY 
-                        };
-                        isRecordButtonPressed = true;
-                        showRecordAudio = true;
-                        hasRecordingStarted = true;
-                        if (showRecordHint) {
-                            showRecordHint = false;
-                            clearTimeout(recordHintTimeout);
-                        }
-                    }, 500);
-                }}
-                on:touchend={() => {
-                    if (recordStartTimeout) {
-                        clearTimeout(recordStartTimeout);
-                    }
-                    isRecordButtonPressed = false;
-                    showRecordAudio = false;
-                    hasRecordingStarted = false;
-                }}
-                aria-label={$_('enter_message.attachments.record_audio.text')}
-            >
-                <div class="clickable-icon icon_recordaudio"></div>
-            </button>
-            {#if hasContent}
-                <button 
-                    class="send-button" 
-                    on:click={handleSend}
-                    aria-label={$_('enter_message.send.text')}
+                    }}
+                    aria-label={$_('enter_message.attachments.record_audio.text')}
                 >
-                    {$_('enter_message.send.text')}
+                    <div class="clickable-icon icon_recordaudio"></div>
                 </button>
-            {/if}
+                {#if hasContent}
+                    <button 
+                        class="send-button" 
+                        on:click={handleSend}
+                        aria-label={$_('enter_message.send.text')}
+                    >
+                        {$_('enter_message.send.text')}
+                    </button>
+                {/if}
+            </div>
         </div>
+
+        {#if showMenu}
+            <PressAndHoldMenu
+                x={menuX}
+                y={menuY}
+                show={showMenu}
+                type={menuType}
+                isYouTube={selectedNode?.node?.attrs?.isYouTube || false}
+                on:close={() => {
+                    showMenu = false;
+                    isMenuInteraction = false;
+                    selectedNode = null;  // Clear the selected node
+                }}
+                on:delete={() => handleMenuAction('delete')}
+                on:download={() => handleMenuAction('download')}
+                on:view={() => handleMenuAction('view')}
+                on:copy={() => handleMenuAction('copy')}
+            />
+        {/if}
+
+        {#if showRecordAudio}
+            <!--
+              Added the on:cancel event handler along with on:close.
+              Ensure that if the RecordAudio component detects a slide-to-cancel action,
+              it dispatches a "cancel" event.
+            -->
+            <RecordAudio 
+                externalStream={recordingStream} 
+                initialPosition={recordStartPosition} 
+                on:audiorecorded={handleAudioRecorded} 
+                on:close={handleStopRecording}
+                on:cancel={handleStopRecording} 
+            />
+        {/if}
+
+        {#if showMaps}
+            <MapsView
+                on:close={() => showMaps = false}
+                on:locationselected={handleLocationSelected}
+            />
+        {/if}
     </div>
-
-    {#if showMenu}
-        <PressAndHoldMenu
-            x={menuX}
-            y={menuY}
-            show={showMenu}
-            type={menuType}
-            isYouTube={selectedNode?.node?.attrs?.isYouTube || false}
-            on:close={() => {
-                showMenu = false;
-                isMenuInteraction = false;
-                selectedNode = null;  // Clear the selected node
-            }}
-            on:delete={() => handleMenuAction('delete')}
-            on:download={() => handleMenuAction('download')}
-            on:view={() => handleMenuAction('view')}
-            on:copy={() => handleMenuAction('copy')}
-        />
-    {/if}
-
-    {#if showRecordAudio}
-        <!--
-          Added the on:cancel event handler along with on:close.
-          Ensure that if the RecordAudio component detects a slide-to-cancel action,
-          it dispatches a "cancel" event.
-        -->
-        <RecordAudio 
-            externalStream={recordingStream} 
-            initialPosition={recordStartPosition} 
-            on:audiorecorded={handleAudioRecorded} 
-            on:close={handleStopRecording}
-            on:cancel={handleStopRecording} 
-        />
-    {/if}
-
-    {#if showMaps}
-        <MapsView
-            on:close={() => showMaps = false}
-            on:locationselected={handleLocationSelected}
-        />
-    {/if}
 </div>
 
 <style>
-    /* Reuse all your existing styles from EnterMessageField.svelte */
-    .message-container {
+    /* Rename .message-container to .message-field */
+    .message-field {
         width: 100%;
         min-height: 100px;
         max-height: 350px;
@@ -2325,13 +2351,13 @@
         box-sizing: border-box;
         position: relative;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease-in-out; /* Update transition to include all properties */
+        transition: all 0.3s ease-in-out;
         transform-origin: center;
         will-change: transform, padding-bottom, max-height, height;
     }
 
     /* Add new style for recording active state */
-    .message-container.recording-active {
+    .message-field.recording-active {
         padding-bottom: 120px; /* Increase padding to make space for recording interface */
         max-height: 420px; /* Increase max-height by the same amount */
     }

@@ -54,6 +54,17 @@
     let isFullscreen = false;
     $: messages = chatHistoryRef?.messages || [];
 
+    // Add state for message input height
+    let messageInputHeight = 0;
+
+    /**
+     * Handler for input height changes
+     * @param event CustomEvent with height detail
+     */
+    function handleInputHeightChange(event: CustomEvent) {
+        messageInputHeight = event.detail.height;
+    }
+
     /**
      * Handler for when EnterMessageField dispatches the sendMessage event.
      * It receives the message payload and calls addMessage() on the chat history.
@@ -117,11 +128,15 @@
 
             <!-- Add a wrapper for chat history and message field -->
             <div class="chat-wrapper" class:fullscreen={isFullscreen}>
-                <ChatHistory bind:this={chatHistoryRef} />
+                <ChatHistory 
+                    bind:this={chatHistoryRef} 
+                    messageInputHeight={messageInputHeight + 40}
+                />
                 <div class="message-input-wrapper">
                     <EnterMessageField 
                         on:codefullscreen={handleCodeFullscreen}
                         on:sendMessage={handleSendMessage}
+                        on:heightchange={handleInputHeightChange}
                         bind:isFullscreen
                     />
                 </div>
@@ -269,10 +284,11 @@
     }
 
     .chat-wrapper {
+        position: relative;
         display: flex;
         flex-direction: column;
         flex: 1;
-        margin-bottom: 100px; /* Space for message input (60px height + 40px spacing) */
+        height: 100%;
         transition: all 0.3s ease;
     }
 
@@ -287,6 +303,7 @@
         flex: 1;
         min-width: 0;
         padding-left: 20px;
+        height: 100%;
     }
 
     .message-input-wrapper {
