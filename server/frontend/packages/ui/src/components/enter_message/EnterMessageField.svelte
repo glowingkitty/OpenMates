@@ -1435,21 +1435,38 @@
 
     /**
      * Handles the camera button click.
-     * On mobile devices, directly triggers the hidden camera input.
-     * Otherwise, shows the CameraView overlay.
+     * Detects if running on mobile using a more reliable check
      */
     function handleCameraClick() {
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        console.log('Camera button clicked, current showCamera state:', showCamera);
+        
+        // Combine a media query check and a user-agent check to determine if we're on a mobile device.
+        const isMobileMedia = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches &&
+                              ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        const isMobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        // Use AND so both conditions must be met for mobile behavior.
+        const isMobile = isMobileMedia && isMobileUA;
+        
+        console.log('Combined device detection:', {
+            isMobileMedia,            // Media query result: indicates touch and small screen
+            isMobileUA,               // User-agent result: matches mobile strings
+            isMobile,                 // Final combined result (AND)
+            userAgent: navigator.userAgent,
+            maxTouchPoints: navigator.maxTouchPoints,
+            hasTouch: 'ontouchstart' in window
+        });
+
         if (isMobile) {
-            // Directly open the native camera (no extra button needed)
-            cameraInput.click();
+            console.log('Mobile device detected, opening native camera');
+            cameraInput?.click();
         } else {
-            // On desktop, show the custom camera overlay
+            console.log('Desktop device detected, showing camera overlay');
             showCamera = true;
         }
     }
 
     function handleCameraClose() {
+        console.log('Closing camera view');
         showCamera = false;
     }
 
@@ -2187,7 +2204,10 @@
             <div class="right-buttons">
                 <button 
                     class="clickable-icon icon_camera" 
-                    on:click={handleCameraClick} 
+                    on:click|stopPropagation={(e) => {
+                        e.preventDefault();  // Prevent any default behavior
+                        handleCameraClick();
+                    }}
                     aria-label={$_('enter_message.attachments.take_photo.text')}
                 ></button>
                 

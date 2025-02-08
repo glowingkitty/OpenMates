@@ -91,12 +91,6 @@
   $: {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
-
-  // Add a function to handle scroll events
-  function handleScroll(event: Event) {
-    const target = event.target as HTMLDivElement;
-    console.log('Scroll position:', target.scrollTop);
-  }
 </script>
 
 <!--
@@ -108,7 +102,6 @@
     class="chat-history-container" 
     bind:this={container}
     style="bottom: {messageInputHeight}px;"
-    on:scroll={handleScroll}
 >
     <!-- Add a wrapper div to ensure content takes up space -->
     <div class="chat-history-content">

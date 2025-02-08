@@ -291,8 +291,44 @@
         transition: all 0.3s ease;
     }
 
-    .chat-wrapper.fullscreen {
-        flex-direction: row;
+    /* Only apply side-by-side layout on screens wider than 1700px */
+    @media (min-width: 1701px) {
+        .chat-wrapper.fullscreen {
+            flex-direction: row;
+        }
+
+        .chat-wrapper.fullscreen .chat-side {
+            width: 65%;
+            padding-right: 20px;
+        }
+
+        .chat-wrapper.fullscreen .message-input-container {
+            width: 35%;
+            min-width: 400px;
+            padding: 20px;
+            align-items: flex-start;
+        }
+    }
+
+    /* Override fullscreen styles for screens <= 1700px */
+    @media (max-width: 1700px) {
+        .chat-wrapper.fullscreen {
+            flex-direction: column;
+        }
+
+        .chat-wrapper.fullscreen .chat-side {
+            width: 100%;
+            padding-right: 0;
+        }
+
+        .chat-wrapper.fullscreen .message-input-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            padding: 15px;
+        }
     }
 
     .chat-side {
@@ -303,11 +339,6 @@
         min-width: 0;
         height: 100%;
         overflow: hidden;
-    }
-
-    .chat-wrapper.fullscreen .chat-side {
-        width: 65%;
-        padding-right: 20px;
     }
 
     .top-buttons {
