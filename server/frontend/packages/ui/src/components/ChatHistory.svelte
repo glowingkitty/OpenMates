@@ -91,6 +91,12 @@
   $: {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
+
+  // Add a function to handle scroll events
+  function handleScroll(event: Event) {
+    const target = event.target as HTMLDivElement;
+    console.log('Scroll position:', target.scrollTop);
+  }
 </script>
 
 <!--
@@ -102,15 +108,18 @@
     class="chat-history-container" 
     bind:this={container}
     style="bottom: {messageInputHeight}px;"
+    on:scroll={handleScroll}
 >
-  
-  {#each messages as msg (msg.id)}
-    <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
-      <div in:fade>
-        <ChatMessage role={msg.role} messageParts={msg.messageParts} />
-      </div>
+    <!-- Add a wrapper div to ensure content takes up space -->
+    <div class="chat-history-content">
+        {#each messages as msg (msg.id)}
+            <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
+                <div in:fade>
+                    <ChatMessage role={msg.role} messageParts={msg.messageParts} />
+                </div>
+            </div>
+        {/each}
     </div>
-  {/each}
 </div>
 
 <style>
@@ -123,31 +132,45 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    /* Remove justify-content: flex-end to allow proper scrolling */
     align-items: center;
     padding: 10px;
     box-sizing: border-box;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Add styles for the content wrapper */
+  .chat-history-content {
+    width: 100%;
+    /* Add margin-top to account for the top buttons */
+    margin-top: 60px;
+    /* Push content to the bottom when there are few messages */
+    margin-top: auto;
+    max-width: 900px;
   }
 
   /* Make sure the container can be scrolled */
   .chat-history-container::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
   }
 
   .chat-history-container::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
   }
 
   .chat-history-container::-webkit-scrollbar-thumb {
     background-color: var(--color-grey-40);
     border-radius: 4px;
+    &:hover {
+      background-color: var(--color-grey-50);
+    }
   }
 
   .message-wrapper {
     margin: 5px 0;
     width: 100%;
-    max-width: 900px;
     display: flex;
     flex-shrink: 0;
   }
