@@ -96,8 +96,6 @@
     bind:this={container}
     style="bottom: {messageInputHeight}px;"
 >
-  <!-- Add a spacer div to push content to bottom -->
-  <div class="spacer"></div>
   
   {#each messages as msg (msg.id)}
     <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
@@ -137,14 +135,6 @@
   .chat-history-container::-webkit-scrollbar-thumb {
     background-color: var(--color-grey-40);
     border-radius: 4px;
-  }
-
-  /* Remove the ::after pseudo-element since we don't need it anymore */
-
-  /* Add spacer to push content to bottom when there's not enough messages */
-  .spacer {
-    flex-grow: 1;
-    min-height: 0;
   }
 
   .message-wrapper {
