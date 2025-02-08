@@ -518,7 +518,8 @@
 
     // Add vibration function
     function vibrateMessageField() {
-        const container = document.querySelector('.message-container');
+        // Updated selector to match the new container class
+        const container = document.querySelector('.message-field');
         if (!container) return;
         
         container.animate([
@@ -1607,10 +1608,11 @@
         if (!element) return;
         
         const rect = element.getBoundingClientRect();
-        const container = element.closest('.message-container');
+        // Updated container selector to match the new markup (changed from '.message-container' to '.message-field')
+        const container = element.closest('.message-field');
         if (!container) return;
         
-        // Calculate position relative to the message container
+        // Calculate position relative to the container
         menuX = rect.left - container.getBoundingClientRect().left + (rect.width / 2);
         menuY = rect.top - container.getBoundingClientRect().top;
         
