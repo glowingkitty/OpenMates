@@ -97,23 +97,46 @@
             out:fade={{ duration: 200 }}
             class="content-container"
         >
-            <button 
-                class="clickable-icon icon_create top-button left" 
-                aria-label={$_('chat.new_chat.text')}
-            ></button>
-            <button 
-                class="clickable-icon icon_call top-button right" 
-                aria-label={$_('chat.start_audio_call.text')}
-            ></button>
-
-            <!-- Only show welcome content when chat is empty -->
-            <div class="center-content" class:hidden={messages.length > 0}>
-                <div class="team-profile">
-                    <div class="team-image" class:disabled={!isTeamEnabled}></div>
-                    <div class="welcome-text">
-                        <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
-                        <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+            <!-- Main content wrapper that will handle the fullscreen layout -->
+            <div class="chat-wrapper" class:fullscreen={isFullscreen}>
+                <!-- Left side container for chat history and buttons -->
+                <div class="chat-side">
+                    <div class="top-buttons">
+                        <button 
+                            class="clickable-icon icon_create top-button" 
+                            aria-label={$_('chat.new_chat.text')}
+                        ></button>
+                        <button 
+                            class="clickable-icon icon_call top-button" 
+                            aria-label={$_('chat.start_audio_call.text')}
+                        ></button>
                     </div>
+
+                    <!-- Only show welcome content when chat is empty -->
+                    <div class="center-content" class:hidden={messages.length > 0}>
+                        <div class="team-profile">
+                            <div class="team-image" class:disabled={!isTeamEnabled}></div>
+                            <div class="welcome-text">
+                                <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
+                                <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ChatHistory 
+                        bind:this={chatHistoryRef} 
+                        messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                    />
+                </div>
+
+                <!-- Right side container for message input -->
+                <div class="message-input-container">
+                    <EnterMessageField 
+                        on:codefullscreen={handleCodeFullscreen}
+                        on:sendMessage={handleSendMessage}
+                        on:heightchange={handleInputHeightChange}
+                        bind:isFullscreen
+                    />
                 </div>
             </div>
 
@@ -125,22 +148,6 @@
                     onClose={handleCloseCodeFullscreen}
                 />
             {/if}
-
-            <!-- Add a wrapper for chat history and message field -->
-            <div class="chat-wrapper" class:fullscreen={isFullscreen}>
-                <ChatHistory 
-                    bind:this={chatHistoryRef} 
-                    messageInputHeight={messageInputHeight + 40}
-                />
-                <div class="message-input-wrapper">
-                    <EnterMessageField 
-                        on:codefullscreen={handleCodeFullscreen}
-                        on:sendMessage={handleSendMessage}
-                        on:heightchange={handleInputHeightChange}
-                        bind:isFullscreen
-                    />
-                </div>
-            </div>
         </div>
     {/if}
 </div>
@@ -221,27 +228,35 @@
         font-size: 16px;
     }
 
-    .message-input-wrapper {
-        position: absolute;
-        bottom: 15px;
-        left: 15px;
-        right: 15px;
+    .message-input-container {
+        position: relative;
         display: flex;
         justify-content: center;
-        z-index: 2;
+        padding: 15px;
     }
 
-    .message-input-wrapper :global(> *) {
+    .chat-wrapper:not(.fullscreen) .message-input-container {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+
+    .chat-wrapper.fullscreen .message-input-container {
+        width: 35%;
+        min-width: 400px;
+        padding: 20px;
+        align-items: flex-start;
+    }
+
+    .message-input-container :global(> *) {
         max-width: 629px;
         width: 100%;
-        height: auto; /* Let the component control its own height */
     }
 
     @media (max-width: 730px) {
-        .message-input-wrapper {
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
+        .message-input-container {
+            padding: 10px;
         }
     }
 
@@ -255,19 +270,40 @@
         opacity: 0.3;
     }
 
-    /* Add new styles for button positioning */
-    .top-button {
+    .chat-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .chat-wrapper.fullscreen {
+        flex-direction: row;
+    }
+
+    .chat-side {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+    }
+
+    .chat-wrapper.fullscreen .chat-side {
+        width: 65%;
+        padding-right: 20px;
+    }
+
+    .top-buttons {
         position: absolute;
-        top: 30px; /* Align with padding-top of content-container */
-        z-index: 1;
-    }
-
-    .top-button.left {
+        top: 30px;
         left: 20px;
-    }
-
-    .top-button.right {
         right: 20px;
+        display: flex;
+        justify-content: space-between;
+        z-index: 1;
     }
 
     .login-wrapper {
@@ -281,48 +317,5 @@
         justify-content: stretch;
         height: 100%;
         overflow: hidden;
-    }
-
-    .chat-wrapper {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        height: 100%;
-        transition: all 0.3s ease;
-    }
-
-    .chat-wrapper.fullscreen {
-        flex-direction: row;
-        gap: 20px;
-        padding: 0 20px;
-        margin-bottom: 20px;
-    }
-
-    .chat-wrapper.fullscreen :global(.chat-history-container) {
-        flex: 1;
-        min-width: 0;
-        padding-left: 20px;
-        height: 100%;
-    }
-
-    .message-input-wrapper {
-        position: absolute;
-        bottom: 15px;
-        left: 15px;
-        right: 15px;
-        display: flex;
-        justify-content: center;
-        z-index: 2;
-    }
-
-    .chat-wrapper.fullscreen .message-input-wrapper {
-        position: relative;
-        bottom: 0;
-        left: 0;
-        right: 20px;
-        width: 35%;
-        min-width: 400px;
-        height: auto;
     }
 </style>
