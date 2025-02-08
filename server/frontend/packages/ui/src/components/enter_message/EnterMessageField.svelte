@@ -1553,14 +1553,14 @@
         }
     }
 
-    // Update the handleSend button click handler in the template
+    // Updated handleSend function to also hide the send button afterwards.
     function handleSend() {
         if (!editor || !hasActualContent(editor)) {
             vibrateMessageField();
             return;
         }
         
-        // Create a message payload with editor HTML content as a text part
+        // Create a message payload with editor HTML content as a text part.
         const messagePayload = {
             id: crypto.randomUUID(),
             role: "user",
@@ -1568,11 +1568,15 @@
                 { type: "text", content: editor.getHTML() }
             ]
         };
-
-        // Dispatch sendMessage event with the message payload
+    
+        // Dispatch sendMessage event with the message payload.
         dispatch("sendMessage", messagePayload);
-
-        // Clear the editor and reset to default mention after a short delay
+        
+        // Hide the send button by resetting the reactive flag 'hasContent'.
+        // This ensures that after sending, the send button is no longer visible.
+        hasContent = false;
+    
+        // Clear the editor and reset to default mention after a short delay.
         editor.commands.clearContent();
         setTimeout(() => {
             editor.commands.setContent({
