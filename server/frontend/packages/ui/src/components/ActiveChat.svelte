@@ -1,6 +1,7 @@
 <script lang="ts">
     import EnterMessageField from './enter_message/EnterMessageField.svelte';
     import FullscreenCodePreview from './enter_message/in_message_previews/FullscreenCodePreview.svelte';
+    import ChatHistory from './ChatHistory.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import Login from './Login.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
@@ -47,6 +48,26 @@
         y: 20,
         opacity: 0
     };
+
+    // Create a reference for the ChatHistory component
+    let chatHistoryRef: any;
+    let isFullscreen = false;
+
+    /**
+     * Handler for when EnterMessageField dispatches the sendMessage event.
+     * It receives the message payload and calls addMessage() on the chat history.
+     *
+     * Expected message payload:
+     * {
+     *   id: string,
+     *   role: string, // typically "user" for the sending user
+     *   messageParts: MessagePart[]
+     * }
+     */
+    function handleSendMessage(event: CustomEvent) {
+        // Add the new message to the chat history
+        chatHistoryRef.addMessage(event.detail);
+    }
 </script>
 
 <div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated}>
@@ -91,9 +112,16 @@
                 />
             {/if}
 
-            <!-- Message input field positioned at bottom center -->
-            <div class="message-input-wrapper">
-                <EnterMessageField on:codefullscreen={handleCodeFullscreen} />
+            <!-- Add a wrapper for chat history and message field -->
+            <div class="chat-wrapper" class:fullscreen={isFullscreen}>
+                <ChatHistory bind:this={chatHistoryRef} />
+                <div class="message-input-wrapper">
+                    <EnterMessageField 
+                        on:codefullscreen={handleCodeFullscreen}
+                        on:sendMessage={handleSendMessage}
+                        bind:isFullscreen
+                    />
+                </div>
             </div>
         </div>
     {/if}
@@ -225,5 +253,34 @@
         justify-content: stretch;
         height: 100%;
         overflow: hidden;
+    }
+
+    .chat-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: calc(100% - 90px); /* Subtract header height */
+        transition: all 0.3s ease;
+    }
+
+    .chat-wrapper.fullscreen {
+        flex-direction: row;
+        gap: 20px;
+        padding: 0 20px;
+    }
+
+    .chat-wrapper.fullscreen :global(.chat-history-container) {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .message-input-wrapper {
+        padding: 0 15px 15px;
+        transition: all 0.3s ease;
+    }
+
+    .chat-wrapper.fullscreen .message-input-wrapper {
+        width: 40%;
+        min-width: 400px;
+        padding: 0 0 15px;
     }
 </style>

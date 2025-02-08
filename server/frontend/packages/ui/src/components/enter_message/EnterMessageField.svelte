@@ -58,7 +58,7 @@
     let recordStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
     let showRecordHint = false;
     let recordHintTimeout: ReturnType<typeof setTimeout>;
-    let isFullscreen = false;
+    export let isFullscreen = false;
     let isScrollable = false;
     let scrollableContent: HTMLElement;
 
@@ -1542,92 +1542,20 @@
             return;
         }
         
-        let markdown = '';
-        let isFirstParagraph = true;
-        let lastNodeWasEmbed = false;
-        let lastNodeWasMate = false;
-        
-        // Process the document directly using editor's state
-        editor.state.doc.descendants((node, pos) => {
-            if (node.type.name === 'paragraph') {
-                // Add newline between paragraphs, but not before the first one
-                // Also don't add extra newline if last node was an embed
-                if (!isFirstParagraph && !lastNodeWasEmbed) {
-                    markdown += '\n';
-                }
-                isFirstParagraph = false;
-                lastNodeWasEmbed = false;
-                lastNodeWasMate = false;
+        // Create a message payload with editor HTML content as a text part
+        const messagePayload = {
+            id: crypto.randomUUID(),
+            role: "user",
+            messageParts: [
+                { type: "text", content: editor.getHTML() }
+            ]
+        };
 
-                // Track if we've added content to this paragraph
-                let hasContent = false;
+        // Dispatch sendMessage event with the message payload
+        dispatch("sendMessage", messagePayload);
 
-                node.content.forEach((child: any, pos: number, index: number) => {
-                    if (child.type.name === 'mate') {
-                        markdown += `@${child.attrs.name}`;
-                        // Always add a space after mate mention if next node exists and is text
-                        const nextNode = child.nextSibling;
-                        if (nextNode && nextNode.type.name === 'text' && !nextNode.text?.startsWith(' ')) {
-                            markdown += ' ';
-                        }
-                        hasContent = true;
-                        lastNodeWasEmbed = false;
-                        lastNodeWasMate = true;
-                    } else if (child.type.name === 'webPreview') {
-                        // Add space after mate if previous node was mate
-                        if (lastNodeWasMate) {
-                            markdown += ' ';
-                        }
-                        markdown += `${child.attrs.url}\n`;  // Add newline after web preview
-                        hasContent = true;
-                        lastNodeWasEmbed = true;
-                        lastNodeWasMate = false;
-                    } else if (child.type.name === 'customEmbed') {
-                        // Add space after mate if previous node was mate
-                        if (lastNodeWasMate) {
-                            markdown += ' ';
-                        }
-                        const { type, filename } = child.attrs;
-                        if (type === 'image' || type === 'pdf' || type === 'maps') {
-                            markdown += `[${filename}]\n`;  // Add newline after image/pdf/maps
-                            hasContent = true;
-                            lastNodeWasEmbed = true;
-                            lastNodeWasMate = false;
-                        }
-                    } else if (child.type.name === 'text') {
-                        // Only add space before text if it doesn't start with space and previous node was mate
-                        if (lastNodeWasMate && child.text && !child.text.startsWith(' ')) {
-                            markdown += ' ';
-                        }
-                        markdown += child.text || '';
-                        hasContent = true;
-                        lastNodeWasEmbed = false;
-                        lastNodeWasMate = false;
-                    } else if (child.type.name === 'hardBreak') {
-                        markdown += '\n';
-                        hasContent = true;
-                        lastNodeWasEmbed = false;
-                        lastNodeWasMate = false;
-                    }
-                });
-
-                // Add newline after paragraph if it had content and wasn't an embed
-                if (hasContent && !lastNodeWasEmbed) {
-                    markdown += '\n';
-                }
-            }
-        });
-        
-        // Log the markdown for debugging
-        console.log('Final markdown:', markdown);
-        
-        // Clear the editor content and add the default mention
+        // Clear the editor and reset the default mention after a short delay
         editor.commands.clearContent();
-        
-        // Reset hasContent state
-        hasContent = false;
-        
-        // Add the default mention after a short delay to ensure proper rendering
         setTimeout(() => {
             editor.commands.setContent({
                 type: 'doc',
@@ -1643,7 +1571,7 @@
                         },
                         {
                             type: 'text',
-                            text: ' '  // Add space after mention
+                            text: ' '
                         }
                     ]
                 }]
