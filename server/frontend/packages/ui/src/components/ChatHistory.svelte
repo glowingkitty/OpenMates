@@ -101,21 +101,28 @@
 
 <style>
   .chat-history-container {
-    height: 100%;
+    position: relative;
     width: 100%;
+    height: 100%;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    align-items: center; /* Center content */
+    justify-content: flex-start;
+    align-items: center;
     padding: 10px;
     box-sizing: border-box;
+  }
+
+  /* Add a wrapper to push messages to the bottom when content is smaller than container */
+  .chat-history-container::after {
+    content: '';
+    flex: 1;
   }
 
   .message-wrapper {
     margin: 5px 0;
     width: 100%;
-    max-width: 900px; /* Max width for messages */
+    max-width: 900px;
     display: flex;
   }
 

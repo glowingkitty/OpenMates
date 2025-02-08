@@ -52,6 +52,7 @@
     // Create a reference for the ChatHistory component
     let chatHistoryRef: any;
     let isFullscreen = false;
+    $: messages = chatHistoryRef?.messages || [];
 
     /**
      * Handler for when EnterMessageField dispatches the sendMessage event.
@@ -83,6 +84,7 @@
         <div 
             in:fade={{ duration: 300 }} 
             out:fade={{ duration: 200 }}
+            class="content-container"
         >
             <button 
                 class="clickable-icon icon_create top-button left" 
@@ -92,8 +94,9 @@
                 class="clickable-icon icon_call top-button right" 
                 aria-label={$_('chat.start_audio_call.text')}
             ></button>
-            <!-- Center content wrapper -->
-            <div class="center-content">
+
+            <!-- Only show welcome content when chat is empty -->
+            <div class="center-content" class:hidden={messages.length > 0}>
                 <div class="team-profile">
                     <div class="team-image" class:disabled={!isTeamEnabled}></div>
                     <div class="welcome-text">
@@ -138,7 +141,6 @@
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         transition: opacity 0.3s ease;
         overflow: hidden;
-        padding-top: 90px; /* Add fixed padding for header */
         box-sizing: border-box;
     }
 
@@ -153,6 +155,12 @@
         background-color: var(--color-grey-0);
     }
 
+    .content-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
     .center-content {
         position: absolute;
         top: 40%;
@@ -160,9 +168,11 @@
         transform: translate(-50%, -50%);
         text-align: center;
         user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .center-content.hidden {
+        display: none;
     }
 
     .team-profile {
@@ -203,11 +213,13 @@
         right: 15px;
         display: flex;
         justify-content: center;
+        z-index: 2;
     }
 
     .message-input-wrapper :global(> *) {
         max-width: 629px;
         width: 100%;
+        height: auto; /* Let the component control its own height */
     }
 
     @media (max-width: 730px) {
@@ -231,7 +243,8 @@
     /* Add new styles for button positioning */
     .top-button {
         position: absolute;
-        top: 20px;
+        top: 30px; /* Align with padding-top of content-container */
+        z-index: 1;
     }
 
     .top-button.left {
@@ -258,7 +271,8 @@
     .chat-wrapper {
         display: flex;
         flex-direction: column;
-        height: calc(100% - 90px); /* Subtract header height */
+        flex: 1;
+        margin-bottom: 100px; /* Space for message input (60px height + 40px spacing) */
         transition: all 0.3s ease;
     }
 
@@ -266,21 +280,32 @@
         flex-direction: row;
         gap: 20px;
         padding: 0 20px;
+        margin-bottom: 20px;
     }
 
     .chat-wrapper.fullscreen :global(.chat-history-container) {
         flex: 1;
         min-width: 0;
+        padding-left: 20px;
     }
 
     .message-input-wrapper {
-        padding: 0 15px 15px;
-        transition: all 0.3s ease;
+        position: absolute;
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+        display: flex;
+        justify-content: center;
+        z-index: 2;
     }
 
     .chat-wrapper.fullscreen .message-input-wrapper {
-        width: 40%;
+        position: relative;
+        bottom: 0;
+        left: 0;
+        right: 20px;
+        width: 35%;
         min-width: 400px;
-        padding: 0 0 15px;
+        height: auto;
     }
 </style>
