@@ -2126,7 +2126,10 @@
      */
     export function clearMessageField() {
         if (!editor) return;
+        // Clear the editor's content
         editor.commands.clearContent();
+        // Explicitly reset hasContent to false to hide the Send button
+        hasContent = false;
         setTimeout(() => {
             editor.commands.setContent({
                 type: 'doc',
@@ -2148,6 +2151,8 @@
                 }]
             });
             editor.commands.focus('end');
+            // Ensure the reactive variable remains false so that the Send button stays hidden
+            hasContent = false;
         }, 0);
     }
 </script>
