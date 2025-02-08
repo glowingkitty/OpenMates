@@ -27,6 +27,9 @@
   // Array that holds all chat messages.
   let messages: Message[] = [];
 
+  // Show/hide the messages block for fade-out animation.
+  let showMessages = true;
+
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
 
@@ -44,6 +47,27 @@
   export function addMessage(message: Message) {
     // Append the new message.
     messages = [...messages, message];
+  }
+
+  /**
+   * Exposed function to clear chat messages.
+   * It triggers a fade-out animation by hiding the messages.
+   */
+  export function clearMessages() {
+    console.log("[ChatHistory] Clearing messages - starting fade out");
+    showMessages = false; // This will trigger the fade-out transition
+  }
+
+  /**
+   * Called when the fade-out transition finishes.
+   * Clears the messages and re-displays the (now empty) chat history.
+   */
+  function handleOutroEnd() {
+    if (!showMessages) {
+      console.log("[ChatHistory] Fade out complete, clearing messages");
+      messages = []; // Clear messages after fade out completes
+      showMessages = true; // Show the (empty) chat history
+    }
   }
 
   /**
@@ -103,16 +127,17 @@
     bind:this={container}
     style="bottom: {messageInputHeight}px;"
 >
-    <!-- Add a wrapper div to ensure content takes up space -->
-    <div class="chat-history-content">
-        {#each messages as msg (msg.id)}
-            <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
-                <div in:fade>
-                    <ChatMessage role={msg.role} messageParts={msg.messageParts} />
+    {#if showMessages}
+        <div class="chat-history-content" transition:fade={{ duration: 300 }} on:outroend={handleOutroEnd}>
+            {#each messages as msg (msg.id)}
+                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
+                    <div in:fade>
+                        <ChatMessage role={msg.role} messageParts={msg.messageParts} />
+                    </div>
                 </div>
-            </div>
-        {/each}
-    </div>
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>

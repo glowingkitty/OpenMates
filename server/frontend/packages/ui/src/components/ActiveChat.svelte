@@ -59,6 +59,9 @@
 
     let showWelcome = true;
 
+    // Add state variable for scaling animation on the container
+    let activeScaling = false;
+
     /**
      * Handler for input height changes
      * @param event CustomEvent with height detail
@@ -91,9 +94,27 @@
         const { hasMessages } = event.detail;
         showWelcome = !hasMessages;
     }
+
+    /**
+     * Handler for when the create icon is clicked.
+     * It triggers a fade-out of the current chat history and resets it,
+     * while briefly scaling down the entire active-chat-container.
+     */
+    function handleNewChatClick() {
+        console.log("[ActiveChat] New chat creation initiated");
+        // Trigger chat history fade-out and cleaning:
+        if (chatHistoryRef?.clearMessages) {
+            chatHistoryRef.clearMessages();
+        }
+        // Trigger container scale down
+        activeScaling = true;
+        setTimeout(() => {
+            activeScaling = false;
+        }, 200); // Scale effect duration in ms (adjust if needed)
+    }
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated}>
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated} class:scaled={activeScaling}>
     {#if !$isAuthenticated}
         <div 
             class="login-wrapper" 
@@ -116,6 +137,7 @@
                         <button 
                             class="clickable-icon icon_create top-button" 
                             aria-label={$_('chat.new_chat.text')}
+                            on:click={handleNewChatClick}
                         ></button>
                         <button 
                             class="clickable-icon icon_call top-button" 
@@ -362,5 +384,14 @@
         justify-content: stretch;
         height: 100%;
         overflow: hidden;
+    }
+
+    /* Add scaling transition for the active-chat-container when a new chat is created */
+    .active-chat-container {
+        transition: transform 0.2s ease-in-out, opacity 0.3s ease; /* added transform transition */
+    }
+
+    .active-chat-container.scaled {
+        transform: scale(0.95);
     }
 </style>
