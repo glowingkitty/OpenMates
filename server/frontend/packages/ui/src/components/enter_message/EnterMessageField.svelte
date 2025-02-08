@@ -562,7 +562,7 @@
     });
 
     // Add a reactive variable to track content state
-    let hasContent = false;
+    export let hasContent = false; // Exported so parent components can bind to it
 
     // Add a flag to track menu interaction
     let isMenuInteraction = false;
@@ -1572,7 +1572,7 @@
         // Dispatch sendMessage event with the message payload
         dispatch("sendMessage", messagePayload);
 
-        // Clear the editor and reset the default mention after a short delay
+        // Clear the editor and reset to default mention after a short delay
         editor.commands.clearContent();
         setTimeout(() => {
             editor.commands.setContent({
@@ -2119,6 +2119,37 @@
             resizeObserver.disconnect();
         };
     });
+
+    /**
+     * Exposed function to clear the message input field.
+     * This resets the editor content to its default state.
+     */
+    export function clearMessageField() {
+        if (!editor) return;
+        editor.commands.clearContent();
+        setTimeout(() => {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
+            editor.commands.focus('end');
+        }, 0);
+    }
 </script>
 
 <div bind:this={messageInputWrapper}>

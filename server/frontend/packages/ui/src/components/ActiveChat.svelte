@@ -51,6 +51,9 @@
 
     // Create a reference for the ChatHistory component
     let chatHistoryRef: any;
+    // Create a reference for the EnterMessageField component
+    let enterMessageFieldRef: any;
+
     let isFullscreen = false;
     $: messages = chatHistoryRef?.messages || [];
 
@@ -61,6 +64,14 @@
 
     // Add state variable for scaling animation on the container
     let activeScaling = false;
+
+    // Create a local variable to bind the EnterMessageField's exported property.
+    let enterMessageHasContent = false;
+    
+    // Reactive variable to determine when to show the create chat button.
+    // The button appears when either the chat history is not empty (showWelcome is false)
+    // OR the EnterMessageField has content.
+    $: createButtonVisible = !showWelcome || enterMessageHasContent;
 
     /**
      * Handler for input height changes
@@ -106,6 +117,10 @@
         if (chatHistoryRef?.clearMessages) {
             chatHistoryRef.clearMessages();
         }
+        // Clear the EnterMessageField content (if available)
+        if (enterMessageFieldRef?.clearMessageField) {
+            enterMessageFieldRef.clearMessageField();
+        }
         // Trigger container scale down
         activeScaling = true;
         setTimeout(() => {
@@ -134,11 +149,15 @@
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side">
                     <div class="top-buttons">
-                        <button 
-                            class="clickable-icon icon_create top-button" 
-                            aria-label={$_('chat.new_chat.text')}
-                            on:click={handleNewChatClick}
-                        ></button>
+                        <!-- Only show the create button if there is a message in the field or previous chat history -->
+                        {#if createButtonVisible}
+                            <button 
+                                class="clickable-icon icon_create top-button" 
+                                aria-label={$_('chat.new_chat.text')}
+                                on:click={handleNewChatClick}
+                                in:fade={{ duration: 300 }}
+                            ></button>
+                        {/if}
                         <button 
                             class="clickable-icon icon_call top-button" 
                             aria-label={$_('chat.start_audio_call.text')}
@@ -171,6 +190,8 @@
                 <!-- Right side container for message input -->
                 <div class="message-input-container">
                     <EnterMessageField 
+                        bind:this={enterMessageFieldRef}
+                        bind:hasContent={enterMessageHasContent}
                         on:codefullscreen={handleCodeFullscreen}
                         on:sendMessage={handleSendMessage}
                         on:heightchange={handleInputHeightChange}
