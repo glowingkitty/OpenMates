@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate } from "svelte";
+  import { afterUpdate, createEventDispatcher } from "svelte";
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
 
@@ -32,6 +32,8 @@
 
   // Add prop for message input height
   export let messageInputHeight = 0;
+
+  const dispatch = createEventDispatcher();
 
   /**
    * Exposed function to add a new message to the chat.
@@ -83,6 +85,11 @@
   $: if (messages.length) {
     const latest = messages[messages.length - 1];
     createMarkdown(latest);
+  }
+
+  // Watch messages array and dispatch changes
+  $: {
+    dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
 </script>
 

@@ -57,6 +57,8 @@
     // Add state for message input height
     let messageInputHeight = 0;
 
+    let showWelcome = true;
+
     /**
      * Handler for input height changes
      * @param event CustomEvent with height detail
@@ -79,6 +81,15 @@
     function handleSendMessage(event: CustomEvent) {
         // Add the new message to the chat history
         chatHistoryRef.addMessage(event.detail);
+    }
+
+    /**
+     * Handler for messages change event from ChatHistory
+     * Controls welcome message visibility
+     */
+    function handleMessagesChange(event: CustomEvent) {
+        const { hasMessages } = event.detail;
+        showWelcome = !hasMessages;
     }
 </script>
 
@@ -112,20 +123,26 @@
                         ></button>
                     </div>
 
-                    <!-- Only show welcome content when chat is empty -->
-                    <div class="center-content" class:hidden={messages.length > 0}>
-                        <div class="team-profile">
-                            <div class="team-image" class:disabled={!isTeamEnabled}></div>
-                            <div class="welcome-text">
-                                <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
-                                <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+                    <!-- Update the welcome content to use transition and showWelcome -->
+                    {#if showWelcome}
+                        <div 
+                            class="center-content"
+                            transition:fade={{ duration: 300 }}
+                        >
+                            <div class="team-profile">
+                                <div class="team-image" class:disabled={!isTeamEnabled}></div>
+                                <div class="welcome-text">
+                                    <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
+                                    <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    {/if}
 
                     <ChatHistory 
                         bind:this={chatHistoryRef} 
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                        on:messagesChange={handleMessagesChange}
                     />
                 </div>
 
@@ -190,11 +207,7 @@
         transform: translate(-50%, -50%);
         text-align: center;
         user-select: none;
-        transition: opacity 0.3s ease;
-    }
-
-    .center-content.hidden {
-        display: none;
+        z-index: 1;
     }
 
     .team-profile {
