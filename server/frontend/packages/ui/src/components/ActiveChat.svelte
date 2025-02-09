@@ -150,6 +150,11 @@
                 await tick(); // Still a good idea for smooth scrolling
             }
         }
+
+        // Load draft content if it's a draft
+        if (chat.isDraft && chat.draftContent && enterMessageFieldRef) {
+            enterMessageFieldRef.setDraftContent(chat.draftContent);
+        }
     }
 </script>
 

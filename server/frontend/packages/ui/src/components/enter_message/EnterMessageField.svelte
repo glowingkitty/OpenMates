@@ -2159,6 +2159,21 @@
             hasContent = false;
         }, 0);
     }
+
+    // New exported function to load draft content into the editor
+    export function setDraftContent(content: string) {
+        if (!editor) return;
+        editor.commands.setContent({
+            type: 'doc',
+            content: [{
+                type: 'paragraph',
+                content: [
+                    { type: 'text', text: content }
+                ]
+            }]
+        });
+        editor.commands.focus('end');
+    }
 </script>
 
 <div bind:this={messageInputWrapper}>

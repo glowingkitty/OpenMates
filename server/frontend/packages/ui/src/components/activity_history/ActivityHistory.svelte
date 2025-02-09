@@ -96,6 +96,9 @@
                         {#each groupChats as chat}
                             <div on:click={() => handleChatClick(chat)}>
                                 <Chat {chat} />
+                                {#if chat.isDraft}
+                                    <span class="draft-indicator">Draft</span>
+                                {/if}
                             </div>
                         {/each}
                     </div>
@@ -205,5 +208,16 @@
         text-align: center;
         padding: 20px;
         color: var(--color-grey-60);
+    }
+
+    .draft-indicator {
+        display: inline-block;
+        margin-left: 10px;
+        padding: 2px 6px;
+        background-color: var(--color-yellow-20);
+        color: var(--color-yellow-90);
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: 600;
     }
 </style>
