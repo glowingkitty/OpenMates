@@ -149,19 +149,40 @@
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side">
                     <div class="top-buttons">
-                        <!-- Only show the create button if there is a message in the field or previous chat history -->
-                        {#if createButtonVisible}
+                        <!-- Left side buttons -->
+                        <div class="left-buttons">
+                            {#if createButtonVisible}
+                                <button 
+                                    class="clickable-icon icon_create top-button" 
+                                    aria-label={$_('chat.new_chat.text')}
+                                    on:click={handleNewChatClick}
+                                    in:fade={{ duration: 300 }}
+                                >
+                                </button>
+                            {/if}
+                            <!-- Add share button next to new chat button -->
+                            <button
+                                class="clickable-icon icon_share top-button"
+                                aria-label={$_('chat.share.text')}
+                            >
+                            </button>
+                        </div>
+
+                        <!-- Right side buttons -->
+                        <div class="right-buttons">
+                            <!-- Video call button -->
                             <button 
-                                class="clickable-icon icon_create top-button" 
-                                aria-label={$_('chat.new_chat.text')}
-                                on:click={handleNewChatClick}
-                                in:fade={{ duration: 300 }}
-                            ></button>
-                        {/if}
-                        <button 
-                            class="clickable-icon icon_call top-button" 
-                            aria-label={$_('chat.start_audio_call.text')}
-                        ></button>
+                                class="clickable-icon icon_video_call top-button" 
+                                aria-label={$_('chat.start_video_call.text')}
+                            >
+                            </button>
+                            <!-- Audio call button -->
+                            <button 
+                                class="clickable-icon icon_call top-button" 
+                                aria-label={$_('chat.start_audio_call.text')}
+                            >
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Update the welcome content to use transition and showWelcome -->
@@ -390,8 +411,19 @@
         left: 20px;
         right: 20px;
         display: flex;
-        justify-content: space-between;
+        justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: 1;
+    }
+
+    /* Add styles for left and right button containers */
+    .left-buttons {
+        display: flex;
+        gap: 25px; /* Space between buttons */
+    }
+
+    .right-buttons {
+        display: flex;
+        gap: 25px; /* Space between buttons */
     }
 
     .login-wrapper {

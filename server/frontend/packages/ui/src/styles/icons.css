@@ -187,6 +187,16 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/audiocall.svg');
 }
 
+.clickable-icon.icon_video_call {
+  -webkit-mask-image: url('@openmates/ui/static/icons/videocall.svg');
+  mask-image: url('@openmates/ui/static/icons/videocall.svg');
+}
+
+.clickable-icon.icon_share {
+  -webkit-mask-image: url('@openmates/ui/static/icons/share.svg');
+  mask-image: url('@openmates/ui/static/icons/share.svg');
+}
+
 .clickable-icon.icon_create {
   -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
   mask-image: url('@openmates/ui/static/icons/create.svg');
