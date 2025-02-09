@@ -51,12 +51,18 @@
 
   /**
    * Exposed function to clear chat messages.
-   * It triggers a fade-out animation by hiding the messages.
+   * It triggers a fade-out animation and returns a promise that resolves
+   * when the fade-out is complete.
    */
-  export function clearMessages() {
+  export function clearMessages(): Promise<void> {
     console.log("[ChatHistory] Clearing messages - starting fade out");
     showMessages = false; // This will trigger the fade-out transition
+    return new Promise(resolve => {
+      outroResolve = resolve; // Store the resolve function
+    });
   }
+
+  let outroResolve: () => void; // Function to resolve the clearMessages promise
 
   /**
    * Called when the fade-out transition finishes.
@@ -67,34 +73,11 @@
       console.log("[ChatHistory] Fade out complete, clearing messages");
       messages = []; // Clear messages after fade out completes
       showMessages = true; // Show the (empty) chat history
-    }
-  }
-
-  /**
-   * Converts a message object into its final markdown representation.
-   * The generated markdown is logged to the console.
-   *
-   * @param message - The message to convert.
-   * @returns The markdown string.
-   */
-  function createMarkdown(message: Message): string {
-    let markdown = "";
-    // Iterate over each part of the message.
-    message.messageParts.forEach((part) => {
-      if (part.type === "text") {
-        markdown += part.content;
-      } else if (part.type === "app-cards") {
-        // For app cards, output a placeholder string.
-        if (Array.isArray(part.content)) {
-          part.content.forEach(() => {
-            markdown += "[app-card]";
-          });
-        }
+      if (outroResolve) {
+        outroResolve(); // Resolve the promise
+        outroResolve = null; // Reset for next time
       }
-    });
-    // Log the final markdown.
-    console.log("Final markdown:", markdown.trim());
-    return markdown.trim();
+    }
   }
 
   // Every time messages change, scroll the container to the bottom.
@@ -103,13 +86,6 @@
       container.scrollTop = container.scrollHeight;
     }
   });
-
-  // When the messages array changes (e.g. a new message is added),
-  // run the markdown conversion for the latest message.
-  $: if (messages.length) {
-    const latest = messages[messages.length - 1];
-    createMarkdown(latest);
-  }
 
   // Watch messages array and dispatch changes
   $: {

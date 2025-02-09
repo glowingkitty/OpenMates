@@ -1,88 +1,20 @@
 <script lang="ts">
+    import { onMount, createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
     import { formatDistanceToNow } from 'date-fns';
     import { isMenuOpen } from '../../stores/menuState';
     import { isAuthenticated } from '../../stores/authState';
+    import { chatDB } from '../../services/db';
+    import type { Chat as ChatType } from '../../types/chat';
 
-    // Example chats for testing - will be replaced with DB data later
-    const exampleChats = [
-        {
-            id: 'draft1',
-            isDraft: true,
-            draftContent: 'How do I make a neural network that can...',
-            lastUpdated: new Date()
-        },
-        {
-            id: 'draft2',
-            isDraft: true,
-            draftContent: 'I plan to visit New York soon and wonder what places are great to visit in winter. Any idea?',
-            lastUpdated: new Date()
-        },
-        {
-            id: 'chat1',
-            title: 'Offline Whisper iOS Integration',
-            mates: ['burton'],
-            lastUpdated: new Date()
-        },
-        {
-            id: 'chat2',
-            title: 'Cardiologist appointments',
-            mates: ['lisa', 'sophia'],
-            lastUpdated: new Date()
-        },
-        {
-            id: 'chat3',
-            title: 'Legality of Ad-skipping Plugins',
-            mates: ['burton', 'lisa', 'sophia'],
-            lastUpdated: new Date(Date.now() - 24 * 60 * 60 * 1000) // yesterday
-        },
-        {
-            id: 'chat4',
-            title: 'US Time Zones and Meeting Scheduling',
-            mates: ['sophia'],
-            lastUpdated: new Date(Date.now() - 24 * 60 * 60 * 1000)
-        },
-        {
-            id: 'chat5',
-            title: 'Gemma 2 2B Hardware Requirements Analysis',
-            mates: ['burton', 'lisa'],
-            lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-        },
-        {
-            id: 'chat6',
-            title: 'Weekly Team Sync Notes',
-            mates: ['burton', 'sophia'],
-            lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-        },
-        {
-            id: 'chat7',
-            title: 'Project Milestone Review',
-            mates: ['lisa'],
-            lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-        },
-        {
-            id: 'chat8',
-            title: 'Database Migration Planning',
-            mates: ['burton', 'lisa', 'sophia'],
-            lastUpdated: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
-        },
-        {
-            id: 'chat9',
-            title: 'Customer Feedback Analysis',
-            mates: ['sophia', 'lisa'],
-            lastUpdated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
-        },
-        {
-            id: 'chat10',
-            title: 'AI Model Training Discussion',
-            mates: ['burton'],
-            lastUpdated: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
-        }
-    ];
+    const dispatch = createEventDispatcher();
+
+    let chats: ChatType[] = [];
+    let loading = true;
 
     // Group chats by their relative date
-    $: groupedChats = exampleChats.reduce<Record<string, typeof exampleChats>>((groups, chat) => {
+    $: groupedChats = chats.reduce<Record<string, ChatType[]>>((groups, chat) => {
         const now = new Date();
         const chatDate = new Date(chat.lastUpdated);
         const diffDays = Math.floor((now.getTime() - chatDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -100,6 +32,33 @@
         groups[groupKey].push(chat);
         return groups;
     }, {});
+
+    onMount(async () => {
+        try {
+            console.log("[ActivityHistory] Initializing database");
+            await chatDB.init();
+            
+            // Check if we have any chats
+            const existingChats = await chatDB.getAllChats();
+            if (existingChats.length === 0) {
+                console.log("[ActivityHistory] No existing chats, loading examples");
+                await chatDB.loadExampleChats();
+            }
+            
+            // Load all chats
+            chats = await chatDB.getAllChats();
+            console.log("[ActivityHistory] Loaded chats:", chats.length);
+        } catch (error) {
+            console.error("[ActivityHistory] Error loading chats:", error);
+        } finally {
+            loading = false;
+        }
+    });
+
+    function handleChatClick(chat: ChatType) {
+        console.log("[ActivityHistory] Chat clicked:", chat.id);
+        dispatch('chatSelected', { chat });
+    }
 
     // Function to handle menu close
     const handleClose = () => {
@@ -127,16 +86,22 @@
             </div>
         </div>
 
-        <div class="chat-groups">
-            {#each Object.entries(groupedChats) as [groupName, chats]}
-                <div class="chat-group">
-                    <h2 class="group-title">{groupName}</h2>
-                    {#each chats as chat}
-                        <Chat {chat} />
-                    {/each}
-                </div>
-            {/each}
-        </div>
+        {#if loading}
+            <div class="loading-indicator">Loading chats...</div>
+        {:else}
+            <div class="chat-groups">
+                {#each Object.entries(groupedChats) as [groupName, groupChats]}
+                    <div class="chat-group">
+                        <h2 class="group-title">{groupName}</h2>
+                        {#each groupChats as chat}
+                            <div on:click={() => handleChatClick(chat)}>
+                                <Chat {chat} />
+                            </div>
+                        {/each}
+                    </div>
+                {/each}
+            </div>
+        {/if}
     </div>
 {/if}
 
@@ -234,5 +199,11 @@
         font-weight: 500;
         text-transform: capitalize;
         margin-bottom: 8px;
+    }
+
+    .loading-indicator {
+        text-align: center;
+        padding: 20px;
+        color: var(--color-grey-60);
     }
 </style>

@@ -6,8 +6,9 @@
     import Login from './Login.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
     import { fade, fly } from 'svelte/transition';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, tick } from 'svelte';
     import { isAuthenticated } from '../stores/authState';
+    import type { Chat } from '../types/chat';
 
     const dispatch = createEventDispatcher();
 
@@ -108,8 +109,6 @@
 
     /**
      * Handler for when the create icon is clicked.
-     * It triggers a fade-out of the current chat history and resets it,
-     * while briefly scaling down the entire active-chat-container.
      */
     function handleNewChatClick() {
         console.log("[ActiveChat] New chat creation initiated");
@@ -134,6 +133,23 @@
         // Using console.log for logging in Svelte.
         console.log("[ActiveChat] Share chat button clicked.");
         // TODO: Insert the actual share logic here if needed.
+    }
+
+    // Add function to load chat
+    export async function loadChat(chat: Chat) {
+        console.log("[ActiveChat] Loading chat:", chat.id);
+        showWelcome = false;
+
+        if (chatHistoryRef) {
+            // Clear existing messages AND wait for completion
+            await chatHistoryRef.clearMessages();
+
+            // Now it's safe to add messages
+            for (const msg of chat.messages) {
+                chatHistoryRef.addMessage(msg);
+                await tick(); // Still a good idea for smooth scrolling
+            }
+        }
     }
 </script>
 

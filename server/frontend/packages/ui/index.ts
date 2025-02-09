@@ -30,6 +30,9 @@ export { default as Privacy } from "./src/components/Privacy.svelte";
 export { default as Terms } from "./src/components/Terms.svelte";
 export * from "./src/components/Settings.svelte";
 
+// Types
+export * from "./src/types/chat";
+
 // i18n exports
 export * from "./src/i18n/setup";
 export * from "./src/i18n/types";

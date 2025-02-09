@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
+  import { afterUpdate } from 'svelte';
   
   export let role: 'user' | string = 'user';
   
@@ -40,6 +41,37 @@
 
   // Add new prop for animation control
   export let animated: boolean = false;
+
+  /**
+   * Converts a message object into its final markdown representation.
+   * The generated markdown is logged to the console.
+   *
+   * @param messageParts - The message parts to convert.
+   * @returns The markdown string.
+   */
+  function createMarkdown(messageParts: MessagePart[]): string {
+    let markdown = "";
+    // Iterate over each part of the message.
+    messageParts.forEach((part) => {
+      if (part.type === "text") {
+        markdown += part.content;
+      } else if (part.type === "app-cards") {
+        // For app cards, output a placeholder string.
+        if (Array.isArray(part.content)) {
+          part.content.forEach(() => {
+            markdown += "[app-card]";
+          });
+        }
+      }
+    });
+    // Log the final markdown.
+    console.log("Final markdown:", markdown.trim());
+    return markdown.trim();
+  }
+
+  afterUpdate(() => {
+    createMarkdown(messageParts);
+  });
 </script>
 
 <div class="chat-message">

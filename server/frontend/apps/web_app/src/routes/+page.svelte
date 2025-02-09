@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import {
         // components
         ActivityHistory,
@@ -13,11 +13,14 @@
         isMenuOpen,
         settingsMenuVisible,
         isMobileView,
+        // types
+        type Chat,
     } from '@repo/ui';
     import { _ } from 'svelte-i18n'; // Import the translation function
     import { fade } from 'svelte/transition';
     // Subscribe to settings menu visibility state
     import { onMount } from 'svelte';
+
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 
@@ -33,7 +36,10 @@
 
     // Add state for initial load
     let isInitialLoad = true;
-    
+
+    // Add reference to ActiveChat instance
+    let activeChat: ActiveChat | null = null;
+
     onMount(() => {
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
@@ -63,11 +69,20 @@
             settingsMenuVisible.set(false);
         }
     }
+
+    // Add handler for chatSelected event
+    function handleChatSelected(event: CustomEvent) {
+        const selectedChat: Chat = event.detail.chat;
+        console.log("[+page.svelte] Received chatSelected event:", selectedChat.id);
+        if (activeChat) {
+            activeChat.loadChat(selectedChat);
+        }
+    }
 </script>
 
 <div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
     {#if $isAuthenticated}
-        <ActivityHistory />
+        <ActivityHistory on:chatSelected={handleChatSelected} />
     {/if}
 </div>
 
@@ -79,6 +94,7 @@
     <div class="chat-container" class:menu-open={menuClass}>
         <div class="chat-wrapper">
             <ActiveChat 
+                bind:this={activeChat}
                 on:loginSuccess={handleLoginSuccess}
             />
         </div>

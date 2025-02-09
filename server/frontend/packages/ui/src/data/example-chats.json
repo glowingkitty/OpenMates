@@ -1,0 +1,42 @@
+{
+    "chats": [
+        {
+            "id": "chat1",
+            "title": "Offline Whisper iOS Integration",
+            "mates": ["burton"],
+            "lastUpdated": "2024-03-20T10:30:00Z",
+            "messages": [
+                {
+                    "id": "msg1",
+                    "role": "user",
+                    "messageParts": [
+                        {
+                            "type": "text",
+                            "content": "How can I integrate Whisper for offline speech recognition in my iOS app?"
+                        }
+                    ],
+                    "timestamp": "2024-03-20T10:30:00Z"
+                },
+                {
+                    "id": "msg2",
+                    "role": "burton",
+                    "messageParts": [
+                        {
+                            "type": "text",
+                            "content": "I can help you with that. First, you'll need to convert the Whisper model to Core ML format..."
+                        }
+                    ],
+                    "timestamp": "2024-03-20T10:31:00Z"
+                }
+            ]
+        },
+        {
+            "id": "draft1",
+            "isDraft": true,
+            "draftContent": "How do I make a neural network that can...",
+            "mates": [],
+            "lastUpdated": "2024-03-20T11:00:00Z",
+            "messages": []
+        }
+    ]
+} 
