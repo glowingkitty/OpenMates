@@ -127,6 +127,14 @@
             activeScaling = false;
         }, 200); // Scale effect duration in ms (adjust if needed)
     }
+
+    // Add a handler for the share button click.
+    // This function will be triggered when the share button is clicked.
+    function handleShareChat() {
+        // Using console.log for logging in Svelte.
+        console.log("[ActiveChat] Share chat button clicked.");
+        // TODO: Insert the actual share logic here if needed.
+    }
 </script>
 
 <div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated} class:scaled={activeScaling}>
@@ -160,12 +168,14 @@
                                 >
                                 </button>
                             {/if}
-                            <!-- Add share button next to new chat button -->
-                            <button
-                                class="clickable-icon icon_share top-button"
-                                aria-label={$_('chat.share.text')}
-                            >
-                            </button>
+                            {#if !showWelcome}
+                                <button
+                                    class="clickable-icon icon_share top-button"
+                                    aria-label={$_('chat.share.text')}
+                                    on:click={handleShareChat}
+                                >
+                                </button>
+                            {/if}
                         </div>
 
                         <!-- Right side buttons -->
