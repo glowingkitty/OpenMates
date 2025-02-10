@@ -76,7 +76,7 @@
 
 <style>
   /* -------------------------------------------------------------------
-     Main container styles for the hero header
+     Main container styles for the hero header - Updated for better mobile support
   ----------------------------------------------------------------------- */
   .hero-header {
       background-color: var(--color-grey-20);
@@ -89,8 +89,8 @@
       position: relative;
       -webkit-mask-image: linear-gradient(to bottom, black, black 85%, transparent);
       mask-image: linear-gradient(to bottom, black, black 85%, transparent);
-      height: 90vh;
-      min-height: 845px;
+      /* Remove fixed vh height and use min-height instead */
+      min-height: min(90vh, 845px);
   }
 
   /* -------------------------------------------------------------------
@@ -214,18 +214,33 @@
   }
 
   /* -------------------------------------------------------------------
-     Responsive adjustments for mobile devices
+     Responsive adjustments for mobile devices - Updated
   ----------------------------------------------------------------------- */
   @media (max-width: 767px) {
       .hero-header {
           position: relative;
-          padding-top: 6rem;
+          /* Adjust padding to ensure content is visible */
+          padding-top: 4rem;
+          /* Set a smaller minimum height for mobile */
+          min-height: min(100dvh, 700px);
+      }
+
+      .center-space {
+          /* Ensure content starts from the top on mobile */
+          padding-top: 0;
+      }
+
+      .chat-container.header {
+          /* Adjust height for better mobile display */
+          height: 250px;
       }
   }
 
   @media (max-width: 600px) {
       .hero-header {
-          padding-top: 70px;
+          padding-top: 3rem;
+          /* Further reduce minimum height for very small screens */
+          min-height: min(100dvh, 600px);
       }
   }
 
