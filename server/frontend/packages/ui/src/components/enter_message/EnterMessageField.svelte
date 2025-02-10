@@ -2188,13 +2188,10 @@
     >
         {#if isScrollable || isFullscreen}
             <button 
-                class="fullscreen-button" 
-                class:active={isFullscreen}
+                class="clickable-icon icon_fullscreen fullscreen-button" 
                 on:click={toggleFullscreen}
                 aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-                <div class="clickable-icon icon_fullscreen"></div>
-            </button>
+            ></button>
         {/if}
 
         <!-- Hidden file inputs -->
@@ -2989,12 +2986,8 @@
 
     .fullscreen-button {
         position: absolute;  /* Change back to absolute since it's relative to message-container */
-        top: 8px;
-        right: -10px;
-        background: none;
-        border: none;
-        padding: 4px;
-        cursor: pointer;
+        top: 0;
+        right: 20px;
         opacity: 0.5;
         transition: opacity 0.2s ease-in-out;
         z-index: 1000;
