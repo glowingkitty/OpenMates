@@ -1,7 +1,8 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
-
+    import { tooltip } from '../../actions/tooltip';
+    import { _ } from 'svelte-i18n';
     const dispatch = createEventDispatcher();
 
     let isMobile: boolean = false;
@@ -238,7 +239,8 @@
                     <button 
                         class="clickable-icon icon_close" 
                         on:click={stopCamera}
-                        aria-label="Close camera"
+                        aria-label={$_('cameraview.close.text')}
+                        use:tooltip
                     ></button>
                     {#if isRecording}
                         <div class="recording-timer" transition:slide={{ duration: 300 }}>
@@ -250,17 +252,19 @@
                             class="control-button video-button"
                             class:recording={isRecording}
                             on:click={toggleRecording}
-                            aria-label={isRecording ? "Stop recording" : "Start recording"}
+                            aria-label={isRecording ? $_('cameraview.stoprecording.text') : $_('cameraview.startrecording.text')}
+                            use:tooltip
                         >
                             <div class="video-button-inner"></div>
                         </button>
-                        
+
                         <button 
                             class="control-button photo-button"
                             on:click={capturePhoto}
                             disabled={isRecording}
                             class:disabled={isRecording}
-                            aria-label="Take photo"
+                            aria-label={$_('cameraview.takephoto.text')}
+                            use:tooltip
                         >
                             <div class="photo-button-inner"></div>
                         </button>

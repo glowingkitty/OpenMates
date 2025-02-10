@@ -7,6 +7,7 @@
     import 'leaflet/dist/leaflet.css';
     import { getLocaleFromNavigator } from 'svelte-i18n';
     import { get } from 'svelte/store';
+    import { tooltip } from '../../actions/tooltip';
     const dispatch = createEventDispatcher();
     
     let mapContainer: HTMLElement;
@@ -1031,6 +1032,7 @@
                 class="clickable-icon icon_close" 
                 on:click={handleClose}
                 aria-label={$_('enter_message.location.close.text')}
+                use:tooltip
             ></button>
 
             <div class="search-container">
@@ -1048,6 +1050,7 @@
                 on:click={getCurrentLocation}
                 disabled={isLoading}
                 aria-label={$_('enter_message.location.get_location.text')}
+                use:tooltip
             >
             </button>
         </div>
@@ -1066,6 +1069,7 @@
                         removeSearchMarkers();
                     }}
                     aria-label={$_('enter_message.location.close_search.text')}
+                    use:tooltip
                 ></button>
             </div>
             <div class="search-results">

@@ -682,6 +682,28 @@
             }
         }
     },
+    "cameraview": {
+        "close": {
+            "text": "カメラを閉じる",
+            "en_original": "Close camera",
+            "context": "Button text for closing camera view"
+        },
+        "stoprecording": {
+            "text": "録画を終了",
+            "en_original": "Finish recording",
+            "context": "Button text for finishing video recording"
+        },
+        "startrecording": {
+            "text": "ビデオを録画",
+            "en_original": "Record video",
+            "context": "Button text for starting video recording"
+        },
+        "takephoto": {
+            "text": "写真を撮る",
+            "en_original": "Take photo",
+            "context": "Button text for taking a photo"
+        }
+    },
     "settings": {
         "settings": {
             "text": "設定",

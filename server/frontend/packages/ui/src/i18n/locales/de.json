@@ -682,6 +682,28 @@
             }
         }
     },
+    "cameraview": {
+        "close": {
+            "text": "Kamera schließen",
+            "en_original": "Close camera",
+            "context": "Button text for closing camera view"
+        },
+        "stoprecording": {
+            "text": "Aufnahme beenden",
+            "en_original": "Finish recording",
+            "context": "Button text for finishing video recording"
+        },
+        "startrecording": {
+            "text": "Video aufnehmen",
+            "en_original": "Record video",
+            "context": "Button text for starting video recording"
+        },
+        "takephoto": {
+            "text": "Foto aufnehmen",
+            "en_original": "Take photo",
+            "context": "Button text for taking a photo"
+        }
+    },
     "settings": {
         "settings": {
             "text": "Einstellungen",

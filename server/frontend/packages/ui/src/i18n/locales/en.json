@@ -559,6 +559,24 @@
             }
         }
     },
+    "cameraview": {
+        "close": {
+            "text": "Close camera",
+            "context": "Button text for closing camera view"
+        },
+        "stoprecording": {
+            "text": "Finish recording",
+            "context": "Button text for finishing video recording"
+        },
+        "startrecording": {
+            "text": "Record video",
+            "context": "Button text for starting video recording"
+        },
+        "takephoto": {
+            "text": "Take photo",
+            "context": "Button text for taking a photo"
+        }
+    },
     "settings": {
         "settings": {
             "text": "Settings",
