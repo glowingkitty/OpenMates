@@ -54,6 +54,7 @@ import "./src/styles/icons.css";
 
 // Actions
 export { replaceOpenMates } from "./src/actions/replaceText";
+export { tooltip } from "./src/actions/tooltip";
 
 // Config
 export * from "./src/config/links";

@@ -26,6 +26,7 @@
     import Books from './in_message_previews/Books.svelte';
     import JSZip from 'jszip';
     import { createEventDispatcher } from 'svelte';
+    import { tooltip } from '../../actions/tooltip';
     
     const dispatch = createEventDispatcher();
 
@@ -2246,11 +2247,13 @@
                     class="clickable-icon icon_files" 
                     on:click={handleFileSelect} 
                     aria-label={$_('enter_message.attachments.attach_files.text')}
+                    use:tooltip
                 ></button>
                 <button 
                     class="clickable-icon icon_maps" 
                     on:click={handleLocationClick}
                     aria-label={$_('enter_message.attachments.share_location.text')}
+                    use:tooltip
                 ></button>
             </div>
             <div class="right-buttons">
@@ -2261,6 +2264,7 @@
                         handleCameraClick();
                     }}
                     aria-label={$_('enter_message.attachments.take_photo.text')}
+                    use:tooltip
                 ></button>
                 
                 {#if showRecordHint}
@@ -2355,6 +2359,7 @@
                         hasRecordingStarted = false;
                     }}
                     aria-label={$_('enter_message.attachments.record_audio.text')}
+                    use:tooltip
                 >
                     <div class="clickable-icon icon_recordaudio"></div>
                 </button>

@@ -9,7 +9,7 @@
     import { createEventDispatcher, tick } from 'svelte';
     import { isAuthenticated } from '../stores/authState';
     import type { Chat } from '../types/chat';
-
+    import { tooltip } from '../actions/tooltip';
     const dispatch = createEventDispatcher();
 
     // Add state for code fullscreen
@@ -192,6 +192,7 @@
                                     aria-label={$_('chat.new_chat.text')}
                                     on:click={handleNewChatClick}
                                     in:fade={{ duration: 300 }}
+                                    use:tooltip
                                 >
                                 </button>
                             {/if}
@@ -200,6 +201,7 @@
                                     class="clickable-icon icon_share top-button"
                                     aria-label={$_('chat.share.text')}
                                     on:click={handleShareChat}
+                                    use:tooltip
                                 >
                                 </button>
                             {/if}
@@ -211,12 +213,14 @@
                             <button 
                                 class="clickable-icon icon_video_call top-button" 
                                 aria-label={$_('chat.start_video_call.text')}
+                                use:tooltip
                             >
                             </button>
                             <!-- Audio call button -->
                             <button 
                                 class="clickable-icon icon_call top-button" 
                                 aria-label={$_('chat.start_audio_call.text')}
+                                use:tooltip
                             >
                             </button>
                         </div>

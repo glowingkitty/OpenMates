@@ -7,6 +7,7 @@
     import { isAuthenticated } from '../../stores/authState';
     import { chatDB } from '../../services/db';
     import type { Chat as ChatType } from '../../types/chat';
+    import { tooltip } from '../../actions/tooltip';
 
     const dispatch = createEventDispatcher();
 
@@ -60,6 +61,13 @@
         dispatch('chatSelected', { chat });
     }
 
+    // Add keydown event handler
+    function handleKeyDown(event: KeyboardEvent, chat: ChatType) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            handleChatClick(chat);
+        }
+    }
+
     // Function to handle menu close
     const handleClose = () => {
         isMenuOpen.set(false);
@@ -73,15 +81,18 @@
                 <button 
                     class="clickable-icon icon_search top-button left" 
                     aria-label={$_('activity.search.text')}
+                    use:tooltip
                 ></button>
                 <button 
                     class="clickable-icon icon_filter top-button center" 
                     aria-label={$_('activity.filter.text')}
+                    use:tooltip
                 ></button>
                 <button 
                     class="clickable-icon icon_close top-button right" 
                     aria-label={$_('activity.close.text')}
                     on:click={handleClose}
+                    use:tooltip
                 ></button>
             </div>
         </div>
@@ -94,7 +105,7 @@
                     <div class="chat-group">
                         <h2 class="group-title">{groupName}</h2>
                         {#each groupChats as chat}
-                            <div on:click={() => handleChatClick(chat)}>
+                            <div role="button" tabindex="0" on:click={() => handleChatClick(chat)} on:keydown={(e) => handleKeyDown(e, chat)}>
                                 <Chat {chat} />
                                 {#if chat.isDraft}
                                     <span class="draft-indicator">Draft</span>
