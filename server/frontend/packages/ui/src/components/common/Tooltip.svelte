@@ -100,7 +100,7 @@
     .tooltip {
         position: fixed;
         background-color: var(--color-grey-0);
-        color: var(--color-font-inverse);
+        color: var(--color-grey-100);
         padding: 8px 12px;
         border-radius: 6px;
         font-size: 14px;
