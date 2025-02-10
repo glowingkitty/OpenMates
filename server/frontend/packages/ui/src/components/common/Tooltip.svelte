@@ -10,12 +10,28 @@
     let timeoutId: ReturnType<typeof setTimeout>;
     let position = { x: 0, y: 0 };
     let isAbove = true; // tracks if tooltip is above or below element
+    let isTouchDevice = false;
     
     // Constants
     const TOOLTIP_DELAY = 1000; // 1 second delay before showing tooltip
     const TOOLTIP_OFFSET = 8; // Pixels to offset tooltip from element
     
+    // Check if device is touch-enabled
+    function checkTouchDevice() {
+        isTouchDevice = ('ontouchstart' in window) || 
+            (navigator.maxTouchPoints > 0) || 
+            // @ts-ignore
+            (navigator.msMaxTouchPoints > 0);
+        console.log('Touch device detected:', isTouchDevice); // Debug log
+    }
+    
     function showTooltipWithDelay(event: MouseEvent) {
+        // Don't show tooltip on touch devices
+        if (isTouchDevice) {
+            console.log('Preventing tooltip on touch device'); // Debug log
+            return;
+        }
+        
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
             if (!element) return;
@@ -63,11 +79,14 @@
     onMount(() => {
         if (!element) return;
         
+        // Check for touch device on mount
+        checkTouchDevice();
+        
         element.addEventListener('mouseenter', showTooltipWithDelay);
         element.addEventListener('mouseleave', hideTooltip);
         element.addEventListener('focus', showTooltipWithDelay);
         element.addEventListener('blur', hideTooltip);
-        console.log("Tooltip mounted"); // logging using console.log
+        console.log("Tooltip mounted for element:", element); // Debug log
     });
     
     onDestroy(() => {

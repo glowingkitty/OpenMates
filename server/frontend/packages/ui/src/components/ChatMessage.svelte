@@ -74,9 +74,9 @@
     return markdown.trim();
   }
 
-  afterUpdate(() => {
-    createMarkdown(messageParts);
-  });
+  // afterUpdate(() => {
+  //   createMarkdown(messageParts);
+  // });
 </script>
 
 <div class="chat-message">
