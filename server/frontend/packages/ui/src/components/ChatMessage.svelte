@@ -52,18 +52,23 @@
   function createMarkdown(messageParts: MessagePart[]): string {
     let markdown = "";
     // Iterate over each part of the message.
-    messageParts.forEach((part) => {
-      if (part.type === "text") {
-        markdown += part.content;
-      } else if (part.type === "app-cards") {
-        // For app cards, output a placeholder string.
-        if (Array.isArray(part.content)) {
-          part.content.forEach(() => {
-            markdown += "[app-card]";
-          });
+    if (Array.isArray(messageParts)) {
+      messageParts.forEach((part) => {
+        if (part.type === "text") {
+          markdown += part.content;
+        } else if (part.type === "app-cards") {
+          // For app cards, output a placeholder string.
+          if (Array.isArray(part.content)) {
+            part.content.forEach(() => {
+              markdown += "[app-card]";
+            });
+          }
         }
-      }
-    });
+      });
+    } else {
+      console.warn("messageParts is not an array:", messageParts); // Log a warning if messageParts is not an array.
+    }
+
     // Log the final markdown.
     console.log("Final markdown:", markdown.trim());
     return markdown.trim();
