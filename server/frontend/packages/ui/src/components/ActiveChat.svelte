@@ -312,7 +312,6 @@
         transform: translate(-50%, -50%);
         text-align: center;
         user-select: none;
-        z-index: 1;
     }
 
     .team-profile {

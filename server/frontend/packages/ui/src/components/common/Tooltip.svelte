@@ -24,7 +24,6 @@
             const scrollY = window.scrollY;
             const scrollX = window.scrollX;
             
-            // Initial position (trying above first)
             let newPosition = {
                 x: rect.left + (rect.width / 2) + scrollX,
                 y: rect.top - TOOLTIP_OFFSET + scrollY
@@ -35,16 +34,19 @@
             requestAnimationFrame(() => {
                 if (tooltip) {
                     const tooltipRect = tooltip.getBoundingClientRect();
+                    const arrow = tooltip.querySelector('.tooltip-arrow');
                     
-                    // Check if there's enough space above
                     if (newPosition.y - tooltipRect.height < 0) {
-                        // Not enough space above, position below the element
+                        // Position below the element
                         newPosition.y = rect.bottom + TOOLTIP_OFFSET + scrollY;
                         isAbove = false;
-                        tooltip.querySelector('.tooltip-arrow')?.setAttribute('style', 'top: -4px; border-top: none; border-bottom: 5px solid var(--color-grey-0);');
+                        // Arrow points upward when tooltip is below
+                        arrow?.setAttribute('style', 'top: -4px; bottom: auto; border-top: none; border-bottom: 5px solid var(--color-grey-0);');
                     } else {
+                        // Position above the element
                         isAbove = true;
-                        tooltip.querySelector('.tooltip-arrow')?.setAttribute('style', '');
+                        // Arrow points downward when tooltip is above
+                        arrow?.setAttribute('style', 'bottom: -4px; top: auto; border-bottom: none; border-top: 5px solid var(--color-grey-0);');
                     }
                 }
                 position = newPosition;
@@ -129,7 +131,7 @@
         height: 0;
         border-left: 5px solid transparent;
         border-right: 5px solid transparent;
-        border-top: 5px solid var(--color-grey-0);
+        /* Default arrow styles will be overridden by JavaScript */
     }
 
     /* Arrow positioning for below state is handled via JavaScript setAttribute */
