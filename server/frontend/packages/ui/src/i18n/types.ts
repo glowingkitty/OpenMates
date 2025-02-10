@@ -1,4 +1,10 @@
-export const SUPPORTED_LOCALES = ['en', 'de', 'ja', 'es'] as const;
+export const SUPPORTED_LOCALES = [
+    'en',
+    'de',
+    'ja',
+    'es',
+    'fr',
+    'zh'] as const;
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 
 declare module 'svelte-i18n' {

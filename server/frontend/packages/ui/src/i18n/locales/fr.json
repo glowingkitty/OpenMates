@@ -1,0 +1,1572 @@
+{
+    "digital_team_mates": {
+        "text": "Collègues numériques",
+        "en_original": "Digital Team Mates",
+        "context": "Digital team mates that can help you with tasks. Wording that everyone should be able to grasp, not just tech people."
+    },
+    "team_mates": {
+        "text": "Collègues",
+        "en_original": "Team Mates",
+        "context": "Used behind the logo of various apps. Examples: 'Jobs Team Mates', 'Calendar Team Mates', 'Events Team Mates'"
+    },
+    "for_all_of_us": {
+        "text": "Pour nous tous.",
+        "en_original": "For all of us.",
+        "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
+    },
+    "activity": {
+        "search": {
+            "text": "Rechercher",
+            "en_original": "Search",
+            "context": "Used in search input placeholder"
+        },
+        "filter": {
+            "text": "Filtrer",
+            "en_original": "Filter",
+            "context": "Button text for filtering options"
+        },
+        "close": {
+            "text": "Fermer",
+            "en_original": "Close",
+            "context": "Modal close button"
+        }
+    },
+    "platforms": {
+        "via": {
+            "text": "via",
+            "en_original": "via",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "web": {
+            "text": "Web",
+            "en_original": "Web",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "mattermost": {
+            "text": "Mattermost",
+            "en_original": "Mattermost",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "discord": {
+            "text": "Discord",
+            "en_original": "Discord",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "and_more": {
+            "text": "et plus",
+            "en_original": "& more",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        }
+    },
+    "discord": {
+        "join_server": {
+            "text": "Rejoindre le serveur",
+            "en_original": "Join server",
+            "context": "Button text for joining Discord server"
+        }
+    },
+    "navigation": {
+        "for_all": {
+            "text": "Pour nous tous",
+            "en_original": "For all of us",
+            "context": "Main navigation item for general features"
+        },
+        "for_developers": {
+            "text": "Pour les développeurs",
+            "en_original": "For Developers",
+            "context": "Main navigation item for developer features"
+        },
+        "docs": {
+            "text": "Documentation",
+            "en_original": "Docs",
+            "context": "Navigation item for documentation"
+        },
+        "chat": {
+            "text": "Chat",
+            "en_original": "Chat",
+            "context": "Navigation item for chat feature"
+        },
+        "projects": {
+            "text": "Projets",
+            "en_original": "Projects",
+            "context": "Navigation item for projects section"
+        },
+        "workflows": {
+            "text": "Flux de travail",
+            "en_original": "Workflows",
+            "context": "Navigation item for workflow management"
+        }
+    },
+    "chat_examples": {
+        "career": {
+            "user_question": {
+                "text": "Je suis malheureux dans mon travail actuel. As-tu des idées sur la direction que je pourrais prendre à la place ?",
+                "en_original": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+                "context": "Example question about career change"
+            },
+            "mate_response": {
+                "text": "Bien sûr ! Puisque vous avez mentionné que vous avez de l'expérience en marketing et que vous aimez raconter des histoires, nous pourrions rechercher des rôles qui tirent parti de ces compétences.\n\nPour avoir une meilleure idée de la direction à prendre, pourriez-vous me dire :\n1. Quels aspects de vos emplois précédents avez-vous trouvés les plus enrichissants ?",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "context": "AI response to career change question"
+            }
+        },
+        "events": {
+            "user_question": {
+                "text": "Quels événements se déroulent dans les prochains jours ?",
+                "en_original": "What events are happening the coming days?",
+                "context": "Example question about upcoming events"
+            },
+            "mate_response": {
+                "text": "Il y a des événements passionnants qui se déroulent dans les prochains jours !  Pour vous aider à apprendre pour une meilleure carrière et pour socialiser davantage.",
+                "en_original": "There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.",
+                "context": "AI response about upcoming events"
+            },
+            "events": {
+                "book_club": {
+                    "text": "Rencontre des amoureux des livres : Une soirée de lecture et de discussion",
+                    "en_original": "Book Lovers' Social: An Evening of Reading and Discussion",
+                    "context": "Event title for book club meeting"
+                },
+                "tech_talk": {
+                    "text": "TechTalk : L'IA dans le business quotidien",
+                    "en_original": "TechTalk: AI in Everyday Business",
+                    "context": "Event title for tech talk"
+                },
+                "workshop": {
+                    "text": "Atelier : Création d'applications basées sur l'IA",
+                    "en_original": "Workshop: Building AI-Powered Applications",
+                    "context": "Event title for workshop"
+                }
+            },
+            "calendar": {
+                "today": {
+                    "text": "Aujourd'hui",
+                    "en_original": "Today",
+                    "context": "Calendar reference to current day"
+                },
+                "dec_15": {
+                    "text": "15 déc.",
+                    "en_original": "Dec 15",
+                    "context": "Calendar date"
+                },
+                "dec_16": {
+                    "text": "16 déc.",
+                    "en_original": "Dec 16",
+                    "context": "Calendar date"
+                }
+            }
+        },
+        "health": {
+            "user_question": {
+                "text": "Quel est le prochain rendez-vous de cardiologie disponible, qui ne coïncide pas avec mon calendrier ?",
+                "en_original": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
+                "context": "Example question about doctor appointment"
+            },
+            "mate_initial": {
+                "text": "Laissez-moi vérifier rapidement votre calendrier et rechercher les rendez-vous médicaux disponibles.  Je reviens vers vous dans une minute.",
+                "en_original": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
+                "context": "Initial AI response about checking calendar"
+            },
+            "mate_response": {
+                "text": "Le meilleur rendez-vous que j'ai pu trouver est demain à 9h00.  Il ne coïncide pas avec votre réunion de lancement de produit plus tard dans la journée.",
+                "en_original": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+                "context": "AI response with found appointment"
+            },
+            "doctors": {
+                "van_hausen": {
+                    "text": "Dr. Van Hausen",
+                    "en_original": "Dr. Van Hausen",
+                    "context": "Doctor name"
+                },
+                "williams": {
+                    "text": "Dr. Williams",
+                    "en_original": "Dr. Williams",
+                    "context": "Doctor name"
+                },
+                "chen": {
+                    "text": "Dr. Chen",
+                    "en_original": "Dr. Chen",
+                    "context": "Doctor name"
+                },
+                "specialty": {
+                    "text": "Cardiologue",
+                    "en_original": "Cardiologist",
+                    "context": "Medical specialty"
+                }
+            },
+            "calendar": {
+                "today": {
+                    "text": "Aujourd'hui",
+                    "en_original": "Today",
+                    "context": "Calendar reference to current day"
+                },
+                "wed": {
+                    "text": "Mer, 12 déc.",
+                    "en_original": "Wed, Dec 12",
+                    "context": "Calendar date"
+                },
+                "thu": {
+                    "text": "Jeu, 13 déc.",
+                    "en_original": "Thu, Dec 13",
+                    "context": "Calendar date"
+                },
+                "fri": {
+                    "text": "Ven, 14 déc.",
+                    "en_original": "Fri, Dec 14",
+                    "context": "Calendar date"
+                }
+            }
+        },
+        "processing": {
+            "career_insights": {
+                "text": "Perspectives de carrière",
+                "en_original": "Career insights",
+                "context": "Title for career insights section"
+            },
+            "status": {
+                "loaded": {
+                    "text": "Chargé",
+                    "en_original": "Loaded",
+                    "context": "Status indicator for loading state"
+                },
+                "started": {
+                    "text": "Démarré",
+                    "en_original": "Started",
+                    "context": "Status indicator for started state"
+                },
+                "using": {
+                    "text": "Utilise",
+                    "en_original": "Using",
+                    "context": "Status indicator for in-use state"
+                },
+                "used": {
+                    "text": "Utilisé",
+                    "en_original": "Used",
+                    "context": "Status indicator for used state"
+                }
+            },
+            "details": {
+                "preferences": {
+                    "text": "Préférences",
+                    "en_original": "preferences",
+                    "context": "Settings or preferences section"
+                },
+                "apps": {
+                    "text": "applis",
+                    "en_original": "apps",
+                    "context": "Plural form of application"
+                },
+                "app": {
+                    "text": "appli",
+                    "en_original": "app",
+                    "context": "Single application"
+                }
+            }
+        }
+    },
+    "waiting_list": {
+        "discord_members": {
+            "text": "Les membres de notre Discord",
+            "en_original": "Members in our Discord will",
+            "context": "Part of waiting list message about Discord members"
+        },
+        "early_access": {
+            "text": "auront un accès anticipé.",
+            "en_original": "get early access.",
+            "context": "Part of waiting list message about early access"
+        },
+        "first_invites": {
+            "text": "Premières invitations en Jan/Fév 2025",
+            "en_original": "First invites in Jan/Feb 2025",
+            "context": "Timeline for first invites"
+        }
+    },
+    "highlight": {
+        "powered_by": {
+            "powered_by_leading": {
+                "text": "propulsé par les meilleurs",
+                "en_original": "powered by the leading",
+                "context": "Used in 'powered by the leading cloud & on-device AI models'"
+            },
+            "cloud_and_on_device_ai_models": {
+                "text": "modèles d'IA en ligne et locaux",
+                "en_original": "cloud & on-device AI models",
+                "context": "Used in 'powered by the leading cloud & on-device AI models'"
+            }
+        },
+        "sections": {
+            "ask": {
+                "heading": {
+                    "text": "Demander",
+                    "en_original": "Ask",
+                    "context": "Section heading for Ask feature"
+                },
+                "main_heading_1": {
+                    "text": "Vos experts personnalisés",
+                    "en_original": "Your personalized experts",
+                    "context": "In 'Your personalized experts for your questions.'"
+                },
+                "main_heading_2": {
+                    "text": "pour vos questions",
+                    "en_original": "for your questions",
+                    "context": "In 'Your personalized experts for your questions.'"
+                },
+                "paragraph": {
+                    "text": "Par exemple :<br>Obtenez des conseils de carrière<br>en fonction de vos intérêts.",
+                    "en_original": "For example:<br>Get career advice<br>based on your interests.",
+                    "context": "Example text for Ask section"
+                }
+            },
+            "tasks": {
+                "heading": {
+                    "text": "Tâches",
+                    "en_original": "Tasks",
+                    "context": "Section heading for Tasks feature"
+                },
+                "main_heading_1": {
+                    "text": "Demandez-leur",
+                    "en_original": "Ask them to",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
+                },
+                "main_heading_2": {
+                    "text": "d'accomplir vos tâches",
+                    "en_original": "fulfill your tasks",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
+                },
+                "paragraph": {
+                    "text": "Par exemple :<br>Trouvez des rendez-vous médicaux<br>qui ne coïncident pas avec votre calendrier<br>sur Doctolib & Jameda.",
+                    "en_original": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
+                    "context": "Example text for Tasks section"
+                }
+            },
+            "apps": {
+                "heading": {
+                    "text": "Applis",
+                    "en_original": "Apps",
+                    "context": "Section heading for Apps feature"
+                },
+                "main_heading_1": {
+                    "text": "Tant d'applications",
+                    "en_original": "So many apps",
+                    "context": "In 'So many apps to transform your personal life & work.'"
+                },
+                "main_heading_2": {
+                    "text": "pour transformer votre vie personnelle et votre travail<br>.",
+                    "en_original": "to transform your<br>personal life & work.",
+                    "context": "In 'So many apps to transform your personal life & work.'"
+                },
+                "paragraph": {
+                    "text": "Par exemple :<br>Trouvez des événements<br>sur Meetup, Eventbrite et RA.",
+                    "en_original": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
+                    "context": "Example text for Apps section"
+                }
+            }
+        },
+        "api": {
+            "example_input": {
+                "text": "Je suis malheureux dans mon travail actuel. As-tu des idées sur la direction que je pourrais prendre à la place ?",
+                "en_original": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+                "context": "Example API input for career guidance"
+            },
+            "example_output": {
+                "text": "Bien sûr ! Puisque vous avez mentionné que vous avez de l'expérience en marketing et que vous aimez raconter des histoires, nous pourrions rechercher des rôles qui tirent parti de ces compétences.\n\nPour avoir une meilleure idée de la direction à prendre, pourriez-vous me dire :\n1. Quels aspects de vos emplois précédents avez-vous trouvés les plus enrichissants ?",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "context": "Example API response for career guidance"
+            },
+            "search_input": {
+                "text": "IA, débutant",
+                "en_original": "AI, beginner",
+                "context": "Example search input for events API"
+            },
+            "search_output_title": {
+                "text": "IA, Projets, Ressources, et le Futur - Un aperçu de demain",
+                "en_original": "AI, Projects, Resources, and the Future - A Glimpse into Tomorrow",
+                "context": "Example event title in API response"
+            }
+        },
+        "ui": {
+            "calendar": {
+                "text": "Calendrier",
+                "en_original": "Calendar",
+                "context": "Calendar app name in the UI"
+            },
+            "health": {
+                "text": "Santé",
+                "en_original": "Health",
+                "context": "Health app name in the UI"
+            },
+            "events": {
+                "text": "Événements",
+                "en_original": "Events",
+                "context": "Used in 'Events | Search'"
+            },
+            "search": {
+                "text": "Recherche",
+                "en_original": "Search",
+                "context": "Used in 'Events | Search'"
+            }
+        }
+    },
+    "login": {
+        "login": {
+            "text": "Se connecter",
+            "en_original": "Login",
+            "context": "Login page title"
+        },
+        "to_chat_to_your": {
+            "text": "Pour discuter avec vos",
+            "en_original": "To chat to your",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "digital_team_mates": {
+            "text": "collègues numériques",
+            "en_original": "digital team mates",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "not_signed_up_yet": {
+            "text": "Pas encore inscrit ?",
+            "en_original": "Not signed up yet?",
+            "context": "Asking the user if they are not signed up yet for the app"
+        },
+        "click_here_to_create_a_new_account": {
+            "text": "Cliquez ici pour créer un nouveau compte",
+            "en_original": "Click here to create a new account",
+            "context": "Call to action to create a new account for the app"
+        },
+        "email_placeholder": {
+            "text": "Entrez votre adresse e-mail",
+            "en_original": "Enter E-Mail address",
+            "context": "Placeholder text for email input field"
+        },
+        "password_placeholder": {
+            "text": "Entrez votre mot de passe",
+            "en_original": "Enter password",
+            "context": "Placeholder text for password input field"
+        },
+        "check_your_2fa_app": {
+            "text": "Vérifiez votre application 2FA",
+            "en_original": "Check your 2FA app",
+            "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "2fa_code_placeholder": {
+            "text": "Entrez le code à 6 chiffres",
+            "en_original": "Enter 6-digit one-time code",
+            "context": "Placeholder text for 2FA code input field"
+        },
+        "enter_backup_code": {
+            "text": "Entrez le code de sauvegarde",
+            "en_original": "Enter backup code",
+            "context": "Placeholder text for backup code input field"
+        },
+        "login_button": {
+            "text": "Se connecter",
+            "en_original": "Login",
+            "context": "Button text for logging in"
+        },
+        "loading": {
+            "text": "Chargement...",
+            "en_original": "Loading...",
+            "context": "Text shown when checking authentication"
+        },
+        "error_message": {
+            "text": "Échec de la connexion.  Soit vos identifiants sont incorrects, soit votre compte n'existe pas.",
+            "en_original": "Login failed.  Either your credentials are wrong or your account does not exist.",
+            "context": "Error message shown when login fails"
+        },
+        "forgot_password": {
+            "text": "Mot de passe oublié",
+            "en_original": "Forgot my password",
+            "context": "Starting process of resetting password"
+        }
+    },
+    "chat": {
+        "new_chat": {
+            "text": "Nouveau chat",
+            "en_original": "New chat",
+            "context": "Button label for creating a new chat"
+        },
+        "share": {
+            "text": "Partager le chat",
+            "en_original": "Share chat",
+            "context": "Button label for sharing a chat"
+        },
+        "start_audio_call": {
+            "text": "Démarrer un appel audio",
+            "en_original": "Start audio call",
+            "context": "Button label for starting an audio call"
+        },
+        "start_video_call": {
+            "text": "Démarrer un appel vidéo",
+            "en_original": "Start video call",
+            "context": "Button label for starting a video call"
+        },
+        "welcome": {
+            "hey": {
+                "text": "Salut",
+                "en_original": "Hey",
+                "context": "Welcome greeting in chat"
+            },
+            "what_do_you_need_help_with": {
+                "text": "Comment puis-je vous aider ?",
+                "en_original": "What do you need help with?",
+                "context": "Help prompt message in chat"
+            }
+        }
+    },
+    "enter_message": {
+        "enter_your_message": {
+            "text": "Entrez votre message",
+            "en_original": "Enter your message",
+            "context": "Placeholder text shown in empty message input field"
+        },
+        "click_to_enter_message": {
+            "text": "Cliquez ici pour entrer votre message",
+            "en_original": "Click here to enter your message",
+            "context": "Placeholder text shown when message field is not focused"
+        },
+        "click_to_add_text": {
+            "text": "Cliquez ici pour ajouter du texte",
+            "en_original": "Click here to add text",
+            "context": "Prompt shown after attachments to add more text"
+        },
+        "send": {
+            "text": "Envoyer",
+            "en_original": "Send",
+            "context": "Button text for sending a message"
+        },
+        "file_size_limits": {
+            "total_exceeded": {
+                "text": "La taille totale des fichiers dépasserait la limite de {size} Mo. Taille actuelle : {current} Mo, Tentative d'ajout : {attempted} Mo",
+                "en_original": "Total file size would exceed {size}MB limit. Current size: {current}MB, Attempted to add: {attempted}MB",
+                "context": "Error message shown when total file size limit is exceeded"
+            }
+        },
+        "record_audio": {
+            "slide_left_to_cancel": {
+                "text": "Faites glisser vers la gauche pour annuler",
+                "en_original": "Slide left to cancel",
+                "context": "Text shown when recording is in progress"
+            },
+            "release_to_finish": {
+                "text": "Relâchez pour terminer",
+                "en_original": "Release to finish",
+                "context": "Text shown when recording is in progress"
+            },
+            "press_and_hold_reminder": {
+                "text": "Appuyez et maintenez pour enregistrer",
+                "en_original": "Press and hold to record",
+                "context": "Text shown when the user has only pressed the record button for less than 500ms"
+            }
+        },
+        "fullscreen": {
+            "enter_fullscreen": {
+                "text": "Passer en plein écran",
+                "en_original": "Enter fullscreen",
+                "context": "Button text for entering fullscreen"
+            },
+            "exit_fullscreen": {
+                "text": "Quitter le plein écran",
+                "en_original": "Exit fullscreen",
+                "context": "Button text for exiting fullscreen"
+            }
+        },
+        "attachments": {
+            "take_photo": {
+                "text": "Prendre une photo",
+                "en_original": "Take photo",
+                "context": "Button text for taking a photo"
+            },
+            "attach_files": {
+                "text": "Joindre des fichiers",
+                "en_original": "Attach files",
+                "context": "Button text for attaching files"
+            },
+            "record_audio": {
+                "text": "Enregistrer un audio",
+                "en_original": "Record audio",
+                "context": "Button text for recording audio"
+            },
+            "share_location": {
+                "text": "Partager la localisation",
+                "en_original": "Share location",
+                "context": "Button text for sharing location"
+            }
+        },
+        "location": {
+            "precise": {
+                "text": "Précise",
+                "en_original": "Precise",
+                "context": "Precise location option"
+            },
+            "toggle_precise": {
+                "text": "Activer/Désactiver la précision",
+                "en_original": "Toggle precise",
+                "context": "Button text for toggling precise location"
+            },
+            "close": {
+                "text": "Fermer",
+                "en_original": "Close",
+                "context": "Button text for closing location selection"
+            },
+            "select": {
+                "text": "Sélectionner",
+                "en_original": "Select",
+                "context": "Button text for selecting location"
+            },
+            "get_location": {
+                "text": "Obtenir la localisation",
+                "en_original": "Get location",
+                "context": "Button text for getting current location"
+            },
+            "current_location": {
+                "text": "Localisation actuelle",
+                "en_original": "Current location",
+                "context": "Text for current location"
+            },
+            "selected_location": {
+                "text": "Localisation sélectionnée",
+                "en_original": "Selected location",
+                "context": "Text for selected location"
+            },
+            "current_area": {
+                "text": "Zone actuelle",
+                "en_original": "Current area",
+                "context": "Text for current area"
+            },
+            "selected_area": {
+                "text": "Zone sélectionnée",
+                "en_original": "Selected area",
+                "context": "Text for selected area"
+            },
+            "search_results": {
+                "text": "Résultats de recherche",
+                "en_original": "Search results",
+                "context": "Text for search results"
+            },
+            "close_search": {
+                "text": "Fermer la recherche",
+                "en_original": "Close search",
+                "context": "Text for closing search"
+            },
+            "search_placeholder": {
+                "text": "Rechercher un lieu...",
+                "en_original": "Search location...",
+                "context": "Placeholder text for search input"
+            },
+            "search_button": {
+                "text": "Rechercher",
+                "en_original": "Search",
+                "context": "Text for search button"
+            }
+        },
+        "press_and_hold_menu": {
+            "delete": {
+                "text": "Supprimer",
+                "en_original": "Delete",
+                "context": "Menu option to delete an attachment"
+            },
+            "copy_link": {
+                "text": "Copier le lien",
+                "en_original": "Copy link",
+                "context": "Menu option to copy web link"
+            },
+            "download": {
+                "text": "Télécharger",
+                "en_original": "Download",
+                "context": "Menu option to download an attachment"
+            },
+            "view": {
+                "text": "Voir",
+                "en_original": "View",
+                "context": "Menu option to view attachment in full screen"
+            },
+            "copied_to_clipboard": {
+                "text": "Copié",
+                "en_original": "Copied to clipboard",
+                "context": "Message shown when a URL has been copied to clipboard"
+            }
+        }
+    },
+    "cameraview": {
+        "close": {
+            "text": "Fermer la caméra",
+            "en_original": "Close camera",
+            "context": "Button text for closing camera view"
+        },
+        "stoprecording": {
+            "text": "Terminer l'enregistrement",
+            "en_original": "Finish recording",
+            "context": "Button text for finishing video recording"
+        },
+        "startrecording": {
+            "text": "Enregistrer une vidéo",
+            "en_original": "Record video",
+            "context": "Button text for starting video recording"
+        },
+        "takephoto": {
+            "text": "Prendre une photo",
+            "en_original": "Take photo",
+            "context": "Button text for taking a photo"
+        }
+    },
+    "settings": {
+        "settings": {
+            "text": "Paramètres",
+            "en_original": "Settings",
+            "context": "Header text in settings menu"
+        },
+        "team": {
+            "text": "Équipe",
+            "en_original": "Team",
+            "context": "Team toggle and menu item"
+        },
+        "incognito": {
+            "text": "Incognito",
+            "en_original": "Incognito",
+            "context": "Incognito mode toggle"
+        },
+        "guest": {
+            "text": "Invité",
+            "en_original": "Guest",
+            "context": "Guest mode toggle"
+        },
+        "offline": {
+            "text": "Hors ligne",
+            "en_original": "Offline",
+            "context": "Offline mode toggle"
+        },
+        "user": {
+            "text": "Utilisateur",
+            "en_original": "User",
+            "context": "User settings menu item"
+        },
+        "usage": {
+            "text": "Utilisation",
+            "en_original": "Usage",
+            "context": "Usage statistics menu item"
+        },
+        "billing": {
+            "text": "Facturation",
+            "en_original": "Billing",
+            "context": "Billing settings menu item"
+        },
+        "apps": {
+            "text": "Applis",
+            "en_original": "Apps",
+            "context": "Apps settings menu item"
+        },
+        "mates": {
+            "text": "Collègues",
+            "en_original": "Mates",
+            "context": "Mates settings menu item"
+        },
+        "messengers": {
+            "text": "Messageries",
+            "en_original": "Messengers",
+            "context": "Messengers settings menu item"
+        },
+        "developers": {
+            "text": "Développeurs",
+            "en_original": "Developers",
+            "context": "Developers settings menu item"
+        },
+        "interface": {
+            "text": "Interface",
+            "en_original": "Interface",
+            "context": "Interface settings menu item"
+        },
+        "logout": {
+            "text": "Se déconnecter",
+            "en_original": "Logout",
+            "context": "Logout menu item"
+        },
+        "docs": {
+            "text": "Docs",
+            "en_original": "Docs",
+            "context": "Documentation section header"
+        },
+        "user_guide": {
+            "text": "Guide de l'utilisateur",
+            "en_original": "User guide",
+            "context": "User guide documentation link"
+        },
+        "api_docs": {
+            "text": "Documentation de l'API",
+            "en_original": "API docs",
+            "context": "API documentation link"
+        },
+        "contact": {
+            "text": "Contact",
+            "en_original": "Contact",
+            "context": "Contact section header"
+        },
+        "discord": {
+            "text": "Discord",
+            "en_original": "Discord",
+            "context": "Discord contact link"
+        },
+        "email": {
+            "text": "E-mail",
+            "en_original": "Email",
+            "context": "Email contact link"
+        },
+        "legal": {
+            "text": "Juridique",
+            "en_original": "Legal",
+            "context": "Legal section header"
+        },
+        "imprint": {
+            "text": "Mentions légales",
+            "en_original": "Imprint",
+            "context": "Imprint legal link"
+        },
+        "privacy": {
+            "text": "Confidentialité",
+            "en_original": "Privacy",
+            "context": "Privacy policy link"
+        },
+        "terms_and_conditions": {
+            "text": "Conditions générales d'utilisation",
+            "en_original": "Terms and conditions",
+            "context": "Terms and conditions link"
+        },
+        "credits": {
+            "text": "Crédits",
+            "en_original": "credits",
+            "context": "User credits amount"
+        }
+    },
+    "design_guidelines": {
+        "section_title": {
+            "text": "Principes de conception",
+            "en_original": "Design Guidelines",
+            "context": "Title of the design guidelines section"
+        },
+        "privacy": {
+            "headline": {
+                "text": "Votre vie privée est importante",
+                "en_original": "Your privacy matters",
+                "context": "Main headline for privacy section"
+            },
+            "text": {
+                "text": "Dans le monde turbulent d'aujourd'hui, où les entreprises privilégiant le profit à tout prix abusent fréquemment des données des utilisateurs, où les entreprises avec des mesures de sécurité inadéquates sont régulièrement piratées et les données de leurs utilisateurs tombent entre les mains d'acteurs malveillants, et où nous ne pouvons pas toujours compter sur les gouvernements pour protéger les droits et le bien-être de leurs citoyens, prendre des décisions pour protéger votre vie privée est devenu de plus en plus essentiel.",
+                "en_original": "In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.",
+                "context": "Main text explaining privacy importance"
+            },
+            "subtext": {
+                "text": "Par conséquent,\nOpenMates est conçu\nen mettant l'accent sur la confidentialité.",
+                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "context": "Conclusion for privacy section"
+            },
+            "anonymization": {
+                "text": "Anonymisation",
+                "en_original": "Anonymization",
+                "context": "Privacy feature - anonymization"
+            },
+            "local_processing": {
+                "text": "Traitement local en premier",
+                "en_original": "Local processing first",
+                "context": "Privacy feature - local processing"
+            },
+            "self_hosting": {
+                "text": "Option d'auto-hébergement",
+                "en_original": "Self hosting option",
+                "context": "Privacy feature - self hosting"
+            }
+        },
+        "maximum_good": {
+            "headline_1": {
+                "text": "Bien maximum,",
+                "en_original": "Maximum good",
+                "context": "Used in 'Maximum good, not maximum greed.'"
+            },
+            "headline_2": {
+                "text": "pas cupidité maximale.",
+                "en_original": "not maximum greed.",
+                "context": "Used in 'Maximum good, not maximum greed.'"
+            },
+            "text": {
+                "text": "Au cours des dernières années, les monopoles technologiques privilégiant le profit à tout prix ont maintes et maintes fois privilégié leur cupidité au détriment des intérêts de leurs utilisateurs et de notre planète, ignorant les conséquences négatives et la destruction causées par ces décisions.  Nous ne pouvons pas continuer ainsi.",
+                "en_original": "Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.",
+                "context": "Main text explaining maximum good philosophy"
+            },
+            "subtext": {
+                "text": "Par conséquent,\nOpenMates est conçu\nen mettant l'accent sur la maximisation de l'impact positif de l'IA.",
+                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "context": "Conclusion for maximum good section"
+            },
+            "open_source": {
+                "text": "Open Source",
+                "en_original": "Open Source",
+                "context": "Maximum good feature - open source"
+            },
+            "provider_independent": {
+                "text": "Indépendant du fournisseur",
+                "en_original": "Provider independent",
+                "context": "Maximum good feature - provider independence"
+            },
+            "chat_anywhere": {
+                "text": "Chattez n'importe où",
+                "en_original": "Chat anywhere",
+                "context": "Maximum good feature - universal chat"
+            }
+        }
+    },
+    "community": {
+        "heading": {
+            "text": "Communauté",
+            "en_original": "Community",
+            "context": "Section heading for community section"
+        },
+        "join_development_1": {
+            "text": "Rejoignez",
+            "en_original": "Join",
+            "context": "Used in 'Join the development'"
+        },
+        "join_development_2": {
+            "text": "le développement",
+            "en_original": "the development",
+            "context": "Used in 'Join the development'"
+        },
+        "description": {
+            "text": "OpenMates est un effort communautaire.  Des développeurs de logiciels aux concepteurs, en passant par les utilisateurs qui sont simplement enthousiastes à l'idée de voir comment l'IA peut les aider au travail et dans la vie de tous les jours - tout le monde peut contribuer de manière précieuse.",
+            "en_original": "OpenMates is a community effort. From software developers, to designers, to users who are just excited about how AI can help them at work and in everyday life - everyone can contribute in valuable ways.",
+            "context": "Main description of the community and contribution opportunities"
+        },
+        "join_discord": {
+            "text": "Pour plus d'informations, rejoignez-nous sur Discord.",
+            "en_original": "For more infos, join us on Discord.",
+            "context": "Call to action for joining Discord community"
+        }
+    },
+    "footer": {
+        "language_selector": {
+            "label": {
+                "text": "Choisir la langue",
+                "en_original": "Select language",
+                "context": "Label for language selector"
+            }
+        },
+        "tagline": {
+            "line1": {
+                "text": "Notre monde a besoin de changement.",
+                "en_original": "Our world needs change.",
+                "context": "First line of footer tagline"
+            },
+            "line2": {
+                "text": "Et le changement nécessite de l'action.",
+                "en_original": "And change requires action.",
+                "context": "Second line of footer tagline"
+            },
+            "line3": {
+                "text": "Alors, agissons.",
+                "en_original": "So, let us take action.",
+                "context": "Third line of footer tagline"
+            }
+        },
+        "made_in_eu": {
+            "text": "Fabriqué dans l'UE",
+            "en_original": "Made in the EU",
+            "context": "Footer text indicating EU origin"
+        },
+        "sections": {
+            "website": {
+                "text": "Site web",
+                "en_original": "Website",
+                "context": "Footer section title for website links"
+            },
+            "for_everyone": {
+                "text": "Pour nous tous",
+                "en_original": "For all of us",
+                "context": "Footer link text for general audience section"
+            },
+            "for_developers": {
+                "text": "Pour les développeurs",
+                "en_original": "For developers",
+                "context": "Footer link text for developer section"
+            },
+            "webapp": {
+                "text": "App Web",
+                "en_original": "Web App",
+                "context": "Footer link text for web app section"
+            },
+            "docs": {
+                "text": "Docs",
+                "en_original": "Docs",
+                "context": "Footer section title for documentation"
+            },
+            "user_guide": {
+                "text": "Guide de l'utilisateur",
+                "en_original": "User guide",
+                "context": "Footer link text for user guide"
+            },
+            "api_docs": {
+                "text": "Documentation de l'API",
+                "en_original": "API docs",
+                "context": "Footer link text for API documentation"
+            },
+            "roadmap": {
+                "text": "Feuille de route",
+                "en_original": "Roadmap",
+                "context": "Footer link text for roadmap"
+            },
+            "design_guidelines": {
+                "text": "Principes de conception",
+                "en_original": "Design guidelines",
+                "context": "Footer link text for design guidelines"
+            },
+            "legal": {
+                "text": "Juridique",
+                "en_original": "Legal",
+                "context": "Legal section header"
+            },
+            "contact": {
+                "text": "Contact",
+                "en_original": "Contact",
+                "context": "Contact section header"
+            },
+            "imprint": {
+                "text": "Mentions légales",
+                "en_original": "Imprint",
+                "context": "Legal imprint link"
+            },
+            "privacy": {
+                "text": "Confidentialité",
+                "en_original": "Privacy",
+                "context": "Privacy policy link"
+            },
+            "terms_and_conditions": {
+                "text": "Conditions générales d'utilisation",
+                "en_original": "Terms and conditions",
+                "context": "Terms and conditions link"
+            },
+            "discord": {
+                "text": "Discord",
+                "en_original": "Discord",
+                "context": "Discord contact link"
+            },
+            "email": {
+                "text": "E-mail",
+                "en_original": "Email",
+                "context": "Email contact link"
+            }
+        }
+    },
+    "legal": {
+        "imprint": {
+            "title": {
+                "text": "Mentions légales",
+                "en_original": "Legal Notice (Imprint)",
+                "context": "Title of the legal imprint page"
+            },
+            "information_tmg": {
+                "text": "Informations selon § 5 TMG",
+                "en_original": "Information according to § 5 TMG",
+                "context": "Legal information section header"
+            },
+            "contact": {
+                "text": "Contact",
+                "en_original": "Contact",
+                "context": "Contact section header in imprint"
+            },
+            "email": {
+                "text": "E-mail",
+                "en_original": "Email",
+                "context": "Email label in contact section"
+            }
+        },
+        "privacy": {
+            "title": {
+                "text": "Politique de confidentialité",
+                "en_original": "Privacy Policy",
+                "context": "Title of privacy policy page"
+            },
+            "last_updated": {
+                "text": "Dernière mise à jour",
+                "en_original": "Last Updated",
+                "context": "Last update date of privacy policy"
+            },
+            "data_protection": {
+                "heading": {
+                    "text": "1. Aperçu de la protection des données",
+                    "en_original": "1. Data Protection Overview",
+                    "context": "Section heading for data protection overview"
+                },
+                "overview": {
+                    "text": "Cette politique de confidentialité explique ce qu'il advient de vos données lorsque vous utilisez notre site web. Nous nous engageons à la transparence concernant le traitement des données.",
+                    "en_original": "This privacy policy explains what happens to your data when you use our website. We are committed to transparency regarding data handling.",
+                    "context": "Overview of privacy policy purpose"
+                },
+                "current_state": {
+                    "text": "Nous ne collectons, ne stockons ni ne traitons actuellement aucune donnée personnelle directement via ce site web. Le site web est hébergé via Vercel, et votre interaction avec ce site est soumise aux pratiques de confidentialité de Vercel.",
+                    "en_original": "We currently do not collect, store, or process any personal data directly through this website. The website is hosted via Vercel, and your interaction with this site is subject to Vercel's privacy practices.",
+                    "context": "Current state of data collection"
+                }
+            },
+            "vercel_hosting": {
+                "heading": {
+                    "text": "2. Hébergement Vercel",
+                    "en_original": "2. Vercel Hosting",
+                    "context": "Section heading for Vercel hosting information"
+                },
+                "description": {
+                    "text": "Ce site web est hébergé en utilisant la plateforme de Vercel. Lorsque vous visitez ce site web, votre requête est traitée par les serveurs de Vercel. Vercel peut collecter des informations techniques, notamment :",
+                    "en_original": "This website is hosted using Vercel's platform. When you visit this website, your request is processed by Vercel's servers. Vercel may collect technical information including:",
+                    "context": "Description of Vercel hosting"
+                },
+                "data_points": {
+                    "ip": {
+                        "text": "Adresses IP",
+                        "en_original": "IP addresses",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "browser": {
+                        "text": "Type et version du navigateur",
+                        "en_original": "Browser type and version",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "logs": {
+                        "text": "Journaux d'accès de base",
+                        "en_original": "Basic access logs",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "performance": {
+                        "text": "Données de performance",
+                        "en_original": "Performance data",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "server_logs": {
+                        "text": "Autres journaux de serveur standard",
+                        "en_original": "Other standard server logs",
+                        "context": "Data point collected by Vercel"
+                    }
+                },
+                "more_info": {
+                    "text": "Pour plus d'informations sur les pratiques de Vercel en matière de données, veuillez vous référer à la politique de confidentialité de Vercel.",
+                    "en_original": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
+                    "context": "Reference to Vercel's privacy policy"
+                },
+                "privacy_policy_link": {
+                    "text": "Politique de confidentialité de Vercel",
+                    "en_original": "Vercel Privacy Policy",
+                    "context": "Link text for Vercel's privacy policy"
+                }
+            },
+            "discord_integration": {
+                "heading": {
+                    "text": "3. Intégration Discord",
+                    "en_original": "3. Discord Integration",
+                    "context": "Section heading for Discord integration"
+                },
+                "description": {
+                    "text": "Si vous choisissez de rejoindre notre communauté Discord via les liens fournis sur ce site web, veuillez noter que Discord collectera et traitera vos données conformément à sa politique de confidentialité.  Cela inclut :",
+                    "en_original": "If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes:",
+                    "context": "Description of Discord data collection"
+                },
+                "data_points": {
+                    "account": {
+                        "text": "Informations sur le compte",
+                        "en_original": "Account information",
+                        "context": "Data point collected by Discord"
+                    },
+                    "usage": {
+                        "text": "Données d'utilisation",
+                        "en_original": "Usage data",
+                        "context": "Data point collected by Discord"
+                    },
+                    "communication": {
+                        "text": "Contenu des communications",
+                        "en_original": "Communication content",
+                        "context": "Data point collected by Discord"
+                    },
+                    "other": {
+                        "text": "Autres informations comme indiqué dans la politique de confidentialité de Discord",
+                        "en_original": "Other information as outlined in Discord's privacy policy",
+                        "context": "Reference to additional Discord data collection"
+                    }
+                },
+                "admin_access": {
+                    "text": "En tant qu'administrateurs du serveur Discord, nous avons accès à toutes les communications publiques, aux listes de membres et aux autres informations partagées au sein de notre communauté Discord.  Cependant, ces informations sont hébergées et principalement traitées par Discord.  Nous n'extrayons, ne stockons ni ne traitons ces données en dehors de la plateforme Discord.  Pour plus d'informations sur la manière dont Discord traite vos données, veuillez consulter la politique de confidentialité de Discord.",
+                    "en_original": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
+                    "context": "Description of admin access to Discord data"
+                },
+                "privacy_policy_link": {
+                    "text": "Politique de confidentialité de Discord",
+                    "en_original": "Discord Privacy Policy",
+                    "context": "Link text for Discord's privacy policy"
+                }
+            },
+            "contact": {
+                "heading": {
+                    "text": "4. Informations de contact",
+                    "en_original": "4. Contact Information",
+                    "context": "Section heading for contact information"
+                },
+                "questions": {
+                    "text": "Pour toute question concernant la protection des données :",
+                    "en_original": "For questions about data protection:",
+                    "context": "Prompt for data protection questions"
+                },
+                "email": {
+                    "text": "E-mail",
+                    "en_original": "Email",
+                    "context": "Email contact label"
+                }
+            }
+        },
+        "terms": {
+            "title": {
+                "text": "Conditions générales d'utilisation",
+                "en_original": "Terms and Conditions",
+                "context": "Title of terms and conditions page"
+            },
+            "last_updated": {
+                "text": "Dernière mise à jour",
+                "en_original": "Last Updated",
+                "context": "Last update date label"
+            },
+            "agreement": {
+                "heading": {
+                    "text": "Acceptation des conditions",
+                    "en_original": "Agreement to Terms",
+                    "context": "Section heading for agreement"
+                },
+                "description": {
+                    "text": "En accédant et en utilisant le site web OpenMates (\"Site web\"), vous acceptez et consentez à être lié par ces Conditions générales d'utilisation. Si vous n'êtes pas d'accord avec une partie de ces conditions, vous ne pouvez pas accéder au Site web.",
+                    "en_original": "By accessing and using the OpenMates website (\"Website\"), you accept and agree to be bound by these Terms and Conditions. If you disagree with any part of these terms, you may not access the Website.",
+                    "context": "Agreement explanation"
+                }
+            },
+            "about": {
+                "heading": {
+                    "text": "À propos d'OpenMates",
+                    "en_original": "About OpenMates",
+                    "context": "Section heading about OpenMates"
+                },
+                "description": {
+                    "text": "OpenMates est actuellement un projet de logiciel à code source fermé pendant sa phase de développement initiale. Ce statut temporaire de code source fermé est maintenu pour assurer la sécurité et la stabilité pendant les premières phases de développement et de test bêta. Le projet passera en open-source après la fin des premiers tests bêta et des examens de sécurité. Ce site web sert de plateforme d'information sur le projet OpenMates et sa progression de développement.",
+                    "en_original": "OpenMates is currently a closed-source software project during its initial development phase. This temporary closed-source status is maintained to ensure security and stability during the early development and beta testing phases. The project will transition to open-source after the completion of initial beta testing and security reviews. This Website serves as an informational platform about the OpenMates project and its development progress.",
+                    "context": "About section text"
+                }
+            },
+            "intellectual_property": {
+                "heading": {
+                    "text": "Droits de propriété intellectuelle",
+                    "en_original": "Intellectual Property Rights",
+                    "context": "Section heading for IP rights"
+                },
+                "description": {
+                    "text": "Le nom OpenMates, le logo et tout le contenu associé sur ce site web sont la propriété intellectuelle du propriétaire du site web (voir Mentions légales) et sont protégés par les lois applicables sur le droit d'auteur et les marques. Une fois que le projet sera passé en open-source, des conditions de licence spécifiques seront fournies séparément par le biais d'une documentation open-source appropriée.",
+                    "en_original": "The OpenMates name, logo, and all related content on this Website are the intellectual property of the website owner (see Imprint) and are protected by applicable copyright and trademark laws. Once the project transitions to open-source, specific licensing terms will be provided separately through appropriate open-source documentation.",
+                    "context": "Intellectual property rights explanation"
+                }
+            },
+            "disclaimer": {
+                "heading": {
+                    "text": "Clause de non-responsabilité",
+                    "en_original": "Disclaimer",
+                    "context": "Section heading for disclaimer"
+                },
+                "description": {
+                    "text": "Les documents et informations sur ce site web sont fournis \"tels quels\" et sans garantie d'aucune sorte. Nous ne garantissons pas l'exactitude, l'exhaustivité ou l'utilité des informations présentes sur ce site web. Toute confiance que vous accordez à ces informations est strictement à vos propres risques.",
+                    "en_original": "The materials and information on this Website are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information on this Website. Any reliance you place on such information is strictly at your own risk.",
+                    "context": "Disclaimer explanation"
+                }
+            },
+            "limitations": {
+                "heading": {
+                    "text": "Limitations",
+                    "en_original": "Limitations",
+                    "context": "Section heading for limitations"
+                },
+                "description": {
+                    "text": "Dans toute la mesure permise par la loi, le propriétaire du site web ne sera pas responsable des dommages directs, indirects, accessoires, consécutifs ou spéciaux découlant de ou liés de quelque manière que ce soit à :",
+                    "en_original": "To the fullest extent permitted by law, the website owner shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in any way connected with:",
+                    "context": "Limitations introduction"
+                },
+                "list": {
+                    "website_use": {
+                        "text": "L'utilisation ou l'impossibilité d'utiliser ce site web",
+                        "en_original": "The use or inability to use this Website",
+                        "context": "Limitation regarding website use"
+                    },
+                    "information": {
+                        "text": "Les informations fournies sur ce site web",
+                        "en_original": "The information provided on this Website",
+                        "context": "Limitation regarding information"
+                    },
+                    "technical": {
+                        "text": "Tout problème technique ou interruption",
+                        "en_original": "Any technical issues or interruptions",
+                        "context": "Limitation regarding technical issues"
+                    }
+                }
+            },
+            "governing_law": {
+                "heading": {
+                    "text": "Droit applicable",
+                    "en_original": "Governing Law",
+                    "context": "Section heading for governing law"
+                },
+                "explanation": {
+                    "text": "Ces conditions générales sont régies et interprétées conformément aux lois de la République fédérale d'Allemagne. Pour plus de détails sur la juridiction responsable et les informations de contact, veuillez vous référer à nos Mentions légales.",
+                    "en_original": "These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our Imprint.",
+                    "context": "Governing law explanation"
+                },
+                "contact": {
+                    "heading": {
+                        "text": "Informations de contact",
+                        "en_original": "Contact Information",
+                        "context": "Section heading for contact information"
+                    },
+                    "intro": {
+                        "text": "Pour toute question concernant ces CGU :",
+                        "en_original": "For questions about these Terms:",
+                        "context": "Contact section introduction"
+                    },
+                    "email_label": {
+                        "text": "E-mail",
+                        "en_original": "Email",
+                        "context": "Email label"
+                    }
+                },
+                "use_license": {
+                    "heading": {
+                        "text": "Licence d'utilisation",
+                        "en_original": "Use License",
+                        "context": "Section heading for use license"
+                    },
+                    "description": {
+                        "text": "L'autorisation est accordée d'accéder temporairement aux documents de notre Site Web à des fins d'information personnelles et non commerciales uniquement. Il s'agit de l'octroi d'une licence, et non d'un transfert de titre, et en vertu de cette licence, vous ne pouvez pas :",
+                        "en_original": "Permission is granted to temporarily access the materials on our Website for personal, non-commercial informational purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:",
+                        "context": "License terms explanation"
+                    },
+                    "restrictions": {
+                        "modify": {
+                            "text": "Modifier ou copier les documents",
+                            "en_original": "Modify or copy the materials",
+                            "context": "License restriction about modification"
+                        },
+                        "commercial": {
+                            "text": "Utiliser les documents à des fins commerciales",
+                            "en_original": "Use the materials for any commercial purpose",
+                            "context": "License restriction about commercial use"
+                        },
+                        "reverse_engineer": {
+                            "text": "Tenter de décompiler tout logiciel contenu sur le Site Web",
+                            "en_original": "Attempt to reverse engineer any software contained on the Website",
+                            "context": "License restriction about reverse engineering"
+                        },
+                        "copyright": {
+                            "text": "Supprimer tout droit d'auteur ou autres mentions de propriété des documents",
+                            "en_original": "Remove any copyright or other proprietary notations from the materials",
+                            "context": "License restriction about copyright removal"
+                        }
+                    }
+                },
+                "discord": {
+                    "heading": {
+                        "text": "Communauté Discord",
+                        "en_original": "Discord Community",
+                        "context": "Section heading for Discord community"
+                    },
+                    "description": {
+                        "text": "L'accès à notre communauté Discord est fourni en tant que service complémentaire. En rejoignant notre communauté Discord, vous acceptez de :",
+                        "en_original": "Access to our Discord community is provided as a complementary service. When joining our Discord community, you agree to:",
+                        "context": "Discord community introduction"
+                    },
+                    "rules": {
+                        "tos": {
+                            "text": "Respecter les conditions d'utilisation et les directives communautaires de Discord",
+                            "en_original": "Comply with Discord's Terms of Service and Community Guidelines",
+                            "context": "Discord rule about ToS compliance"
+                        },
+                        "age": {
+                            "text": "Avoir au moins 16 ans ou avoir le consentement parental",
+                            "en_original": "Be at least 16 years old or have parental consent",
+                            "context": "Discord rule about age requirement"
+                        },
+                        "respect": {
+                            "text": "Vous comporter respectueusement envers les autres membres de la communauté",
+                            "en_original": "Behave respectfully towards other community members",
+                            "context": "Discord rule about respectful behavior"
+                        },
+                        "content": {
+                            "text": "Ne pas partager de contenu inapproprié, illégal ou nuisible",
+                            "en_original": "Not share inappropriate, illegal, or harmful content",
+                            "context": "Discord rule about content restrictions"
+                        }
+                    }
+                }
+            }
+        },
+        "metadata": {
+            "default": {
+                "title": {
+                    "text": "OpenMates",
+                    "context": "Default title used across the website",
+                    "en_original": "OpenMates"
+                },
+                "description": {
+                    "text": "Vos collègues numériques personnalisés peuvent répondre à des questions complexes, accomplir vos tâches et utiliser des applications qui peuvent transformer votre vie quotidienne et votre travail.  Conçu en mettant l'accent sur la confidentialité et la sécurité.",
+                    "context": "Main description of OpenMates used in meta tags",
+                    "en_original": "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety."
+                },
+                "keywords": {
+                    "text": "IA,intelligence artificielle,collègues,numérique,assistant virtuel,automatisation,productivité,confidentialité,sécurité",
+                    "context": "Keywords for SEO, separated by commas",
+                    "en_original": "AI,artificial intelligence,team mates,digital,virtual assistant,automation,productivity,privacy,safety"
+                },
+                "author": {
+                    "text": "L'équipe OpenMates",
+                    "context": "Author meta tag",
+                    "en_original": "OpenMates Team"
+                },
+                "siteName": {
+                    "text": "OpenMates",
+                    "context": "Used in meta tags and titles",
+                    "en_original": "OpenMates"
+                }
+            },
+            "for_all_of_us": {
+                "title": {
+                    "text": "OpenMates | Des collègues numériques pour nous tous",
+                    "context": "Title for the 'For all of us' page",
+                    "en_original": "OpenMates | Digital team mates for all of us"
+                }
+            },
+            "for_developers": {
+                "title": {
+                    "text": "Pour les développeurs | OpenMates",
+                    "context": "Title for the developers page",
+                    "en_original": "For developers | OpenMates"
+                },
+                "description": {
+                    "text": "L'API la plus polyvalente pour les développeurs.  Pour créer des agents IA, ou simplement intégrer facilement un large éventail d'API existantes dans votre projet.",
+                    "context": "Description for the developers page",
+                    "en_original": "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project."
+                }
+            },
+            "webapp": {
+                "title": {
+                    "text": "App Web | OpenMates",
+                    "context": "Title for the web app page",
+                    "en_original": "Web App | OpenMates"
+                },
+                "description": {
+                    "text": "L'application web OpenMates vous permet d'interagir avec OpenMates via votre navigateur.",
+                    "context": "Description for the web app page",
+                    "en_original": "The OpenMates Web App allows you to interact with OpenMates via your browser."
+                }
+            },
+            "docs": {
+                "title": {
+                    "text": "Documentation | OpenMates",
+                    "context": "Title for the main documentation page",
+                    "en_original": "Docs | OpenMates"
+                },
+                "description": {
+                    "text": "Documentation complète pour OpenMates - de la documentation de l'API aux principes de conception, en passant par la feuille de route et plus encore.",
+                    "context": "Description for the main documentation page",
+                    "en_original": "Comprehensive documentation for OpenMates - from API documentation, to the Design Guidelines, Roadmap and more."
+                }
+            },
+            "docs_api": {
+                "title": {
+                    "text": "Documentation de l'API | OpenMates",
+                    "context": "Title for the API documentation page",
+                    "en_original": "API docs | OpenMates"
+                },
+                "description": {
+                    "text": "Documentation de l'API pour intégrer OpenMates dans vos applications. De la création de votre propre agent IA ou chatbot, à l'intégration facile d'un large éventail d'API existantes dans votre projet.",
+                    "context": "Description for the API documentation page",
+                    "en_original": "API documentation for integrating OpenMates into your applications. From building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project."
+                }
+            },
+            "docs_design_guidelines": {
+                "title": {
+                    "text": "Principes de conception | OpenMates",
+                    "context": "Title for the design guidelines page",
+                    "en_original": "Design guidelines | OpenMates"
+                },
+                "description": {
+                    "text": "Les principes de conception qui définissent la manière dont OpenMates est conçu et construit.",
+                    "context": "Description for the design guidelines page",
+                    "en_original": "The Design Guidelines that define how OpenMates is designed and built."
+                }
+            },
+            "docs_design_system": {
+                "title": {
+                    "text": "Système de conception | OpenMates",
+                    "context": "Title for the design system page",
+                    "en_original": "Design system | OpenMates"
+                },
+                "description": {
+                    "text": "Le système de conception qui montre tous les composants utilisés dans OpenMates.",
+                    "context": "Description for the design system page",
+                    "en_original": "The Design System that shows all the components that are used in OpenMates."
+                }
+            },
+            "docs_roadmap": {
+                "title": {
+                    "text": "Feuille de route | OpenMates",
+                    "context": "Title for the roadmap page",
+                    "en_original": "Roadmap | OpenMates"
+                },
+                "description": {
+                    "text": "Découvrez ce qui arrive ensuite pour OpenMates. Quel est l'état actuel du développement et quels sont les prochains jalons.",
+                    "context": "Description for the roadmap page",
+                    "en_original": "Learn what is coming next for OpenMates. What the current state of the development is, and what the next milestones are."
+                }
+            },
+            "docs_user_guide": {
+                "title": {
+                    "text": "Guide de l'utilisateur | OpenMates",
+                    "context": "Title for the user guide page",
+                    "en_original": "User guide | OpenMates"
+                },
+                "description": {
+                    "text": "Apprenez à utiliser OpenMates.",
+                    "context": "Description for the user guide page",
+                    "en_original": "Learn how to use OpenMates."
+                }
+            },
+            "legal_imprint": {
+                "title": {
+                    "text": "Mentions légales | OpenMates",
+                    "context": "Title for the imprint page",
+                    "en_original": "Imprint | OpenMates"
+                },
+                "description": {
+                    "text": "Découvrez qui est derrière OpenMates.",
+                    "context": "Description for the imprint page",
+                    "en_original": "Learn who is behind OpenMates."
+                }
+            },
+            "legal_privacy": {
+                "title": {
+                    "text": "Confidentialité | OpenMates",
+                    "context": "Title for the privacy policy page",
+                    "en_original": "Privacy | OpenMates"
+                },
+                "description": {
+                    "text": "Découvrez comment OpenMates traite vos données personnelles.",
+                    "context": "Description for the privacy policy page",
+                    "en_original": "Learn how OpenMates handles your personal data."
+                }
+            },
+            "legal_terms": {
+                "title": {
+                    "text": "CGU | OpenMates",
+                    "context": "Title for the terms and conditions page",
+                    "en_original": "Terms and Conditions | OpenMates"
+                },
+                "description": {
+                    "text": "Conditions d'utilisation d'OpenMates.",
+                    "context": "Description for the terms and conditions page",
+                    "en_original": "Terms of service for OpenMates."
+                }
+            }
+        }
+    }
+}

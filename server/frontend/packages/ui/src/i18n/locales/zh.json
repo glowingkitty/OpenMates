@@ -1,0 +1,1572 @@
+{
+    "digital_team_mates": {
+        "text": "数字团队伙伴",
+        "en_original": "Digital Team Mates",
+        "context": "Digital team mates that can help you with tasks. Wording that everyone should be able to grasp, not just tech people."
+    },
+    "team_mates": {
+        "text": "团队伙伴",
+        "en_original": "Team Mates",
+        "context": "Used behind the logo of various apps. Examples: 'Jobs Team Mates', 'Calendar Team Mates', 'Events Team Mates'"
+    },
+    "for_all_of_us": {
+        "text": "为了我们所有人",
+        "en_original": "For all of us.",
+        "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
+    },
+    "activity": {
+        "search": {
+            "text": "搜索",
+            "en_original": "Search",
+            "context": "Used in search input placeholder"
+        },
+        "filter": {
+            "text": "筛选",
+            "en_original": "Filter",
+            "context": "Button text for filtering options"
+        },
+        "close": {
+            "text": "关闭",
+            "en_original": "Close",
+            "context": "Modal close button"
+        }
+    },
+    "platforms": {
+        "via": {
+            "text": "通过",
+            "en_original": "via",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "web": {
+            "text": "网页",
+            "en_original": "Web",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "mattermost": {
+            "text": "Mattermost",
+            "en_original": "Mattermost",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "discord": {
+            "text": "Discord",
+            "en_original": "Discord",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        },
+        "and_more": {
+            "text": "及更多",
+            "en_original": "& more",
+            "context": "Used in '(Software is accessible) via Web, Mattermost, Discord & more'"
+        }
+    },
+    "discord": {
+        "join_server": {
+            "text": "加入服务器",
+            "en_original": "Join server",
+            "context": "Button text for joining Discord server"
+        }
+    },
+    "navigation": {
+        "for_all": {
+            "text": "为了我们所有人",
+            "en_original": "For all of us",
+            "context": "Main navigation item for general features"
+        },
+        "for_developers": {
+            "text": "面向开发者",
+            "en_original": "For Developers",
+            "context": "Main navigation item for developer features"
+        },
+        "docs": {
+            "text": "文档",
+            "en_original": "Docs",
+            "context": "Navigation item for documentation"
+        },
+        "chat": {
+            "text": "聊天",
+            "en_original": "Chat",
+            "context": "Navigation item for chat feature"
+        },
+        "projects": {
+            "text": "项目",
+            "en_original": "Projects",
+            "context": "Navigation item for projects section"
+        },
+        "workflows": {
+            "text": "工作流程",
+            "en_original": "Workflows",
+            "context": "Navigation item for workflow management"
+        }
+    },
+    "chat_examples": {
+        "career": {
+            "user_question": {
+                "text": "我对目前的工作不满意。 你有什么建议我可以朝哪个方向发展吗？",
+                "en_original": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+                "context": "Example question about career change"
+            },
+            "mate_response": {
+                "text": "当然！鉴于你提到你具有市场营销背景并喜欢讲故事，我们可以寻找能发挥这些技能的职位。\n\n为了更好地确定方向，你能告诉我：\n1. 你之前的工作中哪些方面让你最有成就感？",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "context": "AI response to career change question"
+            }
+        },
+        "events": {
+            "user_question": {
+                "text": "未来几天有什么活动？",
+                "en_original": "What events are happening the coming days?",
+                "context": "Example question about upcoming events"
+            },
+            "mate_response": {
+                "text": "未来几天有一些激动人心的活动！既有助您学习以获得更好职业发展的活动，也有更多社交活动。",
+                "en_original": "There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.",
+                "context": "AI response about upcoming events"
+            },
+            "events": {
+                "book_club": {
+                    "text": "书友会：阅读与讨论之夜",
+                    "en_original": "Book Lovers' Social: An Evening of Reading and Discussion",
+                    "context": "Event title for book club meeting"
+                },
+                "tech_talk": {
+                    "text": "技术讲座：人工智能在日常业务中的应用",
+                    "en_original": "TechTalk: AI in Everyday Business",
+                    "context": "Event title for tech talk"
+                },
+                "workshop": {
+                    "text": "研讨会：构建人工智能驱动的应用程序",
+                    "en_original": "Workshop: Building AI-Powered Applications",
+                    "context": "Event title for workshop"
+                }
+            },
+            "calendar": {
+                "today": {
+                    "text": "今天",
+                    "en_original": "Today",
+                    "context": "Calendar reference to current day"
+                },
+                "dec_15": {
+                    "text": "12月15日",
+                    "en_original": "Dec 15",
+                    "context": "Calendar date"
+                },
+                "dec_16": {
+                    "text": "12月16日",
+                    "en_original": "Dec 16",
+                    "context": "Calendar date"
+                }
+            }
+        },
+        "health": {
+            "user_question": {
+                "text": "下一个可预约的心脏病专家门诊是什么时候，并且不会与我的日历冲突？",
+                "en_original": "What is the next available cardiologist appointment, that doesn't collide with my calendar?",
+                "context": "Example question about doctor appointment"
+            },
+            "mate_initial": {
+                "text": "让我快速查看您的日历并搜索可用的医生预约。 我会在一分钟内回复您。",
+                "en_original": "Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.",
+                "context": "Initial AI response about checking calendar"
+            },
+            "mate_response": {
+                "text": "我能找到的最佳预约时间是明天上午 9:00。 与您当天晚些时候的产品发布会议不冲突。",
+                "en_original": "The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.",
+                "context": "AI response with found appointment"
+            },
+            "doctors": {
+                "van_hausen": {
+                    "text": "范豪森医生",
+                    "en_original": "Dr. Van Hausen",
+                    "context": "Doctor name"
+                },
+                "williams": {
+                    "text": "威廉姆斯医生",
+                    "en_original": "Dr. Williams",
+                    "context": "Doctor name"
+                },
+                "chen": {
+                    "text": "陈医生",
+                    "en_original": "Dr. Chen",
+                    "context": "Doctor name"
+                },
+                "specialty": {
+                    "text": "心脏病专家",
+                    "en_original": "Cardiologist",
+                    "context": "Medical specialty"
+                }
+            },
+            "calendar": {
+                "today": {
+                    "text": "今天",
+                    "en_original": "Today",
+                    "context": "Calendar reference to current day"
+                },
+                "wed": {
+                    "text": "周三，12月12日",
+                    "en_original": "Wed, Dec 12",
+                    "context": "Calendar date"
+                },
+                "thu": {
+                    "text": "周四，12月13日",
+                    "en_original": "Thu, Dec 13",
+                    "context": "Calendar date"
+                },
+                "fri": {
+                    "text": "周五，12月14日",
+                    "en_original": "Fri, Dec 14",
+                    "context": "Calendar date"
+                }
+            }
+        },
+        "processing": {
+            "career_insights": {
+                "text": "职业见解",
+                "en_original": "Career insights",
+                "context": "Title for career insights section"
+            },
+            "status": {
+                "loaded": {
+                    "text": "加载",
+                    "en_original": "Loaded",
+                    "context": "Status indicator for loading state"
+                },
+                "started": {
+                    "text": "开始",
+                    "en_original": "Started",
+                    "context": "Status indicator for started state"
+                },
+                "using": {
+                    "text": "使用",
+                    "en_original": "Using",
+                    "context": "Status indicator for in-use state"
+                },
+                "used": {
+                    "text": "已使用",
+                    "en_original": "Used",
+                    "context": "Status indicator for used state"
+                }
+            },
+            "details": {
+                "preferences": {
+                    "text": "偏好设置",
+                    "en_original": "preferences",
+                    "context": "Settings or preferences section"
+                },
+                "apps": {
+                    "text": "应用",
+                    "en_original": "apps",
+                    "context": "Plural form of application"
+                },
+                "app": {
+                    "text": "应用",
+                    "en_original": "app",
+                    "context": "Single application"
+                }
+            }
+        }
+    },
+    "waiting_list": {
+        "discord_members": {
+            "text": "我们的 Discord 成员将",
+            "en_original": "Members in our Discord will",
+            "context": "Part of waiting list message about Discord members"
+        },
+        "early_access": {
+            "text": "获得早期访问权限。",
+            "en_original": "get early access.",
+            "context": "Part of waiting list message about early access"
+        },
+        "first_invites": {
+            "text": "首批邀请将于 2025 年 1 月/2 月发出",
+            "en_original": "First invites in Jan/Feb 2025",
+            "context": "Timeline for first invites"
+        }
+    },
+    "highlight": {
+        "powered_by": {
+            "powered_by_leading": {
+                "text": "采用领先的",
+                "en_original": "powered by the leading",
+                "context": "Used in 'powered by the leading cloud & on-device AI models'"
+            },
+            "cloud_and_on_device_ai_models": {
+                "text": "云端和本地设备人工智能模型",
+                "en_original": "cloud & on-device AI models",
+                "context": "Used in 'powered by the leading cloud & on-device AI models'"
+            }
+        },
+        "sections": {
+            "ask": {
+                "heading": {
+                    "text": "提问",
+                    "en_original": "Ask",
+                    "context": "Section heading for Ask feature"
+                },
+                "main_heading_1": {
+                    "text": "你的个性化专家",
+                    "en_original": "Your personalized experts",
+                    "context": "In 'Your personalized experts for your questions.'"
+                },
+                "main_heading_2": {
+                    "text": "解答你的问题",
+                    "en_original": "for your questions",
+                    "context": "In 'Your personalized experts for your questions.'"
+                },
+                "paragraph": {
+                    "text": "例如：<br>根据你的兴趣<br>获得职业建议。",
+                    "en_original": "For example:<br>Get career advice<br>based on your interests.",
+                    "context": "Example text for Ask section"
+                }
+            },
+            "tasks": {
+                "heading": {
+                    "text": "任务",
+                    "en_original": "Tasks",
+                    "context": "Section heading for Tasks feature"
+                },
+                "main_heading_1": {
+                    "text": "让他们",
+                    "en_original": "Ask them to",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
+                },
+                "main_heading_2": {
+                    "text": "使用应用完成你的任务",
+                    "en_original": "fulfill your tasks",
+                    "context": "In 'Ask them to fulfill your tasks using apps.'"
+                },
+                "paragraph": {
+                    "text": "例如：<br>在 Doctolib 和 Jameda 上<br>查找不与你的日历冲突的<br>医生预约。",
+                    "en_original": "For example:<br>Find doctor appointments<br>that don't collide with your calendar<br>on Doctolib & Jameda.",
+                    "context": "Example text for Tasks section"
+                }
+            },
+            "apps": {
+                "heading": {
+                    "text": "应用",
+                    "en_original": "Apps",
+                    "context": "Section heading for Apps feature"
+                },
+                "main_heading_1": {
+                    "text": "众多应用",
+                    "en_original": "So many apps",
+                    "context": "In 'So many apps to transform your personal life & work.'"
+                },
+                "main_heading_2": {
+                    "text": "改变你的个人生活和工作。",
+                    "en_original": "to transform your<br>personal life & work.",
+                    "context": "In 'So many apps to transform your personal life & work.'"
+                },
+                "paragraph": {
+                    "text": "例如：<br>在 Meetup、Eventbrite 和 RA 上<br>查找活动。",
+                    "en_original": "For example:<br>Find events<br>on Meetup, Eventbrite & RA.",
+                    "context": "Example text for Apps section"
+                }
+            }
+        },
+        "api": {
+            "example_input": {
+                "text": "我对目前的工作不满意。 你有什么建议我可以朝哪个方向发展吗？",
+                "en_original": "I am unhappy in my current job. Any ideas in what direction I could go instead?",
+                "context": "Example API input for career guidance"
+            },
+            "example_output": {
+                "text": "当然！鉴于你提到你具有市场营销背景并喜欢讲故事，我们可以寻找能发挥这些技能的职位。\n\n为了更好地确定方向，你能告诉我：\n1. 你之前的工作中哪些方面让你最有成就感？",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "context": "Example API response for career guidance"
+            },
+            "search_input": {
+                "text": "人工智能，初学者",
+                "en_original": "AI, beginner",
+                "context": "Example search input for events API"
+            },
+            "search_output_title": {
+                "text": "人工智能、项目、资源和未来 - 一瞥未来",
+                "en_original": "AI, Projects, Resources, and the Future - A Glimpse into Tomorrow",
+                "context": "Example event title in API response"
+            }
+        },
+        "ui": {
+            "calendar": {
+                "text": "日历",
+                "en_original": "Calendar",
+                "context": "Calendar app name in the UI"
+            },
+            "health": {
+                "text": "健康",
+                "en_original": "Health",
+                "context": "Health app name in the UI"
+            },
+            "events": {
+                "text": "活动",
+                "en_original": "Events",
+                "context": "Used in 'Events | Search'"
+            },
+            "search": {
+                "text": "搜索",
+                "en_original": "Search",
+                "context": "Used in 'Events | Search'"
+            }
+        }
+    },
+    "login": {
+        "login": {
+            "text": "登录",
+            "en_original": "Login",
+            "context": "Login page title"
+        },
+        "to_chat_to_your": {
+            "text": "与您的",
+            "en_original": "To chat to your",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "digital_team_mates": {
+            "text": "数字团队伙伴聊天",
+            "en_original": "digital team mates",
+            "context": "'Login to chat to your digital team mates"
+        },
+        "not_signed_up_yet": {
+            "text": "还没注册？",
+            "en_original": "Not signed up yet?",
+            "context": "Asking the user if they are not signed up yet for the app"
+        },
+        "click_here_to_create_a_new_account": {
+            "text": "点击此处创建新帐户",
+            "en_original": "Click here to create a new account",
+            "context": "Call to action to create a new account for the app"
+        },
+        "email_placeholder": {
+            "text": "输入电子邮件地址",
+            "en_original": "Enter E-Mail address",
+            "context": "Placeholder text for email input field"
+        },
+        "password_placeholder": {
+            "text": "输入密码",
+            "en_original": "Enter password",
+            "context": "Placeholder text for password input field"
+        },
+        "check_your_2fa_app": {
+            "text": "查看您的双重身份验证应用",
+            "en_original": "Check your 2FA app",
+            "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "2fa_code_placeholder": {
+            "text": "输入 6 位一次性代码",
+            "en_original": "Enter 6-digit one-time code",
+            "context": "Placeholder text for 2FA code input field"
+        },
+        "enter_backup_code": {
+            "text": "输入备用密码",
+            "en_original": "Enter backup code",
+            "context": "Placeholder text for backup code input field"
+        },
+        "login_button": {
+            "text": "登录",
+            "en_original": "Login",
+            "context": "Button text for logging in"
+        },
+        "loading": {
+            "text": "正在加载...",
+            "en_original": "Loading...",
+            "context": "Text shown when checking authentication"
+        },
+        "error_message": {
+            "text": "登录失败。 您的凭据错误或您的帐户不存在。",
+            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+            "context": "Error message shown when login fails"
+        },
+        "forgot_password": {
+           "text": "忘记密码",
+           "en_original": "Forgot my password",
+           "context": "Starting process of resetting password"
+        }
+    },
+    "chat": {
+        "new_chat": {
+            "text": "新聊天",
+            "en_original": "New chat",
+            "context": "Button label for creating a new chat"
+        },
+        "share": {
+            "text": "分享聊天",
+            "en_original": "Share chat",
+            "context": "Button label for sharing a chat"
+        },
+        "start_audio_call": {
+            "text": "开始语音通话",
+            "en_original": "Start audio call",
+            "context": "Button label for starting an audio call"
+        },
+        "start_video_call": {
+            "text": "开始视频通话",
+            "en_original": "Start video call",
+            "context": "Button label for starting a video call"
+        },
+        "welcome": {
+            "hey": {
+                "text": "你好",
+                "en_original": "Hey",
+                "context": "Welcome greeting in chat"
+            },
+            "what_do_you_need_help_with": {
+                "text": "你需要什么帮助？",
+                "en_original": "What do you need help with?",
+                "context": "Help prompt message in chat"
+            }
+        }
+    },
+    "enter_message": {
+        "enter_your_message": {
+            "text": "输入您的消息",
+            "en_original": "Enter your message",
+            "context": "Placeholder text shown in empty message input field"
+        },
+        "click_to_enter_message": {
+            "text": "点击此处输入消息",
+            "en_original": "Click here to enter your message",
+            "context": "Placeholder text shown when message field is not focused"
+        },
+        "click_to_add_text": {
+            "text": "点击此处添加文本",
+            "en_original": "Click here to add text",
+            "context": "Prompt shown after attachments to add more text"
+        },
+        "send": {
+            "text": "发送",
+            "en_original": "Send",
+            "context": "Button text for sending a message"
+        },
+        "file_size_limits": {
+            "total_exceeded": {
+                "text": "总文件大小将超过 {size}MB 限制。 当前大小：{current}MB，尝试添加：{attempted}MB",
+                "en_original": "Total file size would exceed {size}MB limit. Current size: {current}MB, Attempted to add: {attempted}MB",
+                "context": "Error message shown when total file size limit is exceeded"
+            }
+        },
+        "record_audio": {
+            "slide_left_to_cancel": {
+                "text": "向左滑动取消",
+                "en_original": "Slide left to cancel",
+                "context": "Text shown when recording is in progress"
+            },
+            "release_to_finish": {
+                "text": "松开完成",
+                "en_original": "Release to finish",
+                "context": "Text shown when recording is in progress"
+            },
+            "press_and_hold_reminder": {
+                "text": "按住录音",
+                "en_original": "Press and hold to record",
+                "context": "Text shown when the user has only pressed the record button for less than 500ms"
+            }
+        },
+        "fullscreen": {
+            "enter_fullscreen": {
+                "text": "进入全屏",
+                "en_original": "Enter fullscreen",
+                "context": "Button text for entering fullscreen"
+            },
+            "exit_fullscreen": {
+                "text": "退出全屏",
+                "en_original": "Exit fullscreen",
+                "context": "Button text for exiting fullscreen"
+            }
+        },
+        "attachments": {
+            "take_photo": {
+                "text": "拍照",
+                "en_original": "Take photo",
+                "context": "Button text for taking a photo"
+            },
+            "attach_files": {
+                "text": "附加文件",
+                "en_original": "Attach files",
+                "context": "Button text for attaching files"
+            },
+            "record_audio": {
+                "text": "录制音频",
+                "en_original": "Record audio",
+                "context": "Button text for recording audio"
+            },
+            "share_location": {
+                "text": "分享位置",
+                "en_original": "Share location",
+                "context": "Button text for sharing location"
+            }
+        },
+        "location": {
+            "precise": {
+                "text": "精确",
+                "en_original": "Precise",
+                "context": "Precise location option"
+            },
+            "toggle_precise": {
+                "text": "切换精确度",
+                "en_original": "Toggle precise",
+                "context": "Button text for toggling precise location"
+            },
+            "close": {
+                "text": "关闭",
+                "en_original": "Close",
+                "context": "Button text for closing location selection"
+            },
+            "select": {
+                "text": "选择",
+                "en_original": "Select",
+                "context": "Button text for selecting location"
+            },
+            "get_location": {
+                "text": "获取位置",
+                "en_original": "Get location",
+                "context": "Button text for getting current location"
+            },
+            "current_location": {
+                "text": "当前位置",
+                "en_original": "Current location",
+                "context": "Text for current location"
+            },
+            "selected_location": {
+                "text": "已选位置",
+                "en_original": "Selected location",
+                "context": "Text for selected location"
+            },
+            "current_area": {
+                "text": "当前区域",
+                "en_original": "Current area",
+                "context": "Text for current area"
+            },
+            "selected_area": {
+                "text": "已选区域",
+                "en_original": "Selected area",
+                "context": "Text for selected area"
+            },
+            "search_results": {
+                "text": "搜索结果",
+                "en_original": "Search results",
+                "context": "Text for search results"
+            },
+            "close_search": {
+                "text": "关闭搜索",
+                "en_original": "Close search",
+                "context": "Text for closing search"
+            },
+            "search_placeholder": {
+                "text": "搜索位置...",
+                "en_original": "Search location...",
+                "context": "Placeholder text for search input"
+            },
+            "search_button": {
+                "text": "搜索",
+                "en_original": "Search",
+                "context": "Text for search button"
+            }
+        },
+        "press_and_hold_menu": {
+            "delete": {
+                "text": "删除",
+                "en_original": "Delete",
+                "context": "Menu option to delete an attachment"
+            },
+            "copy_link": {
+                "text": "复制链接",
+                "en_original": "Copy link",
+                "context": "Menu option to copy web link"
+            },
+            "download": {
+                "text": "下载",
+                "en_original": "Download",
+                "context": "Menu option to download an attachment"
+            },
+            "view": {
+                "text": "查看",
+                "en_original": "View",
+                "context": "Menu option to view attachment in full screen"
+            },
+            "copied_to_clipboard": {
+                "text": "已复制",
+                "en_original": "Copied to clipboard",
+                "context": "Message shown when a URL has been copied to clipboard"
+            }
+        }
+    },
+    "cameraview": {
+        "close": {
+            "text": "关闭相机",
+            "en_original": "Close camera",
+            "context": "Button text for closing camera view"
+        },
+        "stoprecording": {
+            "text": "停止录制",
+            "en_original": "Finish recording",
+            "context": "Button text for finishing video recording"
+        },
+        "startrecording": {
+            "text": "开始录制视频",
+            "en_original": "Record video",
+            "context": "Button text for starting video recording"
+        },
+        "takephoto": {
+            "text": "拍照",
+            "en_original": "Take photo",
+            "context": "Button text for taking a photo"
+        }
+    },
+    "settings": {
+        "settings": {
+            "text": "设置",
+            "en_original": "Settings",
+            "context": "Header text in settings menu"
+        },
+        "team": {
+            "text": "团队",
+            "en_original": "Team",
+            "context": "Team toggle and menu item"
+        },
+        "incognito": {
+            "text": "隐身模式",
+            "en_original": "Incognito",
+            "context": "Incognito mode toggle"
+        },
+        "guest": {
+            "text": "访客",
+            "en_original": "Guest",
+            "context": "Guest mode toggle"
+        },
+        "offline": {
+            "text": "离线",
+            "en_original": "Offline",
+            "context": "Offline mode toggle"
+        },
+        "user": {
+            "text": "用户",
+            "en_original": "User",
+            "context": "User settings menu item"
+        },
+        "usage": {
+            "text": "使用情况",
+            "en_original": "Usage",
+            "context": "Usage statistics menu item"
+        },
+        "billing": {
+            "text": "账单",
+            "en_original": "Billing",
+            "context": "Billing settings menu item"
+        },
+        "apps": {
+            "text": "应用",
+            "en_original": "Apps",
+            "context": "Apps settings menu item"
+        },
+        "mates": {
+            "text": "伙伴",
+            "en_original": "Mates",
+            "context": "Mates settings menu item"
+        },
+        "messengers": {
+            "text": "通讯工具",
+            "en_original": "Messengers",
+            "context": "Messengers settings menu item"
+        },
+        "developers": {
+            "text": "开发者",
+            "en_original": "Developers",
+            "context": "Developers settings menu item"
+        },
+        "interface": {
+            "text": "界面",
+            "en_original": "Interface",
+            "context": "Interface settings menu item"
+        },
+        "logout": {
+            "text": "退出登录",
+            "en_original": "Logout",
+            "context": "Logout menu item"
+        },
+        "docs": {
+            "text": "文档",
+            "en_original": "Docs",
+            "context": "Documentation section header"
+        },
+        "user_guide": {
+            "text": "用户指南",
+            "en_original": "User guide",
+            "context": "User guide documentation link"
+        },
+        "api_docs": {
+            "text": "API 文档",
+            "en_original": "API docs",
+            "context": "API documentation link"
+        },
+        "contact": {
+            "text": "联系方式",
+            "en_original": "Contact",
+            "context": "Contact section header"
+        },
+        "discord": {
+            "text": "Discord",
+            "en_original": "Discord",
+            "context": "Discord contact link"
+        },
+        "email": {
+            "text": "电子邮件",
+            "en_original": "Email",
+            "context": "Email contact link"
+        },
+        "legal": {
+            "text": "法律声明",
+            "en_original": "Legal",
+            "context": "Legal section header"
+        },
+        "imprint": {
+            "text": "版本说明",
+            "en_original": "Imprint",
+            "context": "Imprint legal link"
+        },
+        "privacy": {
+            "text": "隐私政策",
+            "en_original": "Privacy",
+            "context": "Privacy policy link"
+        },
+        "terms_and_conditions": {
+            "text": "条款和条件",
+            "en_original": "Terms and conditions",
+            "context": "Terms and conditions link"
+        },
+         "credits": {
+            "text": "积分",
+            "en_original": "credits",
+            "context": "User credits amount"
+        }
+    },
+    "design_guidelines": {
+        "section_title": {
+            "text": "设计准则",
+            "en_original": "Design Guidelines",
+            "context": "Title of the design guidelines section"
+        },
+        "privacy": {
+            "headline": {
+                "text": "您的隐私至关重要",
+                "en_original": "Your privacy matters",
+                "context": "Main headline for privacy section"
+            },
+            "text": {
+                "text": "在当今动荡的世界中，不惜一切代价追求利润的公司经常滥用用户数据，安全措施不足的公司经常遭到黑客攻击，其用户的数据落入不良行为者手中，我们不能总是依靠政府来保护其公民的权利和福祉，因此，做出保护您隐私的决定变得越来越重要。",
+                "en_original": "In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.",
+                "context": "Main text explaining privacy importance"
+            },
+            "subtext": {
+                "text": "因此，\nOpenMates 的设计\n注重隐私。",
+                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "context": "Conclusion for privacy section"
+            },
+            "anonymization": {
+                "text": "匿名化",
+                "en_original": "Anonymization",
+                "context": "Privacy feature - anonymization"
+            },
+            "local_processing": {
+                "text": "优先本地处理",
+                "en_original": "Local processing first",
+                "context": "Privacy feature - local processing"
+            },
+            "self_hosting": {
+                "text": "自托管选项",
+                "en_original": "Self hosting option",
+                "context": "Privacy feature - self hosting"
+            }
+        },
+        "maximum_good": {
+            "headline_1": {
+                "text": "最大化善意",
+                "en_original": "Maximum good",
+                "context": "Used in 'Maximum good, not maximum greed.'"
+            },
+            "headline_2": {
+                "text": "而非最大化贪婪。",
+                "en_original": "not maximum greed.",
+                "context": "Used in 'Maximum good, not maximum greed.'"
+            },
+            "text": {
+                "text": "近年来，不惜一切代价追求利润的科技垄断企业一再将贪婪置于用户和地球的利益之上，忽视了这些决定造成的负面后果和破坏。 我们不能再这样继续下去了。",
+                "en_original": "Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.",
+                "context": "Main text explaining maximum good philosophy"
+            },
+            "subtext": {
+                "text": "因此，\nOpenMates 的设计\n着重于最大化人工智能的积极影响。",
+                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "context": "Conclusion for maximum good section"
+            },
+            "open_source": {
+                "text": "开源",
+                "en_original": "Open Source",
+                "context": "Maximum good feature - open source"
+            },
+            "provider_independent": {
+                "text": "独立于供应商",
+                "en_original": "Provider independent",
+                "context": "Maximum good feature - provider independence"
+            },
+            "chat_anywhere": {
+                "text": "随时随地聊天",
+                "en_original": "Chat anywhere",
+                "context": "Maximum good feature - universal chat"
+            }
+        }
+    },
+    "community": {
+        "heading": {
+            "text": "社区",
+            "en_original": "Community",
+            "context": "Section heading for community section"
+        },
+        "join_development_1": {
+            "text": "参与",
+            "en_original": "Join",
+            "context": "Used in 'Join the development'"
+        },
+        "join_development_2": {
+            "text": "开发",
+            "en_original": "the development",
+            "context": "Used in 'Join the development'"
+        },
+        "description": {
+            "text": "OpenMates 是一个社区项目。 从软件开发人员、设计师，到对人工智能如何在工作和日常生活中帮助他们感到兴奋的用户——每个人都可以做出有价值的贡献。",
+            "en_original": "OpenMates is a community effort. From software developers, to designers, to users who are just excited about how AI can help them at work and in everyday life - everyone can contribute in valuable ways.",
+            "context": "Main description of the community and contribution opportunities"
+        },
+        "join_discord": {
+            "text": "欲了解更多信息，请加入我们的 Discord。",
+            "en_original": "For more infos, join us on Discord.",
+            "context": "Call to action for joining Discord community"
+        }
+    },
+    "footer": {
+        "language_selector": {
+            "label": {
+                "text": "选择语言",
+                "en_original": "Select language",
+                "context": "Label for language selector"
+            }
+        },
+        "tagline": {
+            "line1": {
+                "text": "我们的世界需要改变。",
+                "en_original": "Our world needs change.",
+                "context": "First line of footer tagline"
+            },
+            "line2": {
+                "text": "而改变需要行动。",
+                "en_original": "And change requires action.",
+                "context": "Second line of footer tagline"
+            },
+            "line3": {
+                "text": "所以，让我们行动起来。",
+                "en_original": "So, let us take action.",
+                "context": "Third line of footer tagline"
+            }
+        },
+        "made_in_eu": {
+            "text": "在欧盟制造",
+            "en_original": "Made in the EU",
+            "context": "Footer text indicating EU origin"
+        },
+        "sections": {
+            "website": {
+                "text": "网站",
+                "en_original": "Website",
+                "context": "Footer section title for website links"
+            },
+            "for_everyone": {
+                "text": "面向所有人",
+                "en_original": "For all of us",
+                "context": "Footer link text for general audience section"
+            },
+            "for_developers": {
+                "text": "面向开发者",
+                "en_original": "For developers",
+                "context": "Footer link text for developer section"
+            },
+            "webapp": {
+                "text": "Web 应用",
+                "en_original": "Web App",
+                "context": "Footer link text for web app section"
+            },
+            "docs": {
+                "text": "文档",
+                "en_original": "Docs",
+                "context": "Footer section title for documentation"
+            },
+            "user_guide": {
+                "text": "用户指南",
+                "en_original": "User guide",
+                "context": "Footer link text for user guide"
+            },
+            "api_docs": {
+                "text": "API 文档",
+                "en_original": "API docs",
+                "context": "Footer link text for API documentation"
+            },
+            "roadmap": {
+                "text": "路线图",
+                "en_original": "Roadmap",
+                "context": "Footer link text for roadmap"
+            },
+            "design_guidelines": {
+                "text": "设计准则",
+                "en_original": "Design guidelines",
+                "context": "Footer link text for design guidelines"
+            },
+            "legal": {
+                "text": "法律声明",
+                "en_original": "Legal",
+                "context": "Legal section header"
+            },
+            "contact": {
+                "text": "联系方式",
+                "en_original": "Contact",
+                "context": "Contact section header"
+            },
+            "imprint": {
+                "text": "版本说明",
+                "en_original": "Imprint",
+                "context": "Legal imprint link"
+            },
+            "privacy": {
+                "text": "隐私政策",
+                "en_original": "Privacy",
+                "context": "Privacy policy link"
+            },
+            "terms_and_conditions": {
+                "text": "条款和条件",
+                "en_original": "Terms and conditions",
+                "context": "Terms and conditions link"
+            },
+            "discord": {
+                "text": "Discord",
+                "en_original": "Discord",
+                "context": "Discord contact link"
+            },
+            "email": {
+                "text": "电子邮件",
+                "en_original": "Email",
+                "context": "Email contact link"
+            }
+        }
+    },
+    "legal": {
+        "imprint": {
+            "title": {
+                "text": "版本说明",
+                "en_original": "Legal Notice (Imprint)",
+                "context": "Title of the legal imprint page"
+            },
+            "information_tmg": {
+                "text": "根据 § 5 TMG 的信息",
+                "en_original": "Information according to § 5 TMG",
+                "context": "Legal information section header"
+            },
+            "contact": {
+                "text": "联系方式",
+                "en_original": "Contact",
+                "context": "Contact section header in imprint"
+            },
+            "email": {
+                "text": "电子邮件",
+                "en_original": "Email",
+                "context": "Email label in contact section"
+            }
+        },
+        "privacy": {
+            "title": {
+                "text": "隐私政策",
+                "en_original": "Privacy Policy",
+                "context": "Title of privacy policy page"
+            },
+            "last_updated": {
+                "text": "最后更新",
+                "en_original": "Last Updated",
+                "context": "Last update date of privacy policy"
+            },
+            "data_protection": {
+                "heading": {
+                    "text": "1. 数据保护概述",
+                    "en_original": "1. Data Protection Overview",
+                    "context": "Section heading for data protection overview"
+                },
+                "overview": {
+                    "text": "本隐私政策解释了当您使用我们的网站时，您的数据会发生什么。 我们致力于数据处理的透明度。",
+                    "en_original": "This privacy policy explains what happens to your data when you use our website. We are committed to transparency regarding data handling.",
+                    "context": "Overview of privacy policy purpose"
+                },
+                "current_state": {
+                    "text": "我们目前不直接通过本网站收集、存储或处理任何个人数据。 本网站通过 Vercel 托管，您与本网站的交互受 Vercel 隐私惯例的约束。",
+                    "en_original": "We currently do not collect, store, or process any personal data directly through this website. The website is hosted via Vercel, and your interaction with this site is subject to Vercel's privacy practices.",
+                    "context": "Current state of data collection"
+                }
+            },
+            "vercel_hosting": {
+                "heading": {
+                    "text": "2. Vercel 托管",
+                    "en_original": "2. Vercel Hosting",
+                    "context": "Section heading for Vercel hosting information"
+                },
+                "description": {
+                    "text": "本网站使用 Vercel 的平台托管。 当您访问本网站时，您的请求将由 Vercel 的服务器处理。 Vercel 可能会收集技术信息，包括：",
+                    "en_original": "This website is hosted using Vercel's platform. When you visit this website, your request is processed by Vercel's servers. Vercel may collect technical information including:",
+                    "context": "Description of Vercel hosting"
+                },
+                "data_points": {
+                    "ip": {
+                        "text": "IP 地址",
+                        "en_original": "IP addresses",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "browser": {
+                        "text": "浏览器类型和版本",
+                        "en_original": "Browser type and version",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "logs": {
+                        "text": "基本访问日志",
+                        "en_original": "Basic access logs",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "performance": {
+                        "text": "性能数据",
+                        "en_original": "Performance data",
+                        "context": "Data point collected by Vercel"
+                    },
+                    "server_logs": {
+                        "text": "其他标准服务器日志",
+                        "en_original": "Other standard server logs",
+                        "context": "Data point collected by Vercel"
+                    }
+                },
+                "more_info": {
+                    "text": "有关 Vercel 数据惯例的更多信息，请参阅 Vercel 隐私政策。",
+                    "en_original": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
+                    "context": "Reference to Vercel's privacy policy"
+                },
+                "privacy_policy_link": {
+                    "text": "Vercel 隐私政策",
+                    "en_original": "Vercel Privacy Policy",
+                    "context": "Link text for Vercel's privacy policy"
+                }
+            },
+            "discord_integration": {
+                "heading": {
+                    "text": "3. Discord 集成",
+                    "en_original": "3. Discord Integration",
+                    "context": "Section heading for Discord integration"
+                },
+                "description": {
+                    "text": "如果您选择通过本网站提供的链接加入我们的 Discord 社区，请注意，Discord 将根据其隐私政策收集和处理您的数据。 这包括：",
+                    "en_original": "If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes:",
+                    "context": "Description of Discord data collection"
+                },
+                "data_points": {
+                    "account": {
+                        "text": "帐户信息",
+                        "en_original": "Account information",
+                        "context": "Data point collected by Discord"
+                    },
+                    "usage": {
+                        "text": "使用数据",
+                        "en_original": "Usage data",
+                        "context": "Data point collected by Discord"
+                    },
+                    "communication": {
+                        "text": "通信内容",
+                        "en_original": "Communication content",
+                        "context": "Data point collected by Discord"
+                    },
+                    "other": {
+                        "text": "Discord 隐私政策中概述的其他信息",
+                        "en_original": "Other information as outlined in Discord's privacy policy",
+                        "context": "Reference to additional Discord data collection"
+                    }
+                },
+                "admin_access": {
+                    "text": "作为 Discord 服务器管理员，我们可以访问我们 Discord 社区内共享的所有公共通信、成员列表和其他信息。 但是，此信息由 Discord 托管和主要处理。 我们不会在 Discord 平台之外提取、存储或处理此数据。 有关 Discord 如何处理您的数据的更多信息，请查看 Discord 的隐私政策。",
+                    "en_original": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
+                    "context": "Description of admin access to Discord data"
+                },
+                "privacy_policy_link": {
+                    "text": "Discord 隐私政策",
+                    "en_original": "Discord Privacy Policy",
+                    "context": "Link text for Discord's privacy policy"
+                }
+            },
+            "contact": {
+                "heading": {
+                    "text": "4. 联系信息",
+                    "en_original": "4. Contact Information",
+                    "context": "Section heading for contact information"
+                },
+                "questions": {
+                    "text": "有关数据保护的问题：",
+                    "en_original": "For questions about data protection:",
+                    "context": "Prompt for data protection questions"
+                },
+                "email": {
+                    "text": "电子邮件",
+                    "en_original": "Email",
+                    "context": "Email contact label"
+                }
+            }
+        },
+        "terms": {
+            "title": {
+                "text": "条款和条件",
+                "en_original": "Terms and Conditions",
+                "context": "Title of terms and conditions page"
+            },
+            "last_updated": {
+                "text": "最后更新",
+                "en_original": "Last Updated",
+                "context": "Last update date label"
+            },
+            "agreement": {
+                "heading": {
+                    "text": "同意条款",
+                    "en_original": "Agreement to Terms",
+                    "context": "Section heading for agreement"
+                },
+                "description": {
+                    "text": "访问和使用 OpenMates 网站（“网站”），即表示您接受并同意受这些条款和条件的约束。 如果您不同意这些条款的任何部分，则不得访问本网站。",
+                    "en_original": "By accessing and using the OpenMates website (\"Website\"), you accept and agree to be bound by these Terms and Conditions. If you disagree with any part of these terms, you may not access the Website.",
+                    "context": "Agreement explanation"
+                }
+            },
+            "about": {
+                "heading": {
+                    "text": "关于 OpenMates",
+                    "en_original": "About OpenMates",
+                    "context": "Section heading about OpenMates"
+                },
+                "description": {
+                    "text": "OpenMates 目前是一个处于初始开发阶段的闭源软件项目。 这种临时的闭源状态旨在确保早期开发和 beta 测试阶段的安全性和稳定性。 该项目将在完成初始 beta 测试和安全审查后过渡到开源。 本网站作为有关 OpenMates 项目及其开发进度的信息平台。",
+                    "en_original": "OpenMates is currently a closed-source software project during its initial development phase. This temporary closed-source status is maintained to ensure security and stability during the early development and beta testing phases. The project will transition to open-source after the completion of initial beta testing and security reviews. This Website serves as an informational platform about the OpenMates project and its development progress.",
+                    "context": "About section text"
+                }
+            },
+            "intellectual_property": {
+                "heading": {
+                    "text": "知识产权",
+                    "en_original": "Intellectual Property Rights",
+                    "context": "Section heading for IP rights"
+                },
+                "description": {
+                    "text": "OpenMates 名称、徽标和本网站上的所有相关内容均为网站所有者（参见版本说明）的知识产权，并受适用的版权和商标法保护。 一旦项目过渡到开源，将通过适当的开源文档单独提供具体的许可条款。",
+                    "en_original": "The OpenMates name, logo, and all related content on this Website are the intellectual property of the website owner (see Imprint) and are protected by applicable copyright and trademark laws. Once the project transitions to open-source, specific licensing terms will be provided separately through appropriate open-source documentation.",
+                    "context": "Intellectual property rights explanation"
+                }
+            },
+            "disclaimer": {
+                "heading": {
+                    "text": "免责声明",
+                    "en_original": "Disclaimer",
+                    "context": "Section heading for disclaimer"
+                },
+                "description": {
+                    "text": "本网站上的材料和信息“按原样”提供，不提供任何形式的保证。 我们不保证本网站上任何信息的准确性、完整性或有用性。 您对此类信息的任何依赖均由您自行承担风险。",
+                    "en_original": "The materials and information on this Website are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information on this Website. Any reliance you place on such information is strictly at your own risk.",
+                    "context": "Disclaimer explanation"
+                }
+            },
+            "limitations": {
+                "heading": {
+                    "text": "责任限制",
+                    "en_original": "Limitations",
+                    "context": "Section heading for limitations"
+                },
+                "description": {
+                    "text": "在法律允许的最大范围内，网站所有者不对因以下原因引起或以任何方式与之相关的任何直接、间接、偶然、后果性或特殊损害承担责任：",
+                    "en_original": "To the fullest extent permitted by law, the website owner shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in any way connected with:",
+                    "context": "Limitations introduction"
+                },
+                "list": {
+                    "website_use": {
+                        "text": "使用或无法使用本网站",
+                        "en_original": "The use or inability to use this Website",
+                        "context": "Limitation regarding website use"
+                    },
+                    "information": {
+                        "text": "本网站上提供的信息",
+                        "en_original": "The information provided on this Website",
+                        "context": "Limitation regarding information"
+                    },
+                    "technical": {
+                        "text": "任何技术问题或中断",
+                        "en_original": "Any technical issues or interruptions",
+                        "context": "Limitation regarding technical issues"
+                    }
+                }
+            },
+            "governing_law": {
+                "heading": {
+                    "text": "适用法律",
+                    "en_original": "Governing Law",
+                    "context": "Section heading for governing law"
+                },
+                "explanation": {
+                    "text": "这些条款和条件受德意志联邦共和国法律管辖并据其解释。 有关负责管辖权和联系信息的详细信息，请参阅我们的版本说明。",
+                    "en_original": "These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our Imprint.",
+                    "context": "Governing law explanation"
+                }
+            },
+            "contact": {
+                "heading": {
+                    "text": "联系信息",
+                    "en_original": "Contact Information",
+                    "context": "Section heading for contact information"
+                },
+                "intro": {
+                    "text": "有关这些条款的问题：",
+                    "en_original": "For questions about these Terms:",
+                    "context": "Contact section introduction"
+                },
+                "email_label": {
+                    "text": "电子邮件",
+                    "en_original": "Email",
+                    "context": "Email label"
+                }
+            },
+            "use_license": {
+                "heading": {
+                    "text": "使用许可",
+                    "en_original": "Use License",
+                    "context": "Section heading for use license"
+                },
+                "description": {
+                    "text": "仅允许出于个人、非商业信息目的临时访问我们网站上的材料。 这是许可的授予，而不是所有权的转让，根据此许可，您不得：",
+                    "en_original": "Permission is granted to temporarily access the materials on our Website for personal, non-commercial informational purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:",
+                    "context": "License terms explanation"
+                },
+                "restrictions": {
+                    "modify": {
+                        "text": "修改或复制材料",
+                        "en_original": "Modify or copy the materials",
+                        "context": "License restriction about modification"
+                    },
+                    "commercial": {
+                        "text": "将材料用于任何商业目的",
+                        "en_original": "Use the materials for any commercial purpose",
+                        "context": "License restriction about commercial use"
+                    },
+                    "reverse_engineer": {
+                        "text": "尝试对网站上包含的任何软件进行逆向工程",
+                        "en_original": "Attempt to reverse engineer any software contained on the Website",
+                        "context": "License restriction about reverse engineering"
+                    },
+                    "copyright": {
+                        "text": "从材料中删除任何版权或其他所有权标记",
+                        "en_original": "Remove any copyright or other proprietary notations from the materials",
+                        "context": "License restriction about copyright removal"
+                    }
+                }
+            },
+            "discord": {
+                "heading": {
+                    "text": "Discord 社区",
+                    "en_original": "Discord Community",
+                    "context": "Section heading for Discord community"
+                },
+                "description": {
+                    "text": "访问我们的 Discord 社区是作为一项补充服务提供的。 加入我们的 Discord 社区，即表示您同意：",
+                    "en_original": "Access to our Discord community is provided as a complementary service. When joining our Discord community, you agree to:",
+                    "context": "Discord community introduction"
+                },
+                "rules": {
+                    "tos": {
+                        "text": "遵守 Discord 的服务条款和社区准则",
+                        "en_original": "Comply with Discord's Terms of Service and Community Guidelines",
+                        "context": "Discord rule about ToS compliance"
+                    },
+                    "age": {
+                        "text": "年满 16 岁或获得父母同意",
+                        "en_original": "Be at least 16 years old or have parental consent",
+                        "context": "Discord rule about age requirement"
+                    },
+                    "respect": {
+                        "text": "尊重其他社区成员",
+                        "en_original": "Behave respectfully towards other community members",
+                        "context": "Discord rule about respectful behavior"
+                    },
+                    "content": {
+                        "text": "不分享不适当、非法或有害的内容",
+                        "en_original": "Not share inappropriate, illegal, or harmful content",
+                        "context": "Discord rule about content restrictions"
+                    }
+                }
+            }
+        }
+    },
+    "metadata": {
+        "default": {
+            "title": {
+                "text": "OpenMates",
+                "context": "Default title used across the website",
+                "en_original": "OpenMates"
+            },
+            "description": {
+                "text": "您的个性化数字团队伙伴可以回答复杂的问题、完成您的任务并使用可以改变您的日常生活和工作的应用程序。 构建时注重隐私和安全。",
+                "context": "Main description of OpenMates used in meta tags",
+                "en_original": "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety."
+            },
+            "keywords": {
+                "text": "人工智能,AI,团队伙伴,数字,虚拟助手,自动化,生产力,隐私,安全",
+                "context": "Keywords for SEO, separated by commas",
+                "en_original": "AI,artificial intelligence,team mates,digital,virtual assistant,automation,productivity,privacy,safety"
+            },
+            "author": {
+                "text": "OpenMates 团队",
+                "context": "Author meta tag",
+                "en_original": "OpenMates Team"
+            },
+            "siteName": {
+                "text": "OpenMates",
+                "context": "Used in meta tags and titles",
+                "en_original": "OpenMates"
+            }
+        },
+        "for_all_of_us": {
+            "title": {
+                "text": "OpenMates | 面向所有人的数字团队伙伴",
+                "context": "Title for the 'For all of us' page",
+                "en_original": "OpenMates | Digital team mates for all of us"
+            }
+        },
+        "for_developers": {
+            "title": {
+                "text": "面向开发者 | OpenMates",
+                "context": "Title for the developers page",
+                "en_original": "For developers | OpenMates"
+            },
+            "description": {
+                "text": "面向开发者的最通用的 API。 用于构建 AI 代理，或轻松地将各种现有 API 集成到您的项目中。",
+                "context": "Description for the developers page",
+                "en_original": "The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project."
+            }
+        },
+        "webapp": {
+            "title": {
+                "text": "Web 应用 | OpenMates",
+                "context": "Title for the web app page",
+                "en_original": "Web App | OpenMates"
+            },
+            "description": {
+                "text": "OpenMates Web 应用程序允许您通过浏览器与 OpenMates 交互。",
+                "context": "Description for the web app page",
+                "en_original": "The OpenMates Web App allows you to interact with OpenMates via your browser."
+            }
+        },
+        "docs": {
+            "title": {
+                "text": "文档 | OpenMates",
+                "context": "Title for the main documentation page",
+                "en_original": "Docs | OpenMates"
+            },
+            "description": {
+                "text": "OpenMates 的综合文档 - 从 API 文档到设计准则、路线图等。",
+                "context": "Description for the main documentation page",
+                "en_original": "Comprehensive documentation for OpenMates - from API documentation, to the Design Guidelines, Roadmap and more."
+            }
+        },
+        "docs_api": {
+            "title": {
+                "text": "API 文档 | OpenMates",
+                "context": "Title for the API documentation page",
+                "en_original": "API docs | OpenMates"
+            },
+            "description": {
+                "text": "用于将 OpenMates 集成到您的应用程序中的 API 文档。 从构建您自己的 AI 代理或聊天机器人，到轻松地将各种现有 API 集成到您的项目中。",
+                "context": "Description for the API documentation page",
+                "en_original": "API documentation for integrating OpenMates into your applications. From building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project."
+            }
+        },
+        "docs_design_guidelines": {
+            "title": {
+                "text": "设计准则 | OpenMates",
+                "context": "Title for the design guidelines page",
+                "en_original": "Design guidelines | OpenMates"
+            },
+            "description": {
+                "text": "定义 OpenMates 如何设计和构建的设计准则。",
+                "context": "Description for the design guidelines page",
+                "en_original": "The Design Guidelines that define how OpenMates is designed and built."
+            }
+        },
+        "docs_design_system": {
+            "title": {
+                "text": "设计系统 | OpenMates",
+                "context": "Title for the design system page",
+                "en_original": "Design system | OpenMates"
+            },
+            "description": {
+                "text": "显示 OpenMates 中使用的所有组件的设计系统。",
+                "context": "Description for the design system page",
+                "en_original": "The Design System that shows all the components that are used in OpenMates."
+            }
+        },
+        "docs_roadmap": {
+            "title": {
+                "text": "路线图 | OpenMates",
+                "context": "Title for the roadmap page",
+                "en_original": "Roadmap | OpenMates"
+            },
+            "description": {
+                "text": "了解 OpenMates 的下一步计划。 目前的开发状态是什么，以及接下来的里程碑是什么。",
+                "context": "Description for the roadmap page",
+                "en_original": "Learn what is coming next for OpenMates. What the current state of the development is, and what the next milestones are."
+            }
+        },
+        "docs_user_guide": {
+            "title": {
+                "text": "用户指南 | OpenMates",
+                "context": "Title for the user guide page",
+                "en_original": "User guide | OpenMates"
+            },
+            "description": {
+                "text": "了解如何使用 OpenMates。",
+                "context": "Description for the user guide page",
+                "en_original": "Learn how to use OpenMates."
+            }
+        },
+        "legal_imprint": {
+            "title": {
+                "text": "版本说明 | OpenMates",
+                "context": "Title for the imprint page",
+                "en_original": "Imprint | OpenMates"
+            },
+            "description": {
+                "text": "了解 OpenMates 背后的人。",
+                "context": "Description for the imprint page",
+                "en_original": "Learn who is behind OpenMates."
+            }
+        },
+        "legal_privacy": {
+            "title": {
+                "text": "隐私政策 | OpenMates",
+                "context": "Title for the privacy policy page",
+                "en_original": "Privacy | OpenMates"
+            },
+            "description": {
+                "text": "了解 OpenMates 如何处理您的个人数据。",
+                "context": "Description for the privacy policy page",
+                "en_original": "Learn how OpenMates handles your personal data."
+            }
+        },
+        "legal_terms": {
+            "title": {
+                "text": "条款和条件 | OpenMates",
+                "context": "Title for the terms and conditions page",
+                "en_original": "Terms and Conditions | OpenMates"
+            },
+            "description": {
+                "text": "OpenMates 的服务条款。",
+                "context": "Description for the terms and conditions page",
+                "en_original": "Terms of service for OpenMates."
+            }
+        }
+    }
+}
