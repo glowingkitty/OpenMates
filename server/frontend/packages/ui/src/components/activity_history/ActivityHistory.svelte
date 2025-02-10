@@ -2,7 +2,6 @@
     import { onMount, createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
-    import { formatDistanceToNow } from 'date-fns';
     import { isMenuOpen } from '../../stores/menuState';
     import { isAuthenticated } from '../../stores/authState';
     import { chatDB } from '../../services/db';
@@ -59,6 +58,11 @@
     function handleChatClick(chat: ChatType) {
         console.log("[ActivityHistory] Chat clicked:", chat.id);
         dispatch('chatSelected', { chat });
+        
+        // Only close the activity history on mobile screens
+        if (window.innerWidth < 730) {
+            handleClose();
+        }
     }
 
     // Add keydown event handler
