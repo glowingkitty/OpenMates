@@ -9,6 +9,7 @@
     let showTooltip = false;
     let timeoutId: ReturnType<typeof setTimeout>;
     let position = { x: 0, y: 0 };
+    let isAbove = true; // tracks if tooltip is above or below element
     
     // Constants
     const TOOLTIP_DELAY = 1000; // 1 second delay before showing tooltip
@@ -23,7 +24,7 @@
             const scrollY = window.scrollY;
             const scrollX = window.scrollX;
             
-            // Calculate the initial position (above the element)
+            // Initial position (trying above first)
             let newPosition = {
                 x: rect.left + (rect.width / 2) + scrollX,
                 y: rect.top - TOOLTIP_OFFSET + scrollY
@@ -31,8 +32,6 @@
             
             showTooltip = true;
             
-            // We need to wait for the tooltip to be rendered to get its height.
-            // Use requestAnimationFrame to ensure the tooltip is rendered before measuring.
             requestAnimationFrame(() => {
                 if (tooltip) {
                     const tooltipRect = tooltip.getBoundingClientRect();
@@ -41,15 +40,13 @@
                     if (newPosition.y - tooltipRect.height < 0) {
                         // Not enough space above, position below the element
                         newPosition.y = rect.bottom + TOOLTIP_OFFSET + scrollY;
-                        //Adjust the arrow position
+                        isAbove = false;
                         tooltip.querySelector('.tooltip-arrow')?.setAttribute('style', 'top: -4px; border-top: none; border-bottom: 5px solid var(--color-grey-0);');
-                        
                     } else {
-                        // Reset the arrow position in case it was previously adjusted
+                        isAbove = true;
                         tooltip.querySelector('.tooltip-arrow')?.setAttribute('style', '');
                     }
                 }
-                // Apply the calculated (and potentially adjusted) position
                 position = newPosition;
             });
             
@@ -87,6 +84,8 @@
     <div
         bind:this={tooltip}
         class="tooltip"
+        class:above={isAbove}
+        class:below={!isAbove}
         style="left: {position.x}px; top: {position.y}px"
         role="tooltip"
     >
@@ -98,7 +97,6 @@
 <style>
     .tooltip {
         position: fixed;
-        transform: translateX(-50%) translateY(-100%);
         background-color: var(--color-grey-0);
         color: var(--color-font-inverse);
         padding: 8px 12px;
@@ -110,11 +108,21 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         max-width: 300px;
         text-align: center;
+        /* Remove the default transform and handle it in the position classes */
+        transform: translateX(-50%);
+    }
+
+    /* Position-specific transforms */
+    .tooltip.above {
+        transform: translateX(-50%) translateY(-100%);
+    }
+
+    .tooltip.below {
+        transform: translateX(-50%);
     }
 
     .tooltip-arrow {
         position: absolute;
-        bottom: -4px;
         left: 50%;
         transform: translateX(-50%);
         width: 0;
@@ -123,4 +131,6 @@
         border-right: 5px solid transparent;
         border-top: 5px solid var(--color-grey-0);
     }
+
+    /* Arrow positioning for below state is handled via JavaScript setAttribute */
 </style> 
