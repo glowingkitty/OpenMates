@@ -485,6 +485,11 @@
             "en_original": "New chat",
             "context": "Button label for creating a new chat"
         },
+        "share": {
+            "text": "チャットを共有",
+            "en_original": "Share chat",
+            "context": "Button label for sharing a chat"
+        },
         "start_audio_call": {
             "text": "音声通話を開始",
             "en_original": "Start audio call", 

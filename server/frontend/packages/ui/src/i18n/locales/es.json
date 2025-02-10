@@ -485,6 +485,11 @@
             "en_original": "New chat",
             "context": "Button label for creating a new chat"
         },
+        "share": {
+            "text": "Compartir chat",
+            "en_original": "Share chat",
+            "context": "Button label for sharing a chat"
+        },
         "start_audio_call": {
             "text": "Iniciar llamada de audio",
             "en_original": "Start audio call",

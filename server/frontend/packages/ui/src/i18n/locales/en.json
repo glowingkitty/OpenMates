@@ -398,6 +398,10 @@
             "text": "New chat",
             "context": "Button label for creating a new chat"
         },
+        "share": {
+            "text": "Share chat",
+            "context": "Button label for sharing a chat"
+        },
         "start_audio_call": {
             "text": "Start audio call",
             "context": "Button label for starting an audio call"
