@@ -104,7 +104,7 @@
     style="bottom: {messageInputHeight}px;"
 >
     {#if showMessages}
-        <div class="chat-history-content" transition:fade={{ duration: 300 }} on:outroend={handleOutroEnd}>
+        <div class="chat-history-content" transition:fade={{ duration: 100 }} on:outroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
                     <div in:fade>
