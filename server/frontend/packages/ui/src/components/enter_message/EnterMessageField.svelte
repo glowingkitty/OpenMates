@@ -2190,7 +2190,7 @@
             <button 
                 class="clickable-icon icon_fullscreen fullscreen-button" 
                 on:click={toggleFullscreen}
-                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                aria-label={isFullscreen ? $_('enter_message.fullscreen.exit_fullscreen.text') : $_('enter_message.fullscreen.enter_fullscreen.text')}
             ></button>
         {/if}
 

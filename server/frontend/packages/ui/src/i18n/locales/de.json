@@ -490,6 +490,11 @@
             "en_original": "Start audio call",
             "context": "Button label for starting an audio call"
         },
+        "start_video_call": {
+            "text": "Videoanruf starten",
+            "en_original": "Start video call",
+            "context": "Button label for starting a video call"
+        },
         "welcome": {
             "hey": {
                 "text": "Hallo",
@@ -546,6 +551,18 @@
                 "text": "Halte gedrückt um aufzunehmen",
                 "en_original": "Press and hold to record",
                 "context": "Text shown when the user has only pressed the record button for less than 500ms"
+            }
+        },
+        "fullscreen": {
+            "enter_fullscreen": {
+                "text": "Öffne Vollbild",
+                "en_original": "Enter fullscreen",
+                "context": "Button text for entering fullscreen"
+            },
+            "exit_fullscreen": {
+                "text": "Schließe Vollbild",
+                "en_original": "Exit fullscreen",
+                "context": "Button text for exiting fullscreen"
             }
         },
         "attachments": {

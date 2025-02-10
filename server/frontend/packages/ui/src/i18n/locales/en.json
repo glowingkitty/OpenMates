@@ -402,6 +402,10 @@
             "text": "Start audio call",
             "context": "Button label for starting an audio call"
         },
+        "start_video_call": {
+            "text": "Start video call",
+            "context": "Button label for starting a video call"
+        },
         "welcome": {
             "hey": {
                 "text": "Hey",
@@ -448,6 +452,16 @@
             "press_and_hold_reminder": {
                 "text": "Press and hold to record",
                 "context": "Text shown when the user has only pressed the record button for less than 500ms"
+            }
+        },
+        "fullscreen": {
+            "enter_fullscreen": {
+                "text": "Enter fullscreen",
+                "context": "Button text for entering fullscreen"
+            },
+            "exit_fullscreen": {
+                "text": "Exit fullscreen",
+                "context": "Button text for exiting fullscreen"
             }
         },
         "attachments": {
