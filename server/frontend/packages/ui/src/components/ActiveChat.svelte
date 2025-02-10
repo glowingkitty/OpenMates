@@ -135,7 +135,7 @@
         // TODO: Insert the actual share logic here if needed.
     }
 
-    // Add function to load chat
+    // Update the loadChat function
     export async function loadChat(chat: Chat) {
         console.log("[ActiveChat] Loading chat:", chat.id);
         showWelcome = false;
@@ -151,9 +151,15 @@
             }
         }
 
-        // Load draft content if it's a draft
-        if (chat.isDraft && chat.draftContent && enterMessageFieldRef) {
-            enterMessageFieldRef.setDraftContent(chat.draftContent);
+        // Handle the EnterMessageField content
+        if (enterMessageFieldRef) {
+            if (chat.isDraft && chat.draftContent) {
+                // If it's a draft with content, set the draft content
+                enterMessageFieldRef.setDraftContent(chat.draftContent);
+            } else {
+                // If it's not a draft or has no draft content, clear the field
+                enterMessageFieldRef.clearMessageField();
+            }
         }
     }
 </script>
