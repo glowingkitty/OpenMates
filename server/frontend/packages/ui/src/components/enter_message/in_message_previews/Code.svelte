@@ -118,13 +118,24 @@
             language = getLanguageFromFilename(filename);
             
             // Sanitize the code before setting it
-            codePreview = sanitizeCode(text);
+            const sanitizedCode = DOMPurify.sanitize(text, {
+                ALLOWED_TAGS: [], // Only allow text content
+                ALLOWED_ATTR: []
+            });
+            codePreview = sanitizedCode;
             
             // Highlight code after render
             setTimeout(() => {
                 const codeElement = document.querySelector(`#code-${id}`);
                 if (codeElement) {
-                    hljs.highlightElement(codeElement as HTMLElement);
+                    const highlighted = hljs.highlight(sanitizedCode, {
+                        language: language.toLowerCase()
+                    }).value;
+                    // Sanitize the highlighted HTML
+                    codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
+                        ALLOWED_TAGS: ['span'],
+                        ALLOWED_ATTR: ['class']
+                    });
                 }
             }, 0);
             
