@@ -2,6 +2,7 @@
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     import { onMount } from 'svelte';
     import hljs from 'highlight.js';
+    import DOMPurify from 'dompurify';
     import 'highlight.js/styles/github-dark.css';
     import 'highlight.js/lib/languages/dockerfile';
     import 'highlight.js/lib/languages/c';
@@ -38,6 +39,14 @@
     let isTransitioningFromFullscreen = false;
 
     const dispatch = createEventDispatcher();
+
+    // Add sanitize function
+    function sanitizeCode(code: string): string {
+        return DOMPurify.sanitize(code, {
+            ALLOWED_TAGS: ['span', 'pre', 'code'],
+            ALLOWED_ATTR: ['class']
+        });
+    }
 
     // Helper function to determine language from filename
     function getLanguageFromFilename(filename: string): string {
@@ -108,8 +117,8 @@
             
             language = getLanguageFromFilename(filename);
             
-            // Use full text instead of preview
-            codePreview = text;
+            // Sanitize the code before setting it
+            codePreview = sanitizeCode(text);
             
             // Highlight code after render
             setTimeout(() => {
@@ -133,20 +142,16 @@
             const response = await fetch(src);
             const code = await response.text();
             
-            // Add a small delay to allow the scale animation to start
             setTimeout(() => {
                 dispatch('fullscreen', {
-                    code,
+                    code: sanitizeCode(code), // Sanitize the code here too
                     filename,
                     language: getLanguageFromFilename(filename)
                 });
-                // Reset the flag after the transition
                 setTimeout(() => {
                     isTransitioningToFullscreen = false;
                 }, 300);
-            }, 150); // Half of the scale-up animation duration
-            
-            console.log('Dispatched fullscreen event:', { filename, language });
+            }, 150);
         } catch (error) {
             console.error('Error loading code content:', error);
             isTransitioningToFullscreen = false;

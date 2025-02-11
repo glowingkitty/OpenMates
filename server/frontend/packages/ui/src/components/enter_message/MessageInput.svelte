@@ -571,6 +571,7 @@
 
             case 'view':
                 if (node.attrs.type === 'code') {
+                    console.log('Code node:', node);
                     try {
                         const response = await fetch(node.attrs.src);
                         const code = await response.text();
