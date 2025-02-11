@@ -5,12 +5,15 @@
     import { _, getLocaleFromNavigator, locale } from 'svelte-i18n';
     import { get } from 'svelte/store';
 
-    export let src: string;
-    export let filename: string;
     export let id: string;
+    export let lat: number;
+    export let lon: number;
+    export let zoom: number;
+    export let name: string;
 
     let mapContainer: HTMLDivElement;
-    let address: string = filename;
+    // Initialize address with name or a default value
+    let address: string = name || 'Loading location...';
     let coordinates: { lat: number; lon: number } | null = null;
     let L: any;
     let customIcon: any = null;
@@ -73,7 +76,7 @@
             line2Parts.push(getLocalizedName(data.address, 'state') || data.address.state);
         }
         if (data.address.country && !line1Parts.includes(data.address.country)) {
-            line2Parts.push(getLocalizedName(data.address, 'country') || data.address.country);
+            line1Parts.push(getLocalizedName(data.address, 'country') || data.address.country);
         }
         
         // If we have no second line but have coordinates, use them
@@ -127,19 +130,14 @@
 
     onMount(async () => {
         try {
-            // Parse coordinates from OpenStreetMap URL
-            const url = new URL(src);
-            const lat = url.searchParams.get('mlat');
-            const lon = url.searchParams.get('mlon');
-            const zoom = url.searchParams.get('zoom') || '16';
-
-            if (!lat || !lon) {
-                throw new Error('Invalid map URL');
+            if (typeof lat !== 'number' || typeof lon !== 'number') {
+                throw new Error('Invalid map coordinates');
             }
 
-            coordinates = { lat: parseFloat(lat), lon: parseFloat(lon) };
+            coordinates = { lat, lon };
+            // Set address to name or coordinates if name is not provided
+            address = name || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
 
-            // Initialize map first to show something immediately
             L = (await import('leaflet')).default;
             
             // Create custom icon
@@ -156,7 +154,7 @@
             
             const map = L.map(mapContainer, {
                 center: [coordinates.lat, coordinates.lon],
-                zoom: parseInt(zoom),
+                zoom: zoom,
                 zoomControl: false,
                 dragging: false,
                 touchZoom: false,
@@ -174,9 +172,6 @@
                 icon: customIcon
             }).addTo(map);
 
-            // Don't do geocoding - use the filename as the address
-            address = filename;
-
             // Add zoom end event listener to update address only when zoom changes significantly
             map.on('zoomend', async () => {
                 const center = map.getCenter();
@@ -190,7 +185,7 @@
     });
 </script>
 
-<InlinePreviewBase {id} type="maps" {src} {filename} height="200px">
+<InlinePreviewBase {id} type="maps" height="200px">
     <div class="preview-container">
         <div class="map-preview" bind:this={mapContainer}></div>
         <div class="info-bar">

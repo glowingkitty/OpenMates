@@ -8,6 +8,7 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "prettier": "^3.4.2",
     "prettier-plugin-svelte": "^3.3.3",
     "turbo": "^2.4.0"
@@ -15,5 +16,10 @@
   "packageManager": "pnpm@8.15.6",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "lowlight": "^3.3.0",
+    "markdown-it": "^14.1.0"
   }
 }

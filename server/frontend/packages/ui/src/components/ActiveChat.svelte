@@ -1,5 +1,6 @@
 <script lang="ts">
-    import EnterMessageField from './enter_message/EnterMessageField.svelte';
+    // import EnterMessageField from './enter_message/EnterMessageField.svelte';
+    import MessageInput from './enter_message/MessageInput.svelte';
     import FullscreenCodePreview from './enter_message/in_message_previews/FullscreenCodePreview.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
@@ -251,7 +252,7 @@
 
                 <!-- Right side container for message input -->
                 <div class="message-input-container">
-                    <EnterMessageField 
+                    <MessageInput 
                         bind:this={enterMessageFieldRef}
                         bind:hasContent={enterMessageHasContent}
                         on:codefullscreen={handleCodeFullscreen}

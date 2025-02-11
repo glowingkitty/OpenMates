@@ -26,6 +26,7 @@
     "highlight.js": "^11.11.1",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
+    "lowlight": "^3.3.0",
     "prosemirror-view": "^1.32.7",
     "svelte-i18n": "^4.0.1",
     "vite": "^6.0.11"

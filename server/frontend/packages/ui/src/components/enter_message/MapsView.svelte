@@ -368,8 +368,6 @@
                 updateAccuracyCircle([lat, lon]);
             }
 
-            logger.debug('Got location:', { lat, lon, precise: isPrecise });
-            
         } catch (error) {
             logger.debug('Error getting location:', error);
         } finally {
@@ -430,13 +428,14 @@
                 mapCenter : 
                 getRandomLocationInCircle(mapCenter, ACCURACY_RADIUS);
 
-            // Create a preview-friendly format for the map
             const previewData = {
-                type: 'customEmbed',
+                type: 'mapsEmbed',
                 attrs: {
-                    type: 'maps',
-                    src: `https://www.openstreetmap.org/?mlat=${selectedLocation.lat}&mlon=${selectedLocation.lon}&zoom=${selectedZoomLevel || 16}`,
-                    filename: locationIndicatorText,
+                    lat: selectedLocation.lat,
+                    lon: selectedLocation.lon,
+                    zoom: selectedZoomLevel || 16,
+                    name: locationIndicatorText,
+                    type: isPrecise ? 'precise_location' : 'area',
                     id: crypto.randomUUID()
                 }
             };
@@ -485,7 +484,7 @@
         try {
             // Get current locale
             const locale = getCurrentLocale();
-            
+
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?` + 
                 `format=json` +
@@ -497,14 +496,12 @@
                 `&accept-language=${locale}` // Add language parameter
             );
             const results = await response.json();
-            
-            logger.debug('Search results with details:', results);
-            
+
             // Format and assign a unique ID to each search result
             searchResults = results.map((result: any) => {
                 const formattedResult = formatSearchResult(result);
                 const transitTypes = getTransitTypes(result);
-                
+
                 // Format transit types for display
                 const transitServices = [];
                 if (transitTypes.rail) transitServices.push('Railway');
@@ -776,21 +773,6 @@
             }
         }
 
-        logger.debug('Transit types detected:', {
-            name: result.namedetails?.name || result.name,
-            transitTypes,
-            rawTags: {
-                class: result.class,
-                type: result.type,
-                aeroway: tags['aeroway'],
-                publicTransport: tags['public_transport'],
-                railway: tags['railway'],
-                station: tags['station'],
-                usage: tags['usage'],
-                train: tags['train']
-            }
-        });
-        
         return transitTypes;
     }
 
@@ -811,7 +793,7 @@
     // Update the addSearchMarkersToMap function
     function addSearchMarkersToMap() {
         if (!map) return;
-        
+
         removeSearchMarkers();
 
         searchMarkers = searchResults.map(result => {
