@@ -51,7 +51,17 @@
 
     // Helper function to determine language from filename
     function getLanguageFromFilename(filename: string): string {
+        console.log('Getting language for filename:', filename);
+        
+        // If filename is already a language name with 'code.' prefix, extract it
+        if (filename.startsWith('code.')) {
+            const lang = filename.substring(5); // Remove 'code.' prefix
+            console.log('Extracted language from code. prefix:', lang);
+            return lang.charAt(0).toUpperCase() + lang.slice(1); // Capitalize first letter
+        }
+
         const ext = filename.split('.').pop()?.toLowerCase() || '';
+        console.log('Extracted extension:', ext);
 
         // Special cases for files without extensions
         if (filename.toLowerCase() === 'dockerfile') {
@@ -105,10 +115,10 @@
             'makefile': 'Makefile'
         };
         
-        console.log('Detected file extension:', ext);
-        console.log('Mapped language:', languageMap[ext] || 'Plaintext');
+        const mappedLanguage = languageMap[ext] || ext.charAt(0).toUpperCase() + ext.slice(1);
+        console.log('Final mapped language:', mappedLanguage);
         
-        return languageMap[ext] || 'Plaintext';
+        return mappedLanguage;
     }
 
     onMount(async () => {
@@ -124,7 +134,13 @@
                 text = await response.text();
             }
             
-            language = getLanguageFromFilename(filename);
+            // Only use getLanguageFromFilename if language isn't already provided
+            if (!language || language === 'plaintext') {
+                language = getLanguageFromFilename(filename);
+            }
+            
+            // Ensure language is lowercase for highlight.js
+            const highlightLanguage = language.toLowerCase();
             
             // Sanitize the code before setting it
             const sanitizedCode = DOMPurify.sanitize(text, {
@@ -137,18 +153,27 @@
             setTimeout(() => {
                 const codeElement = document.querySelector(`#code-${id}`);
                 if (codeElement) {
-                    const highlighted = hljs.highlight(sanitizedCode, {
-                        language: language.toLowerCase()
-                    }).value;
-                    // Sanitize the highlighted HTML
-                    codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
-                        ALLOWED_TAGS: ['span'],
-                        ALLOWED_ATTR: ['class']
-                    });
+                    try {
+                        const highlighted = hljs.highlight(sanitizedCode, {
+                            language: highlightLanguage
+                        }).value;
+                        // Sanitize the highlighted HTML
+                        codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
+                            ALLOWED_TAGS: ['span'],
+                            ALLOWED_ATTR: ['class']
+                        });
+                    } catch (error) {
+                        console.warn(`Fallback to auto-detection for language: ${highlightLanguage}`);
+                        const highlighted = hljs.highlightAuto(sanitizedCode).value;
+                        codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
+                            ALLOWED_TAGS: ['span'],
+                            ALLOWED_ATTR: ['class']
+                        });
+                    }
                 }
             }, 0);
             
-            console.log('Code preview loaded:', { filename, language });
+            console.log('Code preview loaded:', { filename, language: highlightLanguage });
         } catch (error) {
             console.error('Error loading code preview:', error);
             codePreview = 'Error loading code preview';

@@ -58,11 +58,26 @@ lowlight.register('html', xml) // lowlight uses 'xml' for HTML
  * @returns True if the text is likely code, false otherwise.
  */
 export function isLikelyCode(text: string): boolean {
-    const codeKeywords = ['function', 'class', 'import', 'const', 'let', 'var', '=>', '{', '}', ';']
-    const keywordCount = codeKeywords.reduce((count, keyword) => count + (text.includes(keyword) ? 1 : 0), 0)
+    console.log('Analyzing text for code detection...');
+    
+    const codeKeywords = ['function', 'class', 'import', 'const', 'let', 'var', '=>', '{', '}', ';'];
+    const keywordCount = codeKeywords.reduce((count, keyword) => {
+        const hasKeyword = text.includes(keyword);
+        if (hasKeyword) {
+            console.log('Found code keyword:', keyword);
+        }
+        return count + (hasKeyword ? 1 : 0);
+    }, 0);
 
-    const result = lowlight.highlightAuto(text)
-    return result.data?.language !== undefined || keywordCount >= 3 || text.length > 500
+    console.log('Code keyword count:', keywordCount);
+
+    const result = lowlight.highlightAuto(text);
+    console.log('Lowlight detected language:', result.data?.language);
+
+    const isCode = result.data?.language !== undefined || keywordCount >= 3 || text.length > 500;
+    console.log('Final code detection result:', isCode);
+    
+    return isCode;
 }
 
 /**
