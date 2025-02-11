@@ -67,6 +67,16 @@ export const CodeEmbed = Node.create<CodeOptions>({
                 language: node.attrs.language,
             });
 
+            // Fixed event listener type
+            dom.addEventListener('codefullscreen', ((event: Event) => {
+                const customEvent = new CustomEvent('codefullscreen', {
+                    detail: (event as CustomEvent).detail,
+                    bubbles: true,
+                    composed: true
+                });
+                dom.dispatchEvent(customEvent);
+            }) as EventListener);
+
             return {
                 dom,
                 update: (updatedNode) => {

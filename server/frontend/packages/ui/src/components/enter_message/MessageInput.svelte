@@ -539,25 +539,14 @@
     }
 
         // Add these handlers for the menu actions
-    async function handleMenuAction(action: 'delete' | 'download' | 'view' | 'copy') {
-        if (!selectedEmbedId) return;
-
-        let foundNode: any = null;
-        editor.state.doc.descendants((node: any, pos: number) => {
-            if (node.attrs?.id === selectedEmbedId) {
-                foundNode = { node, pos };
-                return false;
-            }
-            return true;
-        });
-
-        if (!foundNode) return;
-
-        const { node, pos } = foundNode;
+    async function handleMenuAction(action: string) {
+        if (!selectedNode) return;
+        
+        const { node } = selectedNode;
 
         switch (action) {
             case 'delete':
-                editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run();
+                editor.chain().focus().deleteRange({ from: selectedNode.pos, to: selectedNode.pos + node.nodeSize }).run();
                 break;
 
             case 'download':
@@ -570,15 +559,14 @@
                 break;
 
             case 'view':
-                if (node.attrs.type === 'code') {
-                    console.log('Code node:', node);
+                if (node.type.name === 'codeEmbed') {
                     try {
                         const response = await fetch(node.attrs.src);
                         const code = await response.text();
                         dispatch('codefullscreen', {
                             code,
                             filename: node.attrs.filename,
-                            language: node.attrs.language
+                            language: node.attrs.language || getLanguageFromFilename(node.attrs.filename)
                         });
                     } catch (error) {
                         console.error('Error loading code content:', error);
@@ -892,13 +880,18 @@
         // Listen for the custom send event (triggered by the keyboard extension)
         editorElement?.addEventListener('custom-send-message', handleSend as EventListener);
 
+        // Add listener for codefullscreen events
+        editorElement?.addEventListener('codefullscreen', ((event: CustomEvent) => {
+            dispatch('codefullscreen', event.detail);
+        }) as EventListener);
+
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
              editorElement?.removeEventListener('custom-send-message', handleSend as EventListener);
             document.removeEventListener('embedclick', (() => {}) as EventListener);
             document.removeEventListener('mateclick', (() => {}) as EventListener);
-
+            editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
         };
     });
 

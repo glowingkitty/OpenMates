@@ -137,21 +137,22 @@
 
     // Update the handleFullscreen function
     async function handleFullscreen() {
+        console.log('Handling fullscreen request');
         try {
             isTransitioningToFullscreen = true;
             const response = await fetch(src);
             const code = await response.text();
             
+            // Dispatch the codefullscreen event instead of fullscreen
+            dispatch('codefullscreen', {
+                code: sanitizeCode(code),
+                filename,
+                language: getLanguageFromFilename(filename)
+            });
+            
             setTimeout(() => {
-                dispatch('fullscreen', {
-                    code: sanitizeCode(code), // Sanitize the code here too
-                    filename,
-                    language: getLanguageFromFilename(filename)
-                });
-                setTimeout(() => {
-                    isTransitioningToFullscreen = false;
-                }, 300);
-            }, 150);
+                isTransitioningToFullscreen = false;
+            }, 300);
         } catch (error) {
             console.error('Error loading code content:', error);
             isTransitioningToFullscreen = false;
@@ -160,6 +161,7 @@
 
     // Update the handleMenuAction function
     function handleMenuAction(action: string) {
+        console.log('Menu action:', action);
         if (action === 'view') {
             handleFullscreen();
         }
