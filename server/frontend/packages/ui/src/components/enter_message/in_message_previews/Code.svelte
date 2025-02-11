@@ -33,6 +33,7 @@
     export let filename: string;
     export let id: string;
     export let language: string = 'plaintext';
+    export let content: string | undefined = undefined;
 
     let codePreview: string = '';
     let isTransitioningToFullscreen = false;
@@ -112,8 +113,16 @@
 
     onMount(async () => {
         try {
-            const response = await fetch(src);
-            const text = await response.text();
+            let text: string;
+            
+            // If we have direct content, use it
+            if (content) {
+                text = content;
+            } else {
+                // Otherwise fetch from URL
+                const response = await fetch(src);
+                text = await response.text();
+            }
             
             language = getLanguageFromFilename(filename);
             
@@ -151,8 +160,14 @@
         console.log('Handling fullscreen request');
         try {
             isTransitioningToFullscreen = true;
-            const response = await fetch(src);
-            const code = await response.text();
+            let code: string;
+            
+            if (content) {
+                code = content;
+            } else {
+                const response = await fetch(src);
+                code = await response.text();
+            }
             
             // Dispatch the codefullscreen event instead of fullscreen
             dispatch('codefullscreen', {

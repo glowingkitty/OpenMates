@@ -133,23 +133,38 @@
                 textContent = await new Promise((resolve) => {
                     item.getAsString(resolve);
                 });
-                break; // Only need the text content once
+                break;
             }
         }
 
-        // 2. Check for Large Text and Process (NEW LOGIC)
+        // 2. Check for Large Text and Process
         if (textContent) {
-            if (isLargeText(textContent)) { // New helper function
-                event.preventDefault(); // Prevent default text insertion
-                if (isLikelyCode(textContent)) { // New helper function
-                    // Insert CodeEmbed
-                    const language = detectLanguage(textContent); // New helper function
-                    insertCodeContent(textContent, language, editor); // New helper function
-                } else {
-                    // Insert TextEmbed
-                    insertTextContent(textContent, editor); // New helper function
-                }
-                return; // Important: Stop processing if it's large text
+            if (isLikelyCode(textContent)) {
+                // Prevent default paste behavior to avoid text insertion
+                event.preventDefault();
+                event.stopPropagation();
+                
+                const language = detectLanguage(textContent);
+                
+                // Create a Blob from the text content
+                const blob = new Blob([textContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                
+                // Insert as CodeEmbed with both URL and direct content
+                editor.commands.setCodeEmbed({
+                    src: url,
+                    filename: 'Code snippet',  // Changed from code.${language} to 'Code snippet'
+                    language: language,
+                    id: crypto.randomUUID(),
+                    content: textContent
+                });
+                
+                editor.commands.insertContent({ type: 'text', text: ' ' });
+                return;
+            } else if (isLargeText(textContent)) {
+                event.preventDefault();
+                insertTextContent(textContent, editor);
+                return;
             }
         }
 

@@ -65,6 +65,7 @@ export const CodeEmbed = Node.create<CodeOptions>({
                 filename: node.attrs.filename,
                 id: node.attrs.id,
                 language: node.attrs.language,
+                content: node.attrs.content,
             });
 
             // Fixed event listener type
@@ -88,7 +89,8 @@ export const CodeEmbed = Node.create<CodeOptions>({
                         src: updatedNode.attrs.src,
                         filename: updatedNode.attrs.filename,
                         id: updatedNode.attrs.id,
-                        language: updatedNode.attrs.language
+                        language: updatedNode.attrs.language,
+                        content: updatedNode.attrs.content
                     });
                     return true;
                 },
