@@ -123,99 +123,17 @@
         editorElement?.classList.remove('drag-over');
     }
     async function handlePaste(event: ClipboardEvent) {
-        // Prevent default immediately
-        event.preventDefault();
-        event.stopPropagation();
-        
-        // Get all clipboard items
-        const items = Array.from(event.clipboardData?.items || []);
-        
-        // Check for text content first
-        const textItem = items.find(item => item.type === 'text/plain');
-        
-        if (textItem) {
-            // Get text content
-            const textContent = await new Promise<string>((resolve) => {
-                textItem.getAsString(resolve);
-            });
-
-            if (isLikelyCode(textContent)) {
-                const language = detectLanguage(textContent).toLowerCase(); // Ensure lowercase
-                const blob = new Blob([textContent], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-
-                // Clear any existing selection to prevent unwanted text insertion
-                editor.commands.clearContent();
-                
-                // Insert the default mention if editor is empty
-                if (editor.isEmpty) {
-                    editor.commands.setContent({
-                        type: 'doc',
-                        content: [{
-                            type: 'paragraph',
-                            content: [
-                                {
-                                    type: 'mate',
-                                    attrs: {
-                                        name: defaultMention,
-                                        id: crypto.randomUUID()
-                                    }
-                                },
-                                {
-                                    type: 'text',
-                                    text: ' '
-                                }
-                            ]
-                        }]
-                    });
-                }
-
-                // Insert code embed
-                try {
-                    await editor.commands.setCodeEmbed({
-                        src: url,
-                        filename: 'Code snippet',
-                        language: language, // Use detected language for syntax highlighting
-                        id: crypto.randomUUID(),
-                        content: textContent
-                    });
-                    
-                    // Add space after embed
-                    await editor.commands.insertContent({ type: 'text', text: ' ' });
-                } catch (error) {
-                    console.error('Error inserting code embed:', error);
-                }
-                return;
-            } else {
-                // For non-code text, just insert it normally
-                editor.commands.insertContent(textContent);
-            }
-            return;
-        }
-
-        // Handle files...
-        console.log('Checking for files in clipboard');
+        // Only handle file pastes here
         const files: File[] = [];
         for (const item of event.clipboardData?.items || []) {
-            if (item.type.startsWith('image/')) {
+            if (item.type.startsWith('image/') || item.kind === 'file') {
                 const file = item.getAsFile();
-                if (file) {
-                    console.log('Found image file:', file.name);
-                    files.push(file);
-                }
-                continue;
-            }
-            if (item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file) {
-                    console.log('Found other file:', file.name);
-                    files.push(file);
-                }
+                if (file) files.push(file);
             }
         }
 
         if (files.length > 0) {
-            console.log('Processing', files.length, 'files');
+            event.preventDefault();
             await processFiles(files);
         }
     }

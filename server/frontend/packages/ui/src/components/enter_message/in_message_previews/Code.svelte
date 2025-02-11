@@ -134,13 +134,11 @@
                 text = await response.text();
             }
             
-            // Only use getLanguageFromFilename if language isn't already provided
-            if (!language || language === 'plaintext') {
-                language = getLanguageFromFilename(filename);
-            }
+            console.log('Received language:', language);
             
-            // Ensure language is lowercase for highlight.js
+            // Use the provided language directly for highlighting
             const highlightLanguage = language.toLowerCase();
+            console.log('Using language for highlighting:', highlightLanguage);
             
             // Sanitize the code before setting it
             const sanitizedCode = DOMPurify.sanitize(text, {

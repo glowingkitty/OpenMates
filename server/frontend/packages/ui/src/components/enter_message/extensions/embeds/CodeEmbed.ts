@@ -4,6 +4,8 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { mountComponent } from '../../utils/editorHelpers';
 import Code from '../../in_message_previews/Code.svelte'; // Import your Svelte component
 import type { SvelteComponent } from 'svelte';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import { isLikelyCode, detectLanguage } from '../../utils/codeHelpers';
 
 export interface CodeOptions {}
 
@@ -52,6 +54,48 @@ export const CodeEmbed = Node.create<CodeOptions>({
 
     renderHTML({ HTMLAttributes }) {
         return ['div', mergeAttributes(HTMLAttributes, { 'data-code-embed': true })];
+    },
+
+    addProseMirrorPlugins() {
+        const plugin = new Plugin({
+            key: new PluginKey('codeEmbedPaste'),
+            props: {
+                handlePaste: (view, event, slice) => {
+                    const textContent = event.clipboardData?.getData('text/plain');
+                    if (!textContent) return false;
+
+                    if (isLikelyCode(textContent)) {
+                        event.preventDefault();
+                        const detectedLanguage = detectLanguage(textContent);
+                        const blob = new Blob([textContent], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+
+                        const { from } = view.state.selection;
+                        
+                        view.dispatch(view.state.tr.replaceWith(
+                            from,
+                            from,
+                            this.type.create({
+                                src: url,
+                                filename: 'Code snippet',
+                                language: detectedLanguage,
+                                id: crypto.randomUUID(),
+                                content: textContent
+                            })
+                        ));
+
+                        // Insert a space after the code embed
+                        view.dispatch(view.state.tr.insertText(' ', from + 1));
+                        
+                        return true; // Prevent further paste handling
+                    }
+                    
+                    return false; // Allow default paste handling for non-code content
+                },
+            },
+        });
+
+        return [plugin];
     },
 
     addNodeView() {

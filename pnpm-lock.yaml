@@ -211,6 +211,9 @@ importers:
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0
+      prosemirror-state:
+        specifier: ^1.4.3
+        version: 1.4.3
       prosemirror-view:
         specifier: ^1.32.7
         version: 1.37.2
