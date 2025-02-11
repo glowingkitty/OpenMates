@@ -31,6 +31,48 @@ providers:
     icon: ./images/icons/providers/openai.svg
     allowed: ${APP_AI_PROVIDER_OPENAI_ALLOWED}
     api_key: ${APP_AI_PROVIDER_OPENAI_API_KEY}
+    models:
+      gpt-4o:
+        name: 'GPT-4o'
+        capabilities:
+          - text
+          - photos
+          - audio
+          - audio_call
+        pricing:
+          text:
+            price_credits: 1
+            per_words: 200
+          photos:
+            price_credits: 10
+            per_units: 1
+          audio:
+            price_credits: 100
+            per_minutes: 1
+          audio_call:
+            price_credits: 200
+            per_minutes: 1
+      gpt-4o-mini:
+        name: 'GPT-4o Mini'
+        capabilities:
+          - text
+          - photos
+          - audio
+          - audio_call
+        pricing:
+          text:
+            price_credits: 1
+            per_words: 200
+          photos:
+            price_credits: 10
+            per_units: 1
+          audio:
+            price_credits: 100
+            per_minutes: 1
+          audio_call:
+            price_credits: 200
+            per_minutes: 1
+
   anthropic:
     name: 'Anthropic'
     slug: 'anthropic'
@@ -39,6 +81,7 @@ providers:
     icon: ./images/icons/providers/anthropic.svg
     allowed: ${APP_AI_PROVIDER_ANTHROPIC_ALLOWED}
     api_key: ${APP_AI_PROVIDER_ANTHROPIC_API_KEY}
+
 skills:
   ask:
     name: 'Ask'
