@@ -7,9 +7,11 @@
     export let code: string;
     export let filename: string;
     export let language: string;
+    export let lineCount: number;
     export let onClose: () => void;
 
     let codeElement: HTMLElement;
+    let lineNumbersElement: HTMLElement;
 
     // Add function to handle smooth closing
     function handleClose() {
@@ -26,12 +28,32 @@
         }, 300);
     }
 
+    // Function to generate line numbers HTML
+    function generateLineNumbers(count: number): string {
+        return Array.from({ length: count }, (_, i) => i + 1)
+            .map(num => `<div class="line-number">${num}</div>`)
+            .join('');
+    }
+
     onMount(() => {
         // Highlight code after render
         if (codeElement) {
             hljs.highlightElement(codeElement);
         }
-        console.log('Fullscreen code preview mounted:', { filename, language });
+        
+        // Verify line count on mount
+        const actualLineCount = code.split('\n').length;
+        if (lineCount !== actualLineCount) {
+            console.warn('Line count mismatch:', { provided: lineCount, actual: actualLineCount });
+            lineCount = actualLineCount;
+        }
+        
+        // Generate line numbers
+        if (lineNumbersElement) {
+            lineNumbersElement.innerHTML = generateLineNumbers(lineCount);
+        }
+        
+        console.log('Fullscreen code preview mounted:', { filename, language, lineCount });
     });
 </script>
 
@@ -55,6 +77,11 @@
 
         <!-- Code content area -->
         <div class="code-content">
+            <div class="line-numbers-container">
+                {#each Array(lineCount) as _, i}
+                    <div class="line-number">{i + 1}</div>
+                {/each}
+            </div>
             <pre><code bind:this={codeElement} class="hljs language-{language}">{code}</code></pre>
         </div>
 
@@ -124,6 +151,7 @@
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
+        display: flex;
     }
 
     .code-content:hover {
@@ -241,12 +269,34 @@
         color: var(--color-font-secondary);
     }
 
+    .line-numbers-container {
+        position: sticky;
+        left: 0;
+        top: 0;
+        min-width: 3em;
+        background-color: rgba(128, 128, 128, 0.1);
+        padding: 0 8px;
+        text-align: right;
+        user-select: none;
+        color: rgba(255, 255, 255, 0.4);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        border-right: 1px solid rgba(128, 128, 128, 0.2);
+        margin-right: 1em;
+    }
+
+    .line-number {
+        height: 1.5em;
+    }
+
     pre {
         margin: 0;
         font-family: 'JetBrains Mono', monospace;
         font-size: 14px;
         line-height: 1.5;
         height: 100%;
+        flex: 1;
     }
 
     code {

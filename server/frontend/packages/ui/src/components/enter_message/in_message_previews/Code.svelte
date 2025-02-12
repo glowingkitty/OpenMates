@@ -34,6 +34,8 @@
     export let id: string;
     export let language: string = 'plaintext';
     export let content: string | undefined = undefined;
+    export let lineCount: number | undefined = undefined;
+    export let numberedContent: string | undefined = undefined;
 
     let codePreview: string = '';
     let isTransitioningToFullscreen = false;
@@ -134,6 +136,18 @@
                 text = await response.text();
             }
             
+            // Calculate line count and numbered content
+            const lines = text.split('\n');
+            lineCount = lines.length;
+            
+            // Create numbered content with padding for line numbers
+            const maxLineNumberWidth = lineCount.toString().length;
+            numberedContent = lines.map((line, index) => 
+                `${(index + 1).toString().padStart(maxLineNumberWidth, ' ')} | ${line}`
+            ).join('\n');
+            
+            console.log('Numbered content:', numberedContent);
+            
             console.log('Received language:', language);
             
             // Use the provided language directly for highlighting
@@ -171,7 +185,7 @@
                 }
             }, 0);
             
-            console.log('Code preview loaded:', { filename, language: highlightLanguage });
+            console.log('Code preview loaded:', { filename, language: highlightLanguage, lineCount });
         } catch (error) {
             console.error('Error loading code preview:', error);
             codePreview = 'Error loading code preview';
@@ -191,12 +205,18 @@
                 const response = await fetch(src);
                 code = await response.text();
             }
+
+            // Calculate line count here to ensure it's accurate
+            const lines = code.split('\n');
+            const currentLineCount = lines.length;
             
-            // Dispatch the codefullscreen event instead of fullscreen
+            console.log('Dispatching fullscreen with line count:', currentLineCount);
+            
             dispatch('codefullscreen', {
                 code: sanitizeCode(code),
                 filename,
-                language: getLanguageFromFilename(filename)
+                language: getLanguageFromFilename(filename),
+                lineCount: currentLineCount // Make sure we're passing the current line count
             });
             
             setTimeout(() => {

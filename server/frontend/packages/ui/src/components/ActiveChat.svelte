@@ -18,7 +18,8 @@
     let fullscreenCodeData = {
         code: '',
         filename: '',
-        language: ''
+        language: '',
+        lineCount: 0
     };
 
     // No need for local isLoggedIn prop, use the store value directly
@@ -30,7 +31,14 @@
 
     // Add handler for code fullscreen
     function handleCodeFullscreen(event: CustomEvent) {
-        fullscreenCodeData = event.detail;
+        console.log('Received code fullscreen event:', event.detail);
+        fullscreenCodeData = {
+            code: event.detail.code,
+            filename: event.detail.filename,
+            language: event.detail.language,
+            lineCount: event.detail.lineCount // Make sure we're capturing the line count
+        };
+        console.log('Set fullscreen data:', fullscreenCodeData);
         showCodeFullscreen = true;
     }
 
@@ -268,6 +276,7 @@
                     code={fullscreenCodeData.code}
                     filename={fullscreenCodeData.filename}
                     language={fullscreenCodeData.language}
+                    lineCount={fullscreenCodeData.lineCount}
                     onClose={handleCloseCodeFullscreen}
                 />
             {/if}
