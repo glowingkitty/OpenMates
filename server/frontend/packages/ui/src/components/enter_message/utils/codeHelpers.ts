@@ -60,120 +60,109 @@ lowlight.register('html', xml) // lowlight uses 'xml' for HTML
 export function isLikelyCode(text: string): boolean {
     console.log('Analyzing text for code detection...');
     
-    // Expanded list of code keywords and patterns
+    // More specific code patterns that are less likely to appear in regular text
     const codePatterns = [
-        // Function patterns
-        'function', '=>', 'def ', 'class ', 'interface ', 'module.exports',
-        // Variable declarations
-        'const ', 'let ', 'var ', 'final ', 'private ', 'public ', 'protected ',
-        // Common programming constructs
-        'import ', 'export ', 'return ', 'if (', 'for (', 'while (', 'switch (',
-        // Brackets and syntax
-        '{', '}', ';', '()', '[]',
-        // Common code patterns
-        'async ', 'await ', 'try {', 'catch (', 'throw new',
-        // Object-oriented patterns
-        'extends ', 'implements ', 'constructor(',
-        // Common method patterns
-        '.map(', '.filter(', '.reduce(', '.forEach(',
-        // Annotations/Decorators
-        '@', '//'
+        // Function declarations
+        /function\s+\w+\s*\(/,
+        /const\s+\w+\s*=\s*\([^)]*\)\s*=>/,
+        /class\s+\w+(\s+extends\s+\w+)?(\s+implements\s+\w+)?\s*{/,
+        
+        // Variable declarations with types
+        /(const|let|var)\s+\w+:\s*\w+/,
+        
+        // Import/export statements
+        /import\s+{\s*[\w\s,]+}\s+from/,
+        /export\s+(default\s+)?(function|class|const|let|var)/,
+        
+        // Common programming constructs with proper syntax
+        /if\s*\([^)]+\)\s*{/,
+        /for\s*\([^)]+\)\s*{/,
+        /while\s*\([^)]+\)\s*{/,
+        
+        // Method definitions
+        /public\s+\w+\s*\([^)]*\)\s*{/,
+        /private\s+\w+\s*\([^)]*\)\s*{/,
+        /protected\s+\w+\s*\([^)]*\)\s*{/,
+        
+        // Annotations/Decorators with proper syntax
+        /@\w+\s*\([^)]*\)/,
+        
+        // HTML/XML tags (for markup languages)
+        /<\/?[a-z][\s\S]*>/i,
     ];
 
-    // Count pattern matches
+    // Count regex pattern matches
     const patternCount = codePatterns.reduce((count, pattern) => {
-        const hasPattern = text.includes(pattern);
-        if (hasPattern) {
-            console.log('Found code pattern:', pattern);
-        }
-        return count + (hasPattern ? 1 : 0);
+        return count + (pattern.test(text) ? 1 : 0);
     }, 0);
 
-    console.log('Code pattern count:', patternCount);
-
-    // Check for indentation patterns (common in code)
+    // Check for consistent indentation
     const lines = text.split('\n');
-    const hasIndentation = lines.some(line => line.startsWith('    ') || line.startsWith('\t'));
-    if (hasIndentation) {
-        console.log('Found code indentation patterns');
-    }
+    const hasConsistentIndentation = lines.length > 3 && lines.slice(1).some(line => {
+        return /^(\s{2,}|\t+)/.test(line);
+    });
 
-    // Check for language-specific file patterns
-    const filePatterns = [
-        'package.json', 'tsconfig.json', 'webpack.config',
-        '.gitignore', 'Dockerfile', 'Makefile'
-    ];
-    const hasFilePattern = filePatterns.some(pattern => text.includes(pattern));
-    if (hasFilePattern) {
-        console.log('Found code file patterns');
-    }
+    // Check for balanced brackets/braces
+    const bracketCount = (text.match(/[{[(]/g) || []).length;
+    const closingBracketCount = (text.match(/[}\])]/g) || []).length;
+    const hasBalancedBrackets = bracketCount > 0 && bracketCount === closingBracketCount;
 
-    // Auto-detect language
-    const result = lowlight.highlightAuto(text);
-    console.log('Lowlight detected language:', result.data?.language);
+    // Check for common file extensions in the text
+    const hasCodeFileExtension = /\.(js|ts|py|java|cpp|cs|rb|php|go|rs|swift|kt|html|css|sql)/.test(text.toLowerCase());
 
     // Consider it code if:
-    // 1. Has multiple code patterns (3 or more)
-    // 2. Has indentation patterns
-    // 3. Has file patterns
-    // 4. Language is detected by lowlight
-    // 5. Text is long and structured (>500 chars with patterns)
-    const isCode = patternCount >= 3 || 
-                  hasIndentation || 
-                  hasFilePattern || 
-                  result.data?.language !== undefined ||
-                  (text.length > 500 && patternCount >= 2);
+    // 1. Multiple specific code patterns are found (2 or more)
+    // 2. Has consistent indentation AND some code patterns
+    // 3. Has balanced brackets AND some code patterns
+    // 4. Contains code file extensions AND some patterns
+    const isCode = (patternCount >= 2) ||
+                  (hasConsistentIndentation && patternCount >= 1) ||
+                  (hasBalancedBrackets && patternCount >= 1) ||
+                  (hasCodeFileExtension && patternCount >= 1);
 
-    console.log('Final code detection result:', isCode);
+    console.log('Code detection metrics:', {
+        patternCount,
+        hasConsistentIndentation,
+        hasBalancedBrackets,
+        hasCodeFileExtension,
+        isCode
+    });
+
     return isCode;
 }
 
 /**
  * Detects the programming language of a given text string.
  * @param text The text to analyze.
- * @returns The detected language (e.g., "javascript", "python") or "plaintext" if no language is detected.
+ * @returns The detected language or "plaintext" if no language is detected.
  */
 export function detectLanguage(text: string): string {
-    console.log('Detecting language for text...');
-    
-    // First check for TypeScript-specific features
-    const tsFeatures = [
-        'interface ',
-        'type ',
-        ': string',
-        ': number',
-        ': boolean',
-        ': any',
-        ': void',
-        'export type',
-        'namespace ',
-    ];
-    
-    const hasTypeScriptFeatures = tsFeatures.some(feature => text.includes(feature));
-    if (hasTypeScriptFeatures) {
-        console.log('TypeScript features detected');
-        return 'typescript';
+    // Handle a few special cases that lowlight might miss
+    if (text.match(/^#\s|^\*\*\s|^\-\s|^>\s|^```/m) && !text.includes('def ') && !text.includes('import ')) {
+        return 'markdown';
     }
     
-    const result = lowlight.highlightAuto(text, {
-        // Specify subset of languages to check, prioritizing common ones
-        subset: ['typescript', 'javascript', 'python', 'java', 'cpp', 'php']
-    });
-    
-    console.log('Lowlight detected language:', result.data?.language);
-    
-    // Map some common language aliases
-    const languageMap: { [key: string]: string } = {
-        'js': 'javascript',
-        'ts': 'typescript',
-        'py': 'python',
-        'jsx': 'javascript',
-        'tsx': 'typescript'
-    };
+    if (text.startsWith('<?php')) {
+        return 'php';
+    }
 
-    const detectedLanguage = result.data?.language || 'plaintext';
-    const mappedLanguage = languageMap[detectedLanguage] || detectedLanguage;
-    
-    console.log('Final mapped language:', mappedLanguage);
-    return mappedLanguage;
+    // Use lowlight's auto-detection with a focused subset of common languages
+    const result = lowlight.highlightAuto(text, {
+        subset: [
+            'typescript',
+            'javascript',
+            'python',
+            'java',
+            'html',
+            'css',
+            'markdown',
+            'sql',
+            'bash',
+            'json',
+            'yaml',
+            'php'
+        ]
+    });
+
+    return result.data?.language || 'plaintext';
 }

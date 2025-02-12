@@ -64,6 +64,11 @@ export const CodeEmbed = Node.create<CodeOptions>({
                     const textContent = event.clipboardData?.getData('text/plain');
                     if (!textContent) return false;
 
+                    // If it's a large text but not code, let the TextEmbed handle it
+                    if (textContent.length > 500 && !isLikelyCode(textContent)) {
+                        return false;
+                    }
+
                     if (isLikelyCode(textContent)) {
                         event.preventDefault();
                         const detectedLanguage = detectLanguage(textContent);

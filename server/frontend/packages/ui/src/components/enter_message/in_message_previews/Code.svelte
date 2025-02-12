@@ -238,7 +238,9 @@
         <div class="info-bar">
             <div class="text-container">
                 <span class="filename">{filename}</span>
-                <span class="language">{language}</span>
+                {#if filename !== 'Code snippet'}
+                    <span class="language">{language}</span>
+                {/if}
             </div>
         </div>
     </div>
