@@ -370,26 +370,50 @@
         const filename = `audio_${Date.now()}.webm`;
         const formattedDuration = formatDuration(duration);
 
-        editor
-            .chain()
+        // First check if editor is empty and needs mate node
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        { type: 'text', text: ' ' }
+                    ]
+                }]
+            });
+        }
+
+        // Then insert the recording embed
+        editor.chain()
             .focus()
-            .insertContentAt(editor.state.selection.from, [
+            .insertContent([
                 {
-                    type: 'recordingEmbed', // Use recordingEmbed for consistency
+                    type: 'recordingEmbed',
                     attrs: {
-                        type: 'recording', // Consistent with recordingEmbed
+                        type: 'recording',
                         src: url,
                         filename: filename,
                         duration: formattedDuration,
                         id: crypto.randomUUID()
                     }
                 },
-                {
-                    type: 'text',
-                    text: ' '
-                }
+                { type: 'text', text: ' ' }
             ])
             .run();
+
+        // Log the editor content after insert
+        console.debug('Editor content after recording insert:', {
+            html: editor.getHTML(),
+            json: editor.getJSON()
+        });
+
         editor.commands.focus();
     }
 
@@ -407,14 +431,38 @@
         };
     }>) {
         const previewData = event.detail;
-        editor.commands.insertContent([
-                    previewData,
-                    {
-                        type: 'text',
-                        text: ' '
-                    }
-                ]);
+        
+        // First check if editor is empty and needs mate node
+        if (editor.isEmpty) {
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        { type: 'text', text: ' ' }
+                    ]
+                }]
+            });
+        }
 
+        // Then insert the map embed
+        editor.commands.insertContent([
+            previewData,
+            { type: 'text', text: ' ' }
+        ]);
+
+        // Log the editor content after insert
+        console.debug('Editor content after map insert:', {
+            html: editor.getHTML(),
+            json: editor.getJSON()
+        });
     }
 
     function checkScrollable() {
