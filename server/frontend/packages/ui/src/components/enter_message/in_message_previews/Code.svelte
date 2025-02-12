@@ -347,6 +347,7 @@
     code {
         white-space: pre;
         tab-size: 4;
+        overflow: hidden;
     }
 
     :global(.hljs) {
