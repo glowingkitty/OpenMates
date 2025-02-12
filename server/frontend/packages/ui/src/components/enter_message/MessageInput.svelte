@@ -40,7 +40,8 @@
         detectAndReplaceMates,
         detectAndReplaceUrls,
         vibrateMessageField,
-        isLargeText
+        isLargeText,
+        resizeImage
     } from './utils';
 
     const dispatch = createEventDispatcher();
@@ -219,24 +220,36 @@
             editor.commands.focus('end');
         }, 50);
     }
-    async function insertImage(file: File, isRecording: boolean = false): Promise<void> {
-        const url = URL.createObjectURL(file);
+    async function insertImage(file: File, isRecording: boolean = false, previewUrl?: string): Promise<void> {
+        // If no previewUrl provided, create one
+        if (!previewUrl) {
+            try {
+                const { previewUrl: newPreviewUrl } = await resizeImage(file);
+                previewUrl = newPreviewUrl;
+            } catch (error) {
+                console.error('Error creating preview:', error);
+                previewUrl = URL.createObjectURL(file);
+            }
+        }
+
         editor.commands.insertContent([
-                {
-                    type: 'imageEmbed',
-                    attrs: {
-                        type: 'image',
-                        src: url,
-                        filename: file.name,
-                        id: crypto.randomUUID(),
-                        isRecording
-                    }
-                },
-                {
-                    type: 'text',
-                    text: ' '
+            {
+                type: 'imageEmbed',
+                attrs: {
+                    type: 'image',
+                    src: previewUrl, // Use preview URL for display
+                    originalFile: file, // Store original file for sending
+                    filename: file.name,
+                    id: crypto.randomUUID(),
+                    isRecording
                 }
-            ]);
+            },
+            {
+                type: 'text',
+                text: ' '
+            }
+        ]);
+        
         setTimeout(() => {
             editor.commands.focus('end');
         }, 50);
@@ -350,11 +363,11 @@
     }
 
     async function handlePhotoCaptured(event: CustomEvent) {
-        const { blob } = event.detail;
+        const { blob, previewBlob, previewUrl } = event.detail;
         const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
         showCamera = false;
         await new Promise(resolve => setTimeout(resolve, 150));
-        await insertImage(file, true);
+        await insertImage(file, true, previewUrl);
     }
 
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {

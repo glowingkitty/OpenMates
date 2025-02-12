@@ -4,12 +4,24 @@ import { mountComponent } from '../../utils/editorHelpers';
 import Photos from '../../in_message_previews/Photos.svelte'; // Import your Svelte component
 import type { SvelteComponent } from 'svelte';
 
-export interface ImageOptions {}
+export interface ImageOptions {
+    src: string;
+    originalFile?: File;
+    filename: string;
+    id: string;
+    isRecording?: boolean;
+}
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
         imageEmbed: {
-            setImageEmbed: (options: {src: string; filename: string; id: string; isRecording?: boolean}) => ReturnType
+            setImageEmbed: (options: {
+                src: string;
+                originalFile?: File;
+                filename: string;
+                id: string;
+                isRecording?: boolean
+            }) => ReturnType
         }
     }
 }
@@ -24,6 +36,9 @@ export const ImageEmbed = Node.create<ImageOptions>({
     addAttributes() {
         return {
             src: {
+                default: null,
+            },
+            originalFile: {
                 default: null,
             },
             filename: {

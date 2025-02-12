@@ -8,3 +8,4 @@ export * from './fileHelpers';
 export * from './mateHelpers';
 export * from './urlHelpers';
 export * from './vibrationHelpers';
+export * from './imageHelpers';

@@ -3,6 +3,7 @@
     import { slide } from 'svelte/transition';
     import { tooltip } from '../../actions/tooltip';
     import { _ } from 'svelte-i18n';
+    import { resizeImage } from './utils/imageHelpers';
     const dispatch = createEventDispatcher();
 
     let isMobile: boolean = false;
@@ -175,12 +176,28 @@
 
         if (ctx) {
             ctx.drawImage(videoElement, 0, 0);
-            canvas.toBlob((blob) => {
+            canvas.toBlob(async (blob) => {
                 if (blob) {
-                    pendingPhoto = blob;
-                    setTimeout(() => {
-                        initiateClose();
-                    }, 150);
+                    try {
+                        // Create preview version
+                        const { previewBlob, previewUrl } = await resizeImage(blob);
+                        
+                        // Send both original and preview
+                        dispatch('photocaptured', { 
+                            blob, // Original for sending
+                            previewBlob, // Smaller version for preview
+                            previewUrl // Ready to use URL for immediate display
+                        });
+                        
+                        pendingPhoto = previewBlob;
+                        setTimeout(() => {
+                            initiateClose();
+                        }, 150);
+                    } catch (error) {
+                        console.error('Error creating preview:', error);
+                        // Fallback to original if preview creation fails
+                        dispatch('photocaptured', { blob, previewBlob: blob, previewUrl: URL.createObjectURL(blob) });
+                    }
                 }
             }, 'image/jpeg');
         }
