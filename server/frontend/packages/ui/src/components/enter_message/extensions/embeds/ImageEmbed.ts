@@ -6,6 +6,7 @@ import type { SvelteComponent } from 'svelte';
 
 export interface ImageOptions {
     src: string;
+    originalUrl?: string;
     originalFile?: File;
     filename: string;
     id: string;
@@ -17,6 +18,7 @@ declare module '@tiptap/core' {
         imageEmbed: {
             setImageEmbed: (options: {
                 src: string;
+                originalUrl?: string;
                 originalFile?: File;
                 filename: string;
                 id: string;
@@ -36,6 +38,9 @@ export const ImageEmbed = Node.create<ImageOptions>({
     addAttributes() {
         return {
             src: {
+                default: null,
+            },
+            originalUrl: {
                 default: null,
             },
             originalFile: {

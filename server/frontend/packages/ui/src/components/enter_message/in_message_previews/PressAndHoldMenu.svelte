@@ -8,6 +8,7 @@
     export let show: boolean = false;
     export let type: 'default' | 'pdf' | 'web' = 'default';  // Add type prop
     export let isYouTube: boolean = false;  // Add isYouTube prop
+    export let originalUrl: string | undefined = undefined;
 
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
@@ -47,6 +48,15 @@
             document.removeEventListener('scroll', handleScroll, true);
         };
     });
+
+    function handleView(event: MouseEvent) {
+        event.stopPropagation();
+        if (originalUrl) {
+            window.open(originalUrl, '_blank');
+        }
+        dispatch('view');
+        dispatch('close');
+    }
 </script>
 
 {#if show}
@@ -73,7 +83,7 @@
             </button>
             <button 
                 class="menu-item view"
-                on:click={(event) => handleMenuItemClick('view', event)}
+                on:click={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
                 {$_('enter_message.press_and_hold_menu.view.text')}
@@ -88,7 +98,7 @@
             </button>
             <button 
                 class="menu-item view"
-                on:click={(event) => handleMenuItemClick('view', event)}
+                on:click={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
                 {$_('enter_message.press_and_hold_menu.view.text')}
@@ -105,7 +115,7 @@
             {/if}
             <button 
                 class="menu-item view"
-                on:click={(event) => handleMenuItemClick('view', event)}
+                on:click={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
                 {$_('enter_message.press_and_hold_menu.view.text')}

@@ -1,42 +1,49 @@
 /**
- * Resizes an image blob to specified dimensions while maintaining aspect ratio
+ * Resizes and crops an image blob to fit preview dimensions while maintaining center focus
  * @param blob Original image blob
- * @param maxWidth Maximum width of resized image
- * @param maxHeight Maximum height of resized image
- * @returns Promise with resized image blob and data URL
+ * @returns Promise with resized image blob, data URL, and original blob URL for full view
  */
-export async function resizeImage(blob: Blob): Promise<{ previewBlob: Blob; previewUrl: string }> {
-    // Create an image element to load the blob
+export async function resizeImage(blob: Blob): Promise<{ 
+    previewBlob: Blob; 
+    previewUrl: string;
+    originalUrl: string;
+}> {
     const img = new Image();
     const objectUrl = URL.createObjectURL(blob);
 
     return new Promise((resolve, reject) => {
         img.onload = () => {
-            // Clean up object URL
-            URL.revokeObjectURL(objectUrl);
+            // Target dimensions for the preview container
+            const TARGET_WIDTH = 300;
+            const TARGET_HEIGHT = 200;
+            const TARGET_RATIO = TARGET_WIDTH / TARGET_HEIGHT;
 
-            // Calculate new dimensions maintaining aspect ratio
-            const MAX_WIDTH = 600;
-            const MAX_HEIGHT = 400;
-            let width = img.width;
-            let height = img.height;
-            
-            if (width > MAX_WIDTH) {
-                height = Math.round((height * MAX_WIDTH) / width);
-                width = MAX_WIDTH;
-            }
-            if (height > MAX_HEIGHT) {
-                width = Math.round((width * MAX_HEIGHT) / height);
-                height = MAX_HEIGHT;
+            // Calculate dimensions for center crop
+            let cropWidth = img.width;
+            let cropHeight = img.height;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            const imageRatio = img.width / img.height;
+
+            if (imageRatio > TARGET_RATIO) {
+                // Image is wider than target ratio - crop width
+                cropWidth = img.height * TARGET_RATIO;
+                offsetX = (img.width - cropWidth) / 2;
+            } else {
+                // Image is taller than target ratio - crop height
+                cropHeight = img.width / TARGET_RATIO;
+                offsetY = (img.height - cropHeight) / 2;
             }
 
-            // Create canvas and resize image
+            // Create canvas for cropped and resized image
             const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
+            canvas.width = TARGET_WIDTH * 2; // Double size for high DPI
+            canvas.height = TARGET_HEIGHT * 2;
             const ctx = canvas.getContext('2d');
             
             if (!ctx) {
+                URL.revokeObjectURL(objectUrl);
                 reject(new Error('Could not get canvas context'));
                 return;
             }
@@ -45,21 +52,25 @@ export async function resizeImage(blob: Blob): Promise<{ previewBlob: Blob; prev
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             
-            // Draw image with white background (for transparent PNGs)
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, width, height);
-            ctx.drawImage(img, 0, 0, width, height);
+            // Draw cropped and resized image
+            ctx.drawImage(
+                img,
+                offsetX, offsetY, cropWidth, cropHeight, // Source crop
+                0, 0, TARGET_WIDTH * 2, TARGET_HEIGHT * 2 // Destination size
+            );
 
             // Convert to blob
             canvas.toBlob(
                 (previewBlob) => {
                     if (!previewBlob) {
+                        URL.revokeObjectURL(objectUrl);
                         reject(new Error('Could not create preview blob'));
                         return;
                     }
                     resolve({
                         previewBlob,
-                        previewUrl: canvas.toDataURL('image/jpeg', 0.85)
+                        previewUrl: canvas.toDataURL('image/jpeg', 0.85),
+                        originalUrl: objectUrl // Keep original URL for full view
                     });
                 },
                 'image/jpeg',

@@ -6,33 +6,35 @@
     export let filename: string;
     export let id: string;
     export let isRecording: boolean = false;
+    export let originalUrl: string | undefined = undefined;
 </script>
 
 <InlinePreviewBase {id} type={isRecording ? 'photos_recording' : 'photos'} {src} {filename} height="200px">
-    <div class="checkerboard-background">
-        <img {src} alt="Preview" class="preview-image fill-container" />
+    <div class="photo-container">
+        <div 
+            class="photo-preview" 
+            style="background-image: url('{src}')"
+            data-original-url={originalUrl || src}
+        />
     </div>
 </InlinePreviewBase>
 
 <style>
-    .checkerboard-background {
+    .photo-container {
         width: 100%;
         height: 100%;
-        background-image: linear-gradient(45deg, var(--color-grey-20) 25%, transparent 25%),
-                         linear-gradient(-45deg, var(--color-grey-20) 25%, transparent 25%),
-                         linear-gradient(45deg, transparent 75%, var(--color-grey-20) 75%),
-                         linear-gradient(-45deg, transparent 75%, var(--color-grey-20) 75%);
-        background-size: 20px 20px;
-        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-        background-color: var(--color-grey-0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background: var(--color-grey-20);
+        border-radius: 24px;
+        overflow: hidden;
     }
 
-    .preview-image.fill-container {
+    .photo-preview {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        user-select: none;
+        -webkit-user-select: none;
     }
 </style> 

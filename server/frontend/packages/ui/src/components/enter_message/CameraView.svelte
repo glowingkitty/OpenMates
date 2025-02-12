@@ -234,7 +234,7 @@
         bind:this={fallbackInput}
         type="file"
         accept="image/*,video/*"
-        capture="environment"
+        capture="user"
         on:change={handleFallbackChange}
         style="display: none;"
     />

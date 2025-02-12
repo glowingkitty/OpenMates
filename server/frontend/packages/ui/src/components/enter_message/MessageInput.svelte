@@ -182,7 +182,7 @@
             } else if (isCodeOrTextFile(file.name)) {
                 await insertCodeFile(file);
             } else if (file.type.startsWith('image/')) {
-                await insertImage(file);
+                await insertImage(file, true);
             } else if (file.type === 'application/pdf') {
                 await insertFile(file, 'pdf');
             } else if (file.type.startsWith('audio/')) {
@@ -220,15 +220,18 @@
             editor.commands.focus('end');
         }, 50);
     }
-    async function insertImage(file: File, isRecording: boolean = false, previewUrl?: string): Promise<void> {
+    async function insertImage(file: File, isRecording: boolean = false, previewUrl?: string, originalUrl?: string): Promise<void> {
         // If no previewUrl provided, create one
         if (!previewUrl) {
             try {
-                const { previewUrl: newPreviewUrl } = await resizeImage(file);
+                const { previewUrl: newPreviewUrl, originalUrl: newOriginalUrl } = await resizeImage(file);
                 previewUrl = newPreviewUrl;
+                originalUrl = newOriginalUrl;
             } catch (error) {
                 console.error('Error creating preview:', error);
-                previewUrl = URL.createObjectURL(file);
+                const url = URL.createObjectURL(file);
+                previewUrl = url;
+                originalUrl = url;
             }
         }
 
@@ -237,8 +240,9 @@
                 type: 'imageEmbed',
                 attrs: {
                     type: 'image',
-                    src: previewUrl, // Use preview URL for display
-                    originalFile: file, // Store original file for sending
+                    src: previewUrl,
+                    originalUrl: originalUrl,
+                    originalFile: file,
                     filename: file.name,
                     id: crypto.randomUUID(),
                     isRecording
