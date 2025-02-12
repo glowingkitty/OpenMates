@@ -763,26 +763,17 @@
                     return;
                 }
 
-                const isEmpty = editor.isEmpty || (
-                    editor.state.doc.textContent.trim() === '' &&
-                    !editor.state.doc.content.content.some(node =>
-                    node.content?.content?.some((n: any) =>
-                            [
-                                'imageEmbed',
-                                'videoEmbed',
-                                'audioEmbed',
-                                'pdfEmbed',
-                                'fileEmbed',
-                                'codeEmbed',
-                                'bookEmbed',
-                                'textEmbed',
-                                'webPreview'
-                            ].includes(n.type.name)
-                        )
-                    )
+                // Replace the existing isEmpty check with a more accurate one
+                const hasEmbeds = editor.state.doc.content.content.some(node => 
+                    node.content?.content?.some((n: any) => n.type.name.endsWith('Embed'))
                 );
 
-                if (isEmpty) {
+                const hasOnlyEmptyParagraph = editor.state.doc.content.size === 2 && 
+                    editor.state.doc.content.content[0].type.name === 'paragraph' &&
+                    editor.state.doc.content.content[0].content.size === 0;
+
+                // Only reset if we have no embeds and either empty or just a mate mention
+                if (!hasEmbeds && (hasOnlyEmptyParagraph || isContentEmptyExceptMention(editor))) {
                     editor.commands.setContent(getInitialContent());
                 }
             },

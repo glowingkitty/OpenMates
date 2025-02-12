@@ -302,4 +302,15 @@
         mask-position: center;
         transition: opacity 0.3s ease;
     }
+
+    /* Add these new styles */
+    :global(.maps-embed-container) {
+        margin: 8px 0;
+        display: block;
+        width: 100%;
+    }
+
+    :global(.ProseMirror) .preview-container {
+        pointer-events: all;
+    }
 </style>

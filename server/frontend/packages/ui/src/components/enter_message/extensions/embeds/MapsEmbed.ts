@@ -56,13 +56,18 @@ export const MapsEmbed = Node.create<MapsOptions>({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-maps-embed': true })];
+    return ['div', mergeAttributes(
+      { class: 'maps-embed-container' },
+      HTMLAttributes, 
+      { 'data-maps-embed': '' }
+    )];
   },
 
   addNodeView() {
     return ({ node, HTMLAttributes, getPos, editor }) => {
       const dom = document.createElement('div');
-      dom.setAttribute('data-maps-embed', 'true');
+      dom.setAttribute('data-maps-embed', '');
+      dom.classList.add('maps-embed-container');
 
       let component: SvelteComponent | null = null;
       component = mountComponent(Maps, dom, {
@@ -76,11 +81,14 @@ export const MapsEmbed = Node.create<MapsOptions>({
       return {
         dom,
         destroy: () => {
-          component?.$destroy();
+          if (component) {
+            component.$destroy();
+          }
         }
       };
     };
   },
+
   addCommands() {
     return {
       setMapsEmbed: options => ({ commands }) => {

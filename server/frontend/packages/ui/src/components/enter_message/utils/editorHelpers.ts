@@ -17,6 +17,7 @@ const md = new MarkdownIt({
 export function isContentEmptyExceptMention(editor: Editor): boolean {
     let hasOnlyMention = true;
     let mentionCount = 0;
+    let hasEmbed = false;
 
     editor.state.doc.descendants((node) => {
         if (node.type.name === 'mate') {
@@ -26,9 +27,20 @@ export function isContentEmptyExceptMention(editor: Editor): boolean {
                 hasOnlyMention = false;
             }
         } else if (node.type.name !== 'paragraph') {
-            hasOnlyMention = false;
+            // Check if it's any kind of embed
+            if (node.type.name.endsWith('Embed')) {
+                hasEmbed = true;
+                hasOnlyMention = false;
+            } else {
+                hasOnlyMention = false;
+            }
         }
     });
+
+    // If we have an embed, content is not empty
+    if (hasEmbed) {
+        return false;
+    }
 
     return hasOnlyMention && mentionCount === 1;
 }
