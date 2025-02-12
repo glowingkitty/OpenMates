@@ -81,6 +81,7 @@ export const ImageEmbed = Node.create<ImageOptions>({
                 filename: node.attrs.filename,
                 id: node.attrs.id,
                 isRecording: node.attrs.isRecording,
+                originalUrl: node.attrs.originalUrl
             });
 
             return {
@@ -94,7 +95,8 @@ export const ImageEmbed = Node.create<ImageOptions>({
                         src: updatedNode.attrs.src,
                         filename: updatedNode.attrs.filename,
                         id: updatedNode.attrs.id,
-                        isRecording: updatedNode.attrs.isRecording
+                        isRecording: updatedNode.attrs.isRecording,
+                        originalUrl: updatedNode.attrs.originalUrl
                     });
                     return true;
 
