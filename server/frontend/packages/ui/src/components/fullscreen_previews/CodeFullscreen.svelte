@@ -147,11 +147,13 @@
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         padding: 20px;
+        padding-left: 0px;
         overflow: auto;
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
         display: flex;
+        align-items: flex-start;
     }
 
     .code-content:hover {
@@ -270,11 +272,10 @@
     }
 
     .line-numbers-container {
+        position: relative;
         position: sticky;
         left: 0;
-        top: 0;
-        min-width: 3em;
-        background-color: rgba(128, 128, 128, 0.1);
+        background-color: #181818;
         padding: 0 8px;
         text-align: right;
         user-select: none;
@@ -282,12 +283,14 @@
         font-family: 'JetBrains Mono', monospace;
         font-size: 14px;
         line-height: 1.5;
-        border-right: 1px solid rgba(128, 128, 128, 0.2);
+        border-right: 1px solid rgba(128, 128, 128, 0.3);
         margin-right: 1em;
+        height: fit-content;
     }
 
     .line-number {
         height: 1.5em;
+        padding-top: 0.1em;
     }
 
     pre {
@@ -297,6 +300,7 @@
         line-height: 1.5;
         height: 100%;
         flex: 1;
+        padding-top: 0.1em;
     }
 
     code {
