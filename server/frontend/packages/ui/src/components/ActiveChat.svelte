@@ -1,7 +1,7 @@
 <script lang="ts">
     // import EnterMessageField from './enter_message/EnterMessageField.svelte';
     import MessageInput from './enter_message/MessageInput.svelte';
-    import FullscreenCodePreview from './enter_message/in_message_previews/FullscreenCodePreview.svelte';
+    import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import Login from './Login.svelte';
@@ -264,7 +264,7 @@
             </div>
 
             {#if showCodeFullscreen}
-                <FullscreenCodePreview 
+                <CodeFullscreen 
                     code={fullscreenCodeData.code}
                     filename={fullscreenCodeData.filename}
                     language={fullscreenCodeData.language}
