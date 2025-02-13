@@ -3,7 +3,6 @@
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { slide } from 'svelte/transition';
-    import JSZip from 'jszip';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip'; // Assuming this path
 
@@ -22,14 +21,8 @@
     // Import utils
     import {
         formatDuration,
-        isLikelyCode,
-        detectLanguage,
         isContentEmptyExceptMention,
-        hasActualContent,
         getInitialContent,
-        convertToMarkdown,
-        insertCodeContent,
-        insertTextContent,
         extractEpubCover,
         getEpubMetadata,
         isEpubFile,
@@ -38,8 +31,6 @@
         getLanguageFromFilename,
         detectAndReplaceMates,
         detectAndReplaceUrls,
-        vibrateMessageField,
-        isLargeText,
         resizeImage
     } from './utils';
 
