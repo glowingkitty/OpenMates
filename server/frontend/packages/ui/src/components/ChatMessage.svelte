@@ -4,6 +4,7 @@
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
   import * as EmbedNodes from './enter_message/extensions/embeds';
+  import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   
   export let role: 'user' | string = 'user';
   
@@ -53,17 +54,26 @@
   let menuType: 'default' | 'pdf' | 'web' = 'default';
   let selectedNode: any = null;
 
+  // Add state for fullscreen
+  let showFullscreen = false;
+  let fullscreenData = {
+    code: '',
+    filename: '',
+    language: '',
+    lineCount: 0
+  };
+
   // Handle embed menu events
   function handleEmbedClick(event: CustomEvent) {
-    const { view, node, dom } = event.detail;
-    console.log('[ChatMessage] Embed clicked:', { view, node, dom });
+    const { view, node, dom, rect } = event.detail;
+    console.log('[ChatMessage] Embed clicked:', { view, node, dom, rect });
 
     if (!dom) return;
 
-    const rect = dom.getBoundingClientRect();
     const container = dom.closest('.chat-message-text');
     if (!container) return;
 
+    // Use the rect from the event for more accurate positioning
     menuX = rect.left - container.getBoundingClientRect().left + (rect.width / 2);
     menuY = rect.top - container.getBoundingClientRect().top;
 
@@ -75,7 +85,8 @@
     showMenu = true;
   }
 
-  function handleMenuAction(action: string) {
+  // Update handleMenuAction
+  async function handleMenuAction(action: string) {
     if (!selectedNode) return;
 
     // Use the node's original handlers
@@ -84,8 +95,59 @@
         nodeType.options.handleAction(action, selectedNode);
     }
 
+    // Handle fullscreen for supported node types
+    if (action === 'view') {
+        if (selectedNode.type.name === 'codeEmbed') {
+            try {
+                const response = await fetch(selectedNode.attrs.src);
+                const code = await response.text();
+                fullscreenData = {
+                    code,
+                    filename: selectedNode.attrs.filename,
+                    language: selectedNode.attrs.language,
+                    lineCount: code.split('\n').length
+                };
+                showFullscreen = true;
+                showMenu = false;
+                selectedNode = null;
+                return;
+            } catch (error) {
+                console.error('Error loading code content:', error);
+            }
+        }
+        
+        // Fallback to opening in new tab for other types
+        if (selectedNode.attrs?.src || selectedNode.attrs?.url) {
+            window.open(selectedNode.attrs.src || selectedNode.attrs.url, '_blank');
+        }
+    }
+
+    // Handle other actions
+    switch (action) {
+        case 'download':
+            if (selectedNode.attrs?.src) {
+                const a = document.createElement('a');
+                a.href = selectedNode.attrs.src;
+                a.download = selectedNode.attrs.filename || '';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+            break;
+        case 'copy':
+            if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
+                navigator.clipboard.writeText(selectedNode.attrs.url || selectedNode.attrs.src);
+            }
+            break;
+    }
+
     showMenu = false;
     selectedNode = null;
+  }
+
+  // Add handler for closing fullscreen
+  function handleCloseFullscreen() {
+    showFullscreen = false;
   }
 
   /**
@@ -163,6 +225,16 @@
     </div>
   </div>
 </div>
+
+{#if showFullscreen}
+    <CodeFullscreen 
+        code={fullscreenData.code}
+        filename={fullscreenData.filename}
+        language={fullscreenData.language}
+        lineCount={fullscreenData.lineCount}
+        onClose={handleCloseFullscreen}
+    />
+{/if}
 
 <style>
   .chat-app-cards-container {

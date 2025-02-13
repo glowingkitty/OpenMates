@@ -875,9 +875,10 @@
                 <button
                     class="clickable-icon icon_files"
                     on:click={handleFileSelect}
-                    aria-label="Attach Files"
+                    aria-label="Attach Files" 
                     use:tooltip
                 ></button>
+                <!-- TODO add translation for aria labels again! -->
                 <button
                     class="clickable-icon icon_maps"
                     on:click={handleLocationClick}

@@ -24,7 +24,8 @@
     function handleEmbedClick(event: CustomEvent) {
         event.stopPropagation();
         const target = event.target as HTMLElement;
-        const embedContainer = target.closest('[data-code-embed]');
+        // Look for any embed container with either data attribute
+        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
         if (embedContainer) {
             console.log('[ReadOnlyMessage] Embed container clicked');
             
@@ -33,10 +34,19 @@
             const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
             
             if (node) {
+                const elementId = embedContainer.getAttribute('data-embed-id') || 
+                                embedContainer.getAttribute('data-code-embed') || 
+                                embedContainer.id;
+                
+                // Get container rect for menu positioning
+                const rect = embedContainer.getBoundingClientRect();
+                
                 dispatch('message-embed-click', {
                     view: editor?.view,
                     node,
-                    dom: embedContainer
+                    dom: embedContainer,
+                    elementId,
+                    rect // Pass the rect for proper menu positioning
                 });
             }
         }
