@@ -41,11 +41,10 @@
             hljs.highlightElement(codeElement);
         }
         
-        // Verify line count on mount
-        const actualLineCount = code.split('\n').length;
-        if (lineCount !== actualLineCount) {
-            console.warn('Line count mismatch:', { provided: lineCount, actual: actualLineCount });
-            lineCount = actualLineCount;
+        // Calculate actual line count if not provided
+        if (!lineCount) {
+            lineCount = code.split('\n').length;
+            console.log('Calculated line count:', lineCount);
         }
         
         // Generate line numbers
@@ -77,10 +76,8 @@
 
         <!-- Code content area -->
         <div class="code-content">
-            <div class="line-numbers-container">
-                {#each Array(lineCount) as _, i}
-                    <div class="line-number">{i + 1}</div>
-                {/each}
+            <div class="line-numbers-container" bind:this={lineNumbersElement}>
+                <!-- Line numbers will be inserted here by generateLineNumbers() -->
             </div>
             <pre><code bind:this={codeElement} class="hljs language-{language}">{code}</code></pre>
         </div>
@@ -272,7 +269,6 @@
     }
 
     .line-numbers-container {
-        position: relative;
         position: sticky;
         left: 0;
         background-color: #181818;
@@ -285,7 +281,7 @@
         line-height: 1.5;
         border-right: 1px solid rgba(128, 128, 128, 0.3);
         margin-right: 1em;
-        height: fit-content;
+        z-index: 1;
     }
 
     .line-number {

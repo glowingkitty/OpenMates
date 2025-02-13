@@ -207,16 +207,15 @@
             }
 
             // Calculate line count here to ensure it's accurate
-            const lines = code.split('\n');
-            const currentLineCount = lines.length;
+            const actualLineCount = code.split('\n').length;
             
-            console.log('Dispatching fullscreen with line count:', currentLineCount);
+            console.log('Dispatching fullscreen with line count:', actualLineCount);
             
             dispatch('codefullscreen', {
                 code: sanitizeCode(code),
                 filename,
                 language: getLanguageFromFilename(filename),
-                lineCount: currentLineCount // Make sure we're passing the current line count
+                lineCount: actualLineCount // Make sure we're passing the line count
             });
             
             setTimeout(() => {
