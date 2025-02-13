@@ -5,12 +5,14 @@
     import * as EmbedNodes from '../components/enter_message/extensions/embeds';
     import { WebPreview } from '../components/enter_message/extensions/WebPreview';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
+    import { createEventDispatcher } from 'svelte';
 
     // Props
     export let content: any; // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor;
+    const dispatch = createEventDispatcher();
 
     // Logger for debugging
     const logger = {
@@ -18,7 +20,36 @@
         info: (...args: any[]) => console.info('[ReadOnlyMessage]', ...args)
     };
 
+    // Handle embed interactions directly from the editor element
+    function handleEmbedClick(event: CustomEvent) {
+        event.stopPropagation();
+        const target = event.target as HTMLElement;
+        const embedContainer = target.closest('[data-code-embed]');
+        if (embedContainer) {
+            console.log('[ReadOnlyMessage] Embed container clicked');
+            
+            // Get the node from the editor
+            const pos = editor?.view.posAtDOM(embedContainer, 0);
+            const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+            
+            if (node) {
+                dispatch('message-embed-click', {
+                    view: editor?.view,
+                    node,
+                    dom: embedContainer
+                });
+            }
+        }
+    }
+
+    // Handle mate mentions
+    function handleMateClick(event: CustomEvent) {
+        event.stopPropagation();
+        dispatch('message-mate-click', event.detail);
+    }
+
     onMount(() => {
+        console.log('[ReadOnlyMessage] 4. Mounting with content:', content);
         if (!editorElement) return;
 
         logger.debug('Initializing read-only editor with content:', content);
@@ -41,40 +72,16 @@
             injectCSS: false, // Don't inject default styles
         });
 
-        // Add event listener for embed clicks
-        document.addEventListener('embedclick', handleEmbedClick as EventListener);
-        document.addEventListener('mateclick', handleMateClick as EventListener);
+        // Listen for clicks on the editor
+        editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
     });
 
     onDestroy(() => {
         if (editor) {
+            editor.view.dom.removeEventListener('click', handleEmbedClick as EventListener);
             editor.destroy();
         }
-        document.removeEventListener('embedclick', handleEmbedClick as EventListener);
-        document.removeEventListener('mateclick', handleMateClick as EventListener);
     });
-
-    // Handle embed interactions
-    function handleEmbedClick(event: CustomEvent) {
-        const { id } = event.detail;
-        logger.debug('Embed clicked:', id);
-        // Dispatch event up to parent components
-        editorElement.dispatchEvent(new CustomEvent('embedclick', {
-            detail: event.detail,
-            bubbles: true
-        }));
-    }
-
-    // Handle mate mentions
-    function handleMateClick(event: CustomEvent) {
-        const { id } = event.detail;
-        logger.debug('Mate clicked:', id);
-        // Dispatch event up to parent components
-        editorElement.dispatchEvent(new CustomEvent('mateclick', {
-            detail: event.detail,
-            bubbles: true
-        }));
-    }
 </script>
 
 <div class="read-only-message">

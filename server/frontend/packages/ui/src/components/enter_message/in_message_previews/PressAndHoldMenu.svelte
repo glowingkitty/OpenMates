@@ -9,6 +9,7 @@
     export let type: 'default' | 'pdf' | 'web' = 'default';  // Add type prop
     export let isYouTube: boolean = false;  // Add isYouTube prop
     export let originalUrl: string | undefined = undefined;
+    export let hideDelete: boolean = false;
 
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
@@ -65,13 +66,15 @@
         style="--menu-x: {x}px; --menu-y: {y}px;"
         bind:this={menuElement}
     >
-        <button 
-            class="menu-item delete"
-            on:click={(event) => handleMenuItemClick('delete', event)}
-        >
-            <div class="clickable-icon icon_delete"></div>
-            {$_('enter_message.press_and_hold_menu.delete.text')}
-        </button>
+        {#if !hideDelete}
+            <button 
+                class="menu-item delete"
+                on:click={(event) => handleMenuItemClick('delete', event)}
+            >
+                <div class="clickable-icon icon_delete"></div>
+                {$_('enter_message.press_and_hold_menu.delete.text')}
+            </button>
+        {/if}
         
         {#if type === 'web' || isYouTube}
             <button 

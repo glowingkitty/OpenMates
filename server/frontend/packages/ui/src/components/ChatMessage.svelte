@@ -2,6 +2,8 @@
   import type { SvelteComponent } from 'svelte';
   import { afterUpdate } from 'svelte';
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
+  import * as EmbedNodes from './enter_message/extensions/embeds';
   
   export let role: 'user' | string = 'user';
   
@@ -43,6 +45,48 @@
 
   // Add new prop for animation control
   export let animated: boolean = false;
+
+  // Add menu state
+  let showMenu = false;
+  let menuX = 0;
+  let menuY = 0;
+  let menuType: 'default' | 'pdf' | 'web' = 'default';
+  let selectedNode: any = null;
+
+  // Handle embed menu events
+  function handleEmbedClick(event: CustomEvent) {
+    const { view, node, dom } = event.detail;
+    console.log('[ChatMessage] Embed clicked:', { view, node, dom });
+
+    if (!dom) return;
+
+    const rect = dom.getBoundingClientRect();
+    const container = dom.closest('.chat-message-text');
+    if (!container) return;
+
+    menuX = rect.left - container.getBoundingClientRect().left + (rect.width / 2);
+    menuY = rect.top - container.getBoundingClientRect().top;
+
+    selectedNode = node;
+    menuType = node.type.name === 'pdfEmbed' ? 'pdf' : 
+               node.type.name === 'webPreview' ? 'web' : 
+               'default';
+
+    showMenu = true;
+  }
+
+  function handleMenuAction(action: string) {
+    if (!selectedNode) return;
+
+    // Use the node's original handlers
+    const nodeType = EmbedNodes[selectedNode.type.name];
+    if (nodeType?.options?.handleAction) {
+        nodeType.options.handleAction(action, selectedNode);
+    }
+
+    showMenu = false;
+    selectedNode = null;
+  }
 
   /**
    * Converts a message object into its final markdown representation.
@@ -93,8 +137,29 @@
       {/if}
 
       <div class="chat-message-text">
-        <ReadOnlyMessage {content} />
+        <ReadOnlyMessage 
+            {content} 
+            on:message-embed-click={handleEmbedClick}
+        />
       </div>
+
+      {#if showMenu}
+        <PressAndHoldMenu
+          x={menuX}
+          y={menuY}
+          show={showMenu}
+          type={menuType}
+          isYouTube={selectedNode?.attrs?.isYouTube || false}
+          hideDelete={true}
+          on:close={() => {
+            showMenu = false;
+            selectedNode = null;
+          }}
+          on:view={() => handleMenuAction('view')}
+          on:download={() => handleMenuAction('download')}
+          on:copy={() => handleMenuAction('copy')}
+        />
+      {/if}
     </div>
   </div>
 </div>
@@ -135,5 +200,9 @@
     display: block;
     content: "";
     margin-top: 0.25em;
+  }
+
+  .chat-message-text {
+    position: relative; /* Add this to properly position the menu */
   }
 </style>
