@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core';
 import { hasActualContent, vibrateMessageField } from '../utils';
 import { convertToMarkdown } from '../utils/editorHelpers';
+import { Extension } from '@tiptap/core';
 
 /**
  * Creates a message payload from the editor content
@@ -196,4 +197,47 @@ export function setDraftContent(editor: Editor | null, content: string) {
         }]
     });
     editor.commands.focus('end');
+}
+
+/**
+ * Creates a custom keyboard extension for handling Enter key events in the editor
+ * @returns TipTap extension for custom keyboard handling
+ */
+export function createKeyboardHandlingExtension() {
+    return Extension.create({
+        name: 'customKeyboardHandling',
+        priority: 1000,
+
+        addKeyboardShortcuts() {
+            return {
+                // Handle regular Enter press
+                Enter: ({ editor }) => {
+                    // Don't handle Enter if there's text selection
+                    if (this.editor.view.state.selection.$anchor.pos !== 
+                        this.editor.view.state.selection.$head.pos) {
+                        return false; // Let default behavior handle text selection
+                    }
+
+                    if (hasActualContent(editor)) {
+                        // Create and dispatch a native Event for sending message
+                        const sendEvent = new Event('custom-send-message', {
+                            bubbles: true,    // Allow event to bubble up
+                            cancelable: true   // Allow event to be cancelled
+                        });
+
+                        // Dispatch the event on the editor's DOM element
+                        editor.view.dom.dispatchEvent(sendEvent);
+                        return true;
+                    } else {
+                        vibrateMessageField();
+                        return true;
+                    }
+                },
+                // Handle Shift+Enter for line breaks
+                'Shift-Enter': ({ editor }) => {
+                    return editor.commands.enter(); // Use native enter command
+                },
+            };
+        },
+    });
 } 

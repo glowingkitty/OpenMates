@@ -8,7 +8,6 @@
     import { tooltip } from '../../actions/tooltip'; // Assuming this path
 
     //Import extensions
-    import { CustomKeyboardHandling } from './extensions/Keyboard';
     import { CustomPlaceholder } from './extensions/Placeholder';
     import { WebPreview } from './extensions/WebPreview';
     import { MateNode } from './extensions/MateNode';
@@ -45,7 +44,7 @@
     } from './utils';
 
     // Add import for the new handlers
-    import { handleSend, clearMessageField, setDraftContent } from './handlers/sendHandlers';
+    import { handleSend, clearMessageField, setDraftContent, createKeyboardHandlingExtension } from './handlers/sendHandlers';
 
     const dispatch = createEventDispatcher();
 
@@ -669,11 +668,11 @@
                         HTMLAttributes: {}
                     },
                 }),
-                ...Object.values(EmbedNodes), // Correctly includes all embed nodes
+                ...Object.values(EmbedNodes),
                 WebPreview,
                 MateNode,
                 CustomPlaceholder,
-                CustomKeyboardHandling
+                createKeyboardHandlingExtension()
             ],
             content: getInitialContent(),
              onFocus: () => {
