@@ -187,8 +187,8 @@ setup_docs(app)
 
 # Mount the static files directory
 base_dir = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(base_dir.split('server')[0], 'server', 'web_app', 'static')
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# static_dir = os.path.join(base_dir.split('server')[0], 'server', 'web_app', 'static')
+# app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 ##################################
 ######### Web interface ##########
