@@ -647,6 +647,8 @@
             vibrateMessageField();
             return;
         }
+        
+        // Create message payload
         const messagePayload = {
             id: crypto.randomUUID(),
             role: "user",
@@ -740,27 +742,47 @@
 
         dispatch("sendMessage", messagePayload);
         hasContent = false;
+
+        // Clear content and add mate node in a consistent way
+        resetEditorContent();
+    }
+
+    // Add new helper function to handle resetting editor content
+    function resetEditorContent() {
         editor.commands.clearContent();
 
+        // Add mate node and space after clearing
         setTimeout(() => {
-            editor.commands.setContent(getInitialContent());
+            editor.commands.setContent({
+                type: 'doc',
+                content: [{
+                    type: 'paragraph',
+                    content: [
+                        {
+                            type: 'mate',
+                            attrs: {
+                                name: defaultMention,
+                                id: crypto.randomUUID()
+                            }
+                        },
+                        {
+                            type: 'text',
+                            text: ' '
+                        }
+                    ]
+                }]
+            });
             editor.commands.focus('end');
             hasContent = false;
         }, 0);
     }
-    /**
-       * Clears the message input field and resets it to the default state.
-       */
+
+    // Update the clearMessageField function to use resetEditorContent
     export function clearMessageField() {
         if (!editor) return;
-        editor.commands.clearContent();
-        hasContent = false;
-        setTimeout(() => {
-            editor.commands.setContent(getInitialContent());
-            editor.commands.focus('end');
-            hasContent = false;
-        }, 0);
+        resetEditorContent();
     }
+
     export function setDraftContent(content: string) {
         if (!editor) return;
         editor.commands.setContent({
@@ -908,7 +930,7 @@
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
-             editorElement?.removeEventListener('custom-send-message', handleSend as EventListener);
+            editorElement?.removeEventListener('custom-send-message', handleSend as EventListener);
             document.removeEventListener('embedclick', (() => {}) as EventListener);
             document.removeEventListener('mateclick', (() => {}) as EventListener);
             editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
