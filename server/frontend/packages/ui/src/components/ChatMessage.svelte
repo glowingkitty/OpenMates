@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
   import { afterUpdate } from 'svelte';
+  import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   
   export let role: 'user' | string = 'user';
   
@@ -27,6 +28,7 @@
   export let showScrollableContainer: boolean = false;
   export let appCards: AppCardData[] | undefined = undefined;
   export let defaultHidden: boolean = false;
+  export let content: any; // Tiptap JSON content
 
   // If appCards is provided, add it to messageParts
   $: if (appCards && (!messageParts || messageParts.length === 0)) {
@@ -91,32 +93,7 @@
       {/if}
 
       <div class="chat-message-text">
-        {#if messageParts && messageParts.length > 0}
-          {#each messageParts as part}
-            {#if part.type === 'text'}
-              <div class="text-content">{@html part.content}</div>
-            {:else if part.type === 'app-cards'}
-              <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
-                {#each part.content as card}
-                  <svelte:component this={card.component} {...card.props} />
-                {/each}
-              </div>
-            {/if}
-          {/each}
-        {:else}
-          <div class="text-content">
-            {@html $$slots.default ? '' : ''}
-            <slot />
-          </div>
-
-          {#if appCards && appCards.length > 0}
-            <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
-              {#each appCards as card}
-                <svelte:component this={card.component} {...card.props} />
-              {/each}
-            </div>
-          {/if}
-        {/if}
+        <ReadOnlyMessage {content} />
       </div>
     </div>
   </div>

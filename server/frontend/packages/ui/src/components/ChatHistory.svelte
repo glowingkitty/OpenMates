@@ -16,12 +16,11 @@
 
   type MessagePart = TextMessagePart | AppCardsMessagePart;
 
-  // Define the Message type used in the chat history.
+  // Define the Message type with Tiptap content
   interface Message {
     id: string;
-    role: string; // "user" for your messages or the mate's name.
-    messageParts: MessagePart[];
-    // Additional properties (e.g. timestamp) can be added here.
+    role: string;
+    content: any; // Tiptap JSON content
   }
 
   // Array that holds all chat messages.
@@ -45,7 +44,7 @@
    * @param message - The new message object.
    */
   export function addMessage(message: Message) {
-    // Append the new message.
+    console.debug('Adding message to chat history:', message);
     messages = [...messages, message];
   }
 
@@ -104,11 +103,17 @@
     style="bottom: {messageInputHeight}px;"
 >
     {#if showMessages}
-        <div class="chat-history-content" transition:fade={{ duration: 100 }} on:outroend={handleOutroEnd}>
+        <div class="chat-history-content" 
+             transition:fade={{ duration: 100 }} 
+             on:outroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
-                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" in:fly={{ duration: 300, y: 20 }}>
+                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" 
+                     in:fly={{ duration: 300, y: 20 }}>
                     <div in:fade>
-                        <ChatMessage role={msg.role} messageParts={msg.messageParts} />
+                        <ChatMessage 
+                            role={msg.role} 
+                            content={msg.content}
+                        />
                     </div>
                 </div>
             {/each}

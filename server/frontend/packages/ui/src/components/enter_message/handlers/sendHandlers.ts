@@ -6,124 +6,22 @@ import { Extension } from '@tiptap/core';
 /**
  * Creates a message payload from the editor content
  * @param editor The TipTap editor instance
- * @returns Message payload object with all message parts
+ * @returns Message payload object with message content
  */
 function createMessagePayload(editor: Editor) {
+    const content = editor.getJSON();
+    
+    // Validate content structure
+    if (!content || !content.type || content.type !== 'doc' || !content.content) {
+        console.error('Invalid editor content structure:', content);
+        throw new Error('Invalid editor content');
+    }
+
     const messagePayload = {
         id: crypto.randomUUID(),
         role: "user",
-        messageParts: [] as { 
-            type: string; 
-            content?: string; 
-            url?: string; 
-            filename?: string; 
-            id?: string; 
-            duration?: string; 
-            latitude?: number; 
-            longitude?: number; 
-            address?: string; 
-            language?: string; 
-            bookname?: string; 
-            author?: string; 
-        }[]
+        content
     };
-
-    editor.state.doc.content.forEach(node => {
-        if (node.type.name === 'paragraph') {
-            // Get the HTML content to preserve line breaks
-            const html = editor.getHTML();
-            // Convert <p> tags to line breaks and handle other markdown conversion
-            const markdownContent = convertToMarkdown(html)
-                .replace(/<p>/g, '')
-                .replace(/<\/p>/g, '\n')
-                .replace(/<br\s?\/?>/g, '\n')
-                .trim();
-            
-            messagePayload.messageParts.push({
-                type: 'text',
-                content: markdownContent
-            });
-        } else if (node.type.name === 'webPreview') {
-            messagePayload.messageParts.push({
-                type: 'web',
-                url: node.attrs.url,
-                id: node.attrs.id
-            });
-        } else if (node.type.name === 'imageEmbed') {
-            messagePayload.messageParts.push({
-                type: 'image',
-                filename: node.attrs.filename,
-                id: node.attrs.id
-            });
-        } else if (node.type.name === 'videoEmbed') {
-            messagePayload.messageParts.push({
-                type: 'video',
-                filename: node.attrs.filename,
-                id: node.attrs.id,
-                duration: node.attrs.duration
-            });
-        } else if (node.type.name === 'mate') {
-            const textContent = `@${node.attrs.name} `;
-            messagePayload.messageParts.push({
-                type: 'text',
-                content: textContent
-            });
-        } else if (node.type.name === 'codeEmbed') {
-            messagePayload.messageParts.push({
-                type: 'code',
-                filename: node.attrs.filename,
-                language: node.attrs.language,
-                id: node.attrs.id,
-                content: node.attrs.content
-            });
-        } else if (node.type.name === 'audioEmbed') {
-            messagePayload.messageParts.push({
-                type: 'audio',
-                filename: node.attrs.filename,
-                duration: node.attrs.duration,
-                id: node.attrs.id
-            });
-        } else if (node.type.name === 'recordingEmbed') {
-            messagePayload.messageParts.push({
-                type: 'audio',
-                filename: node.attrs.filename,
-                duration: node.attrs.duration,
-                id: node.attrs.id
-            });
-        } else if (node.type.name === 'fileEmbed') {
-            messagePayload.messageParts.push({
-                type: 'file',
-                filename: node.attrs.filename,
-                id: node.attrs.id
-            });
-        } else if (node.type.name === 'pdfEmbed') {
-            messagePayload.messageParts.push({
-                type: 'pdf',
-                filename: node.attrs.filename,
-                id: node.attrs.id
-            });
-        } else if (node.type.name === 'bookEmbed') {
-            messagePayload.messageParts.push({
-                type: 'book',
-                filename: node.attrs.filename,
-                id: node.attrs.id,
-                bookname: node.attrs.bookname,
-                author: node.attrs.author
-            });
-        } else if (node.type.name === 'textEmbed') {
-            const html = node.attrs.content;
-            const markdownContent = convertToMarkdown(html)
-                .replace(/<p>/g, '')
-                .replace(/<\/p>/g, '\n')
-                .replace(/<br\s?\/?>/g, '\n')
-                .trim();
-
-            messagePayload.messageParts.push({
-                type: 'text',
-                content: markdownContent
-            });
-        }
-    });
 
     return messagePayload;
 }
@@ -176,6 +74,7 @@ export function handleSend(
     }
     
     const messagePayload = createMessagePayload(editor);
+    console.debug('Sending message with content:', messagePayload);
     dispatch("sendMessage", messagePayload);
     setHasContent(false);
 
