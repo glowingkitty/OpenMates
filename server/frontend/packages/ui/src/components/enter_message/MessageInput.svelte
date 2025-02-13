@@ -44,6 +44,9 @@
         resizeImage
     } from './utils';
 
+    // Add import for the new handlers
+    import { handleSend, clearMessageField, setDraftContent } from './handlers/sendHandlers';
+
     const dispatch = createEventDispatcher();
 
     // File size limits in MB
@@ -642,159 +645,14 @@
         input.value = ''; // Clear input
     }
 
-    function handleSend() {
-        if (!editor || !hasActualContent(editor)) {
-            vibrateMessageField();
-            return;
-        }
-        
-        // Create message payload
-        const messagePayload = {
-            id: crypto.randomUUID(),
-            role: "user",
-            messageParts: [] as { type: string; content?: string; url?: string; filename?: string; id?: string; duration?: string; latitude?: number; longitude?: number; address?: string; language?: string; bookname?:string; author?: string; }[]
-        };
-
-        editor.state.doc.content.forEach(node => {
-            if (node.type.name === 'paragraph') {
-                const textContent = node.textContent;
-                const markdownContent = convertToMarkdown(textContent);
-                messagePayload.messageParts.push({
-                    type: 'text',
-                    content: markdownContent
-                });
-            } else if (node.type.name === 'webPreview') {
-                messagePayload.messageParts.push({
-                    type: 'web',
-                    url: node.attrs.url,
-                    id: node.attrs.id
-                });
-            } else if (node.type.name === 'imageEmbed') {
-                messagePayload.messageParts.push({
-                    type: 'image',
-                    filename: node.attrs.filename,
-                    id: node.attrs.id
-                });
-            } else if (node.type.name === 'videoEmbed') {
-                messagePayload.messageParts.push({
-                  type: 'video',
-                  filename: node.attrs.filename,
-                  id: node.attrs.id,
-                  duration: node.attrs.duration
-                });
-            } else if (node.type.name === 'mate') {
-                const textContent = `@${node.attrs.name} `;
-                messagePayload.messageParts.push({
-                    type: 'text',
-                    content: textContent
-                });
-            }  else if (node.type.name === 'codeEmbed') {
-                messagePayload.messageParts.push({
-                    type: 'code',
-                    filename: node.attrs.filename,
-                    language: node.attrs.language,
-                    id: node.attrs.id,
-                    content: node.attrs.content // Include code content for LLM
-                });
-            } else if (node.type.name === 'audioEmbed') {
-                messagePayload.messageParts.push({
-                    type: 'audio',
-                    filename: node.attrs.filename,
-                    duration: node.attrs.duration,
-                    id: node.attrs.id
-                });
-            }  else if (node.type.name === 'recordingEmbed') {
-                messagePayload.messageParts.push({
-                    type: 'audio',
-                    filename: node.attrs.filename,
-                    duration: node.attrs.duration,
-                    id: node.attrs.id
-                });
-            } else if (node.type.name === 'fileEmbed') {
-                messagePayload.messageParts.push({
-                    type: 'file',
-                    filename: node.attrs.filename,
-                    id: node.attrs.id
-                });
-            } else if (node.type.name === 'pdfEmbed') {
-                messagePayload.messageParts.push({
-                    type: 'pdf',
-                    filename: node.attrs.filename,
-                    id: node.attrs.id
-                });
-            } else if (node.type.name === 'bookEmbed') {
-                messagePayload.messageParts.push({
-                  type: 'book',
-                  filename: node.attrs.filename,
-                  id: node.attrs.id,
-                  bookname: node.attrs.bookname,
-                  author: node.attrs.author
-                });
-            } else if(node.type.name === 'textEmbed'){
-                const textContent = node.attrs.content;
-                const markdownContent = convertToMarkdown(textContent);
-                messagePayload.messageParts.push({
-                    type: 'text',
-                    content: markdownContent
-                });
-            }
-        });
-
-        dispatch("sendMessage", messagePayload);
-        hasContent = false;
-
-        // Clear content and add mate node in a consistent way
-        resetEditorContent();
-    }
-
-    // Add new helper function to handle resetting editor content
-    function resetEditorContent() {
-        editor.commands.clearContent();
-
-        // Add mate node and space after clearing
-        setTimeout(() => {
-            editor.commands.setContent({
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: {
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: ' '
-                        }
-                    ]
-                }]
-            });
-            editor.commands.focus('end');
-            hasContent = false;
-        }, 0);
-    }
-
-    // Update the clearMessageField function to use resetEditorContent
-    export function clearMessageField() {
-        if (!editor) return;
-        resetEditorContent();
-    }
-
-    export function setDraftContent(content: string) {
-        if (!editor) return;
-        editor.commands.setContent({
-            type: 'doc',
-            content: [{
-                type: 'paragraph',
-                content: [
-                    { type: 'text', text: content }
-                ]
-            }]
-        });
-        editor.commands.focus('end');
+    // Add new wrapper function for handleSend
+    function handleSendMessage() {
+        handleSend(
+            editor,
+            defaultMention,
+            dispatch,
+            (value) => hasContent = value
+        );
     }
 
     // --- Lifecycle Hooks ---
@@ -920,7 +778,7 @@
 
         editorElement?.addEventListener('paste', handlePaste);
         // Listen for the custom send event (triggered by the keyboard extension)
-        editorElement?.addEventListener('custom-send-message', handleSend as EventListener);
+        editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
 
         // Add listener for codefullscreen events
         editorElement?.addEventListener('codefullscreen', ((event: CustomEvent) => {
@@ -930,7 +788,7 @@
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
-            editorElement?.removeEventListener('custom-send-message', handleSend as EventListener);
+            editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
             document.removeEventListener('embedclick', (() => {}) as EventListener);
             document.removeEventListener('mateclick', (() => {}) as EventListener);
             editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
@@ -1141,7 +999,7 @@
                 {#if hasContent}
                     <button
                         class="send-button"
-                        on:click={handleSend}
+                        on:click={handleSendMessage}
                         aria-label="Send"
                     >
                        Send
