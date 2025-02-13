@@ -30,8 +30,15 @@ function createMessagePayload(editor: Editor) {
 
     editor.state.doc.content.forEach(node => {
         if (node.type.name === 'paragraph') {
-            const textContent = node.textContent;
-            const markdownContent = convertToMarkdown(textContent);
+            // Get the HTML content to preserve line breaks
+            const html = editor.getHTML();
+            // Convert <p> tags to line breaks and handle other markdown conversion
+            const markdownContent = convertToMarkdown(html)
+                .replace(/<p>/g, '')
+                .replace(/<\/p>/g, '\n')
+                .replace(/<br\s?\/?>/g, '\n')
+                .trim();
+            
             messagePayload.messageParts.push({
                 type: 'text',
                 content: markdownContent
@@ -103,9 +110,14 @@ function createMessagePayload(editor: Editor) {
                 bookname: node.attrs.bookname,
                 author: node.attrs.author
             });
-        } else if(node.type.name === 'textEmbed'){
-            const textContent = node.attrs.content;
-            const markdownContent = convertToMarkdown(textContent);
+        } else if (node.type.name === 'textEmbed') {
+            const html = node.attrs.content;
+            const markdownContent = convertToMarkdown(html)
+                .replace(/<p>/g, '')
+                .replace(/<\/p>/g, '\n')
+                .replace(/<br\s?\/?>/g, '\n')
+                .trim();
+
             messagePayload.messageParts.push({
                 type: 'text',
                 content: markdownContent
@@ -212,7 +224,7 @@ export function createKeyboardHandlingExtension() {
             return {
                 // Handle regular Enter press
                 Enter: ({ editor }) => {
-                    // Don't handle Enter if there's text selection
+                    // Don't handle Enter if Shift is pressed
                     if (this.editor.view.state.selection.$anchor.pos !== 
                         this.editor.view.state.selection.$head.pos) {
                         return false; // Let default behavior handle text selection
@@ -233,9 +245,11 @@ export function createKeyboardHandlingExtension() {
                         return true;
                     }
                 },
+
                 // Handle Shift+Enter for line breaks
-                'Shift-Enter': ({ editor }) => {
-                    return editor.commands.enter(); // Use native enter command
+                'Shift-Enter': () => {
+                    // Return false to let TipTap handle the default line break behavior
+                    return false;
                 },
             };
         },
