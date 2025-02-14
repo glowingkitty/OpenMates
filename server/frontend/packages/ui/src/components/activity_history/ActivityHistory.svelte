@@ -13,7 +13,28 @@
     let chats: ChatType[] = [];
     let loading = true;
 
-    // Group chats by their relative date
+    // Helper function to sort chats within a group
+    function sortChatsInGroup(chats: ChatType[]): ChatType[] {
+        return chats.sort((a, b) => {
+            // Drafts first
+            if (a.isDraft && !b.isDraft) return -1;
+            if (!a.isDraft && b.isDraft) return 1;
+            
+            // Then unread messages
+            if (a.unreadCount && !b.unreadCount) return -1;
+            if (!a.unreadCount && b.unreadCount) return 1;
+            if (a.unreadCount && b.unreadCount) {
+                if (a.unreadCount !== b.unreadCount) {
+                    return b.unreadCount - a.unreadCount;
+                }
+            }
+            
+            // Finally sort by last updated
+            return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+        });
+    }
+
+    // Modified grouping logic to include sorting
     $: groupedChats = chats.reduce<Record<string, ChatType[]>>((groups, chat) => {
         const now = new Date();
         const chatDate = new Date(chat.lastUpdated);
@@ -30,6 +51,10 @@
             groups[groupKey] = [];
         }
         groups[groupKey].push(chat);
+        
+        // Sort chats in this group
+        groups[groupKey] = sortChatsInGroup(groups[groupKey]);
+        
         return groups;
     }, {});
 
@@ -137,9 +162,6 @@
                         {#each groupChats as chat}
                             <div role="button" tabindex="0" on:click={() => handleChatClick(chat)} on:keydown={(e) => handleKeyDown(e, chat)}>
                                 <Chat {chat} />
-                                {#if chat.isDraft}
-                                    <span class="draft-indicator">Draft</span>
-                                {/if}
                             </div>
                         {/each}
                     </div>

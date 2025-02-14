@@ -1,11 +1,6 @@
 <script lang="ts">
-  export let chat: {
-    id?: string;
-    title?: string;
-    isDraft?: boolean;
-    draftContent?: string;
-    mates?: string[]; // Array of mate names (e.g., ['burton', 'lisa'])
-  };
+  import type { Chat } from '../../types/chat';
+  export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
   
   // Truncate text to fit in two lines
@@ -46,6 +41,16 @@
       return '';
     }
   }
+
+  function getStatusLabel(): string {
+    if (!chat.status) return '';
+    switch (chat.status) {
+      case 'sending': return 'Sending...';
+      case 'pending': return 'Pending...';
+      case 'typing': return `${chat.typingMate} is typing...`;
+      default: return 'Draft:';
+    }
+  }
 </script>
 
 <div 
@@ -55,23 +60,38 @@
   tabindex="0"
 >
   <div class="chat-item">
-    {#if chat.isDraft}
-      <div class="draft-content">
+    {#if !chat.title && chat.isDraft}
+      <!-- Draft-only message -->
+      <div class="draft-only">
         <span class="draft-label">Draft:</span>
-        <p class="message-preview">{truncateText(extractTextFromDraftContent(chat.draftContent), 60)}</p>
+        <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draftContent), 60)}</span>
       </div>
     {:else}
       <div class="chat-with-profile">
         <div class="mate-profiles-container">
           {#if displayMate}
-            <div class="mate-profiles-row">
-              <div class="mate-profile-wrapper">
-                <div class="mate-profile mate-profile-small {displayMate}"></div>
+            <div class="mate-profile-wrapper">
+              <div class="mate-profile mate-profile-small {displayMate}">
+                {#if chat.unreadCount && chat.unreadCount > 0}
+                  <div class="unread-badge">
+                    {chat.unreadCount > 9 ? '+' : chat.unreadCount}
+                  </div>
+                {/if}
               </div>
             </div>
           {/if}
         </div>
-        <span class="chat-title">{truncateText(chat.title || '')}</span>
+        <div class="chat-content">
+          <span class="chat-title">{chat.title}</span>
+          {#if chat.status}
+            <span class="status-message">
+              {getStatusLabel()}
+              {#if chat.status === 'draft'}
+                {truncateText(extractTextFromDraftContent(chat.draftContent), 60)}
+              {/if}
+            </span>
+          {/if}
+        </div>
       </div>
     {/if}
   </div>
@@ -158,14 +178,10 @@
   }
 
   .chat-title {
-    flex: 1;
+    font-size: 16px;
     font-weight: 500;
-    display: -webkit-box;
-    line-clamp: 2;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    line-height: 1.3;
+    color: var(--color-text);
+    margin-bottom: 2px;
   }
 
   .profile-placeholder {
@@ -175,24 +191,51 @@
     background-color: var(--color-grey-20);
   }
 
-  .draft-content {
+  .draft-only {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .draft-only .draft-label {
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
     color: var(--color-grey-60);
   }
 
-  .draft-label {
-    font-size: 0.9em;
+  .draft-only .draft-content {
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--color-grey-60);
   }
 
-  .message-preview {
-    margin: 0;
-    display: -webkit-box;
-    line-clamp: 2;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    line-height: 1.3;
+  .chat-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .status-message {
+    font-size: 14px;
+    color: var(--color-grey-60);
+  }
+
+  .unread-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 21px;
+    height: 21px;
+    background: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    border: 2px solid var(--color-background);
   }
 </style>
