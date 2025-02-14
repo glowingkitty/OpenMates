@@ -189,6 +189,7 @@ class ChatDatabase {
             
             chat.draftContent = content;
             chat.isDraft = true;
+            chat.status = 'draft';
             chat.lastUpdated = new Date();
             
         } else {
@@ -196,10 +197,11 @@ class ChatDatabase {
             chat = {
                 id: crypto.randomUUID(),
                 title: this.extractTitleFromContent(content) || 'New Chat',
-                messages: [],
                 lastUpdated: new Date(),
                 isDraft: true,
-                draftContent: content
+                status: 'draft',
+                draftContent: content,
+                mates: []
             };
         }
         
@@ -215,7 +217,8 @@ class ChatDatabase {
         const chat = await this.getChat(chatId);
         if (chat) {
             chat.isDraft = false;
-            chat.draftContent = null;
+            chat.status = undefined;
+            chat.draftContent = undefined;
             await this.addChat(chat);
         }
     }

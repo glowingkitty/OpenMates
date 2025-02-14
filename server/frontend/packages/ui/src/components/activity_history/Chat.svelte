@@ -43,12 +43,16 @@
   }
 
   function getStatusLabel(): string {
+    // Show draft status if chat is a draft
+    if (chat.isDraft) return 'Draft:';
+    
+    // Otherwise handle other status types
     if (!chat.status) return '';
     switch (chat.status) {
       case 'sending': return 'Sending...';
       case 'pending': return 'Pending...';
       case 'typing': return `${chat.typingMate} is typing...`;
-      default: return 'Draft:';
+      default: return '';
     }
   }
 </script>
@@ -60,7 +64,7 @@
   tabindex="0"
 >
   <div class="chat-item">
-    {#if !chat.title && chat.isDraft}
+    {#if !displayMate && chat.isDraft}
       <!-- Draft-only message -->
       <div class="draft-only">
         <span class="draft-label">Draft:</span>
@@ -83,10 +87,10 @@
         </div>
         <div class="chat-content">
           <span class="chat-title">{chat.title}</span>
-          {#if chat.status}
+          {#if chat.isDraft || chat.status}
             <span class="status-message">
               {getStatusLabel()}
-              {#if chat.status === 'draft'}
+              {#if chat.isDraft}
                 {truncateText(extractTextFromDraftContent(chat.draftContent), 60)}
               {/if}
             </span>
