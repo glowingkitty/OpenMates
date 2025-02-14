@@ -146,12 +146,6 @@
                 `${(index + 1).toString().padStart(maxLineNumberWidth, ' ')} | ${line}`
             ).join('\n');
             
-            
-            console.log('Numbered content:', numberedContent);
-            
-
-            console.log('Numbered content:', numberedContent);
-            
             console.log('Received language:', language);
             
             // Use the provided language directly for highlighting

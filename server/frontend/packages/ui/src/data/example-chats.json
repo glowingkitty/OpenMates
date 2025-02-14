@@ -9,278 +9,303 @@
                 {
                     "id": "msg1",
                     "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "How can I integrate Whisper for offline speech recognition in my iOS app? I need it to work reliably even without an internet connection, and it should be able to handle different accents and background noise."
-                        }
-                    ],
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "How can I integrate Whisper for offline speech recognition in my iOS app? I need it to work reliably even without an internet connection, and it should be able to handle different accents and background noise."
+                                    }
+                                ]
+                            }
+                        ]
+                    },
                     "timestamp": "2024-12-20T10:30:00Z"
                 },
                 {
                     "id": "msg2",
                     "role": "sophia",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "I can help you with that. First, you'll need to convert the Whisper model to Core ML format using Apple's Core ML Tools. This will optimize the model for on-device performance. Make sure you choose the right model size (tiny, base, small, medium, large) based on your app's requirements and the devices you're targeting.  Smaller models are faster but less accurate."
-                        }
-                    ],
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "I can help you with that. First, you'll need to convert the Whisper model to Core ML format using Apple's Core ML Tools. This will optimize the model for on-device performance."
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Here's an example of the conversion code:"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "codeEmbed",
+                                "attrs": {
+                                    "id": "code1",
+                                    "language": "python",
+                                    "content": "import coremltools as ct\n\n# Load your Whisper model\nmodel = load_whisper_model('small')\n\n# Convert to Core ML format\ncoreml_model = ct.convert(\n    model,\n    inputs=[ct.TensorType(shape=(1, 80, 3000))]\n)\n\n# Save the model\ncoreml_model.save('whisper_small.mlmodel')",
+                                    "filename": "convert_model.py"
+                                }
+                            }
+                        ]
+                    },
                     "timestamp": "2024-12-20T10:31:00Z"
                 },
                 {
                     "id": "msg3",
                     "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Okay, I've converted the model using Core ML Tools. I chose the 'small' model. What's the next step in integrating it into my iOS project?"
-                        }
-                    ],
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Okay, I've converted the model using Core ML Tools. I chose the 'small' model. What's the next step in integrating it into my iOS project?"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
                     "timestamp": "2024-12-20T10:35:00Z"
                 },
                 {
                     "id": "msg4",
                     "role": "sophia",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Now, you need to integrate the Core ML model into your iOS project using the Core ML framework.  You'll need to load the model, create an `MLRequest` for speech recognition, and handle the results.  You should also consider using the `AVAudioEngine` for audio input and processing, which will give you more control over the audio pipeline and allow you to handle background noise and different accents more effectively. Remember to request microphone access from the user!"
-                        }
-                    ],
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Now, you need to integrate the Core ML model into your iOS project using the Core ML framework. You'll need to load the model, create an `MLRequest` for speech recognition, and handle the results. You should also consider using the `AVAudioEngine` for audio input and processing, which will give you more control over the audio pipeline and allow you to handle background noise and different accents more effectively. Remember to request microphone access from the user!"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
                     "timestamp": "2024-12-20T10:36:00Z"
                 },
                 {
                     "id": "msg5",
                     "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Thanks! I've managed to get basic transcription working. How can I improve the accuracy, especially with background noise?"
-                        }
-                    ],
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Thanks! I've managed to get basic transcription working. How can I improve the accuracy, especially with background noise?"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
                     "timestamp": "2024-12-20T10:40:00Z"
                 },
                 {
                     "id": "msg6",
                     "role": "sophia",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "To improve accuracy with background noise, you can implement several techniques. First, explore using `VAD (Voice Activity Detection)` to only process audio segments that likely contain speech.  Second, you can apply noise reduction techniques using `AVAudioEngine`.  Apple provides built-in audio units for this.  Finally, consider fine-tuning the Whisper model itself with a dataset that includes examples of speech with the types of background noise you expect. This requires more advanced machine learning knowledge, however."
-                        }
-                    ],
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "To improve accuracy with background noise, you can implement several techniques. First, explore using `VAD (Voice Activity Detection)` to only process audio segments that likely contain speech. Second, you can apply noise reduction techniques using `AVAudioEngine`. Apple provides built-in audio units for this. Finally, consider fine-tuning the Whisper model itself with a dataset that includes examples of speech with the types of background noise you expect. This requires more advanced machine learning knowledge, however."
+                                    }
+                                ]
+                            }
+                        ]
+                    },
                     "timestamp": "2024-12-20T10:42:00Z"
+                }
+            ]
+        },
+        {
+            "id": "chat2",
+            "title": "Project Documentation",
+            "mates": ["mark"],
+            "lastUpdated": "2024-12-21T15:00:00Z",
+            "messages": [
+                {
+                    "id": "msg1",
+                    "role": "user",
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Here's the architecture diagram for our new system:"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "imageEmbed",
+                                "attrs": {
+                                    "id": "img1",
+                                    "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA...",
+                                    "filename": "architecture.png",
+                                    "isRecording": false
+                                }
+                            },
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "And here's the technical specification document:"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "pdfEmbed",
+                                "attrs": {
+                                    "id": "pdf1",
+                                    "src": "data:application/pdf;base64,JVBERi0xLj...",
+                                    "filename": "technical_spec.pdf"
+                                }
+                            }
+                        ]
+                    },
+                    "timestamp": "2024-12-21T15:00:00Z"
                 }
             ]
         },
         {
             "id": "draft1",
             "isDraft": true,
-            "draftContent": "How do I make a neural network that can...",
+            "draftContent": {
+                "type": "doc",
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "How do I make a neural network that can..."
+                            }
+                        ]
+                    }
+                ]
+            },
             "mates": [],
             "lastUpdated": "2024-12-20T11:00:00Z",
             "messages": []
         },
         {
-            "id": "chat2",
-            "title": "Expanding into the European Market",
-            "mates": ["burton"],
-            "lastUpdated": "2024-12-21T14:00:00Z",
-            "messages": [
-                {
-                    "id": "msg1",
-                    "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "We're looking to expand our business into the European market. What are the key initial steps we should consider?"
-                        }
-                    ],
-                    "timestamp": "2024-12-21T14:00:00Z"
-                },
-                {
-                    "id": "msg2",
-                    "role": "burton",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Expanding into Europe is a significant undertaking. First, conduct thorough market research to identify your target countries and understand their specific regulations, consumer behavior, and competitive landscape.  Don't assume a one-size-fits-all approach for the entire EU."
-                        }
-                    ],
-                    "timestamp": "2024-12-21T14:02:00Z"
-                },
-                {
-                    "id": "msg3",
-                    "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "We've identified Germany and France as potential initial markets. What are the next steps after market research?"
-                        }
-                    ],
-                    "timestamp": "2024-12-21T14:05:00Z"
-                },
-                {
-                    "id": "msg4",
-                    "role": "burton",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "After the research, you need to develop a solid market entry strategy. This includes deciding on your business model (e.g., direct sales, partnerships, distributors), setting up a legal entity (if necessary), and understanding the tax implications (VAT, corporate taxes). You'll also need to address GDPR compliance for data protection, which is crucial in Europe."
-                        }
-                    ],
-                    "timestamp": "2024-12-21T14:07:00Z"
-                },
-                {
-                    "id": "msg5",
-                    "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "What about localization and language support? How important are those?"
-                        }
-                    ],
-                    "timestamp": "2024-12-21T14:10:00Z"
-                },
-                {
-                    "id": "msg6",
-                    "role": "burton",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Localization and language support are absolutely critical for success in Europe. You'll need to translate your website, marketing materials, and product documentation into the local languages (German and French, in this case).  Beyond translation, consider cultural nuances and adapt your messaging to resonate with the local audience.  This might involve adjusting your marketing campaigns, pricing strategies, and even product features."
-                        }
-                    ],
-                    "timestamp": "2024-12-21T14:12:00Z"
-                }
-            ]
-        },
-        {
             "id": "chat3",
-            "title": "Persistent Cough and Shortness of Breath",
-            "mates": ["melvin"],
-            "lastUpdated": "2024-12-22T09:15:00Z",
+            "title": "Project Timeline Gantt Chart",
+            "mates": ["sophia"],
+            "lastUpdated": "2025-02-14T11:00:00Z",
             "messages": [
                 {
                     "id": "msg1",
                     "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "I've had a persistent cough and shortness of breath for the past two weeks. It's worse at night. Should I be concerned?"
-                        }
-                    ],
-                    "timestamp": "2024-12-22T09:15:00Z"
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "We need to create a Gantt chart for the project timeline. What's the best way to do this?"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "timestamp": "2025-02-14T11:00:00Z"
                 },
                 {
                     "id": "msg2",
-                    "role": "melvin",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "A persistent cough and shortness of breath lasting for two weeks, especially if it's worse at night, warrants medical attention. While it could be several things, including a simple viral infection, it's important to rule out more serious conditions like bronchitis, pneumonia, asthma, or even heart-related issues. I strongly recommend you see a doctor as soon as possible for a proper diagnosis and treatment plan. This is not a substitute for professional medical advice."
-                        }
-                    ],
-                    "timestamp": "2024-12-22T09:17:00Z"
+                    "role": "sophia",
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "There are several options. We could use a dedicated project management tool like Microsoft Project, but that might be overkill for this. A simpler approach would be to use a library like `d3-gantt` or `frappe-gantt` if we're building a web app, or even just a spreadsheet program like Excel or Google Sheets."
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "timestamp": "2025-02-14T11:01:00Z"
                 },
                 {
                     "id": "msg3",
                     "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "I also have occasional chest tightness. Could it be related?"
-                        }
-                    ],
-                    "timestamp": "2024-12-22T09:20:00Z"
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Let's go with a JavaScript library since it's for our internal dashboard. Which one do you recommend?"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "timestamp": "2025-02-14T11:02:00Z"
                 },
                 {
                     "id": "msg4",
-                    "role": "melvin",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Yes, chest tightness can definitely be related to your cough and shortness of breath.  It could be a symptom of various respiratory conditions, including asthma or even something more serious. Again, please see a doctor to get this evaluated. They might need to do some tests like a chest X-ray, spirometry, or blood tests to determine the cause."
-                        }
-                    ],
-                    "timestamp": "2024-12-22T09:22:00Z"
-                }
-            ]
-        },
-        {
-            "id": "chat4",
-            "title": "Social Media Marketing Strategy",
-            "mates": ["mark"],
-            "lastUpdated": "2024-12-22T11:00:00Z",
-            "messages": [
-                {
-                    "id": "msg1",
-                    "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "We need to develop a social media marketing strategy for our new product launch. What platforms should we focus on?"
-                        }
-                    ],
-                    "timestamp": "2024-12-22T11:00:00Z"
-                },
-                {
-                    "id": "msg2",
-                    "role": "mark",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "The best platforms for your social media marketing depend heavily on your target audience and the nature of your product.  Start by identifying where your ideal customers spend their time online.  Are they on Instagram, TikTok, Facebook, X (Twitter), LinkedIn, or other platforms?  Consider the demographics and interests of each platform's user base."
-                        }
-                    ],
-                    "timestamp": "2024-12-22T11:02:00Z"
-                },
-                {
-                    "id": "msg3",
-                    "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "Our target audience is young adults, aged 18-25. We're launching a new mobile app."
-                        }
-                    ],
-                    "timestamp": "2024-12-22T11:05:00Z"
-                },
-                {
-                    "id": "msg4",
-                    "role": "mark",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "For young adults aged 18-25, you should definitely focus on platforms like Instagram, TikTok, and potentially Snapchat. These platforms are highly visual and popular with that demographic.  Consider creating short, engaging video content, interactive stories, and influencer collaborations to reach your audience.  X (Twitter) can also be relevant for announcements and community engagement, but prioritize the visual platforms first."
-                        }
-                    ],
-                    "timestamp": "2024-12-22T11:07:00Z"
-                },
-                 {
-                    "id": "msg5",
-                    "role": "user",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "What kind of content works best on TikTok and Instagram?"
-                        }
-                    ],
-                    "timestamp": "2024-12-22T11:10:00Z"
-                },
-                {
-                    "id": "msg6",
-                    "role": "mark",
-                    "messageParts": [
-                        {
-                            "type": "text",
-                            "content": "On TikTok and Instagram, short-form video content is king. Think behind-the-scenes glimpses of your app development, fun challenges, user-generated content campaigns, and tutorials showcasing your app's features. Use trending sounds and hashtags on TikTok to increase visibility. On Instagram, leverage Reels, Stories, and explore influencer marketing. High-quality visuals and authenticity are key for both platforms."
-                        }
-                    ],
-                    "timestamp": "2024-12-22T11:12:00Z"
+                    "role": "sophia",
+                    "content": {
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Frappe Gantt is a good choice. It's lightweight, interactive, and easy to integrate. Here's a basic example:"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "codeEmbed",
+                                "attrs": {
+                                    "id": "code1",
+                                    "language": "javascript",
+                                    "content": "var tasks = [\n  {id: 'Task 1', name: 'Redesign website', start: '2024-02-14', end: '2024-02-28', progress: 20},\n  {id: 'Task 2', name: 'Develop new features', start: '2024-02-20', end: '2024-03-15', progress: 50},\n  {id: 'Task 3', name: 'Deploy to production', start: '2024-03-10', end: '2024-03-20', progress: 10}\n];\n\nvar gantt = new Gantt('#gantt', tasks, {\n  header_height: 50,\n  column_width: 30,\n  step: 24,\n  view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],\n  bar_height: 20,\n  bar_corner_radius: 3,\n  arrow_curve: 5,\n  padding: 18,\n  view_mode: 'Day',\n  custom_popup_html: null\n});",
+                                    "filename": "gantt_example.js"
+                                }
+                            }
+                        ]
+                    },
+                    "timestamp": "2025-02-14T11:03:00Z"
                 }
             ]
         }
     ]
-} 
+}

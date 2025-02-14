@@ -14,8 +14,8 @@ export interface Chat {
     id: string;
     title: string;
     isDraft?: boolean;
-    draftContent?: string;
+    draftContent?: any;
     mates: string[];
     lastUpdated: Date;
     messages: Message[];
-} 
+}

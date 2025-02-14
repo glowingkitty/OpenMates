@@ -45,20 +45,55 @@ class ChatDatabase {
         console.log("[ChatDatabase] Loading example chats");
         const store = this.getStore('readwrite');
         
-        // Convert date strings to Date objects and ensure title exists
-        const chats = exampleChats.chats.map(chat => ({
-            ...chat,
-            title: chat.title || chat.draftContent || 'Untitled',
-            lastUpdated: new Date(chat.lastUpdated),
-            messages: chat.messages?.map(msg => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp)
-            })) || []
-        }));
+        // Convert date strings to Date objects and process content
+        const chats = exampleChats.chats.map(chat => {
+            let title = chat.title || 'Untitled';
+            let draftContent: any = undefined;
+
+            if (chat.isDraft) {
+                draftContent = chat.draftContent;
+                title = this.extractTitleFromContent(chat.draftContent) || title;
+            } else {
+                // Explicitly delete draftContent if it exists
+                delete (chat as any).draftContent
+            }
+
+            return {
+                ...chat,
+                title,
+                draftContent,
+                lastUpdated: new Date(chat.lastUpdated),
+                messages: chat.messages?.map(msg => ({
+                    ...msg,
+                    messageParts: [{ type: 'text', content: msg.content }],
+                    timestamp: new Date(msg.timestamp)
+                })) || []
+            };
+        });
 
         for (const chat of chats) {
             await this.addChat(chat);
         }
+    }
+
+    /**
+     * Extract a title from Tiptap JSON content
+     */
+    private extractTitleFromContent(content: any): string {
+        if (!content) return '';
+        
+        try {
+            // Find first text content in the document
+            const firstTextNode = content.content?.[0]?.content?.[0];
+            if (firstTextNode?.type === 'text') {
+                // Truncate to reasonable title length
+                return firstTextNode.text.slice(0, 50) + (firstTextNode.text.length > 50 ? '...' : '');
+            }
+        } catch (error) {
+            console.error("[ChatDatabase] Error extracting title from content:", error);
+        }
+        
+        return '';
     }
 
     /**
@@ -135,4 +170,4 @@ class ChatDatabase {
     }
 }
 
-export const chatDB = new ChatDatabase(); 
+export const chatDB = new ChatDatabase();
