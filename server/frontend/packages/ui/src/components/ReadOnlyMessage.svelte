@@ -103,10 +103,6 @@
         width: 100%;
     }
 
-    .editor-content {
-        width: 100%;
-    }
-
     /* Style overrides for read-only mode */
     :global(.read-only-message .ProseMirror) {
         outline: none;

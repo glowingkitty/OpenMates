@@ -1258,10 +1258,9 @@
 
     /* Add essential Tiptap styles */
     :global(.editor-content) {
-        min-height: 2em;
-        padding: 0.5rem;
         box-sizing: border-box;
         overflow-x: hidden;
+        transition: all 0.2s ease-in-out;
     }
 
     :global(.ProseMirror) {
@@ -1320,14 +1319,6 @@
         user-select: none;
     }
 
-    /* Ensure the editor can handle the embeds */
-    .editor-content {
-        width: 100%;
-        min-height: 2em;
-        padding: 0.5rem;
-        overflow-x: hidden;
-    }
-
     :global(.ProseMirror) {
         outline: none;
         white-space: pre-wrap;
@@ -1373,13 +1364,6 @@
     :global(.custom-embed-wrapper),
     :global(.custom-embed-container) {
         display: none;
-    }
-
-    /* Keep essential editor styles */
-    .editor-content {
-        width: 100%;
-        min-height: 2em;
-        padding: 0.5rem;
     }
 
     :global(.ProseMirror) {
@@ -1431,14 +1415,6 @@
     :global(.custom-embed-wrapper),
     :global(.custom-embed-container) {
         display: inline-flex !important;
-    }
-
-    /* Ensure editor content is visible */
-    .editor-content {
-        width: 100%;
-        min-height: 2em;
-        padding: 0.5rem;
-        background-color: transparent;
     }
 
     :global(.ProseMirror) {
@@ -1629,14 +1605,6 @@
         text-align: center;
     }
 
-    /* Update editor content styles */
-    .editor-content {
-        width: 100%;
-        min-height: 2em;
-        padding: 0.5rem;
-        position: relative;
-    }
-
     :global(.ProseMirror) {
         outline: none;
         white-space: pre-wrap;
@@ -1759,14 +1727,5 @@
         font-size: 1.2em;
         color: var(--color-font-secondary);
         pointer-events: none;
-    }
-
-    /* Update editor content styles to handle drag & drop visual feedback */
-    .editor-content {
-        width: 100%;
-        min-height: 2em;
-        padding: 0.5rem;
-        position: relative;
-        transition: all 0.2s ease-in-out;
     }
 </style>
