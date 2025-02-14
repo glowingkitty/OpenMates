@@ -137,6 +137,8 @@
      */
     function handleNewChatClick() {
         console.log("[ActiveChat] New chat creation initiated");
+        // Reset current chat
+        currentChat = null;
         // Trigger chat history fade-out and cleaning:
         if (chatHistoryRef?.clearMessages) {
             chatHistoryRef.clearMessages();
