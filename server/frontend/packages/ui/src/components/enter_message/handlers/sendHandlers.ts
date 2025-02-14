@@ -91,24 +91,7 @@ export function clearMessageField(editor: Editor | null, defaultMention: string)
     resetEditorContent(editor, defaultMention);
 }
 
-/**
- * Sets draft content in the message field
- * @param editor The TipTap editor instance
- * @param content Content to set as draft
- */
-export function setDraftContent(editor: Editor | null, content: string) {
-    if (!editor) return;
-    editor.commands.setContent({
-        type: 'doc',
-        content: [{
-            type: 'paragraph',
-            content: [
-                { type: 'text', text: content }
-            ]
-        }]
-    });
-    editor.commands.focus('end');
-}
+
 
 /**
  * Creates a custom keyboard extension for handling Enter key events in the editor

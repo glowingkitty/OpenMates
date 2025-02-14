@@ -57,7 +57,17 @@
 
     function handleChatClick(chat: ChatType) {
         console.log("[ActivityHistory] Chat clicked:", chat.id);
-        dispatch('chatSelected', { chat });
+        dispatch('chatSelected', { 
+            chat: {
+                ...chat,
+                // Ensure draftContent is properly serialized if it's a string
+                draftContent: chat.draftContent ? 
+                    (typeof chat.draftContent === 'string' ? 
+                        JSON.parse(chat.draftContent) : 
+                        chat.draftContent
+                    ) : null
+            } 
+        });
         
         // Only close the activity history on mobile screens
         if (window.innerWidth < 730) {

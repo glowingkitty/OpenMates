@@ -45,17 +45,17 @@ class ChatDatabase {
         console.log("[ChatDatabase] Loading example chats");
         const store = this.getStore('readwrite');
         
-        // Convert date strings to Date objects and process content
         const chats = exampleChats.chats.map(chat => {
             let title = chat.title || 'Untitled';
-            let draftContent: any = undefined;
+            let draftContent = undefined;
 
-            if (chat.isDraft) {
-                draftContent = chat.draftContent;
-                title = this.extractTitleFromContent(chat.draftContent) || title;
-            } else {
-                // Explicitly delete draftContent if it exists
-                delete (chat as any).draftContent
+            if (chat.isDraft && chat.draftContent) {
+                // Ensure draftContent is properly parsed/stored as an object
+                draftContent = typeof chat.draftContent === 'string' ? 
+                    JSON.parse(chat.draftContent) : 
+                    chat.draftContent;
+                    
+                title = this.extractTitleFromContent(draftContent) || title;
             }
 
             return {

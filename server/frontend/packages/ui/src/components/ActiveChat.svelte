@@ -160,15 +160,16 @@
             }
         }
 
-        // Handle the EnterMessageField content
-        if (enterMessageFieldRef) {
-            if (chat.isDraft && chat.draftContent) {
-                // If it's a draft with content, set the draft content
+        // Handle the draft content
+        if (enterMessageFieldRef && chat.isDraft && chat.draftContent) {
+            console.log("[ActiveChat] Setting draft content:", chat.draftContent);
+            // Add a small delay to ensure the editor is initialized
+            setTimeout(() => {
                 enterMessageFieldRef.setDraftContent(chat.draftContent);
-            } else {
-                // If it's not a draft or has no draft content, clear the field
-                enterMessageFieldRef.clearMessageField();
-            }
+            }, 100);
+        } else if (enterMessageFieldRef) {
+            // If it's not a draft or has no draft content, clear the field
+            enterMessageFieldRef.clearMessageField();
         }
     }
 </script>

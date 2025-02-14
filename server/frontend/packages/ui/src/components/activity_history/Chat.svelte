@@ -21,6 +21,31 @@
 
   // Take only the most recent mate instead of 3
   $: displayMate = chat.mates ? chat.mates[chat.mates.length - 1] : null;
+
+  // Add function to extract text from draft content
+  function extractTextFromDraftContent(draftContent: any): string {
+    if (!draftContent) return '';
+    
+    try {
+      // If draftContent is a JSON string, parse it
+      const content = typeof draftContent === 'string' ? JSON.parse(draftContent) : draftContent;
+      
+      // Extract text from Tiptap JSON structure
+      const text = content.content?.map((node: any) => {
+        return node.content?.map((contentNode: any) => {
+          if (contentNode.type === 'text') {
+            return contentNode.text;
+          }
+          return '';
+        }).join('');
+      }).join('\n') || '';
+
+      return text;
+    } catch (error) {
+      console.error('Error extracting text from draft content:', error);
+      return '';
+    }
+  }
 </script>
 
 <div 
@@ -33,7 +58,7 @@
     {#if chat.isDraft}
       <div class="draft-content">
         <span class="draft-label">Draft:</span>
-        <p class="message-preview">{truncateText(chat.draftContent || '')}</p>
+        <p class="message-preview">{truncateText(extractTextFromDraftContent(chat.draftContent), 60)}</p>
       </div>
     {:else}
       <div class="chat-with-profile">

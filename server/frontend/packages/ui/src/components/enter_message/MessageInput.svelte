@@ -35,7 +35,7 @@
     } from './utils';
 
     // Add import for the new handlers
-    import { handleSend, clearMessageField, setDraftContent, createKeyboardHandlingExtension } from './handlers/sendHandlers';
+    import { handleSend, createKeyboardHandlingExtension } from './handlers/sendHandlers';
 
     const dispatch = createEventDispatcher();
 
@@ -89,6 +89,28 @@
     let micPermissionGranted: boolean = false;//for microphone
 
     let messageInputWrapper: HTMLElement; //for monitoring the height
+
+    /**
+     * Sets draft content in the message field
+     * @param content Content to set as draft
+     */
+    export function setDraftContent(content: any) {
+        // Ensure editor exists and content is valid
+        if (!editor || !content) return;
+
+        try {
+            // If content is a string, try to parse it as JSON
+            const parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
+            
+            // Set the content in the editor
+            editor.commands.setContent(parsedContent);
+            editor.commands.focus('end');
+            
+            console.log("[MessageInput] Draft content set:", parsedContent);
+        } catch (error) {
+            console.error("[MessageInput] Error setting draft content:", error);
+        }
+    }
 
     // --- Function Definitions ---
     // (All your utility functions are now imported from './utils', so no need
