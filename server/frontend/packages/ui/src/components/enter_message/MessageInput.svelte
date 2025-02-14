@@ -95,7 +95,7 @@
     // Add new prop for current chat ID
     export let currentChatId: string | undefined = undefined;
 
-    // Create debounced save draft function
+    // Modify the existing debounced saveDraft declaration
     const saveDraft = debounce(async () => {
         if (!editor || editor.isEmpty || isContentEmptyExceptMention(editor)) {
             return;
@@ -105,14 +105,17 @@
             const content = editor.getJSON();
             const updatedChat = await chatDB.saveDraft(content, currentChatId);
             
-            // Dispatch event to notify parent components
-            dispatch('draftSaved', { chat: updatedChat });
+            // Update currentChatId with the new chat's ID if we created a new chat
+            if (!currentChatId) {
+                currentChatId = updatedChat.id;
+            }
             
+            dispatch('draftSaved', { chat: updatedChat });
             console.log("[MessageInput] Draft saved:", updatedChat.id);
         } catch (error) {
             console.error("[MessageInput] Error saving draft:", error);
         }
-    }, 1000); // 1 second delay
+    }, 1000);
 
     /**
      * Sets draft content in the message field
@@ -729,16 +732,16 @@
             if (!chat.messages || chat.messages.length === 0) {
                 console.log("[MessageInput] Deleting empty chat:", currentChatId);
                 await chatDB.deleteChat(currentChatId);
+                // Reset currentChatId after deletion
+                currentChatId = undefined;
             } else {
                 // Otherwise just remove the draft
                 console.log("[MessageInput] Removing draft from chat:", currentChatId);
                 const updatedChat = await chatDB.removeDraft(currentChatId);
-                
-                // Dispatch event to notify parent components
                 dispatch('draftSaved', { chat: updatedChat });
             }
 
-            // Dispatch a custom event that bubbles up to window
+            // Dispatch chatUpdated event
             const customEvent = new CustomEvent('chatUpdated', {
                 detail: { chat: null },
                 bubbles: true,
