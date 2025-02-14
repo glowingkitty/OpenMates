@@ -60,7 +60,8 @@
 
 <style>
     .preview-container {
-        width: 300px;
+        width: 100%;
+        max-width: 300px;
         background-color: var(--color-grey-20);
         border-radius: 30px;
         position: relative;

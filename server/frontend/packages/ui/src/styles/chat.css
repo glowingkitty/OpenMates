@@ -101,6 +101,20 @@
     max-width: calc(100% - 70px);
 }
 
+/* Media query for screens smaller than 500px */
+@media (max-width: 500px) {
+    .message-align-right {
+        padding-left: 0px;
+        max-width: calc(100% - 10px);
+    }
+
+    .message-align-left {
+        padding-right: 0px;
+        max-width: calc(100% - 10px);
+    }
+}
+
+
 .processing-details {
     cursor: pointer;
     opacity: 0.5;
