@@ -95,6 +95,20 @@
     // Add new prop for current chat ID
     export let currentChatId: string | undefined = undefined;
 
+    // Add ResizeObserver to track height changes
+    let previousHeight = 0;
+
+    // Add this function to handle height changes
+    function updateHeight() {
+        if (!messageInputWrapper) return;
+        
+        const currentHeight = messageInputWrapper.offsetHeight;
+        if (currentHeight !== previousHeight) {
+            previousHeight = currentHeight;
+            dispatch('heightchange', { height: currentHeight });
+        }
+    }
+
     // Modify the existing debounced saveDraft declaration
     const saveDraft = debounce(async () => {
         if (!editor || editor.isEmpty || isContentEmptyExceptMention(editor)) {
@@ -588,12 +602,6 @@
         recordingStream = null;
       }
     }
-    function updateHeight() {
-        if (messageInputWrapper) {
-            const height = messageInputWrapper.offsetHeight;
-            dispatch('heightchange', { height });
-        }
-    }
 
     // Add this function to handle press/click on embeds
     function handleEmbedInteraction(event: CustomEvent, embedId: string) {
@@ -881,6 +889,7 @@
 
         const resizeObserver = new ResizeObserver(() => {
             checkScrollable();
+            updateHeight();
         });
 
         if (scrollableContent) {
@@ -927,6 +936,11 @@
         `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` :
         'max-height: 250px;';  // Add default height when not fullscreen
 
+    // Add reactive statement to update height when fullscreen changes
+    $: if (isFullscreen !== undefined) {
+        // Wait for DOM update
+        setTimeout(updateHeight, 0);
+    }
 </script>
 
 <div bind:this={messageInputWrapper}>
