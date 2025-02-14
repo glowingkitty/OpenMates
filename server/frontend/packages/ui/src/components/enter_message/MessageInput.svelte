@@ -716,6 +716,40 @@
         );
     }
 
+    // Add this near the top of the script section
+    async function removeDraft() {
+        if (!currentChatId) return;
+        
+        try {
+            // Get current chat
+            const chat = await chatDB.getChat(currentChatId);
+            if (!chat) return;
+
+            // If chat has no messages, delete it entirely
+            if (!chat.messages || chat.messages.length === 0) {
+                console.log("[MessageInput] Deleting empty chat:", currentChatId);
+                await chatDB.deleteChat(currentChatId);
+            } else {
+                // Otherwise just remove the draft
+                console.log("[MessageInput] Removing draft from chat:", currentChatId);
+                const updatedChat = await chatDB.removeDraft(currentChatId);
+                
+                // Dispatch event to notify parent components
+                dispatch('draftSaved', { chat: updatedChat });
+            }
+
+            // Dispatch a custom event that bubbles up to window
+            const customEvent = new CustomEvent('chatUpdated', {
+                detail: { chat: null },
+                bubbles: true,
+                composed: true
+            });
+            window.dispatchEvent(customEvent);
+        } catch (error) {
+            console.error("[MessageInput] Error removing draft:", error);
+        }
+    }
+
     // --- Lifecycle Hooks ---
 
     onMount(() => {
@@ -784,12 +818,20 @@
                 }
             },
             onUpdate: ({ editor }) => {
-                hasContent = !editor.isEmpty && !isContentEmptyExceptMention(editor);
+                const newHasContent = !editor.isEmpty && !isContentEmptyExceptMention(editor);
+                
+                // If content status changed from true to false
+                if (hasContent && !newHasContent) {
+                    console.log("[MessageInput] Content cleared, removing draft");
+                    removeDraft();
+                }
+                
+                hasContent = newHasContent;
                 const content = editor.getHTML();
                 detectAndReplaceUrls(editor, content);
                 detectAndReplaceMates(editor, content);
                 
-                // Save draft when content changes
+                // Only save draft if there's actual content
                 if (hasContent) {
                     saveDraft();
                 }

@@ -224,6 +224,35 @@ class ChatDatabase {
             await this.addChat(chat);
         }
     }
+
+    async removeDraft(chatId: string): Promise<Chat> {
+        const store = this.getStore('readwrite');
+        const chat = await this.getChat(chatId);
+        
+        if (!chat) {
+            throw new Error('Chat not found');
+        }
+
+        // Remove draft-related fields
+        const updatedChat = {
+            ...chat,
+            isDraft: false,
+            draftContent: null
+        };
+
+        await this.addChat(updatedChat);
+        return updatedChat;
+    }
+
+    async deleteChat(chatId: string): Promise<void> {
+        const store = this.getStore('readwrite');
+        const request = store.delete(chatId);
+        
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
 }
 
 export const chatDB = new ChatDatabase();
