@@ -168,6 +168,57 @@ class ChatDatabase {
         const transaction = this.db.transaction([this.STORE_NAME], mode);
         return transaction.objectStore(this.STORE_NAME);
     }
+
+    /**
+     * Updates or creates a chat draft
+     * @param chatId Optional ID of existing chat to update
+     * @param content Draft content to save
+     * @returns The updated or created chat
+     */
+    async saveDraft(content: any, chatId?: string): Promise<Chat> {
+        console.log("[ChatDatabase] Saving draft", { chatId, content });
+        
+        let chat: Chat;
+        
+        if (chatId) {
+            // Update existing chat
+            chat = await this.getChat(chatId);
+            if (!chat) {
+                throw new Error('Chat not found');
+            }
+            
+            chat.draftContent = content;
+            chat.isDraft = true;
+            chat.lastUpdated = new Date();
+            
+        } else {
+            // Create new chat
+            chat = {
+                id: crypto.randomUUID(),
+                title: this.extractTitleFromContent(content) || 'New Chat',
+                messages: [],
+                lastUpdated: new Date(),
+                isDraft: true,
+                draftContent: content
+            };
+        }
+        
+        await this.addChat(chat);
+        return chat;
+    }
+
+    /**
+     * Removes draft status from a chat
+     * @param chatId ID of the chat to update
+     */
+    async clearDraft(chatId: string): Promise<void> {
+        const chat = await this.getChat(chatId);
+        if (chat) {
+            chat.isDraft = false;
+            chat.draftContent = null;
+            await this.addChat(chat);
+        }
+    }
 }
 
 export const chatDB = new ChatDatabase();

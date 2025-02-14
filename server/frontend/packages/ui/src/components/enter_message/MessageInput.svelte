@@ -5,6 +5,8 @@
     import { slide } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip'; // Assuming this path
+    import { chatDB } from '../../services/db';
+    import { debounce } from 'lodash-es';
 
     //Import extensions
     import { CustomPlaceholder } from './extensions/Placeholder';
@@ -89,6 +91,28 @@
     let micPermissionGranted: boolean = false;//for microphone
 
     let messageInputWrapper: HTMLElement; //for monitoring the height
+
+    // Add new prop for current chat ID
+    export let currentChatId: string | undefined = undefined;
+
+    // Create debounced save draft function
+    const saveDraft = debounce(async () => {
+        if (!editor || editor.isEmpty || isContentEmptyExceptMention(editor)) {
+            return;
+        }
+
+        try {
+            const content = editor.getJSON();
+            const updatedChat = await chatDB.saveDraft(content, currentChatId);
+            
+            // Dispatch event to notify parent components
+            dispatch('draftSaved', { chat: updatedChat });
+            
+            console.log("[MessageInput] Draft saved:", updatedChat.id);
+        } catch (error) {
+            console.error("[MessageInput] Error saving draft:", error);
+        }
+    }, 1000); // 1 second delay
 
     /**
      * Sets draft content in the message field
@@ -761,9 +785,14 @@
             },
             onUpdate: ({ editor }) => {
                 hasContent = !editor.isEmpty && !isContentEmptyExceptMention(editor);
-                const content = editor.getHTML(); //still needed for detectAndReplaceUrls and detectAndReplaceMates?
-				detectAndReplaceUrls(editor, content);
+                const content = editor.getHTML();
+                detectAndReplaceUrls(editor, content);
                 detectAndReplaceMates(editor, content);
+                
+                // Save draft when content changes
+                if (hasContent) {
+                    saveDraft();
+                }
             }
         });
 
@@ -840,6 +869,7 @@
         handleStopRecording(); // Clean up recording resources
         document.removeEventListener('embedclick', (() => {}) as EventListener);
         document.removeEventListener('mateclick', (() => {}) as EventListener);
+        saveDraft.cancel();
     });
 
 

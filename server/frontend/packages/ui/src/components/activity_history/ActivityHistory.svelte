@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
     import { isMenuOpen } from '../../stores/menuState';
@@ -33,7 +33,8 @@
         return groups;
     }, {});
 
-    onMount(async () => {
+    onMount(async() => {
+        window.addEventListener('chatUpdated', handleChatUpdate);
         try {
             console.log("[ActivityHistory] Initializing database");
             await chatDB.init();
@@ -53,6 +54,10 @@
         } finally {
             loading = false;
         }
+    });
+
+    onDestroy(() => {
+        window.removeEventListener('chatUpdated', handleChatUpdate);
     });
 
     function handleChatClick(chat: ChatType) {
@@ -86,6 +91,17 @@
     const handleClose = () => {
         isMenuOpen.set(false);
     };
+
+    // Add method to update chat list
+    async function updateChatList() {
+        chats = await chatDB.getAllChats();
+    }
+
+    // Listen for chat updates
+    function handleChatUpdate(event: CustomEvent) {
+        const { chat } = event.detail;
+        updateChatList();
+    }
 </script>
 
 {#if $isAuthenticated}

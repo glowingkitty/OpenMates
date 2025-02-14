@@ -11,6 +11,7 @@
     import { isAuthenticated } from '../stores/authState';
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
+    import { chatDB } from '../services/db';
     const dispatch = createEventDispatcher();
 
     // Add state for code fullscreen
@@ -83,6 +84,21 @@
     // OR the EnterMessageField has content.
     $: createButtonVisible = !showWelcome || enterMessageHasContent;
 
+    // Add state for current chat
+    let currentChat: Chat | null = null;
+
+    // Handle draft saved event
+    function handleDraftSaved(event: CustomEvent) {
+        const { chat } = event.detail;
+        // Create and dispatch a custom event that bubbles up to window
+        const customEvent = new CustomEvent('chatUpdated', {
+            detail: { chat },
+            bubbles: true,
+            composed: true
+        });
+        window.dispatchEvent(customEvent);
+    }
+
     /**
      * Handler for input height changes
      * @param event CustomEvent with height detail
@@ -147,6 +163,7 @@
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
         console.log("[ActiveChat] Loading chat:", chat.id);
+        currentChat = chat;
         showWelcome = false;
 
         if (chatHistoryRef) {
@@ -264,9 +281,11 @@
                     <MessageInput 
                         bind:this={enterMessageFieldRef}
                         bind:hasContent={enterMessageHasContent}
+                        currentChatId={currentChat?.id}
                         on:codefullscreen={handleCodeFullscreen}
                         on:sendMessage={handleSendMessage}
                         on:heightchange={handleInputHeightChange}
+                        on:draftSaved={handleDraftSaved}
                         bind:isFullscreen
                     />
                 </div>
