@@ -112,6 +112,31 @@
         }
     }
 
+    /**
+     * Clears the message field and resets to initial state
+     */
+    export function clearMessageField() {
+        if (!editor) return;
+        
+        editor.commands.clearContent();
+        editor.commands.setContent({
+            type: 'doc',
+            content: [{
+                type: 'paragraph',
+                content: [
+                    {
+                        type: 'mate',
+                        attrs: {
+                            name: defaultMention,
+                            id: crypto.randomUUID()
+                        }
+                    },
+                    { type: 'text', text: ' ' }
+                ]
+            }]
+        });
+    }
+
     // --- Function Definitions ---
     // (All your utility functions are now imported from './utils', so no need
     //  to define them here again)

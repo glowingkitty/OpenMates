@@ -45,7 +45,7 @@ class ChatDatabase {
         console.log("[ChatDatabase] Loading example chats");
         const store = this.getStore('readwrite');
         
-        const chats = exampleChats.chats.map(chat => {
+        const chats = exampleChats.chats.map((chat: any) => {
             let title = chat.title || 'Untitled';
             let draftContent = undefined;
 
