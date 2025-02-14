@@ -11,13 +11,14 @@ export interface Message {
 }
 
 export interface Chat {
-    id?: string;
-    title?: string;
-    isDraft?: boolean;
-    draftContent?: string;
-    mates?: string[];
+    id: string;
+    title: string;
+    isDraft: boolean;
+    draftContent?: any;
+    mates: string[];
     status?: 'draft' | 'sending' | 'pending' | 'typing';
     typingMate?: string;
     unreadCount?: number;
-    lastUpdated: string | Date; // Allow both string and Date
+    lastUpdated: Date;
+    messages: Message[];
 }

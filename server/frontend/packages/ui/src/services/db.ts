@@ -182,10 +182,11 @@ class ChatDatabase {
         
         if (chatId) {
             // Update existing chat
-            chat = await this.getChat(chatId);
-            if (!chat) {
+            const existingChat = await this.getChat(chatId);
+            if (!existingChat) {
                 throw new Error('Chat not found');
             }
+            chat = existingChat;
             
             chat.draftContent = content;
             chat.isDraft = true;
@@ -201,7 +202,8 @@ class ChatDatabase {
                 isDraft: true,
                 status: 'draft',
                 draftContent: content,
-                mates: []
+                mates: [],
+                messages: [], // Initialize messages as an empty array
             };
         }
         

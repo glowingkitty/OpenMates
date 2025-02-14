@@ -173,7 +173,8 @@
             await chatHistoryRef.clearMessages();
 
             // Now it's safe to add messages
-            for (const msg of chat.messages) {
+            // Use optional chaining and nullish coalescing operator in case chat or messages is null/undefined.
+            for (const msg of chat?.messages ?? []) {
                 chatHistoryRef.addMessage(msg);
                 await tick(); // Still a good idea for smooth scrolling
             }
