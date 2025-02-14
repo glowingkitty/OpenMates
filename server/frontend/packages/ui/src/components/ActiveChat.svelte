@@ -97,6 +97,10 @@
             composed: true
         });
         window.dispatchEvent(customEvent);
+
+        // *** KEY CHANGE: Update currentChat when a new draft is saved ***
+        currentChat = chat;
+        console.log("[ActiveChat] Draft saved, updating currentChat:", currentChat);
     }
 
     /**
@@ -281,6 +285,7 @@
 
                 <!-- Right side container for message input -->
                 <div class="message-input-container">
+                    <!-- Pass currentChat?.id to MessageInput -->
                     <MessageInput 
                         bind:this={enterMessageFieldRef}
                         bind:hasContent={enterMessageHasContent}
