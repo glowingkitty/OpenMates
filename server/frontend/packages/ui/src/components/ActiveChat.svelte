@@ -187,6 +187,7 @@
         // Handle the draft content
         if (enterMessageFieldRef && chat.isDraft && chat.draftContent) {
             console.log("[ActiveChat] Setting draft content:", chat.draftContent);
+            enterMessageHasContent = true;
             // Add a small delay to ensure the editor is initialized
             setTimeout(() => {
                 enterMessageFieldRef.setDraftContent(chat.draftContent);
@@ -194,6 +195,7 @@
         } else if (enterMessageFieldRef) {
             // If it's not a draft or has no draft content, clear the field
             enterMessageFieldRef.clearMessageField();
+            enterMessageHasContent = false;
         }
     }
 </script>
