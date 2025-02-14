@@ -67,7 +67,7 @@
     }}
 >
     <div class="code-container">
-        <!-- Update fullscreen button to match EnterMessageField style -->
+        <!-- Update fullscreen button to match MessageInput style -->
         <button 
             class="close-button clickable-icon icon_fullscreen" 
             on:click={handleClose}

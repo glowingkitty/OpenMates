@@ -1,5 +1,4 @@
 <script lang="ts">
-    // import EnterMessageField from './enter_message/EnterMessageField.svelte';
     import MessageInput from './enter_message/MessageInput.svelte';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
@@ -62,8 +61,8 @@
 
     // Create a reference for the ChatHistory component
     let chatHistoryRef: any;
-    // Create a reference for the EnterMessageField component
-    let enterMessageFieldRef: any;
+    // Create a reference for the MessageInput component
+    let messageInputFieldRef: any;
 
     let isFullscreen = false;
     $: messages = chatHistoryRef?.messages || [];
@@ -76,13 +75,13 @@
     // Add state variable for scaling animation on the container
     let activeScaling = false;
 
-    // Create a local variable to bind the EnterMessageField's exported property.
-    let enterMessageHasContent = false;
+    // Create a local variable to bind the MessageInput's exported property.
+    let messageInputHasContent = false;
     
     // Reactive variable to determine when to show the create chat button.
     // The button appears when either the chat history is not empty (showWelcome is false)
-    // OR the EnterMessageField has content.
-    $: createButtonVisible = !showWelcome || enterMessageHasContent;
+    // OR the MessageInput has content.
+    $: createButtonVisible = !showWelcome || messageInputHasContent;
 
     // Add state for current chat
     let currentChat: Chat | null = null;
@@ -112,7 +111,7 @@
     }
 
     /**
-     * Handler for when EnterMessageField dispatches the sendMessage event.
+     * Handler for when MessageInput dispatches the sendMessage event.
      * It receives the message payload and calls addMessage() on the chat history.
      *
      * Expected message payload:
@@ -147,9 +146,9 @@
         if (chatHistoryRef?.clearMessages) {
             chatHistoryRef.clearMessages();
         }
-        // Clear the EnterMessageField content (if available)
-        if (enterMessageFieldRef?.clearMessageField) {
-            enterMessageFieldRef.clearMessageField();
+        // Clear the MessageInput content (if available)
+        if (messageInputFieldRef?.clearMessageField) {
+            messageInputFieldRef.clearMessageField();
         }
         // Trigger container scale down
         activeScaling = true;
@@ -185,17 +184,17 @@
         }
 
         // Handle the draft content
-        if (enterMessageFieldRef && chat.isDraft && chat.draftContent) {
+        if (messageInputFieldRef && chat.isDraft && chat.draftContent) {
             console.log("[ActiveChat] Setting draft content:", chat.draftContent);
-            enterMessageHasContent = true;
+            messageInputHasContent = true;
             // Add a small delay to ensure the editor is initialized
             setTimeout(() => {
-                enterMessageFieldRef.setDraftContent(chat.draftContent);
+                messageInputFieldRef.setDraftContent(chat.draftContent);
             }, 100);
-        } else if (enterMessageFieldRef) {
+        } else if (messageInputFieldRef) {
             // If it's not a draft or has no draft content, clear the field
-            enterMessageFieldRef.clearMessageField();
-            enterMessageHasContent = false;
+            messageInputFieldRef.clearMessageField();
+            messageInputHasContent = false;
         }
     }
 </script>
@@ -289,8 +288,8 @@
                 <div class="message-input-container">
                     <!-- Pass currentChat?.id to MessageInput -->
                     <MessageInput 
-                        bind:this={enterMessageFieldRef}
-                        bind:hasContent={enterMessageHasContent}
+                        bind:this={messageInputFieldRef}
+                        bind:hasContent={messageInputHasContent}
                         currentChatId={currentChat?.id}
                         on:codefullscreen={handleCodeFullscreen}
                         on:sendMessage={handleSendMessage}

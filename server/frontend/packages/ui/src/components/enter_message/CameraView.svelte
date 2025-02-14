@@ -229,7 +229,7 @@
 
 {#if isMobile}
     <!-- For mobile devices, no extra "Open Camera" button is needed.
-         The camera is triggered directly from EnterMessageField.svelte. -->
+         The camera is triggered directly from MessageInput.svelte. -->
     <input
         bind:this={fallbackInput}
         type="file"

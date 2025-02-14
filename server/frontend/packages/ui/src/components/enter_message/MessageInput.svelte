@@ -1260,6 +1260,10 @@
     :global(.editor-content) {
         box-sizing: border-box;
         overflow-x: hidden;
+        width: 100%;
+        min-height: 2em;
+        padding: 0.5rem;
+        position: relative;
         transition: all 0.2s ease-in-out;
     }
 
