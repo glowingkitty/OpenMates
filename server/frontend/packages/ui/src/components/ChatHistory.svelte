@@ -140,8 +140,8 @@
     /* Add mask for top and bottom fade effect */
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 0) 0%, 
-        rgba(0, 0, 0, 1) 50px, 
-        rgba(0, 0, 0, 1) calc(100% - 50px), 
+        rgba(0, 0, 0, 1) 30px, 
+        rgba(0, 0, 0, 1) calc(100% - 30px), 
         rgba(0, 0, 0, 0) 100%
     );
   }

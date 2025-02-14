@@ -279,7 +279,7 @@
 
                     <ChatHistory 
                         bind:this={chatHistoryRef} 
-                        messageInputHeight={isFullscreen ? 0 : messageInputHeight + 20}
+                        messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
                     />
                 </div>
