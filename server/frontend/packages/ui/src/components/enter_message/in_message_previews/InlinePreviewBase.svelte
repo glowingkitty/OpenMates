@@ -60,8 +60,7 @@
 
 <style>
     .preview-container {
-        width: 100%;
-        max-width: 300px;
+        width: 300px;
         background-color: var(--color-grey-20);
         border-radius: 30px;
         position: relative;
@@ -73,10 +72,7 @@
         margin: 4px 0;
         overflow: hidden;
     }
-
-    .preview-container:hover {
-        background-color: var(--color-grey-30);
-    }
+    /* TODO: fix that preview-container responsive design
 
     /* Common filename container styles */
     :global(.preview-container .filename-container) {
