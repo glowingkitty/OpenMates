@@ -1,5 +1,5 @@
 import type { Chat } from '../types/chat';
-import exampleChats from '../data/example-chats.json';
+import exampleChats from '../data/web-app-example-chats.json';
 
 class ChatDatabase {
     private db: IDBDatabase | null = null;
@@ -226,7 +226,6 @@ class ChatDatabase {
     }
 
     async removeDraft(chatId: string): Promise<Chat> {
-        const store = this.getStore('readwrite');
         const chat = await this.getChat(chatId);
         
         if (!chat) {
