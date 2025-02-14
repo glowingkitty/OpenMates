@@ -1,5 +1,5 @@
 <script lang="ts">
-    import ChatMessage from './ChatMessage.svelte';
+    import ChatMessage from './ChatMessageNoTipTap.svelte';
     import EventAppCard from './cards/EventAppCard.svelte';
     import HealthAppCard from './cards/HealthAppCard.svelte';
     import ProcessingDetails from './ProcessingDetails.svelte';
