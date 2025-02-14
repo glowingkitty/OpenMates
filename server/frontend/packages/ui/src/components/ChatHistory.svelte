@@ -32,8 +32,11 @@
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
 
-  // Add prop for message input height
+  // Update the messageInputHeight prop to be reactive
   export let messageInputHeight = 0;
+
+  // Add reactive statement to handle height changes
+  $: containerStyle = `bottom: ${messageInputHeight}px`;
 
   const dispatch = createEventDispatcher();
 
@@ -100,7 +103,7 @@
 <div 
     class="chat-history-container" 
     bind:this={container}
-    style="bottom: {messageInputHeight}px;"
+    style={containerStyle}
 >
     {#if showMessages}
         <div class="chat-history-content" 
@@ -127,15 +130,20 @@
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    /* Remove justify-content: flex-end to allow proper scrolling */
     align-items: center;
     padding: 10px;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+    /* Add mask for top and bottom fade effect */
+    mask-image: linear-gradient(to bottom, 
+        rgba(0, 0, 0, 0) 0%, 
+        rgba(0, 0, 0, 1) 50px, 
+        rgba(0, 0, 0, 1) calc(100% - 50px), 
+        rgba(0, 0, 0, 0) 100%
+    );
   }
 
   /* Add styles for the content wrapper */
