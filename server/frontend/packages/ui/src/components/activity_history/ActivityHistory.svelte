@@ -93,7 +93,7 @@
     });
 
     // Function to navigate to next chat
-    function navigateToNextChat() {
+    async function navigateToNextChat() {
         console.log("[ActivityHistory] Navigating to next chat");
         if (flattenedChats.length === 0) return;
 
@@ -106,11 +106,11 @@
         }
 
         const nextChat = flattenedChats[currentChatIndex];
-        handleChatClick(nextChat);
+        await handleChatClick(nextChat);
     }
 
     // Function to navigate to previous chat
-    function navigateToPreviousChat() {
+    async function navigateToPreviousChat() {
         console.log("[ActivityHistory] Navigating to previous chat");
         if (flattenedChats.length === 0) return;
 
@@ -123,13 +123,20 @@
         }
 
         const previousChat = flattenedChats[currentChatIndex];
-        handleChatClick(previousChat);
+        await handleChatClick(previousChat);
     }
 
     // Update currentChatIndex when a chat is clicked directly
-    function handleChatClick(chat: ChatType) {
+    async function handleChatClick(chat: ChatType) {
         console.log("[ActivityHistory] Chat clicked:", chat.id);
         currentChatIndex = flattenedChats.findIndex(c => c.id === chat.id);
+        
+        // Dispatch a custom event to save any pending draft before switching chats
+        const saveDraftEvent = new CustomEvent('saveDraftBeforeSwitch', { bubbles: true });
+        window.dispatchEvent(saveDraftEvent);
+        
+        // Wait a short moment for the draft to be saved
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         dispatch('chatSelected', { 
             chat: {

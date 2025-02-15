@@ -931,6 +931,13 @@
         // Add the keydown event listener
         editorElement.addEventListener('keydown', handleKeyDown);
 
+        // Add listener for draft saving before switching chats
+        window.addEventListener('saveDraftBeforeSwitch', () => {
+            if (editor && !editor.isEmpty && !isContentEmptyExceptMention(editor)) {
+                saveDraft.flush(); // Immediately execute any pending draft save
+            }
+        });
+
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
@@ -939,6 +946,7 @@
             document.removeEventListener('mateclick', (() => {}) as EventListener);
             editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
             editorElement?.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('saveDraftBeforeSwitch', () => {});
         };
     });
 
