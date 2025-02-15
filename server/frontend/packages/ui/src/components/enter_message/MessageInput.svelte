@@ -799,6 +799,16 @@
         }
     }
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Add escape key handling to blur/unfocus the editor
+      if (event.key === 'Escape' && isMessageFieldFocused) {
+        event.preventDefault();
+        editor?.commands.blur();
+        isMessageFieldFocused = false;
+        return;
+      }
+    };
+
     // --- Lifecycle Hooks ---
 
     onMount(() => {
@@ -918,6 +928,9 @@
             dispatch('codefullscreen', event.detail);
         }) as EventListener);
 
+        // Add the keydown event listener
+        editorElement.addEventListener('keydown', handleKeyDown);
+
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
@@ -925,6 +938,7 @@
             document.removeEventListener('embedclick', (() => {}) as EventListener);
             document.removeEventListener('mateclick', (() => {}) as EventListener);
             editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
+            editorElement?.removeEventListener('keydown', handleKeyDown);
         };
     });
 
