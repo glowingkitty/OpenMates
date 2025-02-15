@@ -141,47 +141,33 @@
      * Sets draft content in the message field
      * @param content Content to set as draft
      */
-    export function setDraftContent(content: any) {
-        // Ensure editor exists and content is valid
-        if (!editor || !content) return;
-
-        try {
-            // If content is a string, try to parse it as JSON
-            const parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
-            
-            // Set the content in the editor
-            editor.commands.setContent(parsedContent);
-            editor.commands.focus('end');
-            
-            console.log("[MessageInput] Draft content set:", parsedContent);
-        } catch (error) {
-            console.error("[MessageInput] Error setting draft content:", error);
+    export function setDraftContent(content: any, shouldFocus: boolean = true) {
+        if (!editor) return;
+        
+        // Set the content
+        if (typeof content === 'string') {
+            content = JSON.parse(content);
+        }
+        editor.commands.setContent(content);
+        
+        // Only focus if shouldFocus is true
+        if (shouldFocus) {
+            editor.commands.focus();
         }
     }
 
     /**
      * Clears the message field and resets to initial state
      */
-    export function clearMessageField() {
+    export function clearMessageField(shouldFocus: boolean = true) {
         if (!editor) return;
         
         editor.commands.clearContent();
-        editor.commands.setContent({
-            type: 'doc',
-            content: [{
-                type: 'paragraph',
-                content: [
-                    {
-                        type: 'mate',
-                        attrs: {
-                            name: defaultMention,
-                            id: crypto.randomUUID()
-                        }
-                    },
-                    { type: 'text', text: ' ' }
-                ]
-            }]
-        });
+        
+        // Only focus if shouldFocus is true
+        if (shouldFocus) {
+            editor.commands.focus();
+        }
     }
 
     // --- Function Definitions ---

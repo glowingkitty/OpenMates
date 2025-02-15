@@ -190,11 +190,11 @@
             messageInputHasContent = true;
             // Add a small delay to ensure the editor is initialized
             setTimeout(() => {
-                messageInputFieldRef.setDraftContent(chat.draftContent);
+                messageInputFieldRef.setDraftContent(chat.draftContent, false);
             }, 100);
         } else if (messageInputFieldRef) {
-            // If it's not a draft or has no draft content, clear the field
-            messageInputFieldRef.clearMessageField();
+            // If it's not a draft or has no draft content, clear the field without focusing
+            messageInputFieldRef.clearMessageField(false);
             messageInputHasContent = false;
         }
     }
