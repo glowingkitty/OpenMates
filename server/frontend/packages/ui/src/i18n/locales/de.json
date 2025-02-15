@@ -685,6 +685,18 @@
                 "en_original": "Copied to clipboard",
                 "context": "Message shown when a URL has been copied to clipboard"
             }
+        },
+        "placeholder": {
+            "desktop": {
+                "text": "Shift + Eingabe oder klicken um eine Nachricht einzugeben...",
+                "en_original": "Shift + Enter or click to enter message...",
+                "context": "Placeholder text shown in message input on desktop devices"
+            },
+            "touch": {
+                "text": "Tippen um eine Nachricht einzugeben...",
+                "en_original": "Tap to enter message...",
+                "context": "Placeholder text shown in message input on touch devices"
+            }
         }
     },
     "cameraview": {

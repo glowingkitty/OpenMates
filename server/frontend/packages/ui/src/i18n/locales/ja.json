@@ -685,6 +685,18 @@
                 "en_original": "Copied to clipboard",
                 "context": "Message shown when a URL has been copied to clipboard"
             }
+        },
+        "placeholder": {
+            "desktop": {
+                "text": "Shift + Enter またはクリックしてメッセージを入力...",
+                "en_original": "Shift + Enter or click to enter message...",
+                "context": "Placeholder text shown in message input on desktop devices"
+            },
+            "touch": {
+                "text": "タップしてメッセージを入力...",
+                "en_original": "Tap to enter message...",
+                "context": "Placeholder text shown in message input on touch devices"
+            }
         }
     },
     "cameraview": {

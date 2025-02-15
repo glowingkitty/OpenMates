@@ -820,7 +820,7 @@
                 createKeyboardHandlingExtension()
             ],
             content: getInitialContent(),
-             onFocus: () => {
+            onFocus: () => {
                 isMessageFieldFocused = true;
                 if (editor.isEmpty) {
                     editor.commands.setContent({
@@ -842,7 +842,6 @@
                             ]
                         }]
                     });
-                    editor.commands.focus('end');
                 }
             },
             onBlur: () => {
@@ -900,30 +899,6 @@
             console.log('Mate clicked:', id, elementId);
             // Example: dispatch('mateclick', { id });
         }) as EventListener);
-
-        // Add this after editor initialization to auto-focus and add default mention
-        setTimeout(() => {
-            editor.commands.setContent({
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: {
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: ' '  // Add space after mention
-                        }
-                    ]
-                }]
-            });
-            editor.commands.focus('end');
-        }, 100); // Small delay
 
         const resizeObserver = new ResizeObserver(() => {
             checkScrollable();
