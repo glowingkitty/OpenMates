@@ -93,6 +93,29 @@
   $: {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
+
+  // Update the scroll methods to use the correct container reference
+  export function scrollToTop() {
+    if (container) {
+      container.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    } else {
+      console.warn("[ChatHistory] Container not found");
+    }
+  }
+  
+  export function scrollToBottom() {
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+    } else {
+      console.warn("[ChatHistory] Container not found");
+    }
+  }
 </script>
 
 <!--

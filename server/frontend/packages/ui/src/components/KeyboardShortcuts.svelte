@@ -55,14 +55,15 @@
         }
       }
 
-      if ((isMac ? event.metaKey && event.key === 'ArrowUp' : event.key === 'Home')) {
-        event.preventDefault();
-        dispatch('scrollToTop');
-      }
-
-      if ((isMac ? event.metaKey && event.key === 'ArrowDown' : event.key === 'End')) {
-        event.preventDefault();
-        dispatch('scrollToBottom');
+      // Update scroll shortcuts to require Shift key
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey) {
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          dispatch('scrollToTop');
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          dispatch('scrollToBottom');
+        }
       }
     };
 
