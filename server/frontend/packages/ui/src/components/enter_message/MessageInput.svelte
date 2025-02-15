@@ -39,6 +39,9 @@
     // Add import for the new handlers
     import { handleSend, createKeyboardHandlingExtension } from './handlers/sendHandlers';
 
+    // Add KeyboardShortcuts import
+    import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
+
     const dispatch = createEventDispatcher();
 
     // File size limits in MB
@@ -97,6 +100,9 @@
 
     // Add ResizeObserver to track height changes
     let previousHeight = 0;
+
+    // Add a ref for RecordAudio
+    let recordAudioComponent: any;
 
     // Add this function to handle height changes
     function updateHeight() {
@@ -761,6 +767,38 @@
         }
     }
 
+    // Update the handleKeyboardShortcut function
+    function handleKeyboardShortcut(event: CustomEvent) {
+        switch (event.detail.type) {
+            case 'startRecording':
+                console.log('Starting spacebar recording');
+                showRecordAudio = true;
+                isRecordButtonPressed = true;
+                break;
+                
+            case 'stopRecording':
+                console.log('Stopping spacebar recording');
+                showRecordAudio = false;
+                isRecordButtonPressed = false;
+                break;
+                
+            case 'cancelRecording':
+                console.log('Canceling spacebar recording');
+                if (recordAudioComponent) {
+                    recordAudioComponent.cancel();
+                }
+                showRecordAudio = false;
+                isRecordButtonPressed = false;
+                break;
+                
+            case 'insertSpace':
+                if (editor && isMessageFieldFocused) {
+                    editor.commands.insertContent(' ');
+                }
+                break;
+        }
+    }
+
     // --- Lifecycle Hooks ---
 
     onMount(() => {
@@ -940,6 +978,13 @@
     $: if (isFullscreen !== undefined) {
         // Wait for DOM update
         setTimeout(updateHeight, 0);
+    }
+
+    // Add this after other exported functions
+    export function focus() {
+        if (editor) {
+            editor.commands.focus('end');
+        }
     }
 </script>
 
@@ -1156,6 +1201,7 @@
 
         {#if showRecordAudio}
             <RecordAudio
+                bind:this={recordAudioComponent}
                 externalStream={recordingStream}
                 initialPosition={recordStartPosition}
                 on:audiorecorded={handleAudioRecorded}
@@ -1172,6 +1218,14 @@
         {/if}
     </div>
 </div>
+
+<!-- Replace the KeyboardShortcuts component usage with: -->
+<KeyboardShortcuts 
+  on:startRecording={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'startRecording' }}))}
+  on:stopRecording={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'stopRecording' }}))}
+  on:cancelRecording={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'cancelRecording' }}))}
+  on:insertSpace={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'insertSpace' }}))}
+/>
 
 <style>
     /* Rename .message-container to .message-field */

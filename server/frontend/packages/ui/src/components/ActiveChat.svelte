@@ -11,6 +11,7 @@
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import KeyboardShortcuts from './KeyboardShortcuts.svelte'; // Import the new component
     const dispatch = createEventDispatcher();
 
     // Add state for code fullscreen
@@ -309,6 +310,12 @@
                     onClose={handleCloseCodeFullscreen}
                 />
             {/if}
+            <KeyboardShortcuts
+                on:newChat={handleNewChatClick}
+                on:focusInput={() => messageInputFieldRef.focus()}
+                on:scrollToTop={() => chatHistoryRef.scrollToTop()}
+                on:scrollToBottom={() => chatHistoryRef.scrollToBottom()}
+            />
         </div>
     {/if}
 </div>

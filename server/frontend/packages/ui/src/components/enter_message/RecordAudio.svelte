@@ -179,29 +179,27 @@
         
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             isRecording = false;
-            
-            const finalDuration = recordingTime;
             stopRecordingTimer();
             
+            const finalDuration = recordingTime;
             logger.info(`Recording stopped after ${finalDuration} seconds (${formatTime(finalDuration)})`);
             
-            if (!isCancelled) {
-                mediaRecorder.stop();
-            } else {
-                mediaRecorder.stop();
+            // Always stop the mediaRecorder
+            mediaRecorder.stop();
+            
+            if (isCancelled) {
+                // If cancelled, clear chunks and close immediately
                 recordedChunks = [];
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
                 dispatch('close');
             }
+            // If not cancelled, the onstop handler will handle the recording
         } else {
             dispatch('close');
         }
     }
-
-    
-
 
     function handleMouseMove(event: MouseEvent) {
         if (!isRecording && !recordingStartTimeout) return;
@@ -235,6 +233,13 @@
             isCancelled = true;
             stopRecording();
         }
+    }
+
+    // Add this new method
+    export function cancel() {
+        logger.debug('Recording cancelled externally');
+        isCancelled = true;
+        stopRecording();
     }
 </script>
 
