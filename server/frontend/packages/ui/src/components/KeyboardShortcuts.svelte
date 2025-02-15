@@ -65,6 +65,17 @@
           dispatch('scrollToBottom');
         }
       }
+
+      // Add chat navigation shortcuts
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey) {
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          dispatch('nextChat');
+        } else if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          dispatch('previousChat');
+        }
+      }
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {

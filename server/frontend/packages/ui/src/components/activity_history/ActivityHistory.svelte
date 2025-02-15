@@ -7,11 +7,15 @@
     import { chatDB } from '../../services/db';
     import type { Chat as ChatType } from '../../types/chat';
     import { tooltip } from '../../actions/tooltip';
+    import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 
     const dispatch = createEventDispatcher();
 
     let chats: ChatType[] = [];
     let loading = true;
+
+    // Track current chat index
+    let currentChatIndex = -1;
 
     // Helper function to sort chats within a group
     function sortChatsInGroup(chats: ChatType[]): ChatType[] {
@@ -58,6 +62,9 @@
         return groups;
     }, {});
 
+    // Flatten grouped chats for navigation
+    $: flattenedChats = Object.values(groupedChats).flat();
+
     onMount(async() => {
         window.addEventListener('chatUpdated', handleChatUpdate);
         try {
@@ -85,12 +92,48 @@
         window.removeEventListener('chatUpdated', handleChatUpdate);
     });
 
+    // Function to navigate to next chat
+    function navigateToNextChat() {
+        console.log("[ActivityHistory] Navigating to next chat");
+        if (flattenedChats.length === 0) return;
+
+        // If no current chat, select first one
+        if (currentChatIndex === -1) {
+            currentChatIndex = 0;
+        } else {
+            // Move to next chat, wrap around to beginning if at end
+            currentChatIndex = (currentChatIndex + 1) % flattenedChats.length;
+        }
+
+        const nextChat = flattenedChats[currentChatIndex];
+        handleChatClick(nextChat);
+    }
+
+    // Function to navigate to previous chat
+    function navigateToPreviousChat() {
+        console.log("[ActivityHistory] Navigating to previous chat");
+        if (flattenedChats.length === 0) return;
+
+        // If no current chat, select last one
+        if (currentChatIndex === -1) {
+            currentChatIndex = flattenedChats.length - 1;
+        } else {
+            // Move to previous chat, wrap around to end if at beginning
+            currentChatIndex = (currentChatIndex - 1 + flattenedChats.length) % flattenedChats.length;
+        }
+
+        const previousChat = flattenedChats[currentChatIndex];
+        handleChatClick(previousChat);
+    }
+
+    // Update currentChatIndex when a chat is clicked directly
     function handleChatClick(chat: ChatType) {
         console.log("[ActivityHistory] Chat clicked:", chat.id);
+        currentChatIndex = flattenedChats.findIndex(c => c.id === chat.id);
+        
         dispatch('chatSelected', { 
             chat: {
                 ...chat,
-                // Ensure draftContent is properly serialized if it's a string
                 draftContent: chat.draftContent ? 
                     (typeof chat.draftContent === 'string' ? 
                         JSON.parse(chat.draftContent) : 
@@ -99,16 +142,17 @@
             } 
         });
         
-        // Only close the activity history on mobile screens
         if (window.innerWidth < 730) {
             handleClose();
         }
     }
 
-    // Add keydown event handler
-    function handleKeyDown(event: KeyboardEvent, chat: ChatType) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            handleChatClick(chat);
+    // Handle keyboard navigation events
+    function handleKeyboardNavigation(event: CustomEvent) {
+        if (event.type === 'nextChat') {
+            navigateToNextChat();
+        } else if (event.type === 'previousChat') {
+            navigateToPreviousChat();
         }
     }
 
@@ -126,6 +170,13 @@
     function handleChatUpdate(event: CustomEvent) {
         const { chat } = event.detail;
         updateChatList();
+    }
+
+    // Add keydown event handler for individual chat items
+    function handleKeyDown(event: KeyboardEvent, chat: ChatType) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            handleChatClick(chat);
+        }
     }
 </script>
 
@@ -160,7 +211,14 @@
                     <div class="chat-group">
                         <h2 class="group-title">{groupName}</h2>
                         {#each groupChats as chat}
-                            <div role="button" tabindex="0" on:click={() => handleChatClick(chat)} on:keydown={(e) => handleKeyDown(e, chat)}>
+                            <div 
+                                role="button" 
+                                tabindex="0" 
+                                class="chat-item"
+                                class:active={currentChatIndex === flattenedChats.findIndex(c => c.id === chat.id)}
+                                on:click={() => handleChatClick(chat)} 
+                                on:keydown={(e) => handleKeyDown(e, chat)}
+                            >
                                 <Chat {chat} />
                             </div>
                         {/each}
@@ -168,6 +226,11 @@
                 {/each}
             </div>
         {/if}
+
+        <KeyboardShortcuts 
+            on:nextChat={handleKeyboardNavigation}
+            on:previousChat={handleKeyboardNavigation}
+        />
     </div>
 {/if}
 
@@ -282,5 +345,15 @@
         border-radius: 4px;
         font-size: 0.8em;
         font-weight: 600;
+    }
+
+    .chat-item {
+        transition: background-color 0.2s ease;
+    }
+
+    .chat-item:hover,
+    .chat-item.active {
+        background-color: var(--color-grey-30);
+        border-radius: 8px;
     }
 </style>
