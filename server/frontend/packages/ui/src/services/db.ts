@@ -298,6 +298,39 @@ class ChatDatabase {
         await this.updateChat(chat);
         return chat;
     }
+
+    /**
+     * Updates an existing message in a chat
+     * @param chatId The ID of the chat
+     * @param message The updated message object
+     * @returns The updated chat object
+     */
+    async updateMessage(chatId: string, message: Message): Promise<Chat> {
+        const chat = await this.getChat(chatId);
+        if (!chat) {
+            throw new Error(`Chat with ID ${chatId} not found`);
+        }
+
+        const messages = chat.messages || [];
+        const messageIndex = messages.findIndex(m => m.id === message.id);
+        
+        if (messageIndex === -1) {
+            throw new Error(`Message with ID ${message.id} not found in chat ${chatId}`);
+        }
+
+        // Update the message
+        messages[messageIndex] = message;
+
+        // Update the chat with new messages
+        const updatedChat = {
+            ...chat,
+            messages,
+            lastUpdated: new Date()  // Convert to Date object instead of number
+        };
+
+        await this.updateChat(updatedChat);
+        return updatedChat;
+    }
 }
 
 export const chatDB = new ChatDatabase();

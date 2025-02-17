@@ -168,35 +168,27 @@
         // TODO: Insert the actual share logic here if needed.
     }
 
-    // Add a function to handle chat updates
+    // Update handler for chat updates to be more selective
     function handleChatUpdated(event: CustomEvent) {
         const { chat } = event.detail;
-        if (!chat) return;
+        if (!chat || currentChat?.id !== chat.id) return;
         
-        if (currentChat?.id === chat.id) {
-            console.log("[ActiveChat] Updating current chat:", chat);
-            currentChat = chat;
-            
-            // Find messages with pending/waiting status and update their status
-            chat.messages?.forEach(msg => {
-                if (msg.status === 'pending' || msg.status === 'waiting_for_internet') {
-                    chatHistoryRef?.updateMessageStatus(msg.id, msg.status);
-                }
-            });
-            
-            // Update all messages
-            if (chatHistoryRef) {
-                chatHistoryRef.updateMessages(chat.messages || []);
-            }
+        console.log("[ActiveChat] Updating chat messages");
+        currentChat = chat;
+        
+        // Always force a messages update to ensure UI is in sync
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(chat.messages || []);
         }
     }
 
-    // Add handler for message status changes
+    // Handle message status changes without full reload
     function handleMessageStatusChanged(event: CustomEvent) {
-        const { messages } = event.detail;
-        if (currentChat && messages) {
-            currentChat = { ...currentChat, messages };
-        }
+        const { chatId, messageId, status } = event.detail;
+        if (currentChat?.id !== chatId) return;
+        
+        // Only update the specific message's status
+        chatHistoryRef?.updateMessageStatus(messageId, status);
     }
 
     // Update the loadChat function

@@ -43,7 +43,7 @@ function createMessagePayload(editor: Editor) {
         role: "user",
         content,
         status: 'pending' as const,
-        timestamp: Date.now()
+        timestamp: new Date() // Change to Date object
     };
 }
 
@@ -81,6 +81,24 @@ function resetEditorContent(editor: Editor, defaultMention: string = 'sophia') {
 }
 
 /**
+ * Combines new content with existing message content
+ */
+function combineMessageContent(existingContent: any, newContent: any): any {
+    // Ensure both contents have the expected structure
+    if (!existingContent?.content || !newContent?.content) {
+        throw new Error('Invalid content structure');
+    }
+
+    // Create a deep copy of existing content
+    const combinedContent = JSON.parse(JSON.stringify(existingContent));
+
+    // Simply concatenate the new content's paragraphs
+    combinedContent.content = combinedContent.content.concat(newContent.content);
+
+    return combinedContent;
+}
+
+/**
  * Handles sending a message via the message input
  */
 export async function handleSend(
@@ -95,50 +113,98 @@ export async function handleSend(
         return;
     }
 
-    const messagePayload = createMessagePayload(editor);
-
     try {
-        // Save to database with pending status
-        const updatedChat = await chatDB.addMessage(currentChatId, messagePayload);
-        
-        // Reset editor immediately
-        resetEditorContent(editor, defaultMention);
-        setHasContent(false);
-        
-        // First dispatch to update UI
-        dispatch("sendMessage", messagePayload);
-        dispatch("chatUpdated", { chat: updatedChat });
+        const chat = await chatDB.getChat(currentChatId);
+        if (!chat) throw new Error('Chat not found');
 
-        // Send to API asynchronously
-        sendMessageToAPI(currentChatId, messagePayload.content)
-            .then(async () => {
+        const pendingMessage = chat.messages.find(m => 
+            m.status === 'pending' || m.status === 'waiting_for_internet'
+        );
+
+        const newContent = editor.getJSON();
+        let messagePayload;
+
+        // Clear draft status when sending a message
+        if (chat.isDraft) {
+            await chatDB.removeDraft(currentChatId);
+        }
+
+        if (pendingMessage) {
+            // Combine the new content with the pending message
+            const combinedContent = combineMessageContent(pendingMessage.content, newContent);
+            messagePayload = {
+                ...pendingMessage,
+                content: combinedContent,
+                status: 'pending' as const,
+                timestamp: new Date()
+            };
+
+            // Reset editor before database update
+            resetEditorContent(editor, defaultMention);
+            setHasContent(false);
+
+            // Update existing message in database
+            const updatedChat = await chatDB.updateMessage(currentChatId, messagePayload);
+            
+            // Force immediate UI update
+            dispatch("chatUpdated", { chat: updatedChat });
+            
+            // Notify all components of the update
+            window.dispatchEvent(new CustomEvent('chatUpdated', {
+                detail: { chat: updatedChat },
+                bubbles: true
+            }));
+
+            // Attempt to send to API
+            try {
+                await sendMessageToAPI(currentChatId, messagePayload.content);
                 const chatWithUpdatedStatus = await chatDB.updateMessageStatus(currentChatId, messagePayload.id, 'sent');
                 
-                // Create a global event that any component can listen to
-                const event = new CustomEvent('messageStatusChanged', {
-                    detail: { chatId: currentChatId, messageId: messagePayload.id, status: 'sent', chat: chatWithUpdatedStatus },
-                    bubbles: true,
-                });
-                window.dispatchEvent(event);
-            })
-            .catch(async (error) => {
+                window.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                    detail: { 
+                        chatId: currentChatId, 
+                        messageId: messagePayload.id, 
+                        status: 'sent', 
+                        chat: chatWithUpdatedStatus 
+                    },
+                    bubbles: true
+                }));
+            } catch (error) {
                 console.error('Failed to send message to API:', error);
-                console.log('Message content that failed to send:', {
-                    chatId: currentChatId,
-                    content: messagePayload.content
-                });
+                const chatWithUpdatedStatus = await chatDB.updateMessageStatus(
+                    currentChatId, 
+                    messagePayload.id, 
+                    'waiting_for_internet'
+                );
                 
-                const chatWithUpdatedStatus = await chatDB.updateMessageStatus(currentChatId, messagePayload.id, 'waiting_for_internet');
-                
-                // Create a global event for the status change
-                const event = new CustomEvent('messageStatusChanged', {
-                    detail: { chatId: currentChatId, messageId: messagePayload.id, status: 'waiting_for_internet', chat: chatWithUpdatedStatus },
-                    bubbles: true,
-                });
-                window.dispatchEvent(event);
-            });
+                window.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                    detail: { 
+                        chatId: currentChatId, 
+                        messageId: messagePayload.id, 
+                        status: 'waiting_for_internet', 
+                        chat: chatWithUpdatedStatus 
+                    },
+                    bubbles: true
+                }));
+            }
+        } else {
+            // Create new message
+            messagePayload = createMessagePayload(editor);
+            
+            // Add to database and get updated chat
+            const updatedChat = await chatDB.addMessage(currentChatId, messagePayload);
+            
+            // Reset editor
+            resetEditorContent(editor, defaultMention);
+            setHasContent(false);
+
+            // Update UI with both message and chat
+            dispatch("sendMessage", messagePayload);
+            dispatch("chatUpdated", { chat: updatedChat });
+        }
+
     } catch (error) {
-        console.error('Failed to save message to local database:', error);
+        console.error('Failed to handle message:', error);
         vibrateMessageField();
     }
 }

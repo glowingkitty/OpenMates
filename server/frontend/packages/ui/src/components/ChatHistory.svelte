@@ -85,18 +85,11 @@
   }
 
   // Add method to update messages
-  export function updateMessages(newMessages: any[]) {
-    // Preserve existing message statuses when updating
-    const messageStatusMap = new Map(
-        messages.map(msg => [msg.id, msg.status])
-    );
-    
-    messages = newMessages.map(msg => ({
-        ...msg,
-        status: messageStatusMap.get(msg.id) || msg.status
-    }));
-    
-    dispatch('messagesChange', { hasMessages: messages.length > 0 });
+  export function updateMessages(newMessages: Message[]) {
+    console.log('Updating messages:', newMessages);
+    // Force a re-render by creating a new array
+    messages = [...newMessages];
+    dispatch('messagesChange', { hasMessages: newMessages.length > 0 });
   }
 
   /**
@@ -106,6 +99,8 @@
     messages = messages.map(msg => 
         msg.id === messageId ? { ...msg, status } : msg
     );
+    // Force a re-render by creating a new array
+    messages = [...messages];
     // Dispatch an event so ActiveChat knows the messages have changed
     dispatch('messagesStatusChanged', { messages });
   }
@@ -160,7 +155,7 @@
         <div class="chat-history-content" 
              transition:fade={{ duration: 100 }} 
              on:outroend={handleOutroEnd}>
-            {#each messages as msg (msg.id)}
+            {#each messages as msg (msg.id + JSON.stringify(msg.content))}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" 
                      in:fly={{ duration: 300, y: 20 }}>
                     <div in:fade>
