@@ -17,12 +17,11 @@
   // Take only the most recent mate instead of 3
   $: displayMate = chat.mates ? chat.mates[chat.mates.length - 1] : null;
 
-  // Add function to extract text from draft content
+  // Update the function to check for empty content
   function extractTextFromDraftContent(draftContent: any): string {
     if (!draftContent) return '';
     
     try {
-      // If draftContent is a JSON string, parse it
       const content = typeof draftContent === 'string' ? JSON.parse(draftContent) : draftContent;
       
       // Extract text from Tiptap JSON structure
@@ -30,12 +29,15 @@
         return node.content?.map((contentNode: any) => {
           if (contentNode.type === 'text') {
             return contentNode.text;
+          } else if (contentNode.type === 'mate') {
+            return ''; // Skip mate mentions when checking for content
           }
           return '';
         }).join('');
       }).join('\n') || '';
 
-      return text;
+      // Return empty string if only whitespace remains
+      return text.trim();
     } catch (error) {
       console.error('Error extracting text from draft content:', error);
       return '';
@@ -43,8 +45,8 @@
   }
 
   function getStatusLabel(): string {
-    // Show draft status if chat is a draft
-    if (chat.isDraft) return 'Draft:';
+    // Only show draft status if it has actual content
+    if (chat.isDraft && extractTextFromDraftContent(chat.draftContent)) return 'Draft:';
     
     // Otherwise handle other status types
     if (!chat.status) return '';
@@ -64,8 +66,8 @@
   tabindex="0"
 >
   <div class="chat-item">
-    {#if !displayMate && chat.isDraft}
-      <!-- Draft-only message -->
+    {#if !displayMate && chat.isDraft && extractTextFromDraftContent(chat.draftContent)}
+      <!-- Draft-only message (only show if there's actual draft content) -->
       <div class="draft-only">
         <span class="draft-label">Draft:</span>
         <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draftContent), 60)}</span>
@@ -87,10 +89,10 @@
         </div>
         <div class="chat-content">
           <span class="chat-title">{chat.title}</span>
-          {#if chat.isDraft || chat.status}
+          {#if (chat.isDraft && extractTextFromDraftContent(chat.draftContent)) || chat.status}
             <span class="status-message">
               {getStatusLabel()}
-              {#if chat.isDraft}
+              {#if chat.isDraft && extractTextFromDraftContent(chat.draftContent)}
                 {truncateText(extractTextFromDraftContent(chat.draftContent), 60)}
               {/if}
             </span>
