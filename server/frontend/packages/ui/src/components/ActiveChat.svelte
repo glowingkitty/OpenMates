@@ -6,7 +6,7 @@
     import Login from './Login.svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
     import { fade, fly } from 'svelte/transition';
-    import { createEventDispatcher, tick } from 'svelte';
+    import { createEventDispatcher, tick, onMount } from 'svelte';
     import { isAuthenticated } from '../stores/authState';
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
@@ -123,8 +123,10 @@
      * }
      */
     function handleSendMessage(event: CustomEvent) {
-        // Add the new message to the chat history
-        chatHistoryRef.addMessage(event.detail);
+        const message = event.detail;
+        console.log("[ActiveChat] Adding message:", message);
+        chatHistoryRef.addMessage(message);
+        showWelcome = false;
     }
 
     /**
@@ -166,38 +168,87 @@
         // TODO: Insert the actual share logic here if needed.
     }
 
+    // Add a function to handle chat updates
+    function handleChatUpdated(event: CustomEvent) {
+        const { chat } = event.detail;
+        if (!chat) return;
+        
+        if (currentChat?.id === chat.id) {
+            console.log("[ActiveChat] Updating current chat:", chat);
+            currentChat = chat;
+            
+            // Find messages with pending/waiting status and update their status
+            chat.messages?.forEach(msg => {
+                if (msg.status === 'pending' || msg.status === 'waiting_for_internet') {
+                    chatHistoryRef?.updateMessageStatus(msg.id, msg.status);
+                }
+            });
+            
+            // Update all messages
+            if (chatHistoryRef) {
+                chatHistoryRef.updateMessages(chat.messages || []);
+            }
+        }
+    }
+
+    // Add handler for message status changes
+    function handleMessageStatusChanged(event: CustomEvent) {
+        const { messages } = event.detail;
+        if (currentChat && messages) {
+            currentChat = { ...currentChat, messages };
+        }
+    }
+
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        console.log("[ActiveChat] Loading chat:", chat.id);
-        currentChat = chat;
+        console.log("[ActiveChat] Loading chat:", chat);
+        const freshChat = await chatDB.getChat(chat.id); // Get fresh chat data
+        currentChat = freshChat || chat;
         showWelcome = false;
 
         if (chatHistoryRef) {
-            // Clear existing messages AND wait for completion
             await chatHistoryRef.clearMessages();
-
-            // Now it's safe to add messages
-            // Use optional chaining and nullish coalescing operator in case chat or messages is null/undefined.
-            for (const msg of chat?.messages ?? []) {
-                chatHistoryRef.addMessage(msg);
-                await tick(); // Still a good idea for smooth scrolling
+            if (currentChat.messages?.length) {
+                chatHistoryRef.updateMessages(currentChat.messages);
             }
         }
 
-        // Handle the draft content
-        if (messageInputFieldRef && chat.isDraft && chat.draftContent) {
-            console.log("[ActiveChat] Setting draft content:", chat.draftContent);
+        // Handle draft content
+        if (messageInputFieldRef && currentChat.isDraft && currentChat.draftContent) {
             messageInputHasContent = true;
-            // Add a small delay to ensure the editor is initialized
             setTimeout(() => {
-                messageInputFieldRef.setDraftContent(chat.draftContent, false);
+                messageInputFieldRef.setDraftContent(currentChat.draftContent, false);
             }, 100);
         } else if (messageInputFieldRef) {
-            // If it's not a draft or has no draft content, clear the field without focusing
             messageInputFieldRef.clearMessageField(false);
             messageInputHasContent = false;
         }
     }
+
+    onMount(() => {
+        // Add event listeners for both chat updates and message status changes
+        const chatUpdateHandler = ((event: CustomEvent) => {
+            handleChatUpdated(event);
+        }) as EventListener;
+
+        const messageStatusHandler = ((event: CustomEvent) => {
+            const { chatId, messageId, status, chat } = event.detail;
+            if (currentChat?.id === chatId) {
+                // Update chat with new status
+                currentChat = chat;
+                // Update message status in chat history
+                chatHistoryRef?.updateMessageStatus(messageId, status);
+            }
+        }) as EventListener;
+
+        window.addEventListener('chatUpdated', chatUpdateHandler);
+        window.addEventListener('messageStatusChanged', messageStatusHandler);
+
+        return () => {
+            window.removeEventListener('chatUpdated', chatUpdateHandler);
+            window.removeEventListener('messageStatusChanged', messageStatusHandler);
+        };
+    });
 </script>
 
 <div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated} class:scaled={activeScaling}>
@@ -282,6 +333,8 @@
                         bind:this={chatHistoryRef} 
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
+                        on:chatUpdated={handleChatUpdated}
+                        on:messagesStatusChanged={handleMessageStatusChanged}
                     />
                 </div>
 

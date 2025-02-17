@@ -1,4 +1,4 @@
-import { getApiUrl } from '../config/links';
+import { getApiEndpoint, apiEndpoints } from '../config/api';
 
 /**
  * Service to handle authentication-related operations
@@ -13,7 +13,7 @@ export class AuthService {
             formData.append('username', email.trim());  // Trim whitespace
             formData.append('password', password);
 
-            const response = await fetch(`${getApiUrl()}/v1/auth/login`, {
+            const response = await fetch(getApiEndpoint(apiEndpoints.login.login), {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
@@ -54,7 +54,7 @@ export class AuthService {
      */
     static async refreshToken(): Promise<{success: boolean, email?: string}> {
         try {
-            const response = await fetch(`${getApiUrl()}/v1/auth/refresh`, {
+            const response = await fetch(getApiEndpoint(apiEndpoints.login.token_refresh), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -84,7 +84,7 @@ export class AuthService {
      */
     static async logout(): Promise<void> {
         try {
-            await fetch(`${getApiUrl()}/v1/auth/logout`, {
+            await fetch(getApiEndpoint(apiEndpoints.login.logout), {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -110,4 +110,4 @@ export class AuthService {
             return { isAuthenticated: false };
         }
     }
-} 
+}

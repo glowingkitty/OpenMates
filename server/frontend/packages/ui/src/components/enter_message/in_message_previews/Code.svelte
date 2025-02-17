@@ -146,11 +146,9 @@
                 `${(index + 1).toString().padStart(maxLineNumberWidth, ' ')} | ${line}`
             ).join('\n');
             
-            console.log('Received language:', language);
             
             // Use the provided language directly for highlighting
             const highlightLanguage = language.toLowerCase();
-            console.log('Using language for highlighting:', highlightLanguage);
             
             // Sanitize the code before setting it
             const sanitizedCode = DOMPurify.sanitize(text, {
@@ -183,7 +181,6 @@
                 }
             }, 0);
             
-            console.log('Code preview loaded:', { filename, language: highlightLanguage, lineCount });
         } catch (error) {
             console.error('Error loading code preview:', error);
             codePreview = 'Error loading code preview';

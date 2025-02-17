@@ -5,8 +5,10 @@
   import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
   import * as EmbedNodes from './enter_message/extensions/embeds';
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
+  import type { MessageStatus } from '../types/chat';
   
   export let role: 'user' | string = 'user';
+  export let status: MessageStatus | undefined = undefined;
   
   // Define types for message content parts
   type AppCardData = {
@@ -185,9 +187,13 @@
   // afterUpdate(() => {
   //   createMarkdown(messageParts);
   // });
+
+  // Add reactive statement to handle status changes
+  $: messageStatusText = status === 'pending' ? 'Sending...' : 
+                      status === 'waiting_for_internet' ? 'Waiting to reconnect to internet...' : '';
 </script>
 
-<div class="chat-message">
+<div class="chat-message {role}" class:pending={status === 'pending' || status === 'waiting_for_internet'}>
   {#if role !== 'user'}
     <div class="mate-profile {role}"></div>
   {/if}
@@ -223,6 +229,11 @@
         />
       {/if}
     </div>
+    {#if messageStatusText}
+      <div class="message-status">
+        {messageStatusText}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -276,5 +287,16 @@
 
   .chat-message-text {
     position: relative; /* Add this to properly position the menu */
+  }
+
+  .pending {
+    opacity: 0.7;
+  }
+
+  .message-status {
+    font-size: 12px;
+    color: var(--color-font-tertiary);
+    margin-top: 4px;
+    text-align: right;
   }
 </style>

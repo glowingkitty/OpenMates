@@ -1,4 +1,4 @@
-import type { Chat } from '../types/chat';
+import type { Chat, Message, MessageStatus } from '../types/chat';
 import exampleChats from '../data/web-app-example-chats.json';
 
 class ChatDatabase {
@@ -251,6 +251,52 @@ class ChatDatabase {
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
+    }
+
+    async addMessage(chatId: string, message: Message): Promise<Chat> {
+        const chat = await this.getChat(chatId);
+        if (!chat) throw new Error('Chat not found');
+
+        chat.messages = [...chat.messages, message];
+        await this.updateChat(chat);
+        return chat;
+    }
+
+    /**
+     * Update an existing chat in the database
+     */
+    async updateChat(chat: Chat): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const store = this.getStore('readwrite');
+            const request = store.put(chat);
+
+            request.onsuccess = () => {
+                console.log("[ChatDatabase] Chat updated successfully:", chat.id);
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error("[ChatDatabase] Error updating chat:", request.error);
+                reject(request.error);
+            };
+        });
+    }
+    /**
+     * Update the status of a message in a chat
+     * @param chatId ID of the chat containing the message
+     * @param messageId ID of the message to update
+     * @param status New status of the message
+     */
+    async updateMessageStatus(chatId: string, messageId: string, status: MessageStatus): Promise<Chat> {
+        const chat = await this.getChat(chatId);
+        if (!chat) throw new Error('Chat not found');
+
+        chat.messages = chat.messages.map(msg => 
+            msg.id === messageId ? { ...msg, status } : msg
+        );
+
+        await this.updateChat(chat);
+        return chat;
     }
 }
 

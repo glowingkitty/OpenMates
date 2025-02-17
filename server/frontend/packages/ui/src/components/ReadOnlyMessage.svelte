@@ -59,10 +59,7 @@
     }
 
     onMount(() => {
-        console.log('[ReadOnlyMessage] 4. Mounting with content:', content);
         if (!editorElement) return;
-
-        logger.debug('Initializing read-only editor with content:', content);
 
         editor = new Editor({
             element: editorElement,

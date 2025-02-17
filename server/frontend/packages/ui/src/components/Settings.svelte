@@ -14,7 +14,7 @@
     import { isAuthenticated, currentUser, logout } from '../stores/authState';
     import { isMenuOpen } from '../stores/menuState';
     import { isCheckingAuth } from '../stores/authCheckState';
-    import { getApiUrl } from '../config/links';
+    import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { externalLinks, getWebsiteUrl } from '../config/links';
     
     // Props for user and team information
@@ -122,7 +122,7 @@
             isCheckingAuth.set(false);
             
             // First make the logout request to the server
-            const response = await fetch(`${getApiUrl()}/v1/auth/logout`, {
+            const response = await fetch(getApiEndpoint(apiEndpoints.login.logout), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {

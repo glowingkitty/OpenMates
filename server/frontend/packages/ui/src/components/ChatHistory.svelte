@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { afterUpdate, createEventDispatcher } from "svelte";
+  import { afterUpdate, createEventDispatcher, tick } from "svelte";
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
+
+  // Add MessageStatus type definition
+  type MessageStatus = 'pending' | 'sent' | 'waiting_for_internet';
 
   // Define types without the export modifier.
   type TextMessagePart = {
@@ -21,6 +24,7 @@
     id: string;
     role: string;
     content: any; // Tiptap JSON content
+    status?: MessageStatus; // Optional status property
   }
 
   // Array that holds all chat messages.
@@ -56,12 +60,10 @@
    * It triggers a fade-out animation and returns a promise that resolves
    * when the fade-out is complete.
    */
-  export function clearMessages(): Promise<void> {
-    console.log("[ChatHistory] Clearing messages - starting fade out");
-    showMessages = false; // This will trigger the fade-out transition
-    return new Promise(resolve => {
-      outroResolve = resolve; // Store the resolve function
-    });
+  export async function clearMessages(): Promise<void> {
+    messages = [];
+    await tick();
+    dispatch('messagesChange', { hasMessages: false });
   }
 
   let outroResolve: () => void; // Function to resolve the clearMessages promise
@@ -80,6 +82,32 @@
         outroResolve = null; // Reset for next time
       }
     }
+  }
+
+  // Add method to update messages
+  export function updateMessages(newMessages: any[]) {
+    // Preserve existing message statuses when updating
+    const messageStatusMap = new Map(
+        messages.map(msg => [msg.id, msg.status])
+    );
+    
+    messages = newMessages.map(msg => ({
+        ...msg,
+        status: messageStatusMap.get(msg.id) || msg.status
+    }));
+    
+    dispatch('messagesChange', { hasMessages: messages.length > 0 });
+  }
+
+  /**
+   * Updates specific message's status in the messages array and dispatches an update
+   */
+  export function updateMessageStatus(messageId: string, status: MessageStatus) {
+    messages = messages.map(msg => 
+        msg.id === messageId ? { ...msg, status } : msg
+    );
+    // Dispatch an event so ActiveChat knows the messages have changed
+    dispatch('messagesStatusChanged', { messages });
   }
 
   // Every time messages change, scroll the container to the bottom.
@@ -139,6 +167,7 @@
                         <ChatMessage 
                             role={msg.role} 
                             content={msg.content}
+                            status={msg.status}
                         />
                     </div>
                 </div>

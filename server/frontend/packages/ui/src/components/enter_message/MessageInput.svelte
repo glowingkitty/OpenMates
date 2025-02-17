@@ -715,7 +715,8 @@
             editor,
             defaultMention,
             dispatch,
-            (value) => hasContent = value
+            (value) => hasContent = value,
+            currentChatId
         );
     }
 

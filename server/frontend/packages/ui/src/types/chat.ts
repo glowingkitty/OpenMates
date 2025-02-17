@@ -1,3 +1,5 @@
+export type MessageStatus = 'pending' | 'sent' | 'waiting_for_internet' | 'error';
+
 export interface MessagePart {
     type: 'text' | 'app-cards';
     content: string | any[];
@@ -6,14 +8,15 @@ export interface MessagePart {
 export interface Message {
     id: string;
     role: string; // "user" or mate name
-    messageParts: MessagePart[];
-    timestamp: Date;
+    content: any; // TipTap JSON content
+    status?: MessageStatus;
+    timestamp: number;
 }
 
 export interface Chat {
     id: string;
     title: string;
-    isDraft: boolean;
+    isDraft?: boolean;
     draftContent?: any;
     mates: string[];
     status?: 'draft' | 'sending' | 'pending' | 'typing';

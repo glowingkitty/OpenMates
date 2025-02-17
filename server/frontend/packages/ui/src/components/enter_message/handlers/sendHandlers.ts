@@ -2,6 +2,27 @@ import type { Editor } from '@tiptap/core';
 import { hasActualContent, vibrateMessageField } from '../utils';
 import { convertToMarkdown } from '../utils/editorHelpers';
 import { Extension } from '@tiptap/core';
+import { chatDB } from '../../../services/db';
+import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+
+async function sendMessageToAPI(chatId: string, content: any): Promise<Response> {
+    const response = await fetch(getApiEndpoint(apiEndpoints.chat.sendMessage), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            chatId,
+            content
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to send message');
+    }
+
+    return response;
+}
 
 /**
  * Creates a message payload from the editor content
@@ -17,13 +38,13 @@ function createMessagePayload(editor: Editor) {
         throw new Error('Invalid editor content');
     }
 
-    const messagePayload = {
+    return {
         id: crypto.randomUUID(),
         role: "user",
-        content
+        content,
+        status: 'pending' as const,
+        timestamp: Date.now()
     };
-
-    return messagePayload;
 }
 
 /**
@@ -62,23 +83,64 @@ function resetEditorContent(editor: Editor, defaultMention: string = 'sophia') {
 /**
  * Handles sending a message via the message input
  */
-export function handleSend(
+export async function handleSend(
     editor: Editor | null,
     defaultMention: string,
     dispatch: (type: string, detail?: any) => void,
-    setHasContent: (value: boolean) => void
+    setHasContent: (value: boolean) => void,
+    currentChatId?: string
 ) {
-    if (!editor || !hasActualContent(editor)) {
+    if (!editor || !hasActualContent(editor) || !currentChatId) {
         vibrateMessageField();
         return;
     }
-    
-    const messagePayload = createMessagePayload(editor);
-    console.debug('Sending message with content:', messagePayload);
-    dispatch("sendMessage", messagePayload);
-    setHasContent(false);
 
-    resetEditorContent(editor, defaultMention);
+    const messagePayload = createMessagePayload(editor);
+
+    try {
+        // Save to database with pending status
+        const updatedChat = await chatDB.addMessage(currentChatId, messagePayload);
+        
+        // Reset editor immediately
+        resetEditorContent(editor, defaultMention);
+        setHasContent(false);
+        
+        // First dispatch to update UI
+        dispatch("sendMessage", messagePayload);
+        dispatch("chatUpdated", { chat: updatedChat });
+
+        // Send to API asynchronously
+        sendMessageToAPI(currentChatId, messagePayload.content)
+            .then(async () => {
+                const chatWithUpdatedStatus = await chatDB.updateMessageStatus(currentChatId, messagePayload.id, 'sent');
+                
+                // Create a global event that any component can listen to
+                const event = new CustomEvent('messageStatusChanged', {
+                    detail: { chatId: currentChatId, messageId: messagePayload.id, status: 'sent', chat: chatWithUpdatedStatus },
+                    bubbles: true,
+                });
+                window.dispatchEvent(event);
+            })
+            .catch(async (error) => {
+                console.error('Failed to send message to API:', error);
+                console.log('Message content that failed to send:', {
+                    chatId: currentChatId,
+                    content: messagePayload.content
+                });
+                
+                const chatWithUpdatedStatus = await chatDB.updateMessageStatus(currentChatId, messagePayload.id, 'waiting_for_internet');
+                
+                // Create a global event for the status change
+                const event = new CustomEvent('messageStatusChanged', {
+                    detail: { chatId: currentChatId, messageId: messagePayload.id, status: 'waiting_for_internet', chat: chatWithUpdatedStatus },
+                    bubbles: true,
+                });
+                window.dispatchEvent(event);
+            });
+    } catch (error) {
+        console.error('Failed to save message to local database:', error);
+        vibrateMessageField();
+    }
 }
 
 /**
@@ -136,4 +198,4 @@ export function createKeyboardHandlingExtension() {
             };
         },
     });
-} 
+}

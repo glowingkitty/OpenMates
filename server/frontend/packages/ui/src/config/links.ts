@@ -2,13 +2,20 @@
  * Central configuration file for all external links used across the website
  * This makes it easier to maintain and update links in one place
  */
+
+// Update contact email from environment
+export const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'contact@openmates.org';
+
+// Create external links with dynamic email
 export const externalLinks = {
     // Social/Community
     discord: "https://discord.gg/bHtkxZB5cc",
     github: null,
 
     // Contact
-    email: "mailto:contact@openmates.org",
+    get email() {
+        return `mailto:${contactEmail}`;
+    },
 
     // Legal
     legal: {
@@ -18,22 +25,16 @@ export const externalLinks = {
     }
 } as const;
 
-// Add base URL configuration first
+// Load base URLs from environment
 export const baseUrls = {
     website: {
-        development: 'http://localhost:5173', // Default Vite port for website
-        production: 'https://openmates.org'
+        development: import.meta.env.VITE_WEBSITE_URL_DEV || 'http://localhost:5173',
+        production: import.meta.env.VITE_WEBSITE_URL_PROD || 'https://openmates.org'
     },
     webapp: {
-        development: 'http://localhost:5174', // Separate port for web app
-        production: 'https://app.openmates.org'
+        development: import.meta.env.VITE_WEBAPP_URL_DEV || 'http://localhost:5174',
+        production: import.meta.env.VITE_WEBAPP_URL_PROD || 'https://app.openmates.org'
     }
-} as const;
-
-// Add API URL configuration
-export const apiUrls = {
-    development: 'http://localhost:8000',
-    production: 'https://api.openmates.org'
 } as const;
 
 // Helper to get correct base URL
@@ -45,12 +46,6 @@ export function getBaseUrl(app: 'website' | 'webapp'): string {
 // Helper to get webapp URL
 export function getWebappUrl(): string {
     return getBaseUrl('webapp');
-}
-
-// Helper to get API URL
-export function getApiUrl(): string {
-    const isDev = import.meta.env.DEV;
-    return isDev ? apiUrls.development : apiUrls.production;
 }
 
 export const routes = {
