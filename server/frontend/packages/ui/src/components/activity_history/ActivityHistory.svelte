@@ -17,12 +17,12 @@
     // Track current chat index
     let currentChatIndex = -1;
 
-    // Helper function to sort chats within a group
+    // Modified sorting function to consider draft content
     function sortChatsInGroup(chats: ChatType[]): ChatType[] {
         return chats.sort((a, b) => {
-            // Drafts first
-            if (a.isDraft && !b.isDraft) return -1;
-            if (!a.isDraft && b.isDraft) return 1;
+            // Only prioritize drafts that have content
+            if (a.isDraft && a.draftContent && (!b.isDraft || !b.draftContent)) return -1;
+            if (b.isDraft && b.draftContent && (!a.isDraft || !a.draftContent)) return 1;
             
             // Then unread messages
             if (a.unreadCount && !b.unreadCount) return -1;
