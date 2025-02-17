@@ -96,12 +96,14 @@
         console.log("[ActivityHistory] Navigating to next chat");
         if (flattenedChats.length === 0) return;
 
+        // If at the end, don't do anything
+        if (currentChatIndex === flattenedChats.length - 1) return;
+
         // If no current chat, select first one
         if (currentChatIndex === -1) {
             currentChatIndex = 0;
         } else {
-            // Move to next chat, wrap around to beginning if at end
-            currentChatIndex = (currentChatIndex + 1) % flattenedChats.length;
+            currentChatIndex++;
         }
 
         const nextChat = flattenedChats[currentChatIndex];
@@ -113,12 +115,14 @@
         console.log("[ActivityHistory] Navigating to previous chat");
         if (flattenedChats.length === 0) return;
 
+        // If at the beginning, don't do anything
+        if (currentChatIndex === 0) return;
+
         // If no current chat, select last one
         if (currentChatIndex === -1) {
             currentChatIndex = flattenedChats.length - 1;
         } else {
-            // Move to previous chat, wrap around to end if at beginning
-            currentChatIndex = (currentChatIndex - 1 + flattenedChats.length) % flattenedChats.length;
+            currentChatIndex--;
         }
 
         const previousChat = flattenedChats[currentChatIndex];
