@@ -80,7 +80,6 @@
             
             // Load all chats
             chats = await chatDB.getAllChats();
-            console.log("[ActivityHistory] Loaded chats:", chats.length);
         } catch (error) {
             console.error("[ActivityHistory] Error loading chats:", error);
         } finally {

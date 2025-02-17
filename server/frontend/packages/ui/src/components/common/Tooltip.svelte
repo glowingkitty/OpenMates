@@ -86,7 +86,6 @@
         element.addEventListener('mouseleave', hideTooltip);
         element.addEventListener('focus', showTooltipWithDelay);
         element.addEventListener('blur', hideTooltip);
-        console.log("Tooltip mounted for element:", element); // Debug log
     });
     
     onDestroy(() => {
@@ -97,7 +96,6 @@
         element.removeEventListener('focus', showTooltipWithDelay);
         element.removeEventListener('blur', hideTooltip);
         clearTimeout(timeoutId);
-        console.log("Tooltip destroyed"); // logging using console.log
     });
 </script>
 

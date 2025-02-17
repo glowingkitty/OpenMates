@@ -201,7 +201,6 @@
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        console.log("[ActiveChat] Loading chat:", chat);
         const freshChat = await chatDB.getChat(chat.id); // Get fresh chat data
         currentChat = freshChat || chat;
         showWelcome = false;
