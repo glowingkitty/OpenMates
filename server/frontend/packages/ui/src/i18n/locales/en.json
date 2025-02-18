@@ -335,6 +335,286 @@
             }
         }
     },
+    "signup": {
+        "sign_up": {
+            "text": "Sign up",
+            "context": "Sign up page title"
+        },
+        "enter_personal_invite_code": {
+            "text": "Enter personal invite code",
+            "context": "Placeholder text for personal invite code input field"
+        },
+        "dont_have_personal_invite_code": {
+            "text": "Don't have a personal invite code?",
+            "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
+        },
+        "enter_username": {
+            "text": "Enter username",
+            "context": "Placeholder text for username input field"
+        },
+        "repeat_password": {
+            "text": "Repeat password",
+            "context": "Placeholder text for password repeat input field"
+        },
+        "agree_to": {
+            "text": "Agree to",
+            "context": "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
+        },
+        "terms_of_service": {
+            "text": "Terms of service",
+            "context": "in message: 'Agree to Terms of service'"
+        },
+        "privacy_policy": {
+            "text": "Privacy policy",
+            "context": "in message: 'Agree to Privacy policy'"
+        },
+        "create_new_account":{
+            "text": "Create new account",
+            "context": "Button text for creating a new account"
+        },
+        "you_received_a_one_time_code_via_email": {
+            "text": "You received a one time code via E-mail",
+            "context": "Message shown when a one-time code has been sent via email"
+        },
+        "open_mail_app": {
+            "text": "Open mail app",
+            "context": "Button text for opening mail app"
+        },
+        "enter_one_time_code": {
+            "text": "Enter 6-digit one time code",
+            "context": "Placeholder text for one-time code input field in email verification"
+        },
+        "havent_received_a_code": {
+            "text": "Haven't received a code?",
+            "context": "Asking the user if they haven't received a code via email"
+        },
+        "click_to_resend": {
+            "text": "Click here to send again",
+            "context": "Button text for resending the one-time code via email"
+        },
+        "personal_invite_code_invalid": {
+            "text": "Sorry, your personal invite code is invalid.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "personal_invite_code_already_used": {
+            "text": "It probably has been used already.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "skip": {
+            "text": "Skip",
+            "context": "Button text for skipping to the next step"
+        },
+        "upload_profile_image": {
+            "text": "Upload a profile image",
+            "context": "Button text for uploading a profile image"
+        },
+        "profile_image": {
+            "text": "Profile image",
+            "context": "Button text for going back to upload a profile image"
+        },
+        "secure_your_account": {
+            "text": "Secure your account",
+            "context": "Title for setting up 2FA for securing account"
+        },
+        "free": {
+            "text": "free",
+            "context": "its free to setup 2FA"
+        },
+        "fast_to_setup": {
+            "text": "fast to setup",
+            "context": "its fast to setup 2FA"
+        },
+        "max_security": {
+            "text": "max security",
+            "context": "2FA provides maximum security"
+        },
+        "scan_with_your_2fa_app": {
+            "text": "Scan with your 2FA app",
+            "context": "Button text for scanning QR code with 2FA app"
+        },
+        "dont_have_2fa_app": {
+            "text": "Don’t have a 2FA app yet?",
+            "context": "Asking the user if they don't have a 2FA app yet"
+        },
+        "click_here_to_show_free_2fa_apps": {
+            "text": "Click here to show free 2FA apps",
+            "context": "Button text for showing free 2FA apps"
+        },
+        "connect_2fa_app": {
+            "text": "Connect 2FA app",
+            "context": "Button text for going back to connect 2FA app"
+        },
+        "backup_codes": {
+            "text": "Backup codes",
+            "context": "Title for backup codes section"
+        },
+        "dont_loose_access": {
+            "text": "Don’t loose access to your account if you loose access to the app.",
+            "context": "Message for not loosing access to account by having backup codes."
+        },
+        "store_backup_codes_safely": {
+            "text": "Store the downloaded backup codes somewhere safe.",
+            "context": "Button text for storing backup codes somewhere safe"
+        },
+        "i_stored_backup_codes": {
+            "text": "I stored the backup codes somewhere safe.",
+            "context": "Button text for confirming that the 2FA backup codes have been stored safely by the user."
+        },
+        "cant_connect": {
+            "text": "Can’t connect to OpenMates",
+            "context": "heading that shows up when the server cant be reached anymore during setup."
+        },
+        "either_offline_or_server": {
+            "text": "Either the problem is your internet connection, or our server.",
+            "context": "message that shows up when the server cant be reached anymore during setup."
+        },
+        "attempt_to_reconnect_for_another": {
+            "text": "Attempt to reconnect for another",
+            "context": "in message 'Attempt to reconnect for another 30 seconds', then 29 seconds, 28 seconds, etc."
+        },
+        "reconnect_attempts_failed": {
+            "text": "Reconnect attempts failed. Sorry for that. Please try again later.",
+            "context": "message that shows up if the reconnect attempts failed over and over again."
+        },
+        "attempt_to_reconnect": {
+            "text": "Attempt to reconnect",
+            "context": "Button text for attempting to reconnect"
+        },
+        "2fa_backup_codes": {
+            "text": "2FA backup codes",
+            "context": "Button text to go back to 2FA backup codes section"
+        },
+        "2fa_app_reminder": {
+            "text": "2FA app reminder",
+            "context": "Heading for setting up 2FA provider for reminder when 2FA is needed"
+        },
+        "in_case_you_forget": {
+            "text": "In case you forget, we can remind you which 2FA app you used for OpenMates.",
+            "context": "explaining what the 2FA app reminder is for"
+        },
+        "search_for_2fa_app": {
+            "text": "Search for 2FA app name",
+            "context": "Placeholder for 2FA app search input"
+        },
+        "settings": {
+            "text": "Settings",
+            "context": "Heading for the settings section during the signup process"
+        },
+        "default_settings_balance": {
+            "text": "The default settings balance maximum privacy and usability.",
+            "context": "explaining the default settings during signup"
+        },
+        "click_toggle_to_open_settings": {
+            "text": "Click the toggle to open settings.",
+            "context": "explaining how to make changes to the default settings"
+        },
+        "default_settings": {
+            "text": "Default settings",
+            "context": "Toggle title for default settings"
+        },
+        "accept_settings": {
+            "text": "Accept settings",
+            "context": "Button text for accepting the current/default settings"
+        },
+        "click_toggle_to_continue": {
+            "text": "Click the toggle to continue.",
+            "context": "explaining how to continue after accepting the default settings"
+        },
+        "you_can_customize_your_mates": {
+            "text": "You can customize your AI providers and how your mates respond.",
+            "context": "explaining that mates can be customized"
+        },
+        "ai_providers": {
+            "text": "AI providers",
+            "context": "for confirming the default AI provider"
+        },
+        "all_ai_models_make_mistakes": {
+            "text": "Keep in mind, all AI models make mistakes. So always fact check responses.",
+            "context": "ai models make mistakes disclaimer"
+        },
+        "mates_settings": {
+            "text": "Mates settings",
+            "context": "Button text for going back to mates settings"
+        },
+        "skip_and_show_demo_first": {
+            "text": "Skip & show demo first",
+            "context": "Button text for skipping the purchase and showing the demo first"
+        },
+        "pay": {
+            "text": "Pay",
+            "context": "in message: 'Pay credits per usa'"
+        },
+        "per_use": {
+            "text": "per use",
+            "context": "in message: 'Pay credits per use'"
+        },
+        "for_chatting_and_apps": {
+            "text": "For chatting & using apps",
+            "context": "Explainer what the credits are needed for"
+        },
+        "only_pay_what_you_use": {
+            "text": "You only pay what you use. Fair & accessible for all of us.",
+            "context": "explainer how the payment system works"
+        },
+        "no_expiration_of_credits": {
+            "text": "no expiration of credits",
+            "context": "explainer that credits dont expire"
+        },
+        "no_subscription": {
+            "text": "no subscription",
+            "context": "explainer that there is no subscription"
+        },
+        "no_ads": {
+            "text": "no ads",
+            "context": "explainer that there are no ads"
+        },
+        "no_selling_of_user_data": {
+            "text": "no selling of user data",
+            "context": "explainer that user data is not sold"
+        },
+        "pricing_details_on_page_of_app_skill": {
+            "text": "On the page of each app skill you can find their pricing details.",
+            "context": "explainer where to find pricing details"
+        },
+        "open_app_settings": {
+            "text": "Open App settings",
+            "context": "Button text for opening app settings"
+        },
+        "less": {
+            "text": "Less",
+            "context": "Button text to reduce the amount of credits to buy"
+        },
+        "more": {
+            "text": "More",
+            "context": "Button text to increase the amount of credits to buy"
+        },
+        "choose_your_credits_package": {
+            "text": "Choose your credits package.",
+            "context": "text for choosing the amount of credits to buy"
+        }
+    },
+    "credits":{
+        "buy_for_1_eur": {
+            "text": "Buy for 1 EUR",
+            "context": "Button text for buying credits for 1 EUR"
+        },
+        "buy_for_10_eur": {
+            "text": "Buy for 10 EUR",
+            "context": "Button text for buying credits for 10 EUR"
+        },
+        "buy_for_20_eur": {
+            "text": "Buy for 20 EUR",
+            "context": "Button text for buying credits for 20 EUR"
+        },
+        "buy_for_50_eur": {
+            "text": "Buy for 50 EUR",
+            "context": "Button text for buying credits for 50 EUR"
+        },
+        "buy_for_100_eur":{
+            "text": "Buy for 100 EUR",
+            "context": "Button text for buying credits for 100 EUR"
+        }
+    },
     "login": {
         "login": {
             "text": "Login",
