@@ -1580,5 +1580,354 @@
                 "en_original": "Terms of service for OpenMates."
             }
         }
+    },
+    "signup": {
+        "sign_up": {
+            "text": "登録",
+            "en_original": "Sign up",
+            "context": "Sign up page title"
+        },
+        "enter_personal_invite_code": {
+            "text": "招待コードを入力",
+            "en_original": "Enter personal invite code",
+            "context": "Placeholder text for personal invite code input field"
+        },
+        "dont_have_personal_invite_code": {
+            "text": "招待コードをお持ちでない方",
+            "en_original": "Don't have a personal invite code?",
+            "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
+        },
+        "enter_username": {
+            "text": "ユーザー名を入力",
+            "en_original": "Enter username",
+            "context": "Placeholder text for username input field"
+        },
+        "repeat_password": {
+            "text": "パスワードを再入力",
+            "en_original": "Repeat password",
+            "context": "Placeholder text for password repeat input field"
+        },
+        "agree_to": {
+            "text": "同意する",
+            "en_original": "Agree to",
+            "context": "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
+        },
+        "terms_of_service": {
+            "text": "利用規約",
+            "en_original": "Terms of service",
+            "context": "in message: 'Agree to Terms of service'"
+        },
+        "privacy_policy": {
+            "text": "プライバシーポリシー",
+            "en_original": "Privacy policy",
+            "context": "in message: 'Agree to Privacy policy'"
+        },
+        "create_new_account": {
+            "text": "新規アカウントを作成",
+            "en_original": "Create new account",
+            "context": "Button text for creating a new account"
+        },
+        "you_received_a_one_time_code_via_email": {
+            "text": "ワンタイムコードをメールで送信しました",
+            "en_original": "You received a one time code via E-mail",
+            "context": "Message shown when a one-time code has been sent via email"
+        },
+        "open_mail_app": {
+            "text": "メールアプリを開く",
+            "en_original": "Open mail app",
+            "context": "Button text for opening mail app"
+        },
+        "enter_one_time_code": {
+            "text": "6桁のワンタイムコードを入力",
+            "en_original": "Enter 6-digit one time code",
+            "context": "Placeholder text for one-time code input field in email verification"
+        },
+        "havent_received_a_code": {
+            "text": "コードが届かない場合",
+            "en_original": "Haven't received a code?",
+            "context": "Asking the user if they haven't received a code via email"
+        },
+        "click_to_resend": {
+            "text": "再送信するにはここをクリック",
+            "en_original": "Click here to send again",
+            "context": "Button text for resending the one-time code via email"
+        },
+        "personal_invite_code_invalid": {
+            "text": "申し訳ありません。招待コードが無効です。",
+            "en_original": "Sorry, your personal invite code is invalid.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "personal_invite_code_already_used": {
+            "text": "すでに使用されている可能性があります。",
+            "en_original": "It probably has been used already.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "skip": {
+            "text": "スキップ",
+            "en_original": "Skip",
+            "context": "Button text for skipping to the next step"
+        },
+        "upload_profile_image": {
+            "text": "プロフィール画像をアップロード",
+            "en_original": "Upload a profile image",
+            "context": "Button text for uploading a profile image"
+        },
+        "profile_image": {
+            "text": "プロフィール画像",
+            "en_original": "Profile image",
+            "context": "Button text for going back to upload a profile image"
+        },
+        "secure_your_account": {
+            "text": "アカウントを保護",
+            "en_original": "Secure your account",
+            "context": "Title for setting up 2FA for securing account"
+        },
+        "free": {
+            "text": "無料",
+            "en_original": "free",
+            "context": "its free to setup 2FA"
+        },
+        "fast_to_setup": {
+            "text": "簡単設定",
+            "en_original": "fast to setup",
+            "context": "its fast to setup 2FA"
+        },
+        "max_security": {
+            "text": "最高レベルのセキュリティ",
+            "en_original": "max security",
+            "context": "2FA provides maximum security"
+        },
+        "scan_with_your_2fa_app": {
+            "text": "2FAアプリでスキャン",
+            "en_original": "Scan with your 2FA app",
+            "context": "Button text for scanning QR code with 2FA app"
+        },
+        "dont_have_2fa_app": {
+            "text": "2FAアプリをお持ちでない方",
+            "en_original": "Don't have a 2FA app yet?",
+            "context": "Asking the user if they don't have a 2FA app yet"
+        },
+        "click_here_to_show_free_2fa_apps": {
+            "text": "無料の2FAアプリを表示するにはここをクリック",
+            "en_original": "Click here to show free 2FA apps",
+            "context": "Button text for showing free 2FA apps"
+        },
+        "connect_2fa_app": {
+            "text": "2FAアプリを接続",
+            "en_original": "Connect 2FA app",
+            "context": "Button text for going back to connect 2FA app"
+        },
+        "backup_codes": {
+            "text": "バックアップコード",
+            "en_original": "Backup codes",
+            "context": "Title for backup codes section"
+        },
+        "dont_loose_access": {
+            "text": "アプリへのアクセスを失った場合でもアカウントにアクセスできるようにしましょう。",
+            "en_original": "Don't loose access to your account if you loose access to the app.",
+            "context": "Message for not loosing access to account by having backup codes."
+        },
+        "store_backup_codes_safely": {
+            "text": "ダウンロードしたバックアップコードを安全な場所に保管してください。",
+            "en_original": "Store the downloaded backup codes somewhere safe.",
+            "context": "Button text for storing backup codes somewhere safe"
+        },
+        "i_stored_backup_codes": {
+            "text": "バックアップコードを安全に保管しました。",
+            "en_original": "I stored the backup codes somewhere safe.",
+            "context": "Button text for confirming that the 2FA backup codes have been stored safely by the user."
+        },
+        "cant_connect": {
+            "text": "OpenMatesに接続できません",
+            "en_original": "Can't connect to OpenMates",
+            "context": "heading that shows up when the server cant be reached anymore during setup."
+        },
+        "either_offline_or_server": {
+            "text": "インターネット接続または当社のサーバーに問題がある可能性があります。",
+            "en_original": "Either the problem is your internet connection, or our server.",
+            "context": "message that shows up when the server cant be reached anymore during setup."
+        },
+        "attempt_to_reconnect_for_another": {
+            "text": "あと",
+            "en_original": "Attempt to reconnect for another",
+            "context": "in message 'Attempt to reconnect for another 30 seconds', then 29 seconds, 28 seconds, etc."
+        },
+        "reconnect_attempts_failed": {
+            "text": "再接続に失敗しました。申し訳ありません。後ほど再度お試しください。",
+            "en_original": "Reconnect attempts failed. Sorry for that. Please try again later.",
+            "context": "message that shows up if the reconnect attempts failed over and over again."
+        },
+        "attempt_to_reconnect": {
+            "text": "再接続を試みる",
+            "en_original": "Attempt to reconnect",
+            "context": "Button text for attempting to reconnect"
+        },
+        "2fa_backup_codes": {
+            "text": "2FAバックアップコード",
+            "en_original": "2FA backup codes",
+            "context": "Button text to go back to 2FA backup codes section"
+        },
+        "2fa_app_reminder": {
+            "text": "2FAアプリリマインダー",
+            "en_original": "2FA app reminder",
+            "context": "Heading for setting up 2FA provider for reminder when 2FA is needed"
+        },
+        "in_case_you_forget": {
+            "text": "忘れた場合、OpenMatesで使用した2FAアプリをお知らせすることができます。",
+            "en_original": "In case you forget, we can remind you which 2FA app you used for OpenMates.",
+            "context": "explaining what the 2FA app reminder is for"
+        },
+        "search_for_2fa_app": {
+            "text": "2FAアプリ名を検索",
+            "en_original": "Search for 2FA app name",
+            "context": "Placeholder for 2FA app search input"
+        },
+        "settings": {
+            "text": "設定",
+            "en_original": "Settings",
+            "context": "Heading for the settings section during the signup process"
+        },
+        "default_settings_balance": {
+            "text": "デフォルト設定は、最大限のプライバシーと使いやすさのバランスを取っています。",
+            "en_original": "The default settings balance maximum privacy and usability.",
+            "context": "explaining the default settings during signup"
+        },
+        "click_toggle_to_open_settings": {
+            "text": "設定を開くにはトグルをクリックしてください。",
+            "en_original": "Click the toggle to open settings.",
+            "context": "explaining how to make changes to the default settings"
+        },
+        "default_settings": {
+            "text": "デフォルト設定",
+            "en_original": "Default settings",
+            "context": "Toggle title for default settings"
+        },
+        "accept_settings": {
+            "text": "設定を承認",
+            "en_original": "Accept settings",
+            "context": "Button text for accepting the current/default settings"
+        },
+        "click_toggle_to_continue": {
+            "text": "続行するにはトグルをクリックしてください。",
+            "en_original": "Click the toggle to continue.",
+            "context": "explaining how to continue after accepting the default settings"
+        },
+        "you_can_customize_your_mates": {
+            "text": "AIプロバイダーとメイトの応答方法をカスタマイズできます。",
+            "en_original": "You can customize your AI providers and how your mates respond.",
+            "context": "explaining that mates can be customized"
+        },
+        "ai_providers": {
+            "text": "AIプロバイダー",
+            "en_original": "AI providers",
+            "context": "for confirming the default AI provider"
+        },
+        "all_ai_models_make_mistakes": {
+            "text": "すべてのAIモデルは間違いを犯す可能性があります。必ず回答を確認してください。",
+            "en_original": "Keep in mind, all AI models make mistakes. So always fact check responses.",
+            "context": "ai models make mistakes disclaimer"
+        },
+        "mates_settings": {
+            "text": "メイト設定",
+            "en_original": "Mates settings",
+            "context": "Button text for going back to mates settings"
+        },
+        "skip_and_show_demo_first": {
+            "text": "スキップしてデモを先に表示",
+            "en_original": "Skip & show demo first",
+            "context": "Button text for skipping the purchase and showing the demo first"
+        },
+        "pay": {
+            "text": "支払い",
+            "en_original": "Pay",
+            "context": "in message: 'Pay credits per usa'"
+        },
+        "per_use": {
+            "text": "使用ごと",
+            "en_original": "per use",
+            "context": "in message: 'Pay credits per use'"
+        },
+        "for_chatting_and_apps": {
+            "text": "チャットとアプリの利用のため",
+            "en_original": "For chatting & using apps",
+            "context": "Explainer what the credits are needed for"
+        },
+        "only_pay_what_you_use": {
+            "text": "使用分のみお支払い。すべての人に公平でアクセスしやすい。",
+            "en_original": "You only pay what you use. Fair & accessible for all of us.",
+            "context": "explainer how the payment system works"
+        },
+        "no_expiration_of_credits": {
+            "text": "クレジットの有効期限なし",
+            "en_original": "no expiration of credits",
+            "context": "explainer that credits dont expire"
+        },
+        "no_subscription": {
+            "text": "サブスクリプションなし",
+            "en_original": "no subscription",
+            "context": "explainer that there is no subscription"
+        },
+        "no_ads": {
+            "text": "広告なし",
+            "en_original": "no ads",
+            "context": "explainer that there are no ads"
+        },
+        "no_selling_of_user_data": {
+            "text": "ユーザーデータの販売なし",
+            "en_original": "no selling of user data",
+            "context": "explainer that user data is not sold"
+        },
+        "pricing_details_on_page_of_app_skill": {
+            "text": "各アプリスキルのページで価格の詳細をご確認いただけます。",
+            "en_original": "On the page of each app skill you can find their pricing details.",
+            "context": "explainer where to find pricing details"
+        },
+        "open_app_settings": {
+            "text": "アプリ設定を開く",
+            "en_original": "Open App settings",
+            "context": "Button text for opening app settings"
+        },
+        "less": {
+            "text": "減らす",
+            "en_original": "Less",
+            "context": "Button text to reduce the amount of credits to buy"
+        },
+        "more": {
+            "text": "増やす",
+            "en_original": "More",
+            "context": "Button text to increase the amount of credits to buy"
+        },
+        "choose_your_credits_package": {
+            "text": "クレジットパッケージを選択してください。",
+            "en_original": "Choose your credits package.",
+            "context": "text for choosing the amount of credits to buy"
+        }
+    },
+    "credits": {
+        "buy_for_1_eur": {
+            "text": "1ユーロで購入",
+            "en_original": "Buy for 1 EUR",
+            "context": "Button text for buying credits for 1 EUR"
+        },
+        "buy_for_10_eur": {
+            "text": "10ユーロで購入",
+            "en_original": "Buy for 10 EUR",
+            "context": "Button text for buying credits for 10 EUR"
+        },
+        "buy_for_20_eur": {
+            "text": "20ユーロで購入",
+            "en_original": "Buy for 20 EUR",
+            "context": "Button text for buying credits for 20 EUR"
+        },
+        "buy_for_50_eur": {
+            "text": "50ユーロで購入",
+            "en_original": "Buy for 50 EUR",
+            "context": "Button text for buying credits for 50 EUR"
+        },
+        "buy_for_100_eur": {
+            "text": "100ユーロで購入",
+            "en_original": "Buy for 100 EUR",
+            "context": "Button text for buying credits for 100 EUR"
+        }
     }
 }

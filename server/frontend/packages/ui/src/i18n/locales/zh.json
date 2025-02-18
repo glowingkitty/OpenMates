@@ -1580,5 +1580,354 @@
                 "en_original": "Terms of service for OpenMates."
             }
         }
+    },
+    "signup": {
+        "sign_up": {
+            "text": "注册",
+            "en_original": "Sign up",
+            "context": "Sign up page title"
+        },
+        "enter_personal_invite_code": {
+            "text": "输入个人邀请码",
+            "en_original": "Enter personal invite code",
+            "context": "Placeholder text for personal invite code input field"
+        },
+        "dont_have_personal_invite_code": {
+            "text": "没有个人邀请码？",
+            "en_original": "Don't have a personal invite code?",
+            "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
+        },
+        "enter_username": {
+            "text": "输入用户名",
+            "en_original": "Enter username",
+            "context": "Placeholder text for username input field"
+        },
+        "repeat_password": {
+            "text": "重复密码",
+            "en_original": "Repeat password",
+            "context": "Placeholder text for password repeat input field"
+        },
+        "agree_to": {
+            "text": "同意",
+            "en_original": "Agree to",
+            "context": "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
+        },
+        "terms_of_service": {
+            "text": "服务条款",
+            "en_original": "Terms of service",
+            "context": "in message: 'Agree to Terms of service'"
+        },
+        "privacy_policy": {
+            "text": "隐私政策",
+            "en_original": "Privacy policy",
+            "context": "in message: 'Agree to Privacy policy'"
+        },
+        "create_new_account": {
+            "text": "创建新账户",
+            "en_original": "Create new account",
+            "context": "Button text for creating a new account"
+        },
+        "you_received_a_one_time_code_via_email": {
+            "text": "您已通过电子邮件收到一次性验证码",
+            "en_original": "You received a one time code via E-mail",
+            "context": "Message shown when a one-time code has been sent via email"
+        },
+        "open_mail_app": {
+            "text": "打开邮件应用",
+            "en_original": "Open mail app",
+            "context": "Button text for opening mail app"
+        },
+        "enter_one_time_code": {
+            "text": "输入6位一次性验证码",
+            "en_original": "Enter 6-digit one time code",
+            "context": "Placeholder text for one-time code input field in email verification"
+        },
+        "havent_received_a_code": {
+            "text": "没有收到验证码？",
+            "en_original": "Haven't received a code?",
+            "context": "Asking the user if they haven't received a code via email"
+        },
+        "click_to_resend": {
+            "text": "点击这里重新发送",
+            "en_original": "Click here to send again",
+            "context": "Button text for resending the one-time code via email"
+        },
+        "personal_invite_code_invalid": {
+            "text": "抱歉，您的个人邀请码无效",
+            "en_original": "Sorry, your personal invite code is invalid.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "personal_invite_code_already_used": {
+            "text": "可能已被使用",
+            "en_original": "It probably has been used already.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "skip": {
+            "text": "跳过",
+            "en_original": "Skip",
+            "context": "Button text for skipping to the next step"
+        },
+        "upload_profile_image": {
+            "text": "上传头像",
+            "en_original": "Upload a profile image",
+            "context": "Button text for uploading a profile image"
+        },
+        "profile_image": {
+            "text": "头像",
+            "en_original": "Profile image",
+            "context": "Button text for going back to upload a profile image"
+        },
+        "secure_your_account": {
+            "text": "保护您的账户",
+            "en_original": "Secure your account",
+            "context": "Title for setting up 2FA for securing account"
+        },
+        "free": {
+            "text": "免费",
+            "en_original": "free",
+            "context": "its free to setup 2FA"
+        },
+        "fast_to_setup": {
+            "text": "快速设置",
+            "en_original": "fast to setup",
+            "context": "its fast to setup 2FA"
+        },
+        "max_security": {
+            "text": "最高安全性",
+            "en_original": "max security",
+            "context": "2FA provides maximum security"
+        },
+        "scan_with_your_2fa_app": {
+            "text": "使用双重认证应用扫描",
+            "en_original": "Scan with your 2FA app",
+            "context": "Button text for scanning QR code with 2FA app"
+        },
+        "dont_have_2fa_app": {
+            "text": "还没有双重认证应用？",
+            "en_original": "Don't have a 2FA app yet?",
+            "context": "Asking the user if they don't have a 2FA app yet"
+        },
+        "click_here_to_show_free_2fa_apps": {
+            "text": "点击这里查看免费的双重认证应用",
+            "en_original": "Click here to show free 2FA apps",
+            "context": "Button text for showing free 2FA apps"
+        },
+        "connect_2fa_app": {
+            "text": "连接双重认证应用",
+            "en_original": "Connect 2FA app",
+            "context": "Button text for going back to connect 2FA app"
+        },
+        "backup_codes": {
+            "text": "备用码",
+            "en_original": "Backup codes",
+            "context": "Title for backup codes section"
+        },
+        "dont_loose_access": {
+            "text": "如果您无法访问应用程序，请不要失去对您账户的访问权限",
+            "en_original": "Don't loose access to your account if you loose access to the app.",
+            "context": "Message for not loosing access to account by having backup codes."
+        },
+        "store_backup_codes_safely": {
+            "text": "将下载的备用码安全保存",
+            "en_original": "Store the downloaded backup codes somewhere safe.",
+            "context": "Button text for storing backup codes somewhere safe"
+        },
+        "i_stored_backup_codes": {
+            "text": "我已安全保存备用码",
+            "en_original": "I stored the backup codes somewhere safe.",
+            "context": "Button text for confirming that the 2FA backup codes have been stored safely by the user."
+        },
+        "cant_connect": {
+            "text": "无法连接到OpenMates",
+            "en_original": "Can't connect to OpenMates",
+            "context": "heading that shows up when the server cant be reached anymore during setup."
+        },
+        "either_offline_or_server": {
+            "text": "可能是您的网络连接问题，或是我们的服务器问题",
+            "en_original": "Either the problem is your internet connection, or our server.",
+            "context": "message that shows up when the server cant be reached anymore during setup."
+        },
+        "attempt_to_reconnect_for_another": {
+            "text": "尝试重新连接另外",
+            "en_original": "Attempt to reconnect for another",
+            "context": "in message 'Attempt to reconnect for another 30 seconds', then 29 seconds, 28 seconds, etc."
+        },
+        "reconnect_attempts_failed": {
+            "text": "重新连接尝试失败。对此我们深表歉意。请稍后重试。",
+            "en_original": "Reconnect attempts failed. Sorry for that. Please try again later.",
+            "context": "message that shows up if the reconnect attempts failed over and over again."
+        },
+        "attempt_to_reconnect": {
+            "text": "尝试重新连接",
+            "en_original": "Attempt to reconnect",
+            "context": "Button text for attempting to reconnect"
+        },
+        "2fa_backup_codes": {
+            "text": "双重认证备用码",
+            "en_original": "2FA backup codes",
+            "context": "Button text to go back to 2FA backup codes section"
+        },
+        "2fa_app_reminder": {
+            "text": "双重认证应用提醒",
+            "en_original": "2FA app reminder",
+            "context": "Heading for setting up 2FA provider for reminder when 2FA is needed"
+        },
+        "in_case_you_forget": {
+            "text": "如果您忘记了，我们可以提醒您使用了哪个双重认证应用来登录OpenMates",
+            "en_original": "In case you forget, we can remind you which 2FA app you used for OpenMates.",
+            "context": "explaining what the 2FA app reminder is for"
+        },
+        "search_for_2fa_app": {
+            "text": "搜索双重认证应用名称",
+            "en_original": "Search for 2FA app name",
+            "context": "Placeholder for 2FA app search input"
+        },
+        "settings": {
+            "text": "设置",
+            "en_original": "Settings",
+            "context": "Heading for the settings section during the signup process"
+        },
+        "default_settings_balance": {
+            "text": "默认设置在最大隐私和可用性之间取得平衡",
+            "en_original": "The default settings balance maximum privacy and usability.",
+            "context": "explaining the default settings during signup"
+        },
+        "click_toggle_to_open_settings": {
+            "text": "点击开关打开设置",
+            "en_original": "Click the toggle to open settings.",
+            "context": "explaining how to make changes to the default settings"
+        },
+        "default_settings": {
+            "text": "默认设置",
+            "en_original": "Default settings",
+            "context": "Toggle title for default settings"
+        },
+        "accept_settings": {
+            "text": "接受设置",
+            "en_original": "Accept settings",
+            "context": "Button text for accepting the current/default settings"
+        },
+        "click_toggle_to_continue": {
+            "text": "点击开关继续",
+            "en_original": "Click the toggle to continue.",
+            "context": "explaining how to continue after accepting the default settings"
+        },
+        "you_can_customize_your_mates": {
+            "text": "您可以自定义您的人工智能提供商和数字助手的回应方式",
+            "en_original": "You can customize your AI providers and how your mates respond.",
+            "context": "explaining that mates can be customized"
+        },
+        "ai_providers": {
+            "text": "人工智能提供商",
+            "en_original": "AI providers",
+            "context": "for confirming the default AI provider"
+        },
+        "all_ai_models_make_mistakes": {
+            "text": "请记住，所有人工智能模型都会犯错。因此请始终核实回答",
+            "en_original": "Keep in mind, all AI models make mistakes. So always fact check responses.",
+            "context": "ai models make mistakes disclaimer"
+        },
+        "mates_settings": {
+            "text": "助手设置",
+            "en_original": "Mates settings",
+            "context": "Button text for going back to mates settings"
+        },
+        "skip_and_show_demo_first": {
+            "text": "跳过并先显示演示",
+            "en_original": "Skip & show demo first",
+            "context": "Button text for skipping the purchase and showing the demo first"
+        },
+        "pay": {
+            "text": "支付",
+            "en_original": "Pay",
+            "context": "in message: 'Pay credits per usa'"
+        },
+        "per_use": {
+            "text": "每次使用",
+            "en_original": "per use",
+            "context": "in message: 'Pay credits per use'"
+        },
+        "for_chatting_and_apps": {
+            "text": "用于聊天和使用应用",
+            "en_original": "For chatting & using apps",
+            "context": "Explainer what the credits are needed for"
+        },
+        "only_pay_what_you_use": {
+            "text": "您只需支付使用的部分。对我们所有人都公平且可负担",
+            "en_original": "You only pay what you use. Fair & accessible for all of us.",
+            "context": "explainer how the payment system works"
+        },
+        "no_expiration_of_credits": {
+            "text": "点数永不过期",
+            "en_original": "no expiration of credits",
+            "context": "explainer that credits dont expire"
+        },
+        "no_subscription": {
+            "text": "无需订阅",
+            "en_original": "no subscription",
+            "context": "explainer that there is no subscription"
+        },
+        "no_ads": {
+            "text": "无广告",
+            "en_original": "no ads",
+            "context": "explainer that there are no ads"
+        },
+        "no_selling_of_user_data": {
+            "text": "不出售用户数据",
+            "en_original": "no selling of user data",
+            "context": "explainer that user data is not sold"
+        },
+        "pricing_details_on_page_of_app_skill": {
+            "text": "您可以在每个应用技能的页面上找到其定价详情",
+            "en_original": "On the page of each app skill you can find their pricing details.",
+            "context": "explainer where to find pricing details"
+        },
+        "open_app_settings": {
+            "text": "打开应用设置",
+            "en_original": "Open App settings",
+            "context": "Button text for opening app settings"
+        },
+        "less": {
+            "text": "减少",
+            "en_original": "Less",
+            "context": "Button text to reduce the amount of credits to buy"
+        },
+        "more": {
+            "text": "增加",
+            "en_original": "More",
+            "context": "Button text to increase the amount of credits to buy"
+        },
+        "choose_your_credits_package": {
+            "text": "选择您的点数套餐",
+            "en_original": "Choose your credits package.",
+            "context": "text for choosing the amount of credits to buy"
+        }
+    },
+    "credits": {
+        "buy_for_1_eur": {
+            "text": "购买1欧元",
+            "en_original": "Buy for 1 EUR",
+            "context": "Button text for buying credits for 1 EUR"
+        },
+        "buy_for_10_eur": {
+            "text": "购买10欧元",
+            "en_original": "Buy for 10 EUR",
+            "context": "Button text for buying credits for 10 EUR"
+        },
+        "buy_for_20_eur": {
+            "text": "购买20欧元",
+            "en_original": "Buy for 20 EUR",
+            "context": "Button text for buying credits for 20 EUR"
+        },
+        "buy_for_50_eur": {
+            "text": "购买50欧元",
+            "en_original": "Buy for 50 EUR",
+            "context": "Button text for buying credits for 50 EUR"
+        },
+        "buy_for_100_eur": {
+            "text": "购买100欧元",
+            "en_original": "Buy for 100 EUR",
+            "context": "Button text for buying credits for 100 EUR"
+        }
     }
 }

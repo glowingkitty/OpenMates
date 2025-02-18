@@ -9,7 +9,8 @@
     import { AuthService } from '../services/authService';
     import { isCheckingAuth } from '../stores/authCheckState';
     import { tick } from 'svelte';
-
+    import Signup from './signup/Signup.svelte';
+    
     const dispatch = createEventDispatcher();
 
     // Form data
@@ -27,6 +28,17 @@
 
     // Add state to control form visibility
     let showForm = false;
+
+    // Add state for view management
+    let currentView: 'login' | 'signup' = 'login';
+    
+    function switchToSignup() {
+        currentView = 'signup';
+    }
+    
+    function switchToLogin() {
+        currentView = 'login';
+    }
 
     onMount(() => {
         (async () => {
@@ -98,65 +110,77 @@
 
         <div class="login-content">
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
-                <h1><mark>{$_('login.login.text')}</mark></h1>
-                <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
+                {#if currentView === 'login'}
+                    <h1><mark>{$_('login.login.text')}</mark></h1>
+                    <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
+                    <div>
+                        {$_('login.not_signed_up_yet.text')}<br>
+                        <mark>
+                            <button class="text-button" on:click={switchToSignup}>
+                                {$_('login.click_here_to_create_a_new_account.text')}
+                            </button>
+                        </mark>
+                    </div>
 
-                <div class="form-container">
-                    <!-- Form is always rendered but initially hidden -->
-                    <form 
-                        on:submit|preventDefault={handleSubmit} 
-                        class:visible={showForm}
-                        class:hidden={!showForm}
-                    >
-                        {#if errorMessage}
-                            <div class="error-message" in:fade>
-                                {errorMessage}
+                    <div class="form-container">
+                        <!-- Form is always rendered but initially hidden -->
+                        <form 
+                            on:submit|preventDefault={handleSubmit} 
+                            class:visible={showForm}
+                            class:hidden={!showForm}
+                        >
+                            {#if errorMessage}
+                                <div class="error-message" in:fade>
+                                    {errorMessage}
+                                </div>
+                            {/if}
+
+                            <div class="input-group" style="margin-top: 35px">
+                                <div class="input-wrapper">
+                                    <span class="clickable-icon icon_mail"></span>
+                                    <input 
+                                        type="email" 
+                                        bind:value={email}
+                                        placeholder={$_('login.email_placeholder.text')}
+                                        required
+                                        autocomplete="email"
+                                        bind:this={emailInput}
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="input-group">
+                                <div class="input-wrapper">
+                                    <span class="clickable-icon icon_secret"></span>
+                                    <input 
+                                        type="password" 
+                                        bind:value={password}
+                                        placeholder={$_('login.password_placeholder.text')}
+                                        required
+                                        autocomplete="current-password"
+                                    />
+                                </div>
+                            </div>
+
+                            <button type="submit" class="login-button" disabled={isLoading}>
+                                {#if isLoading}
+                                    <span class="loading-spinner"></span>
+                                {:else}
+                                    {$_('login.login_button.text')}
+                                {/if}
+                            </button>
+                        </form>
+
+                        {#if $isCheckingAuth}
+                            <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
+                                <span class="loading-spinner"></span>
+                                <p>{$_('login.loading.text')}</p>
                             </div>
                         {/if}
-
-                        <div class="input-group" style="margin-top: 35px">
-                            <div class="input-wrapper">
-                                <span class="clickable-icon icon_mail"></span>
-                                <input 
-                                    type="email" 
-                                    bind:value={email}
-                                    placeholder={$_('login.email_placeholder.text')}
-                                    required
-                                    autocomplete="email"
-                                    bind:this={emailInput}
-                                />
-                            </div>
-                        </div>
-
-                        <div class="input-group">
-                            <div class="input-wrapper">
-                                <span class="clickable-icon icon_secret"></span>
-                                <input 
-                                    type="password" 
-                                    bind:value={password}
-                                    placeholder={$_('login.password_placeholder.text')}
-                                    required
-                                    autocomplete="current-password"
-                                />
-                            </div>
-                        </div>
-
-                        <button type="submit" class="login-button" disabled={isLoading}>
-                            {#if isLoading}
-                                <span class="loading-spinner"></span>
-                            {:else}
-                                {$_('login.login_button.text')}
-                            {/if}
-                        </button>
-                    </form>
-
-                    {#if $isCheckingAuth}
-                        <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-                            <span class="loading-spinner"></span>
-                            <p>{$_('login.loading.text')}</p>
-                        </div>
-                    {/if}
-                </div>
+                    </div>
+                {:else}
+                    <Signup on:switchToLogin={switchToLogin} />
+                {/if}
             </div>
         </div>
 
@@ -311,5 +335,14 @@
     .checking-auth p {
         color: var(--color-grey-80);
         font-size: 1.1rem;
+    }
+
+    .text-button {
+        all: unset;
+        cursor: pointer;
+    }
+    
+    .text-button:hover {
+        text-decoration: underline;
     }
 </style>

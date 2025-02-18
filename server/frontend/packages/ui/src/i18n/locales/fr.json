@@ -1580,5 +1580,354 @@
                 }
             }
         }
+    },
+    "signup": {
+        "sign_up": {
+            "text": "S'inscrire",
+            "en_original": "Sign up",
+            "context": "Sign up page title"
+        },
+        "enter_personal_invite_code": {
+            "text": "Entrez votre code d'invitation personnel",
+            "en_original": "Enter personal invite code",
+            "context": "Placeholder text for personal invite code input field"
+        },
+        "dont_have_personal_invite_code": {
+            "text": "Vous n'avez pas de code d'invitation personnel ?",
+            "en_original": "Don't have a personal invite code?",
+            "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
+        },
+        "enter_username": {
+            "text": "Entrez votre nom d'utilisateur",
+            "en_original": "Enter username",
+            "context": "Placeholder text for username input field"
+        },
+        "repeat_password": {
+            "text": "Répétez le mot de passe",
+            "en_original": "Repeat password",
+            "context": "Placeholder text for password repeat input field"
+        },
+        "agree_to": {
+            "text": "J'accepte",
+            "en_original": "Agree to",
+            "context": "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
+        },
+        "terms_of_service": {
+            "text": "Conditions d'utilisation",
+            "en_original": "Terms of service",
+            "context": "in message: 'Agree to Terms of service'"
+        },
+        "privacy_policy": {
+            "text": "Politique de confidentialité",
+            "en_original": "Privacy policy",
+            "context": "in message: 'Agree to Privacy policy'"
+        },
+        "create_new_account": {
+            "text": "Créer un nouveau compte",
+            "en_original": "Create new account",
+            "context": "Button text for creating a new account"
+        },
+        "you_received_a_one_time_code_via_email": {
+            "text": "Vous avez reçu un code unique par e-mail",
+            "en_original": "You received a one time code via E-mail",
+            "context": "Message shown when a one-time code has been sent via email"
+        },
+        "open_mail_app": {
+            "text": "Ouvrir l'application de messagerie",
+            "en_original": "Open mail app",
+            "context": "Button text for opening mail app"
+        },
+        "enter_one_time_code": {
+            "text": "Entrez le code à 6 chiffres",
+            "en_original": "Enter 6-digit one time code",
+            "context": "Placeholder text for one-time code input field in email verification"
+        },
+        "havent_received_a_code": {
+            "text": "Vous n'avez pas reçu de code ?",
+            "en_original": "Haven't received a code?",
+            "context": "Asking the user if they haven't received a code via email"
+        },
+        "click_to_resend": {
+            "text": "Cliquez ici pour renvoyer",
+            "en_original": "Click here to send again",
+            "context": "Button text for resending the one-time code via email"
+        },
+        "personal_invite_code_invalid": {
+            "text": "Désolé, votre code d'invitation personnel n'est pas valide.",
+            "en_original": "Sorry, your personal invite code is invalid.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "personal_invite_code_already_used": {
+            "text": "Il a probablement déjà été utilisé.",
+            "en_original": "It probably has been used already.",
+            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        },
+        "skip": {
+            "text": "Passer",
+            "en_original": "Skip",
+            "context": "Button text for skipping to the next step"
+        },
+        "upload_profile_image": {
+            "text": "Télécharger une photo de profil",
+            "en_original": "Upload a profile image",
+            "context": "Button text for uploading a profile image"
+        },
+        "profile_image": {
+            "text": "Photo de profil",
+            "en_original": "Profile image",
+            "context": "Button text for going back to upload a profile image"
+        },
+        "secure_your_account": {
+            "text": "Sécurisez votre compte",
+            "en_original": "Secure your account",
+            "context": "Title for setting up 2FA for securing account"
+        },
+        "free": {
+            "text": "gratuit",
+            "en_original": "free",
+            "context": "its free to setup 2FA"
+        },
+        "fast_to_setup": {
+            "text": "rapide à configurer",
+            "en_original": "fast to setup",
+            "context": "its fast to setup 2FA"
+        },
+        "max_security": {
+            "text": "sécurité maximale",
+            "en_original": "max security",
+            "context": "2FA provides maximum security"
+        },
+        "scan_with_your_2fa_app": {
+            "text": "Scanner avec votre application 2FA",
+            "en_original": "Scan with your 2FA app",
+            "context": "Button text for scanning QR code with 2FA app"
+        },
+        "dont_have_2fa_app": {
+            "text": "Vous n'avez pas encore d'application 2FA ?",
+            "en_original": "Don't have a 2FA app yet?",
+            "context": "Asking the user if they don't have a 2FA app yet"
+        },
+        "click_here_to_show_free_2fa_apps": {
+            "text": "Cliquez ici pour voir les applications 2FA gratuites",
+            "en_original": "Click here to show free 2FA apps",
+            "context": "Button text for showing free 2FA apps"
+        },
+        "connect_2fa_app": {
+            "text": "Connecter l'application 2FA",
+            "en_original": "Connect 2FA app",
+            "context": "Button text for going back to connect 2FA app"
+        },
+        "backup_codes": {
+            "text": "Codes de secours",
+            "en_original": "Backup codes",
+            "context": "Title for backup codes section"
+        },
+        "dont_loose_access": {
+            "text": "Ne perdez pas l'accès à votre compte si vous perdez l'accès à l'application.",
+            "en_original": "Don't loose access to your account if you loose access to the app.",
+            "context": "Message for not loosing access to account by having backup codes."
+        },
+        "store_backup_codes_safely": {
+            "text": "Conservez les codes de secours téléchargés dans un endroit sûr.",
+            "en_original": "Store the downloaded backup codes somewhere safe.",
+            "context": "Button text for storing backup codes somewhere safe"
+        },
+        "i_stored_backup_codes": {
+            "text": "J'ai stocké les codes de secours dans un endroit sûr.",
+            "en_original": "I stored the backup codes somewhere safe.",
+            "context": "Button text for confirming that the 2FA backup codes have been stored safely by the user."
+        },
+        "cant_connect": {
+            "text": "Impossible de se connecter à OpenMates",
+            "en_original": "Can't connect to OpenMates",
+            "context": "heading that shows up when the server cant be reached anymore during setup."
+        },
+        "either_offline_or_server": {
+            "text": "Le problème vient soit de votre connexion Internet, soit de notre serveur.",
+            "en_original": "Either the problem is your internet connection, or our server.",
+            "context": "message that shows up when the server cant be reached anymore during setup."
+        },
+        "attempt_to_reconnect_for_another": {
+            "text": "Tentative de reconnexion pendant encore",
+            "en_original": "Attempt to reconnect for another",
+            "context": "in message 'Attempt to reconnect for another 30 seconds', then 29 seconds, 28 seconds, etc."
+        },
+        "reconnect_attempts_failed": {
+            "text": "Les tentatives de reconnexion ont échoué. Nous en sommes désolés. Veuillez réessayer plus tard.",
+            "en_original": "Reconnect attempts failed. Sorry for that. Please try again later.",
+            "context": "message that shows up if the reconnect attempts failed over and over again."
+        },
+        "attempt_to_reconnect": {
+            "text": "Tenter de se reconnecter",
+            "en_original": "Attempt to reconnect",
+            "context": "Button text for attempting to reconnect"
+        },
+        "2fa_backup_codes": {
+            "text": "Codes de secours 2FA",
+            "en_original": "2FA backup codes",
+            "context": "Button text to go back to 2FA backup codes section"
+        },
+        "2fa_app_reminder": {
+            "text": "Rappel application 2FA",
+            "en_original": "2FA app reminder",
+            "context": "Heading for setting up 2FA provider for reminder when 2FA is needed"
+        },
+        "in_case_you_forget": {
+            "text": "Si vous oubliez, nous pouvons vous rappeler quelle application 2FA vous avez utilisée pour OpenMates.",
+            "en_original": "In case you forget, we can remind you which 2FA app you used for OpenMates.",
+            "context": "explaining what the 2FA app reminder is for"
+        },
+        "search_for_2fa_app": {
+            "text": "Rechercher une application 2FA",
+            "en_original": "Search for 2FA app name",
+            "context": "Placeholder for 2FA app search input"
+        },
+        "settings": {
+            "text": "Paramètres",
+            "en_original": "Settings",
+            "context": "Heading for the settings section during the signup process"
+        },
+        "default_settings_balance": {
+            "text": "Les paramètres par défaut équilibrent confidentialité maximale et facilité d'utilisation.",
+            "en_original": "The default settings balance maximum privacy and usability.",
+            "context": "explaining the default settings during signup"
+        },
+        "click_toggle_to_open_settings": {
+            "text": "Cliquez sur le bouton pour ouvrir les paramètres.",
+            "en_original": "Click the toggle to open settings.",
+            "context": "explaining how to make changes to the default settings"
+        },
+        "default_settings": {
+            "text": "Paramètres par défaut",
+            "en_original": "Default settings",
+            "context": "Toggle title for default settings"
+        },
+        "accept_settings": {
+            "text": "Accepter les paramètres",
+            "en_original": "Accept settings",
+            "context": "Button text for accepting the current/default settings"
+        },
+        "click_toggle_to_continue": {
+            "text": "Cliquez sur le bouton pour continuer.",
+            "en_original": "Click the toggle to continue.",
+            "context": "explaining how to continue after accepting the default settings"
+        },
+        "you_can_customize_your_mates": {
+            "text": "Vous pouvez personnaliser vos fournisseurs d'IA et la façon dont vos assistants répondent.",
+            "en_original": "You can customize your AI providers and how your mates respond.",
+            "context": "explaining that mates can be customized"
+        },
+        "ai_providers": {
+            "text": "Fournisseurs d'IA",
+            "en_original": "AI providers",
+            "context": "for confirming the default AI provider"
+        },
+        "all_ai_models_make_mistakes": {
+            "text": "Gardez à l'esprit que tous les modèles d'IA font des erreurs. Vérifiez toujours les réponses.",
+            "en_original": "Keep in mind, all AI models make mistakes. So always fact check responses.",
+            "context": "ai models make mistakes disclaimer"
+        },
+        "mates_settings": {
+            "text": "Paramètres des assistants",
+            "en_original": "Mates settings",
+            "context": "Button text for going back to mates settings"
+        },
+        "skip_and_show_demo_first": {
+            "text": "Passer et voir la démo d'abord",
+            "en_original": "Skip & show demo first",
+            "context": "Button text for skipping the purchase and showing the demo first"
+        },
+        "pay": {
+            "text": "Payez",
+            "en_original": "Pay",
+            "context": "in message: 'Pay credits per usa'"
+        },
+        "per_use": {
+            "text": "par utilisation",
+            "en_original": "per use",
+            "context": "in message: 'Pay credits per use'"
+        },
+        "for_chatting_and_apps": {
+            "text": "Pour chatter et utiliser les applications",
+            "en_original": "For chatting & using apps",
+            "context": "Explainer what the credits are needed for"
+        },
+        "only_pay_what_you_use": {
+            "text": "Vous ne payez que ce que vous utilisez. Équitable et accessible pour nous tous.",
+            "en_original": "You only pay what you use. Fair & accessible for all of us.",
+            "context": "explainer how the payment system works"
+        },
+        "no_expiration_of_credits": {
+            "text": "pas d'expiration des crédits",
+            "en_original": "no expiration of credits",
+            "context": "explainer that credits dont expire"
+        },
+        "no_subscription": {
+            "text": "pas d'abonnement",
+            "en_original": "no subscription",
+            "context": "explainer that there is no subscription"
+        },
+        "no_ads": {
+            "text": "pas de publicité",
+            "en_original": "no ads",
+            "context": "explainer that there are no ads"
+        },
+        "no_selling_of_user_data": {
+            "text": "pas de vente de données utilisateurs",
+            "en_original": "no selling of user data",
+            "context": "explainer that user data is not sold"
+        },
+        "pricing_details_on_page_of_app_skill": {
+            "text": "Sur la page de chaque fonctionnalité d'application, vous trouverez les détails des prix.",
+            "en_original": "On the page of each app skill you can find their pricing details.",
+            "context": "explainer where to find pricing details"
+        },
+        "open_app_settings": {
+            "text": "Ouvrir les paramètres de l'application",
+            "en_original": "Open App settings",
+            "context": "Button text for opening app settings"
+        },
+        "less": {
+            "text": "Moins",
+            "en_original": "Less",
+            "context": "Button text to reduce the amount of credits to buy"
+        },
+        "more": {
+            "text": "Plus",
+            "en_original": "More",
+            "context": "Button text to increase the amount of credits to buy"
+        },
+        "choose_your_credits_package": {
+            "text": "Choisissez votre pack de crédits.",
+            "en_original": "Choose your credits package.",
+            "context": "text for choosing the amount of credits to buy"
+        }
+    },
+    "credits": {
+        "buy_for_1_eur": {
+            "text": "Acheter pour 1 EUR",
+            "en_original": "Buy for 1 EUR",
+            "context": "Button text for buying credits for 1 EUR"
+        },
+        "buy_for_10_eur": {
+            "text": "Acheter pour 10 EUR",
+            "en_original": "Buy for 10 EUR",
+            "context": "Button text for buying credits for 10 EUR"
+        },
+        "buy_for_20_eur": {
+            "text": "Acheter pour 20 EUR",
+            "en_original": "Buy for 20 EUR",
+            "context": "Button text for buying credits for 20 EUR"
+        },
+        "buy_for_50_eur": {
+            "text": "Acheter pour 50 EUR",
+            "en_original": "Buy for 50 EUR",
+            "context": "Button text for buying credits for 50 EUR"
+        },
+        "buy_for_100_eur": {
+            "text": "Acheter pour 100 EUR",
+            "en_original": "Buy for 100 EUR",
+            "context": "Button text for buying credits for 100 EUR"
+        }
     }
 }
