@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from typing import Optional, Set
 import os
+import httpx
 from pydantic import BaseModel
 from fastapi import Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
@@ -872,6 +873,66 @@ async def generate_new_user_api_token(
         username=parameters.username,
         password=parameters.password
     )
+
+
+# Add after the other user router endpoints
+class InviteCodeValidationInput(BaseModel):
+    invite_code: str
+
+class InviteCodeValidationOutput(BaseModel):
+    valid: bool
+
+@users_router.post("/v1/auth/check_invite_token_valid", response_model=InviteCodeValidationOutput)
+@limiter.limit("5/minute")
+async def validate_invite_code(
+    request: Request,
+    parameters: InviteCodeValidationInput
+) -> InviteCodeValidationOutput:
+    """
+    Check if an invite code is valid by looking it up in the Directus database.
+    """
+    try:
+        # Use the default Directus port since we're in the same compose network
+        directus_url = "http://cms:8055"  # Fixed port since this is Directus's default
+        admin_token = os.getenv("DIRECTUS_ADMIN_TOKEN")
+
+        if not admin_token:
+            logger.error("Directus admin token missing")
+            raise HTTPException(
+                status_code=500,
+                detail="Server configuration error"
+            )
+
+        logger.debug(f"Connecting to Directus at {directus_url}")
+
+        # Query Directus for the invite code
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{directus_url}/items/invitecode",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                params={
+                    "filter[code][_eq]": parameters.invite_code
+                }
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Directus API error: {response.status_code}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Error checking invite code"
+                )
+
+            data = response.json()
+            valid = len(data.get("data", [])) > 0
+
+            return InviteCodeValidationOutput(valid=valid)
+
+    except Exception as e:
+        logger.error(f"Error validating invite code: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error checking invite code"
+        )
 
 
 ##########################################################
