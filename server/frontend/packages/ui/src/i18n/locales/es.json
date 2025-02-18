@@ -1607,6 +1607,11 @@
             "en_original": "Repeat password",
             "context": "Placeholder text for password repeat input field"
         },
+        "passwords_do_not_match": {
+            "text": "Las contraseñas no coinciden",
+            "en_original": "Passwords do not match",
+            "context": "Error message shown when passwords do not match"
+        },
         "agree_to": {
             "text": "Aceptar",
             "en_original": "Agree to",

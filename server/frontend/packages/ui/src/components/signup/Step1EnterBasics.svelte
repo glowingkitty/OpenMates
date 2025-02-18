@@ -6,7 +6,7 @@
     import Toggle from '../Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import { tick } from 'svelte';
-    import { externalLinks } from '../../config/links';
+    import { externalLinks, getWebsiteUrl } from '../../config/links';
 
     const dispatch = createEventDispatcher();
 
@@ -25,6 +25,8 @@
     // Agreement toggles state
     let termsAgreed = false;
     let privacyAgreed = false;
+
+    let passwordError = '';
 
     function handleLoginClick() {
         dispatch('switchToLogin');
@@ -110,6 +112,58 @@
             isLoading = false;
         }
     }
+
+    // Handle form submission
+    async function handleSubmit(event: Event) {
+        event.preventDefault();
+        
+        if (!passwordsMatch) {
+            return;
+        }
+
+        // Continue with form submission
+        // TODO: Add your form submission logic here
+    }
+
+    // Add debounce helper
+    function debounce<T extends (...args: any[]) => void>(
+        fn: T,
+        delay: number
+    ): (...args: Parameters<T>) => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => fn(...args), delay);
+        };
+    }
+
+    // Debounced password check
+    const checkPasswordsMatch = debounce(() => {
+        if (passwordRepeat && password !== passwordRepeat) {
+            passwordError = $_('signup.passwords_do_not_match.text');
+        } else {
+            passwordError = '';
+        }
+    }, 500);
+
+    // Update reactive statements
+    $: {
+        if (password || passwordRepeat) {
+            checkPasswordsMatch();
+        }
+    }
+
+    // Add reactive statement to check passwords match
+    $: passwordsMatch = !passwordRepeat || password === passwordRepeat;
+
+    // Helper function to check if form is valid
+    $: isFormValid = username && 
+                     email && 
+                     password && 
+                     passwordRepeat && 
+                     termsAgreed && 
+                     privacyAgreed &&
+                     passwordsMatch;
 </script>
 
 <div class="signup-container">
@@ -149,7 +203,7 @@
             <p class="no-invite-text">{$_('signup.dont_have_personal_invite_code.text')}</p>
             <WaitingList />
         {:else}
-            <form>
+            <form on:submit={handleSubmit}>
                 <div class="input-group">
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_user"></span>
@@ -198,15 +252,22 @@
                             placeholder={$_('signup.repeat_password.text')}
                             required
                             autocomplete="new-password"
+                            class:error={!passwordsMatch && passwordRepeat}
                         />
                     </div>
                 </div>
+
+                {#if passwordError}
+                    <div class="error-message password-match-error" transition:fade>
+                        {passwordError}
+                    </div>
+                {/if}
 
                 <div class="agreement-row">
                     <Toggle bind:checked={termsAgreed} />
                     <div class="agreement-text">
                         {$_('signup.agree_to.text')} 
-                        <a href={externalLinks.legal.terms} target="_blank" rel="noopener noreferrer">
+                        <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
                             <mark>{$_('signup.terms_of_service.text')}</mark>
                         </a>
                     </div>
@@ -216,13 +277,17 @@
                     <Toggle bind:checked={privacyAgreed} />
                     <div class="agreement-text">
                         {$_('signup.agree_to.text')} 
-                        <a href={externalLinks.legal.privacyPolicy} target="_blank" rel="noopener noreferrer">
+                        <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
                             <mark>{$_('signup.privacy_policy.text')}</mark>
                         </a>
                     </div>
                 </div>
 
-                <button type="submit" class="signup-button" disabled={!termsAgreed || !privacyAgreed}>
+                <button 
+                    type="submit" 
+                    class="signup-button" 
+                    disabled={!isFormValid}
+                >
                     {$_('signup.create_new_account.text')}
                 </button>
             </form>
@@ -292,12 +357,22 @@
         cursor: not-allowed;
     }
 
+    input.error {
+        border-color: var(--color-error);
+    }
+
     .error-message {
         background: var(--color-error-light);
         color: var(--color-error);
         padding: 0.75rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
+    }
+
+    .password-match-error {
+        margin-top: -0.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
     }
 
     .no-invite-text {

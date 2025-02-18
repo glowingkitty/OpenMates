@@ -356,6 +356,10 @@
             "text": "Repeat password",
             "context": "Placeholder text for password repeat input field"
         },
+        "passwords_do_not_match": {
+            "text": "Passwords do not match",
+            "context": "Error message shown when passwords do not match"
+        },
         "agree_to": {
             "text": "Agree to",
             "context": "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
