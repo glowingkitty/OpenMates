@@ -45,7 +45,5 @@
         background-position: center;
         background-size: cover;
         background-repeat: no-repeat;
-        user-select: none;
-        -webkit-user-select: none;
     }
 </style> 

@@ -113,7 +113,6 @@
 /* Style for time slot text */
 .app-card-text {
     align-self: start;
-    user-select: none;
 }
 
 /* Base styles for appointment indicators */

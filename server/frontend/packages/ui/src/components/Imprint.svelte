@@ -51,7 +51,6 @@
         background-repeat: no-repeat;
         background-position: left center;
         background-size: contain;
-        user-select: none;
     }
 
     /* Add filter for dark mode */

@@ -330,6 +330,18 @@ body {
     margin: 0px;
     color: var(--color-font-primary);
     background-color: var(--color-grey-0);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Add a utility class for selectable text */
+.selectable {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 /* Dark theme overrides */

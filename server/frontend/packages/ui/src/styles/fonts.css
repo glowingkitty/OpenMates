@@ -224,11 +224,3 @@ mark {
     color: var(--color-font-primary);
     text-decoration: none;
 }
-
-
-.not_selectable {
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-}

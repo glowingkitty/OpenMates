@@ -58,10 +58,6 @@
         padding: 8px 10px;
         border-radius: 12px;
         transition: background-color 0.2s ease;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
     }
 
     .clickable {

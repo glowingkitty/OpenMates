@@ -120,7 +120,6 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        user-select: all;
         position: relative;
         vertical-align: middle;
         margin: 0;
@@ -147,15 +146,6 @@
         clip: rect(0, 0, 0, 0);
         white-space: nowrap;
         border: 0;
-        user-select: all;
-    }
-
-    /* Make sure the icon is included in text selection */
-    .app-title :global(svg) {
-        user-select: all;
-        -webkit-user-select: all;
-        -moz-user-select: all;
-        -ms-user-select: all;
     }
 
 </style>

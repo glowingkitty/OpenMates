@@ -570,7 +570,6 @@
         height: 300px;
         width: 540px;
         margin: 0 auto;
-        user-select: none; /* Make text not selectable */
     }
 
     /* Add media query for smaller screens */
@@ -611,7 +610,6 @@
         width: 100%;
         margin: 0 auto;
         padding: 1rem;
-        user-select: none;
         padding-top: 15px;
         padding-bottom: 15px;
         will-change: transform;
@@ -663,10 +661,6 @@
 
     /* Ensure all text within the container is not selectable */
     :global(.chat-examples-container *) {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
         pointer-events: none;
         cursor: default;
     }

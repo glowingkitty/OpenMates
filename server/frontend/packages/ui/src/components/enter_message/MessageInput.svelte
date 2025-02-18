@@ -1284,12 +1284,6 @@
         gap: 1rem;
         height: 100%;
     }
-    .send-button {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-    }
 
     /* Update icon styles */
     .clickable-icon {
@@ -1372,7 +1366,6 @@
 
     :global(.ProseMirror .custom-embed-wrapper) {
         cursor: pointer;
-        user-select: none;
     }
 
     :global(.ProseMirror) {
@@ -1606,8 +1599,6 @@
 
     :global(.photo-preview-container) {
         cursor: pointer;
-        user-select: none;
-        -webkit-user-select: none;
     }
 
     :global(.photo-preview-container:hover) {
@@ -1626,7 +1617,6 @@
         padding: 2px 4px;
         border-radius: 4px;
         cursor: pointer;
-        user-select: none;
     }
 
     :global(.mate-mention .at-symbol) {

@@ -121,6 +121,5 @@
     /* Ensure mate mentions are still clickable */
     :global(.read-only-message .mate-mention) {
         cursor: pointer;
-        user-select: none;
     }
 </style> 

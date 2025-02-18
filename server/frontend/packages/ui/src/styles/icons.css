@@ -247,6 +247,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/secret.svg');
 }
 
+.clickable-icon.icon_back {
+  -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
+  mask-image: url('@openmates/ui/static/icons/back.svg');
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;

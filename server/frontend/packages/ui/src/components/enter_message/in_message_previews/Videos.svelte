@@ -542,7 +542,6 @@
         padding-left: 70px;
         padding-right: 16px;
         overflow: hidden;
-        user-select: none;
         transition: opacity 0.3s ease-in-out;
         opacity: 1;
         z-index: 1;

@@ -10,11 +10,13 @@
 </script>
 
 <div class="signup-container">
-    <button class="login-link" on:click={handleLoginClick}>
+    <button class="back-link" on:click={handleLoginClick}>
+        <div class="clickable-icon icon_back"></div>
         {$_('login.login_button.text')}
     </button>
     
     <h1><mark>{$_('signup.sign_up.text')}</mark></h1>
+    <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
     
     <!-- Form content will go here in future implementation -->
 </div>
@@ -25,7 +27,7 @@
         width: 100%;
     }
 
-    .login-link {
+    .back-link {
         all: unset;
         position: absolute;
         top: 0;
@@ -36,9 +38,5 @@
         border: none;
         cursor: pointer;
         padding: 0;
-    }
-
-    .login-link:hover {
-        text-decoration: underline;
     }
 </style>

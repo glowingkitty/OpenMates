@@ -520,10 +520,6 @@
         font-size: 22px;
         font-weight: 500;
         color: var(--color-grey-100);
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
     }
 
     .credits-container {
@@ -540,10 +536,6 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
     }
 
     .credits-icon {
@@ -624,10 +616,6 @@
         font-size: 14px;
         font-weight: 600;
         margin: 6px 0;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
     }
 
     .submenu-link {
@@ -637,10 +625,6 @@
         padding: 6px 0;
         font-size: 14px;
         transition: color 0.2s ease;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
     }
 
     .submenu-link:hover {
@@ -663,9 +647,5 @@
 
     .header-center h4 {
         font-size: 14px;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
     }
 </style>

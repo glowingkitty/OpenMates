@@ -242,7 +242,6 @@
         padding: 0 16px 0 70px;
         min-width: 200px;
         z-index: 3;
-        user-select: none; /* Prevent text selection */
     }
 
     .icon_rounded {
@@ -274,7 +273,6 @@
         background-color: #181818;
         padding: 0 8px;
         text-align: right;
-        user-select: none;
         color: rgba(255, 255, 255, 0.4);
         font-family: 'JetBrains Mono', monospace;
         font-size: 14px;

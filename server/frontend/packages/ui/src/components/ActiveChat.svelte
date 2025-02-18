@@ -401,7 +401,6 @@
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
-        user-select: none;
     }
 
     .team-profile {
