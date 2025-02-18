@@ -3,8 +3,10 @@
     import { fade } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
     import WaitingList from '../WaitingList.svelte';
+    import Toggle from '../Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import { tick } from 'svelte';
+    import { externalLinks } from '../../config/links';
 
     const dispatch = createEventDispatcher();
 
@@ -19,6 +21,10 @@
     let email = '';
     let password = '';
     let passwordRepeat = '';
+
+    // Agreement toggles state
+    let termsAgreed = false;
+    let privacyAgreed = false;
 
     function handleLoginClick() {
         dispatch('switchToLogin');
@@ -196,7 +202,27 @@
                     </div>
                 </div>
 
-                <button type="submit" class="signup-button">
+                <div class="agreement-row">
+                    <Toggle bind:checked={termsAgreed} />
+                    <div class="agreement-text">
+                        {$_('signup.agree_to.text')} 
+                        <a href={externalLinks.legal.terms} target="_blank" rel="noopener noreferrer">
+                            <mark>{$_('signup.terms_of_service.text')}</mark>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="agreement-row">
+                    <Toggle bind:checked={privacyAgreed} />
+                    <div class="agreement-text">
+                        {$_('signup.agree_to.text')} 
+                        <a href={externalLinks.legal.privacyPolicy} target="_blank" rel="noopener noreferrer">
+                            <mark>{$_('signup.privacy_policy.text')}</mark>
+                        </a>
+                    </div>
+                </div>
+
+                <button type="submit" class="signup-button" disabled={!termsAgreed || !privacyAgreed}>
                     {$_('signup.create_new_account.text')}
                 </button>
             </form>
@@ -283,5 +309,25 @@
     .signup-button {
         width: 100%;
         margin: 1.5rem 0 1rem;
+    }
+
+    .agreement-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .agreement-text {
+        color: var(--color-grey-60);
+    }
+
+    .agreement-text a {
+        text-decoration: none;
+    }
+
+    .signup-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 </style>
