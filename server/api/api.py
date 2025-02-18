@@ -750,28 +750,6 @@ async def get_users(
 
 
 # TODO add test
-# POST /users (create a new user)
-@users_router.post("/v1/{team_slug}/users/", **users_endpoints["create_user"])
-@limiter.limit("20/minute")
-async def create_user(
-    request: Request,
-    parameters: UsersCreateInput,
-    team_slug: str = Path(..., **input_parameter_descriptions["team_slug"])
-    ) -> UsersCreateOutput:
-    await validate_invite_code(
-        team_slug=team_slug,
-        invite_code=parameters.invite_code
-        )
-    return await create_user_processing(
-        name=parameters.name,
-        username=parameters.username,
-        email=parameters.email,
-        password=parameters.password,
-        team_slug=team_slug
-        )
-
-
-# TODO add test
 # GET /users/{username} (get a user)
 @users_router.get("/v1/{team_slug}/users/{username}", **users_endpoints["get_user"])
 @limiter.limit("20/minute")
@@ -876,63 +854,22 @@ async def generate_new_user_api_token(
 
 
 # Add after the other user router endpoints
-class InviteCodeValidationInput(BaseModel):
-    invite_code: str
-
-class InviteCodeValidationOutput(BaseModel):
-    valid: bool
-
 @users_router.post("/v1/auth/check_invite_token_valid", response_model=InviteCodeValidationOutput)
 @limiter.limit("5/minute")
-async def validate_invite_code(
+async def check_invite_code_valid(
     request: Request,
     parameters: InviteCodeValidationInput
 ) -> InviteCodeValidationOutput:
     """
-    Check if an invite code is valid by looking it up in the Directus database.
+    Check if an invite code is valid
     """
     try:
-        # Use the default Directus port since we're in the same compose network
-        directus_url = "http://cms:8055"  # Fixed port since this is Directus's default
-        admin_token = os.getenv("DIRECTUS_ADMIN_TOKEN")
-
-        if not admin_token:
-            logger.error("Directus admin token missing")
-            raise HTTPException(
-                status_code=500,
-                detail="Server configuration error"
-            )
-
-        logger.debug(f"Connecting to Directus at {directus_url}")
-
-        # Query Directus for the invite code
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{directus_url}/items/invitecode",
-                headers={"Authorization": f"Bearer {admin_token}"},
-                params={
-                    "filter[code][_eq]": parameters.invite_code
-                }
-            )
-
-            if response.status_code != 200:
-                logger.error(f"Directus API error: {response.status_code}")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Error checking invite code"
-                )
-
-            data = response.json()
-            valid = len(data.get("data", [])) > 0
-
-            return InviteCodeValidationOutput(valid=valid)
-
-    except Exception as e:
-        logger.error(f"Error validating invite code: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error checking invite code"
+        await validate_invite_code_processing(
+            invite_code=parameters.invite_code
         )
+        return InviteCodeValidationOutput(valid=True)
+    except HTTPException:
+        return InviteCodeValidationOutput(valid=False)
 
 
 ##########################################################

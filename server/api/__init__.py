@@ -31,6 +31,14 @@ from server.api.startup import api_startup
 from server.api.shutdown import api_shutdown
 
 ##########################################################
+# Auth
+##########################################################
+from server.api.models.auth.auth_invitecode import (
+    InviteCodeValidationInput, InviteCodeValidationOutput
+)
+from server.api.endpoints.auth.check_invite_token_valid import validate_invite_code as validate_invite_code_processing
+
+##########################################################
 # Mates
 ##########################################################
 from server.api.endpoints.tasks.tasks import ask_mate_task

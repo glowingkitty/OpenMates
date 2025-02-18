@@ -152,6 +152,7 @@
                             bind:value={username}
                             placeholder={$_('signup.enter_username.text')}
                             required
+                            autocomplete="username"
                         />
                     </div>
                 </div>
@@ -164,6 +165,7 @@
                             bind:value={email}
                             placeholder={$_('login.email_placeholder.text')}
                             required
+                            autocomplete="email"
                         />
                     </div>
                 </div>
@@ -176,6 +178,7 @@
                             bind:value={password}
                             placeholder={$_('login.password_placeholder.text')}
                             required
+                            autocomplete="new-password"
                         />
                     </div>
                 </div>
@@ -188,6 +191,7 @@
                             bind:value={passwordRepeat}
                             placeholder={$_('signup.repeat_password.text')}
                             required
+                            autocomplete="new-password"
                         />
                     </div>
                 </div>
