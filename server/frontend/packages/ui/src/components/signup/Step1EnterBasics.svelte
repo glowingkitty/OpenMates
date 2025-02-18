@@ -27,6 +27,7 @@
     let privacyAgreed = false;
 
     let passwordError = '';
+    let passwordStrengthError = '';
 
     function handleLoginClick() {
         dispatch('switchToLogin');
@@ -146,6 +147,11 @@
         }
     }, 500);
 
+    // Debounced password strength check
+    const debouncedCheckPasswordStrength = debounce((pwd: string) => {
+        checkPasswordStrength(pwd);
+    }, 500);
+
     // Update reactive statements
     $: {
         if (password || passwordRepeat) {
@@ -163,7 +169,47 @@
                      passwordRepeat && 
                      termsAgreed && 
                      privacyAgreed &&
-                     passwordsMatch;
+                     passwordsMatch &&
+                     !passwordStrengthError;
+
+    function checkPasswordStrength(pwd: string): boolean {
+        if (pwd.length < 8) {
+            passwordStrengthError = $_('signup.password_too_short.text');
+            return false;
+        }
+
+        if (pwd.length > 60) {
+            passwordStrengthError = $_('signup.password_too_long.text');
+            return false;
+        }
+
+        if (!/[a-zA-Z]/.test(pwd)) {
+            passwordStrengthError = $_('signup.password_needs_letter.text');
+            return false;
+        }
+
+        if (!/[0-9]/.test(pwd)) {
+            passwordStrengthError = $_('signup.password_needs_number.text');
+            return false;
+        }
+
+        if (!/[^A-Za-z0-9]/.test(pwd)) {
+            passwordStrengthError = $_('signup.password_needs_special.text');
+            return false;
+        }
+
+        passwordStrengthError = '';
+        return true;
+    }
+
+    // Update reactive statements to include password strength
+    $: {
+        if (password) {
+            debouncedCheckPasswordStrength(password);
+        } else {
+            passwordStrengthError = '';
+        }
+    }
 </script>
 
 <div class="signup-container">
@@ -239,8 +285,14 @@
                             placeholder={$_('login.password_placeholder.text')}
                             required
                             autocomplete="new-password"
+                            class:error={passwordStrengthError}
                         />
                     </div>
+                    {#if passwordStrengthError}
+                        <div class="error-message password-strength-error" transition:fade>
+                            {passwordStrengthError}
+                        </div>
+                    {/if}
                 </div>
 
                 <div class="input-group">
@@ -251,6 +303,7 @@
                             bind:value={passwordRepeat}
                             placeholder={$_('signup.repeat_password.text')}
                             required
+                            maxlength="60"
                             autocomplete="new-password"
                             class:error={!passwordsMatch && passwordRepeat}
                         />
@@ -372,6 +425,11 @@
     .password-match-error {
         margin-top: -0.5rem;
         margin-bottom: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .password-strength-error {
+        margin-top: 0.5rem;
         font-size: 0.875rem;
     }
 

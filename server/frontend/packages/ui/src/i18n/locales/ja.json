@@ -1612,6 +1612,31 @@
             "en_original": "Passwords do not match",
             "context": "Error message shown when passwords do not match"
         },
+        "password_too_short": {
+            "text": "パスワードが短すぎます",
+            "en_original": "Password too short",
+            "context": "Error message shown when password is too short"
+        },
+        "password_too_long": {
+            "text": "パスワードが長すぎます",
+            "en_original": "Password too long",
+            "context": "Error message shown when password is too long"
+        },
+        "password_needs_letter": {
+            "text": "パスワードには少なくとも1つの文字が必要です",
+            "en_original": "Password needs at least one letter",
+            "context": "Error message shown when password does not contain a letter"
+        },
+        "password_needs_number": {
+            "text": "パスワードには少なくとも1つの数字が必要です",
+            "en_original": "Password needs at least one number",
+            "context": "Error message shown when password does not contain a number"
+        },
+        "password_needs_special": {
+            "text": "パスワードには少なくとも1つの特殊文字が必要です",
+            "en_original": "Password needs at least one special character",
+            "context": "Error message shown when password does not contain a special character"
+        },
         "agree_to": {
             "text": "同意する",
             "en_original": "Agree to",

@@ -1612,6 +1612,31 @@
             "en_original": "Passwords do not match",
             "context": "Error message shown when passwords do not match"
         },
+        "password_too_short": {
+            "text": "Contraseña demasiado corta",
+            "en_original": "Password too short",
+            "context": "Error message shown when password is too short"
+        },
+        "password_too_long": {
+            "text": "Contraseña demasiado larga",
+            "en_original": "Password too long",
+            "context": "Error message shown when password is too long"
+        },
+        "password_needs_letter": {
+            "text": "La contraseña necesita al menos una letra",
+            "en_original": "Password needs at least one letter",
+            "context": "Error message shown when password does not contain a letter"
+        },
+        "password_needs_number": {
+            "text": "La contraseña necesita al menos un número",
+            "en_original": "Password needs at least one number",
+            "context": "Error message shown when password does not contain a number"
+        },
+        "password_needs_special": {
+            "text": "La contraseña necesita al menos un carácter especial",
+            "en_original": "Password needs at least one special character",
+            "context": "Error message shown when password does not contain a special character"
+        },
         "agree_to": {
             "text": "Aceptar",
             "en_original": "Agree to",
