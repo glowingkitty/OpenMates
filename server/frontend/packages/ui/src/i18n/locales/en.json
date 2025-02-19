@@ -341,7 +341,7 @@
             "context": "Sign up page title"
         },
         "enter_personal_invite_code": {
-            "text": "Enter personal invite code",
+            "text": "Enter invite code",
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
@@ -419,6 +419,14 @@
         "code_is_invalid": {
             "text": "Code is invalid",
             "context": "Error message shown when code is invalid"
+        },
+        "at_missing": {
+            "text": "@ missing",
+            "context": "Error message shown when @ is missing in email"
+        },
+        "domain_ending_missing": {
+            "text": "Domain ending missing",
+            "context": "Error message shown when domain ending is missing in email"
         },
         "skip": {
             "text": "Skip",

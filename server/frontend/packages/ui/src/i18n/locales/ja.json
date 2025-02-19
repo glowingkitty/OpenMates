@@ -1588,8 +1588,8 @@
             "context": "Sign up page title"
         },
         "enter_personal_invite_code": {
-            "text": "招待コードを入力",
-            "en_original": "Enter personal invite code",
+            "text": "招待コードを入力してください",
+            "en_original": "Enter invite code",
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
@@ -1686,6 +1686,16 @@
             "text": "コードが無効です",
             "en_original": "Code is invalid",
             "context": "Error message shown when code is invalid"
+        },
+        "at_missing": {
+            "text": "@記号がありません",
+            "en_original": "@ missing",
+            "context": "Error message shown when @ is missing in email"
+        },
+        "domain_ending_missing": {
+            "text": "ドメイン終了部分がありません",
+            "en_original": "Domain ending missing",
+            "context": "Error message shown when domain ending is missing in email"
         },
         "skip": {
             "text": "スキップ",

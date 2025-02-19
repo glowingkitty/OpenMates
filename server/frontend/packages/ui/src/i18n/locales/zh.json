@@ -1588,8 +1588,8 @@
             "context": "Sign up page title"
         },
         "enter_personal_invite_code": {
-            "text": "输入个人邀请码",
-            "en_original": "Enter personal invite code",
+            "text": "输入邀请码",
+            "en_original": "Enter invite code",
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
@@ -1686,6 +1686,16 @@
             "text": "代码无效",
             "en_original": "Code is invalid",
             "context": "Error message shown when code is invalid"
+        },
+        "at_missing": {
+            "text": "缺少@符号",
+            "en_original": "@ missing",
+            "context": "Error message shown when @ is missing in email"
+        },
+        "domain_ending_missing": {
+            "text": "缺少域名后缀",
+            "en_original": "Domain ending missing",
+            "context": "Error message shown when domain ending is missing in email"
         },
         "skip": {
             "text": "跳过",

@@ -36,10 +36,16 @@
     let usernameInput: HTMLInputElement;
     let passwordInput: HTMLInputElement;
     let passwordRepeatInput: HTMLInputElement;
+    let emailInput: HTMLInputElement;
 
     // Add state for input warnings
     let showPasswordStrengthWarning = false;
     let showPasswordMatchWarning = false;
+    let showEmailWarning = false;
+    let emailError = '';
+
+    // Add email validation state tracker
+    let isEmailValidationPending = false;
 
     onMount(() => {
         // Focus the invite code input when component mounts
@@ -84,6 +90,11 @@
         // Format the code
         const formatted = formatInviteCode(input.value.toUpperCase());
         inviteCode = formatted;
+
+        // Hide warning if field is empty
+        if (!formatted) {
+            showWarning = false;
+        }
         
         // Calculate new cursor position
         await tick(); // Wait for DOM update
@@ -181,6 +192,34 @@
         checkPasswordStrength(pwd);
     }, 500);
 
+    // Modify email validation check
+    const debouncedCheckEmail = debounce((email: string) => {
+        if (!email) {
+            emailError = '';
+            showEmailWarning = false;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.includes('@')) {
+            emailError = $_('signup.at_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.match(/\.[a-z]{2,}$/i)) {
+            emailError = $_('signup.domain_ending_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        emailError = '';
+        showEmailWarning = false;
+        isEmailValidationPending = false;
+    }, 800);
+
     // Update reactive statements
     $: {
         if (password || passwordRepeat) {
@@ -194,6 +233,8 @@
     // Helper function to check if form is valid
     $: isFormValid = username && 
                      email && 
+                     !emailError &&
+                     !isEmailValidationPending &&
                      password && 
                      passwordRepeat && 
                      termsAgreed && 
@@ -243,6 +284,18 @@
             debouncedCheckPasswordStrength(password);
         } else {
             passwordStrengthError = '';
+        }
+    }
+
+    // Update reactive statements to include email validation
+    $: {
+        if (email) {
+            isEmailValidationPending = true;
+            debouncedCheckEmail(email);
+        } else {
+            emailError = '';
+            showEmailWarning = false;
+            isEmailValidationPending = false;
         }
     }
 </script>
@@ -304,12 +357,20 @@
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_mail"></span>
                         <input 
+                            bind:this={emailInput}
                             type="email" 
                             bind:value={email}
                             placeholder={$_('login.email_placeholder.text')}
                             required
                             autocomplete="email"
+                            class:error={!!emailError}
                         />
+                        {#if showEmailWarning && emailError}
+                            <InputWarning 
+                                message={emailError}
+                                target={emailInput}
+                            />
+                        {/if}
                     </div>
                 </div>
 

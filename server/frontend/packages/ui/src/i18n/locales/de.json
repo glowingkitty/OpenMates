@@ -1588,12 +1588,12 @@
             "context": "Sign up page title"
         },
         "enter_personal_invite_code": {
-            "text": "Persönlichen Einladungscode eingeben",
-            "en_original": "Enter personal invite code",
+            "text": "Einladungscode eingeben",
+            "en_original": "Enter invite code",
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
-            "text": "Keinen persönlichen Einladungscode?",
+            "text": "Du hast keinen Einladungscode?",
             "en_original": "Don't have a personal invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
@@ -1686,6 +1686,16 @@
             "text": "Code ist ungültig",
             "en_original": "Code is invalid",
             "context": "Error message shown when code is invalid"
+        },
+        "at_missing": {
+            "text": "@ fehlt",
+            "en_original": "@ missing",
+            "context": "Error message shown when @ is missing in email"
+        },
+        "domain_ending_missing": {
+            "text": "Domain-Endung fehlt",
+            "en_original": "Domain ending missing",
+            "context": "Error message shown when domain ending is missing in email"
         },
         "skip": {
             "text": "Überspringen",
