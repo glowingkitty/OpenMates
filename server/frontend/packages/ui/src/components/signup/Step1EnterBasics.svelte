@@ -335,20 +335,20 @@
                         </a>
                     </div>
                 </div>
-
-                <button 
-                    type="submit" 
-                    class="signup-button" 
-                    disabled={!isFormValid}
-                >
-                    {$_('signup.create_new_account.text')}
-                </button>
             </form>
         {/if}
     </div>
-    {#if !isValidated}
     <div class="bottom-positioned">
-        <WaitingList showPersonalInviteMessage={true} />
+        {#if !isValidated}
+            <WaitingList showPersonalInviteMessage={true} />
+        {:else}
+            <button 
+                class="signup-button" 
+                disabled={!isFormValid}
+                on:click={handleSubmit}
+            >
+                {$_('signup.create_new_account.text')}
+            </button>
+        {/if}
     </div>
-    {/if}
 </div>
