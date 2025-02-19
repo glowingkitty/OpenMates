@@ -273,8 +273,14 @@
         return true;
     };
 
-    // Add debounced username check
+    // Update debounced username check to clear warnings when empty
     const debouncedCheckUsername = debounce((username: string) => {
+        if (!username) {
+            usernameError = '';
+            showUsernameWarning = false;
+            isUsernameValidationPending = false;
+            return;
+        }
         isUsernameValidationPending = false;
         checkUsername(username);
     }, 500);
@@ -316,7 +322,8 @@
             return false;
         }
 
-        if (!/[a-zA-Z]/.test(pwd)) {
+        // Use Unicode categories for letter detection (includes international letters)
+        if (!/\p{L}/u.test(pwd)) {
             passwordStrengthError = $_('signup.password_needs_letter.text');
             showPasswordStrengthWarning = true;
             return false;
@@ -328,7 +335,7 @@
             return false;
         }
 
-        if (!/[^A-Za-z0-9]/.test(pwd)) {
+        if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
             passwordStrengthError = $_('signup.password_needs_special.text');
             showPasswordStrengthWarning = true;
             return false;
@@ -362,7 +369,11 @@
 
     // Update reactive statements to include username validation
     $: {
-        if (username) {
+        if (!username) {
+            usernameError = '';
+            showUsernameWarning = false;
+            isUsernameValidationPending = false;
+        } else {
             isUsernameValidationPending = true;
             debouncedCheckUsername(username);
         }
