@@ -115,6 +115,7 @@
     :root {
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
+        --chat-container-min-height: 650px;
     }
     .sidebar {
         /* Fixed positioning relative to viewport */
@@ -231,10 +232,10 @@
 
     /* Add specific height for login mode */
     .main-content.login-mode .chat-container {
-        height: calc(100vh - 90px); /* Fallback for browsers that don't support dvh */
-        height: calc(100dvh - 90px); /* Keep full height in login mode */
-        min-height: calc(100vh - 90px); /* Fallback for browsers that don't support dvh */
-        min-height: calc(100dvh - 90px); /* Ensure minimum height */
+        height: max(var(--chat-container-min-height), calc(100vh - 90px));
+        height: max(var(--chat-container-min-height), calc(100dvh - 90px));
+        min-height: max(var(--chat-container-min-height), calc(100vh - 90px));
+        min-height: max(var(--chat-container-min-height), calc(100dvh - 90px));
     }
 
     /* Only apply gap on larger screens */

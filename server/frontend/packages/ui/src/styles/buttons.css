@@ -74,3 +74,9 @@ button:last-child {
     scale: 0.98;
     filter: none;
 }
+
+@media (max-width: 600px) {
+    .discord-button {
+        padding: 0.8rem 40px;
+    }
+}

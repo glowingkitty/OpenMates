@@ -8,8 +8,11 @@
     --font-size-h1: 60px;
     --font-size-h1-mobile: 36px;
     --font-size-h2: 30px;
+    --font-size-h2-mobile: 24px;
     --font-size-h3: 20px;
+    --font-size-h3-mobile: 18px;
     --font-size-h4: 16px;
+    --font-size-h4-mobile: 16px;
     --font-size-p: 16px;
     --font-weight-p: 500;
     --button-font-family: var(--font-primary);
@@ -72,12 +75,6 @@ h1 {
     font-weight: var(--font-weight-extra-bold);
 }
 
-@media (max-width: 600px) {
-    h1 {
-        font-size: var(--font-size-h1-mobile);
-    }
-}
-
 h2 {
     font-size: var(--font-size-h2);
     font-weight: var(--font-weight-bold);
@@ -93,6 +90,21 @@ h4 {
     color: var(--color-font-tertiary);
     font-size: var(--font-size-h4);
     font-weight: var(--font-weight-bold);
+}
+
+@media (max-width: 600px) {
+    h1 {
+        font-size: var(--font-size-h1-mobile);
+    }
+    h2 {
+        font-size: var(--font-size-h2-mobile);
+    }
+    h3 {
+        font-size: var(--font-size-h3-mobile);
+    }
+    h4 {
+        font-size: var(--font-size-h4-mobile);
+    }
 }
 
 p, a {

@@ -26,12 +26,17 @@
 }
 
 .login-box {
-    width: calc(100% - 40px);
-    max-width: 440px;
+    width: 440px;
     min-height: min(740px, 90vh);
     text-align: center;
     box-sizing: border-box;
     position: relative;
+}
+
+@media (max-width: 600px) {
+    .login-box {
+        width: 100%;
+    }
 }
 
 /* Shared form styles */
