@@ -55,22 +55,8 @@
     }
 
     .discord-text {
-        color: #666;
+        color: var(--color-grey-60);
         margin: 0;
         text-align: center;
-    }
-
-    .invites-text {
-        color: #888;
-        margin-top: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .calendar-icon {
-        display: inline-block;
-        filter: opacity(40%);
-        vertical-align: middle;
     }
 </style>

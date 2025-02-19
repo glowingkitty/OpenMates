@@ -86,7 +86,7 @@
     height: 1.25rem;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    border-top-color: white;
+    border-top-color: var(--color-grey-0);;
     animation: spin 1s linear infinite;
 }
 
@@ -124,7 +124,7 @@
     top: 0;
     left: 0;
     font-size: 14px;
-    color: #858585;
+    color: var(--color-grey-60);
     background: none;
     border: none;
     cursor: pointer;

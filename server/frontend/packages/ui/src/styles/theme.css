@@ -324,6 +324,50 @@
     --color-footer: linear-gradient(135deg, var(--color-footer-start) 9.04%, var(--color-footer-end) 90.06%);
 }
 
+.color-grey-0 {
+    color: var(--color-grey-0);
+}
+
+.color-grey-10 {
+    color: var(--color-grey-10);
+}
+
+.color-grey-20 {
+    color: var(--color-grey-20);
+}
+
+.color-grey-30 {
+    color: var(--color-grey-30);
+}
+
+.color-grey-40 {
+    color: var(--color-grey-40);
+}
+
+.color-grey-50 {
+    color: var(--color-grey-50);
+}
+
+.color-grey-60 {
+    color: var(--color-grey-60);
+}
+
+.color-grey-70 {
+    color: var(--color-grey-70);
+}
+
+.color-grey-80 {
+    color: var(--color-grey-80);
+}
+
+.color-grey-90 {
+    color: var(--color-grey-90);
+}
+
+.color-grey-100 {
+    color: var(--color-grey-100);
+}
+
 /* Add these base styles */
 :root, 
 body {

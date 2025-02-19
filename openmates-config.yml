@@ -1,0 +1,22 @@
+# This file describes how OpenMates is supposed to deal with this project.
+
+# Ignore files & paths
+ignore:
+  - ".gitignore" # ignores all files and paths listed in the .gitignore file
+
+# Coding rules for the project
+coding_rules:
+  python:
+    - "don't write the full processing in /server/api/api.py, but split up the processing"
+    - "use /server/api/endpoints for the API endpoints processing"
+    - "use /server/api/models for the database models"
+  svelte:
+    - "seperate into reusable components"
+    - "move CSS classes to /server/frontend/packages/ui/src/styles"
+    - "prevent redefining the same styles in multiple components"
+
+# Explainations for the project structure
+structure_expainations:
+  /server/frontend/packages/ui/src/styles:
+    - "This directory should contain the CSS styles for the svelte components."
+    - "Prevent redefining the same styles in multiple components."
