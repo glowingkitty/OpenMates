@@ -161,8 +161,9 @@ app = FastAPI(
 
 # Add logging for CORS configuration
 logger.debug("Setting up CORS middleware with following configuration:")
+is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
 allowed_origins = [
-    os.getenv("FRONTEND_URL", "http://localhost:5174"),
+    os.getenv("FRONTEND_URL", "http://localhost:5174") if is_dev else
     os.getenv("PRODUCTION_URL", "https://app.openmates.org")
 ]
 logger.debug(f"Allowed origins: {allowed_origins}")
@@ -176,6 +177,12 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "Accept", "Origin"],  # Added 'Origin'
     expose_headers=["*"],
 )
+
+async def validate_origin(request: Request):
+    origin = request.headers.get("origin")
+    if not origin or origin not in allowed_origins:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    return True
 
 
 # Add rate limiting
@@ -486,7 +493,8 @@ REFRESH_TOKEN_BLOCKLIST: Set[str] = set()
 async def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    response: Response = None
+    response: Response = None,
+    _: bool = Depends(validate_origin)
 ) -> Token:
     """
     Authenticate user and return JWT tokens
@@ -571,7 +579,8 @@ async def login_for_access_token(
 @users_router.post("/v1/auth/refresh")
 async def refresh_token(
     response: Response,
-    refresh_token: str = Cookie(None)
+    refresh_token: str = Cookie(None),
+    _: bool = Depends(validate_origin)
 ) -> Token:
     """
     Use refresh token to get new access token
@@ -645,7 +654,8 @@ async def refresh_token(
 @users_router.post("/v1/auth/logout")
 async def logout(
     response: Response,
-    refresh_token: str = Cookie(None)
+    refresh_token: str = Cookie(None),
+    _: bool = Depends(validate_origin)
 ):
     """
     Clear auth cookies and invalidate refresh token
@@ -858,7 +868,8 @@ async def generate_new_user_api_token(
 @limiter.limit("5/minute")
 async def check_invite_code_valid(
     request: Request,
-    parameters: InviteCodeValidationInput
+    parameters: InviteCodeValidationInput,
+    _: bool = Depends(validate_origin)
 ) -> InviteCodeValidationOutput:
     """
     Check if an invite code is valid
