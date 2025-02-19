@@ -7,6 +7,7 @@
     import { tooltip } from '../../actions/tooltip'; // Assuming this path
     import { chatDB } from '../../services/db';
     import { debounce } from 'lodash-es';
+    import { _ } from 'svelte-i18n';
 
     //Import extensions
     import { CustomPlaceholder } from './extensions/Placeholder';
@@ -986,7 +987,7 @@
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
                 on:click={toggleFullscreen}
-                aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                aria-label={isFullscreen ? $_('enter_message.fullscreen.exit_fullscreen.text') : $_('enter_message.fullscreen.enter_fullscreen.text')}
             ></button>
         {/if}
 
@@ -1040,14 +1041,13 @@
                 <button
                     class="clickable-icon icon_files"
                     on:click={handleFileSelect}
-                    aria-label="Attach Files" 
+                    aria-label={$_('enter_message.attachments.attach_files.text')}
                     use:tooltip
                 ></button>
-                <!-- TODO add translation for aria labels again! -->
                 <button
                     class="clickable-icon icon_maps"
                     on:click={handleLocationClick}
-                    aria-label="Share Location"
+                    aria-label={$_('enter_message.attachments.share_location.text')}
                     use:tooltip
                 ></button>
             </div>
@@ -1058,7 +1058,7 @@
                         e.preventDefault();
                         handleCameraClick();
                     }}
-                    aria-label="Take Photo"
+                    aria-label={$_('enter_message.attachments.take_photo.text')}
                     use:tooltip
                 ></button>
 
@@ -1147,7 +1147,7 @@
                         showRecordAudio = false;
                         hasRecordingStarted = false;
                     }}
-                    aria-label="Record Audio"
+                    aria-label={$_('enter_message.attachments.record_audio.text')}
                     use:tooltip
                 >
                     <div class="clickable-icon icon_recordaudio"></div>
@@ -1156,7 +1156,7 @@
                     <button
                         class="send-button"
                         on:click={handleSendMessage}
-                        aria-label="Send"
+                        aria-label={$_('enter_message.send.text')}
                     >
                        Send
                     </button>

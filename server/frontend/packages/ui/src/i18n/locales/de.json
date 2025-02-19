@@ -721,7 +721,75 @@
             "context": "Button text for taking a photo"
         }
     },
+    "audio": {
+        "playback_progress": {
+            "text": "Audio-Wiedergabefortschritt",
+            "en_original": "Audio playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "Pause",
+            "en_original": "Pause",
+            "context": "Button text for pausing audio playback"
+        },
+        "play": {
+            "text": "Abspielen",
+            "en_original": "Play",
+            "context": "Button text for playing audio"
+        }
+    },
+    "video": {
+        "playback_progress": {
+            "text": "Video-Wiedergabefortschritt",
+            "en_original": "Video playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "Pause",
+            "en_original": "Pause",
+            "context": "Button text for pausing video playback"
+        },
+        "play": {
+            "text": "Abspielen",
+            "en_original": "Play",
+            "context": "Button text for playing video"
+        }
+    },
+    "documentation": {
+        "open_documentation": {
+            "text": "Dokumentation öffnen",
+            "en_original": "Open documentation",
+            "context": "Button text for opening documentation"
+        }
+    },
+    "header": {
+        "toggle_menu": {
+            "text": "Menü umschalten",
+            "en_original": "Toggle menu",
+            "context": "Button text for toggling the main menu"
+        }
+    },
     "settings": {
+        "open_settings_menu": {
+            "text": "Einstellungen öffnen",
+            "en_original": "Open settings menu",
+            "context": "Button text for opening settings menu"
+        },
+        "close_settings_menu": {
+            "text": "Einstellungen schließen",
+            "en_original": "Close settings menu",
+            "context": "Button text for closing settings menu"
+        },
+        "search": {
+            "text": "Suche",
+            "en_original": "Search",
+            "context": "Search settings input placeholder"
+        },
+        "add_credits": {
+            "text": "Guthaben aufladen",
+            "en_original": "Add credits",
+            "context": "Button text for adding credits"
+        },
         "settings": {
             "text": "Einstellungen",
             "en_original": "Settings",

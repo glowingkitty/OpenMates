@@ -919,7 +919,63 @@
             "context": "Button text for taking a photo"
         }
     },
+    "audio": {
+        "playback_progress": {
+            "text": "Audio playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "Pause",
+            "context": "Button text for pausing audio playback"
+        },
+        "play": {
+            "text": "Play",
+            "context": "Button text for playing audio"
+        }
+    },
+    "video": {
+        "playback_progress": {
+            "text": "Video playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "Pause",
+            "context": "Button text for pausing video playback"
+        },
+        "play": {
+            "text": "Play",
+            "context": "Button text for playing video"
+        }
+    },
+    "documentation": {
+        "open_documentation": {
+            "text": "Open documentation",
+            "context": "Button text for opening documentation"
+        }
+    },
+    "header": {
+        "toggle_menu": {
+            "text": "Toggle menu",
+            "context": "Button text for toggling the main menu"
+        }
+    },
     "settings": {
+        "open_settings_menu": {
+            "text": "Open settings menu",
+            "context": "Button text for opening settings menu"
+        },
+        "close_settings_menu": {
+            "text": "Close settings menu",
+            "context": "Button text for closing settings menu"
+        },
+        "search": {
+            "text": "Search",
+            "context": "Search settings input placeholder"
+        },
+        "add_credits": {
+            "text": "Add credits",
+            "context": "Button text for adding credits"
+        },
         "settings": {
             "text": "Settings",
             "context": "Header text in settings menu"

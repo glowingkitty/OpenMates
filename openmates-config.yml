@@ -14,6 +14,7 @@ coding_rules:
     - "seperate into reusable components"
     - "move CSS classes to /server/frontend/packages/ui/src/styles"
     - "prevent redefining the same styles in multiple components"
+    - "aria-label always use translations, for example: 'aria-label={$_('chat.start_video_call.text')}', after using 'import { _ } from 'svelte-i18n';'"
 
 testing_rules:
   # add rules here for how to write tests

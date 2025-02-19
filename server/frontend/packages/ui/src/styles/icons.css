@@ -257,6 +257,40 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/user.svg');
 }
 
+.help-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: white;
+    -webkit-mask-image: url('@openmates/ui/static/icons/question.svg');
+    mask-image: url('@openmates/ui/static/icons/question.svg');
+    -webkit-mask-size: 50%;
+    mask-size: 50%;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+}
+
 .icon_rounded {
   width: 60px;
   height: 60px;

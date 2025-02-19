@@ -721,7 +721,75 @@
             "context": "Button text for taking a photo"
         }
     },
+    "audio": {
+        "playback_progress": {
+            "text": "Progreso de reproducción de audio",
+            "en_original": "Audio playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "Pausar",
+            "en_original": "Pause",
+            "context": "Button text for pausing audio playback"
+        },
+        "play": {
+            "text": "Reproducir",
+            "en_original": "Play",
+            "context": "Button text for playing audio"
+        }
+    },
+    "video": {
+        "playback_progress": {
+            "text": "Progreso de reproducción de video",
+            "en_original": "Video playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "Pausar",
+            "en_original": "Pause",
+            "context": "Button text for pausing video playback"
+        },
+        "play": {
+            "text": "Reproducir",
+            "en_original": "Play",
+            "context": "Button text for playing video"
+        }
+    },
+    "documentation": {
+        "open_documentation": {
+            "text": "Abrir documentación",
+            "en_original": "Open documentation",
+            "context": "Button text for opening documentation"
+        }
+    },
+    "header": {
+        "toggle_menu": {
+            "text": "Alternar menú",
+            "en_original": "Toggle menu",
+            "context": "Button text for toggling the main menu"
+        }
+    },
     "settings": {
+        "open_settings_menu": {
+            "text": "Abrir menú de configuración",
+            "en_original": "Open settings menu",
+            "context": "Button text for opening settings menu"
+        },
+        "close_settings_menu": {
+            "text": "Cerrar menú de configuración",
+            "en_original": "Close settings menu",
+            "context": "Button text for closing settings menu"
+        },
+        "search": {
+            "text": "Buscar",
+            "en_original": "Search",
+            "context": "Search settings input placeholder"
+        },
+        "add_credits": {
+            "text": "Añadir créditos",
+            "en_original": "Add credits",
+            "context": "Button text for adding credits"
+        },
         "settings": {
             "text": "Ajustes",
             "en_original": "Settings",

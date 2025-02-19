@@ -3,6 +3,7 @@
     import { onMount } from 'svelte';
     import { fade, scale } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
+    import { _ } from 'svelte-i18n';
     
     export let code: string;
     export let filename: string;
@@ -71,7 +72,7 @@
         <button 
             class="close-button clickable-icon icon_fullscreen" 
             on:click={handleClose}
-            aria-label="Close fullscreen view"
+            aria-label={$_('enter_message.exit_fullscreen.text')}
         ></button>
 
         <!-- Code content area -->

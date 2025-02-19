@@ -721,7 +721,75 @@
             "context": "Button text for taking a photo"
         }
     },
+    "audio": {
+        "playback_progress": {
+            "text": "音声再生の進行状況",
+            "en_original": "Audio playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "一時停止",
+            "en_original": "Pause",
+            "context": "Button text for pausing audio playback"
+        },
+        "play": {
+            "text": "再生",
+            "en_original": "Play",
+            "context": "Button text for playing audio"
+        }
+    },
+    "video": {
+        "playback_progress": {
+            "text": "動画再生の進行状況",
+            "en_original": "Video playback progress",
+            "context": "Text for playback progress"
+        },
+        "pause": {
+            "text": "一時停止",
+            "en_original": "Pause",
+            "context": "Button text for pausing video playback"
+        },
+        "play": {
+            "text": "再生",
+            "en_original": "Play",
+            "context": "Button text for playing video"
+        }
+    },
+    "documentation": {
+        "open_documentation": {
+            "text": "ドキュメントを開く",
+            "en_original": "Open documentation",
+            "context": "Button text for opening documentation"
+        }
+    },
+    "header": {
+        "toggle_menu": {
+            "text": "メニュー切り替え",
+            "en_original": "Toggle menu",
+            "context": "Button text for toggling the main menu"
+        }
+    },
     "settings": {
+        "open_settings_menu": {
+            "text": "設定メニューを開く",
+            "en_original": "Open settings menu",
+            "context": "Button text for opening settings menu"
+        },
+        "close_settings_menu": {
+            "text": "設定メニューを閉じる",
+            "en_original": "Close settings menu",
+            "context": "Button text for closing settings menu"
+        },
+        "search": {
+            "text": "検索",
+            "en_original": "Search",
+            "context": "Search settings input placeholder"
+        },
+        "add_credits": {
+            "text": "クレジットを追加",
+            "en_original": "Add credits",
+            "context": "Button text for adding credits"
+        },
         "settings": {
             "text": "設定",
             "en_original": "Settings",

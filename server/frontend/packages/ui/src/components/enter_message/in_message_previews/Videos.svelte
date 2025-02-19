@@ -453,7 +453,7 @@
             <div 
                 class="bottom-progress-bar" 
                 style="width: {progress}%"
-                aria-label="Video playback progress"
+                aria-label={$_('video.playback_progress.text')}
                 role="progressbar"
                 aria-valuemin="0"
                 aria-valuemax="100"
@@ -466,7 +466,7 @@
             <div 
                 class="progress-bar" 
                 style="width: {progress}%"
-                aria-label="Video playback progress"
+                aria-label={$_('video.playback_progress.text')}
                 role="progressbar"
                 aria-valuemin="0"
                 aria-valuemax="100"
@@ -503,7 +503,7 @@
         {#if !isYouTube}
             <button 
                 class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
-                aria-label={isPlaying ? 'Pause' : 'Play'}
+                aria-label={isPlaying ? $_('video.pause.text') : $_('video.play.text')}
                 on:click={togglePlay}
             ></button>
         {/if}

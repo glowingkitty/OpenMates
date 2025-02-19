@@ -233,3 +233,10 @@ form.hidden {
     border-radius: var(--border-radius-medium);
     margin: 1rem 0;
 }
+
+
+.help-button-container {
+    position: absolute;
+    bottom: 10px;
+    right: 0px;
+}

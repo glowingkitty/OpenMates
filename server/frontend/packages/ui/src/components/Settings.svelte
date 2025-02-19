@@ -178,7 +178,7 @@
             on:keydown={e => e.key === 'Enter' && toggleMenu()}
             role="button"
             tabindex="0"
-            aria-label="Open settings menu"
+            aria-label={$_('settings.open_settings_menu.text')}
         >
             <div class="profile-picture"></div>
             
@@ -191,7 +191,7 @@
         <div class="close-icon-container" class:visible={isMenuVisible}>
             <button 
                 class="icon-button"
-                aria-label="Close"
+                aria-label={$_('settings.close_settings_menu.text')}
                 on:click={toggleMenu}
             >
                 <div class="clickable-icon icon_close"></div>
@@ -211,7 +211,7 @@
                 <div class="header-left">
                     <button 
                         class="clickable-icon icon_search" 
-                        aria-label="Search"
+                        aria-label={$_('settings.search.text')}
                     ></button>
                 </div>
                 <div class="header-center">
@@ -226,7 +226,7 @@
                         <span class="credits-icon"></span>
                         <div class="credits-text">
                             <span class="credits-amount"><mark>4800 {$_('settings.credits.text')}</mark></span>
-                            <!-- <span class="add-credits-button" aria-label="Add credits">+</span> -->
+                            <!-- <span class="add-credits-button" aria-label={$_('settings.add_credits.text')}>+</span> -->
                         </div>
                     </div>
                 </div>

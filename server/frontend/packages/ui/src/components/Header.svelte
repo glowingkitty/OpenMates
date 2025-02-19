@@ -7,6 +7,7 @@
     import { t, waitLocale } from 'svelte-i18n';
     import { onMount, tick } from 'svelte';
     import { isMenuOpen } from '../stores/menuState';
+    import { _ } from 'svelte-i18n'; // Import translation function
 
     export let context: 'website' | 'webapp' = 'website';
     export let isLoggedIn = false;
@@ -180,7 +181,7 @@
                             <button 
                                 class="clickable-icon icon_menu"
                                 on:click={toggleMenu}
-                                aria-label="Toggle menu"
+                                aria-label={$_('header.toggle_menu.text')}
                             ></button>
                         </div>
                     {/if}
@@ -199,7 +200,7 @@
                         <button 
                             class="mobile-menu-button" 
                             on:click={toggleMobileMenu}
-                            aria-label="Toggle navigation menu"
+                            aria-label={$_('header.toggle_menu.text')}
                         >
                             <div class:open={isMobileMenuOpen} class="hamburger">
                                 <span></span>
