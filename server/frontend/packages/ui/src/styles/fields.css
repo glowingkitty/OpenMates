@@ -7,13 +7,12 @@ input[type="tel"],
 input[type="url"],
 input[type="number"] {
     /* Base dimensions and layout */
-    width: 100%;
-    max-width: 400px;
+    width: 350px;  /* Set fixed width instead of 100% */
     padding: 12px 16px 12px 45px; /* Add padding for icon */
     padding-left: 48px;
 
-    /* Add min-width to prevent text cutoff */
-    min-width: 250px;
+    /* Remove max-width since we're using fixed width */
+    min-width: unset;  /* Remove min-width */
 
     /* Modern rounded appearance */
     border-radius: 24px;  /* Fully rounded corners */
@@ -54,6 +53,8 @@ input[type="number"]:focus {
     display: flex;
     align-items: center;
     background-color: var(--color-grey-20);
+    width: 350px;  /* Add fixed width to wrapper */
+    margin: 0 auto;  /* Center the input wrapper */
 }
 
 /* Adjust the icon to be inside the input field */

@@ -111,73 +111,75 @@
         <div class="login-content">
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 {#if currentView === 'login'}
-                    <h1><mark>{$_('login.login.text')}</mark></h1>
-                    <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
+                    <div class="content-area">
+                        <h1><mark>{$_('login.login.text')}</mark></h1>
+                        <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
 
-                    <div class="form-container">
-                        <!-- Form is always rendered but initially hidden -->
-                        <form 
-                            on:submit|preventDefault={handleSubmit} 
-                            class:visible={showForm}
-                            class:hidden={!showForm}
-                        >
-                            {#if errorMessage}
-                                <div class="error-message" in:fade>
-                                    {errorMessage}
+                        <div class="form-container">
+                            <!-- Form is always rendered but initially hidden -->
+                            <form 
+                                on:submit|preventDefault={handleSubmit} 
+                                class:visible={showForm}
+                                class:hidden={!showForm}
+                            >
+                                {#if errorMessage}
+                                    <div class="error-message" in:fade>
+                                        {errorMessage}
+                                    </div>
+                                {/if}
+
+                                <div class="input-group">
+                                    <div class="input-wrapper">
+                                        <span class="clickable-icon icon_mail"></span>
+                                        <input 
+                                            type="email" 
+                                            bind:value={email}
+                                            placeholder={$_('login.email_placeholder.text')}
+                                            required
+                                            autocomplete="email"
+                                            bind:this={emailInput}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="input-group">
+                                    <div class="input-wrapper">
+                                        <span class="clickable-icon icon_secret"></span>
+                                        <input 
+                                            type="password" 
+                                            bind:value={password}
+                                            placeholder={$_('login.password_placeholder.text')}
+                                            required
+                                            autocomplete="current-password"
+                                        />
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="login-button" disabled={isLoading}>
+                                    {#if isLoading}
+                                        <span class="loading-spinner"></span>
+                                    {:else}
+                                        {$_('login.login_button.text')}
+                                    {/if}
+                                </button>
+                            </form>
+
+                            {#if $isCheckingAuth}
+                                <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
+                                    <span class="loading-spinner"></span>
+                                    <p>{$_('login.loading.text')}</p>
                                 </div>
                             {/if}
+                        </div>
 
-                            <div class="input-group" style="margin-top: 35px">
-                                <div class="input-wrapper">
-                                    <span class="clickable-icon icon_mail"></span>
-                                    <input 
-                                        type="email" 
-                                        bind:value={email}
-                                        placeholder={$_('login.email_placeholder.text')}
-                                        required
-                                        autocomplete="email"
-                                        bind:this={emailInput}
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="input-group">
-                                <div class="input-wrapper">
-                                    <span class="clickable-icon icon_secret"></span>
-                                    <input 
-                                        type="password" 
-                                        bind:value={password}
-                                        placeholder={$_('login.password_placeholder.text')}
-                                        required
-                                        autocomplete="current-password"
-                                    />
-                                </div>
-                            </div>
-
-                            <button type="submit" class="login-button" disabled={isLoading}>
-                                {#if isLoading}
-                                    <span class="loading-spinner"></span>
-                                {:else}
-                                    {$_('login.login_button.text')}
-                                {/if}
-                            </button>
-                        </form>
-
-                        {#if $isCheckingAuth}
-                            <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-                                <span class="loading-spinner"></span>
-                                <p>{$_('login.loading.text')}</p>
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div>
-                        {$_('login.not_signed_up_yet.text')}<br>
-                        <mark>
-                            <button class="text-button" on:click={switchToSignup}>
-                                {$_('login.click_here_to_create_a_new_account.text')}
-                            </button>
-                        </mark>
+                        <div>
+                            {$_('login.not_signed_up_yet.text')}<br>
+                            <mark>
+                                <button class="text-button" on:click={switchToSignup}>
+                                    {$_('login.click_here_to_create_a_new_account.text')}
+                                </button>
+                            </mark>
+                        </div>
                     </div>
                 {:else}
                     <Signup on:switchToLogin={switchToLogin} />
@@ -202,6 +204,7 @@
         overflow: hidden;
         position: relative;
         max-width: 100%;
+        min-height: 100%;
     }
 
     .login-content {
@@ -211,15 +214,23 @@
         align-items: center;
         padding: 2rem;
         z-index: 1;
+        min-height: 100%;
+        padding: 1rem;
     }
 
     .login-box {
+        width: calc(100% - 40px);
         max-width: 440px;
+        min-height: min(740px, 90vh);
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
     }
 
     .login-button {
         width: 100%;
+        max-width: 350px;
         margin: 1.5rem 0 1rem;
     }
 
@@ -265,8 +276,12 @@
 
     .form-container {
         position: relative;
-        min-height: 250px; /* Adjust based on your form height */
-        margin-top: 35px;
+        min-height: 200px;
+        margin: 1rem 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     form {
@@ -309,5 +324,28 @@
     
     .text-button:hover {
         text-decoration: underline;
+    }
+
+    /* Add media query for small heights */
+    @media (max-height: 700px) {
+        .login-box {
+            padding: 0.5rem 0;
+        }
+
+        .form-container {
+            margin: 0.5rem 0;
+            min-height: 180px;
+        }
+
+        h1, h3 {
+            margin: 0.5rem 0;
+        }
+    }
+
+    .content-area {
+        padding-top: 48px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
 </style>
