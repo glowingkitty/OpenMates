@@ -1,21 +1,35 @@
 <script lang="ts">
     import { fade } from 'svelte/transition';
+    import { onMount } from 'svelte';
     
     export let message: string;
     export let target: HTMLElement;
     
     let warning: HTMLElement;
+    let position = { top: 0, left: 0 };
     
-    function getPosition() {
-        if (!target) return { top: 0, left: 0 };
+    function updatePosition() {
+        if (!target) return;
         const rect = target.getBoundingClientRect();
-        return {
+        position = {
             top: rect.top - 8,
             left: rect.left + (rect.width / 2)
         };
     }
     
-    $: position = getPosition();
+    onMount(() => {
+        updatePosition();
+        // Update position on scroll and resize
+        window.addEventListener('scroll', updatePosition);
+        window.addEventListener('resize', updatePosition);
+        
+        return () => {
+            window.removeEventListener('scroll', updatePosition);
+            window.removeEventListener('resize', updatePosition);
+        };
+    });
+    
+    $: if (target) updatePosition();
 </script>
 
 <div 

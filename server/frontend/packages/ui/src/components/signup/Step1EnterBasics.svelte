@@ -34,6 +34,12 @@
     // Add reference for the input
     let inviteCodeInput: HTMLInputElement;
     let usernameInput: HTMLInputElement;
+    let passwordInput: HTMLInputElement;
+    let passwordRepeatInput: HTMLInputElement;
+
+    // Add state for input warnings
+    let showPasswordStrengthWarning = false;
+    let showPasswordMatchWarning = false;
 
     onMount(() => {
         // Focus the invite code input when component mounts
@@ -163,8 +169,10 @@
     const checkPasswordsMatch = debounce(() => {
         if (passwordRepeat && password !== passwordRepeat) {
             passwordError = $_('signup.passwords_do_not_match.text');
+            showPasswordMatchWarning = true;
         } else {
             passwordError = '';
+            showPasswordMatchWarning = false;
         }
     }, 500);
 
@@ -196,30 +204,36 @@
     function checkPasswordStrength(pwd: string): boolean {
         if (pwd.length < 8) {
             passwordStrengthError = $_('signup.password_too_short.text');
+            showPasswordStrengthWarning = true;
             return false;
         }
 
         if (pwd.length > 60) {
             passwordStrengthError = $_('signup.password_too_long.text');
+            showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[a-zA-Z]/.test(pwd)) {
             passwordStrengthError = $_('signup.password_needs_letter.text');
+            showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[0-9]/.test(pwd)) {
             passwordStrengthError = $_('signup.password_needs_number.text');
+            showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[^A-Za-z0-9]/.test(pwd)) {
             passwordStrengthError = $_('signup.password_needs_special.text');
+            showPasswordStrengthWarning = true;
             return false;
         }
 
         passwordStrengthError = '';
+        showPasswordStrengthWarning = false;
         return true;
     }
 
@@ -303,25 +317,28 @@
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_secret"></span>
                         <input 
+                            bind:this={passwordInput}
                             type="password" 
                             bind:value={password}
                             placeholder={$_('login.password_placeholder.text')}
                             required
                             autocomplete="new-password"
-                            class:error={passwordStrengthError}
+                            class:error={!!passwordStrengthError}
                         />
+                        {#if showPasswordStrengthWarning}
+                            <InputWarning 
+                                message={passwordStrengthError}
+                                target={passwordInput}
+                            />
+                        {/if}
                     </div>
-                    {#if passwordStrengthError}
-                        <div class="error-message password-strength-error" transition:fade>
-                            {passwordStrengthError}
-                        </div>
-                    {/if}
                 </div>
 
                 <div class="input-group">
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_secret"></span>
                         <input 
+                            bind:this={passwordRepeatInput}
                             type="password" 
                             bind:value={passwordRepeat}
                             placeholder={$_('signup.repeat_password.text')}
@@ -330,14 +347,14 @@
                             autocomplete="new-password"
                             class:error={!passwordsMatch && passwordRepeat}
                         />
+                        {#if showPasswordMatchWarning}
+                            <InputWarning 
+                                message={passwordError}
+                                target={passwordRepeatInput}
+                            />
+                        {/if}
                     </div>
                 </div>
-
-                {#if passwordError}
-                    <div class="error-message password-match-error" transition:fade>
-                        {passwordError}
-                    </div>
-                {/if}
 
                 <div class="agreement-row">
                     <Toggle bind:checked={termsAgreed} />
