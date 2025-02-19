@@ -1597,6 +1597,26 @@
             "en_original": "Don't have a personal invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
+        "checking_code": {
+            "text": "正在检查代码...",
+            "en_original": "Checking code...",
+            "context": "Text shown for the duration while the invite code is being checked"
+        },
+        "username_too_short": {
+            "text": "至少3个字符",
+            "en_original": "Minimum 3 characters",
+            "context": "Error message shown when username is too short"
+        },
+        "username_too_long": {
+            "text": "少于20个字符",
+            "en_original": "Less than 20 characters",
+            "context": "Error message shown when username is too long"
+        },
+        "username_invalid_chars": {
+            "text": "允许: 字母, 数字, _, .",
+            "en_original": "Allowed: letters, numbers, _, .",
+            "context": "Error message shown when username contains invalid characters"
+        },
         "enter_username": {
             "text": "输入用户名",
             "en_original": "Enter username",
@@ -1613,28 +1633,28 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "密码：至少8个字符",
-            "en_original": "Password: Minimum 8 characters",
+            "text": "至少8个字符",
+            "en_original": "Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "密码：少于60个字符",
-            "en_original": "Password: Less than 60 characters",
+            "text": "少于60个字符",
+            "en_original": "Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {
-            "text": "密码需要至少包含一个字母",
-            "en_original": "Password needs at least one letter",
+            "text": "至少包含一个字母",
+            "en_original": "At least one letter",
             "context": "Error message shown when password does not contain a letter"
         },
         "password_needs_number": {
-            "text": "密码需要至少包含一个数字",
-            "en_original": "Password needs at least one number",
+            "text": "至少包含一个数字",
+            "en_original": "At least one number",
             "context": "Error message shown when password does not contain a number"
         },
         "password_needs_special": {
-            "text": "密码需要至少包含一个特殊字符",
-            "en_original": "Password needs at least one special character",
+            "text": "至少包含一个特殊字符",
+            "en_original": "At least one special character",
             "context": "Error message shown when password does not contain a special character"
         },
         "agree_to": {

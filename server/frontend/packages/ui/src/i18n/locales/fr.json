@@ -1597,6 +1597,26 @@
             "en_original": "Don't have a personal invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
+        "checking_code": {
+            "text": "Vérification du code...",
+            "en_original": "Checking code...",
+            "context": "Text shown for the duration while the invite code is being checked"
+        },
+        "username_too_short": {
+            "text": "Minimum 3 caractères",
+            "en_original": "Minimum 3 characters",
+            "context": "Error message shown when username is too short"
+        },
+        "username_too_long": {
+            "text": "Moins de 20 caractères",
+            "en_original": "Less than 20 characters",
+            "context": "Error message shown when username is too long"
+        },
+        "username_invalid_chars": {
+            "text": "Autorisé: lettres, chiffres, _, .",
+            "en_original": "Allowed: letters, numbers, _, .",
+            "context": "Error message shown when username contains invalid characters"
+        },
         "enter_username": {
             "text": "Entrez votre nom d'utilisateur",
             "en_original": "Enter username",
@@ -1613,28 +1633,28 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "Mot de passe : 8 caractères minimum",
-            "en_original": "Password: Minimum 8 characters",
+            "text": "Minimum 8 caractères",
+            "en_original": "Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "Mot de passe : Moins de 60 caractères",
-            "en_original": "Password: Less than 60 characters",
+            "text": "Moins de 60 caractères",
+            "en_original": "Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {
-            "text": "Le mot de passe doit contenir au moins une lettre",
-            "en_original": "Password needs at least one letter",
+            "text": "Au moins une lettre",
+            "en_original": "At least one letter",
             "context": "Error message shown when password does not contain a letter"
         },
         "password_needs_number": {
-            "text": "Le mot de passe doit contenir au moins un chiffre",
-            "en_original": "Password needs at least one number",
+            "text": "Au moins un chiffre",
+            "en_original": "At least one number",
             "context": "Error message shown when password does not contain a number"
         },
         "password_needs_special": {
-            "text": "Le mot de passe doit contenir au moins un caractère spécial",
-            "en_original": "Password needs at least one special character",
+            "text": "Au moins un caractère spécial",
+            "en_original": "At least one special character",
             "context": "Error message shown when password does not contain a special character"
         },
         "agree_to": {

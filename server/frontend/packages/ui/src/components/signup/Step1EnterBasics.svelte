@@ -262,12 +262,6 @@
             return false;
         }
 
-        if (/\s/.test(normalizedUsername)) {
-            usernameError = $_('signup.username_no_spaces.text');
-            showUsernameWarning = true;
-            return false;
-        }
-
         usernameError = '';
         showUsernameWarning = false;
         return true;

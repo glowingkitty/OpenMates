@@ -1597,6 +1597,26 @@
             "en_original": "Don't have a personal invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
+        "checking_code": {
+            "text": "コードを確認中...",
+            "en_original": "Checking code...",
+            "context": "Text shown for the duration while the invite code is being checked"
+        },
+        "username_too_short": {
+            "text": "最低3文字必要",
+            "en_original": "Minimum 3 characters",
+            "context": "Error message shown when username is too short"
+        },
+        "username_too_long": {
+            "text": "20文字未満",
+            "en_original": "Less than 20 characters",
+            "context": "Error message shown when username is too long"
+        },
+        "username_invalid_chars": {
+            "text": "使用可能: 文字, 数字, _, .",
+            "en_original": "Allowed: letters, numbers, _, .",
+            "context": "Error message shown when username contains invalid characters"
+        },
         "enter_username": {
             "text": "ユーザー名を入力",
             "en_original": "Enter username",
@@ -1613,28 +1633,28 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "パスワード：最低8文字",
-            "en_original": "Password: Minimum 8 characters",
+            "text": "最低8文字必要",
+            "en_original": "Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "パスワード：60文字未満",
-            "en_original": "Password: Less than 60 characters",
+            "text": "60文字未満",
+            "en_original": "Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {
-            "text": "パスワードには少なくとも1つの文字が必要です",
-            "en_original": "Password needs at least one letter",
+            "text": "少なくとも1つの文字が必要",
+            "en_original": "At least one letter",
             "context": "Error message shown when password does not contain a letter"
         },
         "password_needs_number": {
-            "text": "パスワードには少なくとも1つの数字が必要です",
-            "en_original": "Password needs at least one number",
+            "text": "少なくとも1つの数字が必要",
+            "en_original": "At least one number",
             "context": "Error message shown when password does not contain a number"
         },
         "password_needs_special": {
-            "text": "パスワードには少なくとも1つの特殊文字が必要です",
-            "en_original": "Password needs at least one special character",
+            "text": "少なくとも1つの特殊文字が必要",
+            "en_original": "At least one special character",
             "context": "Error message shown when password does not contain a special character"
         },
         "agree_to": {
