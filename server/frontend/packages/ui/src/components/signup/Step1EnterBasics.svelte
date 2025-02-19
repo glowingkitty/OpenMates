@@ -325,7 +325,7 @@
                             autocomplete="new-password"
                             class:error={!!passwordStrengthError}
                         />
-                        {#if showPasswordStrengthWarning}
+                        {#if showPasswordStrengthWarning && passwordStrengthError}
                             <InputWarning 
                                 message={passwordStrengthError}
                                 target={passwordInput}
@@ -347,7 +347,7 @@
                             autocomplete="new-password"
                             class:error={!passwordsMatch && passwordRepeat}
                         />
-                        {#if showPasswordMatchWarning}
+                        {#if showPasswordMatchWarning && passwordError && passwordRepeat}
                             <InputWarning 
                                 message={passwordError}
                                 target={passwordRepeatInput}
