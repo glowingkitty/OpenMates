@@ -1602,6 +1602,11 @@
             "en_original": "Checking code...",
             "context": "Text shown for the duration while the invite code is being checked"
         },
+        "too_many_requests": {
+            "text": "Vous avez envoyé trop de requêtes. Réessayez plus tard.",
+            "en_original": "You sent too many requests. Try again later.",
+            "context": "Error message shown when too many requests have been made"
+        },
         "username_too_short": {
             "text": "Minimum 3 caractères",
             "en_original": "Minimum 3 characters",

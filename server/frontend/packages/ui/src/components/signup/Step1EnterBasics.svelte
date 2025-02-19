@@ -7,7 +7,7 @@
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../config/links';
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import InputWarning from '../common/InputWarning.svelte';
     
     const dispatch = createEventDispatcher();
@@ -52,12 +52,42 @@
     let usernameError = '';
     let isUsernameValidationPending = false;
 
+    const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
+    let isRateLimited = false;
+    let rateLimitTimer: ReturnType<typeof setTimeout>;
+
     onMount(() => {
-        // Focus the invite code input when component mounts
-        if (inviteCodeInput) {
+        // Check if we're still rate limited
+        const rateLimitTimestamp = localStorage.getItem('inviteCodeRateLimit');
+        if (rateLimitTimestamp) {
+            const timeLeft = parseInt(rateLimitTimestamp) + RATE_LIMIT_DURATION - Date.now();
+            if (timeLeft > 0) {
+                isRateLimited = true;
+                setRateLimitTimer(timeLeft);
+            } else {
+                localStorage.removeItem('inviteCodeRateLimit');
+            }
+        }
+
+        // Focus the invite code input when component mounts (if not rate limited)
+        if (inviteCodeInput && !isRateLimited) {
             inviteCodeInput.focus();
         }
     });
+
+    onDestroy(() => {
+        if (rateLimitTimer) {
+            clearTimeout(rateLimitTimer);
+        }
+    });
+
+    function setRateLimitTimer(duration: number) {
+        if (rateLimitTimer) clearTimeout(rateLimitTimer);
+        rateLimitTimer = setTimeout(() => {
+            isRateLimited = false;
+            localStorage.removeItem('inviteCodeRateLimit');
+        }, duration);
+    }
 
     // Watch for changes in isValidated
     $: if (isValidated && usernameInput) {
@@ -141,6 +171,13 @@
             });
 
             const data = await response.json();
+
+            if (response.status === 429) {
+                isRateLimited = true;
+                localStorage.setItem('inviteCodeRateLimit', Date.now().toString());
+                setRateLimitTimer(RATE_LIMIT_DURATION);
+                return;
+            }
 
             if (response.ok && data.valid) {
                 isValidated = true;
@@ -389,25 +426,31 @@
         {#if !isValidated}
             <form>
                 <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_secret"></span>
-                        <input 
-                            bind:this={inviteCodeInput}
-                            type="text" 
-                            bind:value={inviteCode}
-                            on:input={handleInviteCodeInput}
-                            on:paste={handlePaste}
-                            placeholder={$_('signup.enter_personal_invite_code.text')}
-                            maxlength="14"
-                            disabled={isLoading}
-                        />
-                        {#if showWarning}
-                            <InputWarning 
-                                message={$_('signup.code_is_invalid.text')}
-                                target={inviteCodeInput}
+                    {#if isRateLimited}
+                        <div class="rate-limit-message" transition:fade>
+                            {$_('signup.too_many_requests.text')}
+                        </div>
+                    {:else}
+                        <div class="input-wrapper">
+                            <span class="clickable-icon icon_secret"></span>
+                            <input 
+                                bind:this={inviteCodeInput}
+                                type="text" 
+                                bind:value={inviteCode}
+                                on:input={handleInviteCodeInput}
+                                on:paste={handlePaste}
+                                placeholder={$_('signup.enter_personal_invite_code.text')}
+                                maxlength="14"
+                                disabled={isLoading}
                             />
-                        {/if}
-                    </div>
+                            {#if showWarning}
+                                <InputWarning 
+                                    message={$_('signup.code_is_invalid.text')}
+                                    target={inviteCodeInput}
+                                />
+                            {/if}
+                        </div>
+                    {/if}
                     {#if isLoading}
                         <div class="loading-message-container" transition:fade>
                             <div class="loading-message">
@@ -541,16 +584,3 @@
         {/if}
     </div>
 </div>
-
-<style>
-    /* ...existing styles... */
-    
-    .loading-message-container {
-        margin-top: 20px;
-    }
-    
-    .loading-message {
-        color: var(--color-grey-60);
-        text-align: center;
-    }
-</style>

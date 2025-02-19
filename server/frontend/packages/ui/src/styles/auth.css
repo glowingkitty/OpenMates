@@ -215,3 +215,21 @@ form.hidden {
     opacity: 0;
     pointer-events: none;
 }
+
+.loading-message-container {
+    margin-top: 20px;
+}
+
+.loading-message {
+    color: var(--color-grey-60);
+    text-align: center;
+}
+
+.rate-limit-message {
+    text-align: center;
+    color: var(--color-warning);
+    padding: 1rem;
+    background: var(--color-warning-bg);
+    border-radius: var(--border-radius-medium);
+    margin: 1rem 0;
+}
