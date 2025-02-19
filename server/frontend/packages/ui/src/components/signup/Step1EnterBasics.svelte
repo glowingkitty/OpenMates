@@ -212,141 +212,143 @@
     }
 </script>
 
-<div class="signup-container">
-    <div class="nav-area">
-        <button class="back-link" on:click={handleLoginClick}>
-            <div class="clickable-icon icon_back"></div>
-            {$_('login.login_button.text')}
-        </button>
-    </div>
+<div class="nav-area">
+    <button class="back-link" on:click={handleLoginClick}>
+        <div class="clickable-icon icon_back"></div>
+        {$_('login.login_button.text')}
+    </button>
+</div>
+
+<div class="content-area">
+    <h1><mark>{$_('signup.sign_up.text')}</mark></h1>
+    <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
     
-    <div class="content-area">
-        <h1><mark>{$_('signup.sign_up.text')}</mark></h1>
-        <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
-        
-        <div class="form-container">
-            {#if !isValidated}
-                <form>
-                    {#if errorMessage}
-                        <div class="error-message" transition:fade>
-                            {errorMessage}
+    <div class="form-container">
+        {#if !isValidated}
+            <form>
+                {#if errorMessage}
+                    <div class="error-message" transition:fade>
+                        {errorMessage}
+                    </div>
+                {/if}
+
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <span class="clickable-icon icon_secret"></span>
+                        <input 
+                            type="text" 
+                            bind:value={inviteCode}
+                            on:input={handleInviteCodeInput}
+                            on:paste={handlePaste}
+                            placeholder={$_('signup.enter_personal_invite_code.text')}
+                            maxlength="14"
+                            disabled={isLoading}
+                        />
+                    </div>
+                </div>
+            </form>
+
+        {:else}
+            <form on:submit={handleSubmit}>
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <span class="clickable-icon icon_user"></span>
+                        <input 
+                            type="text" 
+                            bind:value={username}
+                            placeholder={$_('signup.enter_username.text')}
+                            required
+                            autocomplete="username"
+                        />
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <span class="clickable-icon icon_mail"></span>
+                        <input 
+                            type="email" 
+                            bind:value={email}
+                            placeholder={$_('login.email_placeholder.text')}
+                            required
+                            autocomplete="email"
+                        />
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <span class="clickable-icon icon_secret"></span>
+                        <input 
+                            type="password" 
+                            bind:value={password}
+                            placeholder={$_('login.password_placeholder.text')}
+                            required
+                            autocomplete="new-password"
+                            class:error={passwordStrengthError}
+                        />
+                    </div>
+                    {#if passwordStrengthError}
+                        <div class="error-message password-strength-error" transition:fade>
+                            {passwordStrengthError}
                         </div>
                     {/if}
+                </div>
 
-                    <div class="input-group">
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_secret"></span>
-                            <input 
-                                type="text" 
-                                bind:value={inviteCode}
-                                on:input={handleInviteCodeInput}
-                                on:paste={handlePaste}
-                                placeholder={$_('signup.enter_personal_invite_code.text')}
-                                maxlength="14"
-                                disabled={isLoading}
-                            />
-                        </div>
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <span class="clickable-icon icon_secret"></span>
+                        <input 
+                            type="password" 
+                            bind:value={passwordRepeat}
+                            placeholder={$_('signup.repeat_password.text')}
+                            required
+                            maxlength="60"
+                            autocomplete="new-password"
+                            class:error={!passwordsMatch && passwordRepeat}
+                        />
                     </div>
-                </form>
+                </div>
 
-                <WaitingList showPersonalInviteMessage={true} />
-            {:else}
-                <form on:submit={handleSubmit}>
-                    <div class="input-group">
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_user"></span>
-                            <input 
-                                type="text" 
-                                bind:value={username}
-                                placeholder={$_('signup.enter_username.text')}
-                                required
-                                autocomplete="username"
-                            />
-                        </div>
+                {#if passwordError}
+                    <div class="error-message password-match-error" transition:fade>
+                        {passwordError}
                     </div>
+                {/if}
 
-                    <div class="input-group">
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_mail"></span>
-                            <input 
-                                type="email" 
-                                bind:value={email}
-                                placeholder={$_('login.email_placeholder.text')}
-                                required
-                                autocomplete="email"
-                            />
-                        </div>
+                <div class="agreement-row">
+                    <Toggle bind:checked={termsAgreed} />
+                    <div class="agreement-text">
+                        {$_('signup.agree_to.text')} 
+                        <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
+                            <mark>{$_('signup.terms_of_service.text')}</mark>
+                        </a>
                     </div>
+                </div>
 
-                    <div class="input-group">
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_secret"></span>
-                            <input 
-                                type="password" 
-                                bind:value={password}
-                                placeholder={$_('login.password_placeholder.text')}
-                                required
-                                autocomplete="new-password"
-                                class:error={passwordStrengthError}
-                            />
-                        </div>
-                        {#if passwordStrengthError}
-                            <div class="error-message password-strength-error" transition:fade>
-                                {passwordStrengthError}
-                            </div>
-                        {/if}
+                <div class="agreement-row">
+                    <Toggle bind:checked={privacyAgreed} />
+                    <div class="agreement-text">
+                        {$_('signup.agree_to.text')} 
+                        <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
+                            <mark>{$_('signup.privacy_policy.text')}</mark>
+                        </a>
                     </div>
+                </div>
 
-                    <div class="input-group">
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_secret"></span>
-                            <input 
-                                type="password" 
-                                bind:value={passwordRepeat}
-                                placeholder={$_('signup.repeat_password.text')}
-                                required
-                                maxlength="60"
-                                autocomplete="new-password"
-                                class:error={!passwordsMatch && passwordRepeat}
-                            />
-                        </div>
-                    </div>
-
-                    {#if passwordError}
-                        <div class="error-message password-match-error" transition:fade>
-                            {passwordError}
-                        </div>
-                    {/if}
-
-                    <div class="agreement-row">
-                        <Toggle bind:checked={termsAgreed} />
-                        <div class="agreement-text">
-                            {$_('signup.agree_to.text')} 
-                            <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
-                                <mark>{$_('signup.terms_of_service.text')}</mark>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="agreement-row">
-                        <Toggle bind:checked={privacyAgreed} />
-                        <div class="agreement-text">
-                            {$_('signup.agree_to.text')} 
-                            <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
-                                <mark>{$_('signup.privacy_policy.text')}</mark>
-                            </a>
-                        </div>
-                    </div>
-
-                    <button 
-                        type="submit" 
-                        class="signup-button" 
-                        disabled={!isFormValid}
-                    >
-                        {$_('signup.create_new_account.text')}
-                    </button>
-                </form>
-            {/if}
-        </div>
+                <button 
+                    type="submit" 
+                    class="signup-button" 
+                    disabled={!isFormValid}
+                >
+                    {$_('signup.create_new_account.text')}
+                </button>
+            </form>
+        {/if}
     </div>
+    {#if !isValidated}
+    <div class="bottom-positioned">
+        <WaitingList showPersonalInviteMessage={true} />
+    </div>
+    {/if}
 </div>

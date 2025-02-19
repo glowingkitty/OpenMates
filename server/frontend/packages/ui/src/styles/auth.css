@@ -37,8 +37,7 @@
 /* Shared form styles */
 .form-container {
     position: relative;
-    min-height: 200px;
-    margin: 1rem 0;
+    margin: 40px 0;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -117,9 +116,6 @@
 
 .content-area {
     padding-top: 20px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
 }
 
 .back-link {
@@ -199,4 +195,11 @@ form.visible {
 
 form.hidden {
     opacity: 0;
+}
+
+.bottom-positioned {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
 }
