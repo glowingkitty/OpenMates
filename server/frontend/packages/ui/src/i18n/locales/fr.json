@@ -1682,15 +1682,10 @@
             "en_original": "Click here to send again",
             "context": "Button text for resending the one-time code via email"
         },
-        "personal_invite_code_invalid": {
-            "text": "Désolé, votre code d'invitation personnel n'est pas valide.",
-            "en_original": "Sorry, your personal invite code is invalid.",
-            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
-        },
-        "personal_invite_code_already_used": {
-            "text": "Il a probablement déjà été utilisé.",
-            "en_original": "It probably has been used already.",
-            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        "code_is_invalid": {
+            "text": "Le code est invalide",
+            "en_original": "Code is invalid",
+            "context": "Error message shown when code is invalid"
         },
         "skip": {
             "text": "Passer",

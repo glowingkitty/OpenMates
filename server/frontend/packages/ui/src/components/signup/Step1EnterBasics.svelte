@@ -8,6 +8,7 @@
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../config/links';
     import { onMount } from 'svelte';
+    import InputWarning from '../common/InputWarning.svelte';
     
     const dispatch = createEventDispatcher();
 
@@ -15,7 +16,7 @@
     let isValidFormat = false;
     let isLoading = false;
     let isValidated = false;
-    let errorMessage = '';
+    let showWarning = false;
 
     // Signup form fields
     let username = '';
@@ -106,7 +107,7 @@
     // Validate invite code with server
     async function validateInviteCode() {
         isLoading = true;
-        errorMessage = '';
+        showWarning = false;
 
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.signup.check_invite_token_valid), {
@@ -122,12 +123,12 @@
             if (response.ok && data.valid) {
                 isValidated = true;
             } else {
-                errorMessage = 'Invalid invite code';
+                showWarning = true;
                 isValidated = false;
             }
         } catch (error) {
             console.error('Error validating invite code:', error);
-            errorMessage = 'Error validating invite code';
+            showWarning = true;
             isValidated = false;
         } finally {
             isLoading = false;
@@ -246,12 +247,6 @@
     <div class="form-container">
         {#if !isValidated}
             <form>
-                {#if errorMessage}
-                    <div class="error-message" transition:fade>
-                        {errorMessage}
-                    </div>
-                {/if}
-
                 <div class="input-group">
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_secret"></span>
@@ -265,6 +260,12 @@
                             maxlength="14"
                             disabled={isLoading}
                         />
+                        {#if showWarning}
+                            <InputWarning 
+                                message={$_('signup.code_is_invalid.text')}
+                                target={inviteCodeInput}
+                            />
+                        {/if}
                     </div>
                 </div>
             </form>

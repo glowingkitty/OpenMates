@@ -1682,15 +1682,10 @@
             "en_original": "Click here to send again",
             "context": "Button text for resending the one-time code via email"
         },
-        "personal_invite_code_invalid": {
-            "text": "申し訳ありません。招待コードが無効です。",
-            "en_original": "Sorry, your personal invite code is invalid.",
-            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
-        },
-        "personal_invite_code_already_used": {
-            "text": "すでに使用されている可能性があります。",
-            "en_original": "It probably has been used already.",
-            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        "code_is_invalid": {
+            "text": "コードが無効です",
+            "en_original": "Code is invalid",
+            "context": "Error message shown when code is invalid"
         },
         "skip": {
             "text": "スキップ",

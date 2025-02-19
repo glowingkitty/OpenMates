@@ -416,13 +416,9 @@
             "text": "Click here to send again",
             "context": "Button text for resending the one-time code via email"
         },
-        "personal_invite_code_invalid": {
-            "text": "Sorry, your personal invite code is invalid.",
-            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
-        },
-        "personal_invite_code_already_used": {
-            "text": "It probably has been used already.",
-            "context": "in message 'Sorry, your personal invite code is invalid. It probably has been used already.'"
+        "code_is_invalid": {
+            "text": "Code is invalid",
+            "context": "Error message shown when code is invalid"
         },
         "skip": {
             "text": "Skip",
