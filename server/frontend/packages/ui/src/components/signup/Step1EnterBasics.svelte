@@ -47,6 +47,11 @@
     // Add email validation state tracker
     let isEmailValidationPending = false;
 
+    // Add username validation state
+    let showUsernameWarning = false;
+    let usernameError = '';
+    let isUsernameValidationPending = false;
+
     onMount(() => {
         // Focus the invite code input when component mounts
         if (inviteCodeInput) {
@@ -220,6 +225,60 @@
         isEmailValidationPending = false;
     }, 800);
 
+    // Update username validation function
+    const checkUsername = (username: string): boolean => {
+        if (!username) {
+            usernameError = '';
+            showUsernameWarning = false;
+            return true;
+        }
+
+        // Normalize the username to handle combining characters
+        const normalizedUsername = username.normalize('NFC');
+
+        if (normalizedUsername.length < 3) {
+            usernameError = $_('signup.username_too_short.text');
+            showUsernameWarning = true;
+            return false;
+        }
+
+        if (normalizedUsername.length > 20) {
+            usernameError = $_('signup.username_too_long.text');
+            showUsernameWarning = true;
+            return false;
+        }
+
+        // Check for at least one letter (including international letters)
+        if (!/\p{L}/u.test(normalizedUsername)) {
+            usernameError = $_('signup.password_needs_letter.text');
+            showUsernameWarning = true;
+            return false;
+        }
+
+        // Allow letters (including international), numbers, dots, and underscoress        // Include specific Unicode ranges for Thai [\u0E00-\u0E7F]
+        if (!/^[\p{L}\p{M}0-9._]+$/u.test(normalizedUsername)) {
+            usernameError = $_('signup.username_invalid_chars.text');
+            showUsernameWarning = true;
+            return false;
+        }
+
+        if (/\s/.test(normalizedUsername)) {
+            usernameError = $_('signup.username_no_spaces.text');
+            showUsernameWarning = true;
+            return false;
+        }
+
+        usernameError = '';
+        showUsernameWarning = false;
+        return true;
+    };
+
+    // Add debounced username check
+    const debouncedCheckUsername = debounce((username: string) => {
+        isUsernameValidationPending = false;
+        checkUsername(username);
+    }, 500);
+
     // Update reactive statements
     $: {
         if (password || passwordRepeat) {
@@ -232,6 +291,8 @@
 
     // Helper function to check if form is valid
     $: isFormValid = username && 
+                     !usernameError &&
+                     !isUsernameValidationPending &&
                      email && 
                      !emailError &&
                      !isEmailValidationPending &&
@@ -298,6 +359,14 @@
             isEmailValidationPending = false;
         }
     }
+
+    // Update reactive statements to include username validation
+    $: {
+        if (username) {
+            isUsernameValidationPending = true;
+            debouncedCheckUsername(username);
+        }
+    }
 </script>
 
 <div class="nav-area">
@@ -349,7 +418,14 @@
                             placeholder={$_('signup.enter_username.text')}
                             required
                             autocomplete="username"
+                            class:error={!!usernameError}
                         />
+                        {#if showUsernameWarning && usernameError}
+                            <InputWarning 
+                                message={usernameError}
+                                target={usernameInput}
+                            />
+                        {/if}
                     </div>
                 </div>
 
