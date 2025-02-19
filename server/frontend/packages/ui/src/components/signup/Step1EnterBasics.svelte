@@ -371,49 +371,6 @@
         margin-top: 35px;
     }
 
-    .input-group {
-        margin-bottom: 1rem;
-    }
-
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-
-    .input-wrapper .clickable-icon {
-        position: absolute;
-        left: 1rem;
-        color: var(--color-grey-60);
-        z-index: 1;
-    }
-
-    input {
-        width: 100%;
-        padding: 12px 16px 12px 45px;
-        border: 2px solid var(--color-grey-0);
-        border-radius: 24px;
-        font-size: 16px;
-        transition: border-color 0.2s;
-        background-color: var(--color-grey-0);
-        color: var(--color-grey-100);
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-    }
-
-    input:focus {
-        border-color: var(--color-grey-50);
-        outline: none;
-    }
-
-    input:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    input.error {
-        border-color: var(--color-error);
-    }
-
     .error-message {
         background: var(--color-error-light);
         color: var(--color-error);

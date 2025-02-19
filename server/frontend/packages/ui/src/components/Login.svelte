@@ -113,14 +113,6 @@
                 {#if currentView === 'login'}
                     <h1><mark>{$_('login.login.text')}</mark></h1>
                     <h3>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h3>
-                    <div>
-                        {$_('login.not_signed_up_yet.text')}<br>
-                        <mark>
-                            <button class="text-button" on:click={switchToSignup}>
-                                {$_('login.click_here_to_create_a_new_account.text')}
-                            </button>
-                        </mark>
-                    </div>
 
                     <div class="form-container">
                         <!-- Form is always rendered but initially hidden -->
@@ -178,6 +170,15 @@
                             </div>
                         {/if}
                     </div>
+
+                    <div>
+                        {$_('login.not_signed_up_yet.text')}<br>
+                        <mark>
+                            <button class="text-button" on:click={switchToSignup}>
+                                {$_('login.click_here_to_create_a_new_account.text')}
+                            </button>
+                        </mark>
+                    </div>
                 {:else}
                     <Signup on:switchToLogin={switchToLogin} />
                 {/if}
@@ -215,42 +216,6 @@
     .login-box {
         max-width: 440px;
         text-align: center;
-    }
-    
-    .input-group {
-        margin-bottom: 1rem;
-    }
-
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        background-color: var(--color-grey-20);
-    }
-
-    /* Adjust the icon to be inside the input field */
-    .input-wrapper .clickable-icon {
-        position: absolute; /* Keep it absolute */
-        left: 1rem; /* Position it inside the input */
-        color: var(--color-grey-60);
-        z-index: 1; /* Ensure it appears above the input */
-    }
-
-    input {
-        width: 100% !important;
-        padding: 12px 16px 12px 45px !important; /* Adjust padding to accommodate the icon in px */
-        border: 2px solid var(--color-grey-0) !important;
-        border-radius: 24px !important;
-        font-size: 16px !important;
-        transition: border-color 0.2s !important;
-        background-color: var(--color-grey-0) !important;
-        color: var(--color-grey-100) !important;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25) !important;
-    }
-
-    input:focus {
-        border-color: var(--color-grey-50) !important;
-        outline: none !important;
     }
 
     .login-button {
