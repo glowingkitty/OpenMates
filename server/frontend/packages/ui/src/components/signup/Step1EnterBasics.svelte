@@ -408,6 +408,13 @@
                             />
                         {/if}
                     </div>
+                    {#if isLoading}
+                        <div class="loading-message-container" transition:fade>
+                            <div class="loading-message">
+                                {$_('signup.checking_code.text')}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </form>
 
@@ -534,3 +541,16 @@
         {/if}
     </div>
 </div>
+
+<style>
+    /* ...existing styles... */
+    
+    .loading-message-container {
+        margin-top: 20px;
+    }
+    
+    .loading-message {
+        color: var(--color-grey-60);
+        text-align: center;
+    }
+</style>
