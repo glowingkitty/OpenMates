@@ -27,7 +27,7 @@
 
 .login-box {
     width: 440px;
-    min-height: min(740px, 90vh);
+    min-height: min(740px, 70vh);
     text-align: center;
     box-sizing: border-box;
     position: relative;
