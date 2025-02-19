@@ -1,9 +1,14 @@
 <script lang="ts">
     import DiscordButton from './DiscordButton.svelte';
     import { _ } from 'svelte-i18n';
+
+    export let showPersonalInviteMessage = false;
 </script>
 
 <div class="waiting-list-section">
+    {#if showPersonalInviteMessage}
+        <p class="discord-text">{$_('signup.dont_have_personal_invite_code.text')}</p>
+    {/if}
     <div class="content-wrapper">
         <div class="discord-content">
             <p class="discord-text">

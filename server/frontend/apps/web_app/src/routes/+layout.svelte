@@ -7,6 +7,7 @@
     import '@repo/ui/src/styles/theme.css';
     import '@repo/ui/src/styles/fonts.css';
     import '@repo/ui/src/styles/icons.css';
+    import '@repo/ui/src/styles/auth.css';
     import {
         // components
         MetaTags,

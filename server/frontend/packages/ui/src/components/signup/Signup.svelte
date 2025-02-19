@@ -12,10 +12,3 @@
 <div class="signup-content">
     <Step1EnterBasics on:switchToLogin={handleSwitchToLogin} />
 </div>
-
-<style>
-    .signup-content {
-        width: 440px;
-        height: 740px;
-    }
-</style>
