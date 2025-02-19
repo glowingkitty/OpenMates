@@ -361,11 +361,11 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "Password too short",
+            "text": "Password: Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "Password too long",
+            "text": "Password: Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {

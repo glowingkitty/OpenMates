@@ -191,10 +191,12 @@ form {
 
 form.visible {
     opacity: 1;
+    pointer-events: auto;
 }
 
 form.hidden {
     opacity: 0;
+    pointer-events: none;
 }
 
 .bottom-positioned {
@@ -202,4 +204,14 @@ form.hidden {
     bottom: 0px;
     left: 0px;
     right: 0px;
+}
+
+.bottom-positioned.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.bottom-positioned.hidden {
+    opacity: 0;
+    pointer-events: none;
 }

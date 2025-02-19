@@ -1613,13 +1613,13 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "密码太短",
-            "en_original": "Password too short",
+            "text": "密码：至少8个字符",
+            "en_original": "Password: Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "密码太长",
-            "en_original": "Password too long",
+            "text": "密码：少于60个字符",
+            "en_original": "Password: Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {

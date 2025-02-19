@@ -172,7 +172,7 @@
                             {/if}
                         </div>
 
-                        <div class="bottom-positioned">
+                        <div class="bottom-positioned" class:visible={showForm} hidden={!showForm}>
                             {$_('login.not_signed_up_yet.text')}<br>
                             <mark>
                                 <button class="text-button" on:click={switchToSignup}>

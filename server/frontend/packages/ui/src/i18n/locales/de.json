@@ -1613,13 +1613,13 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "Passwort zu kurz",
-            "en_original": "Password too short",
+            "text": "Passwort: Mindestens 8 Zeichen",
+            "en_original": "Password: Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "Passwort zu lang",
-            "en_original": "Password too long",
+            "text": "Passwort: Weniger als 60 Zeichen",
+            "en_original": "Password: Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {

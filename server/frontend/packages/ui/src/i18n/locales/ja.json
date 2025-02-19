@@ -1613,13 +1613,13 @@
             "context": "Error message shown when passwords do not match"
         },
         "password_too_short": {
-            "text": "パスワードが短すぎます",
-            "en_original": "Password too short",
+            "text": "パスワード：最低8文字",
+            "en_original": "Password: Minimum 8 characters",
             "context": "Error message shown when password is too short"
         },
         "password_too_long": {
-            "text": "パスワードが長すぎます",
-            "en_original": "Password too long",
+            "text": "パスワード：60文字未満",
+            "en_original": "Password: Less than 60 characters",
             "context": "Error message shown when password is too long"
         },
         "password_needs_letter": {
