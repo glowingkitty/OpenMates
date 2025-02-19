@@ -7,7 +7,8 @@
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../config/links';
-
+    import { onMount } from 'svelte';
+    
     const dispatch = createEventDispatcher();
 
     let inviteCode = '';
@@ -28,6 +29,25 @@
 
     let passwordError = '';
     let passwordStrengthError = '';
+
+    // Add reference for the input
+    let inviteCodeInput: HTMLInputElement;
+    let usernameInput: HTMLInputElement;
+
+    onMount(() => {
+        // Focus the invite code input when component mounts
+        if (inviteCodeInput) {
+            inviteCodeInput.focus();
+        }
+    });
+
+    // Watch for changes in isValidated
+    $: if (isValidated && usernameInput) {
+        // Use tick to ensure DOM is updated
+        tick().then(() => {
+            usernameInput.focus();
+        });
+    }
 
     function handleLoginClick() {
         dispatch('switchToLogin');
@@ -236,6 +256,7 @@
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_secret"></span>
                         <input 
+                            bind:this={inviteCodeInput}
                             type="text" 
                             bind:value={inviteCode}
                             on:input={handleInviteCodeInput}
@@ -254,6 +275,7 @@
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_user"></span>
                         <input 
+                            bind:this={usernameInput}
                             type="text" 
                             bind:value={username}
                             placeholder={$_('signup.enter_username.text')}

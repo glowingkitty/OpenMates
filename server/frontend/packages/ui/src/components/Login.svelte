@@ -36,8 +36,12 @@
         currentView = 'signup';
     }
     
-    function switchToLogin() {
+    async function switchToLogin() {
         currentView = 'login';
+        await tick();
+        if (emailInput) {
+            emailInput.focus();
+        }
     }
 
     onMount(() => {

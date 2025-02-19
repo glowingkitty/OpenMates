@@ -15,6 +15,12 @@ coding_rules:
     - "move CSS classes to /server/frontend/packages/ui/src/styles"
     - "prevent redefining the same styles in multiple components"
 
+testing_rules:
+  # add rules here for how to write tests
+
+documentation_rules:
+  # add rules here for how to write and when to update documentation
+
 # Explainations for the project structure
 structure_expainations:
   /server/frontend/packages/ui/src/styles:
