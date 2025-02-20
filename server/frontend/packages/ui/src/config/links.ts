@@ -54,11 +54,22 @@ export const routes = {
     webapp: import.meta.env.DEV ? getBaseUrl('webapp') : null,
     docs: {
         main: import.meta.env.DEV ? "/docs" : null,
-        userGuide: import.meta.env.DEV ? "/docs/user_guide" : null,
+        userGuide: import.meta.env.DEV ? "/docs/userguide" : null,
+        userGuide_signup_invitecode: import.meta.env.DEV ? "/docs/userguide/signup/invite-code" : null,
+        userGuide_signup_basics: import.meta.env.DEV ? "/docs/userguide/signup/basics" : null,
+        userGuide_signup_emailverification: import.meta.env.DEV ? "/docs/userguide/signup/email-verification" : null,
+        userGuide_signup_profileimage: import.meta.env.DEV ? "/docs/userguide/signup/profile-image" : null,
+        userGuide_signup_2fa: import.meta.env.DEV ? "/docs/userguide/signup/2fa" : null,
+        userGuide_signup_backupcodes: import.meta.env.DEV ? "/docs/userguide/signup/backup-codes" : null,
+        userGuide_signup_2fareminder: import.meta.env.DEV ? "/docs/userguide/signup/2fa-reminder" : null,
+        userGuide_signup_settings: import.meta.env.DEV ? "/docs/userguide/signup/settings" : null,
+        userGuide_signup_mates: import.meta.env.DEV ? "/docs/userguide/signup/mates" : null,
+        userGuide_signup_payperuse: import.meta.env.DEV ? "/docs/userguide/signup/pay-per-use" : null,
+        userGuide_signup_payment: import.meta.env.DEV ? "/docs/userguide/signup/payment" : null,
         api: import.meta.env.DEV ? "/docs/api" : null,
         roadmap: import.meta.env.DEV ? "/docs/roadmap" : null,
-        designGuidelines: import.meta.env.DEV ? "/docs/design_guidelines" : null,
-        designSystem: import.meta.env.DEV ? "/docs/design_system" : null
+        designGuidelines: import.meta.env.DEV ? "/docs/designguidelines" : null,
+        designSystem: import.meta.env.DEV ? "/docs/designsystem" : null
     }
 } as const;
 

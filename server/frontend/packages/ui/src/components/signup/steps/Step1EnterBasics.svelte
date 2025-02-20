@@ -15,7 +15,7 @@
     let inviteCode = '';
     let isValidFormat = false;
     let isLoading = false;
-    let isValidated = false;
+    export let isValidated = false;
     let showWarning = false;
 
     // Signup form fields
