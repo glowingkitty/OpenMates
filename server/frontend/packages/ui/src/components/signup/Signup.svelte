@@ -15,6 +15,8 @@
     import Step3BottomContent from './steps/step3/Step3BottomContent.svelte';
     // ... import other step contents
     
+    import SignupStatusbar from './SignupStatusbar.svelte';
+
     const dispatch = createEventDispatcher();
 
     let currentStep = 1;
@@ -106,6 +108,11 @@
                     </div>
                 {/key}
             </div>
+
+            <!-- Add status bar after bottom content -->
+            {#if currentStep > 1}
+                <SignupStatusbar {currentStep} />
+            {/if}
         </div>
     {/if}
 
@@ -119,3 +126,11 @@
         <div class="help-button"></div>
     </a>
 </div>
+
+<style>
+    .step-layout {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+</style>
