@@ -91,7 +91,9 @@
     class:initial-load={isInitialLoad}
     class:login-mode={!$isAuthenticated}>
     <Header context="webapp" isLoggedIn={$isAuthenticated} />
-    <div class="chat-container" class:menu-open={menuClass}>
+    <div class="chat-container" 
+        class:menu-open={menuClass}
+        class:authenticated={$isAuthenticated}>
         <div class="chat-wrapper">
             <ActiveChat 
                 bind:this={activeChat}
@@ -222,6 +224,7 @@
         height: calc(100vh - 90px);
         /* Modern browsers will use this */
         height: calc(100dvh - 90px);
+        /* Only apply min-height when not authenticated */
         min-height: var(--chat-container-min-height-mobile);
         gap: 0px;
         padding: 10px;
@@ -230,6 +233,11 @@
         @media (min-width: 1100px) {
             transition: gap 0.3s ease;
         }
+    }
+
+    /* Remove min-height when authenticated */
+    .chat-container.authenticated {
+        min-height: unset;
     }
 
     /* Only apply gap on larger screens */
