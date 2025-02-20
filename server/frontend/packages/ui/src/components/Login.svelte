@@ -2,6 +2,7 @@
     import { fade, scale } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
     import AppIconGrid from './AppIconGrid.svelte';
+    import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { login, isAuthenticated, checkAuth } from '../stores/authState';
     import { onMount } from 'svelte';
@@ -17,7 +18,6 @@
     let email = '';
     let password = '';
     let isLoading = false;
-    let errorMessage = '';
 
     // Add state for mobile view
     let isMobile = false;
@@ -34,6 +34,89 @@
 
     // Add touch detection
     let isTouchDevice = false;
+
+    // Add state for showing warning
+    let showWarning = false;
+
+    // Add email validation state
+    let emailError = '';
+    let showEmailWarning = false;
+    let isEmailValidationPending = false;
+    let loginFailedWarning = false;
+
+    // Add debounce helper
+    function debounce<T extends (...args: any[]) => void>(
+        fn: T,
+        delay: number
+    ): (...args: Parameters<T>) => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => fn(...args), delay);
+        };
+    }
+
+    // Modify email validation check
+    const debouncedCheckEmail = debounce((email: string) => {
+        if (!email) {
+            emailError = '';
+            showEmailWarning = false;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.includes('@')) {
+            emailError = $_('signup.at_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.match(/\.[a-z]{2,}$/i)) {
+            emailError = $_('signup.domain_ending_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        emailError = '';
+        showEmailWarning = false;
+        isEmailValidationPending = false;
+    }, 800);
+
+    // Clear login failed warning when either email or password changes
+    $: {
+        if (email || password) {
+            loginFailedWarning = false;
+        }
+    }
+
+    // Update reactive statements to include email validation
+    $: {
+        if (email) {
+            isEmailValidationPending = true;
+            debouncedCheckEmail(email);
+        } else {
+            emailError = '';
+            showEmailWarning = false;
+            isEmailValidationPending = false;
+        }
+    }
+
+    // Initialize validation state when email is empty
+    $: hasValidEmail = email && !emailError && !isEmailValidationPending;
+    
+    // Update helper for form validation to be false by default
+    $: isFormValid = hasValidEmail && 
+                     password && 
+                     !loginFailedWarning;
+
+    // Force validation check on empty email
+    $: {
+        if (!email) {
+            debouncedCheckEmail('');
+        }
+    }
     
     function switchToSignup() {
         currentView = 'signup';
@@ -88,7 +171,7 @@
 
     async function handleSubmit() {
         isLoading = true;
-        errorMessage = '';
+        loginFailedWarning = false;
 
         try {
             await AuthService.login(email, password);
@@ -106,10 +189,7 @@
             
         } catch (error: any) {
             console.error('Login error details:', error);
-            // More user-friendly error message
-            errorMessage = error.message === 'Failed to fetch' 
-                ? 'Unable to connect to the server. Please check your connection and try again.'
-                : error.message || 'Login failed. Please check your credentials and try again.';
+            loginFailedWarning = true;
         } finally {
             isLoading = false;
         }
@@ -134,12 +214,6 @@
                                 class:visible={showForm}
                                 class:hidden={!showForm}
                             >
-                                {#if errorMessage}
-                                    <div class="error-message" in:fade>
-                                        {errorMessage}
-                                    </div>
-                                {/if}
-
                                 <div class="input-group">
                                     <div class="input-wrapper">
                                         <span class="clickable-icon icon_mail"></span>
@@ -150,7 +224,19 @@
                                             required
                                             autocomplete="email"
                                             bind:this={emailInput}
+                                            class:error={!!emailError || loginFailedWarning}
                                         />
+                                        {#if showEmailWarning && emailError}
+                                            <InputWarning 
+                                                message={emailError}
+                                                target={emailInput}
+                                            />
+                                        {:else if loginFailedWarning}
+                                            <InputWarning 
+                                                message={$_('login.login_failed.text')}
+                                                target={emailInput}
+                                            />
+                                        {/if}
                                     </div>
                                 </div>
 
@@ -167,7 +253,11 @@
                                     </div>
                                 </div>
 
-                                <button type="submit" class="login-button" disabled={isLoading}>
+                                <button 
+                                    type="submit" 
+                                    class="login-button" 
+                                    disabled={isLoading || !isFormValid}
+                                >
                                     {#if isLoading}
                                         <span class="loading-spinner"></span>
                                     {:else}
