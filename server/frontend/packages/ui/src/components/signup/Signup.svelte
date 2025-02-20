@@ -53,8 +53,12 @@
         currentStep = step;
     }
 
-    // Get the appropriate help documentation link based on current step
-    $: helpLink = getWebsiteUrl(routes.docs[`userGuide_signup_${currentStep}`]);
+    // Get the appropriate help documentation link based on current step and validation state
+    $: helpLink = getWebsiteUrl(
+        currentStep === 1 
+            ? (!isInviteCodeValidated ? routes.docs.userGuide_signup_1a : routes.docs.userGuide_signup_1b)
+            : routes.docs[`userGuide_signup_${currentStep}`]
+    );
 </script>
 
 <div class="signup-content" in:fade={{ duration: 400 }}>
