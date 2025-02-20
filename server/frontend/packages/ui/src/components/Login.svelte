@@ -215,7 +215,9 @@
                 return;
             }
 
-            if (response.status === 200 && response.user) {
+            const data = await response.json();
+
+            if (response.ok) {
                 login({
                     email: email,
                 });
@@ -321,8 +323,8 @@
 
                         <div class="bottom-positioned" class:visible={showForm} hidden={!showForm}>
                             <span class="color-grey-60">{$_('login.not_signed_up_yet.text')}</span><br>
-                            <button class="text-button">
-                                <mark>{$_('login.click_here_to_create_a_new_account.text')}</mark>
+                            <button class="text-button" on:click={switchToSignup}>
+                                {$_('login.click_here_to_create_a_new_account.text')}
                             </button>
                         </div>
                     </div>

@@ -173,7 +173,19 @@
 
 .text-button {
     all: unset;
+    position: relative;
+    display: inline-block;
+    color: transparent;
+    background: var(--color-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
     cursor: pointer;
+    /* Ensure the button is tappable on iOS */
+    padding: 4px;
+    margin: -4px;
+    /* Fix for iOS focus state */
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Auth check styles */
