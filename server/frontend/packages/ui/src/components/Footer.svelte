@@ -116,6 +116,9 @@
         }))
     }));
 
+    // Get the processed home URL based on context
+    $: homeUrl = context === 'webapp' ? getWebsiteUrl(routes.home) : routes.home;
+
     // Update click handler to handle external URLs
     const handleClick = (event: MouseEvent, href: string) => {
         event.preventDefault();
@@ -238,8 +241,8 @@
             <div class="header-content">
                 <div class="logo mobile-order-2">
                     <a 
-                        href={routes.home} 
-                        on:click={(e) => handleClick(e, routes.home)}
+                        href={homeUrl} 
+                        on:click={(e) => handleClick(e, homeUrl)}
                     >
                         <span class="logo-text">Open</span>
                         <span class="logo-text highlight">Mates</span>
@@ -492,4 +495,4 @@
         outline: none;
         border-color: white;
     }
-</style> 
+</style>
