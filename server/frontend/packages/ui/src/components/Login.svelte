@@ -215,15 +215,14 @@
                 return;
             }
 
-            const data = await response.json();
-
-            if (response.ok) {
+            // Response is already processed by AuthService
+            if (response.status === 200 && response.user) {
                 login({
-                    email: email,
+                    email: response.user.email,
                 });
                 console.log('Login successful');
                 dispatch('loginSuccess', { 
-                    user: { email: email },
+                    user: response.user,
                     isMobile 
                 });
             } else {
