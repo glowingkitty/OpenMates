@@ -56,7 +56,13 @@
     let isRateLimited = false;
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
+    // Add touch detection
+    let isTouchDevice = false;
+
     onMount(() => {
+        // Check if device is touch-enabled
+        isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
         // Check if we're still rate limited
         const rateLimitTimestamp = localStorage.getItem('inviteCodeRateLimit');
         if (rateLimitTimestamp) {
@@ -69,8 +75,8 @@
             }
         }
 
-        // Focus the invite code input when component mounts (if not rate limited)
-        if (inviteCodeInput && !isRateLimited) {
+        // Focus the invite code input when component mounts (if not rate limited and not touch device)
+        if (inviteCodeInput && !isRateLimited && !isTouchDevice) {
             inviteCodeInput.focus();
         }
     });
@@ -90,7 +96,7 @@
     }
 
     // Watch for changes in isValidated
-    $: if (isValidated && usernameInput) {
+    $: if (isValidated && usernameInput && !isTouchDevice) {
         // Use tick to ensure DOM is updated
         tick().then(() => {
             usernameInput.focus();

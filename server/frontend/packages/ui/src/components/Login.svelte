@@ -31,6 +31,9 @@
 
     // Add state for view management
     let currentView: 'login' | 'signup' = 'login';
+
+    // Add touch detection
+    let isTouchDevice = false;
     
     function switchToSignup() {
         currentView = 'signup';
@@ -39,13 +42,17 @@
     async function switchToLogin() {
         currentView = 'login';
         await tick();
-        if (emailInput) {
+        // Only focus if not touch device
+        if (emailInput && !isTouchDevice) {
             emailInput.focus();
         }
     }
 
     onMount(() => {
         (async () => {
+            // Check if device is touch-enabled
+            isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
             showLoadingUntil = Date.now() + 500;
             
             $isCheckingAuth = true;
@@ -64,7 +71,8 @@
             // Set initial mobile state
             isMobile = window.innerWidth < MOBILE_BREAKPOINT;
             
-            if (!$isAuthenticated && emailInput) {
+            // Only focus if not touch device and not authenticated
+            if (!$isAuthenticated && emailInput && !isTouchDevice) {
                 emailInput.focus();
             }
         })();
