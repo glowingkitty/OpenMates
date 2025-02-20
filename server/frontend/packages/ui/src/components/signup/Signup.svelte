@@ -82,10 +82,11 @@
                             in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
                             out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                         >
-                            <svelte:component 
-                                this={currentStep === 2 ? Step2TopContent :
-                                      currentStep === 3 ? Step3TopContent : null}
-                            />
+                            {#if currentStep === 2}
+                                <Step2TopContent email={email || ''} />
+                            {:else if currentStep === 3}
+                                <Step3TopContent />
+                            {/if}
                         </div>
                     {/key}
                 </div>
@@ -118,37 +119,3 @@
         <div class="help-button"></div>
     </a>
 </div>
-
-<style>
-    .step-layout {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        padding: 0 10px;
-    }
-
-    .top-content-wrapper {
-        margin-top: 70px;
-        width: 100%;
-        height: max(420px, 50vh);
-    }
-
-    .top-content {
-        background: white;
-        border-radius: 18px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        position: relative;
-    }
-
-    .bottom-content-wrapper {
-        width: 100%;
-        overflow: visible;
-        position: relative;
-    }
-
-    /* ...existing styles... */
-</style>
