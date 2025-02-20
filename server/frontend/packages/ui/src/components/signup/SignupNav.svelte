@@ -4,10 +4,15 @@
     
     const dispatch = createEventDispatcher();
 
-    export let showSkip = false;  // Add prop with default value false
+    export let showSkip = false;
+    export let currentStep = 1;
 
     function handleBackClick() {
-        dispatch('back');
+        if (currentStep === 1) {
+            dispatch('back');
+        } else {
+            dispatch('step', { step: currentStep - 1 });
+        }
     }
 
     function handleSkipClick() {
@@ -18,7 +23,11 @@
 <div class="nav-area">
     <button class="nav-button back-button" on:click={handleBackClick}>
         <div class="clickable-icon icon_back"></div>
-        {$_('login.login_button.text')}
+        {#if currentStep === 1}
+            {$_('login.login_button.text')}
+        {:else}
+            {$_('signup.sign_up.text')}
+        {/if}
     </button>
     {#if showSkip}
         <button class="nav-button skip-button" on:click={handleSkipClick}>

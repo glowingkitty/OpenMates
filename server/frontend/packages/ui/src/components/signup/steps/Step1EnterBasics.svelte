@@ -19,8 +19,8 @@
     let showWarning = false;
 
     // Signup form fields
-    let username = '';
-    let email = '';
+    export let username = '';
+    export let email = '';
     let password = '';
     let passwordRepeat = '';
 
@@ -206,6 +206,9 @@
 
         // Continue with form submission
         // TODO: Add your form submission logic here
+
+        // Dispatch the next event to transition to step 2
+        dispatch('next');
     }
 
     // Add debounce helper
