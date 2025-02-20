@@ -2,13 +2,13 @@
     import { createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
-    import WaitingList from '../WaitingList.svelte';
-    import Toggle from '../Toggle.svelte';
-    import { getApiEndpoint, apiEndpoints } from '../../config/api';
+    import WaitingList from '../../WaitingList.svelte';
+    import Toggle from '../../Toggle.svelte';
+    import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { tick } from 'svelte';
-    import { externalLinks, getWebsiteUrl } from '../../config/links';
+    import { externalLinks, getWebsiteUrl } from '../../../config/links';
     import { onMount, onDestroy } from 'svelte';
-    import InputWarning from '../common/InputWarning.svelte';
+    import InputWarning from '../../common/InputWarning.svelte';
     
     const dispatch = createEventDispatcher();
 
@@ -101,10 +101,6 @@
         tick().then(() => {
             usernameInput.focus();
         });
-    }
-
-    function handleLoginClick() {
-        dispatch('switchToLogin');
     }
 
     // Format the invite code as user types
@@ -416,13 +412,6 @@
         }
     }
 </script>
-
-<div class="nav-area">
-    <button class="back-link" on:click={handleLoginClick}>
-        <div class="clickable-icon icon_back"></div>
-        {$_('login.login_button.text')}
-    </button>
-</div>
 
 <div class="content-area">
     <h1><mark>{$_('signup.sign_up.text')}</mark></h1>

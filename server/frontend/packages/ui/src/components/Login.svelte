@@ -244,7 +244,7 @@
         <div class="login-content">
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 {#if currentView === 'login'}
-                    <div class="content-area">
+                    <div class="content-area" in:fade={{ duration: 400 }}>
                         <h1><mark>{$_('login.login.text')}</mark></h1>
                         <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
 
@@ -328,7 +328,9 @@
                         </div>
                     </div>
                 {:else}
-                    <Signup on:switchToLogin={switchToLogin} />
+                    <div in:fade={{ duration: 200 }}>
+                        <Signup on:switchToLogin={switchToLogin} />
+                    </div>
                 {/if}
             </div>
         </div>
