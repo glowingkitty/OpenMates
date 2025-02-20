@@ -131,6 +131,7 @@
     /* Main content styling */
     main {
         min-height: calc(100vh - var(--header-height) - var(--footer-height));
+        min-height: calc(100dvh - var(--header-height) - var(--footer-height));
         width: 100%;
         max-width: 100%;
         overflow-x: hidden;
@@ -142,6 +143,7 @@
 
     .app-loading {
         min-height: 100vh;
+        min-height: 100dvh;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -153,6 +155,7 @@
         align-items: center;
         justify-content: center;
         min-height: 100vh;
+        min-height: 100dvh;
         color: var(--color-text);
     }
 </style>

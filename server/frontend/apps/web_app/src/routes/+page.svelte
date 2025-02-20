@@ -189,6 +189,7 @@
         position: absolute;
         bottom: auto; /* Remove bottom constraint */
         min-height: 100vh; /* Ensure it takes at least full viewport height */
+        min-height: 100dvh; /* Ensure it takes at least full viewport height */
     }
 
     .main-content.menu-closed {
@@ -327,11 +328,13 @@
         z-index: 5; /* Ensure it's below main content */
         margin-top: -90px; /* Adjust based on your footer height */
         padding-top: calc(100vh + 90px); /* Push footer below viewport initially */
+        padding-top: calc(100dvh + 90px); /* Push footer below viewport initially */
     }
 
     @media (max-width: 730px) {
         .footer-wrapper {
             padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100vh + 90px));
+            padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100dvh + 90px));
         }
     }
 </style>
