@@ -7,7 +7,7 @@ export class AuthService {
     /**
      * Attempt login with credentials
      */
-    static async login(email: string, password: string): Promise<any> {
+    static async login(email: string, password: string): Promise<{status: number, user?: {email: string}}> {
         try {
             const formData = new FormData();
             formData.append('username', email.trim());  // Trim whitespace
@@ -23,6 +23,11 @@ export class AuthService {
                 credentials: 'include'
             });
 
+            // Return status 429 immediately if rate limited
+            if (response.status === 429) {
+                return { status: 429 };
+            }
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ 
                     detail: 'Could not parse error response' 
@@ -35,12 +40,12 @@ export class AuthService {
                     error: errorData
                 });
                 
-                throw new Error(errorData.detail || 'Login failed');
+                return { status: response.status };
             }
 
-            const data = await response.json();
-            console.log('Login successful');
+            await response.json();
             return {
+                status: 200,
                 user: { email }
             };
         } catch (error) {

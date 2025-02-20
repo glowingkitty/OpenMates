@@ -468,9 +468,9 @@
             "en_original": "Loading...",
             "context": "Text shown when checking authentication"
         },
-        "error_message": {
-            "text": "Error de inicio de sesión. Tus credenciales son incorrectas o tu cuenta no existe.",
-            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+        "login_failed": {
+            "text": "Datos de inicio de sesión incorrectos",
+            "en_original": "Login data wrong",
             "context": "Error message shown when login fails"
         },
         "forgot_password": {

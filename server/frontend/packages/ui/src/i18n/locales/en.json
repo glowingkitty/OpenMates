@@ -712,8 +712,8 @@
             "text": "Loading...",
             "context": "Text shown when checking authentication"
         },
-        "error_message": {
-            "text": "Login failed. Either your credentials are wrong or your account does not exist.",
+        "login_failed": {
+            "text": "Login data wrong",
             "context": "Error message shown when login fails"
         },
         "forgot_password": {

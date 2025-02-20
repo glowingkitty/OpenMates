@@ -468,9 +468,9 @@
             "en_original": "Loading...",
             "context": "Text shown when checking authentication"
         },
-        "error_message": {
-            "text": "ログインに失敗しました。資格情報が間違っているか、アカウントが存在しません。",
-            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+        "login_failed": {
+            "text": "ログイン情報が間違っています",
+            "en_original": "Login data wrong",
             "context": "Error message shown when login fails"
         },
         "forgot_password": {

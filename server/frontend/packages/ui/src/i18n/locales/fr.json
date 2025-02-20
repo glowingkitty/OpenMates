@@ -468,9 +468,9 @@
             "en_original": "Loading...",
             "context": "Text shown when checking authentication"
         },
-        "error_message": {
-            "text": "Échec de la connexion.  Soit vos identifiants sont incorrects, soit votre compte n'existe pas.",
-            "en_original": "Login failed.  Either your credentials are wrong or your account does not exist.",
+        "login_failed": {
+            "text": "Données de connexion incorrectes",
+            "en_original": "Login data wrong",
             "context": "Error message shown when login fails"
         },
         "forgot_password": {

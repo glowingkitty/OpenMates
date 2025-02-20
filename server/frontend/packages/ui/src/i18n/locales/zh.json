@@ -468,9 +468,9 @@
             "en_original": "Loading...",
             "context": "Text shown when checking authentication"
         },
-        "error_message": {
-            "text": "登录失败。 您的凭据错误或您的帐户不存在。",
-            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+        "login_failed": {
+            "text": "登录数据错误",
+            "en_original": "Login data wrong",
             "context": "Error message shown when login fails"
         },
         "forgot_password": {

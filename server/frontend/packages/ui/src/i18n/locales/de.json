@@ -468,9 +468,9 @@
             "en_original": "Loading...",
             "context": "Text shown when checking authentication"
         },
-        "error_message": {
-            "text": "Anmeldung fehlgeschlagen. Entweder sind deine Anmeldedaten falsch oder dein Konto existiert nicht.",
-            "en_original": "Login failed. Either your credentials are wrong or your account does not exist.",
+        "login_failed": {
+            "text": "Anmeldedaten falsch",
+            "en_original": "Login data wrong",
             "context": "Error message shown when login fails"
         },
         "forgot_password": {

@@ -5,12 +5,13 @@
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { login, isAuthenticated, checkAuth } from '../stores/authState';
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { AuthService } from '../services/authService';
     import { isCheckingAuth } from '../stores/authCheckState';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
+    import { getApiEndpoint, apiEndpoints } from '../config/api';
     
     const dispatch = createEventDispatcher();
 
@@ -43,6 +44,19 @@
     let showEmailWarning = false;
     let isEmailValidationPending = false;
     let loginFailedWarning = false;
+
+    // Add rate limiting state
+    const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
+    let isRateLimited = false;
+    let rateLimitTimer: ReturnType<typeof setTimeout>;
+
+    function setRateLimitTimer(duration: number) {
+        if (rateLimitTimer) clearTimeout(rateLimitTimer);
+        rateLimitTimer = setTimeout(() => {
+            isRateLimited = false;
+            localStorage.removeItem('loginRateLimit');
+        }, duration);
+    }
 
     // Add debounce helper
     function debounce<T extends (...args: any[]) => void>(
@@ -158,6 +172,18 @@
             if (!$isAuthenticated && emailInput && !isTouchDevice) {
                 emailInput.focus();
             }
+
+            // Check if we're still rate limited
+            const rateLimitTimestamp = localStorage.getItem('loginRateLimit');
+            if (rateLimitTimestamp) {
+                const timeLeft = parseInt(rateLimitTimestamp) + RATE_LIMIT_DURATION - Date.now();
+                if (timeLeft > 0) {
+                    isRateLimited = true;
+                    setRateLimitTimer(timeLeft);
+                } else {
+                    localStorage.removeItem('loginRateLimit');
+                }
+            }
         })();
         
         // Handle resize events
@@ -169,25 +195,39 @@
         return () => window.removeEventListener('resize', handleResize);
     });
 
+    onDestroy(() => {
+        if (rateLimitTimer) {
+            clearTimeout(rateLimitTimer);
+        }
+    });
+
     async function handleSubmit() {
         isLoading = true;
         loginFailedWarning = false;
 
         try {
-            await AuthService.login(email, password);
-            
-            // Just use the email we already have
-            login({
-                email: email,
-            });
-            
-            console.log('Login successful');
-            dispatch('loginSuccess', { 
-                user: { email: email },
-                isMobile 
-            });
-            
-        } catch (error: any) {
+            const response = await AuthService.login(email, password);
+
+            if (response.status === 429) {
+                isRateLimited = true;
+                localStorage.setItem('loginRateLimit', Date.now().toString());
+                setRateLimitTimer(RATE_LIMIT_DURATION);
+                return;
+            }
+
+            if (response.status === 200 && response.user) {
+                login({
+                    email: email,
+                });
+                console.log('Login successful');
+                dispatch('loginSuccess', { 
+                    user: { email: email },
+                    isMobile 
+                });
+            } else {
+                loginFailedWarning = true;
+            }
+        } catch (error) {
             console.error('Login error details:', error);
             loginFailedWarning = true;
         } finally {
@@ -208,63 +248,68 @@
                         <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
 
                         <div class="form-container">
-                            <!-- Form is always rendered but initially hidden -->
-                            <form 
-                                on:submit|preventDefault={handleSubmit} 
-                                class:visible={showForm}
-                                class:hidden={!showForm}
-                            >
-                                <div class="input-group">
-                                    <div class="input-wrapper">
-                                        <span class="clickable-icon icon_mail"></span>
-                                        <input 
-                                            type="email" 
-                                            bind:value={email}
-                                            placeholder={$_('login.email_placeholder.text')}
-                                            required
-                                            autocomplete="email"
-                                            bind:this={emailInput}
-                                            class:error={!!emailError || loginFailedWarning}
-                                        />
-                                        {#if showEmailWarning && emailError}
-                                            <InputWarning 
-                                                message={emailError}
-                                                target={emailInput}
-                                            />
-                                        {:else if loginFailedWarning}
-                                            <InputWarning 
-                                                message={$_('login.login_failed.text')}
-                                                target={emailInput}
-                                            />
-                                        {/if}
-                                    </div>
+                            {#if isRateLimited}
+                                <div class="rate-limit-message" in:fade={{ duration: 200 }}>
+                                    {$_('signup.too_many_requests.text')}
                                 </div>
-
-                                <div class="input-group">
-                                    <div class="input-wrapper">
-                                        <span class="clickable-icon icon_secret"></span>
-                                        <input 
-                                            type="password" 
-                                            bind:value={password}
-                                            placeholder={$_('login.password_placeholder.text')}
-                                            required
-                                            autocomplete="current-password"
-                                        />
-                                    </div>
-                                </div>
-
-                                <button 
-                                    type="submit" 
-                                    class="login-button" 
-                                    disabled={isLoading || !isFormValid}
+                            {:else}
+                                <form 
+                                    on:submit|preventDefault={handleSubmit} 
+                                    class:visible={showForm}
+                                    class:hidden={!showForm}
                                 >
-                                    {#if isLoading}
-                                        <span class="loading-spinner"></span>
-                                    {:else}
-                                        {$_('login.login_button.text')}
-                                    {/if}
-                                </button>
-                            </form>
+                                    <div class="input-group">
+                                        <div class="input-wrapper">
+                                            <span class="clickable-icon icon_mail"></span>
+                                            <input 
+                                                type="email" 
+                                                bind:value={email}
+                                                placeholder={$_('login.email_placeholder.text')}
+                                                required
+                                                autocomplete="email"
+                                                bind:this={emailInput}
+                                                class:error={!!emailError || loginFailedWarning}
+                                            />
+                                            {#if showEmailWarning && emailError}
+                                                <InputWarning 
+                                                    message={emailError}
+                                                    target={emailInput}
+                                                />
+                                            {:else if loginFailedWarning}
+                                                <InputWarning 
+                                                    message={$_('login.login_failed.text')}
+                                                    target={emailInput}
+                                                />
+                                            {/if}
+                                        </div>
+                                    </div>
+
+                                    <div class="input-group">
+                                        <div class="input-wrapper">
+                                            <span class="clickable-icon icon_secret"></span>
+                                            <input 
+                                                type="password" 
+                                                bind:value={password}
+                                                placeholder={$_('login.password_placeholder.text')}
+                                                required
+                                                autocomplete="current-password"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        type="submit" 
+                                        class="login-button" 
+                                        disabled={isLoading || !isFormValid}
+                                    >
+                                        {#if isLoading}
+                                            <span class="loading-spinner"></span>
+                                        {:else}
+                                            {$_('login.login_button.text')}
+                                        {/if}
+                                    </button>
+                                </form>
+                            {/if}
 
                             {#if $isCheckingAuth}
                                 <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
