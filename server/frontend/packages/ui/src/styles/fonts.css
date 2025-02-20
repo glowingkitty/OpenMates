@@ -92,7 +92,7 @@ h4 {
     font-weight: var(--font-weight-bold);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 820px) {
     h1 {
         font-size: var(--font-size-h1-mobile);
     }

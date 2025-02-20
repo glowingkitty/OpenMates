@@ -188,8 +188,8 @@
     .main-content.login-mode {
         position: absolute;
         bottom: auto; /* Remove bottom constraint */
-        min-height: 100vh; /* Ensure it takes at least full viewport height */
-        min-height: 100dvh; /* Ensure it takes at least full viewport height */
+        min-height: max(var(--chat-container-min-height-mobile), 100vh); /* Ensure it takes at least full viewport height */
+        min-height: max(var(--chat-container-min-height-mobile), 100dvh);; /* Ensure it takes at least full viewport height */
     }
 
     .main-content.menu-closed {
@@ -222,6 +222,7 @@
         height: calc(100vh - 90px);
         /* Modern browsers will use this */
         height: calc(100dvh - 90px);
+        min-height: var(--chat-container-min-height-mobile);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -271,16 +272,6 @@
             min-height: unset;
         }
 
-        /* Add specific height for login mode */
-        .main-content.login-mode {
-            min-height: var(--chat-container-min-height-mobile);
-        }
-
-        /* Add specific height for login mode */
-        .chat-container {
-            min-height: var(--chat-container-min-height-mobile);
-        }
-
         /* figure our css issues related to height */
 
         /* When menu is open, slide main content right */
@@ -327,14 +318,7 @@
         width: 100%;
         z-index: 5; /* Ensure it's below main content */
         margin-top: -90px; /* Adjust based on your footer height */
-        padding-top: calc(100vh + 90px); /* Push footer below viewport initially */
-        padding-top: calc(100dvh + 90px); /* Push footer below viewport initially */
-    }
-
-    @media (max-width: 730px) {
-        .footer-wrapper {
-            padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100vh + 90px));
-            padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100dvh + 90px));
-        }
+        padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100vh + 90px));
+        padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100dvh + 90px));
     }
 </style>
