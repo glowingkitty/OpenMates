@@ -53,12 +53,20 @@
         currentStep = step;
     }
 
+    function handleLogout() {
+        // Handle logout and switch to login
+        dispatch('switchToLogin');
+    }
+
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
         currentStep === 1 
             ? (!isInviteCodeValidated ? routes.docs.userGuide_signup_1a : routes.docs.userGuide_signup_1b)
             : routes.docs[`userGuide_signup_${currentStep}`]
     );
+
+    // Update showSkip logic
+    $: showSkip = currentStep === 3;
 </script>
 
 <div class="signup-content" in:fade={{ duration: 400 }}>
@@ -66,7 +74,8 @@
         on:back={handleSwitchToLogin}
         on:step={handleStep}
         on:skip={handleSkip}
-        showSkip={false}
+        on:logout={handleLogout}
+        {showSkip}
         {currentStep}
     />
 
@@ -89,9 +98,9 @@
                             out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                         >
                             {#if currentStep === 2}
-                                <Step2TopContent email={email || ''} />
+                                <Step2TopContent {email} />
                             {:else if currentStep === 3}
-                                <Step3TopContent />
+                                <Step3TopContent {username} />
                             {/if}
                         </div>
                     {/key}
@@ -108,6 +117,7 @@
                         <svelte:component 
                             this={currentStep === 2 ? Step2BottomContent :
                                   currentStep === 3 ? Step3BottomContent : null}
+                            on:step={handleStep}
                         />
                     </div>
                 {/key}

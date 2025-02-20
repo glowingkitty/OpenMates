@@ -1,9 +1,11 @@
 <script lang="ts">
     import { _ } from 'svelte-i18n';
     import { onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
+    const dispatch = createEventDispatcher();
 
     onMount(() => {
         // Check if device is touch-enabled
@@ -19,6 +21,11 @@
         const input = event.target as HTMLInputElement;
         // Only allow numbers and limit to 6 digits
         otpCode = input.value.replace(/\D/g, '').slice(0, 6);
+        
+        if (otpCode.length === 6) {
+            // Here we dispatch the step event that will be handled by the parent
+            dispatch('step', { step: 3 });
+        }
     }
 
     function handleResend() {

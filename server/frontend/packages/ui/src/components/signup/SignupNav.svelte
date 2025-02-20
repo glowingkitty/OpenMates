@@ -10,6 +10,8 @@
     function handleBackClick() {
         if (currentStep === 1) {
             dispatch('back');
+        } else if (currentStep === 3) {
+            dispatch('logout');
         } else {
             dispatch('step', { step: currentStep - 1 });
         }
@@ -25,6 +27,8 @@
         <div class="clickable-icon icon_back"></div>
         {#if currentStep === 1}
             {$_('login.login_button.text')}
+        {:else if currentStep === 3}
+            {$_('settings.logout.text')}
         {:else}
             {$_('signup.sign_up.text')}
         {/if}

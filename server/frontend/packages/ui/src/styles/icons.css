@@ -262,6 +262,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/2fa.svg');
 }
 
+.clickable-icon.icon_image {
+  -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
+  mask-image: url('@openmates/ui/static/icons/image.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;
