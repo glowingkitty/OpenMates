@@ -8,7 +8,7 @@
     <div class="main-content">
         <div class="icon-container">
             <div class="clickable-icon icon_mail signup"></div>
-            <div class="notification-counter" transition:fade={{ delay: 300 }}>1</div>
+            <div class="notification-counter" transition:fade={{ delay: 800 }}>1</div>
         </div>
         <span class="color-grey-80">{$_('signup.you_received_a_one_time_code_via_email.text')}</span>
         <mark>{email}</mark>
@@ -57,6 +57,7 @@
         justify-content: center;
         color: white;
         font-size: 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     .clickable-icon.icon_mail.signup {

@@ -29,7 +29,7 @@
 <div class="bottom-content">
     <div class="input-group">
         <div class="input-wrapper">
-            <span class="clickable-icon icon_secret"></span>
+            <span class="clickable-icon icon_2fa"></span>
             <input
                 bind:this={otpInput}
                 type="text"
