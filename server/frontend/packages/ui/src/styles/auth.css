@@ -176,11 +176,6 @@
     cursor: pointer;
 }
 
-.text-button:hover {
-    all: unset;
-    cursor: pointer;
-}
-
 /* Auth check styles */
 .checking-auth {
     position: absolute;
