@@ -230,14 +230,6 @@
         }
     }
 
-    /* Add specific height for login mode */
-    .main-content.login-mode .chat-container {
-        height: max(var(--chat-container-min-height), calc(100vh - 90px));
-        height: max(var(--chat-container-min-height), calc(100dvh - 90px));
-        min-height: max(var(--chat-container-min-height), calc(100vh - 90px));
-        min-height: max(var(--chat-container-min-height), calc(100dvh - 90px));
-    }
-
     /* Only apply gap on larger screens */
     @media (min-width: 1100px) {
         .chat-container.menu-open {
@@ -275,7 +267,20 @@
             right: 0;
             z-index: 20; /* Higher than sidebar to cover it */
             transform: translateX(0);
+            min-height: unset;
         }
+
+        /* Add specific height for login mode */
+        .main-content.login-mode {
+            min-height: var(--chat-container-min-height-mobile);
+        }
+
+        /* Add specific height for login mode */
+        .chat-container {
+            min-height: var(--chat-container-min-height-mobile);
+        }
+
+        /* figure our css issues related to height */
 
         /* When menu is open, slide main content right */
         .main-content:not(.menu-closed) {
@@ -322,5 +327,11 @@
         z-index: 5; /* Ensure it's below main content */
         margin-top: -90px; /* Adjust based on your footer height */
         padding-top: calc(100vh + 90px); /* Push footer below viewport initially */
+    }
+
+    @media (max-width: 730px) {
+        .footer-wrapper {
+            padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100vh + 90px));
+        }
     }
 </style>

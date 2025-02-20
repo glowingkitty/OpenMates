@@ -322,6 +322,9 @@
     --color-footer-start: #4867CD;
     --color-footer-end: #5A85EB;
     --color-footer: linear-gradient(135deg, var(--color-footer-start) 9.04%, var(--color-footer-end) 90.06%);
+
+    /* Chatcontainer min height mobile */
+    --chat-container-min-height-mobile: 630px;
 }
 
 .color-grey-0 {
