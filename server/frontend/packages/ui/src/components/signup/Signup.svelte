@@ -34,6 +34,9 @@
         easing: cubicInOut
     };
 
+    let isImageProcessing = false;
+    let isImageUploading = false;
+
     function handleSwitchToLogin() {
         dispatch('switchToLogin');
     }
@@ -56,6 +59,11 @@
     function handleLogout() {
         // Handle logout and switch to login
         dispatch('switchToLogin');
+    }
+
+    function handleImageUploading(event: CustomEvent<{isProcessing: boolean, isUploading: boolean}>) {
+        isImageProcessing = event.detail.isProcessing;
+        isImageUploading = event.detail.isUploading;
     }
 
     // Get the appropriate help documentation link based on current step and validation state
@@ -100,7 +108,11 @@
                             {#if currentStep === 2}
                                 <Step2TopContent {email} />
                             {:else if currentStep === 3}
-                                <Step3TopContent {username} />
+                                <Step3TopContent 
+                                    {username} 
+                                    isProcessing={isImageProcessing}
+                                    isUploading={isImageUploading}
+                                />
                             {/if}
                         </div>
                     {/key}
@@ -118,6 +130,7 @@
                             this={currentStep === 2 ? Step2BottomContent :
                                   currentStep === 3 ? Step3BottomContent : null}
                             on:step={handleStep}
+                            on:uploading={handleImageUploading}
                         />
                     </div>
                 {/key}

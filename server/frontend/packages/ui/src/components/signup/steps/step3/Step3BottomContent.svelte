@@ -3,6 +3,7 @@
     import InputWarning from '../../../common/InputWarning.svelte';
     import Pica from 'pica';
     import { processedImageUrl } from '../../../../stores/profileImage';
+    import { createEventDispatcher } from 'svelte';
 
     let errorMessage = '';
     let showWarning = false;
@@ -11,9 +12,21 @@
     const TARGET_SIZE = 340;
     const pica = new Pica();
     let isProcessing = false;
+    let isUploading = false;
+    const dispatch = createEventDispatcher();
+
+    // Placeholder upload function
+    async function uploadImage(blob: Blob): Promise<void> {
+        // Simulate network request
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        // TODO: Implement actual upload
+        return Promise.resolve();
+    }
 
     async function processImage(file: File) {
         isProcessing = true;
+        dispatch('uploading', { isProcessing, isUploading });
+
         try {
             // Create source image
             const img = new Image();
@@ -49,6 +62,13 @@
             const blob = await pica.toBlob(destCanvas, 'image/jpeg', 0.9);
             const processedUrl = URL.createObjectURL(blob);
 
+            // After processing, start upload
+            isProcessing = false;
+            isUploading = true;
+            dispatch('uploading', { isProcessing, isUploading });
+
+            await uploadImage(blob);
+
             // Update store
             processedImageUrl.set(processedUrl);
 
@@ -56,6 +76,8 @@
             URL.revokeObjectURL(img.src);
         } finally {
             isProcessing = false;
+            isUploading = false;
+            dispatch('uploading', { isProcessing, isUploading });
         }
     }
 
@@ -86,9 +108,6 @@
 </script>
 
 <div class="bottom-content">
-    {#if isProcessing}
-        <div class="loading-text">{$_('login.loading.text')}</div>
-    {/if}
     <label class="file-upload-field">
         <input 
             bind:this={fileInput}
