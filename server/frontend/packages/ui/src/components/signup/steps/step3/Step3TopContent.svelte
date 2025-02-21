@@ -1,12 +1,17 @@
 <script lang="ts">
     import { _ } from 'svelte-i18n';
+    import { processedImageUrl } from '../../../../stores/profileImage';
     export let username: string;
 </script>
 
 <div class="content">
     <h2>{$_('chat.welcome.hey.text')} {username}</h2>
     <div class="image-circle">
-        <div class="clickable-icon icon_image"></div>
+        {#if $processedImageUrl}
+            <img src={$processedImageUrl} alt="Profile preview" class="preview-image" />
+        {:else}
+            <div class="clickable-icon icon_image"></div>
+        {/if}
     </div>
 </div>
 
@@ -36,5 +41,12 @@
         height: 75px;
         opacity: 0.5;
         cursor: unset;
+    }
+
+    .preview-image {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
     }
 </style>

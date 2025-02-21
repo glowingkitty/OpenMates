@@ -1,11 +1,57 @@
 <script lang="ts">
     import { _ } from 'svelte-i18n';
     import InputWarning from '../../../common/InputWarning.svelte';
+    import Pica from 'pica';
+    import { processedImageUrl } from '../../../../stores/profileImage';
 
     let errorMessage = '';
     let showWarning = false;
     let fileInput: HTMLInputElement;
-    const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB in bytes
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 1MB in bytes
+    const TARGET_SIZE = 340;
+    const pica = new Pica();
+
+    async function processImage(file: File) {
+        // Create source image
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        
+        await new Promise((resolve) => img.onload = resolve);
+
+        // Calculate crop dimensions
+        const size = Math.min(img.width, img.height);
+        const startX = (img.width - size) / 2;
+        const startY = (img.height - size) / 2;
+
+        // Create source canvas with cropped image
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = size;
+        sourceCanvas.height = size;
+        const ctx = sourceCanvas.getContext('2d')!;
+        ctx.drawImage(img, startX, startY, size, size, 0, 0, size, size);
+
+        // Create destination canvas
+        const destCanvas = document.createElement('canvas');
+        destCanvas.width = TARGET_SIZE;
+        destCanvas.height = TARGET_SIZE;
+
+        // Resize using pica
+        await pica.resize(sourceCanvas, destCanvas, {
+            unsharpAmount: 80,
+            unsharpRadius: 0.6,
+            unsharpThreshold: 2
+        });
+
+        // Convert to blob and create URL
+        const blob = await pica.toBlob(destCanvas, 'image/jpeg', 0.9);
+        const processedUrl = URL.createObjectURL(blob);
+        
+        // Update store
+        processedImageUrl.set(processedUrl);
+
+        // Cleanup
+        URL.revokeObjectURL(img.src);
+    }
 
     function handleFileSelect(event: Event) {
         const input = event.target as HTMLInputElement;
@@ -28,11 +74,9 @@
 
             errorMessage = '';
             showWarning = false;
-            // Handle valid file here
+            processImage(file);
         }
     }
-
-    // TODO Image processing: crop image to square and scale down to 340x340px using pica before showing in preview and uploading
 </script>
 
 <div class="bottom-content">
