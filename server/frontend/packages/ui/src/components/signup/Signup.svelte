@@ -77,11 +77,11 @@
             : routes.docs[`userGuide_signup_${currentStep}`]
     );
 
-    // Update showSkip logic
-    $: showSkip = currentStep === 3 || currentStep === 4;
+    // Update showSkip logic to only show for step 3
+    $: showSkip = currentStep === 3;
 </script>
 
-<div class="signup-content" in:fade={{ duration: 400 }}>
+<div class="signup-content visible" in:fade={{ duration: 400 }}>
     <SignupNav 
         on:back={handleSwitchToLogin}
         on:step={handleStep}
@@ -91,80 +91,81 @@
         {currentStep}
     />
 
-    {#if currentStep === 1}
-        <Step1EnterBasics 
-            on:switchToLogin={handleSwitchToLogin}
-            bind:isValidated={isInviteCodeValidated}
-            bind:username
-            bind:email
-            on:next={() => goToStep(2)}
-        />
-    {:else}
-        <div class="step-layout">
-            <!-- Persistent top content block -->
-            <div class="top-content-wrapper">
-                <div class="top-content">
-                    {#key currentStep}
-                        <div 
-                            in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
-                            out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
-                        >
-                            {#if currentStep === 2}
-                                <Step2TopContent {email} />
-                            {:else if currentStep === 3}
-                                <Step3TopContent 
-                                    {username} 
-                                    isProcessing={isImageProcessing}
-                                    isUploading={isImageUploading}
-                                />
-                            {:else if currentStep === 4}
-                                <Step4TopContent />
-                            {/if}
+    <div class="main-content">
+        {#if currentStep === 1}
+            <Step1EnterBasics 
+                on:switchToLogin={handleSwitchToLogin}
+                bind:isValidated={isInviteCodeValidated}
+                bind:username
+                bind:email
+                on:next={() => goToStep(2)}
+            />
+        {:else}
+            <div class="step-layout">
+                <!-- Top content wrapper -->
+                <div class="top-content-wrapper">
+                    <div class="top-content">
+                        <div class="content-slider">
+                            {#key currentStep}
+                                <div 
+                                    class="slide"
+                                    in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
+                                    out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
+                                >
+                                    {#if currentStep === 2}
+                                        <Step2TopContent {email} />
+                                    {:else if currentStep === 3}
+                                        <Step3TopContent 
+                                            {username} 
+                                            isProcessing={isImageProcessing}
+                                            isUploading={isImageUploading}
+                                        />
+                                    {:else if currentStep === 4}
+                                        <Step4TopContent />
+                                    {/if}
+                                </div>
+                            {/key}
                         </div>
-                    {/key}
+                    </div>
+                </div>
+
+                <!-- Bottom content wrapper -->
+                <div class="bottom-content-wrapper">
+                    <div class="content-slider">
+                        {#key currentStep}
+                            <div 
+                                class="slide"
+                                in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
+                                out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
+                            >
+                                <svelte:component 
+                                    this={currentStep === 2 ? Step2BottomContent :
+                                          currentStep === 3 ? Step3BottomContent :
+                                          currentStep === 4 ? Step4BottomContent : null}
+                                    on:step={handleStep}
+                                    on:uploading={handleImageUploading}
+                                />
+                            </div>
+                        {/key}
+                    </div>
                 </div>
             </div>
+        {/if}
+    </div>
 
-            <!-- Persistent bottom content block -->
-            <div class="bottom-content-wrapper">
-                {#key currentStep}
-                    <div 
-                        in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
-                        out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
-                    >
-                        <svelte:component 
-                            this={currentStep === 2 ? Step2BottomContent :
-                                  currentStep === 3 ? Step3BottomContent :
-                                  currentStep === 4 ? Step4BottomContent : null}
-                            on:step={handleStep}
-                            on:uploading={handleImageUploading}
-                        />
-                    </div>
-                {/key}
-            </div>
+    <div class="status-wrapper" class:hidden={currentStep === 1}>
+        <SignupStatusbar {currentStep} />
+    </div>
 
-            <!-- Add status bar after bottom content -->
-            {#if currentStep > 1}
-                <SignupStatusbar {currentStep} />
-            {/if}
-        </div>
-    {/if}
-
-    <a href={helpLink} 
-       target="_blank" 
-       use:tooltip 
-       rel="noopener noreferrer" 
-       class="help-button-container" 
-       aria-label={$_('documentation.open_documentation.text')}
-    >
-        <div class="help-button"></div>
-    </a>
+    <div class="help-wrapper" class:hidden={currentStep === 1}>
+        <a href={helpLink} 
+           target="_blank" 
+           use:tooltip 
+           rel="noopener noreferrer" 
+           class="help-button-container" 
+           aria-label={$_('documentation.open_documentation.text')}
+        >
+            <div class="help-button"></div>
+        </a>
+    </div>
 </div>
-
-<style>
-    .step-layout {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-</style>

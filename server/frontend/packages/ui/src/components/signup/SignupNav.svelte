@@ -33,7 +33,7 @@
         return $_('signup.sign_up.text');
     }
 
-    $: skipButtonText = currentStep === 3 && $processedImageUrl 
+    $: skipButtonText = $processedImageUrl 
         ? $_('signup.next.text') 
         : $_('signup.skip.text');
 </script>

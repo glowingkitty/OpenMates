@@ -295,3 +295,64 @@ form.hidden {
     overflow: visible;
     position: relative;
 }
+
+.signup-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.signup-content:not(.visible) {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.status-wrapper,
+.help-wrapper {
+    transition: opacity 0.3s ease;
+}
+
+.status-wrapper.hidden,
+.help-wrapper.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.content-slider {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.top-content {
+    position: relative;
+    overflow: hidden;
+}
+
+.bottom-content-wrapper {
+    position: relative;
+    overflow: visible;
+}
+
+/* Add specific styles for bottom content */
+.bottom-content-wrapper .content-slider {
+    min-height: 150px; /* Adjust based on your content */
+}
+
+.bottom-content-wrapper .slide {
+    position: absolute;
+    width: 100%;
+}
