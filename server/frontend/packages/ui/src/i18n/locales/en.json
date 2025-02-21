@@ -452,6 +452,10 @@
             "text": "Skip",
             "context": "Button text for skipping to the next step"
         },
+        "next": {
+            "text": "Next",
+            "context": "Button text for going to the next step"
+        },
         "upload_profile_image": {
             "text": "Upload a profile image",
             "context": "Button text for uploading a profile image"

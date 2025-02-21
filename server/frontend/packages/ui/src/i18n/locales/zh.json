@@ -1795,6 +1795,11 @@
             "en_original": "Skip",
             "context": "Button text for skipping to the next step"
         },
+        "next": {
+            "text": "下一步",
+            "en_original": "Next",
+            "context": "Button text for going to the next step"
+        },
         "upload_profile_image": {
             "text": "上传头像",
             "en_original": "Upload a profile image",

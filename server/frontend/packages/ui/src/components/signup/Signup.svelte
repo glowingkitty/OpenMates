@@ -13,6 +13,8 @@
     import Step2BottomContent from './steps/step2/Step2BottomContent.svelte';
     import Step3TopContent from './steps/step3/Step3TopContent.svelte';
     import Step3BottomContent from './steps/step3/Step3BottomContent.svelte';
+    import Step4TopContent from './steps/step4/Step4TopContent.svelte';
+    import Step4BottomContent from './steps/step4/Step4BottomContent.svelte';
     // ... import other step contents
     
     import SignupStatusbar from './SignupStatusbar.svelte';
@@ -42,7 +44,9 @@
     }
 
     function handleSkip() {
-        // Handle skip action
+        if (currentStep === 3) {
+            goToStep(4);
+        }
     }
 
     function handleStep(event: CustomEvent<{step: number}>) {
@@ -74,7 +78,7 @@
     );
 
     // Update showSkip logic
-    $: showSkip = currentStep === 3;
+    $: showSkip = currentStep === 3 || currentStep === 4;
 </script>
 
 <div class="signup-content" in:fade={{ duration: 400 }}>
@@ -113,6 +117,8 @@
                                     isProcessing={isImageProcessing}
                                     isUploading={isImageUploading}
                                 />
+                            {:else if currentStep === 4}
+                                <Step4TopContent />
                             {/if}
                         </div>
                     {/key}
@@ -128,7 +134,8 @@
                     >
                         <svelte:component 
                             this={currentStep === 2 ? Step2BottomContent :
-                                  currentStep === 3 ? Step3BottomContent : null}
+                                  currentStep === 3 ? Step3BottomContent :
+                                  currentStep === 4 ? Step4BottomContent : null}
                             on:step={handleStep}
                             on:uploading={handleImageUploading}
                         />

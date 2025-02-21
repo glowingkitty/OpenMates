@@ -1,6 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
+    import { processedImageUrl } from '../../stores/profileImage';
     
     const dispatch = createEventDispatcher();
 
@@ -18,24 +19,33 @@
     }
 
     function handleSkipClick() {
-        dispatch('skip');
+        if (currentStep === 3) {
+            dispatch('step', { step: 4 });
+        } else {
+            dispatch('skip');
+        }
     }
+
+    function getNavText(step: number) {
+        if (step === 1) return $_('login.login_button.text');
+        if (step === 3) return $_('settings.logout.text');
+        if (step === 4) return $_('signup.profile_image.text');
+        return $_('signup.sign_up.text');
+    }
+
+    $: skipButtonText = currentStep === 3 && $processedImageUrl 
+        ? $_('signup.next.text') 
+        : $_('signup.skip.text');
 </script>
 
 <div class="nav-area">
     <button class="nav-button back-button" on:click={handleBackClick}>
         <div class="clickable-icon icon_back"></div>
-        {#if currentStep === 1}
-            {$_('login.login_button.text')}
-        {:else if currentStep === 3}
-            {$_('settings.logout.text')}
-        {:else}
-            {$_('signup.sign_up.text')}
-        {/if}
+        {getNavText(currentStep)}
     </button>
     {#if showSkip}
         <button class="nav-button skip-button" on:click={handleSkipClick}>
-            {$_('signup.skip.text')}
+            {skipButtonText}
             <div class="clickable-icon icon_back icon-mirrored"></div>
         </button>
     {/if}

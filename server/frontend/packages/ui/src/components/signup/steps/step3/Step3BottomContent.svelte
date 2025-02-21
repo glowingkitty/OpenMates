@@ -74,6 +74,9 @@
 
             // Cleanup
             URL.revokeObjectURL(img.src);
+
+            // Auto-progress to next step
+            dispatch('step', { step: 4 });
         } finally {
             isProcessing = false;
             isUploading = false;

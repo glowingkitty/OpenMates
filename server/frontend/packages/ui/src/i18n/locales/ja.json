@@ -1795,6 +1795,11 @@
             "en_original": "Skip",
             "context": "Button text for skipping to the next step"
         },
+        "next": {
+            "text": "次へ",
+            "en_original": "Next",
+            "context": "Button text for going to the next step"
+        },
         "upload_profile_image": {
             "text": "プロフィール画像をアップロード",
             "en_original": "Upload a profile image",
