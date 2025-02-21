@@ -10,47 +10,53 @@
     const MAX_FILE_SIZE = 2 * 1024 * 1024; // 1MB in bytes
     const TARGET_SIZE = 340;
     const pica = new Pica();
+    let isProcessing = false;
 
     async function processImage(file: File) {
-        // Create source image
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        
-        await new Promise((resolve) => img.onload = resolve);
+        isProcessing = true;
+        try {
+            // Create source image
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            
+            await new Promise((resolve) => img.onload = resolve);
 
-        // Calculate crop dimensions
-        const size = Math.min(img.width, img.height);
-        const startX = (img.width - size) / 2;
-        const startY = (img.height - size) / 2;
+            // Calculate crop dimensions
+            const size = Math.min(img.width, img.height);
+            const startX = (img.width - size) / 2;
+            const startY = (img.height - size) / 2;
 
-        // Create source canvas with cropped image
-        const sourceCanvas = document.createElement('canvas');
-        sourceCanvas.width = size;
-        sourceCanvas.height = size;
-        const ctx = sourceCanvas.getContext('2d')!;
-        ctx.drawImage(img, startX, startY, size, size, 0, 0, size, size);
+            // Create source canvas with cropped image
+            const sourceCanvas = document.createElement('canvas');
+            sourceCanvas.width = size;
+            sourceCanvas.height = size;
+            const ctx = sourceCanvas.getContext('2d')!;
+            ctx.drawImage(img, startX, startY, size, size, 0, 0, size, size);
 
-        // Create destination canvas
-        const destCanvas = document.createElement('canvas');
-        destCanvas.width = TARGET_SIZE;
-        destCanvas.height = TARGET_SIZE;
+            // Create destination canvas
+            const destCanvas = document.createElement('canvas');
+            destCanvas.width = TARGET_SIZE;
+            destCanvas.height = TARGET_SIZE;
 
-        // Resize using pica
-        await pica.resize(sourceCanvas, destCanvas, {
-            unsharpAmount: 80,
-            unsharpRadius: 0.6,
-            unsharpThreshold: 2
-        });
+            // Resize using pica
+            await pica.resize(sourceCanvas, destCanvas, {
+                unsharpAmount: 80,
+                unsharpRadius: 0.6,
+                unsharpThreshold: 2
+            });
 
-        // Convert to blob and create URL
-        const blob = await pica.toBlob(destCanvas, 'image/jpeg', 0.9);
-        const processedUrl = URL.createObjectURL(blob);
-        
-        // Update store
-        processedImageUrl.set(processedUrl);
+            // Convert to blob and create URL
+            const blob = await pica.toBlob(destCanvas, 'image/jpeg', 0.9);
+            const processedUrl = URL.createObjectURL(blob);
+            
+            // Update store
+            processedImageUrl.set(processedUrl);
 
-        // Cleanup
-        URL.revokeObjectURL(img.src);
+            // Cleanup
+            URL.revokeObjectURL(img.src);
+        } finally {
+            isProcessing = false;
+        }
     }
 
     function handleFileSelect(event: Event) {
@@ -80,6 +86,9 @@
 </script>
 
 <div class="bottom-content">
+    {#if isProcessing}
+        <div class="loading-text">{$_('login.loading.text')}</div>
+    {/if}
     <label class="file-upload-field">
         <input 
             bind:this={fileInput}
@@ -178,5 +187,12 @@
         font-size: 14px;
         margin-top: 8px;
         text-align: center;
+    }
+
+    .loading-text {
+        text-align: center;
+        color: var(--color-grey-60);
+        font-size: 14px;
+        margin-bottom: 8px;
     }
 </style>
