@@ -480,6 +480,10 @@
             "text": "Secure your account",
             "context": "Title for setting up 2FA for securing account"
         },
+        "prevent_access": {
+            "text": "Prevent hackers from accessing your account, even if they get access to your email and password.",
+            "context": "Message explaining the benefits of setting up 2FA"
+        },
         "free": {
             "text": "free",
             "context": "its free to setup 2FA"
@@ -492,9 +496,21 @@
             "text": "max security",
             "context": "2FA provides maximum security"
         },
-        "scan_with_your_2fa_app": {
-            "text": "Scan with your 2FA app",
-            "context": "Button text for scanning QR code with 2FA app"
+        "add_to_2fa_app": {
+            "text": "Add to 2FA app",
+            "context": "Button text for adding the user account to the installed 2FA app."
+        },
+        "or": {
+            "text": "or",
+            "context": "in message: 'Add to 2FA app or Scan via 2FA app'"
+        },
+        "scan_via_2fa_app": {
+            "text": "Scan via 2FA app",
+            "context": "Button text for opening the QR code that can be scanned with the 2FA app"
+        },
+        "copy_secret":{
+            "text": "Copy secret",
+            "context": "Button text for copying the secret key for 2FA to the clipboard"
         },
         "dont_have_2fa_app": {
             "text": "Don’t have a 2FA app yet?",

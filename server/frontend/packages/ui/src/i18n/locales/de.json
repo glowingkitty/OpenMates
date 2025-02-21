@@ -1830,6 +1830,11 @@
             "en_original": "Secure your account",
             "context": "Title for setting up 2FA for securing account"
         },
+        "prevent_access": {
+            "text": "Verhindere, dass Hacker auf dein Konto zugreifen, selbst wenn sie Zugriff auf deine E-Mail und dein Passwort erhalten.",
+            "en_original": "Prevent hackers from accessing your account, even if they get access to your email and password.",
+            "context": "Message explaining the benefits of setting up 2FA"
+        },
         "free": {
             "text": "kostenlos",
             "en_original": "free",
@@ -1845,10 +1850,25 @@
             "en_original": "max security",
             "context": "2FA provides maximum security"
         },
-        "scan_with_your_2fa_app": {
-            "text": "Mit 2FA-App scannen",
-            "en_original": "Scan with your 2FA app",
-            "context": "Button text for scanning QR code with 2FA app"
+        "add_to_2fa_app": {
+            "text": "Zu 2FA-App hinzufügen",
+            "en_original": "Add to 2FA app",
+            "context": "Button text for adding the user account to the installed 2FA app."
+        },
+        "or": {
+            "text": "oder",
+            "en_original": "or",
+            "context": "in message: 'Add to 2FA app or Scan via 2FA app'"
+        },
+        "scan_via_2fa_app": {
+            "text": "Scanne via 2FA-App",
+            "en_original": "Scan via 2FA app",
+            "context": "Button text for opening the QR code that can be scanned with the 2FA app"
+        },
+        "copy_secret":{
+            "text": "Schlüssel kopieren",
+            "en_original": "Copy secret",
+            "context": "Button text for copying the secret key for 2FA to the clipboard"
         },
         "dont_have_2fa_app": {
             "text": "Noch keine 2FA-App?",
