@@ -1800,6 +1800,21 @@
             "en_original": "Upload a profile image",
             "context": "Button text for uploading a profile image"
         },
+        "image_too_large": {
+            "text": "Max 2Mo",
+            "en_original": "Max 2MB",
+            "context": "Error message shown when image is too large"
+        },
+        "image_wrong_filetype": {
+            "text": "Uniquement .jpg, .jpeg, .png",
+            "en_original": "Only .jpg, .jpeg, .png",
+            "context": "Error message shown when image is not a supported filetype"
+        },
+        "image_no_nudity_or_violence": {
+            "text": "Nudité ou violence non autorisées",
+            "en_original": "No nudity or violence allowed",
+            "context": "Error message shown when image contains nudity or violence"
+        },
         "profile_image": {
             "text": "Photo de profil",
             "en_original": "Profile image",

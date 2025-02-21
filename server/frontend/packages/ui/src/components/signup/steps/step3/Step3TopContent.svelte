@@ -35,5 +35,6 @@
         width: 75px;
         height: 75px;
         opacity: 0.5;
+        cursor: unset;
     }
 </style>
