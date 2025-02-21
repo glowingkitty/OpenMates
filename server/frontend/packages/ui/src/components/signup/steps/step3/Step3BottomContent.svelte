@@ -18,7 +18,7 @@
             // Create source image
             const img = new Image();
             img.src = URL.createObjectURL(file);
-            
+
             await new Promise((resolve) => img.onload = resolve);
 
             // Calculate crop dimensions
@@ -48,7 +48,7 @@
             // Convert to blob and create URL
             const blob = await pica.toBlob(destCanvas, 'image/jpeg', 0.9);
             const processedUrl = URL.createObjectURL(blob);
-            
+
             // Update store
             processedImageUrl.set(processedUrl);
 
@@ -170,23 +170,18 @@
         left: 16px;
         width: 20px;
         height: 20px;
-        background-image: url('@openmates/ui/static/icons/files.svg');
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: contain;
-        filter: brightness(0) saturate(100%) invert(65%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
+        background: var(--color-primary);
+        -webkit-mask: url('@openmates/ui/static/icons/files.svg') center / contain no-repeat;
+        mask: url('@openmates/ui/static/icons/files.svg') center / contain no-repeat;
     }
 
     .upload-text {
         font-size: 16px;
-        color: var(--color-grey-60);
-    }
-
-    .error-message {
-        color: var(--color-error);
-        font-size: 14px;
-        margin-top: 8px;
-        text-align: center;
+        color: transparent;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
     .loading-text {
