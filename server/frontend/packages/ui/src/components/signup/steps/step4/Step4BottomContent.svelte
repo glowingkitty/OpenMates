@@ -43,7 +43,7 @@
     
     <div class="resend-section">
         <span class="color-grey-60">{$_('signup.dont_have_2fa_app.text')}</span>
-        <a href={routes.docs.userGuide_signup_4} class="text-button">
+        <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
             {$_('signup.click_here_to_show_free_2fa_apps.text')}
         </a>
     </div>
