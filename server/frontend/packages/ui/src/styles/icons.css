@@ -693,6 +693,38 @@ div.clickable-icon {
   }
 }
 
+.icon.tfa {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/2fa.svg');
+  }
+}
+
+.icon.warning {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/warning.svg');
+  }
+}
+
+.icon.reminder {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/reminder.svg');
+  }
+}
+
+.icon.settings {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/settings.svg');
+  }
+}
+
 /* App Icons */
 .icon.app-ai {
   background: var(--color-app-ai);
