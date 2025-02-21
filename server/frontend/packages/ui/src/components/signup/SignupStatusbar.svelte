@@ -17,7 +17,7 @@
         display: flex;
         gap: 5px;
         justify-content: center;
-        padding: 16px 0;
+        padding: 22px 0 0 0;
     }
 
     .status-dot {

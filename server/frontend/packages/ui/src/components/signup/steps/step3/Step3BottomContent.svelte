@@ -137,17 +137,17 @@
         padding: 24px;
         display: flex;
         flex-direction: column;
+        align-items: center;  /* Add this line */
         gap: 16px;
     }
 
     .file-upload-field {
         width: calc(100% - 60px);
-        max-width: 350px;
-        padding: 12px 16px 12px 45px; /* Add padding for icon */
+        max-width: 270px;
+        padding: 12px 16px 12px 45px;
         padding-left: 0px;
-
-        /* Remove max-width since we're using fixed width */
-        min-width: unset;  /* Remove min-width */
+        display: block;  /* Add this line */
+        margin: 0 auto;  /* Add this line */
         cursor: pointer;
     }
 
@@ -165,7 +165,6 @@
     .file-upload-button {
         display: flex;
         align-items: center;
-        width: 100%;
         padding: 12px 16px 12px 48px;
         border-radius: 24px;
         border: 2px solid var(--color-grey-0);
