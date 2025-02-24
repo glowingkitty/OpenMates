@@ -46,6 +46,8 @@ download_backup_codes_button:
     import { _ } from 'svelte-i18n';
     import { onMount } from 'svelte';
 
+    let codesDownloaded = false;
+
     // Dummy backup codes for development
     const backupCodes = [
         "ABCD-EFGH-IJKL",
@@ -56,6 +58,7 @@ download_backup_codes_button:
     ];
 
     function downloadBackupCodes() {
+        codesDownloaded = true;
         const content = backupCodes.join('\n');
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
@@ -69,8 +72,14 @@ download_backup_codes_button:
     }
 
     onMount(() => {
-        // Auto download on component mount
-        downloadBackupCodes();
+        // Auto download after 1.5s if user hasn't downloaded manually
+        const timer = setTimeout(() => {
+            if (!codesDownloaded) {
+                downloadBackupCodes();
+            }
+        }, 1500);
+
+        return () => clearTimeout(timer);
     });
 </script>
 
@@ -88,9 +97,7 @@ download_backup_codes_button:
         {$_('signup.store_backup_codes_safely.text')}
     </mark>
 
-    <button class="download-button" on:click={downloadBackupCodes}>
-        <div class="download-icon"></div>
-    </button>
+    <button class="clickable-icon icon_download download-button" on:click={downloadBackupCodes}></button>
 </div>
 
 <style>
@@ -132,16 +139,8 @@ download_backup_codes_button:
     .download-button {
         width: 87px;
         height: 87px;
-        border-radius: 14px;
-        border: none;
-        background-color: var(--color-primary);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 20px;
-        position: relative;
         transition: transform 0.2s;
+        margin-top: 30px;
     }
 
     .download-button:hover {
