@@ -10,12 +10,21 @@
 
     // Dynamic imports for step contents
     import Step2TopContent from './steps/step2/Step2TopContent.svelte';
-    import Step2BottomContent from './steps/step2/Step2BottomContent.svelte';
     import Step3TopContent from './steps/step3/Step3TopContent.svelte';
-    import Step3BottomContent from './steps/step3/Step3BottomContent.svelte';
     import Step4TopContent from './steps/step4/Step4TopContent.svelte';
+    import Step5TopContent from './steps/step5/Step5TopContent.svelte';
+    import Step6TopContent from './steps/step6/Step6TopContent.svelte';
+    import Step7TopContent from './steps/step7/Step7TopContent.svelte';
+    import Step8TopContent from './steps/step8/Step8TopContent.svelte';
+    import Step9TopContent from './steps/step9/Step9TopContent.svelte';
+    import Step2BottomContent from './steps/step2/Step2BottomContent.svelte';
+    import Step3BottomContent from './steps/step3/Step3BottomContent.svelte';
     import Step4BottomContent from './steps/step4/Step4BottomContent.svelte';
-    // ... import other step contents
+    import Step5BottomContent from './steps/step5/Step5BottomContent.svelte';
+    import Step6BottomContent from './steps/step6/Step6BottomContent.svelte';
+    import Step7BottomContent from './steps/step7/Step7BottomContent.svelte';
+    import Step8BottomContent from './steps/step8/Step8BottomContent.svelte';
+    import Step9BottomContent from './steps/step9/Step9BottomContent.svelte';
     
     import SignupStatusbar from './SignupStatusbar.svelte';
 
@@ -122,6 +131,16 @@
                                         />
                                     {:else if currentStep === 4}
                                         <Step4TopContent />
+                                    {:else if currentStep === 5}
+                                        <Step5TopContent />
+                                    {:else if currentStep === 6}
+                                        <Step6TopContent />
+                                    {:else if currentStep === 7}
+                                        <Step7TopContent />
+                                    {:else if currentStep === 8}
+                                        <Step8TopContent />
+                                    {:else if currentStep === 9}
+                                        <Step9TopContent />
                                     {/if}
                                 </div>
                             {/key}
@@ -139,9 +158,16 @@
                                 out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                             >
                                 <svelte:component 
-                                    this={currentStep === 2 ? Step2BottomContent :
-                                          currentStep === 3 ? Step3BottomContent :
-                                          currentStep === 4 ? Step4BottomContent : null}
+                                    this={
+                                            currentStep === 2 ? Step2BottomContent :
+                                            currentStep === 3 ? Step3BottomContent :
+                                            currentStep === 4 ? Step4BottomContent :
+                                            currentStep === 5 ? Step5BottomContent :
+                                            currentStep === 6 ? Step6BottomContent :
+                                            currentStep === 7 ? Step7BottomContent :
+                                            currentStep === 8 ? Step8BottomContent :
+                                            currentStep === 9 ? Step9BottomContent :
+                                           null}
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}
                                 />

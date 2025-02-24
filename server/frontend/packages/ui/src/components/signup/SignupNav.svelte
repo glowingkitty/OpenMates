@@ -30,6 +30,11 @@
         if (step === 1) return $_('login.login_button.text');
         if (step === 3) return $_('settings.logout.text');
         if (step === 4) return $_('signup.profile_image.text');
+        if (step === 5) return $_('signup.connect_2fa_app.text');
+        if (step === 6) return $_('signup.2fa_backup_codes.text');
+        if (step === 7) return $_('signup.2fa_app_reminder.text');
+        if (step === 8) return $_('signup.settings.text');
+        if (step === 9) return $_('signup.mates_settings.text');
         return $_('signup.sign_up.text');
     }
 
