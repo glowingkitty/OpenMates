@@ -1,4 +1,4 @@
-<!--
+<!-- yaml_details
 # YAML file explains structure of the UI.
 The yaml structure is used as a base for auto generating & auto updating the documentations
 and to help LLMs to answer questions regarding how the UI is used.
@@ -27,6 +27,7 @@ tfa_app_reminder_explainer:
 
 <script lang="ts">
     import { text } from '@repo/ui';
+    import Login2FA from '../../../Login2FA.svelte';
 </script>
 
 <div class="content">
@@ -37,6 +38,16 @@ tfa_app_reminder_explainer:
 
     <div class="text-block">
         {@html $text('signup.in_case_you_forget.text')}
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-wrapper">
+            <Login2FA 
+                previewMode 
+                previewTfaAppName="Google Authenticator" 
+                highlight={['check-2fa', 'app-name']} 
+            />
+        </div>
     </div>
 </div>
 
@@ -74,5 +85,25 @@ tfa_app_reminder_explainer:
     .text-block {
         margin: 20px 0 20px 0;
         text-align: center;
+    }
+
+    .preview-container {
+        background: var(--color-grey-10);
+        padding: 10px;
+        border-radius: 20px 20px 0 0;
+        width: 80%;
+        display: flex;
+        justify-content: center;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+
+    .preview-wrapper {
+        transform: scale(0.8);
+        transform-origin: top center;
+        margin-top: 20px;
     }
 </style>

@@ -1,4 +1,4 @@
-<!--
+<!-- yaml_details
 # YAML file explains structure of the UI.
 The yaml structure is used as a base for auto generating & auto updating the documentations
 and to help LLMs to answer questions regarding how the UI is used.
@@ -6,7 +6,7 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-signup_enter_2fa_code_input_field:
+enter_2fa_code_input_field:
     type: 'input_field'
     placeholder: $text('signup.enter_one_time_code.text')
     purpose:
