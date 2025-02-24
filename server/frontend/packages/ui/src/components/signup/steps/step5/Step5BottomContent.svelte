@@ -34,20 +34,15 @@ confirm_save_storage_toggle:
     const dispatch = createEventDispatcher();
     let hasConfirmedStorage = false;
 
-    function handleToggleChange(event: CustomEvent) {
-        hasConfirmedStorage = event.detail;
-        if (hasConfirmedStorage) {
-            dispatch('confirmed');
-        }
+    // Watch for changes to hasConfirmedStorage
+    $: if (hasConfirmedStorage) {
+        dispatch('step', { step: 6 });
     }
 </script>
 
 <div class="bottom-content">
     <div class="confirmation-row">
-        <Toggle 
-            checked={hasConfirmedStorage} 
-            on:change={handleToggleChange}
-        />
+        <Toggle bind:checked={hasConfirmedStorage} />
         <span class="confirmation-text">
             {$_('signup.i_stored_backup_codes.text')}
         </span>
@@ -67,7 +62,8 @@ confirm_save_storage_toggle:
     }
 
     .confirmation-text {
-        color: var(--color-grey-100);
+        color: var(--color-grey-60);
         font-size: 16px;
+        text-align: left;
     }
 </style>
