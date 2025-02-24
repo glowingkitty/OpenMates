@@ -52,6 +52,7 @@ scan_via_2fa_app_button:
         - 'QR code is shown'
         - 'User scans the QR code with their 2FA app'
         - 'User account is added to the 2FA app'
+        - 'If user clicks button second time, QR code is hidden'
     bigger_context:
         - 'Signup'
     tags:
