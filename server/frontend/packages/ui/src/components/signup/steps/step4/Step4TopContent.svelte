@@ -1,3 +1,85 @@
+<!--
+# YAML file explains structure of the UI.
+The yaml structure is used as a base for auto generating & auto updating the documentations
+and to help LLMs to answer questions regarding how the UI is used.
+Instruction to AI: Only update the yaml structure if the UI structure is updated enough to justify
+changes to the documentation (to keep the documentation up to date).
+-->
+<!-- yaml
+2fa_explainer:
+    type: 'text + visuals'
+    text:
+        - $_('signup.secure_your_account.text')
+        - $_('signup.prevent_access.text')
+        - $_('signup.free.text')
+        - $_('signup.fast_to_setup.text')
+        - $_('signup.max_security.text')
+    visuals:
+        - 'Three checkmark icons. One for each of the three features (free, fast to setup, max security)'
+    purpose:
+        - 'Informs user about the advantages of securing their account with 2FA'
+        - 'Reminds users 2FA is free, fast to setup, and provides maximum security'
+    bigger_context:
+        - 'Signup'
+    tags:
+        - 'signup'
+        - '2fa'
+    connected_documentation:
+        - '/signup/2fa'
+add_to_2fa_app_button:
+    type: 'button'
+    text: $_('signup.add_to_2fa_app.text')
+    purpose:
+        - 'Uses deep linking to open the 2FA app on the user device and add the user account to the 2FA app'
+    processing:
+        - 'User clicks the button'
+        - 'User is forwarded to the 2FA app'
+        - 'User account is automatically added to the 2FA app'
+    bigger_context:
+        - 'Signup'
+    tags:
+        - 'signup'
+        - '2fa'
+    connected_documentation:
+        - '/signup/2fa'
+scan_via_2fa_app_button:
+    type: 'button'
+    text: $_('signup.scan_via_2fa_app.text')
+    purpose:
+        - 'Opens the QR code for the user to scan with their 2FA app, to add the user account to the 2FA app'
+    processing:
+        - 'User clicks the button'
+        - 'QR code is shown'
+        - 'User scans the QR code with their 2FA app'
+        - 'User account is added to the 2FA app'
+    bigger_context:
+        - 'Signup'
+    tags:
+        - 'signup'
+        - '2fa'
+        - 'QR code'
+    connected_documentation:
+        - '/signup/2fa'
+copy_secret_button:
+    type: 'button'
+    text: $_('signup.copy_secret.text')
+    purpose:
+        - 'Copies the secret key to the user clipboard, to manually add the user account to the 2FA app'
+    processing:
+        - 'User clicks the button'
+        - 'Secret key is copied to the user clipboard'
+        - 'User sees a confirmation message that the secret key was copied'
+        - 'User pastes the secret key into the 2FA app'
+        - 'User account is added to the 2FA app'
+    bigger_context:
+        - 'Signup'
+    tags:
+        - 'signup'
+        - '2fa'
+    connected_documentation:
+        - '/signup/2fa'
+-->
+
 <script lang="ts">
     import { _ } from 'svelte-i18n';
     import { fade } from 'svelte/transition';

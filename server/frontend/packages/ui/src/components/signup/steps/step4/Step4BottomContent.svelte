@@ -1,3 +1,46 @@
+<!--
+# YAML file explains structure of the UI.
+The yaml structure is used as a base for auto generating & auto updating the documentations
+and to help LLMs to answer questions regarding how the UI is used.
+Instruction to AI: Only update the yaml structure if the UI structure is updated enough to justify
+changes to the documentation (to keep the documentation up to date).
+-->
+<!-- yaml
+signup_enter_2fa_code_input_field:
+    type: 'input_field'
+    placeholder: $_('signup.enter_one_time_code.text')
+    purpose:
+        - 'Verifies the 2FA code, to setup 2FA for the user account.'
+    processing:
+        - 'User clicks field (or, if on desktop, field is focused automatically)'
+        - 'User enters numeric code shown in 2FA OTP app'
+        - 'Server request is sent to validate 2FA code'
+        - 'If 2FA code valid: next signup step is loaded'
+        - 'If 2FA code not valid: informs user via error message'
+    bigger_context:
+        - 'Signup'
+    tags:
+        - 'signup'
+        - '2fa'
+    connected_documentation:
+        - '/signup/2fa'
+click_to_show_free_2fa_apps_button:
+    type: 'button'
+    text: $_('signup.click_here_to_show_free_2fa_apps.text')
+    purpose:
+        - 'User clicks and is forwarded to the documentation page about 2FA (which should include links to free 2FA apps)'
+    processing:
+        - 'User clicks the button'
+        - 'User is forwarded to the documentation page about 2FA (which should include links to free 2FA apps)'
+    bigger_context:
+        - 'Signup'
+    tags:
+        - 'signup'
+        - '2fa'
+    connected_documentation:
+        - '/signup/2fa'
+-->
+
 <script lang="ts">
     import { _ } from 'svelte-i18n';
     import { onMount } from 'svelte';
