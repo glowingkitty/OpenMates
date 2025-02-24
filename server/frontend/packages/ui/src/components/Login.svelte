@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fade, scale } from 'svelte/transition';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
@@ -245,8 +245,8 @@
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 {#if currentView === 'login'}
                     <div class="content-area" in:fade={{ duration: 400 }}>
-                        <h1><mark>{$_('login.login.text')}</mark></h1>
-                        <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
+                        <h1><mark>{@html $text('login.login.text')}</mark></h1>
+                        <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
 
                         <div class="form-container">
                             {#if isRateLimited}
@@ -315,13 +315,13 @@
                             {#if $isCheckingAuth}
                                 <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                                     <span class="loading-spinner"></span>
-                                    <p>{$_('login.loading.text')}</p>
+                                    <p>{@html $text('login.loading.text')}</p>
                                 </div>
                             {/if}
                         </div>
 
                         <div class="bottom-positioned" class:visible={showForm} hidden={!showForm}>
-                            <span class="color-grey-60">{$_('login.not_signed_up_yet.text')}</span><br>
+                            <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
                             <button class="text-button" on:click={switchToSignup}>
                                 {$_('login.click_here_to_create_a_new_account.text')}
                             </button>

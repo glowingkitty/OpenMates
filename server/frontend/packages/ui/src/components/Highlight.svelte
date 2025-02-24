@@ -2,7 +2,7 @@
     import AnimatedChatExamples from './AnimatedChatExamples.svelte';
     import APIexample from './APIexample.svelte';
     import { onMount, onDestroy } from 'svelte';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
 
     // Define props for the component
     export let main_heading: string;
@@ -88,7 +88,7 @@
 >
     <!-- Text content with conditional alignment -->
     <div class={`highlight-content text-${text_side}`}>
-        <h3 class="subheading">{$_(`highlight.sections.${sub_heading.toLowerCase()}.heading.text`)}</h3>
+        <h3 class="subheading">{@html $text(`highlight.sections.${sub_heading.toLowerCase()}.heading.text`)}</h3>
         <h2 class="title">{@html processMarkTags(main_heading)}</h2>
         <p class="description">{@html processMarkTags(paragraph)}</p>
     </div>
@@ -177,7 +177,7 @@
                         <div class="icon skill-icon skill-search"></div>
                     </div>
                     <div class="icons-text">
-                        {$_('highlight.ui.events.text')} | <mark>{$_('highlight.ui.search.text')}</mark>
+                        {$_('highlight.ui.events.text')} | <mark>{@html $text('highlight.ui.search.text')}</mark>
                     </div>
                 </div>
                 <div class="highlight-content-container-2">

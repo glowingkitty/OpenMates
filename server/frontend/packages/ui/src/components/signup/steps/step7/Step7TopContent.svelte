@@ -10,13 +10,13 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
 </script>
 
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size tfa"></div>
-        <h2 class="menu-title">{$_('signup.backup_codes.text')}</h2>
+        <h2 class="menu-title">{@html $text('signup.backup_codes.text')}</h2>
     </div>
 </div>
 

@@ -4,7 +4,7 @@
   // Import the UI components used by the hero header
   // -------------------------------------------------------------------
   import { Icon, AnimatedChatExamples, WaitingList, AppIconGrid } from '@repo/ui';
-  import { _ } from 'svelte-i18n';
+  import { text } from '@repo/ui';
 
   // Local reactive variable to store the current app state
   let currentApp = '';
@@ -43,20 +43,20 @@
         {:else}
           {$_('digital_team_mates.text')}
         {/if}
-        <mark><br>{$_('for_all_of_us.text')}</mark>
+        <mark><br>{@html $text('for_all_of_us.text')}</mark>
       </h1>
       <p class="text-center platform-text">
         {$_('platforms.via.text')}
         <span class="platform-wrapper">
-          <span class="visually-hidden">{$_('platforms.web.text')}, </span>
+          <span class="visually-hidden">{@html $text('platforms.web.text')}, </span>
           <span class="small-icon icon_web"></span>
         </span>
         <span class="platform-wrapper">
-          <span class="visually-hidden">{$_('platforms.mattermost.text')}, </span>
+          <span class="visually-hidden">{@html $text('platforms.mattermost.text')}, </span>
           <span class="small-icon icon_mattermost"></span>
         </span>
         <span class="platform-wrapper">
-          <span class="visually-hidden">{$_('platforms.discord.text')}</span>
+          <span class="visually-hidden">{@html $text('platforms.discord.text')}</span>
           <span class="small-icon icon_discord"></span>
         </span>
         {$_('platforms.and_more.text')}

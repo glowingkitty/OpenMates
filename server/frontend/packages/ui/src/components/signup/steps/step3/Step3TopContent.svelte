@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { processedImageUrl } from '../../../../stores/profileImage';
     export let username: string;
     export let isProcessing = false;
@@ -7,7 +7,7 @@
 </script>
 
 <div class="content">
-    <h2>{$_('chat.welcome.hey.text')} {username}</h2>
+    <h2>{@html $text('chat.welcome.hey.text')} {username}</h2>
     <div class="image-container">
         <div class="image-circle">
             {#if $processedImageUrl}

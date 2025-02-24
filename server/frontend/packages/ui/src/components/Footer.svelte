@@ -3,7 +3,7 @@
     import { goto } from '$app/navigation';
     import { externalLinks, routes, getWebsiteUrl } from '../config/links';
     import { isPageVisible } from '../config/pages';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { locale, locales } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
@@ -249,9 +249,9 @@
                     </a>
                 </div>
                 <div class="tagline mobile-order-1">
-                    <p>{$_('footer.tagline.line1.text')}</p>
-                    <p>{$_('footer.tagline.line2.text')}</p>
-                    <p>{$_('footer.tagline.line3.text')}</p>
+                    <p>{@html $text('footer.tagline.line1.text')}</p>
+                    <p>{@html $text('footer.tagline.line2.text')}</p>
+                    <p>{@html $text('footer.tagline.line3.text')}</p>
                 </div>
                 <div class="logo invisible mobile-order-3"></div>
             </div>
@@ -261,7 +261,7 @@
         <div class="footer-nav">
             {#each processedFooterSections as section}
                 <div class="footer-section">
-                    <h3>{$_(section.title_key + '.text')}</h3>
+                    <h3>{@html $text(section.title_key + '.text')}</h3>
                     <ul>
                         {#each section.links as link}
                             <li>
@@ -297,7 +297,7 @@
 
         <!-- Made in EU Section -->
         <div class="footer-bottom">
-            <p>{$_('footer.made_in_eu.text')}</p>
+            <p>{@html $text('footer.made_in_eu.text')}</p>
             <div class="flag icon_eu"></div>
         </div>
     </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import WaitingList from '../../WaitingList.svelte';
     import Toggle from '../../Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
@@ -417,8 +417,8 @@
 </script>
 
 <div class="content-area">
-    <h1><mark>{$_('signup.sign_up.text')}</mark></h1>
-    <h2>{$_('login.to_chat_to_your.text')}<br><mark>{$_('login.digital_team_mates.text')}</mark></h2>
+    <h1><mark>{@html $text('signup.sign_up.text')}</mark></h1>
+    <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
     
     <div class="form-container">
         {#if !isValidated}
@@ -551,7 +551,7 @@
                     <div class="agreement-text">
                         {$_('signup.agree_to.text')} 
                         <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
-                            <mark>{$_('signup.terms_of_service.text')}</mark>
+                            <mark>{@html $text('signup.terms_of_service.text')}</mark>
                         </a>
                     </div>
                 </div>
@@ -561,7 +561,7 @@
                     <div class="agreement-text">
                         {$_('signup.agree_to.text')} 
                         <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
-                            <mark>{$_('signup.privacy_policy.text')}</mark>
+                            <mark>{@html $text('signup.privacy_policy.text')}</mark>
                         </a>
                     </div>
                 </div>

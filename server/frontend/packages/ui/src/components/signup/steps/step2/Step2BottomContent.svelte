@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     
@@ -50,7 +50,7 @@
     </div>
     
     <div class="resend-section">
-        <span class="color-grey-60">{$_('signup.havent_received_a_code.text')}</span>
+        <span class="color-grey-60">{@html $text('signup.havent_received_a_code.text')}</span>
         <button class="text-button" on:click={handleResend}>
             {$_('signup.click_to_resend.text')}
         </button>

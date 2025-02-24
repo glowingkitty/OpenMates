@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     
     const dispatch = createEventDispatcher<{
         audiorecorded: { blob: Blob; duration: number };
@@ -245,7 +245,7 @@
 
 <div class="record-overlay" transition:slide={{ duration: 300, axis: 'y' }}>
     <div class="record-content">
-        <h2 class="header-text">{$_('enter_message.record_audio.release_to_finish.text')}</h2>
+        <h2 class="header-text">{@html $text('enter_message.record_audio.release_to_finish.text')}</h2>
         
         <div class="controls-row">
             {#if isRecording}
@@ -256,7 +256,7 @@
             
             <div class="cancel-indicator">
                 <div class="cancel-x">✕</div>
-                <span>{$_('enter_message.record_audio.slide_left_to_cancel.text')}</span>
+                <span>{@html $text('enter_message.record_audio.slide_left_to_cancel.text')}</span>
             </div>
 
             <div class="record-button-wrapper"

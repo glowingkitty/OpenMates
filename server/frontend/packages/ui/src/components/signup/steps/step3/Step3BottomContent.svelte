@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import InputWarning from '../../../common/InputWarning.svelte';
     import Pica from 'pica';
     import { processedImageUrl } from '../../../../stores/profileImage';
@@ -121,7 +121,7 @@
         />
         <span class="file-upload-button" class:error={showWarning}>
             <div class="file-icon"></div>
-            <span class="upload-text">{$_('signup.upload_profile_image.text')}</span>
+            <span class="upload-text">{@html $text('signup.upload_profile_image.text')}</span>
         </span>
     </label>
     {#if showWarning && errorMessage}

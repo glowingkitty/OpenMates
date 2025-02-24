@@ -82,7 +82,7 @@ copy_secret_button:
 -->
 
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
 
     let showQrCode = false;
@@ -112,7 +112,7 @@ copy_secret_button:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size tfa"></div>
-        <h2 class="menu-title">{$_('signup.secure_your_account.text')}</h2>
+        <h2 class="menu-title">{@html $text('signup.secure_your_account.text')}</h2>
     </div>
     
     <div class="prevent-access-text" class:fade-out={showQrCode}>
@@ -122,15 +122,15 @@ copy_secret_button:
     <div class="features" class:fade-out={showQrCode}>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{$_('signup.free.text')}</span>
+            <span>{@html $text('signup.free.text')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{$_('signup.fast_to_setup.text')}</span>
+            <span>{@html $text('signup.fast_to_setup.text')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{$_('signup.max_security.text')}</span>
+            <span>{@html $text('signup.max_security.text')}</span>
         </div>
     </div>
 
@@ -143,20 +143,20 @@ copy_secret_button:
         <div class="button-row" class:move-up={showQrCode}>
             <button class="text-button with-icon" on:click={handleDeepLink}>
                 <span class="button-icon open-icon"></span>
-                <span>{$_('signup.add_to_2fa_app.text')}</span>
+                <span>{@html $text('signup.add_to_2fa_app.text')}</span>
             </button>
         </div>
         
         <div class="button-row" class:move-up={showQrCode}>
-            <span class="or-text">{$_('signup.or.text')}</span>
+            <span class="or-text">{@html $text('signup.or.text')}</span>
             <button class="text-button with-icon" on:click={toggleQrCode}>
                 <span class="button-icon camera-icon"></span>
-                <span>{$_('signup.scan_via_2fa_app.text')}</span>
+                <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
             </button>
         </div>
 
         <div class="button-row">
-            <span class="or-text">{$_('signup.or.text')}</span>
+            <span class="or-text">{@html $text('signup.or.text')}</span>
             <button class="text-button with-icon" on:click={copySecret}>
                 <span class="button-icon copy-icon"></span>
                 <span>

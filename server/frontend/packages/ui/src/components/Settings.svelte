@@ -1,6 +1,6 @@
 <script lang="ts" context="module">
     import { writable } from 'svelte/store';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     export const teamEnabled = writable(true);
     export const settingsMenuVisible = writable(false);
     export const isMobileView = writable(false);
@@ -215,7 +215,7 @@
                     ></button>
                 </div>
                 <div class="header-center">
-                    <h4>{$_('settings.settings.text')}</h4>
+                    <h4>{@html $text('settings.settings.text')}</h4>
                 </div>
                 <div class="header-left"></div>
             </div>
@@ -286,55 +286,55 @@
         <!-- Documentation links section -->
         <div class="submenu-section">
             <div class="submenu-group">
-                <h3>{$_('settings.docs.text')}</h3>
+                <h3>{@html $text('settings.docs.text')}</h3>
                 <a 
                     href={getWebsiteUrl('/docs/user-guide')} 
                     class="submenu-link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                >{$_('settings.user_guide.text')}</a>
+                >{@html $text('settings.user_guide.text')}</a>
                 <a 
                     href={getWebsiteUrl('/docs/api-docs')} 
                     class="submenu-link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                >{$_('settings.api_docs.text')}</a>
+                >{@html $text('settings.api_docs.text')}</a>
             </div>
 
             <div class="submenu-group">
-                <h3>{$_('settings.contact.text')}</h3>
+                <h3>{@html $text('settings.contact.text')}</h3>
                 <a 
                     href={externalLinks.discord} 
                     class="submenu-link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                >{$_('settings.discord.text')}</a>
+                >{@html $text('settings.discord.text')}</a>
                 <a 
                     href={externalLinks.email} 
                     class="submenu-link"
-                >{$_('settings.email.text')}</a>
+                >{@html $text('settings.email.text')}</a>
             </div>
 
             <div class="submenu-group">
-                <h3>{$_('settings.legal.text')}</h3>
+                <h3>{@html $text('settings.legal.text')}</h3>
                 <a 
                     href={getWebsiteUrl(externalLinks.legal.imprint)} 
                     class="submenu-link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                >{$_('settings.imprint.text')}</a>
+                >{@html $text('settings.imprint.text')}</a>
                 <a 
                     href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
                     class="submenu-link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                >{$_('settings.privacy.text')}</a>
+                >{@html $text('settings.privacy.text')}</a>
                 <a 
                     href={getWebsiteUrl(externalLinks.legal.terms)} 
                     class="submenu-link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                >{$_('settings.terms_and_conditions.text')}</a>
+                >{@html $text('settings.terms_and_conditions.text')}</a>
             </div>
         </div>
     </div>

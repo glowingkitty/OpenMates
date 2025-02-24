@@ -43,7 +43,7 @@ download_backup_codes_button:
 -->
 
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { onMount } from 'svelte';
     import { tooltip } from '../../../../actions/tooltip';
 
@@ -87,7 +87,7 @@ download_backup_codes_button:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size warning"></div>
-        <h2 class="menu-title">{$_('signup.backup_codes.text')}</h2>
+        <h2 class="menu-title">{@html $text('signup.backup_codes.text')}</h2>
     </div>
 
     <div class="text-block">

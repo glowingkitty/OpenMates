@@ -42,7 +42,7 @@ click_to_show_free_2fa_apps_button:
 -->
 
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { routes } from '../../../../config/links';
@@ -85,7 +85,7 @@ click_to_show_free_2fa_apps_button:
     </div>
     
     <div class="resend-section">
-        <span class="color-grey-60">{$_('signup.dont_have_2fa_app.text')}</span>
+        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
         <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
             {$_('signup.click_here_to_show_free_2fa_apps.text')}
         </a>

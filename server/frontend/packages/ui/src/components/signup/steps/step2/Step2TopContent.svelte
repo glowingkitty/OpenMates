@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     export let email: string;
 </script>
@@ -10,7 +10,7 @@
             <div class="clickable-icon icon_mail signup"></div>
             <div class="notification-counter" transition:fade={{ delay: 800 }}>1</div>
         </div>
-        <span class="color-grey-80">{$_('signup.you_received_a_one_time_code_via_email.text')}</span>
+        <span class="color-grey-80">{@html $text('signup.you_received_a_one_time_code_via_email.text')}</span>
         <mark>{email}</mark>
     </div>
     <a href="mailto:" class="text-button">

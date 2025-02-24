@@ -32,6 +32,7 @@ export * from "./src/types/chat";
 // i18n exports
 export * from "./src/i18n/setup";
 export * from "./src/i18n/types";
+export * from "./src/i18n/translations";
 
 // Stores
 export * from "./src/stores/theme";

@@ -1,13 +1,13 @@
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { externalLinks } from '../config/links';
 </script>
 
 <section class="legal-container">
-    <h1>{$_('legal.imprint.title.text')}</h1>
+    <h1>{@html $text('legal.imprint.title.text')}</h1>
 
     <section>
-        <h2>{$_('legal.imprint.information_tmg.text')}</h2>
+        <h2>{@html $text('legal.imprint.information_tmg.text')}</h2>
         <p><span class="contact-info info-1"></span></p>
         <p><span class="contact-info info-2"></span></p>
         <p><span class="contact-info info-3"></span></p>
@@ -15,8 +15,8 @@
     </section>
 
     <section>
-        <h2>{$_('legal.imprint.contact.text')}</h2>
-        <p>{$_('legal.imprint.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
+        <h2>{@html $text('legal.imprint.contact.text')}</h2>
+        <p>{@html $text('legal.imprint.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
     </section>
 </section>
 

@@ -26,7 +26,7 @@ tfa_app_reminder_explainer:
 -->
 
 <script lang="ts">
-    import { text } from '../../../../utils/translations';
+    import { text } from '@repo/ui';
 </script>
 
 <div class="content">

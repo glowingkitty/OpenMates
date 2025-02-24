@@ -4,7 +4,7 @@
     import ChatHistory from './ChatHistory.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import Login from './Login.svelte';
-    import { _ } from 'svelte-i18n'; // Import translation function
+    import {text} from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount } from 'svelte';
     import { isAuthenticated } from '../stores/authState';
@@ -313,8 +313,8 @@
                             <div class="team-profile">
                                 <div class="team-image" class:disabled={!isTeamEnabled}></div>
                                 <div class="welcome-text">
-                                    <h2>{$_('chat.welcome.hey.text')} Kitty!</h2>
-                                    <p>{$_('chat.welcome.what_do_you_need_help_with.text')}</p>
+                                    <h2>{@html $text('chat.welcome.hey.text')} Kitty!</h2>
+                                    <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
                                 </div>
                             </div>
                         </div>

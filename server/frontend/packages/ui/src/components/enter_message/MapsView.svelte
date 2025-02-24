@@ -1,7 +1,8 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
-    import { _, locale } from 'svelte-i18n';
+    import { text } from '@repo/ui';
+    import { locale } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
     import Toggle from '../Toggle.svelte';  // Add Toggle import
     import 'leaflet/dist/leaflet.css';
@@ -980,7 +981,7 @@
 >
     {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
-            <span>{$_('enter_message.location.precise.text')}</span>
+            <span>{@html $text('enter_message.location.precise.text')}</span>
             <Toggle 
                 bind:checked={isPrecise}
                 name="precise-location"
@@ -1041,7 +1042,7 @@
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
             <div class="search-results-header">
-                <h3>{$_('enter_message.location.search_results.text') || 'Search Results'}</h3>
+                <h3>{@html $text('enter_message.location.search_results.text') || 'Search Results'}</h3>
                 <button 
                     class="clickable-icon icon_close" 
                     on:click={() => {

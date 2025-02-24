@@ -1,6 +1,6 @@
 <script lang="ts">
     import DiscordButton from './DiscordButton.svelte';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
 
     export let showPersonalInviteMessage = false;
 </script>
@@ -13,7 +13,7 @@
                 {$_('signup.dont_have_personal_invite_code.text')}<br>
                 {/if}
                 {$_('waiting_list.discord_members.text')}<br>
-                <mark><bold>{$_('waiting_list.early_access.text')}</bold></mark>
+                <mark><bold>{@html $text('waiting_list.early_access.text')}</bold></mark>
             </p>
             <DiscordButton />
         </div>
