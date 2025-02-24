@@ -271,7 +271,7 @@
                                     on:click={(e) => handleClick(e, link.href)}
                                     {...link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
                                 >
-                                    {$_(link.translation_key + '.text')}
+                                    {$text(link.translation_key + '.text')}
                                 </a>
                             </li>
                         {/each}
@@ -285,7 +285,7 @@
             <select 
                 value={localStorage.getItem('preferredLanguage') || navigator.language.split('-')[0]} 
                 on:change={handleLanguageChange}
-                aria-label={$_('footer.language_selector.label.text')}
+                aria-label={$text('footer.language_selector.label.text')}
             >
                 {#each supportedLanguages as language}
                     <option value={language.code}>

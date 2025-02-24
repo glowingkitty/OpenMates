@@ -28,7 +28,7 @@ tfa_explainer:
         - '/signup/2fa'
 add_to_2fa_app_button:
     type: 'button'
-    text: $_('signup.add_to_2fa_app.text')
+    text: $text('signup.add_to_2fa_app.text')
     purpose:
         - 'Uses deep linking to open the 2FA app on the user device and add the user account to the 2FA app'
     processing:
@@ -44,7 +44,7 @@ add_to_2fa_app_button:
         - '/signup/2fa'
 scan_via_2fa_app_button:
     type: 'button'
-    text: $_('signup.scan_via_2fa_app.text')
+    text: $text('signup.scan_via_2fa_app.text')
     purpose:
         - 'Opens the QR code for the user to scan with their 2FA app, to add the user account to the 2FA app'
     processing:
@@ -63,7 +63,7 @@ scan_via_2fa_app_button:
         - '/signup/2fa'
 copy_secret_button:
     type: 'button'
-    text: $_('signup.copy_secret.text')
+    text: $text('signup.copy_secret.text')
     purpose:
         - 'Copies the secret key to the user clipboard, to manually add the user account to the 2FA app'
     processing:
@@ -116,7 +116,7 @@ copy_secret_button:
     </div>
     
     <div class="prevent-access-text" class:fade-out={showQrCode}>
-        {$_('signup.prevent_access.text')}
+        {$text('signup.prevent_access.text')}
     </div>
     
     <div class="features" class:fade-out={showQrCode}>
@@ -161,9 +161,9 @@ copy_secret_button:
                 <span class="button-icon copy-icon"></span>
                 <span>
                     {#if showCopiedText}
-                        {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+                        {$text('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
                     {:else}
-                        {$_('signup.copy_secret.text')}
+                        {$text('signup.copy_secret.text')}
                     {/if}
                 </span>
             </button>

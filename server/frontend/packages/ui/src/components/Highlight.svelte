@@ -111,8 +111,8 @@
                     <div class="center-content">
                         <div class="icon mate"></div>
                         <div class="powered-text">
-                            {$_('highlight.powered_by.powered_by_leading.text')}<br>
-                            {$_('highlight.powered_by.cloud_and_on_device_ai_models.text')}
+                            {$text('highlight.powered_by.powered_by_leading.text')}<br>
+                            {$text('highlight.powered_by.cloud_and_on_device_ai_models.text')}
                         </div>
                     </div>
                 </div>
@@ -121,9 +121,9 @@
                         <APIexample
                             method="POST"
                             endpoint="/api/v1/mates/ask"
-                            input={$_('highlight.api.example_input.text')}
+                            input={$text('highlight.api.example_input.text')}
                             output={{
-                                message: $_('highlight.api.example_output.text')
+                                message: $text('highlight.api.example_output.text')
                             }}
                         />
                     {:else}
@@ -144,7 +144,7 @@
                         <div class="icon app-health"></div>
                     </div>
                     <div class="icons-text">
-                        {$_('highlight.ui.calendar.text')} <mark>+</mark> {$_('highlight.ui.health.text')}
+                        {$text('highlight.ui.calendar.text')} <mark>+</mark> {$text('highlight.ui.health.text')}
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
@@ -177,7 +177,7 @@
                         <div class="icon skill-icon skill-search"></div>
                     </div>
                     <div class="icons-text">
-                        {$_('highlight.ui.events.text')} | <mark>{@html $text('highlight.ui.search.text')}</mark>
+                        {$text('highlight.ui.events.text')} | <mark>{@html $text('highlight.ui.search.text')}</mark>
                     </div>
                 </div>
                 <div class="highlight-content-container-2">
@@ -185,11 +185,11 @@
                         <APIexample
                             method="POST"
                             endpoint="/api/v1/apps/events/search"
-                            input={$_('highlight.api.search_input.text')}
+                            input={$text('highlight.api.search_input.text')}
                             output={{
                                 events: [
                                     {
-                                        title: $_('highlight.api.search_output_title.text'),
+                                        title: $text('highlight.api.search_output_title.text'),
                                         datetime: "2024-12-02T18:30:00Z"
                                     }
                                 ]

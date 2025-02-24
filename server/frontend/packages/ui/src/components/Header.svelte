@@ -4,10 +4,10 @@
     import { externalLinks, routes } from '../config/links';
     import { isPageVisible } from '../config/pages';
     import { replaceOpenMates } from '../actions/replaceText';
-    import { t, waitLocale } from 'svelte-i18n';
+    import { waitLocale } from 'svelte-i18n';  // Remove t import
     import { onMount, tick } from 'svelte';
     import { isMenuOpen } from '../stores/menuState';
-    import { _ } from 'svelte-i18n'; // Import translation function
+    import { text } from '@repo/ui';
 
     export let context: 'website' | 'webapp' = 'website';
     export let isLoggedIn = false;
@@ -26,15 +26,12 @@
         initializeContent();
     });
 
-    // Add a reactive statement to check if translations are ready
-    $: isTranslationsReady = $t !== undefined && typeof $t === 'function';
-
-    // Update the websiteNavItems to only create when translations are ready
-    $: websiteNavItems = isTranslationsReady ? [
-        { href: routes.home, text: $t('navigation.for_all.text') },
-        { href: routes.developers, text: $t('navigation.for_developers.text') },
-        { href: routes.docs.main, text: $t('navigation.docs.text') }
-    ].filter(item => item.href && isPageVisible(item.href)) : [];
+    // Simplify the websiteNavItems - remove isTranslationsReady check
+    $: websiteNavItems = [
+        { href: routes.home, text: $text('navigation.for_all.text') },
+        { href: routes.developers, text: $text('navigation.for_developers.text') },
+        { href: routes.docs.main, text: $text('navigation.docs.text') }
+    ].filter(item => item.href && isPageVisible(item.href));
 
     interface NavItem {
         href: string;
@@ -181,7 +178,7 @@
                             <button 
                                 class="clickable-icon icon_menu"
                                 on:click={toggleMenu}
-                                aria-label={$_('header.toggle_menu.text')}
+                                aria-label={$text('header.toggle_menu.text')}
                             ></button>
                         </div>
                     {/if}
@@ -194,13 +191,13 @@
                     </a>
                 </div>
 
-                {#if showNavLinks && isTranslationsReady && (context !== 'webapp' || isLoggedIn)}
+                {#if showNavLinks && (context !== 'webapp' || isLoggedIn)}
                     <!-- Mobile menu button only shown for website -->
                     {#if context === 'website'}
                         <button 
                             class="mobile-menu-button" 
                             on:click={toggleMobileMenu}
-                            aria-label={$_('header.toggle_menu.text')}
+                            aria-label={$text('header.toggle_menu.text')}
                         >
                             <div class:open={isMobileMenuOpen} class="hamburger">
                                 <span></span>
@@ -494,4 +491,4 @@
     .profile-button:hover {
         background-color: var(--color-grey-20);
     }
-</style> 
+</style>

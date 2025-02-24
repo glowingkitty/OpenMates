@@ -8,7 +8,7 @@ changes to the documentation (to keep the documentation up to date).
 <!-- yaml
 signup_enter_2fa_code_input_field:
     type: 'input_field'
-    placeholder: $_('signup.enter_one_time_code.text')
+    placeholder: $text('signup.enter_one_time_code.text')
     purpose:
         - 'Verifies the 2FA code, to setup 2FA for the user account.'
     processing:
@@ -26,7 +26,7 @@ signup_enter_2fa_code_input_field:
         - '/signup/2fa'
 click_to_show_free_2fa_apps_button:
     type: 'button'
-    text: $_('signup.click_here_to_show_free_2fa_apps.text')
+    text: $text('signup.click_here_to_show_free_2fa_apps.text')
     purpose:
         - 'User clicks and is forwarded to the documentation page about 2FA (which should include links to free 2FA apps)'
     processing:
@@ -77,7 +77,7 @@ click_to_show_free_2fa_apps_button:
                 type="text"
                 bind:value={otpCode}
                 on:input={handleInput}
-                placeholder={$_('signup.enter_one_time_code.text')}
+                placeholder={$text('signup.enter_one_time_code.text')}
                 inputmode="numeric"
                 maxlength="6"
             />
@@ -87,7 +87,7 @@ click_to_show_free_2fa_apps_button:
     <div class="resend-section">
         <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
         <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
-            {$_('signup.click_here_to_show_free_2fa_apps.text')}
+            {$text('signup.click_here_to_show_free_2fa_apps.text')}
         </a>
     </div>
 </div>

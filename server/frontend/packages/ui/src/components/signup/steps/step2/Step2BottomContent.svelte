@@ -42,7 +42,7 @@
                 type="text"
                 bind:value={otpCode}
                 on:input={handleInput}
-                placeholder={$_('signup.enter_one_time_code.text')}
+                placeholder={$text('signup.enter_one_time_code.text')}
                 inputmode="numeric"
                 maxlength="6"
             />
@@ -52,7 +52,7 @@
     <div class="resend-section">
         <span class="color-grey-60">{@html $text('signup.havent_received_a_code.text')}</span>
         <button class="text-button" on:click={handleResend}>
-            {$_('signup.click_to_resend.text')}
+            {$text('signup.click_to_resend.text')}
         </button>
     </div>
 </div>

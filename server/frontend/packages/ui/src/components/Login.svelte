@@ -80,14 +80,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $_('signup.at_missing.text');
+            emailError = $text('signup.at_missing.text');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $_('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing.text');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -251,7 +251,7 @@
                         <div class="form-container">
                             {#if isRateLimited}
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
-                                    {$_('signup.too_many_requests.text')}
+                                    {$text('signup.too_many_requests.text')}
                                 </div>
                             {:else}
                                 <form 
@@ -265,7 +265,7 @@
                                             <input 
                                                 type="email" 
                                                 bind:value={email}
-                                                placeholder={$_('login.email_placeholder.text')}
+                                                placeholder={$text('login.email_placeholder.text')}
                                                 required
                                                 autocomplete="email"
                                                 bind:this={emailInput}
@@ -278,7 +278,7 @@
                                                 />
                                             {:else if loginFailedWarning}
                                                 <InputWarning 
-                                                    message={$_('login.login_failed.text')}
+                                                    message={$text('login.login_failed.text')}
                                                     target={emailInput}
                                                 />
                                             {/if}
@@ -291,7 +291,7 @@
                                             <input 
                                                 type="password" 
                                                 bind:value={password}
-                                                placeholder={$_('login.password_placeholder.text')}
+                                                placeholder={$text('login.password_placeholder.text')}
                                                 required
                                                 autocomplete="current-password"
                                             />
@@ -306,7 +306,7 @@
                                         {#if isLoading}
                                             <span class="loading-spinner"></span>
                                         {:else}
-                                            {$_('login.login_button.text')}
+                                            {$text('login.login_button.text')}
                                         {/if}
                                     </button>
                                 </form>
@@ -323,7 +323,7 @@
                         <div class="bottom-positioned" class:visible={showForm} hidden={!showForm}>
                             <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
                             <button class="text-button" on:click={switchToSignup}>
-                                {$_('login.click_here_to_create_a_new_account.text')}
+                                {$text('login.click_here_to_create_a_new_account.text')}
                             </button>
                         </div>
                     </div>

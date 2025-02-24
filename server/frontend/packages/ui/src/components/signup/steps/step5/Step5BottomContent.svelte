@@ -8,7 +8,7 @@ changes to the documentation (to keep the documentation up to date).
 <!-- yaml
 confirm_save_storage_toggle:
     type: 'toggle'
-    text: $_('signup.i_stored_backup_codes.text')
+    text: $text('signup.i_stored_backup_codes.text')
     purpose:
         - 'User needs to confirm that they have saved the backup codes safely before continuing to the next signup step'
     processing:
@@ -28,7 +28,7 @@ confirm_save_storage_toggle:
 
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import Toggle from '../../../Toggle.svelte';
 
     const dispatch = createEventDispatcher();
@@ -44,7 +44,7 @@ confirm_save_storage_toggle:
     <div class="confirmation-row">
         <Toggle bind:checked={hasConfirmedStorage} />
         <span class="confirmation-text">
-            {$_('signup.i_stored_backup_codes.text')}
+            {$text('signup.i_stored_backup_codes.text')}
         </span>
     </div>
 </div>

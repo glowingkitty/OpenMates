@@ -14,7 +14,7 @@
         <mark>{email}</mark>
     </div>
     <a href="mailto:" class="text-button">
-        {$_('signup.open_mail_app.text')}
+        {$text('signup.open_mail_app.text')}
     </a>
 </div>
 

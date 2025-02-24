@@ -90,14 +90,14 @@
 
         if (file) {
             if (file.size > MAX_FILE_SIZE) {
-                errorMessage = $_('signup.image_too_large.text');
+                errorMessage = $text('signup.image_too_large.text');
                 showWarning = true;
                 input.value = ''; // Clear the input
                 return;
             }
 
             if (!file.type.match(/^image\/(jpeg|png)$/)) {
-                errorMessage = $_('signup.image_wrong_filetype.text');
+                errorMessage = $text('signup.image_wrong_filetype.text');
                 showWarning = true;
                 input.value = ''; // Clear the input
                 return;

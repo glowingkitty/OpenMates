@@ -178,7 +178,7 @@
             on:keydown={e => e.key === 'Enter' && toggleMenu()}
             role="button"
             tabindex="0"
-            aria-label={$_('settings.open_settings_menu.text')}
+            aria-label={$text('settings.open_settings_menu.text')}
         >
             <div class="profile-picture"></div>
             
@@ -191,7 +191,7 @@
         <div class="close-icon-container" class:visible={isMenuVisible}>
             <button 
                 class="icon-button"
-                aria-label={$_('settings.close_settings_menu.text')}
+                aria-label={$text('settings.close_settings_menu.text')}
                 on:click={toggleMenu}
             >
                 <div class="clickable-icon icon_close"></div>
@@ -211,7 +211,7 @@
                 <div class="header-left">
                     <button 
                         class="clickable-icon icon_search" 
-                        aria-label={$_('settings.search.text')}
+                        aria-label={$text('settings.search.text')}
                     ></button>
                 </div>
                 <div class="header-center">
@@ -225,8 +225,8 @@
                     <div class="credits-container">
                         <span class="credits-icon"></span>
                         <div class="credits-text">
-                            <span class="credits-amount"><mark>4800 {$_('settings.credits.text')}</mark></span>
-                            <!-- <span class="add-credits-button" aria-label={$_('settings.add_credits.text')}>+</span> -->
+                            <span class="credits-amount"><mark>4800 {$text('settings.credits.text')}</mark></span>
+                            <!-- <span class="add-credits-button" aria-label={$text('settings.add_credits.text')}>+</span> -->
                         </div>
                     </div>
                 </div>
@@ -240,46 +240,46 @@
         <!-- Quick Settings -->
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_team"
-            title={$_('settings.team.text')}
+            title={$text('settings.team.text')}
             hasToggle={true}
             bind:checked={isTeamEnabled}
             onClick={() => handleQuickSettingClick('team')}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_incognito"
-            title={$_('settings.incognito.text')}
+            title={$text('settings.incognito.text')}
             hasToggle={true}
             bind:checked={isIncognitoEnabled}
             onClick={() => handleQuickSettingClick('incognito')}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_guest"
-            title={$_('settings.guest.text')}
+            title={$text('settings.guest.text')}
             hasToggle={true}
             bind:checked={isGuestEnabled}
             onClick={() => handleQuickSettingClick('guest')}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_offline"
-            title={$_('settings.offline.text')}
+            title={$text('settings.offline.text')}
             hasToggle={true}
             bind:checked={isOfflineEnabled}
             onClick={() => handleQuickSettingClick('offline')}
         />
 
         <!-- Regular Settings -->
-        <SettingsItem icon="team" title={$_('settings.team.text')} onClick={() => {}} />
-        <SettingsItem icon="user" title={$_('settings.user.text')} onClick={() => {}} />
-        <SettingsItem icon="task" title={$_('settings.usage.text')} onClick={() => {}} />
-        <SettingsItem icon="billing" title={$_('settings.billing.text')} onClick={() => {}} />
-        <SettingsItem icon="app" title={$_('settings.apps.text')} onClick={() => {}} />
-        <SettingsItem icon="mate" title={$_('settings.mates.text')} onClick={() => {}} />
-        <SettingsItem icon="messenger" title={$_('settings.messengers.text')} onClick={() => {}} />
-        <SettingsItem icon="developer" title={$_('settings.developers.text')} onClick={() => {}} />
-        <SettingsItem icon="interface" title={$_('settings.interface.text')} onClick={() => {}} />
+        <SettingsItem icon="team" title={$text('settings.team.text')} onClick={() => {}} />
+        <SettingsItem icon="user" title={$text('settings.user.text')} onClick={() => {}} />
+        <SettingsItem icon="task" title={$text('settings.usage.text')} onClick={() => {}} />
+        <SettingsItem icon="billing" title={$text('settings.billing.text')} onClick={() => {}} />
+        <SettingsItem icon="app" title={$text('settings.apps.text')} onClick={() => {}} />
+        <SettingsItem icon="mate" title={$text('settings.mates.text')} onClick={() => {}} />
+        <SettingsItem icon="messenger" title={$text('settings.messengers.text')} onClick={() => {}} />
+        <SettingsItem icon="developer" title={$text('settings.developers.text')} onClick={() => {}} />
+        <SettingsItem icon="interface" title={$text('settings.interface.text')} onClick={() => {}} />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_logout" 
-            title={$_('settings.logout.text')} 
+            title={$text('settings.logout.text')} 
             onClick={handleLogout} 
         />
 

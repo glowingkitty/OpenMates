@@ -91,17 +91,17 @@ download_backup_codes_button:
     </div>
 
     <div class="text-block">
-        {$_('signup.dont_loose_access.text')}
+        {$text('signup.dont_loose_access.text')}
     </div>
 
     <mark>
-        {$_('signup.store_backup_codes_safely.text')}
+        {$text('signup.store_backup_codes_safely.text')}
     </mark>
 
     <button
         class="clickable-icon icon_download download-button"
         on:click={downloadBackupCodes}
-        aria-label={$_('enter_message.press_and_hold_menu.download.text')}
+        aria-label={$text('enter_message.press_and_hold_menu.download.text')}
         use:tooltip
     ></button>
 </div>

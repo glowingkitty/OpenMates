@@ -4,7 +4,7 @@
     import ChatHistory from './ChatHistory.svelte';
     import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
     import Login from './Login.svelte';
-    import {text} from '@repo/ui';
+    import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount } from 'svelte';
     import { isAuthenticated } from '../stores/authState';
@@ -267,7 +267,7 @@
                             {#if createButtonVisible}
                                 <button 
                                     class="clickable-icon icon_create top-button" 
-                                    aria-label={$_('chat.new_chat.text')}
+                                    aria-label={$text('chat.new_chat.text')}
                                     on:click={handleNewChatClick}
                                     in:fade={{ duration: 300 }}
                                     use:tooltip
@@ -277,7 +277,7 @@
                             {#if !showWelcome}
                                 <button
                                     class="clickable-icon icon_share top-button"
-                                    aria-label={$_('chat.share.text')}
+                                    aria-label={$text('chat.share.text')}
                                     on:click={handleShareChat}
                                     use:tooltip
                                 >
@@ -290,14 +290,14 @@
                             <!-- Video call button -->
                             <button 
                                 class="clickable-icon icon_video_call top-button" 
-                                aria-label={$_('chat.start_video_call.text')}
+                                aria-label={$text('chat.start_video_call.text')}
                                 use:tooltip
                             >
                             </button>
                             <!-- Audio call button -->
                             <button 
                                 class="clickable-icon icon_call top-button" 
-                                aria-label={$_('chat.start_audio_call.text')}
+                                aria-label={$text('chat.start_audio_call.text')}
                                 use:tooltip
                             >
                             </button>

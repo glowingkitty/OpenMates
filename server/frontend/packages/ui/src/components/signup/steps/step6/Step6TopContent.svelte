@@ -71,4 +71,8 @@ tfa_app_reminder_explainer:
         margin: 0;
     }
 
+    .text-block {
+        margin: 20px 0 20px 0;
+        text-align: center;
+    }
 </style>

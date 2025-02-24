@@ -226,7 +226,7 @@
     // Debounced password check
     const checkPasswordsMatch = debounce(() => {
         if (passwordRepeat && password !== passwordRepeat) {
-            passwordError = $_('signup.passwords_do_not_match.text');
+            passwordError = $text('signup.passwords_do_not_match.text');
             showPasswordMatchWarning = true;
         } else {
             passwordError = '';
@@ -249,14 +249,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $_('signup.at_missing.text');
+            emailError = $text('signup.at_missing.text');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $_('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing.text');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -279,27 +279,27 @@
         const normalizedUsername = username.normalize('NFC');
 
         if (normalizedUsername.length < 3) {
-            usernameError = $_('signup.username_too_short.text');
+            usernameError = $text('signup.username_too_short.text');
             showUsernameWarning = true;
             return false;
         }
 
         if (normalizedUsername.length > 20) {
-            usernameError = $_('signup.username_too_long.text');
+            usernameError = $text('signup.username_too_long.text');
             showUsernameWarning = true;
             return false;
         }
 
         // Check for at least one letter (including international letters)
         if (!/\p{L}/u.test(normalizedUsername)) {
-            usernameError = $_('signup.password_needs_letter.text');
+            usernameError = $text('signup.password_needs_letter.text');
             showUsernameWarning = true;
             return false;
         }
 
         // Allow letters (including international), numbers, dots, and underscoress        // Include specific Unicode ranges for Thai [\u0E00-\u0E7F]
         if (!/^[\p{L}\p{M}0-9._]+$/u.test(normalizedUsername)) {
-            usernameError = $_('signup.username_invalid_chars.text');
+            usernameError = $text('signup.username_invalid_chars.text');
             showUsernameWarning = true;
             return false;
         }
@@ -347,32 +347,32 @@
 
     function checkPasswordStrength(pwd: string): boolean {
         if (pwd.length < 8) {
-            passwordStrengthError = $_('signup.password_too_short.text');
+            passwordStrengthError = $text('signup.password_too_short.text');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         if (pwd.length > 60) {
-            passwordStrengthError = $_('signup.password_too_long.text');
+            passwordStrengthError = $text('signup.password_too_long.text');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         // Use Unicode categories for letter detection (includes international letters)
         if (!/\p{L}/u.test(pwd)) {
-            passwordStrengthError = $_('signup.password_needs_letter.text');
+            passwordStrengthError = $text('signup.password_needs_letter.text');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[0-9]/.test(pwd)) {
-            passwordStrengthError = $_('signup.password_needs_number.text');
+            passwordStrengthError = $text('signup.password_needs_number.text');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
-            passwordStrengthError = $_('signup.password_needs_special.text');
+            passwordStrengthError = $text('signup.password_needs_special.text');
             showPasswordStrengthWarning = true;
             return false;
         }
@@ -426,7 +426,7 @@
                 <div class="input-group">
                     {#if isRateLimited}
                         <div class="rate-limit-message" transition:fade>
-                            {$_('signup.too_many_requests.text')}
+                            {$text('signup.too_many_requests.text')}
                         </div>
                     {:else}
                         <div class="input-wrapper">
@@ -437,13 +437,13 @@
                                 bind:value={inviteCode}
                                 on:input={handleInviteCodeInput}
                                 on:paste={handlePaste}
-                                placeholder={$_('signup.enter_personal_invite_code.text')}
+                                placeholder={$text('signup.enter_personal_invite_code.text')}
                                 maxlength="14"
                                 disabled={isLoading}
                             />
                             {#if showWarning}
                                 <InputWarning 
-                                    message={$_('signup.code_is_invalid.text')}
+                                    message={$text('signup.code_is_invalid.text')}
                                     target={inviteCodeInput}
                                 />
                             {/if}
@@ -452,7 +452,7 @@
                     {#if isLoading}
                         <div class="loading-message-container" transition:fade>
                             <div class="loading-message">
-                                {$_('signup.checking_code.text')}
+                                {$text('signup.checking_code.text')}
                             </div>
                         </div>
                     {/if}
@@ -468,7 +468,7 @@
                             bind:this={usernameInput}
                             type="text" 
                             bind:value={username}
-                            placeholder={$_('signup.enter_username.text')}
+                            placeholder={$text('signup.enter_username.text')}
                             required
                             autocomplete="username"
                             class:error={!!usernameError}
@@ -489,7 +489,7 @@
                             bind:this={emailInput}
                             type="email" 
                             bind:value={email}
-                            placeholder={$_('login.email_placeholder.text')}
+                            placeholder={$text('login.email_placeholder.text')}
                             required
                             autocomplete="email"
                             class:error={!!emailError}
@@ -510,7 +510,7 @@
                             bind:this={passwordInput}
                             type="password" 
                             bind:value={password}
-                            placeholder={$_('login.password_placeholder.text')}
+                            placeholder={$text('login.password_placeholder.text')}
                             required
                             autocomplete="new-password"
                             class:error={!!passwordStrengthError}
@@ -531,7 +531,7 @@
                             bind:this={passwordRepeatInput}
                             type="password" 
                             bind:value={passwordRepeat}
-                            placeholder={$_('signup.repeat_password.text')}
+                            placeholder={$text('signup.repeat_password.text')}
                             required
                             maxlength="60"
                             autocomplete="new-password"
@@ -549,7 +549,7 @@
                 <div class="agreement-row">
                     <Toggle bind:checked={termsAgreed} />
                     <div class="agreement-text">
-                        {$_('signup.agree_to.text')} 
+                        {$text('signup.agree_to.text')} 
                         <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
                             <mark>{@html $text('signup.terms_of_service.text')}</mark>
                         </a>
@@ -559,7 +559,7 @@
                 <div class="agreement-row">
                     <Toggle bind:checked={privacyAgreed} />
                     <div class="agreement-text">
-                        {$_('signup.agree_to.text')} 
+                        {$text('signup.agree_to.text')} 
                         <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
                             <mark>{@html $text('signup.privacy_policy.text')}</mark>
                         </a>
@@ -577,7 +577,7 @@
                 disabled={!isFormValid}
                 on:click={handleSubmit}
             >
-                {$_('signup.create_new_account.text')}
+                {$text('signup.create_new_account.text')}
             </button>
         {/if}
     </div>

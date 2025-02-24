@@ -38,15 +38,15 @@
             <!-- The visually hidden text helps with copy selection -->
             <span class="visually-hidden">{capitalize(currentApp)} </span>
             <Icon name={currentApp} type="app" size="67.98px" />
-            {$_('team_mates.text')}
+            {$text('team_mates.text')}
           </span>
         {:else}
-          {$_('digital_team_mates.text')}
+          {$text('digital_team_mates.text')}
         {/if}
         <mark><br>{@html $text('for_all_of_us.text')}</mark>
       </h1>
       <p class="text-center platform-text">
-        {$_('platforms.via.text')}
+        {$text('platforms.via.text')}
         <span class="platform-wrapper">
           <span class="visually-hidden">{@html $text('platforms.web.text')}, </span>
           <span class="small-icon icon_web"></span>
@@ -59,7 +59,7 @@
           <span class="visually-hidden">{@html $text('platforms.discord.text')}</span>
           <span class="small-icon icon_discord"></span>
         </span>
-        {$_('platforms.and_more.text')}
+        {$text('platforms.and_more.text')}
       </p>
       <div class="chat-container header">
         <!-- Bind the local variable "currentApp" to update on chat events -->

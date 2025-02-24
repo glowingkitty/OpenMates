@@ -10,9 +10,9 @@
         <div class="discord-content">
             <p class="discord-text">
                 {#if showPersonalInviteMessage}
-                {$_('signup.dont_have_personal_invite_code.text')}<br>
+                {$text('signup.dont_have_personal_invite_code.text')}<br>
                 {/if}
-                {$_('waiting_list.discord_members.text')}<br>
+                {$text('waiting_list.discord_members.text')}<br>
                 <mark><bold>{@html $text('waiting_list.early_access.text')}</bold></mark>
             </p>
             <DiscordButton />
