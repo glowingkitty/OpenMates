@@ -9,8 +9,8 @@ changes to the documentation (to keep the documentation up to date).
 tfa_app_reminder_explainer:
     type: 'text + visual'
     text:
-        - $_('signup.2fa_app_reminder.text')
-        - $_('signup.in_case_you_forget.text')
+        - $text('signup.2fa_app_reminder.text')
+        - $text('signup.in_case_you_forget.text')
     visuals:
         - 'preview of 2FA interface during login, where user has to enter 2FA code.'
     purpose:

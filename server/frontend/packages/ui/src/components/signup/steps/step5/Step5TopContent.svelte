@@ -9,9 +9,9 @@ changes to the documentation (to keep the documentation up to date).
 backup_codes_explainer:
     type: 'text'
     text:
-        - $_('signup.backup_codes.text')
-        - $_('signup.dont_loose_access.text')
-        - $_('signup.store_backup_codes_safely.text')
+        - $text('signup.backup_codes.text')
+        - $text('signup.dont_loose_access.text')
+        - $text('signup.store_backup_codes_safely.text')
     purpose:
         - 'Explains the purpose of backup codes'
         - 'Asks user to store backup codes safely'

@@ -9,11 +9,11 @@ changes to the documentation (to keep the documentation up to date).
 tfa_explainer:
     type: 'text + visuals'
     text:
-        - $_('signup.secure_your_account.text')
-        - $_('signup.prevent_access.text')
-        - $_('signup.free.text')
-        - $_('signup.fast_to_setup.text')
-        - $_('signup.max_security.text')
+        - $text('signup.secure_your_account.text')
+        - $text('signup.prevent_access.text')
+        - $text('signup.free.text')
+        - $text('signup.fast_to_setup.text')
+        - $text('signup.max_security.text')
     visuals:
         - 'Three checkmark icons. One for each of the three features (free, fast to setup, max security)'
     purpose:
