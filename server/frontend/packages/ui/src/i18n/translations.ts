@@ -9,7 +9,13 @@ export const text = derived(_, ($translate): TranslateFunction => {
         if (!$translate) return key; // Fallback to key if translation function is not ready
         const translated = $translate(key, vars);
         return DOMPurify.sanitize(translated, {
-            ALLOWED_TAGS: ['mark', 'span', 'bold'],
+            ALLOWED_TAGS: [
+                'mark', 'span', 'bold',
+                'ul', 'li', 'p',
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'br', 'strong', 'em', 'i', 'b',
+                'small', 'sub', 'sup'
+            ],
             ALLOWED_ATTR: ['class']
         });
     };
