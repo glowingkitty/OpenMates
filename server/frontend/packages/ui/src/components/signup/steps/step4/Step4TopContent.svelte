@@ -6,7 +6,7 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-2fa_explainer:
+tfa_explainer:
     type: 'text + visuals'
     text:
         - $_('signup.secure_your_account.text')
