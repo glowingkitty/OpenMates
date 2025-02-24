@@ -312,6 +312,13 @@ form.hidden {
     pointer-events: none;
 }
 
+.status-wrapper {
+    position: absolute;
+    bottom: 15px;
+    left: 0px;
+    right: 0px;
+}
+
 .status-wrapper,
 .help-wrapper {
     transition: opacity 0.3s ease;

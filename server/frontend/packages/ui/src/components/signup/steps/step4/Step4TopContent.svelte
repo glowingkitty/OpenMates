@@ -120,7 +120,7 @@
     }
 
     .prevent-access-text {
-        margin: 24px 0 32px 0;
+        margin: 20px 0 20px 0;
         text-align: center;
     }
 
@@ -155,7 +155,7 @@
         flex-direction: column;
         align-items: center;
         gap: 16px;
-        margin-top: 32px;
+        margin-top: 20px;
     }
 
     .button-row {
@@ -168,26 +168,22 @@
     .or-text {
         color: var(--color-grey-60);
         position: absolute;
-        left: -32px;
+        right: 100%;
+        margin-right: 8px;
+        white-space: nowrap;
     }
 
     .text-button.with-icon {
-        all: unset;
         display: flex;
-        align-items: center;
         gap: 8px;
-        padding: 4px 8px;
-        cursor: pointer;
-        background: none;
-        border: none;
-        color: var(--color-primary);
-        font-size: inherit;
     }
 
     .button-icon {
         width: 20px;
         height: 20px;
-        background-color: var(--color-primary);
+        -webkit-mask-size: contain !important;
+        mask-size: contain !important;
+        background-image: var(--color-primary);
     }
 
     .open-icon {
@@ -212,9 +208,5 @@
         background-repeat: no-repeat;
         background-position: center;
         margin: 24px 0;
-    }
-
-    .text-button.with-icon:hover {
-        opacity: 0.8;
     }
 </style>

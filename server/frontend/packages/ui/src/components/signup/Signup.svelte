@@ -91,7 +91,7 @@
         {currentStep}
     />
 
-    <div class="main-content">
+    <div>
         {#if currentStep === 1}
             <Step1EnterBasics 
                 on:switchToLogin={handleSwitchToLogin}
