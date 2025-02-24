@@ -45,6 +45,7 @@ download_backup_codes_button:
 <script lang="ts">
     import { _ } from 'svelte-i18n';
     import { onMount } from 'svelte';
+    import { tooltip } from '../../../../actions/tooltip';
 
     let codesDownloaded = false;
 
@@ -89,7 +90,7 @@ download_backup_codes_button:
         <h2 class="menu-title">{$_('signup.backup_codes.text')}</h2>
     </div>
 
-    <div class="prevent-access-text">
+    <div class="text-block">
         {$_('signup.dont_loose_access.text')}
     </div>
 
@@ -97,7 +98,12 @@ download_backup_codes_button:
         {$_('signup.store_backup_codes_safely.text')}
     </mark>
 
-    <button class="clickable-icon icon_download download-button" on:click={downloadBackupCodes}></button>
+    <button
+        class="clickable-icon icon_download download-button"
+        on:click={downloadBackupCodes}
+        aria-label={$_('enter_message.press_and_hold_menu.download.text')}
+        use:tooltip
+    ></button>
 </div>
 
 <style>
@@ -131,7 +137,7 @@ download_backup_codes_button:
         margin: 0;
     }
 
-    .prevent-access-text {
+    .text-block {
         margin: 20px 0 20px 0;
         text-align: center;
     }
