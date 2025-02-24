@@ -32,12 +32,11 @@
         <h2 class="menu-title">{$_('signup.secure_your_account.text')}</h2>
     </div>
     
-    {#if !showQrCode}
-    <div class="prevent-access-text" transition:fade>
+    <div class="prevent-access-text" class:fade-out={showQrCode}>
         {$_('signup.prevent_access.text')}
     </div>
     
-    <div class="features" transition:fade>
+    <div class="features" class:fade-out={showQrCode}>
         <div class="feature">
             <div class="check-icon"></div>
             <span>{$_('signup.free.text')}</span>
@@ -51,20 +50,21 @@
             <span>{$_('signup.max_security.text')}</span>
         </div>
     </div>
-    {/if}
 
     {#if showQrCode}
-    <div class="qr-code" transition:fade style="background-image: url('data:image/svg+xml,...')">
+    <div class="qr-code" transition:fade>
     </div>
     {/if}
 
     <div class="action-buttons">
-        <button class="text-button with-icon" on:click={handleDeepLink}>
-            <span class="button-icon open-icon"></span>
-            <span>{$_('signup.add_to_2fa_app.text')}</span>
-        </button>
+        <div class="button-row" class:move-up={showQrCode}>
+            <button class="text-button with-icon" on:click={handleDeepLink}>
+                <span class="button-icon open-icon"></span>
+                <span>{$_('signup.add_to_2fa_app.text')}</span>
+            </button>
+        </div>
         
-        <div class="button-row">
+        <div class="button-row" class:move-up={showQrCode}>
             <span class="or-text">{$_('signup.or.text')}</span>
             <button class="text-button with-icon" on:click={toggleQrCode}>
                 <span class="button-icon camera-icon"></span>
@@ -89,6 +89,10 @@
 </div>
 
 <style>
+    :root {
+        --qr-code-size: 150px;
+    }
+
     .content {
         padding: 24px;
         height: 100%;
@@ -122,6 +126,7 @@
     .prevent-access-text {
         margin: 20px 0 20px 0;
         text-align: center;
+        transition: opacity 0.3s ease;
     }
 
     .features {
@@ -129,6 +134,7 @@
         gap: 32px;
         justify-content: center;
         align-items: flex-start;
+        transition: opacity 0.3s ease;
     }
 
     .feature {
@@ -156,6 +162,8 @@
         align-items: center;
         gap: 16px;
         margin-top: 20px;
+        position: relative;
+        width: 100%;
     }
 
     .button-row {
@@ -163,6 +171,11 @@
         align-items: center;
         gap: 8px;
         position: relative;
+        transition: transform 0.3s ease;
+    }
+
+    .button-row.move-up {
+        transform: translateY(calc(var(--qr-code-size) * -1));
     }
 
     .or-text {
@@ -202,11 +215,26 @@
     }
 
     .qr-code {
-        width: 200px;
-        height: 200px;
+        width: var(--qr-code-size);
+        height: var(--qr-code-size);
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
-        margin: 24px 0;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-20px);
+        z-index: 1;
+        background-image: url('@openmates/ui/static/icons/dummyqr.svg');
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .qr-code {
+            filter: invert(1);
+        }
+    }
+
+    .fade-out {
+        opacity: 0;
+        pointer-events: none;
     }
 </style>
