@@ -9,10 +9,11 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
+    import { text } from '@repo/ui';
 </script>
 
 <div class="bottom-content">
-    <!-- Content will be added in future updates -->
+    {@html $text('signup.seperate_2fa_app.text')}
 </div>
 
 <style>

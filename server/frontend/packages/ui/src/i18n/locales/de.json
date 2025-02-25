@@ -1945,10 +1945,25 @@
             "en_original": "In case you forget, we can remind you which 2FA app you used for OpenMates.",
             "context": "explaining what the 2FA app reminder is for"
         },
-        "search_for_2fa_app": {
-            "text": "Nach 2FA-App-Namen suchen",
-            "en_original": "Search for 2FA app name",
+        "click_to_enter_app_name": {
+            "text": "Klicke, um den App-Namen einzugeben",
+            "en_original": "Click to enter app name",
             "context": "Placeholder for 2FA app search input"
+        },
+        "safety_tip": {
+            "text": "Sicherheitstipp",
+            "en_original": "Safety tip",
+            "context": "safety tip header"
+        },
+        "seperate_2fa_app": {
+            "text": "Nutze immer eine separate 2FA-App und <mark>speichere 2FA-Codes nicht in deinem Passwort-Manager.</mark> Nur dann kann 2FA dein Konto schützen.",
+            "en_original": "Always use a separate 2FA app and <mark>do not save 2FA codes in your password manager.</mark> Only then 2FA can protect your account.",
+            "context": "explaining the importance of using a separate 2FA app instead of saving 2FA codes in a password manager"
+        },
+        "continue": {
+            "text": "Weiter",
+            "en_original": "Continue",
+            "context": "Button text for continuing after entering the 2FA app name"
         },
         "settings": {
             "text": "Einstellungen",
