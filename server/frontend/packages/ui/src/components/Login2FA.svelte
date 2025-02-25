@@ -98,6 +98,18 @@ enter_backup_code_button:
     let otpInput: HTMLInputElement;
     let isLoading = false;
 
+    // Map of app names to their icon classes
+    const tfaAppIcons = {
+        'Google Authenticator': 'google-authenticator',
+        'Authy': 'authy',
+        'Microsoft Authenticator': 'microsoft-authenticator',
+        '2FAS': 'tfas',
+        'OTP Auth': 'otp-auth'
+    };
+
+    // Get the icon class for the app name, or default if not found
+    $: tfaAppIconClass = tfaAppName ? tfaAppIcons[tfaAppName] || 'default' : 'default';
+
     // Helper function to generate opacity style
     $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
 
@@ -117,6 +129,7 @@ enter_backup_code_button:
     </p>
     {#if tfaAppName}
         <p id="app-name" class="app-name" style={getStyle('app-name')}>
+            <span class="icon provider-{tfaAppIconClass} mini-icon"></span>
             {tfaAppName}
         </p>
     {/if}
@@ -162,6 +175,8 @@ enter_backup_code_button:
 
     .app-name {
         margin: 10px 0 30px 0;
+        display: flex;
+        align-items: center;
     }
 
     .check-2fa-text {
@@ -175,6 +190,13 @@ enter_backup_code_button:
 
     .enter-backup-code {
         margin-top: 20px;
+    }
+
+    .mini-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        margin-right: 10px;
     }
 
     .preview * {

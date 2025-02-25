@@ -1082,6 +1082,46 @@ div.clickable-icon {
   }
 }
 
+.icon.provider-google-authenticator {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/google-authenticator.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
+.icon.provider-authy {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/authy.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
+.icon.provider-microsoft-authenticator {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/microsoft-authenticator.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
+.icon.provider-tfas {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/tfas.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
+.icon.provider-otp-auth {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/otp-auth.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
 .icon-wrapper {
   display: flex;
   align-items: center;

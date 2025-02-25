@@ -83,7 +83,7 @@ tfa_app_reminder_explainer:
     }
 
     .text-block {
-        margin: 20px 0 20px 0;
+        margin: 20px 0 30px 0;
         text-align: center;
     }
 
@@ -99,6 +99,7 @@ tfa_app_reminder_explainer:
         -webkit-user-select: none;
         -moz-user-select: none;
         -ms-user-select: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .preview-wrapper {
