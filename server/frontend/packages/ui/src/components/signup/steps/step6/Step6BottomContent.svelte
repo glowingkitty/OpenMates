@@ -191,7 +191,8 @@ continue_button:
         background: var(--color-grey-0);
         border: 1px solid var(--color-grey-20);
         z-index: 10;
-        height: 300px;
+        max-height: 300px;
+        height: auto;
         overflow: hidden;
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
