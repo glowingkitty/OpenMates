@@ -83,6 +83,12 @@ continue_button:
         showSearchResults = true;
         searchResults = appName ? tfaApps.filter(app => app.toLowerCase().includes(appName.toLowerCase())) : tfaApps;
         selectedApp = '';
+
+        // Automatically detect and select app if user types the exact name
+        const exactMatch = tfaApps.find(app => app.toLowerCase() === appName.toLowerCase());
+        if (exactMatch) {
+            handleResultClick(exactMatch);
+        }
     }
 
     function handleResultClick(result: string) {
@@ -138,6 +144,7 @@ continue_button:
                 bind:this={appInput}
                 type="text"
                 bind:value={appName}
+                class:selected-app={selectedApp}
                 on:input={handleInput}
                 on:focus={handleFocus}
                 on:blur={handleBlur}
@@ -174,13 +181,7 @@ continue_button:
         margin-right: 8px;
     }
 
-    .inside-input {
-        position: absolute;
-        left: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-    }
-
+    
     .search-results {
         width: 90%;
         position: absolute;
@@ -191,10 +192,9 @@ continue_button:
         border: 1px solid var(--color-grey-20);
         z-index: 10;
         height: 300px;
-        overflow-y: auto;
+        overflow: hidden;
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        overflow-x: hidden;
         transition: opacity 0.3s ease-in-out;
         opacity: 0;
         animation: fadeIn 0.3s forwards;
@@ -245,6 +245,23 @@ continue_button:
         opacity: 1;
         animation: unset;
         animation-delay: unset;
+    }
+
+    .inside-input {
+        position: absolute;
+        left: 50px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 38px;
+        height: 38px;
+    }
+
+    input {
+        padding-left: 10px; /* Default padding */
+    }
+
+    input.selected-app {
+        padding-left: 100px; /* Increase padding to avoid text being hidden behind the icon */
     }
 
     .continue-button {

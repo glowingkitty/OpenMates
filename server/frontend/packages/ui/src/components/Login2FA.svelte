@@ -131,9 +131,21 @@ enter_backup_code_button:
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
         otpCode = input.value.replace(/\D/g, '').slice(0, 6);
-        
+
         if (otpCode.length === 6) {
             console.log('OTP code entered:', otpCode);
+        }
+
+        // Check if the input matches any available app name
+        const exactMatch = appNames.find(app => app.toLowerCase() === otpCode.toLowerCase());
+        if (exactMatch) {
+            currentDisplayedApp = exactMatch;
+            if (animationInterval) clearInterval(animationInterval);
+        } else if (!animationInterval && previewMode) {
+            animationInterval = setInterval(() => {
+                currentAppIndex = (currentAppIndex + 1) % appNames.length;
+                currentDisplayedApp = appNames[currentAppIndex];
+            }, 4000); // Change every 4 seconds
         }
     }
 </script>
