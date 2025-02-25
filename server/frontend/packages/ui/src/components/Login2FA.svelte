@@ -95,6 +95,9 @@ enter_backup_code_button:
         'enter-backup-code'
     )[] = [];
 
+    // Add a new prop to receive the selected app name
+    export let selectedAppName: string | null = null;
+
     const tfaAppName = previewMode ? previewTfaAppName : ''; // In real mode, this would be loaded from server
     let otpCode = '';
     let otpInput: HTMLInputElement;
@@ -109,6 +112,22 @@ enter_backup_code_button:
     // Get the icon class for the app name, or undefined if not found
     $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
     
+    // Update the animation logic to stop when a selected app is provided
+    $: {
+        if (selectedAppName) {
+            currentDisplayedApp = selectedAppName;
+            if (animationInterval) clearInterval(animationInterval);
+        } else if (previewMode) {
+            if (animationInterval) clearInterval(animationInterval);
+            animationInterval = setInterval(() => {
+                currentAppIndex = (currentAppIndex + 1) % appNames.length;
+                currentDisplayedApp = appNames[currentAppIndex];
+            }, 4000); // Change every 4 seconds
+        } else {
+            currentDisplayedApp = tfaAppName;
+        }
+    }
+
     // Start animation in preview mode
     onMount(() => {
         if (previewMode) {
@@ -118,6 +137,11 @@ enter_backup_code_button:
             }, 4000); // Change every 4 seconds
         } else {
             currentDisplayedApp = tfaAppName;
+        }
+
+        // Clear interval if selectedAppName is provided
+        if (selectedAppName && animationInterval) {
+            clearInterval(animationInterval);
         }
     });
 
@@ -133,7 +157,7 @@ enter_backup_code_button:
         otpCode = input.value.replace(/\D/g, '').slice(0, 6);
 
         if (otpCode.length === 6) {
-            console.log('OTP code entered:', otpCode);
+            // OTP code entered
         }
 
         // Check if the input matches any available app name
@@ -150,7 +174,7 @@ enter_backup_code_button:
     }
 </script>
 
-<div class="login-2fa" class:preview={previewMode}>
+<div class="login-2fa {selectedAppName ? 'no-animation' : ''}" class:preview={previewMode}>
     <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
         {@html $text('login.check_your_2fa_app.text')}
     </p>
@@ -158,9 +182,9 @@ enter_backup_code_button:
         <p id="app-name" class="app-name" style={getStyle('app-name')}>
             <span class="app-name-content">
                 {#if tfaAppIconClass}
-                    <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode ? 'fade-animation' : ''}"></span>
+                    <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !selectedAppName ? 'fade-animation' : ''}"></span>
                 {/if}
-                <span class="{previewMode ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+                <span class="{previewMode && !selectedAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
             </span>
         </p>
     {/if}
@@ -257,5 +281,11 @@ enter_backup_code_button:
     .preview * {
         cursor: default !important;
         pointer-events: none !important;
+    }
+
+    /* Add a class to stop the animation */
+    .no-animation .fade-animation,
+    .no-animation .fade-text {
+        animation: none;
     }
 </style>

@@ -37,6 +37,7 @@
     // Lift form state up
     let username = '';
     let email = '';
+    let selectedAppName: string | null = null;
 
     // Animation parameters
     const flyParams = {
@@ -62,6 +63,10 @@
         const newStep = event.detail.step;
         direction = newStep > currentStep ? 'forward' : 'backward';
         currentStep = newStep;
+    }
+
+    function handleSelectedApp(event: CustomEvent<{ appName: string }>) {
+        selectedAppName = event.detail.appName;
     }
 
     function goToStep(step: number) {
@@ -134,7 +139,7 @@
                                     {:else if currentStep === 5}
                                         <Step5TopContent />
                                     {:else if currentStep === 6}
-                                        <Step6TopContent />
+                                        <Step6TopContent {selectedAppName} />
                                     {:else if currentStep === 7}
                                         <Step7TopContent />
                                     {:else if currentStep === 8}
@@ -170,6 +175,7 @@
                                            null}
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}
+                                    on:selectedApp={handleSelectedApp}
                                 />
                             </div>
                         {/key}

@@ -28,6 +28,8 @@ tfa_app_reminder_explainer:
 <script lang="ts">
     import { text } from '@repo/ui';
     import Login2FA from '../../../Login2FA.svelte';
+
+    export let selectedAppName: string | null = null;
 </script>
 
 <div class="content">
@@ -46,6 +48,7 @@ tfa_app_reminder_explainer:
                 previewMode 
                 previewTfaAppName="Google Authenticator" 
                 highlight={['check-2fa', 'app-name']} 
+                {selectedAppName}
             />
         </div>
     </div>

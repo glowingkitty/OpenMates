@@ -95,6 +95,8 @@ continue_button:
         appName = result;
         selectedApp = result;
         showSearchResults = false;
+        // Dispatch event with selected app name
+        dispatch('selectedApp', { appName: result });
     }
 
     function handleContinue() {
