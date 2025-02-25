@@ -134,9 +134,15 @@ continue_button:
                     </div>
                 {/each}
                 {#if searchResults.length === 0}
-                    {@html $text('signup.safety_tip.text')}
-                    <br />
-                    {@html $text('signup.separate_2fa_app.text')}
+                    <div class="safety-tip">
+                        <div class="icon header_size warning"></div>
+                        <div class="safety-tip-text">
+                            <strong>{@html $text('signup.safety_tip.text')}</strong>
+                            <div class="safety-tip-subtext">
+                                {@html $text('signup.separate_2fa_app.text')}
+                            </div>
+                        </div>
+                    </div>
                 {/if}
             </div>
         {/if}
@@ -186,7 +192,6 @@ continue_button:
         margin-right: 8px;
     }
 
-    
     .search-results {
         width: 90%;
         position: absolute;
@@ -271,6 +276,33 @@ continue_button:
     }
 
     .continue-button {
-        align-self: flex-end;
+        align-self: center;
+        width: 90%;
+    }
+
+    .safety-tip {
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 7px;
+    }
+
+    .safety-tip-text {
+        font-weight: bold;
+    }
+
+    .safety-tip-subtext {
+        margin-top: 20px;
+    }
+
+    .icon.header_size {
+        width: 65px;
+        height: 65px;
+        border-radius: 14px;
+        transition: none;
+        animation: none;
+        opacity: 1;
     }
 </style>
