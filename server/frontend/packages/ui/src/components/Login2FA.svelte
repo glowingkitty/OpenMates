@@ -197,6 +197,9 @@ enter_backup_code_button:
         height: 38px;
         border-radius: 8px;
         margin-right: 10px;
+        opacity: 1;
+        animation: unset;
+        animation-delay: unset;
     }
 
     .preview * {
