@@ -15,8 +15,8 @@ changes to the documentation (to keep the documentation up to date).
 
 <div class="content">
     <div class="signup-header">
-        <div class="icon header_size tfa"></div>
-        <h2 class="menu-title">{@html $text('signup.backup_codes.text')}</h2>
+        <div class="icon header_size settings"></div>
+        <h2 class="menu-title">{@html $text('signup.settings.text')}</h2>
     </div>
 </div>
 
@@ -27,5 +27,32 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         flex-direction: column;
         align-items: center;
+    }
+
+    .signup-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+    }
+
+    .icon.header_size {
+        width: 65px;
+        height: 65px;
+        border-radius: 14px;
+        transition: none;
+        animation: none;
+        opacity: 1;
+    }
+
+    .menu-title {
+        font-size: 24px;
+        color: var(--color-grey-100);
+        margin: 0;
+    }
+
+    .text-block {
+        margin: 20px 0 30px 0;
+        text-align: center;
     }
 </style>

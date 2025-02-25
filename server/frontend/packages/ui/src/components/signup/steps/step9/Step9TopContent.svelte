@@ -14,10 +14,6 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <div class="content">
-    <div class="signup-header">
-        <div class="icon header_size tfa"></div>
-        <h2 class="menu-title">{@html $text('signup.backup_codes.text')}</h2>
-    </div>
 </div>
 
 <style>
