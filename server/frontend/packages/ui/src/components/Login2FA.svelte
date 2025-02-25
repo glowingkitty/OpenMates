@@ -82,6 +82,7 @@ enter_backup_code_button:
 
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { onMount, onDestroy } from 'svelte';
 
     export let previewMode = false;
     export let previewTfaAppName = 'Google Authenticator';
@@ -97,18 +98,40 @@ enter_backup_code_button:
     let otpCode = '';
     let otpInput: HTMLInputElement;
     let isLoading = false;
+    let currentAppIndex = 0;
+    let animationInterval: number | null = null;
+    let currentDisplayedApp = previewTfaAppName;
 
     // Map of app names to their icon classes
     const tfaAppIcons = {
         'Google Authenticator': 'google-authenticator',
-        'Authy': 'authy',
+        'Twilio Authy': 'authy',
         'Microsoft Authenticator': 'microsoft-authenticator',
         '2FAS': 'tfas',
         'OTP Auth': 'otp-auth'
     };
 
-    // Get the icon class for the app name, or default if not found
-    $: tfaAppIconClass = tfaAppName ? tfaAppIcons[tfaAppName] || 'default' : 'default';
+    // Get list of app names for animation
+    const appNames = Object.keys(tfaAppIcons);
+
+    // Get the icon class for the app name, or undefined if not found
+    $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
+    
+    // Start animation in preview mode
+    onMount(() => {
+        if (previewMode) {
+            animationInterval = setInterval(() => {
+                currentAppIndex = (currentAppIndex + 1) % appNames.length;
+                currentDisplayedApp = appNames[currentAppIndex];
+            }, 4000); // Change every 3 seconds
+        } else {
+            currentDisplayedApp = tfaAppName;
+        }
+    });
+
+    onDestroy(() => {
+        if (animationInterval) clearInterval(animationInterval);
+    });
 
     // Helper function to generate opacity style
     $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
@@ -127,10 +150,14 @@ enter_backup_code_button:
     <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
         {@html $text('login.check_your_2fa_app.text')}
     </p>
-    {#if tfaAppName}
+    {#if currentDisplayedApp}
         <p id="app-name" class="app-name" style={getStyle('app-name')}>
-            <span class="icon provider-{tfaAppIconClass} mini-icon"></span>
-            {tfaAppName}
+            <span class="app-name-content">
+                {#if tfaAppIconClass}
+                    <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode ? 'fade-animation' : ''}"></span>
+                {/if}
+                <span class="{previewMode ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+            </span>
         </p>
     {/if}
     <div id="input-area" style={getStyle('input-area')}>
@@ -176,6 +203,12 @@ enter_backup_code_button:
     .app-name {
         margin: 10px 0 30px 0;
         display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .app-name-content {
+        display: flex;
         align-items: center;
     }
 
@@ -200,6 +233,21 @@ enter_backup_code_button:
         opacity: 1;
         animation: unset;
         animation-delay: unset;
+    }
+
+    .fade-animation {
+        animation: fadeInOut 4s infinite;
+    }
+
+    .fade-text {
+        animation: fadeInOut 4s infinite;
+    }
+
+    @keyframes fadeInOut {
+        0% { opacity: 0; }
+        15% { opacity: 1; }
+        85% { opacity: 1; }
+        100% { opacity: 0; }
     }
 
     .preview * {
