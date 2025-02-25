@@ -165,6 +165,14 @@ enter_backup_code_button:
         if (exactMatch) {
             currentDisplayedApp = exactMatch;
             if (animationInterval) clearInterval(animationInterval);
+        } else if (otpCode.length >= 3) {
+            currentDisplayedApp = otpCode; // Show the text content of the input if length is at least 3 characters
+            if (!animationInterval && previewMode) {
+                animationInterval = setInterval(() => {
+                    currentAppIndex = (currentAppIndex + 1) % appNames.length;
+                    currentDisplayedApp = appNames[currentAppIndex];
+                }, 4000); // Change every 4 seconds
+            }
         } else if (!animationInterval && previewMode) {
             animationInterval = setInterval(() => {
                 currentAppIndex = (currentAppIndex + 1) % appNames.length;

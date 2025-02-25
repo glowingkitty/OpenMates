@@ -88,6 +88,9 @@ continue_button:
         const exactMatch = tfaApps.find(app => app.toLowerCase() === appName.toLowerCase());
         if (exactMatch) {
             handleResultClick(exactMatch);
+        } else if (appName.length >= 3) {
+            // Show the text content of the search input if no exact match and length is at least 3 characters
+            dispatch('selectedApp', { appName });
         }
     }
 
