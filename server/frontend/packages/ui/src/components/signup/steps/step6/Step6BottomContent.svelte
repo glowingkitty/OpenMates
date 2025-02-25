@@ -123,11 +123,9 @@ continue_button:
                     </div>
                 {/each}
                 {#if searchResults.length === 0}
-                    <div class="search-result">
-                        {@html $text('signup.safety_tip.text')}
-                        <br />
-                        {@html $text('signup.separate_2fa_app.text')}
-                    </div>
+                    {@html $text('signup.safety_tip.text')}
+                    <br />
+                    {@html $text('signup.separate_2fa_app.text')}
                 {/if}
             </div>
         {/if}
@@ -184,28 +182,55 @@ continue_button:
     }
 
     .search-results {
+        width: 90%;
         position: absolute;
-        bottom: 100%;
-        left: 0;
-        right: 0;
+        bottom: calc(100% + 10px);
+        left: 5%;
+        right: 5%;
         background: var(--color-grey-0);
-        border: 1px solid #ccc;
+        border: 1px solid var(--color-grey-20);
         z-index: 10;
-        max-height: 200px;
+        height: 300px;
         overflow-y: auto;
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         overflow-x: hidden;
+        transition: opacity 0.3s ease-in-out;
+        opacity: 0;
+        animation: fadeIn 0.3s forwards;
+    }
+
+    .search-results.hidden {
+        animation: fadeOut 0.3s forwards;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
     }
 
     .search-result {
-        padding: 8px;
+        padding: 5px 10px;
         cursor: pointer;
         display: flex;
         align-items: center;
-        width: 100%;
         text-align: left;
         transition: all 0.2s;
+        border-radius: 15px;
+    }
+
+    .search-result:first-child {
+        padding-top: 10px;
+    }
+
+    .search-result:last-child {
+        padding-bottom: 10px;
+        margin-bottom: 0;
     }
 
     .search-result:hover {
