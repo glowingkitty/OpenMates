@@ -1955,7 +1955,7 @@
             "en_original": "Safety tip",
             "context": "safety tip header"
         },
-        "seperate_2fa_app": {
+        "separate_2fa_app": {
             "text": "常に別の2FAアプリを使用し、<mark>2FAコードをパスワードマネージャーに保存しないでください。</mark> そうしないと2FAはアカウントを保護できません。",
             "en_original": "Always use a separate 2FA app and <mark>do not save 2FA codes in your password manager.</mark> Only then 2FA can protect your account.",
             "context": "explaining the importance of using a separate 2FA app instead of saving 2FA codes in a password manager"

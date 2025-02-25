@@ -1955,7 +1955,7 @@
             "en_original": "Safety tip",
             "context": "safety tip header"
         },
-        "seperate_2fa_app": {
+        "separate_2fa_app": {
             "text": "始终使用单独的2FA应用程序，并且<mark>不要将2FA代码保存在密码管理器中。</mark> 只有这样，2FA才能保护您的帐户。",
             "en_original": "Always use a separate 2FA app and <mark>do not save 2FA codes in your password manager.</mark> Only then 2FA can protect your account.",
             "context": "explaining the importance of using a separate 2FA app instead of saving 2FA codes in a password manager"

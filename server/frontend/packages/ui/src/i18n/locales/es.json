@@ -1955,7 +1955,7 @@
             "en_original": "Safety tip",
             "context": "safety tip header"
         },
-        "seperate_2fa_app": {
+        "separate_2fa_app": {
             "text": "Siempre usa una aplicación 2FA separada y <mark>no guardes los códigos 2FA en tu gestor de contraseñas.</mark> Solo entonces 2FA puede proteger tu cuenta.",
             "en_original": "Always use a separate 2FA app and <mark>do not save 2FA codes in your password manager.</mark> Only then 2FA can protect your account.",
             "context": "explaining the importance of using a separate 2FA app instead of saving 2FA codes in a password manager"

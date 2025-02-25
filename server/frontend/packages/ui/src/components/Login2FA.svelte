@@ -83,6 +83,7 @@ enter_backup_code_button:
 <script lang="ts">
     import { text } from '@repo/ui';
     import { onMount, onDestroy } from 'svelte';
+    import { tfaAppIcons } from '../config/tfa';
 
     export let previewMode = false;
     export let previewTfaAppName = 'Google Authenticator';
@@ -102,15 +103,6 @@ enter_backup_code_button:
     let animationInterval: number | null = null;
     let currentDisplayedApp = previewTfaAppName;
 
-    // Map of app names to their icon classes
-    const tfaAppIcons = {
-        'Google Authenticator': 'google-authenticator',
-        'Twilio Authy': 'authy',
-        'Microsoft Authenticator': 'microsoft-authenticator',
-        '2FAS': 'tfas',
-        'OTP Auth': 'otp-auth'
-    };
-
     // Get list of app names for animation
     const appNames = Object.keys(tfaAppIcons);
 
@@ -123,7 +115,7 @@ enter_backup_code_button:
             animationInterval = setInterval(() => {
                 currentAppIndex = (currentAppIndex + 1) % appNames.length;
                 currentDisplayedApp = appNames[currentAppIndex];
-            }, 4000); // Change every 3 seconds
+            }, 4000); // Change every 4 seconds
         } else {
             currentDisplayedApp = tfaAppName;
         }
