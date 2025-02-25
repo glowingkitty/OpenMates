@@ -6,40 +6,41 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-backup_codes_explainer:
-    type: 'text'
-    text:
-        - $text('signup.backup_codes.text')
-        - $text('signup.dont_loose_access.text')
-        - $text('signup.store_backup_codes_safely.text')
-    purpose:
-        - 'Explains the purpose of backup codes'
-        - 'Asks user to store backup codes safely'
-    bigger_context:
-        - 'Signup'
-    tags:
-        - 'signup'
-        - '2fa'
-        - 'backup codes'
-    connected_documentation:
-        - '/signup/backup-codes'
-download_backup_codes_button:
-    type: 'button (icon only)'
-    icon: 'download'
-    purpose:
-        - 'User can download the backup codes if auto-download failed'
-    processing:
-        - 'On page load, backup codes are auto-downloaded'
-        - 'If auto download fails: User clicks the button'
-        - 'Backup codes are downloaded'
-    bigger_context:
-        - 'Signup'
-    tags:
-        - 'signup'
-        - '2fa'
-        - 'backup codes'
-    connected_documentation:
-        - '/signup/backup-codes'
+step_5_top_content_svelte:
+    backup_codes_explainer:
+        type: 'text'
+        text:
+            - $text('signup.backup_codes.text')
+            - $text('signup.dont_loose_access.text')
+            - $text('signup.store_backup_codes_safely.text')
+        purpose:
+            - 'Explains the purpose of backup codes'
+            - 'Asks user to store backup codes safely'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+            - 'backup codes'
+        connected_documentation:
+            - '/signup/backup-codes'
+    download_backup_codes_button:
+        type: 'button (icon only)'
+        icon: 'download'
+        purpose:
+            - 'User can download the backup codes if auto-download failed'
+        processing:
+            - 'On page load, backup codes are auto-downloaded'
+            - 'If auto download fails: User clicks the button'
+            - 'Backup codes are downloaded'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+            - 'backup codes'
+        connected_documentation:
+            - '/signup/backup-codes'
 -->
 
 <script lang="ts">

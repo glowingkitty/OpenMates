@@ -6,62 +6,63 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-enter_app_name_input_field:
-    type: 'input_field'
-    placeholder: $text('signup.click_to_enter_app_name.text')
-    purpose:
-        - 'User can enter / search for the name of the 2FA app they use.'
-    processing:
-        - 'User clicks field'
-        - 'Once clicked, a search results field pops up above the input field (not blocking the view of the field) with default 2FA apps.'
-        - 'User starts typing the name of the 2FA app they use.'
-        - 'Continue button is shown under the input field.'
-        - 'Search results are filtered based on the user input, while the user types.'
-        - 'If no search results, Safety tip is shown in search results field instead.'
-    bigger_context:
-        - 'Signup'
-    tags:
-        - 'signup'
-        - '2fa'
-    connected_documentation:
-        - '/signup/2fa-reminder'
-tfa_apps_search_results_block:
-    type: 'search_results'
-    text:
-        - $text('signup.safety_tip.text')
-        - $text('signup.separate_2fa_app.text')
-    purpose:
-        - 'Shows search results for 2FA apps, based on user input. Or, if no search results, shows safety tip.'
-    processing:
-        - 'Search results are shown based on user input.'
-        - 'If no search results, Safety tip is shown.'
-        - 'User can click on a search result to select it and close the search results field.'
-        - 'If user clicks outside the search results field, the field closes.'
-        - 'If user clicks on search result, the selected 2FA app is shown in the input field and in topcontent preview of 2fa processing during login.'
-    bigger_context:
-        - 'Signup'
-    tags:
-        - 'signup'
-        - '2fa'
-    connected_documentation:
-        - '/signup/2fa-reminder'
-continue_button:
-    type: 'button'
-    text: $text('signup.continue.text')
-    purpose:
-        - 'User clicks to continue to the next step of the signup process.'
-    processing:
-        - 'Only visible if user has entered a 2FA app name.'
-        - 'User clicks the button'
-        - 'If user has entered a 2FA app name, the name is saved to the user account.'
-        - 'User is taken to the next step of the signup process.'
-    bigger_context:
-        - 'Signup'
-    tags:
-        - 'signup'
-        - '2fa'
-    connected_documentation:
-        - '/signup/2fa-reminder'
+step_6_bottom_content_svelte:
+    enter_app_name_input_field:
+        type: 'input_field'
+        placeholder: $text('signup.click_to_enter_app_name.text')
+        purpose:
+            - 'User can enter / search for the name of the 2FA app they use.'
+        processing:
+            - 'User clicks field'
+            - 'Once clicked, a search results field pops up above the input field (not blocking the view of the field) with default 2FA apps.'
+            - 'User starts typing the name of the 2FA app they use.'
+            - 'Continue button is shown under the input field.'
+            - 'Search results are filtered based on the user input, while the user types.'
+            - 'If no search results, Safety tip is shown in search results field instead.'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+        connected_documentation:
+            - '/signup/2fa-reminder'
+    tfa_apps_search_results_block:
+        type: 'search_results'
+        text:
+            - $text('signup.safety_tip.text')
+            - $text('signup.separate_2fa_app.text')
+        purpose:
+            - 'Shows search results for 2FA apps, based on user input. Or, if no search results, shows safety tip.'
+        processing:
+            - 'Search results are shown based on user input.'
+            - 'If no search results, Safety tip is shown.'
+            - 'User can click on a search result to select it and close the search results field.'
+            - 'If user clicks outside the search results field, the field closes.'
+            - 'If user clicks on search result, the selected 2FA app is shown in the input field and in topcontent preview of 2fa processing during login.'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+        connected_documentation:
+            - '/signup/2fa-reminder'
+    continue_button:
+        type: 'button'
+        text: $text('signup.continue.text')
+        purpose:
+            - 'User clicks to continue to the next step of the signup process.'
+        processing:
+            - 'Only visible if user has entered a 2FA app name.'
+            - 'User clicks the button'
+            - 'If user has entered a 2FA app name, the name is saved to the user account.'
+            - 'User is taken to the next step of the signup process.'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+        connected_documentation:
+            - '/signup/2fa-reminder'
 -->
 
 <script lang="ts">

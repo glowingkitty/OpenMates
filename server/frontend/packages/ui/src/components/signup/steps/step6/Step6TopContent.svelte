@@ -6,23 +6,24 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-tfa_app_reminder_explainer:
-    type: 'text + visual'
-    text:
-        - $text('signup.2fa_app_reminder.text')
-        - $text('signup.in_case_you_forget.text')
-    visuals:
-        - 'preview of 2FA interface during login, where user has to enter 2FA code.'
-    purpose:
-        - 'Explains how saving the name of the used 2FA app can help the user in case they forget which app they used'
-        - 'Shows the user where this is relevant (every time 2FA is required)'
-    bigger_context:
-        - 'Signup'
-    tags:
-        - 'signup'
-        - '2fa'
-    connected_documentation:
-        - '/signup/2fa-reminder'
+step_6_top_content_svelte:
+    tfa_app_reminder_explainer:
+        type: 'text + visual'
+        text:
+            - $text('signup.2fa_app_reminder.text')
+            - $text('signup.in_case_you_forget.text')
+        visuals:
+            - 'none interactive preview of 'login_2fa_svelte' 2FA interface during login, where user would usually enter 2FA code.'
+        purpose:
+            - 'Explains how saving the name of the used 2FA app can help the user in case they forget which app they used'
+            - 'Shows the user where this is relevant (every time 2FA is required)'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+        connected_documentation:
+            - '/signup/2fa-reminder'
 -->
 
 <script lang="ts">

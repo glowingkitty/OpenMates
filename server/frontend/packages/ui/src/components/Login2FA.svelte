@@ -6,78 +6,79 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-check_your_2fa_app_text:
-    type: 'text'
-    text: $text('login.check_your_2fa_app.text')
-    purpose: 'Ask user to check their 2FA app for the one time code'
-    bigger_context:
-        - 'Login'
-    tags:
-        - 'login'
-        - '2fa'
-    connected_documentation:
-        - '/login/2fa'
-tfa_app_name_text:
-    type: 'text'
-    text: {name of 2FA app which user used}
-    purpose: 'Reminder for user which 2FA app they used, if they saved the name during signup or in settings.'
-    processing:
-        - 'Name of 2FA app is loaded from server (if user saved it during signup or in settings)'
-        - 'Name of 2FA app is shown to user'
-    bigger_context:
-        - 'Login'
-    tags:
-        - 'login'
-        - '2fa'
-    connected_documentation:
-        - '/login/2fa'
-enter_2fa_code_input_field:
-    type: 'input_field'
-    placeholder: $text('signup.enter_one_time_code.text')
-    purpose:
-        - 'Verifies the 2FA code, to login to the user account.'
-    processing:
-        - 'User clicks field (or, if on desktop, field is focused automatically)'
-        - 'User enters numeric code shown in 2FA OTP app'
-    bigger_context:
-        - 'Login'
-    tags:
-        - 'login'
-        - '2fa'
-    connected_documentation:
-        - '/login/2fa'
-login_button:
-    type: 'button'
-    text: $text('login.login.text')
-    purpose:
-        - 'User clicks to login to the user account.'
-    processing:
-        - 'User clicks the button'
-        - 'Server request is sent to validate 2FA code'
-        - 'If 2FA code valid: user is logged in'
-        - 'If 2FA code not valid: informs user via error message'
-    bigger_context:
-        - 'Login'
-    tags:
-        - 'login'
-        - '2fa'
-    connected_documentation:
-        - '/login/2fa'
-enter_backup_code_button:
-    type: 'button'
-    text: $text('login.enter_backup_code.text')
-    purpose:
-        - 'Switches to interface where user can enter backup code instead of 2FA code.'
-    processing:
-        - 'User clicks the button'
-        - 'User is forwarded to the interface where they can enter backup code'
-    bigger_context:
-        - 'Login'
-    tags:
-        - 'login'
-        - '2fa'
-    connected_documentation:
-        - '/login/2fa'
+login_2fa_svelte:
+    check_your_2fa_app_text:
+        type: 'text'
+        text: $text('login.check_your_2fa_app.text')
+        purpose: 'Ask user to check their 2FA app for the one time code'
+        bigger_context:
+            - 'Login'
+        tags:
+            - 'login'
+            - '2fa'
+        connected_documentation:
+            - '/login/2fa'
+    tfa_app_name_text:
+        type: 'text'
+        text: {name of 2FA app which user used}
+        purpose: 'Reminder for user which 2FA app they used, if they saved the name during signup or in settings.'
+        processing:
+            - 'Name of 2FA app is loaded from server (if user saved it during signup or in settings)'
+            - 'Name of 2FA app is shown to user'
+        bigger_context:
+            - 'Login'
+        tags:
+            - 'login'
+            - '2fa'
+        connected_documentation:
+            - '/login/2fa'
+    enter_2fa_code_input_field:
+        type: 'input_field'
+        placeholder: $text('signup.enter_one_time_code.text')
+        purpose:
+            - 'Verifies the 2FA code, to login to the user account.'
+        processing:
+            - 'User clicks field (or, if on desktop, field is focused automatically)'
+            - 'User enters numeric code shown in 2FA OTP app'
+        bigger_context:
+            - 'Login'
+        tags:
+            - 'login'
+            - '2fa'
+        connected_documentation:
+            - '/login/2fa'
+    login_button:
+        type: 'button'
+        text: $text('login.login.text')
+        purpose:
+            - 'User clicks to login to the user account.'
+        processing:
+            - 'User clicks the button'
+            - 'Server request is sent to validate 2FA code'
+            - 'If 2FA code valid: user is logged in'
+            - 'If 2FA code not valid: informs user via error message'
+        bigger_context:
+            - 'Login'
+        tags:
+            - 'login'
+            - '2fa'
+        connected_documentation:
+            - '/login/2fa'
+    enter_backup_code_button:
+        type: 'button'
+        text: $text('login.enter_backup_code.text')
+        purpose:
+            - 'Switches to interface where user can enter backup code instead of 2FA code.'
+        processing:
+            - 'User clicks the button'
+            - 'User is forwarded to the interface where they can enter backup code'
+        bigger_context:
+            - 'Login'
+        tags:
+            - 'login'
+            - '2fa'
+        connected_documentation:
+            - '/login/2fa'
 -->
 
 <script lang="ts">
