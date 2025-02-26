@@ -45,6 +45,7 @@
     let isIncognitoEnabled = false;
     let isGuestEnabled = false;
     let isOfflineEnabled = false;
+    let showSubmenuInfo = false; // New variable to control submenu info visibility
 
     // Add reference to settings content element
     let settingsContentElement;
@@ -88,8 +89,18 @@
         activeSubMenuIcon = icon || '';
         activeSubMenuTitle = title || '';
         
+        // Reset submenu info visibility
+        showSubmenuInfo = false;
+        
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
+        }
+        
+        // Delay showing submenu info to allow animation to complete
+        if (viewName !== 'main') {
+            setTimeout(() => {
+                showSubmenuInfo = true;
+            }, 300); // Match this with your transition duration
         }
     }
     
@@ -97,6 +108,7 @@
     function backToMainView() {
         direction = 'backward';
         activeSettingsView = 'main';
+        showSubmenuInfo = false; // Hide submenu info immediately when going back
         
         if (profileContainer) {
             profileContainer.classList.remove('submenu-active');
@@ -275,7 +287,7 @@
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
 >
-    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main'}>
+    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo}>
         <div class="header-content">
             <button 
                 class="nav-button" 
@@ -298,8 +310,8 @@
             </a>
         </div>
         
-        {#if activeSettingsView !== 'main'}
-            <div class="submenu-info">
+        {#if activeSettingsView !== 'main' && showSubmenuInfo}
+            <div class="submenu-info" transition:fade={{ duration: 200 }}>
                 <div class="menu-item">
                     <div class="menu-item-left">
                         <div class="icon settings_size {activeSubMenuIcon}"></div>

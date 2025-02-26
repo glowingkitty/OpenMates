@@ -73,7 +73,7 @@
         dispatch('quickSettingClick', { toggleName });
     }
 
-    function showSettingsView(viewName, icon) {
+    function showSettingsView(viewName) {
         dispatch('viewChange', { 
             viewName, 
             direction: 'forward',
