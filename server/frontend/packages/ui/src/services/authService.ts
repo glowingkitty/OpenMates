@@ -85,16 +85,63 @@ export class AuthService {
     }
 
     /**
-     * Logout user
+     * Comprehensive logout that handles both simple and complex logout scenarios
+     * 
+     * @param callbacks Optional callbacks to customize the logout flow
+     * @returns Promise resolving to true if logout was successful
      */
-    static async logout(): Promise<void> {
+    static async logout(callbacks?: {
+        beforeServerLogout?: () => void | Promise<void>,
+        afterServerLogout?: () => void | Promise<void>,
+        onError?: (error: any) => void | Promise<void>,
+        finalLogout?: () => void | Promise<void>
+    }): Promise<boolean> {
         try {
-            await fetch(getApiEndpoint(apiEndpoints.login.logout), {
+            console.log('Logging out...');
+            
+            // Call pre-logout callback if provided
+            if (callbacks?.beforeServerLogout) {
+                await callbacks.beforeServerLogout();
+            }
+            
+            // Make the logout request to the server
+            const response = await fetch(getApiEndpoint(apiEndpoints.login.logout), {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
+
+            if (!response.ok) {
+                console.error('Logout request failed:', response.statusText);
+            }
+            
+            // Call post-server-logout callback if provided
+            if (callbacks?.afterServerLogout) {
+                await callbacks.afterServerLogout();
+            }
+            
+            // Call final logout callback if provided
+            if (callbacks?.finalLogout) {
+                await callbacks.finalLogout();
+            }
+            
+            return true;
         } catch (error) {
-            console.error('Logout error:', error);
+            console.error('Error during logout:', error);
+            
+            // Call error callback if provided
+            if (callbacks?.onError) {
+                await callbacks?.onError(error);
+            }
+            
+            // Call final logout callback even on error
+            if (callbacks?.finalLogout) {
+                await callbacks.finalLogout();
+            }
+            
+            return false;
         }
     }
 

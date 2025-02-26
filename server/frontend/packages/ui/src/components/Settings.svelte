@@ -18,6 +18,7 @@
     import { tooltip } from '../actions/tooltip';
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
+    import { AuthService } from '../services/authService';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -188,52 +189,44 @@
 
     async function handleLogout() {
         try {
-            console.log('Logging out...');
-            
             // If in signup process, just close the menu without actual logout
             if (isInSignup) {
                 isMenuVisible = false;
                 settingsMenuVisible.set(false);
                 return;
             }
-            
-            // Reset the checking auth state immediately
-            isCheckingAuth.set(false);
-            
-            // First make the logout request to the server
-            const response = await fetch(getApiEndpoint(apiEndpoints.login.logout), {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
+
+            await AuthService.logout({
+                beforeServerLogout: () => {
+                    // Reset the checking auth state immediately
+                    isCheckingAuth.set(false);
+                },
+
+                afterServerLogout: async () => {
+                    // Reset scroll position
+                    if (settingsContentElement) {
+                        settingsContentElement.scrollTop = 0;
+                    }
+
+                    // Close the settings menu
+                    isMenuVisible = false;
+                    settingsMenuVisible.set(false);
+
+                    // Small delay to allow settings menu to close
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    // Close the sidebar menu
+                    isMenuOpen.set(false);
+
+                    // Small delay to allow sidebar animation
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                },
+
+                finalLogout: () => {
+                    // Finally perform the client-side logout
+                    logout();
                 }
             });
-
-            if (!response.ok) {
-                console.error('Logout request failed:', response.statusText);
-            }
-            
-            // Reset scroll position
-            if (settingsContentElement) {
-                settingsContentElement.scrollTop = 0;
-            }
-            
-            // Close the settings menu
-            isMenuVisible = false;
-            settingsMenuVisible.set(false);
-            
-            // Small delay to allow settings menu to close
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Close the sidebar menu
-            isMenuOpen.set(false);
-            
-            // Small delay to allow sidebar animation
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Finally perform the client-side logout
-            logout();
-
         } catch (error) {
             console.error('Error during logout:', error);
             logout();
