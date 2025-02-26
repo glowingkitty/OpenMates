@@ -2,7 +2,7 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { slide } from 'svelte/transition';
     import { tooltip } from '../../actions/tooltip';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { resizeImage } from './utils/imageHelpers';
     const dispatch = createEventDispatcher();
 
@@ -256,7 +256,7 @@
                     <button 
                         class="clickable-icon icon_close" 
                         on:click={stopCamera}
-                        aria-label={$_('cameraview.close.text')}
+                        aria-label={$text('cameraview.close.text')}
                         use:tooltip
                     ></button>
                     {#if isRecording}
@@ -269,7 +269,7 @@
                             class="control-button video-button"
                             class:recording={isRecording}
                             on:click={toggleRecording}
-                            aria-label={isRecording ? $_('cameraview.stoprecording.text') : $_('cameraview.startrecording.text')}
+                            aria-label={isRecording ? $text('cameraview.stoprecording.text') : $text('cameraview.startrecording.text')}
                             use:tooltip
                         >
                             <div class="video-button-inner"></div>
@@ -280,7 +280,7 @@
                             on:click={capturePhoto}
                             disabled={isRecording}
                             class:disabled={isRecording}
-                            aria-label={$_('cameraview.takephoto.text')}
+                            aria-label={$text('cameraview.takephoto.text')}
                             use:tooltip
                         >
                             <div class="photo-button-inner"></div>

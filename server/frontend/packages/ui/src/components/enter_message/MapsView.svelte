@@ -959,8 +959,8 @@
     $: {
         if (isCurrentLocation) {
             locationIndicatorText = isPrecise ? 
-                ($_('enter_message.location.current_location.text') || 'Current location') : 
-                ($_('enter_message.location.current_area.text') || 'Current area');
+                ($text('enter_message.location.current_location.text') || 'Current location') : 
+                ($text('enter_message.location.current_area.text') || 'Current area');
         } else if (selectedLocationText) {
             // Always use two lines when we have selectedLocationText
             locationIndicatorText = selectedLocationText.subLine ? 
@@ -968,8 +968,8 @@
                 selectedLocationText.mainLine;
         } else {
             locationIndicatorText = isPrecise ? 
-                ($_('enter_message.location.selected_location.text') || 'Selected location') : 
-                ($_('enter_message.location.selected_area.text') || 'Selected area');
+                ($text('enter_message.location.selected_location.text') || 'Selected location') : 
+                ($text('enter_message.location.selected_area.text') || 'Selected area');
         }
     }
 </script>
@@ -985,7 +985,7 @@
             <Toggle 
                 bind:checked={isPrecise}
                 name="precise-location"
-                ariaLabel={$_('enter_message.location.toggle_precise.text')}
+                ariaLabel={$text('enter_message.location.toggle_precise.text')}
             />
         </div>
     {/if}
@@ -1002,7 +1002,7 @@
                 transition:slide={{ duration: 200 }}
                 style="padding: 15px;"
             >
-                {$_('enter_message.location.select.text') || 'Select'}
+                {$text('enter_message.location.select.text') || 'Select'}
             </button>
         </div>
     {/if}
@@ -1014,7 +1014,7 @@
             <button 
                 class="clickable-icon icon_close" 
                 on:click={handleClose}
-                aria-label={$_('enter_message.location.close.text')}
+                aria-label={$text('enter_message.location.close.text')}
                 use:tooltip
             ></button>
 
@@ -1023,7 +1023,7 @@
                     type="text"
                     bind:value={searchQuery}
                     on:input={() => debouncedSearch(searchQuery)}
-                    placeholder={$_('enter_message.location.search_placeholder.text') || "Search location..."}
+                    placeholder={$text('enter_message.location.search_placeholder.text') || "Search location..."}
                     class="search-input"
                 />
             </div>
@@ -1032,7 +1032,7 @@
                 class="clickable-icon icon_location"
                 on:click={getCurrentLocation}
                 disabled={isLoading}
-                aria-label={$_('enter_message.location.get_location.text')}
+                aria-label={$text('enter_message.location.get_location.text')}
                 use:tooltip
             >
             </button>
@@ -1051,7 +1051,7 @@
                         searchResults = [];
                         removeSearchMarkers();
                     }}
-                    aria-label={$_('enter_message.location.close_search.text')}
+                    aria-label={$text('enter_message.location.close_search.text')}
                     use:tooltip
                 ></button>
             </div>
