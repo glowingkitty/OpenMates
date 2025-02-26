@@ -6,7 +6,43 @@ Instruction to AI: Only update the yaml structure if the UI structure is updated
 changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
-
+step_7_top_content_svelte:
+    settings_explainer:
+        type: 'text'
+        text:
+            - $text('signup.settings.text')
+            - $text('signup.default_settings_balance.text')
+            - $text('signup.click_toggle_to_open_settings.text')
+        purpose:
+            - 'Explains how the default settings balance is set and how to modify the settings.'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - 'settings'
+        connected_documentation:
+            - '/signup/settings'
+    settings_block:
+        type: 'settings_block'
+        text:
+            - $text('signup.default_settings.text')
+            - $text('settings.privacy.text')
+            - $text('settings.apps.text')
+            - $text('settings.interface.text')
+        purpose:
+            - 'Quick access to Privacy, Apps and Interface settings.'
+        processing:
+            - 'On load, the user icon in the top right is loaded, which opens on click the settings menu.'
+            - 'If any of the three buttons Privacy, Apps or Interface is clicked or the toggle next to them is turned off, then settings menu with this category is opened.'
+            - 'Or if the user clicks on the user icon, the full settings menu is opened.'
+            - 'If the toggle is turned on again or the button is clicked a second time, the settings menu is closed again.'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - 'settings'
+        connected_documentation:
+            - '/signup/settings'
 -->
 
 <script lang="ts">
