@@ -92,8 +92,13 @@ step_7_top_content_svelte:
         <div class="settings-options">
             <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
                 <span class="setting-label">{@html $text('settings.privacy.text')}</span>
+                <div class="setting-toggle"></div>
             </div>
-            <div class="setting-item">
+            <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
+                <span class="setting-label">{@html $text('settings.apps.text')}</span>
+                <div class="setting-toggle"></div>
+            </div>
+            <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
                 <span class="setting-label">{@html $text('settings.interface.text')}</span>
                 <div class="setting-toggle"></div>
             </div>
@@ -163,6 +168,15 @@ step_7_top_content_svelte:
         align-items: center;
         padding: 8px 0;
         border-bottom: 1px solid var(--color-grey-30);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .setting-item:hover {
+        background-color: var(--color-grey-30);
+        border-radius: 6px;
+        padding-left: 8px;
+        padding-right: 8px;
     }
     
     .setting-toggle {

@@ -122,6 +122,17 @@
                 activeChatContainer.classList.remove('dimmed');
             }
         }
+        
+        // Add new logic for chat-container menu-open class
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            // Only add the menu-open class when the menu is ACTUALLY open
+            if (isMenuVisible) {
+                chatContainer.classList.add('menu-open');
+            } else {
+                chatContainer.classList.remove('menu-open');
+            }
+        }
     }
 
     async function handleLogout(): Promise<void> {
