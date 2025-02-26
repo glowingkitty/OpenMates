@@ -45,6 +45,9 @@
 
     // Add reference to settings content element
     let settingsContentElement;
+    let profileContainer;
+    let headerBottom;
+    let settingsItems;
 
     // Get help link from routes
     const helpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
@@ -72,15 +75,33 @@
 
     // State to track active submenu view
     let activeSettingsView = 'main';
+    let direction = 'forward';
+
+    // Animation parameters
+    const flyParams = {
+        duration: 400,
+        x: 300,
+        easing: cubicOut
+    };
     
-    // Function to set active settings view
+    // Function to set active settings view with transitions
     function showSettingsView(viewName) {
+        direction = 'forward';
         activeSettingsView = viewName;
+        
+        if (profileContainer) {
+            profileContainer.classList.add('submenu-active');
+        }
     }
     
-    // Function to return to main view
+    // Function to return to main view with transitions
     function backToMainView() {
+        direction = 'backward';
         activeSettingsView = 'main';
+        
+        if (profileContainer) {
+            profileContainer.classList.remove('submenu-active');
+        }
     }
 
     // Handler for profile click to show menu
@@ -238,6 +259,7 @@
             role="button"
             tabindex="0"
             aria-label={$text('settings.open_settings_menu.text')}
+            bind:this={profileContainer}
         >
             <div class="profile-picture" style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}></div>
         </div>
@@ -284,9 +306,8 @@
             </div>
             <div 
                 class="header-bottom"
-                class:hidden={activeSettingsView !== 'main'}
-                in:fly={{x: activeSettingsView === 'main' ? 0 : -300, duration: 300, delay: activeSettingsView === 'main' ? 300 : 0}}
-                out:fly={{x: -300, duration: 300}}
+                class:active={activeSettingsView === 'main'}
+                bind:this={headerBottom}
             >
                 <div class="user-info-container">
                     <div class="username">{username}</div>
@@ -301,66 +322,73 @@
         </div>
     </div>
     
-    <div class="settings-content-wrapper">
-        <!-- Main settings items -->
-        <div 
-            class="settings-items"
-            bind:this={settingsContentElement}
-            class:hidden={activeSettingsView !== 'main'}
-            in:fly={{x: activeSettingsView === 'main' ? 0 : -300, duration: 300, delay: activeSettingsView === 'main' ? 300 : 0}}
-            out:fly={{x: -300, duration: 300}}
-        >
-            <!-- Quick Settings - Only show when not in signup process -->
-            {#if !isInSignupMode}
-                <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_incognito"
-                    title={$text('settings.incognito.text')}
-                    hasToggle={true}
-                    bind:checked={isIncognitoEnabled}
-                    onClick={() => handleQuickSettingClick('incognito')}
-                />
-                <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_guest"
-                    title={$text('settings.guest.text')}
-                    hasToggle={true}
-                    bind:checked={isGuestEnabled}
-                    onClick={() => handleQuickSettingClick('guest')}
-                />
-                <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_offline"
-                    title={$text('settings.offline.text')}
-                    hasToggle={true}
-                    bind:checked={isOfflineEnabled}
-                    onClick={() => handleQuickSettingClick('offline')}
-                />
-            {/if}
-
-            <!-- Regular Settings -->
-            {#each Object.entries(settingsViews) as [key, _]}
-                <SettingsItem 
-                    icon={key} 
-                    title={$text(`settings.${key}.text`)} 
-                    onClick={() => showSettingsView(key)} 
-                />
-            {/each}
-
-            <SettingsItem 
-                icon="quicksetting_icon quicksetting_icon_logout" 
-                title={$text('settings.logout.text')} 
-                onClick={handleLogout} 
-            />
-        </div>
-        
-        <!-- Submenu specific content -->
-        {#if activeSettingsView !== 'main' && settingsViews[activeSettingsView]}
+    <div class="settings-content-wrapper" bind:this={settingsContentElement}>
+        <div class="content-slider">
+            <!-- Always render both views, control visibility with opacity and position -->
             <div 
-                class="settings-submenu-content"
-                in:fly={{x: 300, duration: 300, delay: 300}}
-                out:fly={{x: 300, duration: 300}}
+                class="settings-items"
+                bind:this={settingsItems}
+                class:active={activeSettingsView === 'main'}
+                in:fly={{...flyParams, x: direction === 'backward' ? flyParams.x : 0}}
+                out:fly={{...flyParams, x: direction === 'forward' ? -flyParams.x : 0}}
+                style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
             >
-                <svelte:component this={settingsViews[activeSettingsView]} />
+                <!-- Quick Settings - Only show when not in signup process -->
+                {#if !isInSignupMode}
+                    <SettingsItem 
+                        icon="quicksetting_icon quicksetting_icon_incognito"
+                        title={$text('settings.incognito.text')}
+                        hasToggle={true}
+                        bind:checked={isIncognitoEnabled}
+                        onClick={() => handleQuickSettingClick('incognito')}
+                    />
+                    <SettingsItem 
+                        icon="quicksetting_icon quicksetting_icon_guest"
+                        title={$text('settings.guest.text')}
+                        hasToggle={true}
+                        bind:checked={isGuestEnabled}
+                        onClick={() => handleQuickSettingClick('guest')}
+                    />
+                    <SettingsItem 
+                        icon="quicksetting_icon quicksetting_icon_offline"
+                        title={$text('settings.offline.text')}
+                        hasToggle={true}
+                        bind:checked={isOfflineEnabled}
+                        onClick={() => handleQuickSettingClick('offline')}
+                    />
+                {/if}
+
+                <!-- Regular Settings -->
+                {#each Object.entries(settingsViews) as [key, _]}
+                    <SettingsItem 
+                        icon={key} 
+                        title={$text(`settings.${key}.text`)} 
+                        onClick={() => showSettingsView(key)} 
+                    />
+                {/each}
+
+                <SettingsItem 
+                    icon="quicksetting_icon quicksetting_icon_logout" 
+                    title={$text('settings.logout.text')} 
+                    onClick={handleLogout} 
+                />
             </div>
-        {/if}
+            
+            <!-- Render all subsettings views and control visibility -->
+            {#each Object.entries(settingsViews) as [key, component]}
+                <div 
+                    class="settings-submenu-content"
+                    class:active={activeSettingsView === key}
+                    in:fly={{...flyParams, x: direction === 'forward' ? flyParams.x : 0}}
+                    out:fly={{...flyParams, x: direction === 'backward' ? -flyParams.x : 0}}
+                    style="z-index: {activeSettingsView === key ? 2 : 1};"
+                >
+                    {#if activeSettingsView === key}
+                        <svelte:component this={component} />
+                    {/if}
+                </div>
+            {/each}
+        </div>
         
         <!-- Documentation links section - Always present -->
         <div class="submenu-section">
@@ -438,11 +466,15 @@
         height: 57px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
     }
 
     .profile-container.menu-open {
         transform: translate(-260px, 130px);
+    }
+    
+    .profile-container.menu-open.submenu-active {
+        transform: translate(-560px, 130px);
     }
 
     .close-icon-container {
@@ -459,11 +491,6 @@
         transition: all 0.3s ease;
     }
 
-    .close-icon-container.visible {
-        opacity: 1;
-        visibility: visible;
-    }
-
     .close-icon-container button.icon-button {
         width: 100%;
         height: 100%;
@@ -476,9 +503,9 @@
         cursor: pointer;
     }
 
-    .close-icon-container .clickable-icon {
-        width: 25px;
-        height: 25px;
+    .close-icon-container.visible {
+        opacity: 1;
+        visibility: visible;
     }
 
     .profile-picture {
@@ -565,6 +592,16 @@
     .header-bottom {
         display: flex;
         align-items: flex-start;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-300px);
+        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
+
+    .header-bottom.active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
     }
 
     .user-info-container {
@@ -644,6 +681,41 @@
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
+    }
+    
+    .content-slider {
+        position: relative;
+        width: 100%;
+        min-height: 300px;
+        overflow: hidden;
+    }
+    
+    .settings-items, 
+    .settings-submenu-content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-300px);
+        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
+    
+    .settings-items.active,
+    .settings-submenu-content.active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
+    }
+    
+    .settings-items {
+        padding: 0;
+    }
+    
+    .settings-submenu-content {
+        padding: 0 16px;
+        transform: translateX(300px);
     }
     
     .settings-content-wrapper:hover {
@@ -766,6 +838,11 @@
     
     .settings-items.hidden {
         display: none;
+    }
+    
+    .settings-items.slide-left {
+        transform: translateX(-300px);
+        transition: transform 0.3s ease;
     }
     
     .settings-submenu-content {

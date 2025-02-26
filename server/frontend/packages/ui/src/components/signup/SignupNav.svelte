@@ -44,12 +44,12 @@
 </script>
 
 <div class="nav-area">
-    <button class="nav-button back-button" on:click={handleBackClick}>
+    <button class="nav-button" on:click={handleBackClick}>
         <div class="clickable-icon icon_back"></div>
         {getNavText(currentStep)}
     </button>
     {#if showSkip}
-        <button class="nav-button skip-button" on:click={handleSkipClick}>
+        <button class="nav-button" on:click={handleSkipClick}>
             {skipButtonText}
             <div class="clickable-icon icon_back icon-mirrored"></div>
         </button>

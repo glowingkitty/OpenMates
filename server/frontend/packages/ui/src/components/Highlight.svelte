@@ -109,7 +109,7 @@
                         </div>
                     </div>
                     <div class="center-content">
-                        <div class="icon mate"></div>
+                        <div class="icon mates"></div>
                         <div class="powered-text">
                             {$text('highlight.powered_by.powered_by_leading.text')}<br>
                             {$text('highlight.powered_by.cloud_and_on_device_ai_models.text')}
