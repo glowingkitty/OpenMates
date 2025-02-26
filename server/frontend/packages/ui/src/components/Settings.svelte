@@ -555,13 +555,13 @@
         align-items: center;
         justify-content: space-between;
         width: 100%;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--color-grey-30);
     }
 
     .header-bottom {
         display: flex;
         align-items: flex-start;
-        padding-top: 8px;
-        border-top: 1px solid var(--color-grey-30);
     }
 
     .user-info-container {
