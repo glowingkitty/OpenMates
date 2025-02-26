@@ -620,6 +620,22 @@ div.clickable-icon {
   }
 }
 
+.icon.privacy {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/lock.svg');
+  }
+}
+
+.icon.share {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/share.svg');
+  }
+}
+
 .icon.server {
   background: var(--color-primary);
 

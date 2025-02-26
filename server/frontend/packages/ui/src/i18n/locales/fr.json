@@ -840,6 +840,11 @@
             "en_original": "Mates",
             "context": "Mates settings menu item"
         },
+        "shared": {
+            "text": "Partagé",
+            "en_original": "Shared",
+            "context": "Shared chats settings menu item"
+        },
         "messengers": {
             "text": "Messageries",
             "en_original": "Messengers",

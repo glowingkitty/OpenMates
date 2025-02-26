@@ -1060,6 +1060,10 @@
             "text": "Mates",
             "context": "Mates settings menu item"
         },
+        "shared": {
+            "text": "Shared",
+            "context": "Shared chats settings menu item"
+        },
         "messengers": {
             "text": "Messengers",
             "context": "Messengers settings menu item"

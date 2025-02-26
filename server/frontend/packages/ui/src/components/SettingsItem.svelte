@@ -6,6 +6,7 @@
     export let title: string;
     export let hasToggle = false; // Whether this item has a toggle switch
     export let checked = false; // Toggle state if hasToggle is true
+    export let disabled = false; // Whether this item is disabled
     export let onClick: (() => void) | undefined = undefined;
 
     // Handler to prevent event bubbling for toggle clicks
@@ -25,10 +26,11 @@
 <div 
     class="menu-item"
     class:clickable={onClick !== undefined}
-    on:click={onClick}
-    on:keydown={(e) => onClick && handleKeydown(e, onClick)}
+    class:disabled={disabled}
+    on:click={disabled ? () => {} : onClick}
+    on:keydown={(e) => !disabled && onClick && handleKeydown(e, onClick)}
     role="menuitem"
-    tabindex={onClick ? 0 : undefined}
+    tabindex={disabled ? -1 : (onClick ? 0 : undefined)}
 >
     <div class="menu-item-left">
         <div class="icon settings_size {icon}"></div>
@@ -45,6 +47,7 @@
                 bind:checked
                 name={title.toLowerCase()}
                 ariaLabel="Toggle {title.toLowerCase()} mode"
+                disabled={disabled}
             />
         </div>
     {/if}
@@ -68,6 +71,11 @@
         background-color: var(--color-grey-30);
     }
 
+    .menu-item.disabled {
+        opacity: 0.5;
+        cursor: default;
+        pointer-events: none;
+    }
 
     .menu-item-left {
         display: flex;
@@ -78,4 +86,4 @@
     .menu-title {
         text-align: left;
     }
-</style> 
+</style>

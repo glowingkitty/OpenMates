@@ -48,6 +48,9 @@
     $: username = $userProfile.username || 'Guest';
     $: profileImageUrl = $userProfile.profileImageUrl;
 
+    // Determine if quick settings should be disabled (during signup)
+    $: isInSignupMode = $isInSignupProcess;
+
     // Handler for profile click to show menu
     function toggleMenu(): void {
         isMenuVisible = !isMenuVisible;
@@ -62,8 +65,10 @@
         }
     }
 
-    // Handler for quicksettings menu item clicks
+    // Handler for quicksettings menu item clicks - updated to prevent action during signup
     function handleQuickSettingClick(toggleName: 'team' | 'incognito' | 'guest' | 'offline'): void {
+        if (isInSignupMode) return; // Prevent action during signup
+        
         switch(toggleName) {
             case 'team':
                 isTeamEnabled = !isTeamEnabled;
@@ -286,6 +291,7 @@
             hasToggle={true}
             bind:checked={isIncognitoEnabled}
             onClick={() => handleQuickSettingClick('incognito')}
+            disabled={isInSignupMode}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_guest"
@@ -293,6 +299,7 @@
             hasToggle={true}
             bind:checked={isGuestEnabled}
             onClick={() => handleQuickSettingClick('guest')}
+            disabled={isInSignupMode}
         />
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_offline"
@@ -300,15 +307,18 @@
             hasToggle={true}
             bind:checked={isOfflineEnabled}
             onClick={() => handleQuickSettingClick('offline')}
+            disabled={isInSignupMode}
         />
 
         <!-- Regular Settings -->
         <!-- <SettingsItem icon="team" title={$text('settings.team.text')} onClick={() => {}} /> -->
+        <SettingsItem icon="privacy" title={$text('settings.privacy.text')} onClick={() => {}} />
         <SettingsItem icon="user" title={$text('settings.user.text')} onClick={() => {}} />
         <SettingsItem icon="task" title={$text('settings.usage.text')} onClick={() => {}} />
         <SettingsItem icon="billing" title={$text('settings.billing.text')} onClick={() => {}} />
         <SettingsItem icon="app" title={$text('settings.apps.text')} onClick={() => {}} />
         <SettingsItem icon="mate" title={$text('settings.mates.text')} onClick={() => {}} />
+        <SettingsItem icon="share" title={$text('settings.shared.text')} onClick={() => {}} />
         <SettingsItem icon="messenger" title={$text('settings.messengers.text')} onClick={() => {}} />
         <SettingsItem icon="developer" title={$text('settings.developers.text')} onClick={() => {}} />
         <SettingsItem icon="interface" title={$text('settings.interface.text')} onClick={() => {}} />
