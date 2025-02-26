@@ -448,6 +448,7 @@
     .settings-header {
         background-color: var(--color-grey-20);
         padding: 16px;
+        padding-bottom: 0;
         position: sticky;
         top: 0;
         z-index: 10;

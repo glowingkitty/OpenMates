@@ -228,6 +228,7 @@
         width: 100%;
         min-height: 300px;
         overflow: hidden;
+        padding-top: 10px;
     }
     
     .settings-items, 
@@ -246,10 +247,6 @@
         opacity: 1;
         pointer-events: auto;
         transform: translateX(0);
-    }
-    
-    .settings-items {
-        padding: 0;
     }
     
     .settings-submenu-content {
