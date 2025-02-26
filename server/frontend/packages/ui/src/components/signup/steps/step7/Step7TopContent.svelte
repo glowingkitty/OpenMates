@@ -47,12 +47,57 @@ step_7_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { onMount, onDestroy } from 'svelte';
+    import { settingsMenuVisible } from '../../../Settings.svelte';
+    import { isSignupSettingsStep } from '../../../../stores/signupState';
+    
+    // Auto-set the settings step state when this step is mounted
+    // but DON'T auto-open the menu - let the user click to open it
+    onMount(() => {
+        // Set the settings step state
+        isSignupSettingsStep.set(true);
+        
+        // Do NOT auto-open settings menu anymore
+        // settingsMenuVisible.set(true);
+    });
+    
+    onDestroy(() => {
+        // Clean up when component is unmounted
+        settingsMenuVisible.set(false);
+        isSignupSettingsStep.set(false);
+    });
+    
+    // Handle click on one of the settings options
+    function handleSettingClick() {
+        // When user clicks any setting, open the menu
+        settingsMenuVisible.set(true);
+    }
 </script>
 
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size settings"></div>
         <h2 class="menu-title">{@html $text('signup.settings.text')}</h2>
+    </div>
+    
+    <div class="text-block">
+        {@html $text('signup.default_settings_balance.text')}
+        <br><br>
+        {@html $text('signup.click_toggle_to_open_settings.text')}
+    </div>
+    
+    <div class="settings-block">
+        <h3>{@html $text('signup.default_settings.text')}</h3>
+        
+        <div class="settings-options">
+            <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
+                <span class="setting-label">{@html $text('settings.privacy.text')}</span>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">{@html $text('settings.interface.text')}</span>
+                <div class="setting-toggle"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -90,5 +135,59 @@ step_7_top_content_svelte:
     .text-block {
         margin: 20px 0 30px 0;
         text-align: center;
+    }
+    
+    .settings-block {
+        width: 90%;
+        background-color: var(--color-grey-20);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .settings-block h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        color: var(--color-grey-80);
+    }
+    
+    .settings-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+    
+    .setting-toggle {
+        width: 36px;
+        height: 20px;
+        background-color: var(--color-primary-light);
+        border-radius: 10px;
+        position: relative;
+    }
+    
+    .setting-toggle::after {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        background-color: white;
+        border-radius: 50%;
+        top: 1px;
+        right: 1px;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    
+    .setting-label {
+        color: var(--color-grey-80);
+        font-weight: 500;
     }
 </style>

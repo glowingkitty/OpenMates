@@ -8,6 +8,9 @@
     import { fade, fly } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
 
+    // Import signup state stores
+    import { isSignupSettingsStep, isInSignupProcess } from '../../stores/signupState';
+
     // Dynamic imports for step contents
     import Step2TopContent from './steps/step2/Step2TopContent.svelte';
     import Step3TopContent from './steps/step3/Step3TopContent.svelte';
@@ -49,6 +52,31 @@
     let isImageProcessing = false;
     let isImageUploading = false;
 
+    // Update stores when component is mounted and destroyed
+    import { onMount, onDestroy } from 'svelte';
+    
+    onMount(() => {
+        isInSignupProcess.set(true);
+        updateSettingsStep();
+    });
+    
+    onDestroy(() => {
+        isInSignupProcess.set(false);
+        isSignupSettingsStep.set(false);
+    });
+
+    // Function to update settings step state based on current step
+    function updateSettingsStep() {
+        // Only step 7 shows settings and hides footer
+        isSignupSettingsStep.set(currentStep === 7);
+    }
+
+    // Make sure to call updateSettingsStep when the step changes
+    $: {
+        // This reactive statement ensures we update when currentStep changes
+        updateSettingsStep();
+    }
+
     function handleSwitchToLogin() {
         dispatch('switchToLogin');
     }
@@ -63,6 +91,7 @@
         const newStep = event.detail.step;
         direction = newStep > currentStep ? 'forward' : 'backward';
         currentStep = newStep;
+        updateSettingsStep();
     }
 
     function handleSelectedApp(event: CustomEvent<{ appName: string }>) {
@@ -72,6 +101,7 @@
     function goToStep(step: number) {
         direction = step > currentStep ? 'forward' : 'backward';
         currentStep = step;
+        updateSettingsStep();
     }
 
     function handleLogout() {

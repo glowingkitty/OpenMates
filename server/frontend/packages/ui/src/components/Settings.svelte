@@ -17,6 +17,9 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { externalLinks, getWebsiteUrl } from '../config/links';
     
+    // Import signup state stores
+    import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
+    
     // Props for user and team information
     export let teamSelected = 'xhain';
     export let isLoggedIn = false;
@@ -30,6 +33,13 @@
 
     // Add reference to settings content element
     let settingsContentElement: HTMLElement;
+
+    // Determine if we should show the settings icon
+    // Show if user is logged in OR we're on the settings step
+    $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
+    
+    // Determine if this is a real logout or just going back to signup flow
+    $: isInSignup = $isInSignupProcess;
 
     // Handler for profile click to show menu
     function toggleMenu(): void {
@@ -118,6 +128,13 @@
         try {
             console.log('Logging out...');
             
+            // If in signup process, just close the menu without actual logout
+            if (isInSignup) {
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                return;
+            }
+            
             // Reset the checking auth state immediately
             isCheckingAuth.set(false);
             
@@ -162,7 +179,7 @@
     }
 </script>
 
-{#if isLoggedIn}
+{#if showSettingsIcon}
     <div 
         class="profile-container-wrapper"
         in:fly={{ y: -window.innerHeight/2 + 60, 

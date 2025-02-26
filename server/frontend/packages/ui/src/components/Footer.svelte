@@ -8,6 +8,9 @@
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../config/meta';
+    import { isAuthenticated } from '../stores/authState';
+    import { isInSignupProcess } from '../stores/signupState';
+    import { isSignupSettingsStep } from '../stores/signupState';
 
     // Type definition for footer links
     type FooterLink = {
@@ -232,8 +235,12 @@
             console.error('Error changing language:', error);
         }
     };
+
+    // Hide footer when authenticated or specifically on settings step
+    $: showFooter = !$isAuthenticated && !$isSignupSettingsStep;
 </script>
 
+{#if showFooter}
 <footer>
     <div class="footer-content">
         <!-- Logo and Tagline Section -->
@@ -302,6 +309,7 @@
         </div>
     </div>
 </footer>
+{/if}
 
 <style>
     footer {
