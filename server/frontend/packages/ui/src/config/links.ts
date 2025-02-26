@@ -66,6 +66,7 @@ export const routes = {
         userGuide_signup_8: import.meta.env.DEV ? "/docs/userguide/signup/mates" : null,
         userGuide_signup_9: import.meta.env.DEV ? "/docs/userguide/signup/pay-per-use" : null,
         userGuide_signup_10: import.meta.env.DEV ? "/docs/userguide/signup/payment" : null,
+        userGuide_settings: import.meta.env.DEV ? "/docs/userguide/settings" : null,
         api: import.meta.env.DEV ? "/docs/api" : null,
         roadmap: import.meta.env.DEV ? "/docs/roadmap" : null,
         designGuidelines: import.meta.env.DEV ? "/docs/designguidelines" : null,

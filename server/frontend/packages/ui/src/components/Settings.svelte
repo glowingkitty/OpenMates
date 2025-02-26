@@ -15,7 +15,10 @@
     import { isMenuOpen } from '../stores/menuState';
     import { isCheckingAuth } from '../stores/authCheckState';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
-    import { externalLinks, getWebsiteUrl } from '../config/links';
+    import { externalLinks, getWebsiteUrl, routes } from '../config/links';
+    
+    // Import tooltip action
+    import { tooltip } from '../actions/tooltip';
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
@@ -36,6 +39,9 @@
 
     // Add reference to settings content element
     let settingsContentElement: HTMLElement;
+
+    // Get help link from routes
+    const helpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
 
     // Determine if we should show the settings icon
     // Show if user is logged in OR we're on the settings step
@@ -247,15 +253,22 @@
         <div class="header-container">
             <div class="header-top">
                 <div class="header-left">
-                    <button 
-                        class="clickable-icon icon_search" 
-                        aria-label={$text('settings.search.text')}
-                    ></button>
                 </div>
                 <div class="header-center">
                     <h4>{@html $text('settings.settings.text')}</h4>
                 </div>
-                <div class="header-left"></div>
+                <div class="header-right">
+                    <a 
+                        href={helpLink} 
+                        target="_blank" 
+                        use:tooltip
+                        rel="noopener noreferrer" 
+                        class="help-button-container" 
+                        aria-label={$text('documentation.open_documentation.text')}
+                    >
+                        <div class="help-button"></div>
+                    </a>
+                </div>
             </div>
             <div class="header-bottom">
                 <div class="user-info-container">
@@ -600,8 +613,16 @@
         transform: translateX(-50%);
     }
 
-    .header-left {
+    .header-left, .header-right {
         width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .help-button-container {
+        all:unset;
     }
 
     .settings-content {
