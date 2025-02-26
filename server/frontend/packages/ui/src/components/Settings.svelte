@@ -54,7 +54,7 @@
     const helpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
 
     // Define settingsViews map for component mapping
-    const settingsViews = {
+    const settingsViews: Record<string, any> = {
         'privacy': SettingsPrivacy,
         'user': SettingsUser,
         'usage': SettingsUsage,
@@ -347,10 +347,6 @@
     .profile-container.menu-open {
         transform: translate(-260px, 130px);
     }
-    
-    .profile-container.menu-open.submenu-active {
-        transform: translate(-560px, 130px);
-    }
 
     .close-icon-container {
         position: absolute;
@@ -546,10 +542,6 @@
         align-items: center;
         gap: 0;
         transition: gap 0.3s ease;
-    }
-    
-    .nav-button .clickable-icon.visible + * {
-        margin-left: 8px;
     }
 
     .nav-button:hover {
