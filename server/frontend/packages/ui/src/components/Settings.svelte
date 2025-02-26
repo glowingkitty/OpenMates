@@ -7,7 +7,6 @@
 </script>
 
 <script lang="ts">
-    import SettingsItem from './SettingsItem.svelte';
     import { onMount } from 'svelte';
     import { fly, fade } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
@@ -19,6 +18,10 @@
     import { tooltip } from '../actions/tooltip';
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
+    
+    // Import modular components
+    import SettingsFooter from './settings/SettingsFooter.svelte';
+    import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
     
     // Import all settings components
     import SettingsInterface from './settings/SettingsInterface.svelte';
@@ -33,7 +36,6 @@
     import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
     
     // Props for user and team information
-    export let teamSelected = 'xhain';
     export let isLoggedIn = false;
     
     // State for toggles and menu visibility
@@ -46,8 +48,6 @@
     // Add reference to settings content element
     let settingsContentElement;
     let profileContainer;
-    let headerBottom;
-    let settingsItems;
 
     // Get help link from routes
     const helpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
@@ -76,17 +76,11 @@
     // State to track active submenu view
     let activeSettingsView = 'main';
     let direction = 'forward';
-
-    // Animation parameters
-    const flyParams = {
-        duration: 400,
-        x: 300,
-        easing: cubicOut
-    };
     
     // Function to set active settings view with transitions
-    function showSettingsView(viewName) {
-        direction = 'forward';
+    function handleViewChange(event) {
+        const { viewName, direction: newDirection } = event.detail;
+        direction = newDirection;
         activeSettingsView = viewName;
         
         if (profileContainer) {
@@ -118,7 +112,9 @@
     }
 
     // Handler for quicksettings menu item clicks
-    function handleQuickSettingClick(toggleName) {
+    function handleQuickSettingClick(event) {
+        const { toggleName } = event.detail;
+        
         switch(toggleName) {
             case 'team':
                 isTeamEnabled = !isTeamEnabled;
@@ -304,146 +300,25 @@
                     </a>
                 </div>
             </div>
-            <div 
-                class="header-bottom"
-                class:active={activeSettingsView === 'main'}
-                bind:this={headerBottom}
-            >
-                <div class="user-info-container">
-                    <div class="username">{username}</div>
-                    <div class="credits-container">
-                        <span class="credits-icon"></span>
-                        <div class="credits-text">
-                            <span class="credits-amount"><mark>4800 {$text('settings.credits.text')}</mark></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement}>
-        <div class="content-slider">
-            <!-- Always render both views, control visibility with opacity and position -->
-            <div 
-                class="settings-items"
-                bind:this={settingsItems}
-                class:active={activeSettingsView === 'main'}
-                in:fly={{...flyParams, x: direction === 'backward' ? flyParams.x : 0}}
-                out:fly={{...flyParams, x: direction === 'forward' ? -flyParams.x : 0}}
-                style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
-            >
-                <!-- Quick Settings - Only show when not in signup process -->
-                {#if !isInSignupMode}
-                    <SettingsItem 
-                        icon="quicksetting_icon quicksetting_icon_incognito"
-                        title={$text('settings.incognito.text')}
-                        hasToggle={true}
-                        bind:checked={isIncognitoEnabled}
-                        onClick={() => handleQuickSettingClick('incognito')}
-                    />
-                    <SettingsItem 
-                        icon="quicksetting_icon quicksetting_icon_guest"
-                        title={$text('settings.guest.text')}
-                        hasToggle={true}
-                        bind:checked={isGuestEnabled}
-                        onClick={() => handleQuickSettingClick('guest')}
-                    />
-                    <SettingsItem 
-                        icon="quicksetting_icon quicksetting_icon_offline"
-                        title={$text('settings.offline.text')}
-                        hasToggle={true}
-                        bind:checked={isOfflineEnabled}
-                        onClick={() => handleQuickSettingClick('offline')}
-                    />
-                {/if}
-
-                <!-- Regular Settings -->
-                {#each Object.entries(settingsViews) as [key, _]}
-                    <SettingsItem 
-                        icon={key} 
-                        title={$text(`settings.${key}.text`)} 
-                        onClick={() => showSettingsView(key)} 
-                    />
-                {/each}
-
-                <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_logout" 
-                    title={$text('settings.logout.text')} 
-                    onClick={handleLogout} 
-                />
-            </div>
-            
-            <!-- Render all subsettings views and control visibility -->
-            {#each Object.entries(settingsViews) as [key, component]}
-                <div 
-                    class="settings-submenu-content"
-                    class:active={activeSettingsView === key}
-                    in:fly={{...flyParams, x: direction === 'forward' ? flyParams.x : 0}}
-                    out:fly={{...flyParams, x: direction === 'backward' ? -flyParams.x : 0}}
-                    style="z-index: {activeSettingsView === key ? 2 : 1};"
-                >
-                    {#if activeSettingsView === key}
-                        <svelte:component this={component} />
-                    {/if}
-                </div>
-            {/each}
-        </div>
+        <CurrentSettingsPage 
+            {activeSettingsView}
+            {direction}
+            {username}
+            {isInSignupMode}
+            {settingsViews}
+            bind:isIncognitoEnabled
+            bind:isGuestEnabled
+            bind:isOfflineEnabled
+            on:viewChange={handleViewChange}
+            on:quickSettingClick={handleQuickSettingClick}
+            on:logout={handleLogout}
+        />
         
-        <!-- Documentation links section - Always present -->
-        <div class="submenu-section">
-            <div class="submenu-group">
-                <h3>{@html $text('settings.docs.text')}</h3>
-                <a 
-                    href={getWebsiteUrl('/docs/user-guide')} 
-                    class="submenu-link" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                >{@html $text('settings.user_guide.text')}</a>
-                <a 
-                    href={getWebsiteUrl('/docs/api-docs')} 
-                    class="submenu-link" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                >{@html $text('settings.api_docs.text')}</a>
-            </div>
-
-            <div class="submenu-group">
-                <h3>{@html $text('settings.contact.text')}</h3>
-                <a 
-                    href={externalLinks.discord} 
-                    class="submenu-link" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                >{@html $text('settings.discord.text')}</a>
-                <a 
-                    href={externalLinks.email} 
-                    class="submenu-link"
-                >{@html $text('settings.email.text')}</a>
-            </div>
-
-            <div class="submenu-group">
-                <h3>{@html $text('settings.legal.text')}</h3>
-                <a 
-                    href={getWebsiteUrl(externalLinks.legal.imprint)} 
-                    class="submenu-link" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                >{@html $text('settings.imprint.text')}</a>
-                <a 
-                    href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
-                    class="submenu-link" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                >{@html $text('settings.privacy.text')}</a>
-                <a 
-                    href={getWebsiteUrl(externalLinks.legal.terms)} 
-                    class="submenu-link" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                >{@html $text('settings.terms_and_conditions.text')}</a>
-            </div>
-        </div>
+        <SettingsFooter />
     </div>
 </div>
 
@@ -491,6 +366,11 @@
         transition: all 0.3s ease;
     }
 
+    .close-icon-container.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
     .close-icon-container button.icon-button {
         width: 100%;
         height: 100%;
@@ -503,9 +383,9 @@
         cursor: pointer;
     }
 
-    .close-icon-container.visible {
-        opacity: 1;
-        visibility: visible;
+    .close-icon-container .clickable-icon {
+        width: 25px;
+        height: 25px;
     }
 
     .profile-picture {
@@ -554,13 +434,13 @@
     }
 
     .settings-header,
-    .settings-content {
+    .settings-content-wrapper {
         opacity: 0;
         transition: opacity 0.3s ease 0s;
     }
 
     .settings-menu.visible .settings-header,
-    .settings-menu.visible .settings-content {
+    .settings-menu.visible .settings-content-wrapper {
         opacity: 1;
         transition: opacity 0.3s ease 0.15s;
     }
@@ -587,64 +467,6 @@
         width: 100%;
         padding-bottom: 10px;
         border-bottom: 1px solid var(--color-grey-30);
-    }
-
-    .header-bottom {
-        display: flex;
-        align-items: flex-start;
-        opacity: 0;
-        pointer-events: none;
-        transform: translateX(-300px);
-        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
-    }
-
-    .header-bottom.active {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateX(0);
-    }
-
-    .user-info-container {
-        margin-left: 72px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .username {
-        font-size: 22px;
-        font-weight: 500;
-        color: var(--color-grey-100);
-    }
-
-    .credits-container {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .credits-text {
-        color: var(--color-grey-100);
-        font-size: 16px;
-        background: none;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .credits-icon {
-        width: 19px;
-        height: 19px;
-        -webkit-mask-image: url('@openmates/ui/static/icons/coins.svg');
-        -webkit-mask-size: cover;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-image: url('@openmates/ui/static/icons/coins.svg');
-        mask-size: cover;
-        mask-position: center;
-        mask-repeat: no-repeat;
-        background: var(--color-primary);
     }
 
     .header-center {
@@ -683,41 +505,6 @@
         transition: scrollbar-color 0.2s ease;
     }
     
-    .content-slider {
-        position: relative;
-        width: 100%;
-        min-height: 300px;
-        overflow: hidden;
-    }
-    
-    .settings-items, 
-    .settings-submenu-content {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        opacity: 0;
-        pointer-events: none;
-        transform: translateX(-300px);
-        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
-    }
-    
-    .settings-items.active,
-    .settings-submenu-content.active {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateX(0);
-    }
-    
-    .settings-items {
-        padding: 0;
-    }
-    
-    .settings-submenu-content {
-        padding: 0 16px;
-        transform: translateX(300px);
-    }
-    
     .settings-content-wrapper:hover {
         scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
     }
@@ -743,46 +530,6 @@
     
     .settings-content-wrapper::-webkit-scrollbar-thumb:hover {
         background-color: rgba(128, 128, 128, 0.7);
-    }
-
-    .submenu-section {
-        padding: 0 16px 16px;
-    }
-
-    .submenu-group {
-        margin-bottom: 16px;
-    }
-
-    .submenu-group h3 {
-        color: var(--color-grey-60);
-        font-size: 14px;
-        font-weight: 600;
-        margin: 6px 0;
-    }
-
-    .submenu-link {
-        display: block;
-        color: var(--color-grey-50);
-        text-decoration: none;
-        padding: 6px 0;
-        font-size: 14px;
-        transition: color 0.2s ease;
-    }
-
-    .submenu-link:hover {
-        color: var(--color-primary);
-    }
-
-    :global(.active-chat-container) {
-        transition: opacity 0.3s ease;
-    }
-
-    :global(.active-chat-container.dimmed) {
-        opacity: 0.3;
-    }
-
-    .header-bottom.hidden {
-        display: none;
     }
 
     .nav-button {
@@ -831,23 +578,12 @@
         opacity: 1;
         visibility: visible;
     }
-    
-    .settings-items {
-        position: relative;
+
+    :global(.active-chat-container) {
+        transition: opacity 0.3s ease;
     }
-    
-    .settings-items.hidden {
-        display: none;
-    }
-    
-    .settings-items.slide-left {
-        transform: translateX(-300px);
-        transition: transform 0.3s ease;
-    }
-    
-    .settings-submenu-content {
-        position: relative;
-        padding: 0 16px;
-        margin-bottom: 16px;
+
+    :global(.active-chat-container.dimmed) {
+        opacity: 0.3;
     }
 </style>
