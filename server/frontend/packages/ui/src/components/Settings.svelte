@@ -65,10 +65,8 @@
         }
     }
 
-    // Handler for quicksettings menu item clicks - updated to prevent action during signup
+    // Handler for quicksettings menu item clicks - simplified as we no longer need signup mode check
     function handleQuickSettingClick(toggleName: 'team' | 'incognito' | 'guest' | 'offline'): void {
-        if (isInSignupMode) return; // Prevent action during signup
-        
         switch(toggleName) {
             case 'team':
                 isTeamEnabled = !isTeamEnabled;
@@ -277,38 +275,37 @@
         class="settings-content"
         bind:this={settingsContentElement}
     >
-        <!-- Quick Settings -->
-        <!-- <SettingsItem 
-            icon="quicksetting_icon quicksetting_icon_team"
-            title={$text('settings.team.text')}
-            hasToggle={true}
-            bind:checked={isTeamEnabled}
-            onClick={() => handleQuickSettingClick('team')}
-        /> -->
-        <SettingsItem 
-            icon="quicksetting_icon quicksetting_icon_incognito"
-            title={$text('settings.incognito.text')}
-            hasToggle={true}
-            bind:checked={isIncognitoEnabled}
-            onClick={() => handleQuickSettingClick('incognito')}
-            disabled={isInSignupMode}
-        />
-        <SettingsItem 
-            icon="quicksetting_icon quicksetting_icon_guest"
-            title={$text('settings.guest.text')}
-            hasToggle={true}
-            bind:checked={isGuestEnabled}
-            onClick={() => handleQuickSettingClick('guest')}
-            disabled={isInSignupMode}
-        />
-        <SettingsItem 
-            icon="quicksetting_icon quicksetting_icon_offline"
-            title={$text('settings.offline.text')}
-            hasToggle={true}
-            bind:checked={isOfflineEnabled}
-            onClick={() => handleQuickSettingClick('offline')}
-            disabled={isInSignupMode}
-        />
+        <!-- Quick Settings - Only show when not in signup process -->
+        {#if !isInSignupMode}
+            <!-- <SettingsItem 
+                icon="quicksetting_icon quicksetting_icon_team"
+                title={$text('settings.team.text')}
+                hasToggle={true}
+                bind:checked={isTeamEnabled}
+                onClick={() => handleQuickSettingClick('team')}
+            /> -->
+            <SettingsItem 
+                icon="quicksetting_icon quicksetting_icon_incognito"
+                title={$text('settings.incognito.text')}
+                hasToggle={true}
+                bind:checked={isIncognitoEnabled}
+                onClick={() => handleQuickSettingClick('incognito')}
+            />
+            <SettingsItem 
+                icon="quicksetting_icon quicksetting_icon_guest"
+                title={$text('settings.guest.text')}
+                hasToggle={true}
+                bind:checked={isGuestEnabled}
+                onClick={() => handleQuickSettingClick('guest')}
+            />
+            <SettingsItem 
+                icon="quicksetting_icon quicksetting_icon_offline"
+                title={$text('settings.offline.text')}
+                hasToggle={true}
+                bind:checked={isOfflineEnabled}
+                onClick={() => handleQuickSettingClick('offline')}
+            />
+        {/if}
 
         <!-- Regular Settings -->
         <!-- <SettingsItem icon="team" title={$text('settings.team.text')} onClick={() => {}} /> -->
