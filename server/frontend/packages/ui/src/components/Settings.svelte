@@ -271,30 +271,25 @@
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
 >
-    <div class="settings-header">
-        <div class="header-container">
-            <div class="header-top">
-                <div class="header-left"></div>
-                <div class="header-center" class:left-aligned={activeSettingsView !== 'main'}>
-                    <button class="nav-button" on:click={activeSettingsView !== 'main' ? backToMainView : null}>
-                        <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
-                        {@html $text('settings.settings.text')}
-                    </button>
-                </div>
-                <div class="header-right">
-                    <a 
-                        href={helpLink} 
-                        target="_blank" 
-                        use:tooltip
-                        rel="noopener noreferrer" 
-                        class="help-button-container" 
-                        aria-label={$text('documentation.open_documentation.text')}
-                    >
-                        <div class="help-button"></div>
-                    </a>
-                </div>
-            </div>
-        </div>
+    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main'}>
+        <button 
+            class="nav-button" 
+            class:left-aligned={activeSettingsView !== 'main'}
+            on:click={activeSettingsView !== 'main' ? backToMainView : null}
+        >
+            <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
+            {@html $text('settings.settings.text')}
+        </button>
+        <a 
+            href={helpLink} 
+            target="_blank" 
+            use:tooltip
+            rel="noopener noreferrer" 
+            class="help-button-container" 
+            aria-label={$text('documentation.open_documentation.text')}
+        >
+            <div class="help-button"></div>
+        </a>
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement}>
@@ -444,51 +439,67 @@
     .settings-header {
         background-color: var(--color-grey-20);
         padding: 16px;
-        padding-bottom: 0;
+        padding-bottom: 12px;
         position: sticky;
         top: 0;
         z-index: 10;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .header-container {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .header-top {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        width: 100%;
-        padding-bottom: 10px;
+        justify-content: center;
         border-bottom: 1px solid var(--color-grey-30);
+        position: relative;
+        min-height: 24px;
     }
 
-    .header-center {
+    .settings-header.submenu-active {
+        justify-content: flex-start;
+    }
+
+    .nav-button {
+        all: unset;
+        font-size: 14px;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        position: relative;
+        padding: 4px 0;
+        transition: all 0.3s ease;
+    }
+
+    .nav-button.left-aligned {
         position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 16px;
+    }
+
+    .clickable-icon.icon_back {
+        opacity: 0;
+        width: 0;
+        margin-right: 0;
+        visibility: hidden;
         transition: all 0.3s ease;
     }
     
-    .header-center.left-aligned {
-        position: relative;
-        left: 0;
-        transform: none;
+    .clickable-icon.icon_back.visible {
+        opacity: 1;
+        width: 24px;
+        margin-right: 8px;
+        visibility: visible;
     }
 
-    .header-left, .header-right {
+    .help-button-container {
+        all: unset;
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
         width: 24px;
         height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    .help-button-container {
-        all: unset;
+        cursor: pointer;
     }
 
     .settings-content-wrapper {
@@ -550,25 +561,14 @@
     }
     
     .clickable-icon.icon_back {
-        width: 24px;
-        height: 24px;
         opacity: 0;
-        flex-shrink: 0;
-        transition: opacity 0.3s ease;
+        width: 0px;
         visibility: hidden;
-        -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
-        -webkit-mask-size: cover;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-image: url('@openmates/ui/static/icons/back.svg');
-        mask-size: cover;
-        mask-position: center;
-        mask-repeat: no-repeat;
-        background: var(--color-grey-60);
     }
     
     .clickable-icon.icon_back.visible {
         opacity: 1;
+        width: 25px;
         visibility: visible;
     }
 
