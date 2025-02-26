@@ -31,6 +31,9 @@
   width: 44px;
   height: 44px;
   border-radius: 10px;
+  animation: unset;
+  animation-delay: unset;
+  opacity: 1;
 }
 
 .quicksetting_icon{
@@ -560,7 +563,7 @@ div.clickable-icon {
 
 /* OpenMates Endpoint Icons */
 
-.icon.app {
+.icon.apps {
   background: var(--color-primary);
 
   &::before {
@@ -578,7 +581,7 @@ div.clickable-icon {
   }
 }
 
-.icon.mate {
+.icon.mates {
   background: var(--color-primary);
 
   &::before {
@@ -628,7 +631,7 @@ div.clickable-icon {
   }
 }
 
-.icon.share {
+.icon.shared {
   background: var(--color-primary);
 
   &::before {
@@ -661,6 +664,14 @@ div.clickable-icon {
   }
 }
 
+.icon.usage {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/task.svg');
+  }
+}
+
 .icon.team {
   background: var(--color-primary);
 
@@ -685,7 +696,7 @@ div.clickable-icon {
   }
 }
 
-.icon.messenger {
+.icon.messengers {
   background: var(--color-primary);
 
   &::before {
@@ -693,7 +704,7 @@ div.clickable-icon {
   }
 }
 
-.icon.developer {
+.icon.developers {
   background: var(--color-primary);
 
   &::before {

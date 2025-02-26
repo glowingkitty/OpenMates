@@ -16,15 +16,21 @@
     import { isCheckingAuth } from '../stores/authCheckState';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { externalLinks, getWebsiteUrl, routes } from '../config/links';
-    
-    // Import tooltip action
     import { tooltip } from '../actions/tooltip';
-    
-    // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
-    
-    // Import user profile store
     import { userProfile } from '../stores/userProfile';
+    
+    // Import all settings components
+    import SettingsInterface from './settings/SettingsInterface.svelte';
+    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
+    import SettingsUser from './settings/SettingsUser.svelte';
+    import SettingsUsage from './settings/SettingsUsage.svelte';
+    import SettingsBilling from './settings/SettingsBilling.svelte';
+    import SettingsApps from './settings/SettingsApps.svelte';
+    import SettingsMates from './settings/SettingsMates.svelte';
+    import SettingsShared from './settings/SettingsShared.svelte';
+    import SettingsMessengers from './settings/SettingsMessengers.svelte';
+    import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
     
     // Props for user and team information
     export let teamSelected = 'xhain';
@@ -38,45 +44,64 @@
     let isOfflineEnabled = false;
 
     // Add reference to settings content element
-    let settingsContentElement: HTMLElement;
+    let settingsContentElement;
 
     // Get help link from routes
     const helpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
 
-    // Determine if we should show the settings icon
-    // Show if user is logged in OR we're on the settings step
-    $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
-    
-    // Determine if this is a real logout or just going back to signup flow
-    $: isInSignup = $isInSignupProcess;
+    // Define settingsViews map for component mapping
+    const settingsViews = {
+        'privacy': SettingsPrivacy,
+        'user': SettingsUser,
+        'usage': SettingsUsage,
+        'billing': SettingsBilling,
+        'apps': SettingsApps,
+        'mates': SettingsMates,
+        'shared': SettingsShared,
+        'messengers': SettingsMessengers,
+        'developers': SettingsDevelopers,
+        'interface': SettingsInterface
+    };
 
-    // Get the username and profile image from the store
+    // Reactive variables
+    $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
+    $: isInSignup = $isInSignupProcess;
     $: username = $userProfile.username || 'Guest';
     $: profileImageUrl = $userProfile.profileImageUrl;
-
-    // Determine if quick settings should be disabled (during signup)
     $: isInSignupMode = $isInSignupProcess;
 
+    // State to track active submenu view
+    let activeSettingsView = 'main';
+    
+    // Function to set active settings view
+    function showSettingsView(viewName) {
+        activeSettingsView = viewName;
+    }
+    
+    // Function to return to main view
+    function backToMainView() {
+        activeSettingsView = 'main';
+    }
+
     // Handler for profile click to show menu
-    function toggleMenu(): void {
+    function toggleMenu() {
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
         
         // If menu is being closed, reset scroll position
         if (!isMenuVisible && settingsContentElement) {
-            // Use setTimeout to ensure the scroll reset happens after the closing animation
             setTimeout(() => {
                 settingsContentElement.scrollTop = 0;
             }, 300);
         }
     }
 
-    // Handler for quicksettings menu item clicks - simplified as we no longer need signup mode check
-    function handleQuickSettingClick(toggleName: 'team' | 'incognito' | 'guest' | 'offline'): void {
+    // Handler for quicksettings menu item clicks
+    function handleQuickSettingClick(toggleName) {
         switch(toggleName) {
             case 'team':
                 isTeamEnabled = !isTeamEnabled;
-                teamEnabled.set(isTeamEnabled); // Update the store
+                teamEnabled.set(isTeamEnabled);
                 break;
             case 'incognito':
                 isIncognitoEnabled = !isIncognitoEnabled;
@@ -90,19 +115,30 @@
         }
     }
 
-    // Sync the local state with the store on initialization
-    $: {
-        teamEnabled.set(isTeamEnabled);
+    // Handle window resize
+    function updateMobileState() {
+        isMobileView.set(window.innerWidth <= 1100);
     }
 
-    // Handle window resize
-    function updateMobileState(): void {
-        isMobileView.set(window.innerWidth <= 1100);
+    // Click outside handler
+    function handleClickOutside(event) {
+        if ($isMobileView) {
+            const settingsMenu = document.querySelector('.settings-menu');
+            const profileContainer = document.querySelector('.profile-container');
+            
+            if (settingsMenu && 
+                profileContainer && 
+                !settingsMenu.contains(event.target) && 
+                !profileContainer.contains(event.target)) {
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+            }
+        }
     }
 
     // Setup listeners
     onMount(() => {
-        updateMobileState(); // Initial check
+        updateMobileState();
         window.addEventListener('resize', updateMobileState);
         document.addEventListener('click', handleClickOutside);
         
@@ -112,23 +148,7 @@
         };
     });
 
-    // Simplified click outside handler using store value
-    function handleClickOutside(event: MouseEvent): void {
-        if ($isMobileView) {
-            const settingsMenu = document.querySelector('.settings-menu');
-            const profileContainer = document.querySelector('.profile-container');
-            
-            if (settingsMenu && 
-                profileContainer && 
-                !settingsMenu.contains(event.target as Node) && 
-                !profileContainer.contains(event.target as Node)) {
-                isMenuVisible = false;
-                settingsMenuVisible.set(false);
-            }
-        }
-    }
-
-    // Add reactive statement to handle active-chat opacity
+    // Update DOM elements opacity and classes based on menu state
     $: if (typeof window !== 'undefined') {
         const activeChatContainer = document.querySelector('.active-chat-container');
         if (activeChatContainer) {
@@ -139,10 +159,8 @@
             }
         }
         
-        // Add new logic for chat-container menu-open class
         const chatContainer = document.querySelector('.chat-container');
         if (chatContainer) {
-            // Only add the menu-open class when the menu is ACTUALLY open
             if (isMenuVisible) {
                 chatContainer.classList.add('menu-open');
             } else {
@@ -151,7 +169,7 @@
         }
     }
 
-    async function handleLogout(): Promise<void> {
+    async function handleLogout() {
         try {
             console.log('Logging out...');
             
@@ -209,10 +227,7 @@
 {#if showSettingsIcon}
     <div 
         class="profile-container-wrapper"
-        in:fly={{ y: -window.innerHeight/2 + 60, 
-                 x: 0, 
-                 duration: 800, 
-                 easing: cubicOut }}
+        in:fly={{ y: -window.innerHeight/2 + 60, x: 0, duration: 800, easing: cubicOut }}
         out:fade
     >
         <div 
@@ -225,13 +240,8 @@
             aria-label={$text('settings.open_settings_menu.text')}
         >
             <div class="profile-picture" style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}></div>
-            
-            <!-- {#if teamSelected}
-                <div class="team-picture" class:disabled={!isTeamEnabled}></div>
-            {/if} -->
         </div>
 
-        <!-- Close icon in wrapper -->
         <div class="close-icon-container" class:visible={isMenuVisible}>
             <button 
                 class="icon-button"
@@ -252,10 +262,12 @@
     <div class="settings-header">
         <div class="header-container">
             <div class="header-top">
-                <div class="header-left">
-                </div>
-                <div class="header-center">
-                    <h4>{@html $text('settings.settings.text')}</h4>
+                <div class="header-left"></div>
+                <div class="header-center" class:left-aligned={activeSettingsView !== 'main'}>
+                    <button class="nav-button" on:click={activeSettingsView !== 'main' ? backToMainView : null}>
+                        <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
+                        {@html $text('settings.settings.text')}
+                    </button>
                 </div>
                 <div class="header-right">
                     <a 
@@ -270,75 +282,87 @@
                     </a>
                 </div>
             </div>
-            <div class="header-bottom">
+            <div 
+                class="header-bottom"
+                class:hidden={activeSettingsView !== 'main'}
+                in:fly={{x: activeSettingsView === 'main' ? 0 : -300, duration: 300, delay: activeSettingsView === 'main' ? 300 : 0}}
+                out:fly={{x: -300, duration: 300}}
+            >
                 <div class="user-info-container">
                     <div class="username">{username}</div>
                     <div class="credits-container">
                         <span class="credits-icon"></span>
                         <div class="credits-text">
                             <span class="credits-amount"><mark>4800 {$text('settings.credits.text')}</mark></span>
-                            <!-- <span class="add-credits-button" aria-label={$text('settings.add_credits.text')}>+</span> -->
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div 
-        class="settings-content"
-        bind:this={settingsContentElement}
-    >
-        <!-- Quick Settings - Only show when not in signup process -->
-        {#if !isInSignupMode}
-            <!-- <SettingsItem 
-                icon="quicksetting_icon quicksetting_icon_team"
-                title={$text('settings.team.text')}
-                hasToggle={true}
-                bind:checked={isTeamEnabled}
-                onClick={() => handleQuickSettingClick('team')}
-            /> -->
+    
+    <div class="settings-content-wrapper">
+        <!-- Main settings items -->
+        <div 
+            class="settings-items"
+            bind:this={settingsContentElement}
+            class:hidden={activeSettingsView !== 'main'}
+            in:fly={{x: activeSettingsView === 'main' ? 0 : -300, duration: 300, delay: activeSettingsView === 'main' ? 300 : 0}}
+            out:fly={{x: -300, duration: 300}}
+        >
+            <!-- Quick Settings - Only show when not in signup process -->
+            {#if !isInSignupMode}
+                <SettingsItem 
+                    icon="quicksetting_icon quicksetting_icon_incognito"
+                    title={$text('settings.incognito.text')}
+                    hasToggle={true}
+                    bind:checked={isIncognitoEnabled}
+                    onClick={() => handleQuickSettingClick('incognito')}
+                />
+                <SettingsItem 
+                    icon="quicksetting_icon quicksetting_icon_guest"
+                    title={$text('settings.guest.text')}
+                    hasToggle={true}
+                    bind:checked={isGuestEnabled}
+                    onClick={() => handleQuickSettingClick('guest')}
+                />
+                <SettingsItem 
+                    icon="quicksetting_icon quicksetting_icon_offline"
+                    title={$text('settings.offline.text')}
+                    hasToggle={true}
+                    bind:checked={isOfflineEnabled}
+                    onClick={() => handleQuickSettingClick('offline')}
+                />
+            {/if}
+
+            <!-- Regular Settings -->
+            {#each Object.entries(settingsViews) as [key, _]}
+                <SettingsItem 
+                    icon={key} 
+                    title={$text(`settings.${key}.text`)} 
+                    onClick={() => showSettingsView(key)} 
+                />
+            {/each}
+
             <SettingsItem 
-                icon="quicksetting_icon quicksetting_icon_incognito"
-                title={$text('settings.incognito.text')}
-                hasToggle={true}
-                bind:checked={isIncognitoEnabled}
-                onClick={() => handleQuickSettingClick('incognito')}
+                icon="quicksetting_icon quicksetting_icon_logout" 
+                title={$text('settings.logout.text')} 
+                onClick={handleLogout} 
             />
-            <SettingsItem 
-                icon="quicksetting_icon quicksetting_icon_guest"
-                title={$text('settings.guest.text')}
-                hasToggle={true}
-                bind:checked={isGuestEnabled}
-                onClick={() => handleQuickSettingClick('guest')}
-            />
-            <SettingsItem 
-                icon="quicksetting_icon quicksetting_icon_offline"
-                title={$text('settings.offline.text')}
-                hasToggle={true}
-                bind:checked={isOfflineEnabled}
-                onClick={() => handleQuickSettingClick('offline')}
-            />
+        </div>
+        
+        <!-- Submenu specific content -->
+        {#if activeSettingsView !== 'main' && settingsViews[activeSettingsView]}
+            <div 
+                class="settings-submenu-content"
+                in:fly={{x: 300, duration: 300, delay: 300}}
+                out:fly={{x: 300, duration: 300}}
+            >
+                <svelte:component this={settingsViews[activeSettingsView]} />
+            </div>
         {/if}
-
-        <!-- Regular Settings -->
-        <!-- <SettingsItem icon="team" title={$text('settings.team.text')} onClick={() => {}} /> -->
-        <SettingsItem icon="privacy" title={$text('settings.privacy.text')} onClick={() => {}} />
-        <SettingsItem icon="user" title={$text('settings.user.text')} onClick={() => {}} />
-        <SettingsItem icon="task" title={$text('settings.usage.text')} onClick={() => {}} />
-        <SettingsItem icon="billing" title={$text('settings.billing.text')} onClick={() => {}} />
-        <SettingsItem icon="app" title={$text('settings.apps.text')} onClick={() => {}} />
-        <SettingsItem icon="mate" title={$text('settings.mates.text')} onClick={() => {}} />
-        <SettingsItem icon="share" title={$text('settings.shared.text')} onClick={() => {}} />
-        <SettingsItem icon="messenger" title={$text('settings.messengers.text')} onClick={() => {}} />
-        <SettingsItem icon="developer" title={$text('settings.developers.text')} onClick={() => {}} />
-        <SettingsItem icon="interface" title={$text('settings.interface.text')} onClick={() => {}} />
-        <SettingsItem 
-            icon="quicksetting_icon quicksetting_icon_logout" 
-            title={$text('settings.logout.text')} 
-            onClick={handleLogout} 
-        />
-
-        <!-- Documentation links section -->
+        
+        <!-- Documentation links section - Always present -->
         <div class="submenu-section">
             <div class="submenu-group">
                 <h3>{@html $text('settings.docs.text')}</h3>
@@ -396,7 +420,6 @@
 </div>
 
 <style>
-    /* Update wrapper styles to handle animation better */
     .profile-container-wrapper {
         position: fixed;
         top: 10px;
@@ -404,7 +427,6 @@
         width: 57px;
         height: 57px;
         z-index: 1005;
-        /* Add smooth transition for opacity */
         transition: opacity 0.3s ease;
     }
 
@@ -442,7 +464,6 @@
         visibility: visible;
     }
 
-    /* Add new styles for the button wrapper */
     .close-icon-container button.icon-button {
         width: 100%;
         height: 100%;
@@ -455,7 +476,6 @@
         cursor: pointer;
     }
 
-    /* Keep the icon itself at its original size */
     .close-icon-container .clickable-icon {
         width: 25px;
         height: 25px;
@@ -470,21 +490,6 @@
         background-repeat: no-repeat;
         background-color: var(--color-grey-20);
         background-image: url('@openmates/ui/static/images/placeholders/userprofileimage.jpeg');
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .team-picture {
-        position: absolute;
-        bottom: -2px;
-        left: -2px;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-color: var(--color-grey-20);
-        background-image: url('@openmates/ui/static/images/placeholders/teamprofileimage.png');
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -524,14 +529,12 @@
     .settings-header,
     .settings-content {
         opacity: 0;
-        /* Quick fade out when closing */
         transition: opacity 0.3s ease 0s;
     }
 
     .settings-menu.visible .settings-header,
     .settings-menu.visible .settings-content {
         opacity: 1;
-        /* Delayed fade in when opening */
         transition: opacity 0.3s ease 0.15s;
     }
 
@@ -611,6 +614,13 @@
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
+        transition: all 0.3s ease;
+    }
+    
+    .header-center.left-aligned {
+        position: relative;
+        left: 0;
+        transform: none;
     }
 
     .header-left, .header-right {
@@ -622,47 +632,44 @@
     }
 
     .help-button-container {
-        all:unset;
+        all: unset;
     }
 
-    .settings-content {
+    .settings-content-wrapper {
+        display: flex;
+        flex-direction: column;
         flex: 1;
         overflow-y: auto;
         padding-bottom: 16px;
         scrollbar-width: thin;
-        /* Start with very transparent scrollbar */
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
     }
-
-    /* Make scrollbar more visible on container hover */
-    .settings-content:hover {
+    
+    .settings-content-wrapper:hover {
         scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
     }
-
-    .settings-content::-webkit-scrollbar {
+    
+    .settings-content-wrapper::-webkit-scrollbar {
         width: 8px;
     }
-
-    .settings-content::-webkit-scrollbar-track {
+    
+    .settings-content-wrapper::-webkit-scrollbar-track {
         background: transparent;
     }
-
-    .settings-content::-webkit-scrollbar-thumb {
-        /* Start very transparent */
+    
+    .settings-content-wrapper::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
         border-radius: 4px;
         border: 2px solid var(--color-grey-20);
         transition: background-color 0.2s ease;
     }
-
-    /* More visible on container hover */
-    .settings-content:hover::-webkit-scrollbar-thumb {
+    
+    .settings-content-wrapper:hover::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.5);
     }
-
-    /* Most visible when hovering the scrollbar itself */
-    .settings-content::-webkit-scrollbar-thumb:hover {
+    
+    .settings-content-wrapper::-webkit-scrollbar-thumb:hover {
         background-color: rgba(128, 128, 128, 0.7);
     }
 
@@ -694,12 +701,6 @@
         color: var(--color-primary);
     }
 
-    .team-picture.disabled {
-        opacity: 0;
-        filter: grayscale(100%);
-        transition: all 0.3s ease;
-    }
-
     :global(.active-chat-container) {
         transition: opacity 0.3s ease;
     }
@@ -708,7 +709,68 @@
         opacity: 0.3;
     }
 
-    .header-center h4 {
+    .header-bottom.hidden {
+        display: none;
+    }
+
+    .nav-button {
+        all: unset;
+        position: relative;
         font-size: 14px;
+        color: var(--color-grey-60);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 0;
+        transition: gap 0.3s ease;
+    }
+    
+    .nav-button .clickable-icon.visible + * {
+        margin-left: 8px;
+    }
+
+    .nav-button:hover {
+        background: none;
+        cursor: pointer;
+    }
+    
+    .clickable-icon.icon_back {
+        width: 24px;
+        height: 24px;
+        opacity: 0;
+        flex-shrink: 0;
+        transition: opacity 0.3s ease;
+        visibility: hidden;
+        -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
+        -webkit-mask-size: cover;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: url('@openmates/ui/static/icons/back.svg');
+        mask-size: cover;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        background: var(--color-grey-60);
+    }
+    
+    .clickable-icon.icon_back.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .settings-items {
+        position: relative;
+    }
+    
+    .settings-items.hidden {
+        display: none;
+    }
+    
+    .settings-submenu-content {
+        position: relative;
+        padding: 0 16px;
+        margin-bottom: 16px;
     }
 </style>
