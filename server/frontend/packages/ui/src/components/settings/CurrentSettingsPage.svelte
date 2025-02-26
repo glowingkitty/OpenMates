@@ -5,13 +5,14 @@
     import { userProfile } from '../../stores/userProfile';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher } from 'svelte';
+    import type { SvelteComponent } from 'svelte';
 
     // Pass in necessary props
     export let activeSettingsView = 'main';
     export let direction = 'forward';
     export let username = '';
     export let isInSignupMode = false;
-    export let settingsViews = {};
+    export let settingsViews: Record<string, typeof SvelteComponent> = {};
     export let isIncognitoEnabled = false;
     export let isGuestEnabled = false;
     export let isOfflineEnabled = false;

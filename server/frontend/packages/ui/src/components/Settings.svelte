@@ -243,6 +243,7 @@
         <div 
             class="profile-container" 
             class:menu-open={isMenuVisible}
+            class:hidden={activeSettingsView !== 'main'}
             on:click={toggleMenu}
             on:keydown={e => e.key === 'Enter' && toggleMenu()}
             role="button"
@@ -334,7 +335,13 @@
         height: 57px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), opacity 0.3s ease;
+        opacity: 1;
+    }
+
+    .profile-container.hidden {
+        opacity: 0;
+        pointer-events: none;
     }
 
     .profile-container.menu-open {
