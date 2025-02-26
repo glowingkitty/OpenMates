@@ -73,8 +73,13 @@
         dispatch('quickSettingClick', { toggleName });
     }
 
-    function showSettingsView(viewName) {
-        dispatch('viewChange', { viewName, direction: 'forward' });
+    function showSettingsView(viewName, icon) {
+        dispatch('viewChange', { 
+            viewName, 
+            direction: 'forward',
+            icon: viewName,
+            title: $text(`settings.${viewName}.text`)
+        });
     }
 
     function handleLogout() {

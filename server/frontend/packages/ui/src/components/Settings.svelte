@@ -77,12 +77,16 @@
     // State to track active submenu view
     let activeSettingsView = 'main';
     let direction = 'forward';
+    let activeSubMenuIcon = '';
+    let activeSubMenuTitle = '';
     
     // Function to set active settings view with transitions
     function handleViewChange(event) {
-        const { viewName, direction: newDirection } = event.detail;
+        const { viewName, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
         activeSettingsView = viewName;
+        activeSubMenuIcon = icon || '';
+        activeSubMenuTitle = title || '';
         
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
@@ -272,24 +276,38 @@
     class:overlay={isMenuVisible}
 >
     <div class="settings-header" class:submenu-active={activeSettingsView !== 'main'}>
-        <button 
-            class="nav-button" 
-            class:left-aligned={activeSettingsView !== 'main'}
-            on:click={activeSettingsView !== 'main' ? backToMainView : null}
-        >
-            <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
-            {@html $text('settings.settings.text')}
-        </button>
-        <a 
-            href={helpLink} 
-            target="_blank" 
-            use:tooltip
-            rel="noopener noreferrer" 
-            class="help-button-container" 
-            aria-label={$text('documentation.open_documentation.text')}
-        >
-            <div class="help-button"></div>
-        </a>
+        <div class="header-content">
+            <button 
+                class="nav-button" 
+                class:left-aligned={activeSettingsView !== 'main'}
+                on:click={activeSettingsView !== 'main' ? backToMainView : null}
+            >
+                <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
+                {@html $text('settings.settings.text')}
+            </button>
+            
+            <a 
+                href={helpLink} 
+                target="_blank" 
+                use:tooltip
+                rel="noopener noreferrer" 
+                class="help-button-container" 
+                aria-label={$text('documentation.open_documentation.text')}
+            >
+                <div class="help-button"></div>
+            </a>
+        </div>
+        
+        {#if activeSettingsView !== 'main'}
+            <div class="submenu-info">
+                <div class="menu-item">
+                    <div class="menu-item-left">
+                        <div class="icon settings_size {activeSubMenuIcon}"></div>
+                        <span class="menu-title">{activeSubMenuTitle}</span>
+                    </div>
+                </div>
+            </div>
+        {/if}
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement}>
@@ -445,15 +463,26 @@
         z-index: 10;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
         border-bottom: 1px solid var(--color-grey-30);
         position: relative;
         min-height: 24px;
     }
 
-    .settings-header.submenu-active {
+    .header-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        position: relative;
+    }
+
+    .settings-header.submenu-active .header-content {
         justify-content: flex-start;
+    }
+
+    .settings-header.submenu-active {
+        padding-bottom: 20px; /* Space for submenu info */
     }
 
     .nav-button {
@@ -468,30 +497,21 @@
         transition: all 0.3s ease;
     }
 
-    .nav-button.left-aligned {
-        position: absolute;
-        left: 16px;
+    .menu-item-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
-    .clickable-icon.icon_back {
-        opacity: 0;
-        width: 0;
-        margin-right: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-    }
-    
-    .clickable-icon.icon_back.visible {
-        opacity: 1;
-        width: 24px;
-        margin-right: 8px;
-        visibility: visible;
+    .submenu-info {
+        padding-top: 13px;
+        margin-bottom: -10px;
     }
 
     .help-button-container {
         all: unset;
         position: absolute;
-        right: 16px;
+        right: 0;
         top: 50%;
         transform: translateY(-50%);
         width: 24px;
