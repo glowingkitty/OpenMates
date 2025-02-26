@@ -11,8 +11,13 @@
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
-    import KeyboardShortcuts from './KeyboardShortcuts.svelte'; // Import the new component
+    import KeyboardShortcuts from './KeyboardShortcuts.svelte';
+    import { userProfile } from '../stores/userProfile';
+    
     const dispatch = createEventDispatcher();
+    
+    // Get username from the store
+    $: username = $userProfile.username || 'Guest';
 
     // Add state for code fullscreen
     let showCodeFullscreen = false;
@@ -311,9 +316,9 @@
                             transition:fade={{ duration: 300 }}
                         >
                             <div class="team-profile">
-                                <div class="team-image" class:disabled={!isTeamEnabled}></div>
+                                <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>{@html $text('chat.welcome.hey.text')} Kitty!</h2>
+                                    <h2>{@html $text('chat.welcome.hey.text')} {username}!</h2>
                                     <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
                                 </div>
                             </div>

@@ -4,6 +4,7 @@
     import Pica from 'pica';
     import { processedImageUrl } from '../../../../stores/profileImage';
     import { createEventDispatcher } from 'svelte';
+    import { updateProfileImage } from '../../../../stores/userProfile';
 
     let errorMessage = '';
     let showWarning = false;
@@ -71,6 +72,9 @@
 
             // Update store
             processedImageUrl.set(processedUrl);
+            
+            // Also update the user profile store with the image URL
+            updateProfileImage(processedUrl);
 
             // Cleanup
             URL.revokeObjectURL(img.src);

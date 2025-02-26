@@ -9,6 +9,7 @@
     import { externalLinks, getWebsiteUrl } from '../../../config/links';
     import { onMount, onDestroy } from 'svelte';
     import InputWarning from '../../common/InputWarning.svelte';
+    import { updateUsername } from '../../../stores/userProfile';
     
     const dispatch = createEventDispatcher();
 
@@ -413,6 +414,11 @@
             isUsernameValidationPending = true;
             debouncedCheckUsername(username);
         }
+    }
+
+    // Add watcher to update the username store when it changes
+    $: if (username) {
+        updateUsername(username);
     }
 </script>
 

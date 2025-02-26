@@ -20,6 +20,9 @@
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
     
+    // Import user profile store
+    import { userProfile } from '../stores/userProfile';
+    
     // Props for user and team information
     export let teamSelected = 'xhain';
     export let isLoggedIn = false;
@@ -40,6 +43,10 @@
     
     // Determine if this is a real logout or just going back to signup flow
     $: isInSignup = $isInSignupProcess;
+
+    // Get the username and profile image from the store
+    $: username = $userProfile.username || 'Guest';
+    $: profileImageUrl = $userProfile.profileImageUrl;
 
     // Handler for profile click to show menu
     function toggleMenu(): void {
@@ -208,11 +215,11 @@
             tabindex="0"
             aria-label={$text('settings.open_settings_menu.text')}
         >
-            <div class="profile-picture"></div>
+            <div class="profile-picture" style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}></div>
             
-            {#if teamSelected}
+            <!-- {#if teamSelected}
                 <div class="team-picture" class:disabled={!isTeamEnabled}></div>
-            {/if}
+            {/if} -->
         </div>
 
         <!-- Close icon in wrapper -->
@@ -249,7 +256,7 @@
             </div>
             <div class="header-bottom">
                 <div class="user-info-container">
-                    <div class="username">Kitty</div>
+                    <div class="username">{username}</div>
                     <div class="credits-container">
                         <span class="credits-icon"></span>
                         <div class="credits-text">
@@ -266,13 +273,13 @@
         bind:this={settingsContentElement}
     >
         <!-- Quick Settings -->
-        <SettingsItem 
+        <!-- <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_team"
             title={$text('settings.team.text')}
             hasToggle={true}
             bind:checked={isTeamEnabled}
             onClick={() => handleQuickSettingClick('team')}
-        />
+        /> -->
         <SettingsItem 
             icon="quicksetting_icon quicksetting_icon_incognito"
             title={$text('settings.incognito.text')}
@@ -296,7 +303,7 @@
         />
 
         <!-- Regular Settings -->
-        <SettingsItem icon="team" title={$text('settings.team.text')} onClick={() => {}} />
+        <!-- <SettingsItem icon="team" title={$text('settings.team.text')} onClick={() => {}} /> -->
         <SettingsItem icon="user" title={$text('settings.user.text')} onClick={() => {}} />
         <SettingsItem icon="task" title={$text('settings.usage.text')} onClick={() => {}} />
         <SettingsItem icon="billing" title={$text('settings.billing.text')} onClick={() => {}} />

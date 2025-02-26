@@ -88,21 +88,6 @@ step_7_top_content_svelte:
     
     <div class="settings-block">
         <h3>{@html $text('signup.default_settings.text')}</h3>
-        
-        <div class="settings-options">
-            <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
-                <span class="setting-label">{@html $text('settings.privacy.text')}</span>
-                <div class="setting-toggle"></div>
-            </div>
-            <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
-                <span class="setting-label">{@html $text('settings.apps.text')}</span>
-                <div class="setting-toggle"></div>
-            </div>
-            <div class="setting-item" on:click={handleSettingClick} role="button" tabindex="0">
-                <span class="setting-label">{@html $text('settings.interface.text')}</span>
-                <div class="setting-toggle"></div>
-            </div>
-        </div>
     </div>
 </div>
 
