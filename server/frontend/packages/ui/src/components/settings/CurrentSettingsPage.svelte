@@ -100,8 +100,10 @@
 <div class="content-slider">
     <!-- Main user info header that slides with settings items -->
     {#if visibleViews.has('main')}
+
+        <!-- Main settings items -->
         <div 
-            class="header-bottom"
+            class="settings-items"
             class:active={activeSettingsView === 'main'}
             in:fly={getFlyParams(true, direction)}
             out:fly={getFlyParams(false, direction)}
@@ -117,17 +119,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Main settings items -->
-        <div 
-            class="settings-items"
-            class:active={activeSettingsView === 'main'}
-            in:fly={getFlyParams(true, direction)}
-            out:fly={getFlyParams(false, direction)}
-            style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
-            on:outroend={() => handleAnimationComplete('main')}
-        >
             <!-- Quick Settings - Only show when not in signup process -->
             {#if !isInSignupMode}
                 <SettingsItem 
@@ -188,30 +179,12 @@
 </div>
 
 <style>
-    .header-bottom {
-        display: flex;
-        align-items: flex-start;
-        opacity: 0;
-        pointer-events: none;
-        top: 0;
-        left: 0;
-        width: 100%;
-        transform: translateX(-300px);
-        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
-        padding-bottom: 10px;
-    }
-
-    .header-bottom.active {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateX(0);
-    }
-
     .user-info-container {
-        margin-left: 72px;
+        margin-left: 85px;
         display: flex;
         flex-direction: column;
         gap: 4px;
+        padding-bottom: 10px;
     }
 
     .username {
