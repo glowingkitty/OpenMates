@@ -298,6 +298,7 @@
                 class:left={navButtonLeft}
                 class:left-aligned={activeSettingsView !== 'main'}
                 on:click={activeSettingsView !== 'main' ? backToMainView : null}
+                aria-disabled={activeSettingsView === 'main'}
             >
                 <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
                 {@html $text('settings.settings.text')}
@@ -500,16 +501,27 @@
         all: unset;
         font-size: 14px;
         color: var(--color-grey-60);
-        cursor: pointer;
+        cursor: default;
         align-items: center;
         position: absolute;
         left: 110px;
         padding: 4px 0;
         transition: all 0.3s ease;
+        pointer-events: none; /* Disable click interactions by default */
     }
 
     .nav-button.left {
+        cursor: pointer;
         left: 0px;
+        pointer-events: all; /* Enable click interactions when in submenu */
+    }
+
+    .nav-button[aria-disabled="true"]:hover {
+        cursor: default;
+    }
+    
+    .nav-button[aria-disabled="false"]:hover {
+        cursor: pointer;
     }
 
     .menu-item-left {
@@ -575,7 +587,6 @@
 
     .nav-button:hover {
         background: none;
-        cursor: pointer;
     }
     
     .clickable-icon.icon_back {
