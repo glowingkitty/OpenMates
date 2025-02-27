@@ -37,7 +37,12 @@
   border: unset;
 }
 
-.subsetting_icon{
+/* Updated subsetting icon - simplified approach */
+.subsetting_icon {
+  width: 44px;
+  height: 44px;
+  position: relative;
+  
   &::after {
     content: '';
     position: absolute;
@@ -55,43 +60,82 @@
   }
 }
 
-.subsetting_icon_team{
-  /* Create overlay with cutout using pseudo-element */
+/* Generic icon masking - new approach that works with any icon name */
+[class*="subsetting_icon"] {
+  &::after {
+    -webkit-mask-image: var(--icon-mask-image, url('@openmates/ui/static/icons/team.svg'));
+    mask-image: var(--icon-mask-image, url('@openmates/ui/static/icons/team.svg'));
+  }
+}
+
+/* Define specific icon masks using CSS variables */
+.subsetting_icon.team {
+  --icon-mask-image: url('@openmates/ui/static/icons/team.svg');
+}
+
+.subsetting_icon.incognito {
+  --icon-mask-image: url('@openmates/ui/static/icons/anonym.svg');
+}
+
+.subsetting_icon.guest {
+  --icon-mask-image: url('@openmates/ui/static/icons/guest.svg');
+}
+
+.subsetting_icon.offline {
+  --icon-mask-image: url('@openmates/ui/static/icons/offline.svg');
+}
+
+.subsetting_icon.logout {
+  --icon-mask-image: url('@openmates/ui/static/icons/logout.svg');
+}
+
+.subsetting_icon.language {
+  --icon-mask-image: url('@openmates/ui/static/icons/language.svg');
+}
+
+/* Add new modify icon for the subsubmenu items */
+.clickable-icon.icon_modify {
+  -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
+  mask-image: url('@openmates/ui/static/icons/create.svg');
+}
+
+/* Keep existing classes for backward compatibility */
+.subsetting_icon_team {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
     mask-image: url('@openmates/ui/static/icons/team.svg');
   }
 }
 
-.subsetting_icon_incognito{
+.subsetting_icon_incognito {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/anonym.svg');
     mask-image: url('@openmates/ui/static/icons/anonym.svg');
   }
 }
 
-.subsetting_icon_guest{
+.subsetting_icon_guest {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/guest.svg');
     mask-image: url('@openmates/ui/static/icons/guest.svg');
   }
 }
 
-.subsetting_icon_offline{
+.subsetting_icon_offline {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/offline.svg');
     mask-image: url('@openmates/ui/static/icons/offline.svg');
   }
 }
 
-.subsetting_icon_logout{
+.subsetting_icon_logout {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/logout.svg');
     mask-image: url('@openmates/ui/static/icons/logout.svg');
   }
 }
 
-.subsetting_icon_language{
+.subsetting_icon_language {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
     mask-image: url('@openmates/ui/static/icons/language.svg');

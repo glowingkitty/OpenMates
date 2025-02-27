@@ -45,6 +45,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsShared from './settings/SettingsShared.svelte';
     import SettingsMessengers from './settings/SettingsMessengers.svelte';
     import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
+    import SettingsItem from './SettingsItem.svelte'; // Add this import
     
     // Props for user and team information
     export let isLoggedIn = false;
@@ -353,12 +354,12 @@ changes to the documentation (to keep the documentation up to date).
                 class="submenu-info" 
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
-                <div class="menu-item">
-                    <div class="menu-item-left">
-                        <div class="icon settings_size {activeSubMenuIcon}"></div>
-                        <span class="menu-title">{activeSubMenuTitle}</span>
-                    </div>
-                </div>
+                <!-- Replace this with SettingsItem component -->
+                <SettingsItem
+                    type="heading"
+                    icon={activeSubMenuIcon}
+                    title={activeSubMenuTitle}
+                />
             </div>
         {/if}
     </div>
@@ -558,12 +559,6 @@ changes to the documentation (to keep the documentation up to date).
     
     .nav-button[aria-disabled="false"]:hover {
         cursor: pointer;
-    }
-
-    .menu-item-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
     }
 
     .submenu-info {

@@ -14,7 +14,18 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
 </script>
 
-<SettingsItem 
-    icon="subsetting_icon subsetting_icon_language"
-    title={$text('settings.incognito.text')}
-/>
+<div class="settings-section">
+    <SettingsItem 
+        type="subsubmenu"
+        icon="language"
+        subtitle="Language"
+        title="English (US)"
+        onClick={() => console.log('Open language preferences')}
+    />
+</div>
+
+<style>
+    .settings-section {
+        padding: 10px 0;
+    }
+</style>
