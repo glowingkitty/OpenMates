@@ -17,6 +17,18 @@
     export let isGuestEnabled = false;
     export let isOfflineEnabled = false;
 
+    // Export a count of menu items for height calculation
+    export let menuItemsCount = 0;
+    
+    // Calculate the actual count of menu items for height adjustment
+    $: {
+        // Count all settings items plus logout
+        const settingsCount = Object.keys(settingsViews).length + 1; 
+        // Add quick settings if not in signup mode (3 items)
+        const quickSettingsCount = isInSignupMode ? 0 : 3;
+        menuItemsCount = settingsCount + quickSettingsCount;
+    }
+
     // Animation parameters - now direction-aware
     const getFlyParams = (isIn: boolean, dir: string) => {
         return {
@@ -102,7 +114,7 @@
     });
 </script>
 
-<div class="settings-content-slider">
+<div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;">
     <!-- Main user info header that slides with settings items -->
     {#if visibleViews.has('main')}
 
@@ -234,9 +246,9 @@
     .settings-content-slider {
         position: relative;
         width: 100%;
-        min-height: 60vh;
         overflow: hidden;
         padding-top: 10px;
+        /* min-height now set dynamically via style attribute */
     }
     
     .settings-items, 

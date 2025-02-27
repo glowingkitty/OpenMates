@@ -96,6 +96,17 @@ changes to the documentation (to keep the documentation up to date).
     let activeSubMenuIcon = '';
     let activeSubMenuTitle = '';
     
+    // Add reference for content height calculation
+    let menuItemsCount = 0;
+    let calculatedContentHeight = 0;
+    
+    // Calculate the content height based on the number of menu items
+    $: {
+        const baseHeight = 200; // Base height for user info and padding
+        const itemHeight = 50; // Average height per menu item
+        calculatedContentHeight = baseHeight + (menuItemsCount * itemHeight);
+    }
+
     // Function to set active settings view with transitions
     function handleViewChange(event) {
         const { viewName, direction: newDirection, icon, title } = event.detail;
@@ -374,12 +385,13 @@ changes to the documentation (to keep the documentation up to date).
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
+            bind:menuItemsCount
             on:viewChange={handleViewChange}
             on:quickSettingClick={handleQuickSettingClick}
             on:logout={handleLogout}
         />
         
-        <SettingsFooter />
+        <SettingsFooter contentHeight={calculatedContentHeight} />
     </div>
 </div>
 
