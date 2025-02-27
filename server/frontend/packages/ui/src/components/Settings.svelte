@@ -53,7 +53,10 @@
     let profileContainer;
 
     // Get help link from routes
-    const helpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
+    const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
+    
+    // Create a reactive help link that updates based on the active view
+    let currentHelpLink = baseHelpLink;
 
     // Define settingsViews map for component mapping
     const settingsViews: Record<string, any> = {
@@ -94,6 +97,20 @@
         showSubmenuInfo = false;
         navButtonLeft = false;
         
+        // Update help link based on the active settings view
+        if (viewName !== 'main') {
+            currentHelpLink = `${baseHelpLink}/${viewName}`;
+            navButtonLeft = true;
+            showSubmenuInfo = true;
+
+            setTimeout(() => {
+                showSubmenuInfo = true;
+            }, 300); // Match this with your transition duration
+        } else {
+            // Reset to base help link when returning to main view
+            currentHelpLink = baseHelpLink;
+        }
+        
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
         }
@@ -115,6 +132,9 @@
         activeSettingsView = 'main';
         showSubmenuInfo = false; // Hide submenu info immediately when going back
         navButtonLeft = false;
+        
+        // Reset help link to base when returning to main view
+        currentHelpLink = baseHelpLink;
         
         if (profileContainer) {
             profileContainer.classList.remove('submenu-active');
@@ -307,7 +327,7 @@
             </button>
             
             <a 
-                href={helpLink} 
+                href={currentHelpLink} 
                 target="_blank" 
                 use:tooltip
                 rel="noopener noreferrer" 
