@@ -14,15 +14,11 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
 </script>
 
-<div class="settings-section">
-    <SettingsItem 
-        type="subsubmenu"
-        icon="language"
-        subtitle="Language"
-        title="English (US)"
-        onClick={() => console.log('Open language preferences')}
-    />
-</div>
 
-<style>
-</style>
+<SettingsItem 
+    type="subsubmenu"
+    icon="language"
+    subtitle="Language"
+    title="English (US)"
+    onClick={() => console.log('Open language preferences')}
+/>
