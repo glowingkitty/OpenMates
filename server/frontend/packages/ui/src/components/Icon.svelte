@@ -13,6 +13,9 @@
   export let onClick: (() => void) | undefined = undefined; // Click handler
   export let className: string = ''; // Additional custom classes
 
+  // Create a reactive variable for the lowercase name
+  $: lowerCaseName = name.toLowerCase();
+
   // Constants for icon mappings and provider-specific settings
   const iconMappings: Record<string, string> = {
     'health': 'heart',
@@ -43,15 +46,15 @@
 
   // Function to map icon names to their corresponding icon URL variables
   function getIconUrlName(iconName: string): string {
-    // Return the mapped name if it exists, otherwise use the original name
+    // Return the mapped name if it exists, otherwise use the original lowercase name
     return iconMappings[iconName] || iconName;
   }
 
   // Get the actual icon URL variable name based on the input name
-  $: iconUrlName = getIconUrlName(name);
+  $: iconUrlName = getIconUrlName(lowerCaseName);
 
   // Special handling for mates icon only
-  $: isSpecialIcon = name === 'mates';
+  $: isSpecialIcon = lowerCaseName === 'mates';
 
   // Compute the final class name
   $: computedClassName = [
@@ -60,13 +63,13 @@
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
     // Special handling for mates icon
-    name === 'mates' ? 'mates' : '',
-    type === 'provider' ? `provider-icon ${type === 'provider' && ['openai'].includes(name) ? `provider-${name}` : ''}` : 
-      (type === 'default' ? name : (type === 'clickable' || type === 'subsetting') ? name : `${type}-${name}`),
+    lowerCaseName === 'mates' ? 'mates' : '',
+    type === 'provider' ? `provider-icon ${type === 'provider' && ['openai'].includes(lowerCaseName) ? `provider-${lowerCaseName}` : ''}` : 
+      (type === 'default' ? lowerCaseName : (type === 'clickable' || type === 'subsetting') ? lowerCaseName : `${type}-${lowerCaseName}`),
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
-    type === 'clickable' ? `icon_${name}` : '',
+    type === 'clickable' ? `icon_${lowerCaseName}` : '',
     className // Add any custom classes
   ].filter(Boolean).join(' ');
 
@@ -86,66 +89,68 @@
     return `border-radius: ${Math.round(numValue * 0.25)}${unit};`;
   };
 
-  // Create a custom style element for provider icons
+  // Determine which element to render
+  $: actualElement = onClick && element === 'div' ? 'button' : element;
+
+  // Create a style element for provider icons
   let styleElement: HTMLStyleElement | null = null;
 
   // Update the style element when the component mounts
   onMount(() => {
-    if (type === 'provider' && ['openai'].includes(name)) {
+    if (type === 'provider' && ['openai'].includes(lowerCaseName)) {
       // Create a style element for the provider icons
       styleElement = document.createElement('style');
       
-      // Get the background size for this provider (or use default 55%)
-      const bgSize = providerBackgroundSizes[name] || '55%';
+      // Determine the background size based on the provider
+      const bgSize = providerBackgroundSizes[lowerCaseName] || '55%';
       
       // Generate the CSS for the provider icon
-      const iconPath = getIconUrlName(name);
+      const iconPath = getIconUrlName(lowerCaseName);
       
       // Basic CSS with just the background image and size
-      const css = `.icon.provider-icon.provider-${name}::before { 
+      const css = `.icon.provider-icon.provider-${lowerCaseName}::before { 
         background-image: var(--icon-url-${iconPath}); 
         background-size: ${bgSize};
       }`;
       
       // Add dark mode specific styles if needed
-      const needsInversion = darkModeInvertIcons.includes(name);
+      const needsInversion = darkModeInvertIcons.includes(lowerCaseName);
       const darkModeCss = needsInversion ? 
         `@media (prefers-color-scheme: dark) {
-          .icon.provider-icon.provider-${name}::before {
+          .icon.provider-icon.provider-${lowerCaseName}::before {
             filter: invert(1);
           }
         }` : '';
       
-      // Add the CSS to the style element
+      // Set the style element content
       styleElement.textContent = css + darkModeCss;
+      
+      // Append the style element to the document head
       document.head.appendChild(styleElement);
     }
-
+    
+    // Clean up when the component is destroyed
     return () => {
-      // Clean up the style element when the component is destroyed
       if (styleElement) {
         document.head.removeChild(styleElement);
       }
     };
   });
 
-  // Compute dynamic styles
+  // Compute the inline style for the icon
   $: style = [
     size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '',
     getBorderRadius(),
     color ? `--icon-color: ${color};` : '',
     // Skip setting these properties for special icons that rely on CSS classes
-    name !== 'mates' ? [
-      `--icon-name: ${name};`,
+    lowerCaseName !== 'mates' ? [
+      `--icon-name: ${lowerCaseName};`,
       `--icon-url: var(--icon-url-${iconUrlName});`,
       type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
-      type === 'app' ? `--icon-background: var(--color-app-${name});` : '',
+      type === 'app' ? `--icon-background: var(--color-app-${lowerCaseName});` : '',
     ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' ');
-
-  // Determine the element type based on onClick and element props
-  $: actualElement = onClick ? 'button' : element;
 
   // Handle keyboard events for accessibility (keeping for potential future use)
   function handleKeyDown(event: KeyboardEvent) {

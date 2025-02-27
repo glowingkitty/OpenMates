@@ -1,5 +1,6 @@
 <script lang="ts">
     import { _ } from 'svelte-i18n';  // Import translation function
+    import Icon from './Icon.svelte'; // Import the Icon component
 
     // Define the possible types of processing details
     type ProcessingType = 'loaded_preferences' | 'using_apps' | 'started_focus';
@@ -10,9 +11,6 @@
     export let focusName: string = ''; // For single focus
     export let focusIcon: string = ''; // For single focus
     export let in_progress: boolean = false; // For controlling "Using" vs "Used" status
-
-    // Helper function to get lowercase version for CSS class
-    const getCssClassName = (appName: string): string => appName.toLowerCase();
 
     // Helper function to get the status text based on type and progress
     const getStatusText = (type: ProcessingType, inProgress: boolean): string => {
@@ -50,10 +48,10 @@
 <button class="processing-details">
     {getStatusText(type, in_progress)}
     {#each appNames as appName}
-        <span class="icon app-{getCssClassName(appName)} inline"></span>
+        <Icon name={appName} type="app" inline={true} element="span" />
     {/each}
-    {#if focusName}
-        <span class="icon focus-{getCssClassName(focusIcon)} focus-icon inline"></span>
+    {#if focusName && focusIcon}
+        <Icon name={focusIcon} type="focus" inline={true} element="span" />
     {/if}
     <strong>{getDetailText(type)}</strong>
     {#if in_progress}...{/if}
