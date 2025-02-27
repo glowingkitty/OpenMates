@@ -46,6 +46,7 @@
     let isGuestEnabled = false;
     let isOfflineEnabled = false;
     let showSubmenuInfo = false; // New variable to control submenu info visibility
+    let navButtonLeft = false;
 
     // Add reference to settings content element
     let settingsContentElement;
@@ -91,6 +92,7 @@
         
         // Reset submenu info visibility
         showSubmenuInfo = false;
+        navButtonLeft = false;
         
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
@@ -98,6 +100,7 @@
         
         // Delay showing submenu info to allow animation to complete
         if (viewName !== 'main') {
+            navButtonLeft = true;
             setTimeout(() => {
                 showSubmenuInfo = true;
             }, 300); // Match this with your transition duration
@@ -109,6 +112,7 @@
         direction = 'backward';
         activeSettingsView = 'main';
         showSubmenuInfo = false; // Hide submenu info immediately when going back
+        navButtonLeft = false;
         
         if (profileContainer) {
             profileContainer.classList.remove('submenu-active');
@@ -290,7 +294,8 @@
     <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo}>
         <div class="header-content">
             <button 
-                class="nav-button" 
+                class="nav-button"
+                class:left={navButtonLeft}
                 class:left-aligned={activeSettingsView !== 'main'}
                 on:click={activeSettingsView !== 'main' ? backToMainView : null}
             >
@@ -482,15 +487,9 @@
     }
 
     .header-content {
-        display: flex;
-        justify-content: center;
-        align-items: center;
         width: 100%;
         position: relative;
-    }
-
-    .settings-header.submenu-active .header-content {
-        justify-content: flex-start;
+        transition: all 0.3s ease;
     }
 
     .settings-header.submenu-active {
@@ -502,11 +501,15 @@
         font-size: 14px;
         color: var(--color-grey-60);
         cursor: pointer;
-        display: flex;
         align-items: center;
-        position: relative;
+        position: absolute;
+        left: 110px;
         padding: 4px 0;
         transition: all 0.3s ease;
+    }
+
+    .nav-button.left {
+        left: 0px;
     }
 
     .menu-item-left {
@@ -516,7 +519,7 @@
     }
 
     .submenu-info {
-        padding-top: 13px;
+        padding-top: 35px;
         margin-bottom: -10px;
     }
 
@@ -524,8 +527,6 @@
         all: unset;
         position: absolute;
         right: 0;
-        top: 50%;
-        transform: translateY(-50%);
         width: 24px;
         height: 24px;
         display: flex;
@@ -570,21 +571,6 @@
     
     .settings-content-wrapper::-webkit-scrollbar-thumb:hover {
         background-color: rgba(128, 128, 128, 0.7);
-    }
-
-    .nav-button {
-        all: unset;
-        position: relative;
-        font-size: 14px;
-        color: var(--color-grey-60);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        gap: 0;
-        transition: gap 0.3s ease;
     }
 
     .nav-button:hover {
