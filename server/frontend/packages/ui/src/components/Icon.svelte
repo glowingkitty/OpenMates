@@ -1,26 +1,455 @@
 <script lang="ts">
   // Props for the component
   export let name: string = ''; // e.g., 'app', 'chat', 'billing'
-  export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' = 'default';
+  export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' = 'default';
   export let inline: boolean = false;
   export let poweredByAI: boolean = false;
-  export let size: string | undefined = undefined; // Add size prop
+  export let size: string | undefined = undefined; // Size prop
   export let in_header: boolean = false;
+  export let element: 'div' | 'button' | 'span' = 'div'; // Element type
+  export let color: string | undefined = undefined; // Custom color
+  export let onClick: (() => void) | undefined = undefined; // Click handler
+  export let className: string = ''; // Additional custom classes
+
+  // Function to map icon names to their corresponding icon URL variables
+  function getIconUrlName(iconName: string): string {
+    // Map of special icon name replacements
+    const iconMappings: Record<string, string> = {
+      'health': 'heart',
+      'plants': 'plant',
+      'jobs': 'job',
+      'events': 'event',
+      'photos': 'image',
+      'books': 'book',
+      'finance': 'money',
+      'code': 'coding',
+      'hosting': 'server',
+      'diagrams': 'diagram',
+      'whiteboards': 'whiteboard',
+      'messages': 'chat',
+      'pdfeditor': 'pdf'
+      // Add more mappings as needed
+    };
+
+    // Return the mapped name if it exists, otherwise use the original name
+    return iconMappings[iconName] || iconName;
+  }
+
+  // Get the actual icon URL variable name based on the input name
+  $: iconUrlName = getIconUrlName(name);
 
   // Compute the final class name
-  $: className = [
-    'icon',
+  $: computedClassName = [
+    type === 'clickable' ? 'clickable-icon' : 'icon',
+    type === 'subsetting' ? 'subsetting_icon' : '',
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
-    type === 'default' ? name : `${type}-${name}`,
+    type === 'default' ? name : (type === 'clickable' || type === 'subsetting') ? name : `${type}-${name}`,
     type === 'provider' ? 'provider-icon' : '',
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
+    type === 'clickable' ? `icon_${name}` : '',
+    className // Add any custom classes
   ].filter(Boolean).join(' ');
 
-  // Compute styles including size if provided
-  $: style = size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '';
+  // Calculate border radius based on size
+  $: getBorderRadius = () => {
+    if (!size) return '';
+    
+    // Extract numeric value and unit from size
+    const match = size.match(/^([\d.]+)([a-z%]*)$/i);
+    if (!match) return '';
+    
+    const [, value, unit] = match;
+    const numValue = parseFloat(value);
+    
+    // Calculate border radius proportionally (approximately 20% of size)
+    // This maintains the same proportion as the default 19px radius for 95px icon
+    return `border-radius: ${Math.round(numValue * 0.25)}${unit};`;
+  };
+
+  // Compute dynamic styles
+  $: style = [
+    size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '',
+    getBorderRadius(),
+    color ? `--icon-color: ${color};` : '',
+    `--icon-name: ${name};`,
+    `--icon-url: var(--icon-url-${iconUrlName});`,
+    type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
+    type === 'clickable' ? `
+      --icon-mask-image: var(--icon-url-${iconUrlName});
+    ` : '',
+    type === 'app' ? `--icon-background: var(--color-app-${name});` : '',
+    type === 'provider' ? `--icon-background: var(--color-provider);` : '',
+    type === 'skill' ? `--icon-background: var(--color-skill);` : '',
+    type === 'focus' ? `--icon-background: var(--color-focus);` : '',
+  ].filter(Boolean).join(' ');
+
+  // Determine the element type based on onClick and element props
+  $: actualElement = onClick ? 'button' : element;
+
+  // Handle keyboard events for accessibility (keeping for potential future use)
+  function handleKeyDown(event: KeyboardEvent) {
+    // Trigger click on Enter or Space key
+    if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      onClick();
+    }
+  }
 </script>
 
-<div class={className} aria-label={name} style={style}></div>
+{#if actualElement === 'div'}
+  <div 
+    class={computedClassName} 
+    aria-label={name} 
+    style={style}
+  ></div>
+{:else if actualElement === 'button'}
+  <button 
+    class={computedClassName} 
+    aria-label={name} 
+    style={style} 
+    on:click={onClick}
+    type="button"
+  ></button>
+{:else if actualElement === 'span'}
+  <span 
+    class={computedClassName} 
+    aria-label={name} 
+    style={style}
+  ></span>
+{/if}
+
+<style>
+  /* Define all icon URLs as CSS variables */
+  :root {
+    /* Clickable and subsetting icons */
+    --icon-url-2fa: url('@openmates/ui/static/icons/2fa.svg');
+    --icon-url-3dmodels: url('@openmates/ui/static/icons/3dmodels.svg');
+    --icon-url-activism: url('@openmates/ui/static/icons/activism.svg');
+    --icon-url-ai: url('@openmates/ui/static/icons/ai.svg');
+    --icon-url-announcement: url('@openmates/ui/static/icons/announcement.svg');
+    --icon-url-anonym: url('@openmates/ui/static/icons/anonym.svg');
+    --icon-url-app: url('@openmates/ui/static/icons/app.svg');
+    --icon-url-audio: url('@openmates/ui/static/icons/audio.svg');
+    --icon-url-audiocall: url('@openmates/ui/static/icons/audiocall.svg');
+    --icon-url-authy: url('@openmates/ui/static/icons/authy.svg');
+    --icon-url-back: url('@openmates/ui/static/icons/back.svg');
+    --icon-url-beauty: url('@openmates/ui/static/icons/beauty.svg');
+    --icon-url-bias: url('@openmates/ui/static/icons/bias.svg');
+    --icon-url-billing: url('@openmates/ui/static/icons/billing.svg');
+    --icon-url-book: url('@openmates/ui/static/icons/book.svg');
+    --icon-url-business: url('@openmates/ui/static/icons/business.svg');
+    --icon-url-calculator: url('@openmates/ui/static/icons/calculator.svg');
+    --icon-url-calendar: url('@openmates/ui/static/icons/calendar.svg');
+    --icon-url-camera: url('@openmates/ui/static/icons/camera.svg');
+    --icon-url-chat: url('@openmates/ui/static/icons/chat.svg');
+    --icon-url-check: url('@openmates/ui/static/icons/check.svg');
+    --icon-url-claude: url('@openmates/ui/static/icons/claude.svg');
+    --icon-url-close: url('@openmates/ui/static/icons/close.svg');
+    --icon-url-cloud: url('@openmates/ui/static/icons/cloud.svg');
+    --icon-url-coding: url('@openmates/ui/static/icons/coding.svg');
+    --icon-url-coins: url('@openmates/ui/static/icons/coins.svg');
+    --icon-url-contact: url('@openmates/ui/static/icons/contact.svg');
+    --icon-url-copy: url('@openmates/ui/static/icons/copy.svg');
+    --icon-url-create: url('@openmates/ui/static/icons/create.svg');
+    --icon-url-current_location: url('@openmates/ui/static/icons/current_location.svg');
+    --icon-url-cv: url('@openmates/ui/static/icons/cv.svg');
+    --icon-url-delete: url('@openmates/ui/static/icons/delete.svg');
+    --icon-url-design: url('@openmates/ui/static/icons/design.svg');
+    --icon-url-desktop: url('@openmates/ui/static/icons/desktop.svg');
+    --icon-url-diagram: url('@openmates/ui/static/icons/diagram.svg');
+    --icon-url-discord: url('@openmates/ui/static/icons/discord.svg');
+    --icon-url-docs: url('@openmates/ui/static/icons/docs.svg');
+    --icon-url-down: url('@openmates/ui/static/icons/down.svg');
+    --icon-url-download: url('@openmates/ui/static/icons/download.svg');
+    --icon-url-dropdown: url('@openmates/ui/static/icons/dropdown.svg');
+    --icon-url-dummyqr: url('@openmates/ui/static/icons/dummyqr.svg');
+    --icon-url-eu: url('@openmates/ui/static/icons/eu.svg');
+    --icon-url-event: url('@openmates/ui/static/icons/event.svg');
+    --icon-url-fashion: url('@openmates/ui/static/icons/fashion.svg');
+    --icon-url-files: url('@openmates/ui/static/icons/files.svg');
+    --icon-url-filter: url('@openmates/ui/static/icons/filter.svg');
+    --icon-url-fitness: url('@openmates/ui/static/icons/fitness.svg');
+    --icon-url-fullscreen: url('@openmates/ui/static/icons/fullscreen.svg');
+    --icon-url-games: url('@openmates/ui/static/icons/games.svg');
+    --icon-url-github: url('@openmates/ui/static/icons/github.svg');
+    --icon-url-good: url('@openmates/ui/static/icons/good.svg');
+    --icon-url-google-authenticator: url('@openmates/ui/static/icons/google-authenticator.svg');
+    --icon-url-guest: url('@openmates/ui/static/icons/guest.svg');
+    --icon-url-heart: url('@openmates/ui/static/icons/heart.svg');
+    --icon-url-home: url('@openmates/ui/static/icons/home.svg');
+    --icon-url-image: url('@openmates/ui/static/icons/image.svg');
+    --icon-url-insight: url('@openmates/ui/static/icons/insight.svg');
+    --icon-url-introduction: url('@openmates/ui/static/icons/introduction.svg');
+    --icon-url-job: url('@openmates/ui/static/icons/job.svg');
+    --icon-url-language: url('@openmates/ui/static/icons/language.svg');
+    --icon-url-laptop: url('@openmates/ui/static/icons/laptop.svg');
+    --icon-url-legal: url('@openmates/ui/static/icons/legal.svg');
+    --icon-url-library: url('@openmates/ui/static/icons/library.svg');
+    --icon-url-lifecoaching: url('@openmates/ui/static/icons/lifecoaching.svg');
+    --icon-url-lock: url('@openmates/ui/static/icons/lock.svg');
+    --icon-url-log: url('@openmates/ui/static/icons/log.svg');
+    --icon-url-logout: url('@openmates/ui/static/icons/logout.svg');
+    --icon-url-mail: url('@openmates/ui/static/icons/mail.svg');
+    --icon-url-maps: url('@openmates/ui/static/icons/maps.svg');
+    --icon-url-mattermost: url('@openmates/ui/static/icons/mattermost.svg');
+    --icon-url-menu: url('@openmates/ui/static/icons/menu.svg');
+    --icon-url-meta: url('@openmates/ui/static/icons/meta.svg');
+    --icon-url-microsoft-authenticator: url('@openmates/ui/static/icons/microsoft-authenticator.svg');
+    --icon-url-minus: url('@openmates/ui/static/icons/minus.svg');
+    --icon-url-mistral: url('@openmates/ui/static/icons/mistral.svg');
+    --icon-url-modify: url('@openmates/ui/static/icons/create.svg');
+    --icon-url-money: url('@openmates/ui/static/icons/money.svg');
+    --icon-url-movies: url('@openmates/ui/static/icons/movies.svg');
+    --icon-url-news: url('@openmates/ui/static/icons/news.svg');
+    --icon-url-notes: url('@openmates/ui/static/icons/notes.svg');
+    --icon-url-nutrition: url('@openmates/ui/static/icons/nutrition.svg');
+    --icon-url-offline: url('@openmates/ui/static/icons/offline.svg');
+    --icon-url-open: url('@openmates/ui/static/icons/open.svg');
+    --icon-url-openai: url('@openmates/ui/static/icons/openai.svg');
+    --icon-url-opencollective: url('@openmates/ui/static/icons/opencollective.svg');
+    --icon-url-opensource: url('@openmates/ui/static/icons/opensource.svg');
+    --icon-url-otp-auth: url('@openmates/ui/static/icons/otp-auth.svg');
+    --icon-url-patreon: url('@openmates/ui/static/icons/patreon.svg');
+    --icon-url-pause: url('@openmates/ui/static/icons/pause.svg');
+    --icon-url-pcbdesign: url('@openmates/ui/static/icons/pcbdesign.svg');
+    --icon-url-pdf: url('@openmates/ui/static/icons/pdf.svg');
+    --icon-url-phone: url('@openmates/ui/static/icons/phone.svg');
+    --icon-url-planning: url('@openmates/ui/static/icons/planning.svg');
+    --icon-url-plant: url('@openmates/ui/static/icons/plant.svg');
+    --icon-url-play: url('@openmates/ui/static/icons/play.svg');
+    --icon-url-plus: url('@openmates/ui/static/icons/plus.svg');
+    --icon-url-politics: url('@openmates/ui/static/icons/politics.svg');
+    --icon-url-project: url('@openmates/ui/static/icons/project.svg');
+    --icon-url-projectmanagement: url('@openmates/ui/static/icons/projectmanagement.svg');
+    --icon-url-publishing: url('@openmates/ui/static/icons/publishing.svg');
+    --icon-url-question: url('@openmates/ui/static/icons/question.svg');
+    --icon-url-rating: url('@openmates/ui/static/icons/rating.svg');
+    --icon-url-reasoning: url('@openmates/ui/static/icons/reasoning.svg');
+    --icon-url-record_video: url('@openmates/ui/static/icons/record_video.svg');
+    --icon-url-recordaudio: url('@openmates/ui/static/icons/recordaudio.svg');
+    --icon-url-reminder: url('@openmates/ui/static/icons/reminder.svg');
+    --icon-url-restore: url('@openmates/ui/static/icons/restore.svg');
+    --icon-url-safety: url('@openmates/ui/static/icons/safety.svg');
+    --icon-url-search: url('@openmates/ui/static/icons/search.svg');
+    --icon-url-secret: url('@openmates/ui/static/icons/secret.svg');
+    --icon-url-server: url('@openmates/ui/static/icons/server.svg');
+    --icon-url-settings: url('@openmates/ui/static/icons/settings.svg');
+    --icon-url-share: url('@openmates/ui/static/icons/share.svg');
+    --icon-url-sheets: url('@openmates/ui/static/icons/sheets.svg');
+    --icon-url-shipping: url('@openmates/ui/static/icons/shipping.svg');
+    --icon-url-shopping: url('@openmates/ui/static/icons/shopping.svg');
+    --icon-url-skill: url('@openmates/ui/static/icons/skill.svg');
+    --icon-url-slack: url('@openmates/ui/static/icons/slack.svg');
+    --icon-url-slides: url('@openmates/ui/static/icons/slides.svg');
+    --icon-url-socialmedia: url('@openmates/ui/static/icons/socialmedia.svg');
+    --icon-url-sort: url('@openmates/ui/static/icons/sort.svg');
+    --icon-url-stop_video: url('@openmates/ui/static/icons/stop_video.svg');
+    --icon-url-study: url('@openmates/ui/static/icons/study.svg');
+    --icon-url-systemprompt: url('@openmates/ui/static/icons/systemprompt.svg');
+    --icon-url-take_photo: url('@openmates/ui/static/icons/take_photo.svg');
+    --icon-url-task: url('@openmates/ui/static/icons/task.svg');
+    --icon-url-team: url('@openmates/ui/static/icons/team.svg');
+    --icon-url-tfas: url('@openmates/ui/static/icons/tfas.svg');
+    --icon-url-time: url('@openmates/ui/static/icons/time.svg');
+    --icon-url-travel: url('@openmates/ui/static/icons/travel.svg');
+    --icon-url-tv: url('@openmates/ui/static/icons/tv.svg');
+    --icon-url-up: url('@openmates/ui/static/icons/up.svg');
+    --icon-url-upload: url('@openmates/ui/static/icons/upload.svg');
+    --icon-url-usage: url('@openmates/ui/static/icons/usage.svg');
+    --icon-url-user: url('@openmates/ui/static/icons/user.svg');
+    --icon-url-videocall: url('@openmates/ui/static/icons/videocall.svg');
+    --icon-url-videos: url('@openmates/ui/static/icons/videos.svg');
+    --icon-url-warning: url('@openmates/ui/static/icons/warning.svg');
+    --icon-url-weather: url('@openmates/ui/static/icons/weather.svg');
+    --icon-url-web: url('@openmates/ui/static/icons/web.svg');
+    --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
+    --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
+  }
+
+  /* Base icon container with common styles */
+  .icon {
+    width: 95px;
+    height: 95px;
+    border-radius: 19px; /* Default border radius for 95px icons */
+    position: relative;
+    background: var(--icon-background, var(--icon-background-default));
+    border: 2.17px solid var(--icon-border-color, var(--icon-border-color-default));
+
+    /* Add fade-in animation */
+    opacity: 0;
+    animation: fadeInIcon 0.3s ease-in forwards;
+    animation-delay: 800ms;
+
+    /* Common ::before styles for all icons */
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 50%;
+      filter: brightness(0) invert(1);
+      background-image: var(--icon-url);
+    }
+  }
+
+  /* Dynamic icon image based on name */
+  .icon[style*="--icon-name"] {
+    &::before {
+      background-image: var(--icon-url);
+    }
+  }
+
+  /* App icons */
+  .icon[class*="app-"] {
+    background: var(--icon-background);
+    &::before {
+      background-image: var(--icon-mask-image, var(--icon-url));
+    }
+  }
+
+  .icon.settings_size {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px; /* ~22% of 44px, maintaining the proportion */
+    animation: unset;
+    animation-delay: unset;
+    opacity: 1;
+    border: unset;
+  }
+
+  /* Updated subsetting icon - simplified approach */
+  .subsetting_icon {
+    width: 44px;
+    height: 44px;
+    position: relative;
+    border-radius: 10px; /* Adding border-radius for consistency */
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--icon-color, var(--color-primary));
+      -webkit-mask-size: 50%;
+      mask-size: 50%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+      -webkit-mask-image: var(--icon-mask-image);
+      mask-image: var(--icon-mask-image);
+    }
+  }
+
+  button.clickable-icon {
+    /* Reset all previous properties from button css*/
+    all: unset;
+
+    /* Define new base properties for clickable icons */
+    display: block;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    background: var(--icon-color, var(--color-primary));
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    -webkit-mask-image: var(--icon-mask-image);
+    mask-image: var(--icon-mask-image);
+  }
+
+  /* New class for non-button clickable icons */
+  span.clickable-icon,
+  div.clickable-icon {
+    /* Base properties for div icons */
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    background: var(--icon-color, var(--color-primary));
+    vertical-align: middle;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    -webkit-mask-image: var(--icon-mask-image);
+    mask-image: var(--icon-mask-image);
+  }
+
+  /* Animation for icon fade-in */
+  @keyframes fadeInIcon {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Provider icons */
+  .icon.provider-icon {
+    background: var(--color-provider);
+    border: 2.17px solid var(--color-provider-border);
+    &::before {
+      background-image: var(--icon-mask-image);
+      background-size: 55%;
+      filter: unset;
+    }
+  }
+
+  /* Skill icons */
+  .icon.skill-icon {
+    background: var(--color-skill);
+    border: 2.17px solid var(--color-skill-border);
+  }
+
+  /* Focus icons */
+  .icon.focus-icon {
+    background: var(--color-focus);
+    border: 2.17px solid var(--color-focus-border);
+  }
+
+  /* Powered by AI indicator */
+  .icon.powered_by_ai::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--color-app-ai);
+    border: 2px solid var(--color-background);
+    background-image: var(--icon-url-ai);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 60%;
+    filter: brightness(0) invert(1);
+  }
+
+  /* Inline icon style */
+  .icon.inline {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 5px;
+  }
+
+  /* Header icon style */
+  .icon.in_header {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px; /* ~22% of 44px, maintaining the proportion */
+  }
+</style>

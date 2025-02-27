@@ -78,7 +78,12 @@
         <div class="icon-column">
             {#each column as icon}
                 <div class="icon-wrapper" data-app={icon.name}>
-                    <Icon name={icon.name} type={icon.type} in_header={true}/>
+                    <Icon 
+                        name={icon.name} 
+                        type={icon.type}
+                        in_header={true}
+                        size="67px"
+                    />
                 </div>
             {/each}
         </div>
@@ -159,4 +164,4 @@
             margin-right: -20px;
         }
     }
-</style> 
+</style>
