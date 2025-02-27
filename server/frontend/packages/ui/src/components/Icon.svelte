@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   // Props for the component
   export let name: string = ''; // e.g., 'app', 'chat', 'billing'
   export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' = 'default';
@@ -11,26 +13,36 @@
   export let onClick: (() => void) | undefined = undefined; // Click handler
   export let className: string = ''; // Additional custom classes
 
+  // Constants for icon mappings and provider-specific settings
+  const iconMappings: Record<string, string> = {
+    'health': 'heart',
+    'plants': 'plant',
+    'jobs': 'job',
+    'events': 'event',
+    'photos': 'image',
+    'books': 'book',
+    'finance': 'money',
+    'code': 'coding',
+    'hosting': 'server',
+    'diagrams': 'diagram',
+    'whiteboards': 'whiteboard',
+    'messages': 'chat',
+    'pdfeditor': 'pdf',
+    'anthropic': 'claude' // Map anthropic to claude for the icon
+    // Add more mappings as needed
+  };
+
+  // Constants for provider icon background sizes (default is 55%)
+  const providerBackgroundSizes: Record<string, string> = {
+    'mistral': '50%',
+    // All others use the default 55%
+  };
+
+  // Constants for icons that need color inversion in dark mode
+  const darkModeInvertIcons: string[] = ['openai'];
+
   // Function to map icon names to their corresponding icon URL variables
   function getIconUrlName(iconName: string): string {
-    // Map of special icon name replacements
-    const iconMappings: Record<string, string> = {
-      'health': 'heart',
-      'plants': 'plant',
-      'jobs': 'job',
-      'events': 'event',
-      'photos': 'image',
-      'books': 'book',
-      'finance': 'money',
-      'code': 'coding',
-      'hosting': 'server',
-      'diagrams': 'diagram',
-      'whiteboards': 'whiteboard',
-      'messages': 'chat',
-      'pdfeditor': 'pdf'
-      // Add more mappings as needed
-    };
-
     // Return the mapped name if it exists, otherwise use the original name
     return iconMappings[iconName] || iconName;
   }
@@ -38,14 +50,20 @@
   // Get the actual icon URL variable name based on the input name
   $: iconUrlName = getIconUrlName(name);
 
+  // Special handling for provider icons and mates icon
+  $: isSpecialIcon = name === 'mates' || (type === 'provider' && ['openai'].includes(name));
+
   // Compute the final class name
   $: computedClassName = [
-    type === 'clickable' ? 'clickable-icon' : 'icon',
+    isSpecialIcon ? 'icon' : (type === 'clickable' ? 'clickable-icon' : 'icon'),
     type === 'subsetting' ? 'subsetting_icon' : '',
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
-    type === 'default' ? name : (type === 'clickable' || type === 'subsetting') ? name : `${type}-${name}`,
-    type === 'provider' ? 'provider-icon' : '',
+    // Special handling for mates icon and provider icons
+    name === 'mates' ? 'mates' : '',
+    type === 'provider' && isSpecialIcon ? `provider-icon provider-${name}` : 
+      (type === 'default' ? name : (type === 'clickable' || type === 'subsetting') ? name : `${type}-${name}`),
+    type === 'provider' && !isSpecialIcon ? 'provider-icon' : '',
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
@@ -69,21 +87,64 @@
     return `border-radius: ${Math.round(numValue * 0.25)}${unit};`;
   };
 
+  // Create a custom style element for provider icons
+  let styleElement: HTMLStyleElement | null = null;
+
+  // Update the style element when the component mounts
+  onMount(() => {
+    if (type === 'provider' && isSpecialIcon) {
+      // Create a style element for the provider icons
+      styleElement = document.createElement('style');
+      
+      // Get the background size for this provider (or use default 55%)
+      const bgSize = providerBackgroundSizes[name] || '55%';
+      
+      // Generate the CSS for the provider icon
+      const iconPath = getIconUrlName(name);
+      
+      // Basic CSS with just the background image and size
+      const css = `.icon.provider-icon.provider-${name}::before { 
+        background-image: var(--icon-url-${iconPath}); 
+        background-size: ${bgSize};
+      }`;
+      
+      // Add dark mode specific styles if needed
+      const needsInversion = darkModeInvertIcons.includes(name);
+      const darkModeCss = needsInversion ? 
+        `@media (prefers-color-scheme: dark) {
+          .icon.provider-icon.provider-${name}::before {
+            filter: invert(1);
+          }
+        }` : '';
+      
+      // Add the CSS to the style element
+      styleElement.textContent = css + darkModeCss;
+      document.head.appendChild(styleElement);
+    }
+
+    return () => {
+      // Clean up the style element when the component is destroyed
+      if (styleElement) {
+        document.head.removeChild(styleElement);
+      }
+    };
+  });
+
   // Compute dynamic styles
   $: style = [
     size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '',
     getBorderRadius(),
     color ? `--icon-color: ${color};` : '',
-    `--icon-name: ${name};`,
-    `--icon-url: var(--icon-url-${iconUrlName});`,
-    type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
-    type === 'clickable' ? `
-      --icon-mask-image: var(--icon-url-${iconUrlName});
-    ` : '',
-    type === 'app' ? `--icon-background: var(--color-app-${name});` : '',
-    type === 'provider' ? `--icon-background: var(--color-provider);` : '',
-    type === 'skill' ? `--icon-background: var(--color-skill);` : '',
-    type === 'focus' ? `--icon-background: var(--color-focus);` : '',
+    // Skip setting these properties for special icons that rely on CSS classes
+    !isSpecialIcon ? [
+      `--icon-name: ${name};`,
+      `--icon-url: var(--icon-url-${iconUrlName});`,
+      type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
+      type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
+      type === 'app' ? `--icon-background: var(--color-app-${name});` : '',
+      type === 'skill' ? `--icon-background: var(--color-skill);` : '',
+      type === 'focus' ? `--icon-background: var(--color-focus);` : '',
+    ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' ');
 
   // Determine the element type based on onClick and element props
@@ -294,7 +355,6 @@
       background-position: center;
       background-repeat: no-repeat;
       background-size: 50%;
-      filter: brightness(0) invert(1);
       background-image: var(--icon-url);
     }
   }
@@ -370,6 +430,10 @@
     mask-size: contain;
     -webkit-mask-image: var(--icon-mask-image);
     mask-image: var(--icon-mask-image);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 60%;
+    filter: brightness(0) invert(1);
   }
 
   /* New class for non-button clickable icons */
@@ -396,17 +460,6 @@
   @keyframes fadeInIcon {
     from { opacity: 0; }
     to { opacity: 1; }
-  }
-
-  /* Provider icons */
-  .icon.provider-icon {
-    background: var(--color-provider);
-    border: 2.17px solid var(--color-provider-border);
-    &::before {
-      background-image: var(--icon-mask-image);
-      background-size: 55%;
-      filter: unset;
-    }
   }
 
   /* Skill icons */

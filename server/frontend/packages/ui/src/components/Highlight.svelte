@@ -1,6 +1,7 @@
 <script lang="ts">
     import AnimatedChatExamples from './AnimatedChatExamples.svelte';
     import APIexample from './APIexample.svelte';
+    import Icon from './Icon.svelte';
     import { onMount, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
 
@@ -100,16 +101,16 @@
                 <div class="highlight-content-container-1">
                     <div class="provider-icons">
                         <div class="row_1">
-                            <div class="icon provider-icon provider-mistral"></div>
-                            <div class="icon provider-icon provider-meta"></div>
+                            <Icon name="mistral" type="provider" />
+                            <Icon name="meta" type="provider" />
                         </div>
                         <div class="row_2">
-                            <div class="icon provider-icon provider-openai"></div>
-                            <div class="icon provider-icon provider-anthropic"></div>
+                            <Icon name="openai" type="provider" />
+                            <Icon name="anthropic" type="provider" />
                         </div>
                     </div>
                     <div class="center-content">
-                        <div class="icon mates"></div>
+                        <Icon name="mates" />
                         <div class="powered-text">
                             {$text('highlight.powered_by.powered_by_leading.text')}<br>
                             {$text('highlight.powered_by.cloud_and_on_device_ai_models.text')}
@@ -140,8 +141,8 @@
             <div class={`highlight-content-wrapper content-${text_side}`}>
                 <div class="highlight-content-container-1">
                     <div class="inline-icons">
-                        <div class="icon app-calendar"></div>
-                        <div class="icon app-health"></div>
+                        <Icon name="calendar" type="app" />
+                        <Icon name="health" type="app" />
                     </div>
                     <div class="icons-text">
                         {$text('highlight.ui.calendar.text')} <mark>+</mark> {$text('highlight.ui.health.text')}
@@ -173,8 +174,8 @@
             <div class={`highlight-content-wrapper content-${text_side}`}>
                 <div class="highlight-content-container-1">
                     <div class="inline-icons">
-                        <div class="icon app-events"></div>
-                        <div class="icon skill-icon skill-search"></div>
+                        <Icon name="events" type="app" />
+                        <Icon name="search" type="skill" />
                     </div>
                     <div class="icons-text">
                         {$text('highlight.ui.events.text')} | <mark>{@html $text('highlight.ui.search.text')}</mark>
