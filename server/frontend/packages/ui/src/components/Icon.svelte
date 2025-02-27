@@ -31,7 +31,8 @@
     'whiteboards': 'whiteboard',
     'messages': 'chat',
     'pdfeditor': 'pdf',
-    'anthropic': 'claude' // Map anthropic to claude for the icon
+    'anthropic': 'claude',
+    'insights': 'insight',
     // Add more mappings as needed
   };
 
@@ -149,6 +150,7 @@
       type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'app' ? `--icon-background: var(--color-app-${lowerCaseName});` : '',
+      type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
     ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' ');
 
