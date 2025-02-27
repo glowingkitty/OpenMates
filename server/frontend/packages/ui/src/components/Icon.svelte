@@ -141,8 +141,6 @@
       type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'app' ? `--icon-background: var(--color-app-${name});` : '',
-      type === 'skill' ? `--icon-background: var(--color-skill);` : '',
-      type === 'focus' ? `--icon-background: var(--color-focus);` : '',
     ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' ');
 
@@ -463,13 +461,11 @@
 
   /* Skill icons */
   .icon.skill-icon {
-    background: var(--color-skill);
     border: 2.17px solid var(--color-skill-border);
   }
 
   /* Focus icons */
   .icon.focus-icon {
-    background: var(--color-focus);
     border: 2.17px solid var(--color-focus-border);
   }
 
