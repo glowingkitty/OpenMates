@@ -860,6 +860,26 @@
             "en_original": "Interface",
             "context": "Interface settings menu item"
         },
+        "dark_mode": {
+            "text": "ダークモード",
+            "en_original": "Dark mode",
+            "context": "Dark mode toggle"
+        },
+        "language": {
+            "text": "言語",
+            "en_original": "Language",
+            "context": "Language settings menu item"
+        },
+        "tooltips": {
+            "text": "ツールチップ",
+            "en_original": "Tooltips",
+            "context": "Tooltips toggle"
+        },
+        "keyboard_shortcuts": {
+            "text": "キーボードショートカット",
+            "en_original": "Keyboard shortcuts",
+            "context": "Keyboard shortcuts settings menu item"
+        },
         "logout": {
             "text": "ログアウト",
             "en_original": "Logout",

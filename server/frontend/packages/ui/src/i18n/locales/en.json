@@ -1076,6 +1076,22 @@
             "text": "Interface",
             "context": "Interface settings menu item"
         },
+        "dark_mode": {
+            "text": "Dark mode",
+            "context": "Dark mode toggle"
+        },
+        "language": {
+            "text": "Language",
+            "context": "Language settings menu item"
+        },
+        "tooltips": {
+            "text": "Tooltips",
+            "context": "Tooltips toggle"
+        },
+        "keyboard_shortcuts": {
+            "text": "Keyboard shortcuts",
+            "context": "Keyboard shortcuts settings menu item"
+        },
         "logout": {
             "text": "Logout",
             "context": "Logout menu item"

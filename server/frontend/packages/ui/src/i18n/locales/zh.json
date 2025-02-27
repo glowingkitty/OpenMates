@@ -860,6 +860,26 @@
             "en_original": "Interface",
             "context": "Interface settings menu item"
         },
+        "dark_mode": {
+            "text": "深色模式",
+            "en_original": "Dark mode",
+            "context": "Dark mode toggle"
+        },
+        "language": {
+            "text": "语言",
+            "en_original": "Language",
+            "context": "Language settings menu item"
+        },
+        "tooltips": {
+            "text": "工具提示",
+            "en_original": "Tooltips",
+            "context": "Tooltips toggle"
+        },
+        "keyboard_shortcuts": {
+            "text": "键盘快捷键",
+            "en_original": "Keyboard shortcuts",
+            "context": "Keyboard shortcuts settings menu item"
+        },
         "logout": {
             "text": "退出登录",
             "en_original": "Logout",

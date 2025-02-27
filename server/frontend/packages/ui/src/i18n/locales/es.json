@@ -860,6 +860,26 @@
             "en_original": "Interface",
             "context": "Interface settings menu item"
         },
+        "dark_mode": {
+            "text": "Modo oscuro",
+            "en_original": "Dark mode",
+            "context": "Dark mode toggle"
+        },
+        "language": {
+            "text": "Idioma",
+            "en_original": "Language",
+            "context": "Language settings menu item"
+        },
+        "tooltips": {
+            "text": "Información sobre herramientas",
+            "en_original": "Tooltips",
+            "context": "Tooltips toggle"
+        },
+        "keyboard_shortcuts": {
+            "text": "Atajos de teclado",
+            "en_original": "Keyboard shortcuts",
+            "context": "Keyboard shortcuts settings menu item"
+        },
         "logout": {
             "text": "Cerrar sesión",
             "en_original": "Logout",
