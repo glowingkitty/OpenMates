@@ -46,6 +46,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsMessengers from './settings/SettingsMessengers.svelte';
     import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
     import SettingsItem from './SettingsItem.svelte'; // Add this import
+    import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     
     // Props for user and team information
     export let isLoggedIn = false;
@@ -80,8 +81,12 @@ changes to the documentation (to keep the documentation up to date).
         'shared': SettingsShared,
         'messengers': SettingsMessengers,
         'developers': SettingsDevelopers,
-        'interface': SettingsInterface
+        'interface': SettingsInterface,
+        'interface/language': SettingsLanguage
     };
+
+    // Track navigation path parts for breadcrumb-style navigation
+    let navigationPath: string[] = [];
 
     // Reactive variables
     $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
@@ -108,26 +113,35 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Function to set active settings view with transitions
-    function handleViewChange(event) {
-        const { viewName, direction: newDirection, icon, title } = event.detail;
+    function handleOpenSettings(event) {
+        const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
-        activeSettingsView = viewName;
+        
+        // Update the active view
+        activeSettingsView = settingsPath;
         activeSubMenuIcon = icon || '';
         activeSubMenuTitle = title || '';
+        
+        // Split the view path for breadcrumb navigation
+        if (settingsPath !== 'main') {
+            navigationPath = settingsPath.split('/');
+        } else {
+            navigationPath = [];
+        }
         
         // Reset submenu info visibility
         showSubmenuInfo = false;
         navButtonLeft = false;
         
         // Update help link based on the active settings view
-        if (viewName !== 'main') {
-            currentHelpLink = `${baseHelpLink}/${viewName}`;
+        if (settingsPath !== 'main') {
+            // Handle nested paths in help links (replace / with -)
+            const helpPath = settingsPath.replace('/', '-');
+            currentHelpLink = `${baseHelpLink}/${helpPath}`;
             navButtonLeft = true;
+            
+            // Show left navigation and submenu info immediately for smooth transition
             showSubmenuInfo = true;
-
-            setTimeout(() => {
-                showSubmenuInfo = true;
-            }, 300); // Match this with your transition duration
         } else {
             // Reset to base help link when returning to main view
             currentHelpLink = baseHelpLink;
@@ -136,30 +150,37 @@ changes to the documentation (to keep the documentation up to date).
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
         }
-        
-        // Delay showing submenu info to allow animation to complete
-        if (viewName !== 'main') {
-            navButtonLeft = true;
-            showSubmenuInfo = true;
-
-            setTimeout(() => {
-                showSubmenuInfo = true;
-            }, 300); // Match this with your transition duration
-        }
     }
     
-    // Function to return to main view with transitions
+    // Enhanced back navigation - handle both main and nested views
     function backToMainView() {
-        direction = 'backward';
-        activeSettingsView = 'main';
-        showSubmenuInfo = false; // Hide submenu info immediately when going back
-        navButtonLeft = false;
-        
-        // Reset help link to base when returning to main view
-        currentHelpLink = baseHelpLink;
-        
-        if (profileContainer) {
-            profileContainer.classList.remove('submenu-active');
+        if (navigationPath.length > 1) {
+            // If we're in a nested view, go back one level
+            const previousPath = navigationPath.slice(0, -1).join('/');
+            
+            direction = 'backward';
+            handleOpenSettings({ 
+                detail: {
+                    settingsPath: previousPath,
+                    direction: 'backward',
+                    icon: navigationPath[0], // Use the first part as the icon
+                    title: $text(`settings.${navigationPath[0]}.text`)
+                }
+            });
+        } else {
+            // If we're at the first level, go back to main
+            direction = 'backward';
+            activeSettingsView = 'main';
+            showSubmenuInfo = false;
+            navButtonLeft = false;
+            navigationPath = [];
+            
+            // Reset help link to base when returning to main view
+            currentHelpLink = baseHelpLink;
+            
+            if (profileContainer) {
+                profileContainer.classList.remove('submenu-active');
+            }
         }
     }
 
@@ -386,7 +407,7 @@ changes to the documentation (to keep the documentation up to date).
             bind:isGuestEnabled
             bind:isOfflineEnabled
             bind:menuItemsCount
-            on:viewChange={handleViewChange}
+            on:openSettings={handleOpenSettings}
             on:quickSettingClick={handleQuickSettingClick}
             on:logout={handleLogout}
         />

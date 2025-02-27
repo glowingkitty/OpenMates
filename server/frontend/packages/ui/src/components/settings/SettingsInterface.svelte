@@ -15,13 +15,19 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
 
-    let currentView = 'main';
     const dispatch = createEventDispatcher();
+    
+    // Track current view within this component
+    let currentView = 'main';
+    let childComponent = null;
 
+    // This function will properly dispatch the event to the parent Settings.svelte component
     function showLanguageSettings() {
         currentView = 'language';
-        dispatch('viewChange', {
-            viewName: 'interface/language',
+        childComponent = SettingsLanguage;
+        
+        dispatch('openSettings', {
+            settingsPath: 'interface/language',
             direction: 'forward',
             icon: 'language',
             title: `${$text('settings.interface.text')} / ${$text('settings.language.text')}`
@@ -37,6 +43,6 @@ changes to the documentation (to keep the documentation up to date).
         title="English (US)"
         onClick={showLanguageSettings}
     />
-{:else if currentView === 'language'}
-    <SettingsLanguage />
+{:else if currentView === 'language' && childComponent}
+    <svelte:component this={childComponent} />
 {/if}

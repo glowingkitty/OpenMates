@@ -12,4 +12,53 @@ changes to the documentation (to keep the documentation up to date).
 <script lang="ts">
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { createEventDispatcher } from 'svelte';
+
+    const dispatch = createEventDispatcher();
+
+    // Languages list example
+    const languages = [
+        { code: 'en-US', name: 'English (US)' },
+        { code: 'en-GB', name: 'English (UK)' },
+        { code: 'es', name: 'Español' },
+        { code: 'fr', name: 'Français' },
+        { code: 'de', name: 'Deutsch' },
+        { code: 'ja', name: '日本語' },
+        { code: 'zh-CN', name: '简体中文' }
+    ];
+
+    // Current language
+    let currentLanguage = 'en-US';
+
+    function selectLanguage(code: string) {
+        currentLanguage = code;
+        // Additional language change logic would go here
+        
+        // After selecting, we could optionally navigate back
+        /*
+        dispatch('openSettings', {
+            settingsPath: 'interface',
+            direction: 'backward',
+            icon: 'interface',
+            title: $text('settings.interface.text')
+        });
+        */
+    }
 </script>
+
+<div class="language-settings">
+    {#each languages as language}
+        <SettingsItem 
+            type="submenu"
+            icon={language.code === currentLanguage ? 'subsetting_icon subsetting_icon_check' : 'language'}
+            title={language.name}
+            onClick={() => selectLanguage(language.code)}
+        />
+    {/each}
+</div>
+
+<style>
+    .language-settings {
+        padding: 10px 0;
+    }
+</style>
