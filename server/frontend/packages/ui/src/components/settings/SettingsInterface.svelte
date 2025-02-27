@@ -25,7 +25,4 @@ changes to the documentation (to keep the documentation up to date).
 </div>
 
 <style>
-    .settings-section {
-        padding: 10px 0;
-    }
 </style>

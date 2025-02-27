@@ -127,6 +127,7 @@
             <!-- Quick Settings - Only show when not in signup process -->
             {#if !isInSignupMode}
                 <SettingsItem 
+                    type="quickaction" 
                     icon="subsetting_icon subsetting_icon_incognito"
                     title={$text('settings.incognito.text')}
                     hasToggle={true}
@@ -134,6 +135,7 @@
                     onClick={() => handleQuickSettingClick('incognito')}
                 />
                 <SettingsItem 
+                    type="quickaction" 
                     icon="subsetting_icon subsetting_icon_guest"
                     title={$text('settings.guest.text')}
                     hasToggle={true}
@@ -141,6 +143,7 @@
                     onClick={() => handleQuickSettingClick('guest')}
                 />
                 <SettingsItem 
+                    type="quickaction" 
                     icon="subsetting_icon subsetting_icon_offline"
                     title={$text('settings.offline.text')}
                     hasToggle={true}
@@ -252,9 +255,5 @@
         opacity: 1;
         pointer-events: auto;
         transform: translateX(0);
-    }
-    
-    .settings-submenu-content {
-        padding: 0 16px;
     }
 </style>

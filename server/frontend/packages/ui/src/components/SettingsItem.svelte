@@ -31,7 +31,7 @@
     }
 
     // Determine if the item is clickable
-    $: isClickable = onClick !== undefined && type !== 'subsubmenu';
+    $: isClickable = onClick !== undefined;
     
     // Determine the icon class based on item type - fix for heading icons
     $: iconClass = type === 'quickaction' || type === 'subsubmenu' 
@@ -64,7 +64,7 @@
                 <span class="menu-title">
                     {#if type === 'heading'}
                         <strong>{title}</strong>
-                    {:else if type === 'submenu' || type === 'quickaction'}
+                    {:else if type === 'submenu'}
                         <mark>{title}</mark>
                     {:else}
                         {title}
