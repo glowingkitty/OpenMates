@@ -102,7 +102,7 @@
     });
 </script>
 
-<div class="content-slider">
+<div class="settings-content-slider">
     <!-- Main user info header that slides with settings items -->
     {#if visibleViews.has('main')}
 
@@ -231,10 +231,10 @@
         background: var(--color-primary);
     }
 
-    .content-slider {
+    .settings-content-slider {
         position: relative;
         width: 100%;
-        min-height: 300px;
+        min-height: 60vh;
         overflow: hidden;
         padding-top: 10px;
     }
