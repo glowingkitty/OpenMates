@@ -127,21 +127,21 @@
             <!-- Quick Settings - Only show when not in signup process -->
             {#if !isInSignupMode}
                 <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_incognito"
+                    icon="subsetting_icon subsetting_icon_incognito"
                     title={$text('settings.incognito.text')}
                     hasToggle={true}
                     bind:checked={isIncognitoEnabled}
                     onClick={() => handleQuickSettingClick('incognito')}
                 />
                 <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_guest"
+                    icon="subsetting_icon subsetting_icon_guest"
                     title={$text('settings.guest.text')}
                     hasToggle={true}
                     bind:checked={isGuestEnabled}
                     onClick={() => handleQuickSettingClick('guest')}
                 />
                 <SettingsItem 
-                    icon="quicksetting_icon quicksetting_icon_offline"
+                    icon="subsetting_icon subsetting_icon_offline"
                     title={$text('settings.offline.text')}
                     hasToggle={true}
                     bind:checked={isOfflineEnabled}
@@ -159,7 +159,7 @@
             {/each}
 
             <SettingsItem 
-                icon="quicksetting_icon quicksetting_icon_logout" 
+                icon="subsetting_icon subsetting_icon_logout" 
                 title={$text('settings.logout.text')} 
                 onClick={handleLogout} 
             />

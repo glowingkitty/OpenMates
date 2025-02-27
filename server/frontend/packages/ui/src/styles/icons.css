@@ -37,7 +37,7 @@
   border: unset;
 }
 
-.quicksetting_icon{
+.subsetting_icon{
   &::after {
     content: '';
     position: absolute;
@@ -55,7 +55,7 @@
   }
 }
 
-.quicksetting_icon_team{
+.subsetting_icon_team{
   /* Create overlay with cutout using pseudo-element */
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
@@ -63,31 +63,38 @@
   }
 }
 
-.quicksetting_icon_incognito{
+.subsetting_icon_incognito{
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/anonym.svg');
     mask-image: url('@openmates/ui/static/icons/anonym.svg');
   }
 }
 
-.quicksetting_icon_guest{
+.subsetting_icon_guest{
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/guest.svg');
     mask-image: url('@openmates/ui/static/icons/guest.svg');
   }
 }
 
-.quicksetting_icon_offline{
+.subsetting_icon_offline{
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/offline.svg');
     mask-image: url('@openmates/ui/static/icons/offline.svg');
   }
 }
 
-.quicksetting_icon_logout{
+.subsetting_icon_logout{
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/logout.svg');
     mask-image: url('@openmates/ui/static/icons/logout.svg');
+  }
+}
+
+.subsetting_icon_language{
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
+    mask-image: url('@openmates/ui/static/icons/language.svg');
   }
 }
 

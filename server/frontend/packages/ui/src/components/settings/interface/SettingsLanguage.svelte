@@ -11,10 +11,5 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import SettingsItem from '../SettingsItem.svelte';
+    import SettingsItem from '../../SettingsItem.svelte';
 </script>
-
-<SettingsItem 
-    icon="subsetting_icon subsetting_icon_language"
-    title={$text('settings.incognito.text')}
-/>
