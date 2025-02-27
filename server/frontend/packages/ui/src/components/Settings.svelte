@@ -8,7 +8,7 @@
 
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { fly, fade } from 'svelte/transition';
+    import { fly, fade, slide } from 'svelte/transition'; // Add slide transition import
     import { cubicOut } from 'svelte/easing';
     import { isAuthenticated, currentUser, logout } from '../stores/authState';
     import { isMenuOpen } from '../stores/menuState';
@@ -101,6 +101,8 @@
         // Delay showing submenu info to allow animation to complete
         if (viewName !== 'main') {
             navButtonLeft = true;
+            showSubmenuInfo = true;
+
             setTimeout(() => {
                 showSubmenuInfo = true;
             }, 300); // Match this with your transition duration
@@ -317,7 +319,10 @@
         </div>
         
         {#if activeSettingsView !== 'main' && showSubmenuInfo}
-            <div class="submenu-info" transition:fade={{ duration: 200 }}>
+            <div 
+                class="submenu-info" 
+                transition:slide={{ duration: 300, easing: cubicOut }}
+            >
                 <div class="menu-item">
                     <div class="menu-item-left">
                         <div class="icon settings_size {activeSubMenuIcon}"></div>
@@ -495,6 +500,7 @@
 
     .settings-header.submenu-active {
         padding-bottom: 20px; /* Space for submenu info */
+        transition: padding-bottom 0.3s ease; /* Smooth padding transition */
     }
 
     .nav-button {
@@ -533,6 +539,7 @@
     .submenu-info {
         padding-top: 35px;
         margin-bottom: -10px;
+        overflow: hidden;
     }
 
     .help-button-container {
