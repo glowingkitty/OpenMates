@@ -50,8 +50,8 @@
   // Get the actual icon URL variable name based on the input name
   $: iconUrlName = getIconUrlName(name);
 
-  // Special handling for provider icons and mates icon
-  $: isSpecialIcon = name === 'mates' || (type === 'provider' && ['openai'].includes(name));
+  // Special handling for mates icon only
+  $: isSpecialIcon = name === 'mates';
 
   // Compute the final class name
   $: computedClassName = [
@@ -59,11 +59,10 @@
     type === 'subsetting' ? 'subsetting_icon' : '',
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
-    // Special handling for mates icon and provider icons
+    // Special handling for mates icon
     name === 'mates' ? 'mates' : '',
-    type === 'provider' && isSpecialIcon ? `provider-icon provider-${name}` : 
+    type === 'provider' ? `provider-icon ${type === 'provider' && ['openai'].includes(name) ? `provider-${name}` : ''}` : 
       (type === 'default' ? name : (type === 'clickable' || type === 'subsetting') ? name : `${type}-${name}`),
-    type === 'provider' && !isSpecialIcon ? 'provider-icon' : '',
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
@@ -92,7 +91,7 @@
 
   // Update the style element when the component mounts
   onMount(() => {
-    if (type === 'provider' && isSpecialIcon) {
+    if (type === 'provider' && ['openai'].includes(name)) {
       // Create a style element for the provider icons
       styleElement = document.createElement('style');
       
@@ -136,7 +135,7 @@
     getBorderRadius(),
     color ? `--icon-color: ${color};` : '',
     // Skip setting these properties for special icons that rely on CSS classes
-    !isSpecialIcon ? [
+    name !== 'mates' ? [
       `--icon-name: ${name};`,
       `--icon-url: var(--icon-url-${iconUrlName});`,
       type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
