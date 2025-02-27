@@ -412,7 +412,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .profile-container.menu-open {
-        transform: translate(-260px, 130px);
+        transform: translate(-265px, 120px)
     }
 
     .close-icon-container {
@@ -510,7 +510,6 @@ changes to the documentation (to keep the documentation up to date).
 
     .settings-header {
         background-color: var(--color-grey-20);
-        padding: 16px;
         padding-bottom: 12px;
         position: sticky;
         top: 0;
@@ -520,7 +519,7 @@ changes to the documentation (to keep the documentation up to date).
         flex-direction: column;
         border-bottom: 1px solid var(--color-grey-30);
         position: relative;
-        min-height: 24px;
+        min-height: 30px;
     }
 
     .header-content {
@@ -542,6 +541,7 @@ changes to the documentation (to keep the documentation up to date).
         align-items: center;
         position: absolute;
         left: 110px;
+        top: 10px;
         padding: 4px 0;
         transition: all 0.3s ease;
         pointer-events: none; /* Disable click interactions by default */
@@ -549,7 +549,7 @@ changes to the documentation (to keep the documentation up to date).
 
     .nav-button.left {
         cursor: pointer;
-        left: 0px;
+        left: 10px;
         pointer-events: all; /* Enable click interactions when in submenu */
     }
 
@@ -562,7 +562,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .submenu-info {
-        padding-top: 35px;
+        padding-top: 40px;
         margin-bottom: -10px;
         overflow: hidden;
     }
@@ -570,7 +570,8 @@ changes to the documentation (to keep the documentation up to date).
     .help-button-container {
         all: unset;
         position: absolute;
-        right: 0;
+        right: 10px;
+        top: 10px;
         width: 24px;
         height: 24px;
         display: flex;

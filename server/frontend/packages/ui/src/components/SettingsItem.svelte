@@ -35,7 +35,7 @@
     
     // Determine the icon class based on item type - fix for heading icons
     $: iconClass = type === 'quickaction' || type === 'subsubmenu' 
-        ? `subsetting_icon ${icon}` 
+        ? `icon settings_size subsetting_icon ${icon}` 
         : `icon settings_size ${icon}`;
 </script>
 
