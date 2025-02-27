@@ -1,5 +1,6 @@
 <script lang="ts">
     import Toggle from './Toggle.svelte';
+    import ModifyButton from './buttons/ModifyButton.svelte';
 
     // Props for the component
     export let icon: string; // CSS class for the icon
@@ -92,15 +93,10 @@
         {/if}
         
         {#if type === 'subsubmenu'}
-            <button 
-                class="modify-button"
+            <ModifyButton 
                 on:click={handleModifyClick}
                 on:keydown={(e) => handleKeydown(e, handleModifyClick)}
-                disabled={disabled}
-                aria-label="Modify {title}"
-            >
-                <div class="clickable-icon icon_modify"></div>
-            </button>
+            />
         {/if}
     </div>
 </div>
@@ -149,7 +145,7 @@
 
     .subtitle {
         font-size: 14px;
-        color: var(--color-grey-50);
+        color: var(--color-grey-60);
         margin-bottom: 2px;
     }
 

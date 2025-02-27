@@ -1123,6 +1123,14 @@
         "credits": {
             "text": "credits",
             "context": "User credits amount"
+        },
+        "modify": {
+            "text": "Modify",
+            "context": "Button text for modifying settings"
+        },
+        "save": {
+            "text": "Save",
+            "context": "Button text for saving settings"
         }
     },
     "design_guidelines": {

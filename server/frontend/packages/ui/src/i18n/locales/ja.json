@@ -919,6 +919,16 @@
             "text": "クレジット",
             "en_original": "credits",
             "context": "User credits amount"
+        },
+        "modify": {
+            "text": "変更",
+            "en_original": "Modify",
+            "context": "Button text for modifying settings"
+        },
+        "save": {
+            "text": "保存",
+            "en_original": "Save",
+            "context": "Button text for saving settings"
         }
     },
     "design_guidelines": {
