@@ -16,7 +16,20 @@ step_5_bottom_content_svelte:
             - 'User clicks the toggle'
             - 'User confirms that they have saved the backup codes'
             - 'Request to server is sent to save in profile that user has saved the backup codes and when'
-            - 'Next signup step is loaded'
+            - 'Next signup step is loaded automatically'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+            - 'backup codes'
+        connected_documentation:
+            - '/signup/backup-codes'
+    click_toggle_to_continue_text:
+        type: 'text'
+        text: $text('signup.click_toggle_to_continue.text')
+        purpose:
+            - 'Inform the user that they need to click the toggle to continue to the next signup step'
         bigger_context:
             - 'Signup'
         tags:
@@ -39,14 +52,22 @@ step_5_bottom_content_svelte:
     $: if (hasConfirmedStorage) {
         dispatch('step', { step: 6 });
     }
+    
+    // Handle click on the confirmation row
+    function handleRowClick() {
+        hasConfirmedStorage = !hasConfirmedStorage;
+    }
 </script>
 
 <div class="bottom-content">
-    <div class="confirmation-row">
+    <div class="confirmation-row" on:click={handleRowClick} role="button" tabindex="0">
         <Toggle bind:checked={hasConfirmedStorage} />
         <span class="confirmation-text">
             {$text('signup.i_stored_backup_codes.text')}
         </span>
+    </div>
+    <div class="click-toggle-text">
+        {$text('signup.click_toggle_to_continue.text')}
     </div>
 </div>
 
@@ -60,11 +81,19 @@ step_5_bottom_content_svelte:
         align-items: center;
         gap: 12px;
         margin-top: 20px;
+        cursor: pointer;
     }
 
     .confirmation-text {
         color: var(--color-grey-60);
         font-size: 16px;
         text-align: left;
+    }
+    
+    .click-toggle-text {
+        color: var(--color-grey-50);
+        font-size: 14px;
+        margin-top: 28px;
+        margin-left: 36px; /* Aligns with the confirmation text */
     }
 </style>
