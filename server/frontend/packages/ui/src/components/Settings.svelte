@@ -261,9 +261,6 @@ changes to the documentation (to keep the documentation up to date).
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
         }
-
-        console.log('Navigation path:', navigationPath); // Debug
-        console.log('Breadcrumb label:', breadcrumbLabel); // Debug
     }
 
     // Enhanced back navigation - handle both main and nested views
