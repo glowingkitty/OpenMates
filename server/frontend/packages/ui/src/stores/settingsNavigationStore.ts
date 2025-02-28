@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 // Remove the problematic import
 // import { getTranslation } from '@repo/ui';
 
@@ -29,11 +29,12 @@ const initialState: SettingsNavigationState = {
 
 export const settingsNavigationStore = writable<SettingsNavigationState>(initialState);
 
-// Update this function to use the text from the component instead
+// Update this function to properly update breadcrumbs with new language texts
 export function updateBreadcrumbsWithLanguage(textStore) {
     if (!textStore) return;
 
     settingsNavigationStore.update(state => {
+        // Create deep copy of breadcrumbs to ensure reactivity
         const updatedBreadcrumbs = state.breadcrumbs.map(crumb => {
             if (crumb.translationKey) {
                 return {
@@ -42,14 +43,24 @@ export function updateBreadcrumbsWithLanguage(textStore) {
                     title: textStore(crumb.translationKey + '.text')
                 };
             }
-            return crumb;
+            return { ...crumb };  // Return a copy for reactivity
         });
 
+        // Return a new object to trigger reactivity
         return {
             ...state,
             breadcrumbs: updatedBreadcrumbs
         };
     });
+
+    // Dispatch an event to notify components that breadcrumbs have been updated
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('breadcrumbs-updated', {
+            detail: {
+                breadcrumbs: get(settingsNavigationStore).breadcrumbs
+            }
+        }));
+    }
 }
 
 /**

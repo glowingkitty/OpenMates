@@ -29,6 +29,26 @@
             "text": "关闭",
             "en_original": "Close",
             "context": "Modal close button"
+        },
+        "today": {
+            "text": "今天",
+            "en_original": "Today",
+            "context": "Chats from today"
+        },
+        "yesterday": {
+            "text": "昨天",
+            "en_original": "Yesterday",
+            "context": "Chats from yesterday"
+        },
+        "days_ago": {
+            "text": "{days} 天前",
+            "en_original": "{days} days ago",
+            "context": "Chats from {days} days ago"
+        },
+        "loading_chats": {
+            "text": "正在加载聊天...",
+            "en_original": "Loading chats...",
+            "context": "Loading message for chat list"
         }
     },
     "platforms": {

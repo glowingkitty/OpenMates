@@ -23,6 +23,22 @@
         "close": {
             "text": "Close",
             "context": "Modal close button"
+        },
+        "today": {
+            "text": "Today",
+            "context": "Chats from today"
+        },
+        "yesterday": {
+            "text": "Yesterday",
+            "context": "Chats from yesterday"
+        },
+        "days_ago": {
+            "text": "{days} days ago",
+            "context": "Chats from {days} days ago"
+        },
+        "loading_chats": {
+            "text": "Loading chats...",
+            "context": "Loading message for chat list"
         }
     },
     "platforms": {

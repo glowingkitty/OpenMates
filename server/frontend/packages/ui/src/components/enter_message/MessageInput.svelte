@@ -797,6 +797,9 @@
       }
     };
 
+    // Add language change handler
+    let languageChangeHandler: () => void;
+
     // --- Lifecycle Hooks ---
 
     onMount(() => {
@@ -926,6 +929,16 @@
             }
         });
 
+        // Add listener for language changes to update placeholder text
+        languageChangeHandler = () => {
+            if (editor) {
+                // Force editor to update placeholder text
+                editor.commands.focus();
+                editor.commands.blur();
+            }
+        };
+        window.addEventListener('language-changed', languageChangeHandler);
+
         return () => {
             resizeObserver.disconnect();
             editorElement?.removeEventListener('paste', handlePaste);
@@ -935,6 +948,7 @@
             editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
             editorElement?.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('saveDraftBeforeSwitch', () => {});
+            window.removeEventListener('language-changed', languageChangeHandler);
         };
     });
 

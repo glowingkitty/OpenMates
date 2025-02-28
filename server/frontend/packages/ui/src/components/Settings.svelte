@@ -359,10 +359,18 @@ changes to the documentation (to keep the documentation up to date).
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
         
+        // Add listener for language changes
+        languageChangeHandler = () => {
+            // Update breadcrumbs when language changes
+            updateBreadcrumbLabel();
+        };
+        window.addEventListener('language-changed', languageChangeHandler);
+        
         return () => {
             window.removeEventListener('resize', updateMobileState);
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('language-changed', languageChangeHandler);
         };
     });
 
@@ -439,6 +447,13 @@ changes to the documentation (to keep the documentation up to date).
         // Apply translations to breadcrumb titles
         title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
     }));
+
+    // Make breadcrumbLabel reactive to text store changes
+    $: {
+        if ($text) {
+            updateBreadcrumbLabel();
+        }
+    }
 </script>
 
 {#if showSettingsIcon}

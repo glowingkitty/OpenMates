@@ -79,7 +79,7 @@ changes to the documentation (to keep the documentation up to date).
         }
     };
 
-    // Handle language change
+    // Enhanced language change handling
     const handleLanguageChange = async (newLocale: string) => {
         if (!browser) return;
         
@@ -139,12 +139,22 @@ changes to the documentation (to keep the documentation up to date).
             // Update breadcrumbs with new translations
             updateNavigationAndBreadcrumbs();
 
-            // Dispatch event to inform parent components that language has changed
-            dispatch('languageChanged', { 
-                locale: newLocale,
-                languageName: currentLanguageObj.name
-            });
-
+            // Force re-render of components
+            setTimeout(() => {
+                // Dispatch event to inform parent components that language has changed
+                dispatch('languageChanged', { 
+                    locale: newLocale,
+                    languageName: currentLanguageObj.name
+                });
+                
+                // Dispatch global events to trigger UI updates
+                window.dispatchEvent(new CustomEvent('language-changed'));
+                
+                // Dispatch another event after a short delay to ensure all components have updated
+                setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('language-changed-complete'));
+                }, 50);
+            }, 0);
         } catch (error) {
             console.error('Error changing language:', error);
         }
@@ -157,6 +167,14 @@ changes to the documentation (to keep the documentation up to date).
         
         // Force text store subscribers to update by dispatching a custom event
         window.dispatchEvent(new CustomEvent('language-changed'));
+        
+        // Force a re-render of all text elements
+        const textElements = document.querySelectorAll('[data-i18n]');
+        textElements.forEach(el => {
+            // This triggers a re-render of the element
+            el.classList.add('lang-refresh');
+            setTimeout(() => el.classList.remove('lang-refresh'), 10);
+        });
     }
 
     // Initialize on component mount

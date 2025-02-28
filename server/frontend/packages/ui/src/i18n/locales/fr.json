@@ -29,6 +29,26 @@
             "text": "Fermer",
             "en_original": "Close",
             "context": "Modal close button"
+        },
+        "today": {
+            "text": "Aujourd'hui",
+            "en_original": "Today",
+            "context": "Chats from today"
+        },
+        "yesterday": {
+            "text": "Hier",
+            "en_original": "Yesterday",
+            "context": "Chats from yesterday"
+        },
+        "days_ago": {
+            "text": "il y a {days} jours",
+            "en_original": "{days} days ago",
+            "context": "Chats from {days} days ago"
+        },
+        "loading_chats": {
+            "text": "Cargando chats...",
+            "en_original": "Loading chats...",
+            "context": "Loading message for chat list"
         }
     },
     "platforms": {

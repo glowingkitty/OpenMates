@@ -44,11 +44,13 @@
         const chatDate = new Date(chat.lastUpdated);
         const diffDays = Math.floor((now.getTime() - chatDate.getTime()) / (1000 * 60 * 60 * 24));
         
-        let groupKey = 'Today';
-        if (diffDays === 1) {
-            groupKey = 'Yesterday';
-        } else if (diffDays > 1) {
-            groupKey = `${diffDays} days ago`;
+        let groupKey: string;
+        if (diffDays === 0) {
+            groupKey = 'today';
+        } else if (diffDays === 1) {
+            groupKey = 'yesterday';
+        } else {
+            groupKey = `days_ago_${diffDays}`;
         }
 
         if (!groups[groupKey]) {
@@ -62,11 +64,34 @@
         return groups;
     }, {});
 
+    // Function to get localized group title
+    function getLocalizedGroupTitle(groupKey: string): string {
+        if (groupKey === 'today') {
+            return $_('activity.today.text');
+        } else if (groupKey === 'yesterday') {
+            return $_('activity.yesterday.text');
+        } else if (groupKey.startsWith('days_ago_')) {
+            const days = groupKey.split('_')[2];
+            return $_('activity.days_ago.text', { values: { days } });
+        }
+        return groupKey;
+    }
+
     // Flatten grouped chats for navigation
     $: flattenedChats = Object.values(groupedChats).flat();
 
+    let languageChangeHandler: () => void;
+
     onMount(async() => {
         window.addEventListener('chatUpdated', handleChatUpdate);
+        
+        // Add language change event listener
+        languageChangeHandler = () => {
+            // Force re-render of the chat groups by triggering a state update
+            chats = [...chats];
+        };
+        window.addEventListener('language-changed', languageChangeHandler);
+        
         try {
             console.log("[ActivityHistory] Initializing database");
             await chatDB.init();
@@ -89,6 +114,7 @@
 
     onDestroy(() => {
         window.removeEventListener('chatUpdated', handleChatUpdate);
+        window.removeEventListener('language-changed', languageChangeHandler);
     });
 
     // Function to navigate to next chat
@@ -214,13 +240,13 @@
         </div>
 
         {#if loading}
-            <div class="loading-indicator">Loading chats...</div>
+            <div class="loading-indicator">{$_('activity.loading_chats.text', { default: 'Loading chats...' })}</div>
         {:else}
             <div class="chat-groups">
-                {#each Object.entries(groupedChats) as [groupName, groupChats]}
+                {#each Object.entries(groupedChats) as [groupKey, groupChats] (groupKey)}
                     <div class="chat-group">
-                        <h2 class="group-title">{groupName}</h2>
-                        {#each groupChats as chat}
+                        <h2 class="group-title">{getLocalizedGroupTitle(groupKey)}</h2>
+                        {#each groupChats as chat (chat.id)}
                             <div 
                                 role="button" 
                                 tabindex="0" 
@@ -336,7 +362,6 @@
         margin: 0;
         padding: 0 16px;
         font-weight: 500;
-        text-transform: capitalize;
         margin-bottom: 8px;
     }
 
