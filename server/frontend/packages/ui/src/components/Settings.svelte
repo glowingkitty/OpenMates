@@ -304,8 +304,24 @@ changes to the documentation (to keep the documentation up to date).
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
         
-        // If menu is being closed, reset scroll position
+        // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
+            // Reset the active view to main when closing the menu
+            activeSettingsView = 'main';
+            navigationPath = [];
+            breadcrumbLabel = $text('settings.settings.text');
+            showSubmenuInfo = false;
+            navButtonLeft = false;
+            
+            // Reset help link to base
+            currentHelpLink = baseHelpLink;
+            
+            // Remove submenu-active class from profile container
+            if (profileContainer) {
+                profileContainer.classList.remove('submenu-active');
+            }
+            
+            // Reset scroll position
             setTimeout(() => {
                 settingsContentElement.scrollTop = 0;
             }, 300);
@@ -467,7 +483,7 @@ changes to the documentation (to keep the documentation up to date).
         <div 
             class="profile-container" 
             class:menu-open={isMenuVisible}
-            class:hidden={activeSettingsView !== 'main'}
+            class:hidden={isMenuVisible && activeSettingsView !== 'main'}
             on:click={toggleMenu}
             on:keydown={e => e.key === 'Enter' && toggleMenu()}
             role="button"
@@ -586,7 +602,8 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .profile-container.menu-open {
-        transform: translate(-265px, 120px)
+        transform: translate(-265px, 120px);
+        /* Important: Do not add opacity: 0 here */
     }
 
     .close-icon-container {
