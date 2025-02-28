@@ -50,7 +50,7 @@ step_8_bottom_content_svelte:
 
     // Watch for changes to hasConfirmedSettings
     $: if (hasConfirmedSettings) {
-        dispatch('step', { step: 8 });
+        dispatch('step', { step: 9 });
     }
     
     // Handle click on the confirmation row
