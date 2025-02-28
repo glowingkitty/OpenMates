@@ -2060,6 +2060,11 @@
             "en_original": "AI providers",
             "context": "for confirming the default AI provider"
         },
+        "via_server": {
+            "text": "via serveur {region} par {server_provider}",
+            "en_original": "via {region} server by {server_provider}",
+            "context": "Used in 'via EU server by Google'"
+        },
         "all_ai_models_make_mistakes": {
             "text": "Gardez à l'esprit que tous les modèles d'IA font des erreurs. Vérifiez toujours les réponses.",
             "en_original": "Keep in mind, all AI models make mistakes. So always fact check responses.",
@@ -2075,14 +2080,9 @@
             "en_original": "Skip & show demo first",
             "context": "Button text for skipping the purchase and showing the demo first"
         },
-        "pay": {
-            "text": "Payez",
-            "en_original": "Pay",
-            "context": "in message: 'Pay credits per usa'"
-        },
-        "per_use": {
-            "text": "par utilisation",
-            "en_original": "per use",
+        "pay_per_use": {
+            "text": "Payer {credits} par utilisation",
+            "en_original": "Pay {credits} per use",
             "context": "in message: 'Pay credits per use'"
         },
         "for_chatting_and_apps": {
@@ -2139,33 +2139,36 @@
             "text": "Choisissez votre pack de crédits.",
             "en_original": "Choose your credits package.",
             "context": "text for choosing the amount of credits to buy"
-        }
-    },
-    "credits": {
-        "buy_for_1_eur": {
-            "text": "Acheter pour 1 EUR",
-            "en_original": "Buy for 1 EUR",
-            "context": "Button text for buying credits for 1 EUR"
         },
-        "buy_for_10_eur": {
-            "text": "Acheter pour 10 EUR",
-            "en_original": "Buy for 10 EUR",
-            "context": "Button text for buying credits for 10 EUR"
+        "select_credits": {
+            "text": "Sélectionner les crédits",
+            "en_original": "Select credits",
+            "context": "Button text going back to select credits"
         },
-        "buy_for_20_eur": {
-            "text": "Acheter pour 20 EUR",
-            "en_original": "Buy for 20 EUR",
-            "context": "Button text for buying credits for 20 EUR"
+        "pay_with_card": {
+            "text": "Payer par carte",
+            "en_original": "Pay with card",
+            "context": "Header text for paying with card"
         },
-        "buy_for_50_eur": {
-            "text": "Acheter pour 50 EUR",
-            "en_original": "Buy for 50 EUR",
-            "context": "Button text for buying credits for 50 EUR"
+        "full_name_on_card": {
+            "text": "Nom complet sur la carte",
+            "en_original": "Full name on card",
+            "context": "Placeholder text for full name on card input field for card payments"
         },
-        "buy_for_100_eur": {
-            "text": "Acheter pour 100 EUR",
-            "en_original": "Buy for 100 EUR",
-            "context": "Button text for buying credits for 100 EUR"
+        "mm_yy": {
+            "text": "MM/AA",
+            "en_original": "MM/YY",
+            "context": "Placeholder text for MM/YY input field for card payments"
+        },
+        "buy_for": {
+            "text": "Acheter pour {amount} {currency}",
+            "en_original": "Buy for {amount} {currency}",
+            "context": "Used in 'Buy for 10 EUR'"
+        },
+        "secured_and_powered_by": {
+            "text": "Sécurisé et propulsé par {provider}",
+            "en_original": "Secured & powered by {provider}",
+            "context": "Used in 'Secured & powered by mollie'"
         }
     }
 }

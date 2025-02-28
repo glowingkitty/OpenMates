@@ -21,6 +21,7 @@
     import Step7TopContent from './steps/step7/Step7TopContent.svelte';
     import Step8TopContent from './steps/step8/Step8TopContent.svelte';
     import Step9TopContent from './steps/step9/Step9TopContent.svelte';
+    import Step10TopContent from './steps/step10/Step10TopContent.svelte';
     import Step2BottomContent from './steps/step2/Step2BottomContent.svelte';
     import Step3BottomContent from './steps/step3/Step3BottomContent.svelte';
     import Step4BottomContent from './steps/step4/Step4BottomContent.svelte';
@@ -29,6 +30,7 @@
     import Step7BottomContent from './steps/step7/Step7BottomContent.svelte';
     import Step8BottomContent from './steps/step8/Step8BottomContent.svelte';
     import Step9BottomContent from './steps/step9/Step9BottomContent.svelte';
+    import Step10BottomContent from './steps/step10/Step10BottomContent.svelte';
     
     import SignupStatusbar from './SignupStatusbar.svelte';
 
@@ -195,6 +197,8 @@
                                         <Step8TopContent />
                                     {:else if currentStep === 9}
                                         <Step9TopContent />
+                                    {:else if currentStep === 10}
+                                        <Step10TopContent />
                                     {/if}
                                 </div>
                             {/key}
@@ -221,6 +225,7 @@
                                             currentStep === 7 ? Step7BottomContent :
                                             currentStep === 8 ? Step8BottomContent :
                                             currentStep === 9 ? Step9BottomContent :
+                                            currentStep === 10 ? Step10BottomContent :
                                            null}
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}

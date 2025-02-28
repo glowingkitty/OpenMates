@@ -636,6 +636,10 @@
             "text": "AI providers",
             "context": "for confirming the default AI provider"
         },
+        "via_server": {
+            "text": "via {region} server by {server_provider}",
+            "context": "Used in 'via EU server by Google'"
+        },
         "all_ai_models_make_mistakes": {
             "text": "Keep in mind, all AI models make mistakes. So always fact check responses.",
             "context": "ai models make mistakes disclaimer"
@@ -648,12 +652,8 @@
             "text": "Skip & show demo first",
             "context": "Button text for skipping the purchase and showing the demo first"
         },
-        "pay": {
-            "text": "Pay",
-            "context": "in message: 'Pay credits per usa'"
-        },
-        "per_use": {
-            "text": "per use",
+        "pay_per_use": {
+            "text": "Pay {credits} per use",
             "context": "in message: 'Pay credits per use'"
         },
         "for_chatting_and_apps": {
@@ -699,28 +699,30 @@
         "choose_your_credits_package": {
             "text": "Choose your credits package.",
             "context": "text for choosing the amount of credits to buy"
-        }
-    },
-    "credits":{
-        "buy_for_1_eur": {
-            "text": "Buy for 1 EUR",
-            "context": "Button text for buying credits for 1 EUR"
         },
-        "buy_for_10_eur": {
-            "text": "Buy for 10 EUR",
-            "context": "Button text for buying credits for 10 EUR"
+        "select_credits": {
+            "text": "Select credits",
+            "context": "Button text going back to select credits"
         },
-        "buy_for_20_eur": {
-            "text": "Buy for 20 EUR",
-            "context": "Button text for buying credits for 20 EUR"
+        "pay_with_card": {
+            "text": "Pay with card",
+            "context": "Header text for paying with card"
         },
-        "buy_for_50_eur": {
-            "text": "Buy for 50 EUR",
-            "context": "Button text for buying credits for 50 EUR"
+        "full_name_on_card": {
+            "text": "Full name on card",
+            "context": "Placeholder text for full name on card input field for card payments"
         },
-        "buy_for_100_eur":{
-            "text": "Buy for 100 EUR",
-            "context": "Button text for buying credits for 100 EUR"
+        "mm_yy": {
+            "text": "MM/YY",
+            "context": "Placeholder text for MM/YY input field for card payments"
+        },
+        "buy_for": {
+            "text": "Buy for {amount} {currency}",
+            "context": "Used in 'Buy for 10 EUR'"
+        },
+        "secured_and_powered_by": {
+            "text": "Secured & powered by {provider}",
+            "context": "Used in 'Secured & powered by mollie'"
         }
     },
     "login": {

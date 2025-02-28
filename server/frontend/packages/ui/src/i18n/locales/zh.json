@@ -2060,6 +2060,11 @@
             "en_original": "AI providers",
             "context": "for confirming the default AI provider"
         },
+        "via_server": {
+            "text": "通过 {server_provider} 的 {region} 服务器",
+            "en_original": "via {region} server by {server_provider}",
+            "context": "Used in 'via EU server by Google'"
+        },
         "all_ai_models_make_mistakes": {
             "text": "请记住，所有人工智能模型都会犯错。因此请始终核实回答",
             "en_original": "Keep in mind, all AI models make mistakes. So always fact check responses.",
@@ -2074,6 +2079,11 @@
             "text": "跳过并先显示演示",
             "en_original": "Skip & show demo first",
             "context": "Button text for skipping the purchase and showing the demo first"
+        },
+        "pay_per_use": {
+            "text": "支付 {credits} 点数",
+            "en_original": "Pay {credits} per use",
+            "context": "in message: 'Pay credits per use'"
         },
         "pay": {
             "text": "支付",
@@ -2139,33 +2149,36 @@
             "text": "选择您的点数套餐",
             "en_original": "Choose your credits package.",
             "context": "text for choosing the amount of credits to buy"
-        }
-    },
-    "credits": {
-        "buy_for_1_eur": {
-            "text": "购买1欧元",
-            "en_original": "Buy for 1 EUR",
-            "context": "Button text for buying credits for 1 EUR"
         },
-        "buy_for_10_eur": {
-            "text": "购买10欧元",
-            "en_original": "Buy for 10 EUR",
-            "context": "Button text for buying credits for 10 EUR"
+        "select_credits": {
+            "text": "选择点数",
+            "en_original": "Select credits",
+            "context": "Button text going back to select credits"
         },
-        "buy_for_20_eur": {
-            "text": "购买20欧元",
-            "en_original": "Buy for 20 EUR",
-            "context": "Button text for buying credits for 20 EUR"
+        "pay_with_card": {
+            "text": "使用卡支付",
+            "en_original": "Pay with card",
+            "context": "Header text for paying with card"
         },
-        "buy_for_50_eur": {
-            "text": "购买50欧元",
-            "en_original": "Buy for 50 EUR",
-            "context": "Button text for buying credits for 50 EUR"
+        "full_name_on_card": {
+            "text": "卡上的全名",
+            "en_original": "Full name on card",
+            "context": "Placeholder text for full name on card input field for card payments"
         },
-        "buy_for_100_eur": {
-            "text": "购买100欧元",
-            "en_original": "Buy for 100 EUR",
-            "context": "Button text for buying credits for 100 EUR"
+        "mm_yy": {
+            "text": "月/年",
+            "en_original": "MM/YY",
+            "context": "Placeholder text for MM/YY input field for card payments"
+        },
+        "buy_for": {
+            "text": "以 {amount} {currency} 购买",
+            "en_original": "Buy for {amount} {currency}",
+            "context": "Used in 'Buy for 10 EUR'"
+        },
+        "secured_and_powered_by": {
+            "text": "由 {provider} 安全支持",
+            "en_original": "Secured & powered by {provider}",
+            "context": "Used in 'Secured & powered by mollie'"
         }
     }
 }

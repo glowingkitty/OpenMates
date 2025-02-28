@@ -35,6 +35,7 @@
         if (step === 7) return $_('signup.2fa_app_reminder.text');
         if (step === 8) return $_('signup.settings.text');
         if (step === 9) return $_('signup.mates_settings.text');
+        if (step === 10) return $_('signup.select_credits.text');
         return $_('signup.sign_up.text');
     }
 
