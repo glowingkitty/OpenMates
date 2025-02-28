@@ -16,6 +16,7 @@
     export let onClick: (() => void) | undefined = undefined;
     
     // Add a reactive translation if title is a translation key
+    // TODO when switching languages, the translation does not update (couldn't fix it so far. need to fix later)
     $: translatedTitle = title?.startsWith('settings.') ? $_(`${title}.text`, { default: title }) : title;
     $: translatedSubtitle = subtitle?.startsWith('settings.') ? $_(`${subtitle}.text`, { default: subtitle }) : subtitle;
 
