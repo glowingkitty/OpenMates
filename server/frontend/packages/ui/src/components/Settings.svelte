@@ -500,6 +500,18 @@ changes to the documentation (to keep the documentation up to date).
             });
         }, 300);
     }
+
+    // Watch settingsMenuVisible store to handle external close requests
+    $: {
+        // If store value changes from true to false and our local state is still true
+        if (!$settingsMenuVisible && isMenuVisible) {
+            isMenuVisible = false;
+            toggleMenu();
+        } else if ($settingsMenuVisible && !isMenuVisible) {
+            // If store value changes from false to true and our local state is still false
+            isMenuVisible = true;
+        }
+    }
 </script>
 
 {#if showSettingsIcon}

@@ -58,9 +58,6 @@ step_7_top_content_svelte:
     onMount(() => {
         // Set the settings step state
         isSignupSettingsStep.set(true);
-        
-        // Do NOT auto-open settings menu anymore
-        // settingsMenuVisible.set(true);
     });
     
     onDestroy(() => {
@@ -69,11 +66,58 @@ step_7_top_content_svelte:
         isSignupSettingsStep.set(false);
     });
     
-    // Handle click on one of the settings options to open settings menu with specific path
+    // Track toggle states for each setting item
+    let privacyToggleOn = true;
+    let appsToggleOn = true;
+    let interfaceToggleOn = true;
+    
+    // Track which item is currently open in the settings menu
+    let activeSettingsPath: string | null = null;
+    
+    // Handler for settings item clicks
     function handleSettingsClick(settingsPath: string) {
-        // When user clicks any setting, open the menu and navigate to the specific path
+        // If same item is clicked and settings are visible, close the menu
+        if (activeSettingsPath === settingsPath && $settingsMenuVisible) {
+            settingsMenuVisible.set(false);
+            activeSettingsPath = null;
+            // Reset the toggle to true when closing
+            if (settingsPath === 'privacy') privacyToggleOn = true;
+            if (settingsPath === 'apps') appsToggleOn = true;
+            if (settingsPath === 'interface') interfaceToggleOn = true;
+            return;
+        }
+        
+        // Otherwise, open the settings menu with the selected path
+        activeSettingsPath = settingsPath;
+        
+        // Update toggle state based on which item was clicked
+        // Toggle OFF when opening the settings
+        if (settingsPath === 'privacy') privacyToggleOn = false;
+        else if (settingsPath === 'apps') appsToggleOn = false;
+        else if (settingsPath === 'interface') interfaceToggleOn = false;
+        
+        // Open settings menu and navigate to the specific path
         settingsDeepLink.set(settingsPath);
         settingsMenuVisible.set(true);
+    }
+    
+    // Watch the settingsMenuVisible store to reset state when menu is closed externally
+    $: if (!$settingsMenuVisible) {
+        // Reset the active settings path when the menu is closed
+        activeSettingsPath = null;
+        // Reset all toggle states to default (ON)
+        privacyToggleOn = true;
+        appsToggleOn = true;
+        interfaceToggleOn = true;
+    }
+    
+    // Handler for settings toggle clicks (needs to behave the same as item click)
+    function handleToggleClick(settingsPath: string, event: Event) {
+        // Stop event propagation to prevent double triggering
+        event.stopPropagation();
+        
+        // Use the same handler as the item click
+        handleSettingsClick(settingsPath);
     }
 </script>
 
@@ -99,18 +143,27 @@ step_7_top_content_svelte:
             icon="privacy" 
             title={$text('settings.privacy.text')}
             onClick={() => handleSettingsClick('privacy')}
+            hasToggle={true}
+            checked={privacyToggleOn}
+            on:toggleClick={(e) => handleToggleClick('privacy', e)}
         />
         <SettingsItem 
             type="submenu" 
             icon="apps" 
             title={$text('settings.apps.text')}
             onClick={() => handleSettingsClick('apps')}
+            hasToggle={true}
+            checked={appsToggleOn}
+            on:toggleClick={(e) => handleToggleClick('apps', e)}
         />
         <SettingsItem 
             type="submenu" 
             icon="interface" 
             title={$text('settings.interface.text')}
             onClick={() => handleSettingsClick('interface')}
+            hasToggle={true}
+            checked={interfaceToggleOn}
+            on:toggleClick={(e) => handleToggleClick('interface', e)}
         />
     </div>
 </div>

@@ -1,9 +1,12 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
     import Icon from './Icon.svelte';
     import { _ } from 'svelte-i18n';
+
+    // Event dispatcher for toggle clicks
+    const dispatch = createEventDispatcher();
 
     // Props for the component
     export let icon: string; // Icon name for the Icon component
@@ -20,9 +23,10 @@
     $: translatedTitle = title?.startsWith('settings.') ? $_(`${title}.text`, { default: title }) : title;
     $: translatedSubtitle = subtitle?.startsWith('settings.') ? $_(`${subtitle}.text`, { default: subtitle }) : subtitle;
 
-    // Handler to prevent event bubbling for toggle clicks
+    // Handler to prevent event bubbling for toggle clicks and dispatch custom event
     function handleToggleClick(event: Event): void {
         event.stopPropagation();
+        dispatch('toggleClick', event);
     }
 
     // Handler for modify button click
