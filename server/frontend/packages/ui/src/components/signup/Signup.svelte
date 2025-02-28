@@ -9,7 +9,8 @@
     import { cubicInOut } from 'svelte/easing';
 
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep } from '../../stores/signupState';
+    import { settingsMenuVisible } from '../Settings.svelte';
 
     // Dynamic imports for step contents
     import Step2TopContent from './steps/step2/Step2TopContent.svelte';
@@ -36,6 +37,7 @@
     let currentStep = 1;
     let direction: 'forward' | 'backward' = 'forward';
     let isInviteCodeValidated = false;
+    let previousStep = 1;
 
     // Lift form state up
     let username = '';
@@ -65,15 +67,30 @@
         isSignupSettingsStep.set(false);
     });
 
-    // Function to update settings step state based on current step
+    // Improved function to update settings step state based on current step
     function updateSettingsStep() {
-        // Only step 7 shows settings and hides footer
-        isSignupSettingsStep.set(currentStep === 7);
+        // Check if current step should show settings (step 7 and higher)
+        const shouldShowSettings = isSettingsStep(currentStep);
+        isSignupSettingsStep.set(shouldShowSettings);
+        
+        // If transitioning between settings/non-settings steps
+        const wasShowingSettings = isSettingsStep(previousStep);
+        
+        if (!wasShowingSettings && shouldShowSettings) {
+            // First entry into a settings step - don't auto-open menu
+            // Just update the state to indicate we're in settings mode
+        } else if (wasShowingSettings && !shouldShowSettings) {
+            // Leaving settings steps - close menu
+            settingsMenuVisible.set(false);
+        } else if (wasShowingSettings && shouldShowSettings) {
+            // Transitioning between settings steps - preserve menu state
+            // Don't change settingsMenuVisible here
+        }
     }
 
     // Make sure to call updateSettingsStep when the step changes
-    $: {
-        // This reactive statement ensures we update when currentStep changes
+    $: if (currentStep !== previousStep) {
+        previousStep = currentStep;
         updateSettingsStep();
     }
 
@@ -90,8 +107,9 @@
     function handleStep(event: CustomEvent<{step: number}>) {
         const newStep = event.detail.step;
         direction = newStep > currentStep ? 'forward' : 'backward';
+        previousStep = currentStep;
         currentStep = newStep;
-        updateSettingsStep();
+        // updateSettingsStep() is called via the reactive statement
     }
 
     function handleSelectedApp(event: CustomEvent<{ appName: string }>) {
@@ -100,8 +118,9 @@
 
     function goToStep(step: number) {
         direction = step > currentStep ? 'forward' : 'backward';
+        previousStep = currentStep;
         currentStep = step;
-        updateSettingsStep();
+        // updateSettingsStep() is called via the reactive statement
     }
 
     function handleLogout() {

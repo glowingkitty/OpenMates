@@ -47,24 +47,9 @@ step_7_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, onDestroy } from 'svelte';
     import { settingsMenuVisible } from '../../../Settings.svelte';
-    import { isSignupSettingsStep } from '../../../../stores/signupState';
     import SettingsItem from '../../../SettingsItem.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
-    
-    // Auto-set the settings step state when this step is mounted
-    // but DON'T auto-open the menu - let the user click to open it
-    onMount(() => {
-        // Set the settings step state
-        isSignupSettingsStep.set(true);
-    });
-    
-    onDestroy(() => {
-        // Clean up when component is unmounted
-        settingsMenuVisible.set(false);
-        isSignupSettingsStep.set(false);
-    });
     
     // Track toggle states for each setting item
     let privacyToggleOn = true;
