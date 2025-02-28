@@ -88,6 +88,109 @@ changes to the documentation (to keep the documentation up to date).
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = [];
     let breadcrumbLabel = $text('settings.settings.text');
+    let fullBreadcrumbLabel = '';
+    let shortBreadcrumbLabel = '';
+    let navButtonElement;
+
+    // Maximum width for breadcrumb text (in pixels)
+    const MAX_BREADCRUMB_WIDTH = 180; // Adjusted to leave space for the back icon
+
+    // Function to calculate the width of text with the correct font
+    function getTextWidth(text, font = '14px "Lexend Deca Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif') {
+        // Create a canvas element to measure text width
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        context.font = font;
+        
+        // Apply the font weight if needed for more accurate calculations
+        if (window.getComputedStyle) {
+            try {
+                const style = window.getComputedStyle(document.body);
+                const fontWeight = style.getPropertyValue('--font-weight-bold') || '700';
+                context.font = `${fontWeight} ${font}`;
+            } catch (e) {
+                console.warn('Could not get computed style, using default font weight');
+            }
+        }
+        
+        const metrics = context.measureText(text);
+        return metrics.width;
+    }
+    
+    // Function to create optimal breadcrumb text that fits available space
+    function createOptimalBreadcrumb(pathLabels) {
+        // Save full breadcrumb first
+        fullBreadcrumbLabel = pathLabels.join(' / ');
+        
+        // If full breadcrumb fits, use it
+        if (getTextWidth(fullBreadcrumbLabel) <= MAX_BREADCRUMB_WIDTH) {
+            return fullBreadcrumbLabel;
+        }
+        
+        // If we only have one or two items, just use ellipsis + last item
+        if (pathLabels.length <= 2) {
+            return '... / ' + pathLabels[pathLabels.length - 1];
+        }
+        
+        // Try different shortened versions
+        let shortened = '';
+        // Always include Settings (first element) and current path (last elements)
+        // Try adding one more segment from the end each time
+        for (let visibleSegments = 2; visibleSegments <= pathLabels.length; visibleSegments++) {
+            const endSegments = pathLabels.slice(-visibleSegments);
+            const candidateText = '... / ' + endSegments.join(' / ');
+            
+            if (getTextWidth(candidateText) <= MAX_BREADCRUMB_WIDTH) {
+                shortened = candidateText;
+            } else {
+                // If this version doesn't fit, use previous version
+                break;
+            }
+        }
+        
+        // If no shortened version fits, just show the last segment
+        if (!shortened) {
+            shortened = '... / ' + pathLabels[pathLabels.length - 1];
+        }
+        
+        // Store the shortened version for tooltip
+        shortBreadcrumbLabel = shortened;
+        return shortened;
+    }
+
+    // Function to update breadcrumb label based on navigation path
+    function updateBreadcrumbLabel() {
+        if (navigationPath.length <= 0) {
+            breadcrumbLabel = $text('settings.settings.text');
+            fullBreadcrumbLabel = breadcrumbLabel;
+            return;
+        }
+        
+        // Create breadcrumb label with all path segments
+        const pathLabels = [];
+        
+        // Always start with "Settings"
+        pathLabels.push($text('settings.settings.text'));
+        
+        // Add each path segment's translated name (except the last one which is current view)
+        for (let i = 0; i < navigationPath.length - 1; i++) {
+            const segment = navigationPath[i];
+            const translationKey = `settings.${segment}.text`;
+            pathLabels.push($text(translationKey));
+        }
+        
+        // Create optimal breadcrumb display that fits
+        breadcrumbLabel = createOptimalBreadcrumb(pathLabels);
+        console.log('Updated breadcrumb:', breadcrumbLabel); // Debug
+    }
+    
+    // Update breadcrumb on window resize
+    function handleResize() {
+        // Only update if we already have a navigation path
+        if (navigationPath.length > 0) {
+            updateBreadcrumbLabel();
+        }
+    }
 
     // Reactive variables
     $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
@@ -158,30 +261,6 @@ changes to the documentation (to keep the documentation up to date).
         console.log('Breadcrumb label:', breadcrumbLabel); // Debug
     }
 
-    // Function to update breadcrumb label based on navigation path
-    function updateBreadcrumbLabel() {
-        if (navigationPath.length <= 0) {
-            breadcrumbLabel = $text('settings.settings.text');
-            return;
-        }
-        
-        // Create breadcrumb label with all path segments except the last one
-        const pathLabels = [];
-        
-        // Always start with "Settings"
-        pathLabels.push($text('settings.settings.text'));
-        
-        // Add each path segment's translated name (except the last one which is current view)
-        for (let i = 0; i < navigationPath.length - 1; i++) {
-            const segment = navigationPath[i];
-            const translationKey = `settings.${segment}.text`;
-            pathLabels.push($text(translationKey));
-        }
-        
-        breadcrumbLabel = pathLabels.join(' / ');
-        console.log('Updated breadcrumb:', breadcrumbLabel); // Debug
-    }
-    
     // Enhanced back navigation - handle both main and nested views
     function backToMainView() {
         if (navigationPath.length > 1) {
@@ -274,10 +353,12 @@ changes to the documentation (to keep the documentation up to date).
     onMount(() => {
         updateMobileState();
         window.addEventListener('resize', updateMobileState);
+        window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
         
         return () => {
             window.removeEventListener('resize', updateMobileState);
+            window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
         };
     });
@@ -395,9 +476,11 @@ changes to the documentation (to keep the documentation up to date).
                 class:left-aligned={activeSettingsView !== 'main'}
                 on:click={activeSettingsView !== 'main' ? backToMainView : null}
                 aria-disabled={activeSettingsView === 'main'}
+                bind:this={navButtonElement}
+                use:tooltip={fullBreadcrumbLabel !== breadcrumbLabel ? { content: fullBreadcrumbLabel, placement: 'bottom' } : null}
             >
                 <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
-                {breadcrumbLabel}
+                <span>{breadcrumbLabel}</span>
             </button>
             
             <a 
@@ -602,7 +685,7 @@ changes to the documentation (to keep the documentation up to date).
         font-size: 14px;
         color: var(--color-grey-60);
         cursor: default;
-        display: flex;  /* Add this to properly align icon and text */
+        display: flex;
         align-items: center;
         position: absolute;
         left: 110px;
@@ -610,10 +693,15 @@ changes to the documentation (to keep the documentation up to date).
         padding: 4px 0;
         transition: all 0.3s ease;
         pointer-events: none; /* Disable click interactions by default */
-        white-space: nowrap; /* Prevent line breaks in breadcrumbs */
+        max-width: 290px; /* Set maximum width */
+    }
+    
+    /* Add a span inside button to handle text overflow */
+    .nav-button span {
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 200px;
+        display: block;
     }
 
     .nav-button.left {
