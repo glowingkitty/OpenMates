@@ -200,7 +200,7 @@ step_7_top_content_svelte:
     }
 
     .text-block {
-        margin: 15px 0 15px 0;
+        margin: 20px 0 20px 0;
         text-align: center;
     }
     
@@ -215,7 +215,8 @@ step_7_top_content_svelte:
     .settings-header {
         display: flex;
         justify-content: flex-end;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
+        padding-right: 10px;
     }
     
     .default-settings-text {
