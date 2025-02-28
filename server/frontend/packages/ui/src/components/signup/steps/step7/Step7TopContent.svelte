@@ -86,12 +86,14 @@ step_7_top_content_svelte:
     <div class="text-block">
         {@html $text('signup.default_settings_balance.text')}
         <br><br>
-        {@html $text('signup.click_toggle_to_open_settings.text')}
+        <mark>{@html $text('signup.click_toggle_to_open_settings.text')}</mark>
     </div>
     
     <div class="settings-block">
-        <h3>{@html $text('signup.default_settings.text')}</h3>
-    
+        <div class="settings-header">
+            <div class="default-settings-text">{@html $text('signup.default_settings.text')}</div>
+        </div>
+
         <SettingsItem 
             type="submenu" 
             icon="privacy" 
@@ -145,22 +147,26 @@ step_7_top_content_svelte:
     }
 
     .text-block {
-        margin: 20px 0 30px 0;
+        margin: 15px 0 15px 0;
         text-align: center;
     }
     
     .settings-block {
-        width: 90%;
+        width: 80%;
         background-color: var(--color-grey-20);
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
     
-    .settings-block h3 {
-        margin-top: 0;
-        margin-bottom: 16px;
-        color: var(--color-grey-80);
+    .settings-header {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 10px;
     }
     
+    .default-settings-text {
+        font-size: 14px;
+        color: var(--color-grey-80);
+    }
 </style>

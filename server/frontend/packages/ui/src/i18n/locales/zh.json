@@ -2036,8 +2036,8 @@
             "context": "explaining how to make changes to the default settings"
         },
         "default_settings": {
-            "text": "默认设置",
-            "en_original": "Default settings",
+            "text": "默认",
+            "en_original": "Default",
             "context": "Toggle title for default settings"
         },
         "accept_settings": {

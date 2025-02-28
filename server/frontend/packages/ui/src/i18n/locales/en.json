@@ -617,7 +617,7 @@
             "context": "explaining how to make changes to the default settings"
         },
         "default_settings": {
-            "text": "Default settings",
+            "text": "Default",
             "context": "Toggle title for default settings"
         },
         "accept_settings": {
