@@ -38,7 +38,7 @@ changes to the documentation (to keep the documentation up to date).
 {#if currentView === 'main'}
     <SettingsItem 
         type="subsubmenu"
-        icon="language"
+        icon="subsetting_icon subsetting_icon_language"
         subtitle="Language"
         title="English (US)"
         onClick={showLanguageSettings}
