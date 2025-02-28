@@ -51,6 +51,9 @@ changes to the documentation (to keep the documentation up to date).
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
     
+    // Variable to store language change event handler
+    let languageChangeHandler: () => void;
+
     // Props for user and team information
     export let isLoggedIn = false;
     
@@ -184,7 +187,6 @@ changes to the documentation (to keep the documentation up to date).
         
         // Create optimal breadcrumb display that fits
         breadcrumbLabel = createOptimalBreadcrumb(pathLabels);
-        console.log('Updated breadcrumb:', breadcrumbLabel); // Debug
     }
     
     // Update breadcrumb on window resize

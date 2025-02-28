@@ -87,7 +87,6 @@ changes to the documentation (to keep the documentation up to date).
         if (newLocale === currentLanguage) return;
         
         currentLanguage = newLocale;
-        console.log('Changing language to:', newLocale);
 
         // Store preference in localStorage
         localStorage.setItem('preferredLanguage', newLocale);

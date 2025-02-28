@@ -183,8 +183,6 @@
         const select = event.target as HTMLSelectElement;
         const newLocale = select.value;
         
-        console.log('Changing language to:', newLocale);
-
         // Store preference in localStorage
         localStorage.setItem('preferredLanguage', newLocale);
         
