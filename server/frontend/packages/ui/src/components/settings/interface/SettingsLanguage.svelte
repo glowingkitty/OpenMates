@@ -32,17 +32,6 @@ changes to the documentation (to keep the documentation up to date).
 
     function selectLanguage(code: string) {
         currentLanguage = code;
-        // Additional language change logic would go here
-        
-        // After selecting, we could optionally navigate back
-        /*
-        dispatch('openSettings', {
-            settingsPath: 'interface',
-            direction: 'backward',
-            icon: 'interface',
-            title: $text('settings.interface.text')
-        });
-        */
     }
 </script>
 

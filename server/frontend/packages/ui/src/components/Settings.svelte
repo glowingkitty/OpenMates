@@ -87,6 +87,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = [];
+    let breadcrumbLabel = $text('settings.settings.text');
 
     // Reactive variables
     $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
@@ -125,8 +126,10 @@ changes to the documentation (to keep the documentation up to date).
         // Split the view path for breadcrumb navigation
         if (settingsPath !== 'main') {
             navigationPath = settingsPath.split('/');
+            updateBreadcrumbLabel();
         } else {
             navigationPath = [];
+            breadcrumbLabel = $text('settings.settings.text');
         }
         
         // Reset submenu info visibility
@@ -150,6 +153,33 @@ changes to the documentation (to keep the documentation up to date).
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
         }
+
+        console.log('Navigation path:', navigationPath); // Debug
+        console.log('Breadcrumb label:', breadcrumbLabel); // Debug
+    }
+
+    // Function to update breadcrumb label based on navigation path
+    function updateBreadcrumbLabel() {
+        if (navigationPath.length <= 0) {
+            breadcrumbLabel = $text('settings.settings.text');
+            return;
+        }
+        
+        // Create breadcrumb label with all path segments except the last one
+        const pathLabels = [];
+        
+        // Always start with "Settings"
+        pathLabels.push($text('settings.settings.text'));
+        
+        // Add each path segment's translated name (except the last one which is current view)
+        for (let i = 0; i < navigationPath.length - 1; i++) {
+            const segment = navigationPath[i];
+            const translationKey = `settings.${segment}.text`;
+            pathLabels.push($text(translationKey));
+        }
+        
+        breadcrumbLabel = pathLabels.join(' / ');
+        console.log('Updated breadcrumb:', breadcrumbLabel); // Debug
     }
     
     // Enhanced back navigation - handle both main and nested views
@@ -174,6 +204,7 @@ changes to the documentation (to keep the documentation up to date).
             showSubmenuInfo = false;
             navButtonLeft = false;
             navigationPath = [];
+            breadcrumbLabel = $text('settings.settings.text');
             
             // Reset help link to base when returning to main view
             currentHelpLink = baseHelpLink;
@@ -366,7 +397,7 @@ changes to the documentation (to keep the documentation up to date).
                 aria-disabled={activeSettingsView === 'main'}
             >
                 <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
-                {@html $text('settings.settings.text')}
+                {breadcrumbLabel}
             </button>
             
             <a 
@@ -571,6 +602,7 @@ changes to the documentation (to keep the documentation up to date).
         font-size: 14px;
         color: var(--color-grey-60);
         cursor: default;
+        display: flex;  /* Add this to properly align icon and text */
         align-items: center;
         position: absolute;
         left: 110px;
@@ -578,6 +610,10 @@ changes to the documentation (to keep the documentation up to date).
         padding: 4px 0;
         transition: all 0.3s ease;
         pointer-events: none; /* Disable click interactions by default */
+        white-space: nowrap; /* Prevent line breaks in breadcrumbs */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
     }
 
     .nav-button.left {

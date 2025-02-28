@@ -27,10 +27,10 @@ changes to the documentation (to keep the documentation up to date).
         childComponent = SettingsLanguage;
         
         dispatch('openSettings', {
-            settingsPath: 'interface/language',
+            settingsPath: 'interface/language', 
             direction: 'forward',
             icon: 'language',
-            title: `${$text('settings.interface.text')} / ${$text('settings.language.text')}`
+            title: $text('settings.language.text')
         });
     }
 </script>
