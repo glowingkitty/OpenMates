@@ -91,29 +91,25 @@ step_7_top_content_svelte:
     
     <div class="settings-block">
         <h3>{@html $text('signup.default_settings.text')}</h3>
-        
-        <div class="settings-options">
-            <SettingsItem 
-                type="submenu" 
-                icon="privacy" 
-                title={$text('settings.privacy.text')}
-                onClick={() => handleSettingsClick('privacy')}
-            />
-            
-            <SettingsItem 
-                type="submenu" 
-                icon="apps" 
-                title={$text('settings.apps.text')}
-                onClick={() => handleSettingsClick('apps')}
-            />
-            
-            <SettingsItem 
-                type="submenu" 
-                icon="interface" 
-                title={$text('settings.interface.text')}
-                onClick={() => handleSettingsClick('interface')}
-            />
-        </div>
+    
+        <SettingsItem 
+            type="submenu" 
+            icon="privacy" 
+            title={$text('settings.privacy.text')}
+            onClick={() => handleSettingsClick('privacy')}
+        />
+        <SettingsItem 
+            type="submenu" 
+            icon="apps" 
+            title={$text('settings.apps.text')}
+            onClick={() => handleSettingsClick('apps')}
+        />
+        <SettingsItem 
+            type="submenu" 
+            icon="interface" 
+            title={$text('settings.interface.text')}
+            onClick={() => handleSettingsClick('interface')}
+        />
     </div>
 </div>
 
@@ -167,52 +163,4 @@ step_7_top_content_svelte:
         color: var(--color-grey-80);
     }
     
-    .settings-options {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .setting-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--color-grey-30);
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    
-    .setting-item:hover {
-        background-color: var(--color-grey-30);
-        border-radius: 6px;
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-    
-    .setting-toggle {
-        width: 36px;
-        height: 20px;
-        background-color: var(--color-primary-light);
-        border-radius: 10px;
-        position: relative;
-    }
-    
-    .setting-toggle::after {
-        content: "";
-        position: absolute;
-        width: 18px;
-        height: 18px;
-        background-color: white;
-        border-radius: 50%;
-        top: 1px;
-        right: 1px;
-        transition: transform 0.2s;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    }
-    
-    .setting-label {
-        color: var(--color-grey-80);
-        font-weight: 500;
-    }
 </style>
