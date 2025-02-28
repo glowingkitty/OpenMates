@@ -1,9 +1,10 @@
 <script lang="ts">
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
+    import Icon from './Icon.svelte';
 
     // Props for the component
-    export let icon: string; // CSS class for the icon
+    export let icon: string; // Icon name for the Icon component
     export let title: string;
     export let subtitle: string = ""; // Optional subtitle for subsubmenu items
     export let type: 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' = 'submenu'; // Type of settings item
@@ -172,15 +173,6 @@
         border: none;
         cursor: pointer;
         transition: background-color 0.2s ease;
-    }
-    
-    .modify-button:hover {
-        background-color: var(--color-grey-40);
-    }
-    
-    .modify-button .clickable-icon {
-        width: 13px;
-        height: 13px;
     }
     
     .toggle-container {

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  // TODO later replace all existing icons with this component
+
   // Props for the component
   export let name: string = ''; // e.g., 'app', 'chat', 'billing'
   export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' = 'default';
@@ -14,7 +16,7 @@
   export let className: string = ''; // Additional custom classes
 
   // Create a reactive variable for the lowercase name
-  $: lowerCaseName = name.toLowerCase();
+  $: lowerCaseName = name.toLowerCase().replace(/\s+/g, '_');
 
   // Constants for icon mappings and provider-specific settings
   const iconMappings: Record<string, string> = {
@@ -33,6 +35,12 @@
     'pdfeditor': 'pdf',
     'anthropic': 'claude',
     'insights': 'insight',
+    'privacy': 'lock',
+    'apps': 'app',
+    'shared': 'share',
+    'messengers': 'chat',
+    'developers': 'coding',
+    'interface': 'language',
     // Add more mappings as needed
   };
 
@@ -58,15 +66,22 @@
   $: isSpecialIcon = lowerCaseName === 'mates';
 
   // Compute the final class name
+  // Compute the final class name
   $: computedClassName = [
-    isSpecialIcon ? 'icon' : (type === 'clickable' ? 'clickable-icon' : 'icon'),
+    // Base icon class
+    'icon',
+    // Add settings_size for subsetting type
+    type === 'subsetting' ? 'settings_size' : '',
+    // Add subsetting_icon for subsetting type
     type === 'subsetting' ? 'subsetting_icon' : '',
+    // Add specific icon class for subsetting type
+    type === 'subsetting' ? `subsetting_icon_${lowerCaseName}` : '',
+    // The rest remains unchanged
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
-    // Special handling for mates icon
     lowerCaseName === 'mates' ? 'mates' : '',
     type === 'provider' ? `provider-icon ${type === 'provider' && ['openai'].includes(lowerCaseName) ? `provider-${lowerCaseName}` : ''}` : 
-      (type === 'default' ? lowerCaseName : (type === 'clickable' || type === 'subsetting') ? lowerCaseName : `${type}-${lowerCaseName}`),
+      (type === 'default' ? lowerCaseName : (type === 'clickable') ? lowerCaseName : type === 'subsetting' ? '' : `${type}-${lowerCaseName}`),
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
@@ -144,10 +159,9 @@
     getBorderRadius(),
     color ? `--icon-color: ${color};` : '',
     // Skip setting these properties for special icons that rely on CSS classes
-    lowerCaseName !== 'mates' ? [
+    (lowerCaseName !== 'mates' && type !== 'subsetting') ? [
       `--icon-name: ${lowerCaseName};`,
       `--icon-url: var(--icon-url-${iconUrlName});`,
-      type === 'subsetting' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'app' ? `--icon-background: var(--color-app-${lowerCaseName});` : '',
       type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
