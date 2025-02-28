@@ -93,7 +93,7 @@ changes to the documentation (to keep the documentation up to date).
     let navButtonElement;
 
     // Maximum width for breadcrumb text (in pixels)
-    const MAX_BREADCRUMB_WIDTH = 180; // Adjusted to leave space for the back icon
+    const MAX_BREADCRUMB_WIDTH = 220; // Adjusted to leave space for the back icon
 
     // Function to calculate the width of text with the correct font
     function getTextWidth(text, font = '14px "Lexend Deca Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif') {

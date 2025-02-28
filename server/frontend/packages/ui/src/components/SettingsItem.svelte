@@ -56,8 +56,10 @@
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
-            <!-- Fixed icon implementation to work consistently across all types -->
-            <div class={iconClass}></div>
+            <!-- Modified to support content projection for custom icon content -->
+            <div class={iconClass}>
+                <slot name="icon"></slot>
+            </div>
             
             <div class="text-container">
                 {#if subtitle}
