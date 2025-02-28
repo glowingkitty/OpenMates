@@ -50,6 +50,8 @@ step_7_top_content_svelte:
     import { onMount, onDestroy } from 'svelte';
     import { settingsMenuVisible } from '../../../Settings.svelte';
     import { isSignupSettingsStep } from '../../../../stores/signupState';
+    import SettingsItem from '../../../SettingsItem.svelte';
+    import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
     
     // Auto-set the settings step state when this step is mounted
     // but DON'T auto-open the menu - let the user click to open it
@@ -67,9 +69,10 @@ step_7_top_content_svelte:
         isSignupSettingsStep.set(false);
     });
     
-    // Handle click on one of the settings options
-    function handleSettingClick() {
-        // When user clicks any setting, open the menu
+    // Handle click on one of the settings options to open settings menu with specific path
+    function handleSettingsClick(settingsPath: string) {
+        // When user clicks any setting, open the menu and navigate to the specific path
+        settingsDeepLink.set(settingsPath);
         settingsMenuVisible.set(true);
     }
 </script>
@@ -88,6 +91,29 @@ step_7_top_content_svelte:
     
     <div class="settings-block">
         <h3>{@html $text('signup.default_settings.text')}</h3>
+        
+        <div class="settings-options">
+            <SettingsItem 
+                type="submenu" 
+                icon="privacy" 
+                title={$text('settings.privacy.text')}
+                onClick={() => handleSettingsClick('privacy')}
+            />
+            
+            <SettingsItem 
+                type="submenu" 
+                icon="apps" 
+                title={$text('settings.apps.text')}
+                onClick={() => handleSettingsClick('apps')}
+            />
+            
+            <SettingsItem 
+                type="submenu" 
+                icon="interface" 
+                title={$text('settings.interface.text')}
+                onClick={() => handleSettingsClick('interface')}
+            />
+        </div>
     </div>
 </div>
 

@@ -29,6 +29,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
     import { AuthService } from '../services/authService';
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -468,6 +469,36 @@ changes to the documentation (to keep the documentation up to date).
         if ($text) {
             updateBreadcrumbLabel();
         }
+    }
+
+    // Handle deep link requests from other components
+    $: if ($settingsDeepLink) {
+        const settingsPath = $settingsDeepLink;
+        
+        // Reset the deep link store immediately to prevent multiple triggers
+        settingsDeepLink.set(null);
+        
+        // Open the settings menu if it's not already open
+        if (!isMenuVisible) {
+            isMenuVisible = true;
+            settingsMenuVisible.set(true);
+        }
+        
+        // After a brief delay to ensure menu is open, navigate to the requested settings path
+        setTimeout(() => {
+            // Determine the icon and title based on the path
+            const icon = settingsPath.split('/')[0];
+            const title = $text(`settings.${icon}.text`);
+            
+            handleOpenSettings({ 
+                detail: {
+                    settingsPath,
+                    direction: 'forward',
+                    icon,
+                    title
+                }
+            });
+        }, 300);
     }
 </script>
 
