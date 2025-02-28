@@ -22,10 +22,11 @@ step_8_top_content_svelte:
             - 'mates'
         connected_documentation:
             - '/signup/mates'
-    mates_block:
+    settings_block:
         type: 'settings_block'
         text:
             - $text('signup.default_settings.text')
+            - $text('settings.mates.text')
             - $text('settings.mates.text')
         purpose:
             - 'Quick access to Mates settings.'

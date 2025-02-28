@@ -86,21 +86,29 @@ changes to the documentation (to keep the documentation up to date).
         // Skip if already selected
         if (newLocale === currentLanguage) return;
         
-        currentLanguage = newLocale;
-
-        // Store preference in localStorage
-        localStorage.setItem('preferredLanguage', newLocale);
-        
         try {
-            // Set new locale and wait for translations to load
-            await locale.set(newLocale);
+            // Set new locale first
+            locale.set(newLocale);
+            
+            // Update current language after locale is set
+            currentLanguage = newLocale;
+
+            // Store preference in localStorage
+            localStorage.setItem('preferredLanguage', newLocale);
+            
+            // Wait for translations to load
             await waitLocale();
 
             // Update HTML lang attribute
             document.documentElement.setAttribute('lang', newLocale);
 
-            // Reload meta tags with new language
-            await loadMetaTags();
+            try {
+                // Attempt to reload meta tags with new language (with proper error handling)
+                await loadMetaTags();
+            } catch (metaError) {
+                console.error('Error loading meta tags:', metaError);
+                // Continue execution even if meta tags fail to load
+            }
 
             // Get updated meta tags for the current page
             const metaKey = 'for_all_of_us'; // default to home page
@@ -115,7 +123,7 @@ changes to the documentation (to keep the documentation up to date).
             }
 
             const metaKeywords = document.querySelector('meta[name="keywords"]');
-            if (metaKeywords) {
+            if (metaKeywords && metaTags.keywords.length > 0) {
                 metaKeywords.setAttribute('content', metaTags.keywords.join(', '));
             }
 
@@ -156,6 +164,11 @@ changes to the documentation (to keep the documentation up to date).
             }, 0);
         } catch (error) {
             console.error('Error changing language:', error);
+            // Revert to previous language on error
+            if (currentLanguage !== newLocale) {
+                currentLanguage = newLocale;
+                locale.set(currentLanguage);
+            }
         }
     };
 

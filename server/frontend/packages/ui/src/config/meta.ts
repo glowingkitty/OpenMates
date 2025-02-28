@@ -61,87 +61,118 @@ export let pageMeta: PageMetaTags = {
 export async function loadMetaTags(): Promise<void> {
     try {
         const currentLanguage = getCurrentLanguage();
-        const metaData = await import(`../i18n/locales/${currentLanguage}.json`);
+        let metaData;
         
+        // Try to load the current language's metadata
+        try {
+            metaData = await import(`../i18n/locales/${currentLanguage}.json`);
+        } catch (e) {
+            console.warn(`Metadata for language ${currentLanguage} not found, falling back to English`);
+            // Fallback to English if current language metadata is not available
+            metaData = await import(`../i18n/locales/en.json`);
+        }
+        
+        // Check if metadata exists in the language file
+        if (!metaData.metadata || !metaData.metadata.default) {
+            console.warn(`Metadata structure missing in language ${currentLanguage}, falling back to English`);
+            // Fallback to English metadata
+            metaData = await import(`../i18n/locales/en.json`);
+            
+            // If English also doesn't have the metadata structure, use hardcoded defaults
+            if (!metaData.metadata || !metaData.metadata.default) {
+                throw new Error('Metadata structure missing in English language file');
+            }
+        }
+
         // Update defaultMeta
         defaultMeta = {
-            title: metaData.metadata.default.title.text,
-            description: metaData.metadata.default.description.text,
+            title: metaData.metadata.default.title?.text || "OpenMates",
+            description: metaData.metadata.default.description?.text || "",
             image: "/images/og-image.jpg",
             imageWidth: 1200,
             imageHeight: 630,
             url: "https://openmates.org",
             type: "website",
-            keywords: metaData.metadata.default.keywords.text.split(', '),
+            keywords: (metaData.metadata.default.keywords?.text || "").split(', ').filter(Boolean),
             author: "OpenMates Team",
-            locale: "en_US",
+            locale: `${currentLanguage}_${currentLanguage.toUpperCase()}`,
             siteName: "OpenMates",
             logo: "/images/logo.png",
             logoWidth: 436,
             logoHeight: 92,
         };
 
-        // Update pageMeta
+        // Safe function to get nested properties with fallback
+        const getMetaProperty = (path: string[], fallback: string = ""): string => {
+            let obj = metaData.metadata;
+            for (const key of path) {
+                if (!obj || typeof obj !== 'object') return fallback;
+                obj = obj[key];
+            }
+            return obj?.text || fallback;
+        };
+
+        // Update pageMeta with safe property access
         pageMeta = {
             for_all_of_us: {
                 ...defaultMeta,
-                title: metaData.metadata.for_all_of_us.title.text,
+                title: getMetaProperty(['for_all_of_us', 'title'], defaultMeta.title),
             },
             for_developers: {
                 ...defaultMeta,
-                title: metaData.metadata.for_developers.title.text,
-                description: metaData.metadata.for_developers.description.text,
+                title: getMetaProperty(['for_developers', 'title'], defaultMeta.title),
+                description: getMetaProperty(['for_developers', 'description'], defaultMeta.description),
             },
             docs: {
                 ...defaultMeta,
-                title: metaData.metadata.docs.title.text,
-                description: metaData.metadata.docs.description.text,
+                title: getMetaProperty(['docs', 'title'], defaultMeta.title),
+                description: getMetaProperty(['docs', 'description'], defaultMeta.description),
                 type: "article"
             },
             docsApi: {
                 ...defaultMeta,
-                title: metaData.metadata.docs_api.title.text,
-                description: metaData.metadata.docs_api.description.text,
+                title: getMetaProperty(['docs_api', 'title'], defaultMeta.title),
+                description: getMetaProperty(['docs_api', 'description'], defaultMeta.description),
             },
             docsDesignGuidelines: {
                 ...defaultMeta,
-                title: metaData.metadata.docs_design_guidelines.title.text,
-                description: metaData.metadata.docs_design_guidelines.description.text,
+                title: getMetaProperty(['docs_design_guidelines', 'title'], defaultMeta.title),
+                description: getMetaProperty(['docs_design_guidelines', 'description'], defaultMeta.description),
             },
             docsDesignSystem: {
                 ...defaultMeta,
-                title: metaData.metadata.docs_design_system.title.text,
-                description: metaData.metadata.docs_design_system.description.text,
+                title: getMetaProperty(['docs_design_system', 'title'], defaultMeta.title),
+                description: getMetaProperty(['docs_design_system', 'description'], defaultMeta.description),
             },
             docsRoadmap: {
                 ...defaultMeta,
-                title: metaData.metadata.docs_roadmap.title.text,
-                description: metaData.metadata.docs_roadmap.description.text,
+                title: getMetaProperty(['docs_roadmap', 'title'], defaultMeta.title),
+                description: getMetaProperty(['docs_roadmap', 'description'], defaultMeta.description),
             },
             docsUserGuide: {
                 ...defaultMeta,
-                title: metaData.metadata.docs_user_guide.title.text,
-                description: metaData.metadata.docs_user_guide.description.text,
+                title: getMetaProperty(['docs_user_guide', 'title'], defaultMeta.title),
+                description: getMetaProperty(['docs_user_guide', 'description'], defaultMeta.description),
             },
             legalImprint: {
                 ...defaultMeta,
-                title: metaData.metadata.legal_imprint.title.text,
-                description: metaData.metadata.legal_imprint.description.text,
+                title: getMetaProperty(['legal_imprint', 'title'], defaultMeta.title),
+                description: getMetaProperty(['legal_imprint', 'description'], defaultMeta.description),
             },
             legalPrivacy: {
                 ...defaultMeta,
-                title: metaData.metadata.legal_privacy.title.text,
-                description: metaData.metadata.legal_privacy.description.text,
+                title: getMetaProperty(['legal_privacy', 'title'], defaultMeta.title),
+                description: getMetaProperty(['legal_privacy', 'description'], defaultMeta.description),
             },
             legalTerms: {
                 ...defaultMeta,
-                title: metaData.metadata.legal_terms.title.text,
-                description: metaData.metadata.legal_terms.description.text,
+                title: getMetaProperty(['legal_terms', 'title'], defaultMeta.title),
+                description: getMetaProperty(['legal_terms', 'description'], defaultMeta.description),
             },
             webapp: {
                 ...defaultMeta,
-                title: metaData.metadata.webapp.title.text,
-                description: metaData.metadata.webapp.description.text,
+                title: getMetaProperty(['webapp', 'title'], defaultMeta.title),
+                description: getMetaProperty(['webapp', 'description'], defaultMeta.description),
                 type: "website"
             },
         };
