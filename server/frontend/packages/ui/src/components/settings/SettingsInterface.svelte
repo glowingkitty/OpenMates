@@ -11,15 +11,54 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
+    import { locale } from 'svelte-i18n';
+    import { browser } from '$app/environment';
 
     const dispatch = createEventDispatcher();
     
     // Track current view within this component
     let currentView = 'main';
     let childComponent = null;
+
+    // Language data
+    type Language = {
+        code: string;
+        name: string;
+        shortCode: string;
+    };
+
+    const supportedLanguages: Language[] = [
+        { code: 'en', name: 'English', shortCode: 'EN' },
+        { code: 'de', name: 'Deutsch', shortCode: 'DE' },
+        { code: 'es', name: 'Español', shortCode: 'ES' },
+        { code: 'fr', name: 'Français', shortCode: 'FR' },
+        { code: 'zh', name: '中文', shortCode: 'ZH' },
+        { code: 'ja', name: '日本語', shortCode: 'JA' }
+    ];
+
+    let currentLanguage = 'en';
+    $: currentLanguageObj = supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0];
+
+    // Initialize current language
+    onMount(() => {
+        if (browser) {
+            const savedLocale = localStorage.getItem('preferredLanguage');
+            if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
+                currentLanguage = savedLocale;
+            } else {
+                // Use browser language
+                const browserLang = navigator.language.split('-')[0];
+                if (supportedLanguages.some(lang => lang.code === browserLang)) {
+                    currentLanguage = browserLang;
+                } else {
+                    currentLanguage = 'en';
+                }
+            }
+        }
+    });
 
     // This function will properly dispatch the event to the parent Settings.svelte component
     function showLanguageSettings() {
@@ -30,8 +69,20 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'interface/language', 
             direction: 'forward',
             icon: 'language',
-            title: $text('settings.language.text')
+            title: $text('settings.language.text'),
+            translationKey: 'settings.language'
         });
+    }
+
+    // Handle language change event from SettingsLanguage component
+    function handleLanguageChanged(event) {
+        currentLanguage = event.detail.locale;
+        // Go back to main view after selection
+        currentView = 'main';
+        childComponent = null;
+        
+        // Let parent Settings component know we want to go back to interface main view
+        dispatch('navigateBack');
     }
 </script>
 
@@ -39,10 +90,13 @@ changes to the documentation (to keep the documentation up to date).
     <SettingsItem 
         type="subsubmenu"
         icon="subsetting_icon subsetting_icon_language"
-        subtitle="Language"
-        title="English (US)"
+        subtitle={$text('settings.language.text')}
+        title={currentLanguageObj.name}
         onClick={showLanguageSettings}
     />
 {:else if currentView === 'language' && childComponent}
-    <svelte:component this={childComponent} />
+    <svelte:component 
+        this={childComponent} 
+        on:languageChanged={handleLanguageChanged} 
+    />
 {/if}

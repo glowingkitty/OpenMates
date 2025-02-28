@@ -48,6 +48,9 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from './SettingsItem.svelte'; // Add this import
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     
+    // Import the normal store instead of the derived one that was causing the error
+    import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+    
     // Props for user and team information
     export let isLoggedIn = false;
     
@@ -429,6 +432,13 @@ changes to the documentation (to keep the documentation up to date).
             logout();
         }
     }
+
+    // Subscribe to both text and navigation store to handle language updates
+    $: breadcrumbs = $settingsNavigationStore.breadcrumbs.map(crumb => ({
+        ...crumb,
+        // Apply translations to breadcrumb titles
+        title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
+    }));
 </script>
 
 {#if showSettingsIcon}
@@ -477,7 +487,7 @@ changes to the documentation (to keep the documentation up to date).
                 on:click={activeSettingsView !== 'main' ? backToMainView : null}
                 aria-disabled={activeSettingsView === 'main'}
                 bind:this={navButtonElement}
-                use:tooltip={fullBreadcrumbLabel !== breadcrumbLabel ? { content: fullBreadcrumbLabel, placement: 'bottom' } : null}
+                use:tooltip
             >
                 <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
                 <span>{breadcrumbLabel}</span>

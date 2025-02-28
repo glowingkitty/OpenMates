@@ -17,6 +17,7 @@ changes to the documentation (to keep the documentation up to date).
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../../../config/meta';
     import { createEventDispatcher, onMount } from 'svelte';
+    import { settingsNavigationStore, updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
 
     const dispatch = createEventDispatcher();
 
@@ -28,7 +29,7 @@ changes to the documentation (to keep the documentation up to date).
     };
 
     // Define supported languages with added shortCode property
-    const supportedLanguages: Language[] = [
+    const baseLanguages: Language[] = [
         { code: 'en', name: 'English', shortCode: 'EN' },
         { code: 'de', name: 'Deutsch', shortCode: 'DE' },
         { code: 'es', name: 'Español', shortCode: 'ES' },
@@ -39,22 +40,42 @@ changes to the documentation (to keep the documentation up to date).
 
     // Current language state
     let currentLanguage = 'en';
+    
+    // Browser's default language (set only once)
+    let browserLanguage = 'en';
 
-    // Initialize locale from browser language
+    // Sort languages with browser language at top, but don't reorder when selecting
+    // This is done once during initialization
+    let sortedLanguages: Language[] = [];
+
+    // Find the current language object
+    $: currentLanguageObj = baseLanguages.find(lang => lang.code === currentLanguage) || baseLanguages[0];
+
+    // Initialize locale from browser language and sort languages
     const initializeLocale = () => {
         if (browser) {
+            // Get saved locale
             const savedLocale = localStorage.getItem('preferredLanguage');
-            if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
+            
+            // Get browser language
+            browserLanguage = navigator.language.split('-')[0];
+            if (!baseLanguages.some(lang => lang.code === browserLanguage)) {
+                browserLanguage = 'en'; // Default to English if browser language not supported
+            }
+            
+            // Set current language
+            if (savedLocale && baseLanguages.some(lang => lang.code === savedLocale)) {
                 currentLanguage = savedLocale;
             } else {
-                // Use browser language
-                const browserLang = navigator.language.split('-')[0];
-                if (supportedLanguages.some(lang => lang.code === browserLang)) {
-                    currentLanguage = browserLang;
-                } else {
-                    currentLanguage = 'en';
-                }
+                currentLanguage = browserLanguage;
             }
+            
+            // Sort languages with browser language first, then alphabetically
+            sortedLanguages = [...baseLanguages].sort((a, b) => {
+                if (a.code === browserLanguage) return -1;
+                if (b.code === browserLanguage) return 1;
+                return a.name.localeCompare(b.name);
+            });
         }
     };
 
@@ -115,13 +136,28 @@ changes to the documentation (to keep the documentation up to date).
                 ogLocale.setAttribute('content', `${newLocale}_${newLocale.toUpperCase()}`);
             }
 
+            // Update breadcrumbs with new translations
+            updateNavigationAndBreadcrumbs();
+
             // Dispatch event to inform parent components that language has changed
-            dispatch('languageChanged', { locale: newLocale });
+            dispatch('languageChanged', { 
+                locale: newLocale,
+                languageName: currentLanguageObj.name
+            });
 
         } catch (error) {
             console.error('Error changing language:', error);
         }
     };
+
+    // Special function to ensure breadcrumbs and navigation elements update
+    function updateNavigationAndBreadcrumbs() {
+        // Update settings navigation breadcrumbs using the current translations
+        updateBreadcrumbsWithLanguage($text);
+        
+        // Force text store subscribers to update by dispatching a custom event
+        window.dispatchEvent(new CustomEvent('language-changed'));
+    }
 
     // Initialize on component mount
     onMount(() => {
@@ -130,7 +166,7 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <div class="settings-language-container">
-    {#each supportedLanguages as language}
+    {#each sortedLanguages as language}
         <SettingsItem 
             type="quickaction"
             icon="language"
