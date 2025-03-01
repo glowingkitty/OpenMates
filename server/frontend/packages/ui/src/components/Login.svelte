@@ -258,7 +258,7 @@
 
 {#if !$isAuthenticated}
     <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
-        <AppIconGrid iconGrid={leftIconGrid} side="left" shifted="columns"/>
+        <AppIconGrid iconGrid={leftIconGrid} shifted="columns"/>
 
         <div class="login-content">
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
@@ -354,6 +354,6 @@
             </div>
         </div>
 
-        <AppIconGrid iconGrid={rightIconGrid} side="right" shifted="columns" />
+        <AppIconGrid iconGrid={rightIconGrid} shifted="columns" />
     </div>
 {/if}

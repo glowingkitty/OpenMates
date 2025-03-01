@@ -12,6 +12,8 @@
     position: relative;
     max-width: 100%;
     min-height: 100%;
+    padding-left: 40px;
+    padding-right: 40px;
 }
 
 .login-content {

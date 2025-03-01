@@ -544,8 +544,8 @@
 
   /* Header icon style */
   .icon.in_header {
-    width: 44px;
-    height: 44px;
+    width: 67.98px;
+    height: 67.98px;
     border-radius: 10px; /* Keep your existing border radius */
     border-width: 1.4px; /* 3.2% of 44px = ~1.4px */
   }

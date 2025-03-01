@@ -48,7 +48,7 @@
 ----------------------------------------------------------------------- -->
 <section class="hero-header">
   <!-- Left icon grid for visual decoration -->
-  <AppIconGrid iconGrid={leftIconGrid} side="left" shifted="columns"/>
+  <AppIconGrid iconGrid={leftIconGrid} shifted="columns"/>
 
   <!-- Center area containing headings, platform details, and chat example -->
   <div class="center-space">
@@ -92,7 +92,7 @@
   </div>
 
   <!-- Right icon grid for visual decoration -->
-  <AppIconGrid iconGrid={rightIconGrid} side="right" shifted="columns" />
+  <AppIconGrid iconGrid={rightIconGrid} shifted="columns" />
 </section>
 
 <style>

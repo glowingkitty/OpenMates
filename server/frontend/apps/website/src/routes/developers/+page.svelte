@@ -48,7 +48,7 @@
 
 <!-- Add header section with background color -->
 <section class="hero-header">
-    <AppIconGrid iconGrid={leftIconGrid} side="left" shifted="columns"/>
+    <AppIconGrid iconGrid={leftIconGrid} shifted="columns"/>
 
     <!-- Center space -->
     <div class="center-space">
@@ -77,7 +77,7 @@
         </div>
     </div>
 
-    <AppIconGrid iconGrid={rightIconGrid} side="right" shifted="columns" />
+    <AppIconGrid iconGrid={rightIconGrid} shifted="columns" />
 </section>
 
 <div class="large-separator"></div>

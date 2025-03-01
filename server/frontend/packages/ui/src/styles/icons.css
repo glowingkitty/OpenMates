@@ -471,11 +471,6 @@ div.clickable-icon {
   }
 }
 
-.icon.in_header{
-  width: 67.98px;
-  height: 67.98px;
-  margin: 15px;
-}
 
 @media (max-width: 600px) {
   .icon.in_header {
