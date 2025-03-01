@@ -5,7 +5,7 @@
 
   // Props for the component
   export let name: string = ''; // e.g., 'app', 'chat', 'billing'
-  export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' = 'default';
+  export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder' = 'default';
   export let inline: boolean = false;
   export let poweredByAI: boolean = false;
   export let size: string | undefined = undefined; // Size prop
@@ -18,7 +18,10 @@
   export let noMargin: boolean = false; // Add a prop to control margin
 
   // Create a reactive variable for the lowercase name
-  $: lowerCaseName = name.toLowerCase().replace(/\s+/g, '_');
+  $: lowerCaseName = name ? name.toLowerCase().replace(/\s+/g, '_') : 'placeholder';
+  
+  // Set type to placeholder if name is empty or null
+  $: if (!name && type !== 'placeholder') type = 'placeholder';
 
   // Constants for icon mappings and provider-specific settings
   const iconMappings: Record<string, string> = {
@@ -43,6 +46,7 @@
     'messengers': 'chat',
     'developers': 'coding',
     'interface': 'language',
+    'contacts': 'contact',
     // Add more mappings as needed
   };
 
@@ -78,12 +82,14 @@
     type === 'subsetting' ? 'subsetting_icon' : '',
     // Add specific icon class for subsetting type
     type === 'subsetting' ? `subsetting_icon_${lowerCaseName}` : '',
+    // Add placeholder class
+    type === 'placeholder' ? 'placeholder-icon' : '',
     // The rest remains unchanged
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
     lowerCaseName === 'mates' ? 'mates' : '',
     type === 'provider' ? `provider-icon ${type === 'provider' && ['openai'].includes(lowerCaseName) ? `provider-${lowerCaseName}` : ''}` : 
-      (type === 'default' ? lowerCaseName : (type === 'clickable') ? lowerCaseName : type === 'subsetting' ? '' : `${type}-${lowerCaseName}`),
+      (type === 'default' ? lowerCaseName : (type === 'clickable') ? lowerCaseName : type === 'subsetting' ? '' : type === 'placeholder' ? '' : `${type}-${lowerCaseName}`),
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
@@ -204,14 +210,14 @@
   <div 
     class="icon-container {computedClassName}"
     class:no-margin={noMargin} 
-    aria-label={name} 
+    aria-label={name || 'placeholder'} 
     style={style}
   ></div>
 {:else if actualElement === 'button'}
   <button 
     class="icon-container {computedClassName}"
     class:no-margin={noMargin} 
-    aria-label={name} 
+    aria-label={name || 'placeholder'} 
     style={style} 
     on:click={onClick}
     type="button"
@@ -220,7 +226,7 @@
   <span 
     class="icon-container {computedClassName}"
     class:no-margin={noMargin} 
-    aria-label={name} 
+    aria-label={name || 'placeholder'} 
     style={style}
   ></span>
 {/if}
@@ -559,5 +565,14 @@
   .no-margin :global(*) {
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  /* Placeholder icon style */
+  .icon.placeholder-icon {
+    opacity: 0 !important;
+  }
+  
+  .icon.placeholder-icon::before {
+    background-image: none;
   }
 </style>

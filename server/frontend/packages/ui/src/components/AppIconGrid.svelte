@@ -19,7 +19,13 @@
                     class:column-shifted={shifted === 'columns' && colIndex % 2 === 1}
                     data-app={appName}
                 >
-                    {#if appName !== null}
+                    {#if appName === null}
+                        <Icon 
+                            type="placeholder"
+                            in_header={true}
+                            size={size}
+                        />
+                    {:else}
                         <Icon 
                             name={appName} 
                             type="app"
