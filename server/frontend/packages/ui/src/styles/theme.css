@@ -301,6 +301,11 @@
     --color-app-games-end: #167AAA;
     --color-app-games: linear-gradient(135deg, var(--color-app-games-start) 9.04%, var(--color-app-games-end) 90.06%);
 
+    /* App/3D models */
+    --color-app-3dmodels-start: #EA7600;
+    --color-app-3dmodels-end: #FBAB59;
+    --color-app-3dmodels: linear-gradient(135deg, var(--color-app-3dmodels-start) 9.04%, var(--color-app-3dmodels-end) 90.06%);
+
     /* Default theme (light) */
     --color-grey-0: #ffffff;
     --color-grey-10: #f9f9f9;

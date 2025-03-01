@@ -8,6 +8,8 @@
     export let shifting = '30px';
     // New prop to define which elements should be shifted (columns, rows, or none)
     export let shifted: 'columns' | 'rows' | undefined = undefined;
+    // Updated prop type to include null for border removal
+    export let borderColor: string | null | undefined = undefined;
 </script>
 
 <div class="icon-grid" style="--icon-gap: {gridGap}; --shifting: {shifting};">
@@ -24,6 +26,7 @@
                             type="placeholder"
                             in_header={true}
                             size={size}
+                            borderColor={borderColor}
                         />
                     {:else}
                         <Icon 
@@ -31,6 +34,7 @@
                             type="app"
                             in_header={true}
                             size={size}
+                            borderColor={borderColor}
                         />
                     {/if}
                 </div>
@@ -43,16 +47,19 @@
     .icon-grid {
         display: flex;
         flex-direction: column;
-        align-content: start;
+        align-items: center;
+        justify-content: center;
         gap: var(--icon-gap, 4px);
         /* Center by default */
         margin: 0 auto;
+        width: 100%;
     }
 
     .icon-row {
         display: flex;
         flex-direction: row;
         align-items: center;
+        justify-content: center;
         gap: var(--icon-gap, 4px);
     }
 

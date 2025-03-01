@@ -9,7 +9,7 @@
         ['slides','docs','audio','code','ai','photos','events','travel','mail'],
         ['weather','notes','videos',null,null,null,'pcbdesign','legal','web'],
         ['calculator','maps','finance',null,null,null,'health','home','design'],
-        ['3d_models','games','news',null,null,null,'movies','whiteboards','project_management']
+        ['3dmodels','games','news',null,null,null,'movies','whiteboards','projectmanagement']
     ];
     const IconGrid21000Credits = [
         ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
@@ -26,13 +26,16 @@
 </script>
 
 <div class="expandable-header" class:visible>
-    <AppIconGrid 
-        iconGrid={IconGrid21000Credits}
-        size="30px" 
-        gridGap="3px"
-        shifting="-10px"
-        shifted="columns"
-    />
+    <div class="icon-grid-wrapper">
+        <AppIconGrid 
+            iconGrid={IconGrid21000Credits}
+            size="35px" 
+            gridGap="3px"
+            shifting="-10px"
+            shifted="columns"
+            borderColor={null}
+        />
+    </div>
 </div>
 
 <style>
@@ -51,5 +54,9 @@
 
     .expandable-header.visible {
         height: 130px
+    }
+
+    .icon-grid-wrapper {
+        margin-top:-29px;
     }
 </style>

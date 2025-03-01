@@ -12,7 +12,7 @@
   export let in_header: boolean = false;
   export let element: 'div' | 'button' | 'span' = 'div'; // Element type
   export let color: string | undefined = undefined; // Custom color
-  export let borderColor: string | undefined = undefined; // Custom border color
+  export let borderColor: string | null | undefined = undefined; // Updated type to include null
   export let onClick: (() => void) | undefined = undefined; // Click handler
   export let className: string = ''; // Additional custom classes
   export let noMargin: boolean = false; // Add a prop to control margin
@@ -185,7 +185,7 @@
     getBorderStyle(),
     getBorderRadius(), // Keep the existing border radius calculation
     color ? `--icon-color: ${color};` : '',
-    borderColor ? `border-color: ${borderColor};` : '',
+    borderColor === null ? 'border: none;' : (borderColor ? `border-color: ${borderColor};` : ''),
     // Skip setting these properties for special icons that rely on CSS classes
     (lowerCaseName !== 'mates' && type !== 'subsetting') ? [
       `--icon-name: ${lowerCaseName};`,
