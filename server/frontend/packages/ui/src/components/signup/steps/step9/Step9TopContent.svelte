@@ -40,8 +40,9 @@ changes to the documentation (to keep the documentation up to date).
     }
     .secondary-text {
         font-size: 14px;
-        opacity: 0.5;
-        margin-top: auto; /* pushes the text to the bottom */
+        color: white;
+        opacity: 0.6;
+        margin-top: 10px;
     }
     /* Updated class for the inline icon to make it white */
     :global(.coin-icon-inline) {
@@ -53,7 +54,7 @@ changes to the documentation (to keep the documentation up to date).
         background-repeat: no-repeat;
         vertical-align: middle;
         filter: invert(1); /* Make the icon white */
-        margin: 0 2px; /* Add a small margin on both sides for better spacing */
+        margin: 0 5px;
         position: relative;
         top: -2px; /* Fine-tune vertical alignment with text */
     }
@@ -62,5 +63,6 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
+        color: white;
     }
 </style>
