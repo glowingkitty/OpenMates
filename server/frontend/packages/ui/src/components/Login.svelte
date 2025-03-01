@@ -50,6 +50,25 @@
     let isRateLimited = false;
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
+    const leftIconGrid = [
+        ['videos', 'health', 'web'],
+        ['calendar', 'nutrition', 'language'],
+        ['plants', 'fitness', 'shipping'],
+        ['shopping', 'jobs', 'books'],
+        ['study', 'home', 'tv'],
+        ['weather', 'events', 'legal'],
+        ['travel', 'photos', 'maps']
+    ];
+    const rightIconGrid = [
+        ['finance', 'business', 'files'],
+        ['code', 'pcbdesign', 'audio'],
+        ['mail', 'socialmedia', 'messages'],
+        ['hosting', 'diagrams', 'news'],
+        ['notes', 'whiteboards', 'projectmanagement'],
+        ['design', 'publishing', 'pdfeditor'],
+        ['slides', 'sheets', 'docs']
+    ];
+
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
         rateLimitTimer = setTimeout(() => {
@@ -239,7 +258,7 @@
 
 {#if !$isAuthenticated}
     <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
-        <AppIconGrid side="left" />
+        <AppIconGrid iconGrid={leftIconGrid} side="left" shifted="columns"/>
 
         <div class="login-content">
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
@@ -335,6 +354,6 @@
             </div>
         </div>
 
-        <AppIconGrid side="right" />
+        <AppIconGrid iconGrid={rightIconGrid} side="right" shifted="columns" />
     </div>
 {/if}

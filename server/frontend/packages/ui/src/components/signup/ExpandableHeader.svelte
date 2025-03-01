@@ -2,16 +2,27 @@
     import AppIconGrid from '../AppIconGrid.svelte';
     
     export let visible = false;
+
+    // Define icon grids for both sides based on the original layout
+    const IconGrid = [
+        ['diagrams','sheets','life_coaching','jobs','fashion','calendar','contacts','hosting','social_media'],
+        ['slides','docs','audio','code','ai','photos','events','travel','mail'],
+        ['weather','notes','videos',null,null,null,'pcb_design','legal','web'],
+        ['calculator','maps','finance',null,null,null,'health','home','design'],
+        ['3d_models','games','news',null,null,null,'movies','whiteboards','project_management']
+    ];
 </script>
 
 <div class="expandable-header" class:visible>
     <div class="header-content">
         <div class="app-icons-container expandable-header-icons">
             <div class="app-icons-side left">
-                <AppIconGrid side="left" size="30px" />
-            </div>
-            <div class="app-icons-side right">
-                <AppIconGrid side="right" size="30px" />
+                <AppIconGrid 
+                    iconGrid={IconGrid}
+                    size="30px" 
+                    gridGap="2px"
+                    shifted="columns"
+                />
             </div>
         </div>
     </div>

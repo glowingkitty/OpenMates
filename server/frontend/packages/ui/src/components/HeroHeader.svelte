@@ -9,6 +9,27 @@
   // Local reactive variable to store the current app state
   let currentApp = '';
 
+  // Define icon grids based on the original layout
+  const leftIconGrid = [
+    ['videos', 'health', 'web'],
+    ['calendar', 'nutrition', 'language'],
+    ['plants', 'fitness', 'shipping'],
+    ['shopping', 'jobs', 'books'],
+    ['study', 'home', 'tv'],
+    ['weather', 'events', 'legal'],
+    ['travel', 'photos', 'maps']
+  ];
+  const rightIconGrid = [
+    ['finance', 'business', 'files'],
+    ['code', 'pcbdesign', 'audio'],
+    ['mail', 'socialmedia', 'messages'],
+    ['hosting', 'diagrams', 'news'],
+    ['notes', 'whiteboards', 'projectmanagement'],
+    ['design', 'publishing', 'pdfeditor'],
+    ['slides', 'sheets', 'docs']
+  ];
+
+
   // Helper function to capitalize the first letter of a string
   function capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -27,7 +48,7 @@
 ----------------------------------------------------------------------- -->
 <section class="hero-header">
   <!-- Left icon grid for visual decoration -->
-  <AppIconGrid side="left" />
+  <AppIconGrid iconGrid={leftIconGrid} side="left" shifted="columns"/>
 
   <!-- Center area containing headings, platform details, and chat example -->
   <div class="center-space">
@@ -71,7 +92,7 @@
   </div>
 
   <!-- Right icon grid for visual decoration -->
-  <AppIconGrid side="right" />
+  <AppIconGrid iconGrid={rightIconGrid} side="right" shifted="columns" />
 </section>
 
 <style>

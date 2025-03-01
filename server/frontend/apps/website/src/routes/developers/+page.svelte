@@ -18,6 +18,26 @@
     // Add reactive variable for current app
     let currentApp = '';
 
+    // Define icon grids based on the original layout
+    const leftIconGrid = [
+        ['videos', 'health', 'web'],
+        ['calendar', 'nutrition', 'language'],
+        ['plants', 'fitness', 'shipping'],
+        ['shopping', 'jobs', 'books'],
+        ['study', 'home', 'tv'],
+        ['weather', 'events', 'legal'],
+        ['travel', 'photos', 'maps']
+    ];
+    const rightIconGrid = [
+        ['finance', 'business', 'files'],
+        ['code', 'pcbdesign', 'audio'],
+        ['mail', 'socialmedia', 'messages'],
+        ['hosting', 'diagrams', 'news'],
+        ['notes', 'whiteboards', 'projectmanagement'],
+        ['design', 'publishing', 'pdfeditor'],
+        ['slides', 'sheets', 'docs']
+    ];
+
     // Helper function to capitalize first letter
     function capitalize(str: string) {
         return str.charAt(0).toUpperCase() + str.slice(1);
@@ -28,7 +48,7 @@
 
 <!-- Add header section with background color -->
 <section class="hero-header">
-    <AppIconGrid side="left" />
+    <AppIconGrid iconGrid={leftIconGrid} side="left" shifted="columns"/>
 
     <!-- Center space -->
     <div class="center-space">
@@ -57,7 +77,7 @@
         </div>
     </div>
 
-    <AppIconGrid side="right" />
+    <AppIconGrid iconGrid={rightIconGrid} side="right" shifted="columns" />
 </section>
 
 <div class="large-separator"></div>

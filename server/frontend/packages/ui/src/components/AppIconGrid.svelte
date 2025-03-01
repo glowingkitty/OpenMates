@@ -2,89 +2,32 @@
     import Icon from './Icon.svelte';
 
     // Props
-    export let side: 'left' | 'right';
-    export let size = "67px"; // Add size prop with default value
-
-    // Define icon groups for both sides
-    const header_app_icons: Record<'left' | 'right', Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>>> = {
-        left: [
-            // Left side | First column
-            [
-                {type: 'app', name: 'videos'},
-                {type: 'app', name: 'calendar'},
-                {type: 'app', name: 'plants'},
-                {type: 'app', name: 'shopping'},
-                {type: 'app', name: 'study'},
-                {type: 'app', name: 'weather'},
-                {type: 'app', name: 'travel'}
-            ],
-            // Left side | Second column
-            [
-                {type: 'app', name: 'health'},
-                {type: 'app', name: 'nutrition'},
-                {type: 'app', name: 'fitness'},
-                {type: 'app', name: 'jobs'},
-                {type: 'app', name: 'home'},
-                {type: 'app', name: 'events'},
-                {type: 'app', name: 'photos'}
-            ],
-            // Left side | Third column
-            [
-                {type: 'app', name: 'web'},
-                {type: 'app', name: 'language'},
-                {type: 'app', name: 'shipping'},
-                {type: 'app', name: 'books'},
-                {type: 'app', name: 'tv'},
-                {type: 'app', name: 'legal'},
-                {type: 'app', name: 'maps'}
-            ]
-        ],
-        right: [
-            // Right side | First column
-            [
-                {type: 'app', name: 'finance'},
-                {type: 'app', name: 'code'},
-                {type: 'app', name: 'mail'},
-                {type: 'app', name: 'hosting'},
-                {type: 'app', name: 'notes'},
-                {type: 'app', name: 'design'},
-                {type: 'app', name: 'slides'}
-            ],
-            // Right side | Second column
-            [
-                {type: 'app', name: 'business'},
-                {type: 'app', name: 'pcbdesign'},
-                {type: 'app', name: 'socialmedia'},
-                {type: 'app', name: 'diagrams'},
-                {type: 'app', name: 'whiteboards'},
-                {type: 'app', name: 'publishing'},
-                {type: 'app', name: 'sheets'}
-            ],
-            // Right side | Third column
-            [
-                {type: 'app', name: 'files'},
-                {type: 'app', name: 'audio'},
-                {type: 'app', name: 'messages'},
-                {type: 'app', name: 'news'},
-                {type: 'app', name: 'projectmanagement'},
-                {type: 'app', name: 'pdfeditor'},
-                {type: 'app', name: 'docs'}
-            ]
-        ]
-    };
+    export let iconGrid: (string | null)[][] = [];
+    export let size = "67px";
+    export let gridGap = '4px';
+    export let shifting = '30px';
+    export let side: 'left' | 'right' | 'center' | undefined = 'center';
+    // New prop to define which elements should be shifted (columns, rows, or none)
+    export let shifted: 'columns' | 'rows' | undefined = undefined;
 </script>
 
-<div class="icon-grid {side}" style="--icon-gap: 2px;">
-    {#each header_app_icons[side] as column}
-        <div class="icon-column">
-            {#each column as icon}
-                <div class="icon-wrapper" data-app={icon.name}>
-                    <Icon 
-                        name={icon.name} 
-                        type={icon.type}
-                        in_header={true}
-                        size={size}
-                    />
+<div class="icon-grid {side}" style="--icon-gap: {gridGap}; --shifting: {shifting};">
+    {#each iconGrid as row, rowIndex}
+        <div class="icon-column" class:row-shifted={shifted === 'rows' && rowIndex % 2 === 1}>
+            {#each row as appName, colIndex}
+                <div 
+                    class="icon-wrapper" 
+                    class:column-shifted={shifted === 'columns' && colIndex % 2 === 1}
+                    data-app={appName}
+                >
+                    {#if appName !== null}
+                        <Icon 
+                            name={appName} 
+                            type="app"
+                            in_header={true}
+                            size={size}
+                        />
+                    {/if}
                 </div>
             {/each}
         </div>
@@ -93,21 +36,27 @@
 
 <style>
     .icon-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-direction: column;
         align-content: start;
-        gap: var(--icon-gap, 4px); /* Use CSS variable for gap */
+        gap: var(--icon-gap, 4px);
     }
 
     .icon-column {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
-        gap: var(--icon-gap, 4px); /* Use CSS variable for gap */
+        gap: var(--icon-gap, 4px);
     }
 
-    .icon-column:nth-child(2) {
-        transform: translateY(-2rem);
+    /* Row shifting (previously called staggered) */
+    .row-shifted {
+        transform: translateX(var(--shifting)) translateY(0);
+    }
+
+    /* Column shifting (new feature) */
+    .column-shifted {
+        transform: translateY(calc(-1*var(--shifting)));
     }
 
     .icon-wrapper {
@@ -118,6 +67,11 @@
         transition: opacity 0.3s ease;
         width: auto;
         height: auto;
+    }
+
+    /* Center alignment */
+    .icon-grid.center {
+        margin: 0 auto;
     }
 
     /* Mobile styles */
@@ -141,8 +95,11 @@
             left: 50vw;
         }
 
-        .icon-grid .icon-column:nth-child(3) {
-            display: none;
+        .icon-grid.center {
+            position: relative;
+            left: auto;
+            right: auto;
+            margin: 0 auto;
         }
 
         .icon-column {
@@ -150,12 +107,17 @@
             flex-direction: row;
             gap: 0.25rem;
             margin-top: 0;
-            transform: none;
         }
 
-        .icon-grid.left .icon-column:nth-child(2),
-        .icon-grid.right .icon-column:nth-child(2) {
-            transform: translateX(24px);
+        /* Adjust mobile shifting behavior */
+        .icon-grid.left .row-shifted,
+        .icon-grid.right .row-shifted {
+            transform: translateX(24px) translateY(0);
+        }
+
+        /* Preserve column shifting on mobile, but with smaller offset */
+        .column-shifted {
+            transform: translateY(10px);
         }
 
         .icon-wrapper {
