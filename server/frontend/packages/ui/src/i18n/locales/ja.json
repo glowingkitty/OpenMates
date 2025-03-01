@@ -2091,8 +2091,8 @@
             "context": "Explainer what the credits are needed for"
         },
         "only_pay_what_you_use": {
-            "text": "使用分のみお支払い。すべての人に公平でアクセスしやすい。",
-            "en_original": "You only pay what you use. Fair & accessible for all of us.",
+            "text": "使用分のみお支払い。<br>すべての人に公平でアクセスしやすい。",
+            "en_original": "You only pay what you use.<br>Fair & accessible for all of us.",
             "context": "explainer how the payment system works"
         },
         "no_expiration_of_credits": {
@@ -2116,8 +2116,8 @@
             "context": "explainer that user data is not sold"
         },
         "pricing_details_on_page_of_app_skill": {
-            "text": "各アプリスキルのページで価格の詳細をご確認いただけます。",
-            "en_original": "On the page of each app skill you can find their pricing details.",
+            "text": "各アプリのスキルのページで<br>価格の詳細を確認できます。",
+            "en_original": "On the page of each app skill<br>you can find their pricing details.",
             "context": "explainer where to find pricing details"
         },
         "open_app_settings": {

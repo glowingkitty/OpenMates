@@ -2091,8 +2091,8 @@
             "context": "Explainer what the credits are needed for"
         },
         "only_pay_what_you_use": {
-            "text": "Vous ne payez que ce que vous utilisez. Équitable et accessible pour nous tous.",
-            "en_original": "You only pay what you use. Fair & accessible for all of us.",
+            "text": "Vous ne payez que ce que vous utilisez.<br>Équitable et accessible pour nous tous.",
+            "en_original": "You only pay what you use.<br>Fair & accessible for all of us.",
             "context": "explainer how the payment system works"
         },
         "no_expiration_of_credits": {
@@ -2116,8 +2116,8 @@
             "context": "explainer that user data is not sold"
         },
         "pricing_details_on_page_of_app_skill": {
-            "text": "Sur la page de chaque fonctionnalité d'application, vous trouverez les détails des prix.",
-            "en_original": "On the page of each app skill you can find their pricing details.",
+            "text": "Sur la page de chaque compétence d'application<br>vous pouvez trouver leurs détails de prix.",
+            "en_original": "On the page of each app skill<br>you can find their pricing details.",
             "context": "explainer where to find pricing details"
         },
         "open_app_settings": {

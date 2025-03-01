@@ -2101,8 +2101,8 @@
             "context": "Explainer what the credits are needed for"
         },
         "only_pay_what_you_use": {
-            "text": "您只需支付使用的部分。对我们所有人都公平且可负担",
-            "en_original": "You only pay what you use. Fair & accessible for all of us.",
+            "text": "您只需支付使用的部分。<br>对我们所有人都公平且可负担",
+            "en_original": "You only pay what you use.<br>Fair & accessible for all of us.",
             "context": "explainer how the payment system works"
         },
         "no_expiration_of_credits": {
@@ -2126,8 +2126,8 @@
             "context": "explainer that user data is not sold"
         },
         "pricing_details_on_page_of_app_skill": {
-            "text": "您可以在每个应用技能的页面上找到其定价详情",
-            "en_original": "On the page of each app skill you can find their pricing details.",
+            "text": "在每个应用技能的页面上<br>您可以找到其定价详情。",
+            "en_original": "On the page of each app skill<br>you can find their pricing details.",
             "context": "explainer where to find pricing details"
         },
         "open_app_settings": {
