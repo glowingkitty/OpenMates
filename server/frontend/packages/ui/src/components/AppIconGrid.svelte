@@ -3,6 +3,7 @@
 
     // Props
     export let side: 'left' | 'right';
+    export let size = "67px"; // Add size prop with default value
 
     // Define icon groups for both sides
     const header_app_icons: Record<'left' | 'right', Array<Array<{type: 'app' | 'default' | 'skill' | 'provider' | 'focus', name: string}>>> = {
@@ -73,7 +74,7 @@
     };
 </script>
 
-<div class="icon-grid {side}">
+<div class="icon-grid {side}" style="--icon-gap: 2px;">
     {#each header_app_icons[side] as column}
         <div class="icon-column">
             {#each column as icon}
@@ -82,7 +83,7 @@
                         name={icon.name} 
                         type={icon.type}
                         in_header={true}
-                        size="67px"
+                        size={size}
                     />
                 </div>
             {/each}
@@ -95,12 +96,14 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         align-content: start;
+        gap: var(--icon-gap, 4px); /* Use CSS variable for gap */
     }
 
     .icon-column {
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: var(--icon-gap, 4px); /* Use CSS variable for gap */
     }
 
     .icon-column:nth-child(2) {
@@ -113,6 +116,8 @@
         justify-content: center;
         opacity: 0.2;
         transition: opacity 0.3s ease;
+        width: auto;
+        height: auto;
     }
 
     /* Mobile styles */

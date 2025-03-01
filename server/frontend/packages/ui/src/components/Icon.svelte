@@ -12,8 +12,10 @@
   export let in_header: boolean = false;
   export let element: 'div' | 'button' | 'span' = 'div'; // Element type
   export let color: string | undefined = undefined; // Custom color
+  export let borderColor: string | undefined = undefined; // Custom border color
   export let onClick: (() => void) | undefined = undefined; // Click handler
   export let className: string = ''; // Additional custom classes
+  export let noMargin: boolean = false; // Add a prop to control margin
 
   // Create a reactive variable for the lowercase name
   $: lowerCaseName = name.toLowerCase().replace(/\s+/g, '_');
@@ -105,6 +107,24 @@
     return `border-radius: ${Math.round(numValue * 0.25)}${unit};`;
   };
 
+  // Calculate border thickness based on size
+  $: getBorderStyle = () => {
+    if (!size) return '';
+    
+    // Extract numeric value and unit from size
+    const match = size.match(/^([\d.]+)([a-z%]*)$/i);
+    if (!match) return '';
+    
+    const [, value, unit] = match;
+    const numValue = parseFloat(value);
+    
+    // Reference: 67px has 2.17px border (3.2% of size)
+    // Calculate border thickness proportionally
+    const borderThickness = `border-width: ${(numValue * 0.032).toFixed(2)}${unit};`;
+    
+    return borderThickness;
+  };
+
   // Determine which element to render
   $: actualElement = onClick && element === 'div' ? 'button' : element;
 
@@ -156,8 +176,10 @@
   // Compute the inline style for the icon
   $: style = [
     size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '',
-    getBorderRadius(),
+    getBorderStyle(),
+    getBorderRadius(), // Keep the existing border radius calculation
     color ? `--icon-color: ${color};` : '',
+    borderColor ? `border-color: ${borderColor};` : '',
     // Skip setting these properties for special icons that rely on CSS classes
     (lowerCaseName !== 'mates' && type !== 'subsetting') ? [
       `--icon-name: ${lowerCaseName};`,
@@ -180,13 +202,15 @@
 
 {#if actualElement === 'div'}
   <div 
-    class={computedClassName} 
+    class="icon-container {computedClassName}"
+    class:no-margin={noMargin} 
     aria-label={name} 
     style={style}
   ></div>
 {:else if actualElement === 'button'}
   <button 
-    class={computedClassName} 
+    class="icon-container {computedClassName}"
+    class:no-margin={noMargin} 
     aria-label={name} 
     style={style} 
     on:click={onClick}
@@ -194,7 +218,8 @@
   ></button>
 {:else if actualElement === 'span'}
   <span 
-    class={computedClassName} 
+    class="icon-container {computedClassName}"
+    class:no-margin={noMargin} 
     aria-label={name} 
     style={style}
   ></span>
@@ -395,11 +420,11 @@
   .icon.settings_size {
     width: 44px;
     height: 44px;
-    border-radius: 10px; /* ~22% of 44px, maintaining the proportion */
+    border-radius: 10px; /* Keep your existing border radius */
     animation: unset;
     animation-delay: unset;
     opacity: 1;
-    border: unset;
+    border-width: 1.4px; /* 3.2% of 44px = ~1.4px */
   }
 
   /* Updated subsetting icon - simplified approach */
@@ -482,12 +507,14 @@
 
   /* Skill icons */
   .icon.skill-icon {
-    border: 2.17px solid var(--color-skill-border);
+    /* Use custom border color if provided, otherwise use the skill border color */
+    border-color: var(--icon-border-color, var(--color-skill-border));
   }
 
   /* Focus icons */
   .icon.focus-icon {
-    border: 2.17px solid var(--color-focus-border);
+    /* Use custom border color if provided, otherwise use the focus border color */
+    border-color: var(--icon-border-color, var(--color-focus-border));
   }
 
   /* Powered by AI indicator */
@@ -519,6 +546,18 @@
   .icon.in_header {
     width: 44px;
     height: 44px;
-    border-radius: 10px; /* ~22% of 44px, maintaining the proportion */
+    border-radius: 10px; /* Keep your existing border radius */
+    border-width: 1.4px; /* 3.2% of 44px = ~1.4px */
+  }
+
+  /* Add a style to remove margins when needed */
+  .no-margin {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .no-margin :global(*) {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 </style>

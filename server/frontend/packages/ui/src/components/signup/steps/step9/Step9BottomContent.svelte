@@ -12,7 +12,7 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <div class="bottom-content">
-    <!-- Content will be added in future updates -->
+    Choose your credits package
 </div>
 
 <style>

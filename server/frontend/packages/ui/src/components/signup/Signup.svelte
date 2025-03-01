@@ -7,6 +7,7 @@
     import SignupNav from './SignupNav.svelte';
     import { fade, fly } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
+    import ExpandableHeader from './ExpandableHeader.svelte';
 
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep } from '../../stores/signupState';
@@ -103,6 +104,8 @@
     function handleSkip() {
         if (currentStep === 3) {
             goToStep(4);
+        } else if (currentStep === 6) {
+            goToStep(7);
         }
     }
 
@@ -142,8 +145,11 @@
             : routes.docs[`userGuide_signup_${currentStep}`]
     );
 
-    // Update showSkip logic to only show for step 3
-    $: showSkip = currentStep === 3;
+    // Update showSkip logic to show for steps 3 and 6
+    $: showSkip = currentStep === 3 || currentStep === 6;
+
+    // Show expanded header on step 9
+    $: showExpandedHeader = currentStep === 9;
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -170,6 +176,7 @@
                 <!-- Top content wrapper -->
                 <div class="top-content-wrapper">
                     <div class="top-content">
+                        <ExpandableHeader visible={showExpandedHeader} />
                         <div class="content-slider">
                             {#key currentStep}
                                 <div 

@@ -14,9 +14,13 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <div class="content">
+    <div class="header-content">Pay credits per use</div>
 </div>
 
 <style>
+    .header-content {
+        z-index: 2;
+    }
     .content {
         padding: 24px;
         height: 100%;

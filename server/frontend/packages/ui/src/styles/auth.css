@@ -278,6 +278,7 @@ form.hidden {
     margin-top: 50px;
     width: 100%;
     height: 420px;
+    overflow: hidden;
 }
 
 .top-content {
