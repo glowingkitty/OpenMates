@@ -27,11 +27,18 @@
 
 .login-box {
     width: 440px;
+    min-width: 300px;
     min-height: min(740px, 80vh);
     min-height: min(740px, 80dvh);
     text-align: center;
     box-sizing: border-box;
     position: relative;
+}
+
+@media (max-width: 349px) {
+    .login-box {
+        min-width: unset;
+    }
 }
 
 @media (max-width: 730px), (max-height: 820px) {
@@ -271,7 +278,7 @@ form.hidden {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    padding: 0 10px;
+    /* padding: 0 10px; */
 }
 
 .top-content-wrapper {
@@ -363,4 +370,42 @@ form.hidden {
 .bottom-content-wrapper .slide {
     position: absolute;
     width: 100%;
+}
+
+.mobile-grid-fixed {
+    /* Only apply position:absolute on small screens via media query */
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    .login-container {
+        flex-direction: column;
+        position: relative; /* Make it a positioning context */
+        overflow: hidden; /* Hide the overflow to cut off icons */
+    }
+    
+    .mobile-grid-fixed {
+        position: absolute;
+        top: -15px; /* Negative top value to make icons partially visible */
+        left: 0;
+        z-index: -1;
+    }
+
+    .login-box {
+        width: 90vw;
+    }
+
+    .top-content-wrapper{
+        height: 350px;
+    }
+
+    .status-wrapper {
+        transform: translateY(30px);
+    }
+    
+    .help-wrapper {
+        transform: translateY(35px);
+    }
 }

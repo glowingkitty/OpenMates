@@ -385,28 +385,3 @@
         {/if}
     </div>
 {/if}
-
-<style>
-    .mobile-grid-fixed {
-        /* Only apply position:absolute on small screens via media query */
-        display: flex;
-        justify-content: center;
-        width: 100%;
-    }
-    
-    @media (max-width: 600px) {
-        .login-container {
-            flex-direction: column;
-            position: relative; /* Make it a positioning context */
-            overflow: hidden; /* Hide the overflow to cut off icons */
-            padding-top: 20px; /* Add some padding to show part of the icons */
-        }
-        
-        .mobile-grid-fixed {
-            position: absolute;
-            top: -15px; /* Negative top value to make icons partially visible */
-            left: 0;
-            z-index: -1;
-        }
-    }
-</style>
