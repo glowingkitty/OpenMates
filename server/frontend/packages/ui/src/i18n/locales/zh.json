@@ -1945,9 +1945,9 @@
             "en_original": "Backup codes",
             "context": "Title for backup codes section"
         },
-        "dont_loose_access": {
+        "dont_lose_access": {
             "text": "如果您无法访问应用程序，请不要失去对您账户的访问权限",
-            "en_original": "Don't loose access to your account if you loose access to the app.",
+            "en_original": "Don't lose access to your account if you lose access to the app.",
             "context": "Message for not loosing access to account by having backup codes."
         },
         "store_backup_codes_safely": {

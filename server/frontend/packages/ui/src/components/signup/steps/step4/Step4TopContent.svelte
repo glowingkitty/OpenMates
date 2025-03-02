@@ -113,7 +113,7 @@ step_4_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size tfa"></div>
-        <h2 class="menu-title">{@html $text('signup.secure_your_account.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.secure_your_account.text')}</h2>
     </div>
     
     <div class="prevent-access-text" class:fade-out={showQrCode}>
@@ -190,21 +190,6 @@ step_4_top_content_svelte:
         align-items: center;
         justify-content: center;
         gap: 16px;
-    }
-
-    .icon.header_size {
-        width: 65px;
-        height: 65px;
-        border-radius: 14px;
-        transition: none;
-        animation: none;
-        opacity: 1;
-    }
-
-    .menu-title {
-        font-size: 24px;
-        color: var(--color-grey-100);
-        margin: 0;
     }
 
     .prevent-access-text {

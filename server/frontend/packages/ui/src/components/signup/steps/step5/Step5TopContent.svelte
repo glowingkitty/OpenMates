@@ -11,7 +11,7 @@ step_5_top_content_svelte:
         type: 'text'
         text:
             - $text('signup.backup_codes.text')
-            - $text('signup.dont_loose_access.text')
+            - $text('signup.dont_lose_access.text')
             - $text('signup.store_backup_codes_safely.text')
         purpose:
             - 'Explains the purpose of backup codes'
@@ -88,11 +88,11 @@ step_5_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size warning"></div>
-        <h2 class="menu-title">{@html $text('signup.backup_codes.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.backup_codes.text')}</h2>
     </div>
 
     <div class="text-block">
-        {$text('signup.dont_loose_access.text')}
+        {$text('signup.dont_lose_access.text')}
     </div>
 
     <mark>
@@ -121,21 +121,6 @@ step_5_top_content_svelte:
         align-items: center;
         justify-content: center;
         gap: 16px;
-    }
-
-    .icon.header_size {
-        width: 65px;
-        height: 65px;
-        border-radius: 14px;
-        transition: none;
-        animation: none;
-        opacity: 1;
-    }
-
-    .menu-title {
-        font-size: 24px;
-        color: var(--color-grey-100);
-        margin: 0;
     }
 
     .text-block {

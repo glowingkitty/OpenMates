@@ -297,13 +297,4 @@ step_6_bottom_content_svelte:
     .safety-tip-subtext {
         margin-top: 20px;
     }
-
-    .icon.header_size {
-        width: 65px;
-        height: 65px;
-        border-radius: 14px;
-        transition: none;
-        animation: none;
-        opacity: 1;
-    }
 </style>

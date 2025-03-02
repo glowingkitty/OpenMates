@@ -379,6 +379,12 @@ form.hidden {
     width: 100%;
 }
 
+.signup-menu-title {
+    font-size: 24px;
+    color: var(--color-grey-100);
+    margin: 0;
+}
+
 @media (max-width: 600px) {
     .login-container {
         flex-direction: column;
@@ -407,5 +413,9 @@ form.hidden {
     
     .help-wrapper {
         transform: translateY(35px);
+    }
+
+    .signup-menu-title {
+        font-size: 18px;
     }
 }

@@ -109,7 +109,7 @@ step_7_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size settings"></div>
-        <h2 class="menu-title">{@html $text('signup.settings.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.settings.text')}</h2>
     </div>
     
     <div class="text-block">
@@ -169,21 +169,6 @@ step_7_top_content_svelte:
         gap: 16px;
     }
 
-    .icon.header_size {
-        width: 65px;
-        height: 65px;
-        border-radius: 14px;
-        transition: none;
-        animation: none;
-        opacity: 1;
-    }
-
-    .menu-title {
-        font-size: 24px;
-        color: var(--color-grey-100);
-        margin: 0;
-    }
-
     .text-block {
         margin: 20px 0 20px 0;
         text-align: center;
@@ -195,6 +180,12 @@ step_7_top_content_svelte:
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 600px) {
+        .settings-block {
+            width: 100%;
+        }
     }
     
     .settings-header {

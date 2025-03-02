@@ -1269,3 +1269,20 @@ div.clickable-icon {
 .record-button.recording .clickable-icon.icon_recordaudio {
   background: white;  /* Change to white when recording */
 }
+
+.icon.header_size {
+  width: 65px;
+  height: 65px;
+  border-radius: 14px;
+  transition: none;
+  animation: none;
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .icon.header_size {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+  }
+}
