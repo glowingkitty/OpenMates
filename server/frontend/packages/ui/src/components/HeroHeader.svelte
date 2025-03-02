@@ -5,9 +5,14 @@
   // -------------------------------------------------------------------
   import { Icon, AnimatedChatExamples, WaitingList, AppIconGrid } from '@repo/ui';
   import { text } from '@repo/ui';
+  import { MOBILE_BREAKPOINT } from '../styles/constants';
 
   // Local reactive variable to store the current app state
   let currentApp = '';
+  
+  // Add state for mobile view
+  let isMobile = false;
+  let screenWidth = 0;
 
   // Define icon grids based on the original layout
   const leftIconGrid = [
@@ -28,7 +33,20 @@
     ['design', 'publishing', 'pdfeditor'],
     ['slides', 'sheets', 'docs']
   ];
+  
+  // Combine icons for mobile grid - selected icons from both grids
+  const mobileIconGrid = [
+    ['videos', 'health', 'web', 'calendar', 'nutrition', 'language','plants', 'fitness', 'shipping','shopping', 'jobs', 'books'],
+    ['finance', 'business', 'files', 'code', 'pcbdesign', 'audio','mail', 'socialmedia', 'messages','hosting', 'diagrams', 'news']
+  ];
 
+  // Constants for icon sizes
+  const DESKTOP_ICON_SIZE = '67px'; 
+  const MOBILE_ICON_SIZE = '36px';
+
+  // Compute display state based on screen width
+  $: showDesktopGrids = screenWidth > 600;
+  $: showMobileGrid = screenWidth <= 600;
 
   // Helper function to capitalize the first letter of a string
   function capitalize(str: string): string {
@@ -38,6 +56,20 @@
   // Log when the component mounts for debugging purposes
   onMount(() => {
       console.log("HeroHeader component mounted");
+      
+      // Set initial screen width
+      screenWidth = window.innerWidth;
+      // Set initial mobile state
+      isMobile = screenWidth < MOBILE_BREAKPOINT;
+      
+      // Handle resize events
+      const handleResize = () => {
+          screenWidth = window.innerWidth;
+          isMobile = screenWidth < MOBILE_BREAKPOINT;
+      };
+      
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
   });
 </script>
 
@@ -47,12 +79,20 @@
      platform information, and the chat demo.
 ----------------------------------------------------------------------- -->
 <section class="hero-header">
-  <!-- Left icon grid for visual decoration -->
-  <AppIconGrid iconGrid={leftIconGrid} shifted="columns"/>
+  {#if showDesktopGrids}
+    <!-- Left icon grid for visual decoration -->
+    <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
+  {/if}
 
   <!-- Center area containing headings, platform details, and chat example -->
   <div class="center-space">
     <div class="center-content">
+      {#if showMobileGrid}
+        <div class="mobile-grid-fixed">
+          <AppIconGrid iconGrid={mobileIconGrid} shifted="columns" shifting="10px" gridGap="2px" size={MOBILE_ICON_SIZE} />
+        </div>
+      {/if}
+    
       <h1 class="text-center">
         {#if currentApp}
           <span class="app-title">
@@ -91,8 +131,10 @@
     </div>
   </div>
 
-  <!-- Right icon grid for visual decoration -->
-  <AppIconGrid iconGrid={rightIconGrid} shifted="columns" />
+  {#if showDesktopGrids}
+    <!-- Right icon grid for visual decoration -->
+    <AppIconGrid iconGrid={rightIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE} />
+  {/if}
 </section>
 
 <style>
@@ -138,6 +180,13 @@
   .center-content h1,
   .center-content p {
       margin: 0;
+  }
+  
+  /* Mobile grid positioning */
+  .mobile-grid-fixed {
+      width: 100%;
+      margin-bottom: 20px;
+      overflow: hidden;
   }
 
   /* -------------------------------------------------------------------
@@ -251,4 +300,4 @@
   :global([data-theme="dark"]) .small-icon.icon_web {
       filter: invert(0.6);
   }
-</style> 
+</style>
