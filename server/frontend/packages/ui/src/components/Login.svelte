@@ -22,6 +22,7 @@
 
     // Add state for mobile view
     let isMobile = false;
+    let screenWidth = 0;
     let emailInput: HTMLInputElement; // Reference to the email input element
 
     // Add state for minimum loading time control
@@ -68,6 +69,20 @@
         ['design', 'publishing', 'pdfeditor'],
         ['slides', 'sheets', 'docs']
     ];
+    
+    // Combine icons for mobile grid - selected icons from both grids
+    const mobileIconGrid = [
+        ['videos', 'health', 'web', 'calendar', 'nutrition', 'language','plants', 'fitness', 'shipping','shopping', 'jobs', 'books'],
+        ['finance', 'business', 'files', 'code', 'pcbdesign', 'audio','mail', 'socialmedia', 'messages','hosting', 'diagrams', 'news']
+    ];
+
+    // Constants for icon sizes
+    const DESKTOP_ICON_SIZE = '67px'; 
+    const MOBILE_ICON_SIZE = '36px';
+
+    // Compute display state based on screen width
+    $: showDesktopGrids = screenWidth > 600;
+    $: showMobileGrid = screenWidth <= 600;
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -184,8 +199,10 @@
             await tick();
             $isCheckingAuth = false;
             
+            // Set initial screen width
+            screenWidth = window.innerWidth;
             // Set initial mobile state
-            isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+            isMobile = screenWidth < MOBILE_BREAKPOINT;
             
             // Only focus if not touch device and not authenticated
             if (!$isAuthenticated && emailInput && !isTouchDevice) {
@@ -207,7 +224,8 @@
         
         // Handle resize events
         const handleResize = () => {
-            isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+            screenWidth = window.innerWidth;
+            isMobile = screenWidth < MOBILE_BREAKPOINT;
         };
         
         window.addEventListener('resize', handleResize);
@@ -258,9 +276,17 @@
 
 {#if !$isAuthenticated}
     <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
-        <AppIconGrid iconGrid={leftIconGrid} shifted="columns"/>
+        {#if showDesktopGrids}
+            <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
+        {/if}
 
         <div class="login-content">
+            {#if showMobileGrid}
+                <div class="mobile-grid-fixed">
+                    <AppIconGrid iconGrid={mobileIconGrid} shifted="columns" shifting="10px" gridGap="2px" size={MOBILE_ICON_SIZE} />
+                </div>
+            {/if}
+            
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 {#if currentView === 'login'}
                     <div class="content-area" in:fade={{ duration: 400 }}>
@@ -354,6 +380,33 @@
             </div>
         </div>
 
-        <AppIconGrid iconGrid={rightIconGrid} shifted="columns" />
+        {#if showDesktopGrids}
+            <AppIconGrid iconGrid={rightIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
+        {/if}
     </div>
 {/if}
+
+<style>
+    .mobile-grid-fixed {
+        /* Only apply position:absolute on small screens via media query */
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    @media (max-width: 600px) {
+        .login-container {
+            flex-direction: column;
+            position: relative; /* Make it a positioning context */
+            overflow: hidden; /* Hide the overflow to cut off icons */
+            padding-top: 20px; /* Add some padding to show part of the icons */
+        }
+        
+        .mobile-grid-fixed {
+            position: absolute;
+            top: -15px; /* Negative top value to make icons partially visible */
+            left: 0;
+            z-index: -1;
+        }
+    }
+</style>
