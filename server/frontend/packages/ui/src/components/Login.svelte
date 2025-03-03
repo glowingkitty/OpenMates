@@ -30,6 +30,9 @@
 
     // Add state to control form visibility
     let showForm = false;
+    
+    // Add state to control grid visibility - initially hide all grids
+    let gridsReady = false;
 
     // Add state for view management
     let currentView: 'login' | 'signup' = 'login';
@@ -189,6 +192,11 @@
             $isCheckingAuth = true;
             await checkAuth();
             
+            // Set initial screen width
+            screenWidth = window.innerWidth;
+            // Set initial mobile state
+            isMobile = screenWidth < MOBILE_BREAKPOINT;
+            
             const remainingTime = showLoadingUntil - Date.now();
             if (remainingTime > 0) {
                 await new Promise(resolve => setTimeout(resolve, remainingTime));
@@ -196,13 +204,10 @@
             
             await tick();
             showForm = true; // Show form before removing loading state
+            // Now that we've determined the screen size and loading is complete, show the appropriate grid
+            gridsReady = true;
             await tick();
             $isCheckingAuth = false;
-            
-            // Set initial screen width
-            screenWidth = window.innerWidth;
-            // Set initial mobile state
-            isMobile = screenWidth < MOBILE_BREAKPOINT;
             
             // Only focus if not touch device and not authenticated
             if (!$isAuthenticated && emailInput && !isTouchDevice) {
@@ -276,12 +281,12 @@
 
 {#if !$isAuthenticated}
     <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
-        {#if showDesktopGrids}
+        {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
         {/if}
 
         <div class="login-content">
-            {#if showMobileGrid}
+            {#if showMobileGrid && gridsReady}
                 <div class="mobile-grid-fixed">
                     <AppIconGrid iconGrid={mobileIconGrid} shifted="columns" shifting="10px" gridGap="2px" size={MOBILE_ICON_SIZE} />
                 </div>
@@ -380,7 +385,7 @@
             </div>
         </div>
 
-        {#if showDesktopGrids}
+        {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={rightIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
         {/if}
     </div>
