@@ -656,6 +656,10 @@
             "text": "Pay {credits} per use",
             "context": "in message: 'Pay credits per use'"
         },
+        "amount_currency": {
+            "text": "{amount} {currency}",
+            "context": "in message: '21.000 credits' or '30 EUR'"
+        },
         "for_chatting_and_apps": {
             "text": "For chatting & using apps",
             "context": "Explainer what the credits are needed for"
