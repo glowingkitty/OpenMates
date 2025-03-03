@@ -47,7 +47,8 @@ changes to the documentation (to keep the documentation up to date).
 <div class="bottom-content">
     <div class="credits-package-container">
         {#if canShowLess}
-            <button class="nav-button nav-button-left" on:click={showLessCredits}>
+            <button class="nav-button" on:click={showLessCredits}>
+                <div class="clickable-icon icon_back"></div>
                 {@html $text('signup.less.text')}
             </button>
         {/if}
@@ -66,17 +67,18 @@ changes to the documentation (to keep the documentation up to date).
         </div>
 
         {#if canShowMore}
-            <button class="nav-button nav-button-right" on:click={showMoreCredits}>
+            <button class="nav-button" on:click={showMoreCredits}>
                 {@html $text('signup.more.text')}
+                <div class="clickable-icon icon_back icon-mirrored"></div>
             </button>
         {/if}
     </div>
-    {@html $text('signup.choose_your_credits_package.text')}
+    <div class="color-grey-60">{@html $text('signup.select_amount.text')}</div>
 </div>
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding-top: 10px;
     }
     
     .credits-package-container {
@@ -84,6 +86,7 @@ changes to the documentation (to keep the documentation up to date).
         justify-content: center;
         align-items: center;
         position: relative;
+        margin-bottom: -20px;
     }
 
     .package-wrapper {
@@ -93,28 +96,36 @@ changes to the documentation (to keep the documentation up to date).
     }
     
     .nav-button {
+        all: unset;
         position: absolute;
-        top: 50%;
+        bottom: -10px;
         transform: translateY(-50%);
-        z-index: 10;
-        padding: 8px 12px;
-        border-radius: 4px;
-        background-color: #f0f0f0;
-        border: 1px solid #ddd;
-        cursor: pointer;
         font-size: 14px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        color: var(--color-grey-60);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        z-index: 10;
     }
 
     .nav-button:hover {
-        background-color: #e0e0e0;
+        background: none;
+        cursor: pointer;
     }
 
-    .nav-button-left {
+    .icon-mirrored {
+        transform: scaleX(-1);
+    }
+
+    .nav-button:nth-child(1) {
         left: 0;
     }
 
-    .nav-button-right {
+    .credits-package-container > .nav-button:last-child {
         right: 0;
     }
 </style>

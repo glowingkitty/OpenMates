@@ -2155,9 +2155,9 @@
             "en_original": "More",
             "context": "Button text to increase the amount of credits to buy"
         },
-        "choose_your_credits_package": {
-            "text": "选择您的点数套餐",
-            "en_original": "Choose your credits package.",
+        "select_amount": {
+            "text": "选择数量",
+            "en_original": "Select an amount",
             "context": "text for choosing the amount of credits to buy"
         },
         "select_credits": {

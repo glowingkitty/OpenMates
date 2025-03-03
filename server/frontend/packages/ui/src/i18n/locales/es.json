@@ -2145,9 +2145,9 @@
             "en_original": "More",
             "context": "Button text to increase the amount of credits to buy"
         },
-        "choose_your_credits_package": {
-            "text": "Elige tu paquete de créditos.",
-            "en_original": "Choose your credits package.",
+        "select_amount": {
+            "text": "Seleccionar cantidad",
+            "en_original": "Select an amount",
             "context": "text for choosing the amount of credits to buy"
         },
         "select_credits": {
