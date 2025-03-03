@@ -35,6 +35,14 @@
         if (onClick) onClick();
     }
 
+    // Handler for item click - prevent propagation to stop the click from reaching document
+    function handleItemClick(event: Event): void {
+        if (disabled || !isClickable) return;
+        // Stop event propagation to prevent document click handler from closing menu
+        event.stopPropagation();
+        if (onClick) onClick();
+    }
+
     // Keyboard handler for accessibility
     function handleKeydown(event: KeyboardEvent, action: (event: Event) => void): void {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -74,7 +82,7 @@
     class:submenu={type === 'submenu'}
     class:quickaction={type === 'quickaction'}
     class:subsubmenu={type === 'subsubmenu'}
-    on:click={disabled || !isClickable ? () => {} : onClick}
+    on:click={handleItemClick}
     on:keydown={(e) => !disabled && isClickable && onClick && handleKeydown(e, onClick)}
     role={isClickable ? "menuitem" : "menuitemtext"}
     tabindex={disabled ? -1 : (isClickable ? 0 : undefined)}

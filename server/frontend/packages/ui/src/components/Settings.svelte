@@ -362,6 +362,8 @@ changes to the documentation (to keep the documentation up to date).
             const settingsMenu = document.querySelector('.settings-menu');
             const profileContainer = document.querySelector('.profile-container');
             
+            // Check if the click is within the settings menu or any of its child components
+            // This prevents the menu from closing when clicking on nested setting items
             if (settingsMenu && 
                 profileContainer && 
                 !settingsMenu.contains(event.target) && 

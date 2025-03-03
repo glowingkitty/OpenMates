@@ -61,7 +61,10 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     // This function will properly dispatch the event to the parent Settings.svelte component
-    function showLanguageSettings() {
+    function showLanguageSettings(event = null) {
+        // Stop propagation to prevent the event from bubbling up to document
+        if (event) event.stopPropagation();
+        
         currentView = 'language';
         childComponent = SettingsLanguage;
         
@@ -92,7 +95,7 @@ changes to the documentation (to keep the documentation up to date).
         icon="subsetting_icon subsetting_icon_language"
         subtitle={$text('settings.language.text')}
         title={currentLanguageObj.name}
-        onClick={showLanguageSettings}
+        onClick={() => showLanguageSettings()}
     />
 {:else if currentView === 'language' && childComponent}
     <svelte:component 

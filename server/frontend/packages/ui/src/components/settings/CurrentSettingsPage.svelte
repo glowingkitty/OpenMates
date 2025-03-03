@@ -85,7 +85,10 @@
         dispatch('quickSettingClick', { toggleName });
     }
 
-    function showSettingsView(viewName) {
+    function showSettingsView(viewName, event) {
+        // Stop propagation to prevent document click handler from closing menu
+        if (event) event.stopPropagation();
+        
         dispatch('openSettings', { 
             settingsPath: viewName, 
             direction: 'forward',
@@ -201,7 +204,7 @@
                 <SettingsItem 
                     icon={key} 
                     title={$text(`settings.${key}.text`)} 
-                    onClick={() => showSettingsView(key)} 
+                    onClick={() => showSettingsView(key, null)} 
                 />
             {/each}
 
