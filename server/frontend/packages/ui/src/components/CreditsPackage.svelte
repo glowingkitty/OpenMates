@@ -46,7 +46,7 @@
     <div class="credits-package">
         <div class="app-icon-grid-container">
             <AppIconGrid 
-                iconGrid={IconGrid54000Credits} 
+                iconGrid={IconGrid21000Credits} 
                 size="30px" 
                 gridGap="2px" 
                 shifted="columns"
@@ -98,11 +98,15 @@
     }
     
     .credits-amount {
+        position: absolute;
+        bottom: 40px;
+        left: 0;
+        right: 0;
         font-size: 18px;
         color: white;
         text-align: center;
-        margin-bottom: 20px;
         font-weight: 500;
+        z-index: 2;
     }
     
     .recommended-badge {
@@ -121,7 +125,7 @@
     .thumbs-up-icon {
         width: 13px;
         height: 13px;
-        background-image: url('path-to-thumbs-up-icon.svg');
+        background-image: url('@openmates/ui/static/icons/thumbsup.svg');;
         background-size: contain;
         background-repeat: no-repeat;
         filter: invert(1);
@@ -135,6 +139,7 @@
     }
     
     .buy-button {
-        transform: translateY(-14px);
+        transform: translateY(-30px);
+        padding: 20px;
     }
 </style>
