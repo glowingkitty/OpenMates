@@ -9,14 +9,30 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
+    import CreditsPackage from '../../../../components/CreditsPackage.svelte';
 </script>
 
 <div class="bottom-content">
+    <div class="credits-package-container">
+        <CreditsPackage 
+            credits_amount={21000}
+            recommended={true}
+            price={20}
+            currency="EUR"
+        />
+    </div>
+    
     Choose your credits package
 </div>
 
 <style>
     .bottom-content {
         padding: 24px;
+    }
+    
+    .credits-package-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 24px;
     }
 </style>

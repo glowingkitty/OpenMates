@@ -2085,6 +2085,11 @@
             "en_original": "Pay {credits} per use",
             "context": "in message: 'Pay credits per use'"
         },
+        "recommended": {
+            "text": "Recomendado",
+            "en_original": "Recommended",
+            "context": "Highlights the recommended credits package"
+        },
         "amount_currency": {
             "text": "{amount} {currency}",
             "en_original": "{amount} {currency}",

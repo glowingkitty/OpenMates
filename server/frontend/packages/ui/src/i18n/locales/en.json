@@ -656,6 +656,10 @@
             "text": "Pay {credits} per use",
             "context": "in message: 'Pay credits per use'"
         },
+        "recommended": {
+            "text": "Recommended",
+            "context": "Highlights the recommended credits package"
+        },
         "amount_currency": {
             "text": "{amount} {currency}",
             "context": "in message: '21.000 credits' or '30 EUR'"

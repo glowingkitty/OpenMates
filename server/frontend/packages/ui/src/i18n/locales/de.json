@@ -2080,6 +2080,11 @@
             "en_original": "Skip & show demo first",
             "context": "Button text for skipping the purchase and showing the demo first"
         },
+        "recommended": {
+            "text": "Empfohlen",
+            "en_original": "Recommended",
+            "context": "Highlights the recommended credits package"
+        },
         "pay_per_use": {
             "text": "Zahle {credits} pro Nutzung",
             "en_original": "Pay {credits} per use",
