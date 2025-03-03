@@ -60,12 +60,16 @@ step_9_top_content_svelte:
     import { text } from '@repo/ui';
     import { settingsMenuVisible } from '../../../Settings.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
+    import { isMobileView } from '../../../Settings.svelte';
     
     function openAppSettings() {
-        // Set deep link to apps section
+        // First set the deep link path
         settingsDeepLink.set('apps');
-        // Open settings menu
-        settingsMenuVisible.set(true);
+        
+        // Then make sure menu is visible with a slight delay
+        setTimeout(() => {
+            settingsMenuVisible.set(true);
+        }, 10);
     }
 </script>
 

@@ -196,6 +196,9 @@ changes to the documentation (to keep the documentation up to date).
         if (navigationPath.length > 0) {
             updateBreadcrumbLabel();
         }
+        
+        // Update mobile state on resize
+        updateMobileState();
     }
 
     // Reactive variables
@@ -349,7 +352,8 @@ changes to the documentation (to keep the documentation up to date).
 
     // Handle window resize
     function updateMobileState() {
-        isMobileView.set(window.innerWidth <= 1100);
+        const isMobile = window.innerWidth <= 1100;
+        isMobileView.set(isMobile);
     }
 
     // Click outside handler
@@ -371,7 +375,6 @@ changes to the documentation (to keep the documentation up to date).
     // Setup listeners
     onMount(() => {
         updateMobileState();
-        window.addEventListener('resize', updateMobileState);
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
         
@@ -383,7 +386,6 @@ changes to the documentation (to keep the documentation up to date).
         window.addEventListener('language-changed', languageChangeHandler);
         
         return () => {
-            window.removeEventListener('resize', updateMobileState);
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
@@ -482,6 +484,14 @@ changes to the documentation (to keep the documentation up to date).
         if (!isMenuVisible) {
             isMenuVisible = true;
             settingsMenuVisible.set(true);
+            
+            // Force z-index update to ensure proper overlay on mobile
+            setTimeout(() => {
+                const menuElement = document.querySelector('.settings-menu');
+                if (menuElement && $isMobileView) {
+                    menuElement.classList.add('mobile-overlay');
+                }
+            }, 50);
         }
         
         // After a brief delay to ensure menu is open, navigate to the requested settings path
@@ -506,10 +516,25 @@ changes to the documentation (to keep the documentation up to date).
         // If store value changes from true to false and our local state is still true
         if (!$settingsMenuVisible && isMenuVisible) {
             isMenuVisible = false;
+            
+            // Remove mobile overlay class when closing
+            const menuElement = document.querySelector('.settings-menu');
+            if (menuElement) {
+                menuElement.classList.remove('mobile-overlay');
+            }
+            
             toggleMenu();
         } else if ($settingsMenuVisible && !isMenuVisible) {
             // If store value changes from false to true and our local state is still false
             isMenuVisible = true;
+            
+            // Add mobile overlay class when opening on mobile
+            setTimeout(() => {
+                const menuElement = document.querySelector('.settings-menu');
+                if (menuElement && $isMobileView) {
+                    menuElement.classList.add('mobile-overlay');
+                }
+            }, 50);
         }
     }
 </script>
@@ -550,6 +575,7 @@ changes to the documentation (to keep the documentation up to date).
     class="settings-menu" 
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
+    class:mobile={$isMobileView}
 >
     <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo}>
         <div class="header-content">
@@ -715,10 +741,20 @@ changes to the documentation (to keep the documentation up to date).
             bottom: 25px;
             height: auto;
             z-index: 1000;
+            visibility: hidden; /* Hide by default on mobile */
+        }
+
+        .settings-menu.visible {
+            visibility: visible;
         }
 
         .settings-menu.overlay {
             box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Add mobile overlay style for higher z-index */
+        .settings-menu.mobile-overlay {
+            z-index: 1006 !important; /* Higher than profile-container-wrapper */
         }
     }
 

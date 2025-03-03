@@ -47,6 +47,7 @@ step_8_top_content_svelte:
     import { settingsMenuVisible } from '../../../Settings.svelte';
     import SettingsItem from '../../../SettingsItem.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
+    import { isMobileView } from '../../../Settings.svelte';
     
     // Track toggle states for the mates setting item
     let matesToggleOn = true;
@@ -72,9 +73,13 @@ step_8_top_content_svelte:
         // Toggle OFF when opening the settings
         if (settingsPath === 'mates') matesToggleOn = false;
         
-        // Open settings menu and navigate to the specific path
+        // First set the deep link path to navigate to specific settings
         settingsDeepLink.set(settingsPath);
-        settingsMenuVisible.set(true);
+        
+        // Then make sure menu is visible
+        setTimeout(() => {
+            settingsMenuVisible.set(true);
+        }, 10);
     }
     
     // Watch the settingsMenuVisible store to reset state when menu is closed externally

@@ -31,8 +31,7 @@
     import Step7BottomContent from './steps/step7/Step7BottomContent.svelte';
     import Step8BottomContent from './steps/step8/Step8BottomContent.svelte';
     import Step9BottomContent from './steps/step9/Step9BottomContent.svelte';
-    import Step10BottomContent from './steps/step10/Step10BottomContent.svelte';
-    
+
     import SignupStatusbar from './SignupStatusbar.svelte';
 
     const dispatch = createEventDispatcher();
@@ -232,7 +231,6 @@
                                             currentStep === 7 ? Step7BottomContent :
                                             currentStep === 8 ? Step8BottomContent :
                                             currentStep === 9 ? Step9BottomContent :
-                                            currentStep === 10 ? Step10BottomContent :
                                            null}
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}
