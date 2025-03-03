@@ -14,14 +14,14 @@
     }
     
     // Generate a small icon grid for decoration
-    const IconGrid54000Credits = [
+    const IconGrid50000Credits = [
         ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
         ['slides','docs','audio','code','ai','photos','events','travel','mail'],
         ['weather','notes','videos',null,null,null,'pcbdesign','legal','web'],
         ['calculator','maps','finance',null,null,null,'health','home','design'],
         ['3dmodels','games','news',null,null,null,'movies','whiteboards','projectmanagement']
     ];
-    const IconGrid21000Credits = [
+    const IconGrid20000Credits = [
         ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
         ['slides','docs','audio','code','ai','photos','events','travel','mail']
     ];
@@ -33,6 +33,15 @@
         [null,null,null,null,null],
         [null,'code','ai','photos',null]
     ];
+    
+    // Function to select the appropriate icon grid based on credits amount
+    function selectIconGrid(amount: number) {
+        if (amount >= 50000) return IconGrid50000Credits;
+        if (amount >= 20000) return IconGrid20000Credits;
+        if (amount >= 10000) return IconGrid10000Credits;
+        if (amount >= 1000) return IconGrid1000Credits;
+        return [];
+    }
 </script>
 
 <div class="credits-package-container">
@@ -46,7 +55,7 @@
     <div class="credits-package">
         <div class="app-icon-grid-container">
             <AppIconGrid 
-                iconGrid={IconGrid21000Credits} 
+                iconGrid={selectIconGrid(credits_amount)} 
                 size="30px" 
                 gridGap="2px" 
                 shifted="columns"
