@@ -250,7 +250,7 @@
         <SignupStatusbar {currentStep} />
     </div>
 
-    <div class="help-wrapper" class:hidden={currentStep === 1}>
+    <div class="help-wrapper">
         <a href={helpLink} 
            target="_blank" 
            use:tooltip 
