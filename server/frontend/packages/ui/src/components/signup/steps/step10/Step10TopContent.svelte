@@ -173,6 +173,7 @@ step_10_top_content_svelte:
     }
 
     .separated-block {
+        position: relative; /* Make sure this has position relative */
         width: 80%;
         height: 490px;
         max-width: 400px;
