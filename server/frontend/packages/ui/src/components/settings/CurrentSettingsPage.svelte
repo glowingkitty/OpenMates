@@ -120,33 +120,6 @@
         visibleViews = new Set([activeSettingsView]);
         previousView = activeSettingsView;
     });
-
-    // Add support for nested paths
-    function getBaseViewName(viewName: string): string {
-        return viewName.split('/')[0];
-    }
-    
-    // Handle nested views for transitions
-    $: isNestedView = activeSettingsView.includes('/');
-    
-    // Find the correct component to render based on the active view
-    $: currentComponent = settingsViews[activeSettingsView] || null;
-    
-    // Determine if a view should be displayed based on active view and nesting
-    function shouldShowView(viewKey: string): boolean {
-        // Always show the main view when it's active
-        if (viewKey === 'main' && activeSettingsView === 'main') {
-            return true;
-        }
-        
-        // For nested views, check if we're looking at the correct component
-        if (activeSettingsView.includes('/')) {
-            return viewKey === activeSettingsView;
-        }
-        
-        // For top-level views, match exactly
-        return viewKey === activeSettingsView;
-    }
 </script>
 
 <div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;">

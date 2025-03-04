@@ -1,15 +1,10 @@
-website_context:
-  - |
+website_context: |
     OpenMates is a web app where users can chat with digital team mates and 
     ask them questions and ask them to fullfill tasks using a wide range of apps.
-  - |
     For personal use, and for work.
-  - |
     Communication style of the website should be friendly, like talking to friends. 
-    Using words like "du" and "deine" (in german) instead of "Sie" and "Ihre"
-  - |
+    Using words like "du" and "deine" (in german) instead of "Sie" and "Ihre".
     The website should be easy to use for everyone, not just tech-savvy people.
-  - |
     The text may include variables and html tags. They also must be considered when translating.
 
 editor_notes:
