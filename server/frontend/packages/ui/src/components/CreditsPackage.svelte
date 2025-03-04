@@ -1,6 +1,9 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
+    import { createEventDispatcher } from 'svelte';
+    
+    const dispatch = createEventDispatcher();
     
     // Props
     export let credits_amount: number = 0;
@@ -42,6 +45,11 @@
         if (amount >= 1000) return IconGrid1000Credits;
         return [];
     }
+    
+    // Handle buy button click
+    function handleBuy() {
+        dispatch('buy', { credits_amount, price, currency });
+    }
 </script>
 
 <div class="credits-package-container">
@@ -70,7 +78,7 @@
         </div>
     </div>
     
-    <button class="buy-button">
+    <button class="buy-button" on:click={handleBuy}>
         {@html $text('signup.buy_for.text')
             .replace('{currency}', currency)
             .replace('{amount}', price.toString())}

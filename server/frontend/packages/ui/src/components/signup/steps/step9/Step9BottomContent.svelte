@@ -12,6 +12,9 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import CreditsPackage from '../../../../components/CreditsPackage.svelte';
     import { fly } from 'svelte/transition';
+    import { createEventDispatcher } from 'svelte';
+
+    const dispatch = createEventDispatcher();
 
     // Define the available credit packages
     const creditPackages = [
@@ -39,6 +42,16 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    // Handle buy event from CreditsPackage
+    function handleBuy(event) {
+        const { credits_amount } = event.detail;
+        // Move to step 10 and pass the credits amount
+        dispatch('step', { 
+            step: 10,
+            credits_amount: credits_amount
+        });
+    }
+
     $: currentPackage = creditPackages[currentPackageIndex];
     $: canShowLess = currentPackageIndex > 0;
     $: canShowMore = currentPackageIndex < creditPackages.length - 1;
@@ -61,6 +74,7 @@ changes to the documentation (to keep the documentation up to date).
                         recommended={currentPackage.recommended}
                         price={currentPackage.price}
                         currency={currentPackage.currency}
+                        on:buy={handleBuy}
                     />
                 </div>
             {/key}

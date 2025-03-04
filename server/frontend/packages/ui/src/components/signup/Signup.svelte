@@ -31,6 +31,7 @@
     import Step7BottomContent from './steps/step7/Step7BottomContent.svelte';
     import Step8BottomContent from './steps/step8/Step8BottomContent.svelte';
     import Step9BottomContent from './steps/step9/Step9BottomContent.svelte';
+    import Step10BottomContent from './steps/step10/Step10BottomContent.svelte';
 
     import SignupStatusbar from './SignupStatusbar.svelte';
 
@@ -45,6 +46,7 @@
     let username = '';
     let email = '';
     let selectedAppName: string | null = null;
+    let selectedCreditsAmount: number = 21000; // Default credits amount
 
     // Animation parameters
     const flyParams = {
@@ -108,11 +110,17 @@
         }
     }
 
-    function handleStep(event: CustomEvent<{step: number}>) {
+    function handleStep(event: CustomEvent<{step: number, credits_amount?: number}>) {
         const newStep = event.detail.step;
         direction = newStep > currentStep ? 'forward' : 'backward';
         previousStep = currentStep;
         currentStep = newStep;
+        
+        // If credits amount is provided (from step 9 to 10), store it
+        if (event.detail.credits_amount !== undefined) {
+            selectedCreditsAmount = event.detail.credits_amount;
+        }
+        
         // updateSettingsStep() is called via the reactive statement
     }
 
@@ -147,8 +155,8 @@
     // Update showSkip logic to show for steps 3 and 6
     $: showSkip = currentStep === 3 || currentStep === 6;
 
-    // Show expanded header on step 9
-    $: showExpandedHeader = currentStep === 9;
+    // Show expanded header on step 9 and 10
+    $: showExpandedHeader = currentStep === 9 || currentStep === 10;
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -175,7 +183,10 @@
                 <!-- Top content wrapper -->
                 <div class="top-content-wrapper">
                     <div class="top-content">
-                        <ExpandableHeader visible={showExpandedHeader} />
+                        <ExpandableHeader 
+                            visible={showExpandedHeader} 
+                            credits_amount={currentStep === 10 ? selectedCreditsAmount : undefined}
+                        />
                         <div class="content-slider">
                             {#key currentStep}
                                 <div 
@@ -204,7 +215,7 @@
                                     {:else if currentStep === 9}
                                         <Step9TopContent />
                                     {:else if currentStep === 10}
-                                        <Step10TopContent />
+                                        <Step10TopContent credits_amount={selectedCreditsAmount} />
                                     {/if}
                                 </div>
                             {/key}
@@ -231,6 +242,7 @@
                                             currentStep === 7 ? Step7BottomContent :
                                             currentStep === 8 ? Step8BottomContent :
                                             currentStep === 9 ? Step9BottomContent :
+                                            currentStep === 10 ? Step10BottomContent :
                                            null}
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}
