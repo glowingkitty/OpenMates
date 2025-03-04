@@ -19,114 +19,48 @@ step_10_top_content_svelte:
         tags:
             - 'signup'
             - 'credits'
-    limited_refund_section:
-        type: 'section'
-        text: $text('signup.limited_refund.text')
+    payment_component:
+        type: 'component'
+        component: 'Payment.svelte'
         purpose:
-            - 'Explain the limited refund policy to the user'
+            - 'Display payment form with refund consent'
+            - 'Process payment information'
         bigger_context:
             - 'Signup'
         tags:
             - 'signup'
-            - 'refund'
-            - 'legal'
-    limited_refund_consent:
-        type: 'toggle'
-        text: $text('signup.i_agree_to_limited_refund.text')
-        purpose:
-            - 'User needs to consent to limited refund and right of withdrawal expiration'
-        bigger_context:
-            - 'Signup'
-        tags:
-            - 'signup'
-            - 'refund'
-            - 'legal'
-            - 'consent'
-    learn_more_button:
-        type: 'button'
-        text: $text('signup.click_here_learn_more.text')
-        purpose:
-            - 'Button to learn more about the limited refund policy'
-        bigger_context:
-            - 'Signup'
-        tags:
-            - 'signup'
-            - 'refund'
-            - 'legal'
+            - 'payment'
+            - 'credits'
 -->
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { settingsMenuVisible } from '../../../Settings.svelte';
-    import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
-    import { isMobileView } from '../../../Settings.svelte';
-    import { onMount, createEventDispatcher } from 'svelte';
-    import AppIconGrid from '../../../../components/AppIconGrid.svelte';
-    import Toggle from '../../../Toggle.svelte';
+    import { createEventDispatcher } from 'svelte';
+    import Payment from '../../../../components/Payment.svelte';
     
     const dispatch = createEventDispatcher();
     
     // Accept credits amount as prop
     export let credits_amount: number = 21000;
     
-    // Toggle state for consent
-    let hasConsentedToLimitedRefund = false;
-    
-    $: if (hasConsentedToLimitedRefund) {
-        dispatch('consentGiven', { consented: true });
-    }
+    // Calculate purchase price based on credits amount - this would typically come from an API
+    // For this example we're using a simple calculation
+    $: purchasePrice = Math.round(credits_amount / 1000);
+    $: currency = 'EUR';
     
     // Format number with thousand separators
     function formatNumber(num: number): string {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
-    // Define icon grids based on the credits amount
-    function getIconGridForCredits(amount: number) {
-        if (amount >= 50000) {
-            return [
-                ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
-                ['slides','docs','audio','code','ai','photos','events','travel','mail'],
-                ['weather','notes','videos',null,null,null,'pcbdesign','legal','web'],
-                ['calculator','maps','finance',null,null,null,'health','home','design'],
-                ['3dmodels','games','news',null,null,null,'movies','whiteboards','projectmanagement']
-            ];
-        }
-        if (amount >= 20000) {
-            return [
-                ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
-                ['slides','docs','audio','code','ai','photos','events','travel','mail']
-            ];
-        }
-        if (amount >= 10000) {
-            return [
-                ['lifecoaching','jobs','fashion','calendar','contacts'],
-                ['audio','code','ai','photos','events']
-            ];
-        }
-        // Default for 1000+ credits
-        return [
-            [null,null,null,null,null],
-            [null,'code','ai','photos',null]
-        ];
+    function handlePayment(event) {
+        // Forward the payment event to the parent component
+        dispatch('payment', event.detail);
     }
     
-    $: iconGrid = getIconGridForCredits(credits_amount);
-    
-    // Function to handle toggle click
-    function handleRowClick() {
-        hasConsentedToLimitedRefund = !hasConsentedToLimitedRefund;
-    }
-    
-    // New function to prevent toggle click from triggering row click
-    function handleToggleClick(event: Event) {
-        event.stopPropagation();
-    }
-    
-    function openRefundInfo() {
-        // This would open documentation or info about the refund policy
-        // For now we'll just dispatch an event that can be handled by a parent
-        dispatch('openRefundInfo');
+    function handleConsent(event) {
+        // Forward consent event to parent component
+        dispatch('consentGiven', event.detail);
     }
 </script>
 
@@ -147,33 +81,14 @@ step_10_top_content_svelte:
     <div class="bottom-container">
         <div class="main-content">
             <div class="separated-block">
-                <div class="signup-header">
-                    <div class="icon header_size legal"></div>
-                    <h2 class="signup-menu-title">{@html $text('signup.limited_refund.text')}</h2>
-                </div>
-
-                <div class="consent-container">
-                    <div class="confirmation-row" 
-                         on:click={handleRowClick}
-                         on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleRowClick() : null}
-                         role="button"
-                         tabindex="0">
-                        <div on:click={handleToggleClick} on:keydown|stopPropagation role="button" tabindex="0">
-                            <Toggle bind:checked={hasConsentedToLimitedRefund} />
-                        </div>
-                        <span class="confirmation-text">
-                            {@html $text('signup.i_agree_to_limited_refund.text')}
-                        </span>
-                    </div>
-                    <button on:click={openRefundInfo} class="text-button">
-                        {@html $text('signup.click_here_learn_more.text')}
-                    </button>
-
-
-                </div>
+                <Payment 
+                    {credits_amount} 
+                    purchasePrice={purchasePrice} 
+                    currency={currency}
+                    on:consentGiven={handleConsent}
+                    on:payment={handlePayment}
+                />
             </div>
-
-
         </div>
     </div>
 </div>
@@ -212,19 +127,6 @@ step_10_top_content_svelte:
         margin-top: 10px;
     }
     
-    :global(.coin-icon-inline) {
-        display: inline-flex;
-        width: 25px;
-        height: 25px;
-        background-image: url('@openmates/ui/static/icons/coins.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-        vertical-align: middle;
-        filter: invert(1);
-        margin: 0 5px;
-        position: relative;
-        top: -2px;
-    }
     
     .primary-text {
         white-space: nowrap;
@@ -261,48 +163,5 @@ step_10_top_content_svelte:
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .signup-header {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-    }
-    
-    .consent-container {
-        width: 100%;
-        max-width: 400px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 24px;
-        padding-top: 30px;
-    }
-    
-    .confirmation-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        cursor: pointer;
-        width: 100%;
-    }
-    
-    .confirmation-row :global(.toggle-component) {
-        min-width: 55px;
-        flex-shrink: 0;
-    }
-
-    .confirmation-text {
-        color: var(--color-grey-60);
-        font-size: 16px;
-        text-align: left;
-        flex: 1;
-    }
-    
-    .text-button {
-        align-self: flex-start;
-        text-align: left;
-        padding-left: 66px;
     }
 </style>

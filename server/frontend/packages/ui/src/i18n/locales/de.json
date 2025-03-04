@@ -2209,6 +2209,36 @@
             "text": "Sicher verarbeitet durch {provider}",
             "en_original": "Secured & powered by {provider}",
             "context": "Used in 'Secured & powered by mollie'"
+        },
+        "name_too_short": {
+            "text": "Mindestens 3 Zeichen",
+            "en_original": "Minimum 3 characters",
+            "context": "Error message shown when name is too short"
+        },
+        "invalid_card_number": {
+            "text": "Ungültige Kartennummer",
+            "en_original": "Invalid card number",
+            "context": "Error message shown when card number is invalid"
+        },
+        "invalid_expiry_format": {
+            "text": "Ungültiges Ablaufdatum-Format",
+            "en_original": "Invalid expiry format",
+            "context": "Error message shown when expiry format is invalid"
+        },
+        "invalid_month": {
+            "text": "Ungültiger Monat",
+            "en_original": "Invalid month",
+            "context": "Error message shown when month is invalid"
+        },
+        "card_expired": {
+            "text": "Karte abgelaufen",
+            "en_original": "Card expired",
+            "context": "Error message shown when card is expired"
+        },
+        "invalid_cvv": {
+            "text": "Ungültiger CVV",
+            "en_original": "Invalid CVV",
+            "context": "Error message shown when CVV is invalid"
         }
     }
 }

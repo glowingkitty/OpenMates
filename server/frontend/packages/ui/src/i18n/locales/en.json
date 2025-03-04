@@ -755,6 +755,30 @@
         "secured_and_powered_by": {
             "text": "Secured & powered by {provider}",
             "context": "Used in 'Secured & powered by mollie'"
+        },
+        "name_too_short": {
+            "text": "Minimum 3 characters",
+            "context": "Error message shown when name is too short"
+        },
+        "invalid_card_number": {
+            "text": "Invalid card number",
+            "context": "Error message shown when card number is invalid"
+        },
+        "invalid_expiry_format": {
+            "text": "Invalid expiry format",
+            "context": "Error message shown when expiry format is invalid"
+        },
+        "invalid_month": {
+            "text": "Invalid month",
+            "context": "Error message shown when month is invalid"
+        },
+        "card_expired": {
+            "text": "Card expired",
+            "context": "Error message shown when card is expired"
+        },
+        "invalid_cvv": {
+            "text": "Invalid CVV",
+            "context": "Error message shown when CVV is invalid"
         }
     },
     "login": {

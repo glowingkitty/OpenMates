@@ -2209,6 +2209,36 @@
             "text": "{provider}により安全に処理",
             "en_original": "Secured & powered by {provider}",
             "context": "Used in 'Secured & powered by mollie'"
+        },
+        "name_too_short": {
+            "text": "最低3文字必要",
+            "en_original": "Minimum 3 characters",
+            "context": "Error message shown when name is too short"
+        },
+        "invalid_card_number": {
+            "text": "無効なカード番号",
+            "en_original": "Invalid card number",
+            "context": "Error message shown when card number is invalid"
+        },
+        "invalid_expiry_format": {
+            "text": "無効な有効期限形式",
+            "en_original": "Invalid expiry format",
+            "context": "Error message shown when expiry format is invalid"
+        },
+        "invalid_month": {
+            "text": "無効な月",
+            "en_original": "Invalid month",
+            "context": "Error message shown when month is invalid"
+        },
+        "card_expired": {
+            "text": "カードの有効期限が切れています",
+            "en_original": "Card expired",
+            "context": "Error message shown when card is expired"
+        },
+        "invalid_cvv": {
+            "text": "無効なCVV",
+            "en_original": "Invalid CVV",
+            "context": "Error message shown when CVV is invalid"
         }
     }
 }

@@ -47,6 +47,7 @@
     let email = '';
     let selectedAppName: string | null = null;
     let selectedCreditsAmount: number = 21000; // Default credits amount
+    let limitedRefundConsent = false;
 
     // Animation parameters
     const flyParams = {
@@ -145,6 +146,31 @@
         isImageUploading = event.detail.isUploading;
     }
 
+    // Handle limited refund consent from Step10TopContent
+    function handleRefundConsent(event: CustomEvent<{consented: boolean}>) {
+        limitedRefundConsent = event.detail.consented;
+    }
+    
+    // Handle open refund info request
+    function handleOpenRefundInfo() {
+        window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_1), '_blank');
+    }
+    
+    // Handle payment submission
+    function handlePaymentSubmission(event: CustomEvent<{
+        nameOnCard: string,
+        cardNumber: string,
+        expireDate: string,
+        cvv: string,
+        amount: number
+    }>) {
+        console.log('Processing payment...', event.detail);
+        // Implement payment submission logic here
+        
+        // For demo, simulate success and move to next step
+        goToStep(11);  // Move to completion step
+    }
+
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
         currentStep === 1 
@@ -218,7 +244,12 @@
                                     {:else if currentStep === 9}
                                         <Step9TopContent />
                                     {:else if currentStep === 10}
-                                        <Step10TopContent credits_amount={selectedCreditsAmount} />
+                                        <Step10TopContent 
+                                            credits_amount={selectedCreditsAmount} 
+                                            on:consentGiven={handleRefundConsent}
+                                            on:openRefundInfo={handleOpenRefundInfo}
+                                            on:payment={handlePaymentSubmission}
+                                        />
                                     {/if}
                                 </div>
                             {/key}
