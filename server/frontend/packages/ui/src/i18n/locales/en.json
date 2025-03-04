@@ -732,6 +732,18 @@
             "text": "Full name on card",
             "context": "Placeholder text for full name on card input field for card payments"
         },
+        "vat_info": {
+            "text": "No VAT charged according to §19 UStG (small business regulation).",
+            "context": "Info text about VAT charges"
+        },
+        "card_number": {
+            "text": "Card number",
+            "context": "Placeholder text for card number input field for card payments"
+        },
+        "cvv": {
+            "text": "CVV",
+            "context": "Placeholder text for CVV input field for card payments"
+        },
         "mm_yy": {
             "text": "MM/YY",
             "context": "Placeholder text for MM/YY input field for card payments"

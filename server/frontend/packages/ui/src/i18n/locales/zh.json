@@ -2190,6 +2190,21 @@
             "en_original": "Full name on card",
             "context": "Placeholder text for full name on card input field for card payments"
         },
+        "vat_info": {
+            "text": "根据§19 UStG（小型企业规定）不收取增值税。",
+            "en_original": "No VAT charged according to §19 UStG (small business regulation).",
+            "context": "Info text about VAT charges"
+        },
+        "card_number": {
+            "text": "卡号",
+            "en_original": "Card number",
+            "context": "Placeholder text for card number input field for card payments"
+        },
+        "cvv": {
+            "text": "CVV",
+            "en_original": "CVV",
+            "context": "Placeholder text for CVV input field for card payments"
+        },
         "mm_yy": {
             "text": "月/年",
             "en_original": "MM/YY",
