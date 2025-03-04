@@ -346,20 +346,21 @@
     let previousPaymentFormState;
 </script>
 
+{#if showPaymentForm}
+<div class="visibility-toggle">
+    <button 
+        class="visibility-button"
+        on:click={toggleSensitiveDataVisibility}
+        aria-label={showSensitiveData ? $text('signup.hide_sensitive_data.text') :$text('signup.show_sensitive_data.text')}
+        use:tooltip
+    >
+        <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
+    </button>
+</div>
+{/if}
 <div class="payment-component {compact ? 'compact' : ''}">
     <!-- Visibility toggle button - now positioned absolutely to the component -->
-    {#if showPaymentForm}
-    <div class="visibility-toggle">
-        <button 
-            class="visibility-button"
-            on:click={toggleSensitiveDataVisibility}
-            aria-label={showSensitiveData ? $text('signup.hide_sensitive_data.text') :$text('signup.show_sensitive_data.text')}
-            use:tooltip
-        >
-            <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
-        </button>
-    </div>
-    {/if}
+    
 
     {#if requireConsent && !showPaymentForm}
         <div class="consent-view" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
@@ -590,19 +591,11 @@
     .visibility-toggle {
         position: absolute;
         top: 10px;
-        right: 10px;
         z-index: 10;
     }
 
     .visibility-button {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 5px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        all: unset;
     }
 
     .visibility-button .clickable-icon {
@@ -728,10 +721,8 @@
     }
     
     .payment-title {
-        font-size: 18px;
         text-align: center;
-        margin-bottom: 20px;
-        padding-top: 8px;
+        margin-bottom: 10px;
     }
     
     .input-row {
