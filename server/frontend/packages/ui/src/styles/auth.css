@@ -281,17 +281,19 @@ form.hidden {
     /* padding: 0 10px; */
 }
 
+/* Maintain overflow:hidden for content, but use a wrapper for the shadow */
 .top-content-wrapper {
     margin-top: 50px;
     width: 100%;
     height: 420px;
-    overflow: hidden;
+    position: relative;
+    /* No overflow:hidden here to allow shadow to be visible */
 }
 
 .top-content {
     background: var(--color-grey-0);
     border-radius: 18px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     width: 100%;
     height: 100%;
     overflow: hidden;
