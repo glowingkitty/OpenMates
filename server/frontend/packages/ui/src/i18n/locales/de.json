@@ -2249,6 +2249,26 @@
             "text": "Empfindliche Daten ausblenden",
             "en_original": "Hide sensitive data",
             "context": "Button text for hiding sensitive card payment data"
+        },
+        "processing_payment": {
+            "text": "Zahlung wird verarbeitet...",
+            "en_original": "Processing payment...",
+            "context": "Text shown while processing payment"
+        },
+        "payment_failed": {
+            "text": "Zahlung fehlgeschlagen",
+            "en_original": "Payment failed",
+            "context": "Error message shown when payment fails"
+        },
+        "purchase_successful": {
+            "text": "Kauf erfolgreich",
+            "en_original": "Purchase successful",
+            "context": "Success message shown when purchase is successful"
+        },
+        "you_will_receive_confirmation_soon": {
+            "text": "Die E-Mail-Bestätigung mit deiner Rechnung folgt in Kürze.",
+            "en_original": "You will receive an e-mail confirmation with your invoice soon.",
+            "context": "Message shown after successful purchase"
         }
     }
 }

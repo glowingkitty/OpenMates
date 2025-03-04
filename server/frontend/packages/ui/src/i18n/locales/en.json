@@ -787,6 +787,22 @@
         "hide_sensitive_data": {
             "text": "Hide sensitive data",
             "context": "Button text for hiding sensitive card payment data"
+        },
+        "processing_payment": {
+            "text": "Processing payment...",
+            "context": "Text shown while processing payment"
+        },
+        "payment_failed": {
+            "text": "Payment failed",
+            "context": "Error message shown when payment fails"
+        },
+        "purchase_successful": {
+            "text": "Purchase successful",
+            "context": "Success message shown when purchase is successful"
+        },
+        "you_will_receive_confirmation_soon": {
+            "text": "You will receive an e-mail confirmation with your invoice soon.",
+            "context": "Message shown after successful purchase"
         }
     },
     "login": {

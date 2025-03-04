@@ -2259,6 +2259,26 @@
             "text": "隐藏敏感数据",
             "en_original": "Hide sensitive data",
             "context": "Button text for hiding sensitive card payment data"
+        },
+        "processing_payment": {
+            "text": "正在处理支付...",
+            "en_original": "Processing payment...",
+            "context": "Text shown while processing payment"
+        },
+        "payment_failed": {
+            "text": "支付失败",
+            "en_original": "Payment failed",
+            "context": "Error message shown when payment fails"
+        },
+        "purchase_successful": {
+            "text": "购买成功",
+            "en_original": "Purchase successful",
+            "context": "Success message shown when purchase is successful"
+        },
+        "you_will_receive_confirmation_soon": {
+            "text": "您将很快收到带有发票的电子邮件确认信息。",
+            "en_original": "You will receive an e-mail confirmation with your invoice soon.",
+            "context": "Message shown after successful purchase"
         }
     }
 }

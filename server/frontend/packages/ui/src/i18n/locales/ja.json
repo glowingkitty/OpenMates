@@ -2249,6 +2249,26 @@
             "text": "機密データを非表示",
             "en_original": "Hide sensitive data",
             "context": "Button text for hiding sensitive card payment data"
+        },
+        "processing_payment": {
+            "text": "お支払いを処理中...",
+            "en_original": "Processing payment...",
+            "context": "Text shown while processing payment"
+        },
+        "payment_failed": {
+            "text": "お支払いに失敗しました",
+            "en_original": "Payment failed",
+            "context": "Error message shown when payment fails"
+        },
+        "purchase_successful": {
+            "text": "購入が完了しました",
+            "en_original": "Purchase successful",
+            "context": "Success message shown when purchase is successful"
+        },
+        "you_will_receive_confirmation_soon": {
+            "text": "請求書を含むメール確認が間もなく届きます。",
+            "en_original": "You will receive an e-mail confirmation with your invoice soon.",
+            "context": "Message shown after successful purchase"
         }
     }
 }
