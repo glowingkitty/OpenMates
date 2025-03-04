@@ -14,6 +14,8 @@ changes to the documentation (to keep the documentation up to date).
     import { settingsMenuVisible } from '../../../Settings.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
     import { isMobileView } from '../../../Settings.svelte';
+    import { onMount } from 'svelte';
+    import AppIconGrid from '../../../../components/AppIconGrid.svelte';
     
     // Accept credits amount as prop
     export let credits_amount: number = 21000;
@@ -22,6 +24,38 @@ changes to the documentation (to keep the documentation up to date).
     function formatNumber(num: number): string {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
+
+    // Define icon grids based on the credits amount
+    function getIconGridForCredits(amount: number) {
+        if (amount >= 50000) {
+            return [
+                ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
+                ['slides','docs','audio','code','ai','photos','events','travel','mail'],
+                ['weather','notes','videos',null,null,null,'pcbdesign','legal','web'],
+                ['calculator','maps','finance',null,null,null,'health','home','design'],
+                ['3dmodels','games','news',null,null,null,'movies','whiteboards','projectmanagement']
+            ];
+        }
+        if (amount >= 20000) {
+            return [
+                ['diagrams','sheets','lifecoaching','jobs','fashion','calendar','contacts','hosting','socialmedia'],
+                ['slides','docs','audio','code','ai','photos','events','travel','mail']
+            ];
+        }
+        if (amount >= 10000) {
+            return [
+                ['lifecoaching','jobs','fashion','calendar','contacts'],
+                ['audio','code','ai','photos','events']
+            ];
+        }
+        // Default for 1000+ credits
+        return [
+            [null,null,null,null,null],
+            [null,'code','ai','photos',null]
+        ];
+    }
+    
+    $: iconGrid = getIconGridForCredits(credits_amount);
 </script>
 
 <div class="container">
@@ -37,7 +71,7 @@ changes to the documentation (to keep the documentation up to date).
             </div>
         </div>
     </div>
-
+    
 </div>
 
 <style>

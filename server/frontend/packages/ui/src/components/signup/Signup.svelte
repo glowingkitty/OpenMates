@@ -157,6 +157,9 @@
 
     // Show expanded header on step 9 and 10
     $: showExpandedHeader = currentStep === 9 || currentStep === 10;
+
+    // For step 10, use expanded height for the top content wrapper
+    $: isExpandedTopContent = currentStep === 10;
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -181,7 +184,7 @@
         {:else}
             <div class="step-layout">
                 <!-- Top content wrapper -->
-                <div class="top-content-wrapper">
+                <div class="top-content-wrapper" class:expanded={isExpandedTopContent}>
                     <div class="top-content">
                         <ExpandableHeader 
                             visible={showExpandedHeader} 
@@ -224,7 +227,7 @@
                 </div>
 
                 <!-- Bottom content wrapper -->
-                <div class="bottom-content-wrapper">
+                <div class="bottom-content-wrapper" class:reduced={isExpandedTopContent}>
                     <div class="content-slider">
                         {#key currentStep}
                             <div 
@@ -272,3 +275,14 @@
         </a>
     </div>
 </div>
+
+<style>
+    /* Add these styles to your existing CSS */
+    .top-content-wrapper {
+        transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    
+    .top-content-wrapper.expanded {
+        height: 640px;
+    }
+</style>
