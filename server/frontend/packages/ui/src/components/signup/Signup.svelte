@@ -47,6 +47,8 @@
     let email = '';
     let selectedAppName: string | null = null;
     let selectedCreditsAmount: number = 21000; // Default credits amount
+    let selectedPrice: number = 20; // Default price
+    let selectedCurrency: string = 'EUR'; // Default currency
     let limitedRefundConsent = false;
 
     // Animation parameters
@@ -119,7 +121,7 @@
         }
     }
 
-    function handleStep(event: CustomEvent<{step: number, credits_amount?: number}>) {
+    function handleStep(event: CustomEvent<{step: number, credits_amount?: number, price?: number, currency?: string}>) {
         const newStep = event.detail.step;
         direction = newStep > currentStep ? 'forward' : 'backward';
         previousStep = currentStep;
@@ -128,6 +130,15 @@
         // If credits amount is provided (from step 9 to 10), store it
         if (event.detail.credits_amount !== undefined) {
             selectedCreditsAmount = event.detail.credits_amount;
+        }
+
+        // Store price and currency if provided
+        if (event.detail.price !== undefined) {
+            selectedPrice = event.detail.price;
+        }
+
+        if (event.detail.currency !== undefined) {
+            selectedCurrency = event.detail.currency;
         }
         
         // updateSettingsStep() is called via the reactive statement
@@ -262,6 +273,8 @@
                                     {:else if currentStep === 10}
                                         <Step10TopContent 
                                             credits_amount={selectedCreditsAmount} 
+                                            price={selectedPrice} 
+                                            currency={selectedCurrency}
                                             on:consentGiven={handleRefundConsent}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}

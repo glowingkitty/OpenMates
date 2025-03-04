@@ -44,11 +44,13 @@ changes to the documentation (to keep the documentation up to date).
 
     // Handle buy event from CreditsPackage
     function handleBuy(event) {
-        const { credits_amount } = event.detail;
-        // Move to step 10 and pass the credits amount
+        const { credits_amount, price, currency } = event.detail;
+        // Move to step 10 and pass the credits amount, price and currency
         dispatch('step', { 
             step: 10,
-            credits_amount: credits_amount
+            credits_amount,
+            price,
+            currency
         });
     }
 

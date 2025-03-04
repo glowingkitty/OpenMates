@@ -40,16 +40,13 @@ step_10_top_content_svelte:
     
     const dispatch = createEventDispatcher();
     
-    // Accept credits amount as prop
+    // Accept credits amount, price and currency as props
     export let credits_amount: number = 21000;
+    export let price: number = 20;
+    export let currency: string = 'EUR';
     
     // Track if payment form is visible
     let isPaymentFormVisible = false;
-    
-    // Calculate purchase price based on credits amount - this would typically come from an API
-    // For this example we're using a simple calculation
-    $: purchasePrice = Math.round(credits_amount / 1000);
-    $: currency = 'EUR';
     
     // Format number with thousand separators
     function formatNumber(num: number): string {
@@ -99,8 +96,8 @@ step_10_top_content_svelte:
             <div class="separated-block">
                 <Payment 
                     {credits_amount} 
-                    purchasePrice={purchasePrice} 
-                    currency={currency}
+                    purchasePrice={price} 
+                    {currency}
                     on:consentGiven={handleConsent}
                     on:payment={handlePayment}
                     on:openRefundInfo={handleOpenRefundInfo}
