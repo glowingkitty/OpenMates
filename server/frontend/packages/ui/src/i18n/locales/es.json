@@ -2239,6 +2239,16 @@
             "text": "CVV no válido",
             "en_original": "Invalid CVV",
             "context": "Error message shown when CVV is invalid"
+        },
+        "show_sensitive_data": {
+            "text": "Mostrar datos sensibles",
+            "en_original": "Show sensitive data",
+            "context": "Button text for showing sensitive card payment data"
+        },
+        "hide_sensitive_data": {
+            "text": "Ocultar datos sensibles",
+            "en_original": "Hide sensitive data",
+            "context": "Button text for hiding sensitive card payment data"
         }
     }
 }

@@ -779,6 +779,14 @@
         "invalid_cvv": {
             "text": "Invalid CVV",
             "context": "Error message shown when CVV is invalid"
+        },
+        "show_sensitive_data": {
+            "text": "Show sensitive data",
+            "context": "Button text for showing sensitive card payment data"
+        },
+        "hide_sensitive_data": {
+            "text": "Hide sensitive data",
+            "context": "Button text for hiding sensitive card payment data"
         }
     },
     "login": {

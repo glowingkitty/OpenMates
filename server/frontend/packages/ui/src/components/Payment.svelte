@@ -5,6 +5,7 @@
     import InputWarning from './common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../config/links';
     import { fade } from 'svelte/transition';
+    import { tooltip } from '../actions/tooltip';
     
     const dispatch = createEventDispatcher();
     
@@ -368,7 +369,8 @@
                 <button 
                     class="visibility-button"
                     on:click={toggleSensitiveDataVisibility}
-                    aria-label={showSensitiveData ? "Hide sensitive data" : "Show sensitive data"}
+                    aria-label={showSensitiveData ? $text('signup.hide_sensitive_data.text') :$text('signup.show_sensitive_data.text')}
+                    use:tooltip
                 >
                     <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
                 </button>
@@ -547,7 +549,7 @@
                     <p class="vat-info color-grey-60">
                         {@html $text('signup.vat_info.text')}
                     </p>
-                    <button type="button" class="secured-by">
+                    <button type="button" class="text-button">
                         <span class="lock-icon"></span>
                         {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'mollie')}
                     </button>
@@ -783,18 +785,4 @@
         text-align: center;
         margin-bottom: 10px;
     }
-    
-    .secured-by {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        width: 100%;
-        font-size: 14px;
-        color: var(--color-grey-60);
-        background: transparent;
-        border: none;
-        cursor: pointer;
-    }
-
 </style>
