@@ -635,12 +635,26 @@
         /* Fix width issues for password inputs */
         width: 100%;
         box-sizing: border-box;
+        height: 48px !important; /* Force consistent height */
+        line-height: normal; /* Reset line-height that might affect height */
+        min-height: 48px;
+        max-height: 48px;
     }
     
-    /* Ensure all inputs have consistent width */
+    /* Ensure all inputs have consistent width and height */
     input {
         width: 100%;
         box-sizing: border-box;
+        height: 48px !important; /* Force consistent height */
+        line-height: normal; /* Reset line-height that might affect height */
+        min-height: 48px;
+        max-height: 48px;
+    }
+
+    /* Ensure wrapper maintains consistent height */
+    .input-wrapper {
+        position: relative;
+        height: 48px;
     }
 
     .signup-header {
