@@ -71,7 +71,15 @@ changes to the documentation (to keep the documentation up to date).
             </div>
         </div>
     </div>
-    
+
+    <div class="bottom-container">
+        <div class="separated-block">
+            <div class="signup-header">
+                <div class="icon header_size legal"></div>
+                <h2 class="signup-menu-title">{@html $text('signup.limited_refund.text')}</h2>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -128,6 +136,24 @@ changes to the documentation (to keep the documentation up to date).
         align-items: center;
         justify-content: center;
         color: white;
+    }
+
+    .bottom-container {
+        position: absolute;
+        top: 130px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 0 24px;
+        overflow-y: auto;
+    }
+
+    .separated-block {
+        width: 80%;
+        background-color: var(--color-grey-20);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
     
 </style>

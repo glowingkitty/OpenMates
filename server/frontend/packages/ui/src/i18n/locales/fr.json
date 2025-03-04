@@ -2155,6 +2155,21 @@
             "en_original": "Select credits",
             "context": "Button text going back to select credits"
         },
+        "limited_refund": {
+            "text": "Remboursement limité",
+            "en_original": "Limited refund",
+            "context": "heading for explainer about limited refund"
+        },
+        "i_agree_to_limited_refund": {
+            "text": "J'accepte que je ne puisse demander un remboursement que pour les crédits non utilisés dans les 14 jours suivant l'achat. Je consens également à l'exécution immédiate des services numériques fournis par OpenMates, reconnaissant que mon droit de rétractation expire une fois les crédits utilisés.",
+            "en_original": "I agree that I can request a refund only for unused credits within 14 days after purchase. I also consent to the immediate execution of the digital services provided by OpenMates, acknowledging that my right of withdrawal expires once the credits are used.",
+            "context": "toggle text for agreeing to limited refund"
+        },
+        "click_here_learn_more": {
+            "text": "Cliquez ici pour savoir pourquoi vous devez accepter.",
+            "en_original": "Click here to learn why you need to agree.",
+            "context": "Button text for learning more about the limited refund policy"
+        },
         "pay_with_card": {
             "text": "Payer par carte",
             "en_original": "Pay with card",

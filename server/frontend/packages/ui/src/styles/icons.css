@@ -628,6 +628,15 @@ div.clickable-icon {
   }
 }
 
+.icon.legal {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/legal.svg');
+      background-size: 60%;
+  }
+}
+
 .icon.mates {
   background: var(--color-primary);
 
