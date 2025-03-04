@@ -322,6 +322,26 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/image.svg');
 }
 
+.clickable-icon.icon_hidden {
+  -webkit-mask-image: url('@openmates/ui/static/icons/hidden.svg');
+  mask-image: url('@openmates/ui/static/icons/hidden.svg');
+}
+
+.clickable-icon.icon_visible {
+  -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+  mask-image: url('@openmates/ui/static/icons/visible.svg');
+}
+
+.clickable-icon.icon_billing {
+  -webkit-mask-image: url('@openmates/ui/static/icons/billing.svg');
+  mask-image: url('@openmates/ui/static/icons/billing.svg');
+}
+
+.clickable-icon.icon_calendar {
+  -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
+  mask-image: url('@openmates/ui/static/icons/calendar.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;
