@@ -18,6 +18,12 @@
     // Toggle state for consent
     let hasConsentedToLimitedRefund = false;
     
+    // Add state to track if sensitive data should be visible
+    let showSensitiveData = false;
+    
+    // Track if card has been entered and user finished typing
+    let isCardNumberComplete = false;
+    
     $: if (hasConsentedToLimitedRefund) {
         dispatch('consentGiven', { consented: true });
     }
@@ -31,9 +37,11 @@
     
     // Input element references
     let nameInput: HTMLInputElement;
-    let cardInput: HTMLInputElement;
+    let cardInputVisible: HTMLInputElement;
+    let cardInputHidden: HTMLInputElement;
     let expireInput: HTMLInputElement;
-    let cvvInput: HTMLInputElement;
+    let cvvInputVisible: HTMLInputElement;
+    let cvvInputHidden: HTMLInputElement;
     
     // Validation states
     let nameError = '';
@@ -74,6 +82,25 @@
     // Function to prevent toggle click from triggering row click
     function handleToggleClick(event: Event) {
         event.stopPropagation();
+    }
+    
+    // Toggle visibility of sensitive data
+    function toggleSensitiveDataVisibility() {
+        showSensitiveData = !showSensitiveData;
+        
+        // Focus the appropriate input after toggling
+        setTimeout(() => {
+            const activeElement = document.activeElement;
+            if (activeElement === cardInputVisible || activeElement === cardInputHidden) {
+                const focusElement = showSensitiveData ? cardInputVisible : cardInputHidden;
+                if (focusElement) focusElement.focus();
+            }
+            
+            if (activeElement === cvvInputVisible || activeElement === cvvInputHidden) {
+                const focusElement = showSensitiveData ? cvvInputVisible : cvvInputHidden;
+                if (focusElement) focusElement.focus();
+            }
+        }, 0);
     }
     
     function openRefundInfo() {
@@ -223,7 +250,37 @@
         // Adjust cursor position after formatting
         await tick();
         const newPosition = cursorPosition + (cardNumber.length - previousLength);
-        input.setSelectionRange(newPosition, newPosition);
+        
+        // Set cursor position for active input
+        const activeInput = document.activeElement;
+        if (activeInput === cardInputVisible) {
+            cardInputVisible.setSelectionRange(newPosition, newPosition);
+        } else if (activeInput === cardInputHidden) {
+            cardInputHidden.setSelectionRange(newPosition, newPosition);
+        }
+    }
+    
+    // Handle card field blur event
+    function handleCardBlur() {
+        // Mark as complete if there are enough digits
+        const digits = cardNumber.replace(/\D/g, '');
+        isCardNumberComplete = digits.length >= 13;
+        
+        // Validate the card number
+        validateCardNumber(cardNumber);
+    }
+    
+    // Handle card field focus event
+    function handleCardFocus() {
+        // Reset the completion status while editing
+        isCardNumberComplete = false;
+    }
+    
+    // Get the last four digits of the card number
+    function getLastFourDigits(cardNum: string): string {
+        const digits = cardNum.replace(/\D/g, '');
+        if (digits.length < 4) return digits;
+        return digits.slice(-4);
     }
     
     // Handle expiration date input
@@ -307,6 +364,16 @@
         </div>
     {:else}
         <div class="payment-form" in:fade={{ duration: 300 }}>
+            <div class="visibility-toggle">
+                <button 
+                    class="visibility-button"
+                    on:click={toggleSensitiveDataVisibility}
+                    aria-label={showSensitiveData ? "Hide sensitive data" : "Show sensitive data"}
+                >
+                    <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
+                </button>
+            </div>
+            
             <div class="color-grey-60 payment-title">
                 {@html $text('signup.pay_with_card.text')}
             </div>
@@ -337,22 +404,52 @@
                 <div class="input-group">
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_billing"></span>
-                        <input 
-                            bind:this={cardInput}
-                            type="text" 
-                            bind:value={cardNumber}
-                            placeholder={$text('signup.card_number.text')}
-                            on:input={handleCardNumberInput}
-                            on:blur={() => validateCardNumber(cardNumber)}
-                            class:error={!!cardError}
-                            required
-                            inputmode="numeric"
-                            autocomplete="cc-number"
-                        />
+                        
+                        <!-- Show appropriate card input based on visibility preference -->
+                        {#if showSensitiveData}
+                            <input 
+                                bind:this={cardInputVisible}
+                                type="text"
+                                bind:value={cardNumber}
+                                placeholder={$text('signup.card_number.text')}
+                                on:input={handleCardNumberInput}
+                                on:focus={handleCardFocus}
+                                on:blur={handleCardBlur}
+                                class:error={!!cardError}
+                                required
+                                inputmode="numeric"
+                                autocomplete="cc-number"
+                            />
+                        {:else}
+                            <!-- We use a regular input with normalized value but apply CSS to make bullets -->
+                            <div class="card-input-container">
+                                <input 
+                                    bind:this={cardInputHidden}
+                                    type="password"
+                                    bind:value={cardNumber}
+                                    placeholder={$text('signup.card_number.text')}
+                                    on:input={handleCardNumberInput}
+                                    on:focus={handleCardFocus}
+                                    on:blur={handleCardBlur}
+                                    class:error={!!cardError}
+                                    required
+                                    inputmode="numeric"
+                                    autocomplete="cc-number"
+                                />
+                                <!-- Last four digits overlay when card is completed and not being edited -->
+                                {#if isCardNumberComplete && cardNumber}
+                                <div class="last-four-overlay">
+                                    <span class="last-four-spacer"></span>
+                                    <span class="last-four-digits">{getLastFourDigits(cardNumber)}</span>
+                                </div>
+                                {/if}
+                            </div>
+                        {/if}
+                        
                         {#if showCardWarning && cardError}
                             <InputWarning 
                                 message={cardError}
-                                target={cardInput}
+                                target={showSensitiveData ? cardInputVisible : cardInputHidden}
                             />
                         {/if}
                     </div>
@@ -387,23 +484,42 @@
                     <div class="input-group half">
                         <div class="input-wrapper">
                             <span class="clickable-icon icon_secret"></span>
-                            <input 
-                                bind:this={cvvInput}
-                                type="text" 
-                                bind:value={cvv}
-                                placeholder={$text('signup.cvv.text')}
-                                on:input={handleCVVInput}
-                                on:blur={() => validateCVV(cvv)}
-                                class:error={!!cvvError}
-                                required
-                                maxlength="4"
-                                inputmode="numeric"
-                                autocomplete="cc-csc"
-                            />
+                            
+                            <!-- Show appropriate CVV input based on visibility preference -->
+                            {#if showSensitiveData}
+                                <input 
+                                    bind:this={cvvInputVisible}
+                                    type="text"
+                                    bind:value={cvv}
+                                    placeholder={$text('signup.cvv.text')}
+                                    on:input={handleCVVInput}
+                                    on:blur={() => validateCVV(cvv)}
+                                    class:error={!!cvvError}
+                                    required
+                                    maxlength="4"
+                                    inputmode="numeric"
+                                    autocomplete="cc-csc"
+                                />
+                            {:else}
+                                <input 
+                                    bind:this={cvvInputHidden}
+                                    type="password"
+                                    bind:value={cvv}
+                                    placeholder={$text('signup.cvv.text')}
+                                    on:input={handleCVVInput}
+                                    on:blur={() => validateCVV(cvv)}
+                                    class:error={!!cvvError}
+                                    required
+                                    maxlength="4"
+                                    inputmode="numeric"
+                                    autocomplete="cc-csc"
+                                />
+                            {/if}
+                            
                             {#if showCVVWarning && cvvError}
                                 <InputWarning 
                                     message={cvvError}
-                                    target={cvvInput}
+                                    target={showSensitiveData ? cvvInputVisible : cvvInputHidden}
                                 />
                             {/if}
                         </div>
@@ -445,11 +561,86 @@
     .payment-component {
         width: 100%;
         height: 100%;
+        position: relative;
     }
     
     .compact {
         max-width: 500px;
         margin: 0 auto;
+    }
+
+    .visibility-toggle {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+
+    .visibility-button {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .visibility-button .clickable-icon {
+        position: static;
+        transform: none;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .card-input-container {
+        position: relative;
+        width: 100%;
+        display: block;
+    }
+    
+    .card-input-container input {
+        width: 100%;
+        box-sizing: border-box;
+        padding-right: 70px; /* Add padding to leave space for the last four digits */
+    }
+
+    .last-four-overlay {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        pointer-events: none;
+        z-index: 5;
+    }
+    
+    .last-four-spacer {
+        flex: 1;
+    }
+    
+    .last-four-digits {
+        font-family: inherit;
+        font-size: inherit;
+        color: inherit;
+        white-space: nowrap;
+    }
+
+    /* Override default password bullet appearance */
+    input[type="password"] {
+        font-family: text-security-disc;
+        -webkit-text-security: disc;
+        /* Fix width issues for password inputs */
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure all inputs have consistent width */
+    input {
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .signup-header {
