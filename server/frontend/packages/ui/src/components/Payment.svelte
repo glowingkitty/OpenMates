@@ -335,9 +335,32 @@
             });
         }
     }
+
+    // Notify parent when payment form visibility changes
+    $: if (showPaymentForm !== previousPaymentFormState) {
+        if (previousPaymentFormState !== undefined) {
+            dispatch('paymentFormVisibility', { visible: showPaymentForm });
+        }
+        previousPaymentFormState = showPaymentForm;
+    }
+    let previousPaymentFormState;
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
+    <!-- Visibility toggle button - now positioned absolutely to the component -->
+    {#if showPaymentForm}
+    <div class="visibility-toggle">
+        <button 
+            class="visibility-button"
+            on:click={toggleSensitiveDataVisibility}
+            aria-label={showSensitiveData ? $text('signup.hide_sensitive_data.text') :$text('signup.show_sensitive_data.text')}
+            use:tooltip
+        >
+            <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
+        </button>
+    </div>
+    {/if}
+
     {#if requireConsent && !showPaymentForm}
         <div class="consent-view" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
             <div class="signup-header">
@@ -365,17 +388,6 @@
         </div>
     {:else}
         <div class="payment-form" in:fade={{ duration: 300 }}>
-            <div class="visibility-toggle">
-                <button 
-                    class="visibility-button"
-                    on:click={toggleSensitiveDataVisibility}
-                    aria-label={showSensitiveData ? $text('signup.hide_sensitive_data.text') :$text('signup.show_sensitive_data.text')}
-                    use:tooltip
-                >
-                    <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
-                </button>
-            </div>
-            
             <div class="color-grey-60 payment-title">
                 {@html $text('signup.pay_with_card.text')}
             </div>
@@ -541,6 +553,10 @@
                     )}
                 </button>
                 
+                <div class="or-divider">
+                    <span class="color-grey-60">{@html $text('signup.or.text')}</span>
+                </div>
+                
                 <button type="button" class="apple-pay-button">
                     <span class="apple-pay-text">Pay with Apple Pay</span>
                 </button>
@@ -594,6 +610,14 @@
         transform: none;
         width: 20px;
         height: 20px;
+    }
+    
+    .or-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 12px 0;
+        text-align: center;
     }
     
     .card-input-container {

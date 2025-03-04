@@ -43,6 +43,9 @@ step_10_top_content_svelte:
     // Accept credits amount as prop
     export let credits_amount: number = 21000;
     
+    // Track if payment form is visible
+    let isPaymentFormVisible = false;
+    
     // Calculate purchase price based on credits amount - this would typically come from an API
     // For this example we're using a simple calculation
     $: purchasePrice = Math.round(credits_amount / 1000);
@@ -61,6 +64,19 @@ step_10_top_content_svelte:
     function handleConsent(event) {
         // Forward consent event to parent component
         dispatch('consentGiven', event.detail);
+        
+        // When consent is given, after a short delay, payment form will show
+        if (event.detail.consented) {
+            setTimeout(() => {
+                isPaymentFormVisible = true;
+                dispatch('paymentFormVisibility', { visible: true });
+            }, 500);
+        }
+    }
+    
+    function handleOpenRefundInfo() {
+        // Forward the refund info request to parent
+        dispatch('openRefundInfo');
     }
 </script>
 
@@ -87,6 +103,7 @@ step_10_top_content_svelte:
                     currency={currency}
                     on:consentGiven={handleConsent}
                     on:payment={handlePayment}
+                    on:openRefundInfo={handleOpenRefundInfo}
                 />
             </div>
         </div>

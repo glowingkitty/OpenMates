@@ -59,6 +59,14 @@
     let isImageProcessing = false;
     let isImageUploading = false;
 
+    // State to track if payment form is showing (after consent is given)
+    let paymentFormVisible = false;
+    let refundConsentGiven = false;
+
+    // Track both consent and the current visible screen
+    let paymentConsentGiven = false;      // Has consent been given?
+    let showingPaymentForm = false;       // Is payment form currently visible?
+
     // Update stores when component is mounted and destroyed
     import { onMount, onDestroy } from 'svelte';
     
@@ -149,6 +157,12 @@
     // Handle limited refund consent from Step10TopContent
     function handleRefundConsent(event: CustomEvent<{consented: boolean}>) {
         limitedRefundConsent = event.detail.consented;
+        paymentConsentGiven = event.detail.consented;
+    }
+    
+    // Track when payment form becomes visible or hidden
+    function handlePaymentFormVisibilityChange(event: CustomEvent<{visible: boolean}>) {
+        showingPaymentForm = event.detail.visible;
     }
     
     // Handle open refund info request
@@ -175,7 +189,9 @@
     $: helpLink = getWebsiteUrl(
         currentStep === 1 
             ? (!isInviteCodeValidated ? routes.docs.userGuide_signup_1a : routes.docs.userGuide_signup_1b)
-            : routes.docs[`userGuide_signup_${currentStep}`]
+            : currentStep === 10
+                ? (showingPaymentForm ? routes.docs.userGuide_signup_10_2 : routes.docs.userGuide_signup_10_1)
+                : routes.docs[`userGuide_signup_${currentStep}`]
     );
 
     // Update showSkip logic to show for steps 3 and 6
@@ -247,6 +263,7 @@
                                         <Step10TopContent 
                                             credits_amount={selectedCreditsAmount} 
                                             on:consentGiven={handleRefundConsent}
+                                            on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}
                                             on:payment={handlePaymentSubmission}
                                         />
