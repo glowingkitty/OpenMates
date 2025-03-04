@@ -109,6 +109,11 @@
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_1), '_blank');
     }
     
+    // Add a function to handle the secure payment info click
+    function handleSecurePaymentInfoClick() {
+        window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
+    }
+    
     // Validate name on card - simple length check for international compatibility
     function validateName(name: string): boolean {
         if (name.trim().length < 3) {
@@ -566,7 +571,7 @@
                     <p class="vat-info color-grey-60">
                         {@html $text('signup.vat_info.text')}
                     </p>
-                    <button type="button" class="text-button">
+                    <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
                         <span class="lock-icon"></span>
                         {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'mollie')}
                     </button>
