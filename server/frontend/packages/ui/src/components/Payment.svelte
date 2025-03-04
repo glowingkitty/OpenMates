@@ -302,6 +302,11 @@
         await tick();
         const newPosition = cursorPosition + (expireDate.length - previousLength);
         input.setSelectionRange(newPosition, newPosition);
+
+        // If expire date is complete (MM/YY format is fully entered), validate it immediately
+        if (expireDate.length === 5) {
+            validateExpireDate(expireDate);
+        }
     }
     
     // Handle CVV input - numbers only
