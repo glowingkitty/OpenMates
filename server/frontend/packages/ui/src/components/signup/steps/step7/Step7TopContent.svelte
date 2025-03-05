@@ -165,6 +165,7 @@ step_7_top_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
+        position: relative; /* Add position relative */
     }
 
     .signup-header {
@@ -182,7 +183,7 @@ step_7_top_content_svelte:
     .settings-block {
         width: 80%;
         background-color: var(--color-grey-20);
-        border-radius: 16px;
+        border-radius: 16px 16px 0 0;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
@@ -196,7 +197,6 @@ step_7_top_content_svelte:
     .settings-header {
         display: flex;
         justify-content: flex-end;
-        margin-bottom: 5px;
         padding-right: 10px;
     }
     

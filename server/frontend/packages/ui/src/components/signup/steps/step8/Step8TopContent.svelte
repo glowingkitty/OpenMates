@@ -187,14 +187,14 @@ step_8_top_content_svelte:
     }
 
     .text-block {
-        margin: 20px 0 20px 0;
+        margin: 10px 0 10px 0;
         text-align: center;
     }
     
     .settings-block {
         width: 80%;
         background-color: var(--color-grey-20);
-        border-radius: 16px;
+        border-radius: 16px 16px 0 0;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
@@ -208,36 +208,11 @@ step_8_top_content_svelte:
     .settings-header {
         display: flex;
         justify-content: flex-end;
-        margin-bottom: 5px;
         padding-right: 10px;
     }
     
     .default-settings-text {
         font-size: 14px;
         color: var(--color-grey-80);
-    }
-    
-    .provider-container {
-        display: flex;
-        align-items: center;
-        padding: 5px 0;
-        margin: 4px 0;
-        gap: 12px;
-    }
-    
-    .provider-details {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .provider-name {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-    }
-    
-    .provider-info {
-        color: var(--color-grey-60);
-        font-size: 14px;
     }
 </style>
