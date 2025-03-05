@@ -7,6 +7,7 @@
 
     export let showSkip = false;
     export let currentStep = 1;
+    export let selectedAppName: string | null = null; // Add this prop
 
     function handleBackClick() {
         if (currentStep === 1) {
@@ -39,7 +40,9 @@
         return $_('signup.sign_up.text');
     }
 
-    $: skipButtonText = currentStep === 3 && $processedImageUrl 
+    // Update the reactive skipButtonText to include the case for step 6 with selectedAppName
+    $: skipButtonText = (currentStep === 3 && $processedImageUrl) || 
+                         (currentStep === 6 && selectedAppName)
         ? $_('signup.next.text') 
         : $_('signup.skip.text');
 </script>

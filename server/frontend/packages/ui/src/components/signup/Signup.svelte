@@ -128,6 +128,7 @@
         if (currentStep === 3) {
             goToStep(4);
         } else if (currentStep === 6) {
+            // Only skip if no app is selected
             goToStep(7);
         }
     }
@@ -248,6 +249,7 @@
                 on:logout={handleLogout}
                 {showSkip}
                 {currentStep}
+                {selectedAppName}
             />
         </div>
     {/if}
@@ -339,6 +341,7 @@
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}
                                     on:selectedApp={handleSelectedApp}
+                                    {selectedAppName}
                                 />
                             </div>
                         {/key}

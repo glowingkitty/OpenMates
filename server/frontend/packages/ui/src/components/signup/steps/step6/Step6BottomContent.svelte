@@ -71,6 +71,9 @@ step_6_bottom_content_svelte:
     import { createEventDispatcher } from 'svelte';
     import { tfaApps, tfaAppIcons } from '../../../../config/tfa';
 
+    // Accept selected app from parent
+    export let selectedAppName: string | null = null;
+    
     let appName = '';
     let appInput: HTMLInputElement;
     const dispatch = createEventDispatcher();
@@ -78,20 +81,34 @@ step_6_bottom_content_svelte:
     let searchResults = tfaApps;
     let selectedApp = '';
 
+    // Initialize from selectedAppName prop when component mounts
+    onMount(() => {
+        if (selectedAppName) {
+            appName = selectedAppName;
+            selectedApp = selectedAppName;
+            // Dispatch event to ensure parent knows this app is selected
+            dispatch('selectedApp', { appName: selectedAppName });
+        }
+    });
+
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
         appName = input.value;
         showSearchResults = true;
         searchResults = appName ? tfaApps.filter(app => app.toLowerCase().includes(appName.toLowerCase())) : tfaApps;
-        selectedApp = '';
-
-        // Automatically detect and select app if user types the exact name
-        const exactMatch = tfaApps.find(app => app.toLowerCase() === appName.toLowerCase());
-        if (exactMatch) {
-            handleResultClick(exactMatch);
-        } else if (appName.length >= 3) {
-            // Show the text content of the search input if no exact match and length is at least 3 characters
-            dispatch('selectedApp', { appName });
+        
+        // If field is emptied, clear selectedApp
+        if (!appName) {
+            selectedApp = '';
+            dispatch('selectedApp', { appName: '' });
+        } else {
+            const exactMatch = tfaApps.find(app => app.toLowerCase() === appName.toLowerCase());
+            if (exactMatch) {
+                handleResultClick(exactMatch);
+            } else if (appName.length >= 3) {
+                // Show the text content of the search input if no exact match and length is at least 3 characters
+                dispatch('selectedApp', { appName });
+            }
         }
     }
 
