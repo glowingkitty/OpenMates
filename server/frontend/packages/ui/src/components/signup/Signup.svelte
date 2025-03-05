@@ -229,8 +229,8 @@
                 : routes.docs[`userGuide_signup_${currentStep}`]
     );
 
-    // Update showSkip logic to show for steps 3 and 6
-    $: showSkip = currentStep === 3 || currentStep === 6;
+    // Update showSkip logic to show for steps 3, 6, and 9
+    $: showSkip = currentStep === 3 || currentStep === 6 || currentStep === 9;
 
     // Show expanded header on step 9 and 10
     $: showExpandedHeader = currentStep === 9 || currentStep === 10;

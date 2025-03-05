@@ -22,6 +22,9 @@
     function handleSkipClick() {
         if (currentStep === 3) {
             dispatch('step', { step: 4 });
+        } else if (currentStep === 9) {
+            console.log('Skip and show demo first');
+            // Custom action for step 9 - will be replaced later with real action
         } else {
             dispatch('skip');
         }
@@ -40,11 +43,13 @@
         return $_('signup.sign_up.text');
     }
 
-    // Update the reactive skipButtonText to include the case for step 6 with selectedAppName
+    // Update the reactive skipButtonText to include the case for step 9
     $: skipButtonText = (currentStep === 3 && $processedImageUrl) || 
                          (currentStep === 6 && selectedAppName)
-        ? $_('signup.next.text') 
-        : $_('signup.skip.text');
+        ? $_('signup.next.text')
+        : currentStep === 9
+            ? $_('signup.skip_and_show_demo_first.text')
+            : $_('signup.skip.text');
 </script>
 
 <div class="nav-area">
