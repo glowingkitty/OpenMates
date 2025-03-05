@@ -33,6 +33,15 @@
     // References to child components
     let paymentFormComponent;
     
+    // Store payment details for re-use after failure
+    let paymentDetails = {
+        nameOnCard: '',
+        cardNumber: '',
+        expireDate: '',
+        cvv: '',
+        lastFourDigits: ''
+    };
+    
     // Handle consent change
     function handleConsentChanged(event) {
         hasConsentedToLimitedRefund = event.detail.consented;
@@ -56,6 +65,9 @@
     
     // Start payment processing
     function handleStartPayment(event) {
+        // Store payment details for potential failure recovery
+        paymentDetails = { ...event.detail };
+        
         paymentState = 'processing';
         dispatch('paymentProcessing', { processing: true });
         dispatch('paymentStateChange', { state: 'processing' });
@@ -66,9 +78,13 @@
             if (event.detail.nameOnCard.trim() === 'Max Mustermann') {
                 paymentState = 'failure';
                 dispatch('paymentStateChange', { state: 'failure' });
-                if (paymentFormComponent) {
-                    paymentFormComponent.setPaymentFailed();
-                }
+                
+                // Reset to payment form with error
+                setTimeout(() => {
+                    if (paymentFormComponent) {
+                        paymentFormComponent.setPaymentFailed();
+                    }
+                }, 100);
             } else {
                 paymentState = 'success';
                 dispatch('paymentStateChange', { state: 'success' });
@@ -97,6 +113,14 @@
         previousPaymentFormState = showPaymentForm;
     }
     let previousPaymentFormState;
+    
+    // Watch payment state and return to form on failure
+    $: if (paymentState === 'failure') {
+        // When payment fails, reset back to payment form after a short delay
+        setTimeout(() => {
+            paymentState = 'idle';
+        }, 1000);
+    }
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
@@ -115,6 +139,7 @@
             purchasePrice={purchasePrice}
             currency={currency}
             bind:showSensitiveData={showSensitiveData}
+            initialPaymentDetails={paymentState === 'failure' ? paymentDetails : null}
             on:toggleSensitiveData={handleToggleSensitiveData}
             on:startPayment={handleStartPayment}
         />

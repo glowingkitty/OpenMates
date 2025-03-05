@@ -1,6 +1,6 @@
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher, tick } from 'svelte';
+    import { createEventDispatcher, tick, onMount } from 'svelte';
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
@@ -11,6 +11,7 @@
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
     export let showSensitiveData: boolean = false;
+    export let initialPaymentDetails = null;
     
     // Form state
     let nameOnCard = '';
@@ -40,8 +41,42 @@
     let showExpireWarning = false;
     let showCVVWarning = false;
     
+    // Payment failure state
+    let paymentFailed = false;
+    
     // Track if form was submitted
     let attemptedSubmit = false;
+    
+    // Initialize with saved payment details if provided
+    onMount(() => {
+        if (initialPaymentDetails) {
+            nameOnCard = initialPaymentDetails.nameOnCard || '';
+            cardNumber = initialPaymentDetails.cardNumber || '';
+            expireDate = initialPaymentDetails.expireDate || '';
+            cvv = initialPaymentDetails.cvv || '';
+            
+            // Mark card as complete if it has enough digits
+            const digits = cardNumber.replace(/\D/g, '');
+            isCardNumberComplete = digits.length >= 13;
+            
+            // If we have initial details and they're from a failed payment, show error
+            if (initialPaymentDetails.failed) {
+                setPaymentFailed();
+            }
+        }
+    });
+    
+    // Watch for initialPaymentDetails changes to handle payment failure recovery
+    $: if (initialPaymentDetails) {
+        nameOnCard = initialPaymentDetails.nameOnCard || nameOnCard;
+        cardNumber = initialPaymentDetails.cardNumber || cardNumber;
+        expireDate = initialPaymentDetails.expireDate || expireDate;
+        cvv = initialPaymentDetails.cvv || cvv;
+        
+        // Mark card as complete if it has enough digits
+        const digits = cardNumber.replace(/\D/g, '');
+        isCardNumberComplete = digits.length >= 13;
+    }
     
     // Toggle visibility of sensitive data
     function toggleSensitiveDataVisibility() {
@@ -84,6 +119,13 @@
     
     // Luhn algorithm for credit card validation
     function validateCardNumber(cardNum: string): boolean {
+        // If payment failed previously, show that error instead
+        if (paymentFailed) {
+            cardError = $text('signup.payment_failed.text');
+            showCardWarning = true;
+            return false;
+        }
+        
         // Remove all non-digits
         const digits = cardNum.replace(/\D/g, '');
         
@@ -188,6 +230,9 @@
     
     // Handle card number formatting as user types
     async function handleCardNumberInput(event: Event) {
+        // Clear payment failed state when user starts editing
+        paymentFailed = false;
+        
         const input = event.target as HTMLInputElement;
         const cursorPosition = input.selectionStart || 0;
         const previousLength = cardNumber.length;
@@ -287,6 +332,9 @@
         const isCvvValid = validateCVV(cvv);
         
         if (isNameValid && isCardValid && isExpireValid && isCvvValid) {
+            // Reset payment failed state on new submission
+            paymentFailed = false;
+            
             // Dispatch payment event with form data
             dispatch('startPayment', {
                 nameOnCard,
@@ -309,12 +357,28 @@
         showExpireWarning = false;
         showCVVWarning = false;
         attemptedSubmit = false;
+        paymentFailed = false;
     }
     
     // Set payment failure state
     export function setPaymentFailed() {
+        paymentFailed = true;
         cardError = $text('signup.payment_failed.text');
         showCardWarning = true;
+        
+        // Focus the card input field
+        setTimeout(() => {
+            if (showSensitiveData && cardInputVisible) {
+                cardInputVisible.focus();
+            } else if (cardInputHidden) {
+                cardInputHidden.focus();
+            }
+        }, 300);
+    }
+    
+    // Safely get card input element for tooltip
+    function getCardInput() {
+        return showSensitiveData ? cardInputVisible : cardInputHidden;
     }
 </script>
 
@@ -375,6 +439,7 @@
                         required
                         inputmode="numeric"
                         autocomplete="cc-number"
+                        use:tooltip={paymentFailed ? $text('signup.payment_failed.text') : null}
                     />
                 {:else}
                     <!-- We use a regular input with normalized value but apply CSS to make bullets -->
@@ -391,6 +456,7 @@
                             required
                             inputmode="numeric"
                             autocomplete="cc-number"
+                            use:tooltip={paymentFailed ? $text('signup.payment_failed.text') : null}
                         />
                         <!-- Last four digits overlay when card is completed and not being edited -->
                         {#if isCardNumberComplete && cardNumber}
@@ -405,7 +471,7 @@
                 {#if showCardWarning && cardError}
                     <InputWarning 
                         message={cardError}
-                        target={showSensitiveData ? cardInputVisible : cardInputHidden}
+                        target={getCardInput()}
                     />
                 {/if}
             </div>
