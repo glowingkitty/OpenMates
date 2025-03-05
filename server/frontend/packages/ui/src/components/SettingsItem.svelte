@@ -203,58 +203,69 @@ A settingsitem can have any of these things:
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
-            <!-- Main icon -->
-            <div class={iconClass}>
-                <slot name="icon"></slot>
+            <!-- Main icon - width and size preserved -->
+            <div class="icon-container">
+                <div class={iconClass}>
+                    <slot name="icon"></slot>
+                </div>
             </div>
             
-            <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
-                <!-- Top subtitle if present -->
-                {#if subtitleTop}
-                    <div class="subtitle subtitle-top">{translatedSubtitleTop}</div>
-                {/if}
+            <div class="text-and-nested-container">
+                <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
+                    <!-- Top subtitle if present -->
+                    {#if subtitleTop}
+                        <div class="subtitle subtitle-top">{translatedSubtitleTop}</div>
+                    {/if}
+                    
+                    <!-- Main title if present -->
+                    {#if title}
+                        <div class="menu-title">
+                            {#if type === 'heading'}
+                                <strong>{translatedTitle}</strong>
+                            {:else if isSubmenuWithoutModify}
+                                <mark>{translatedTitle}</mark>
+                            {:else}
+                                {translatedTitle}
+                            {/if}
+                        </div>
+                    {/if}
+                    
+                    <!-- Bottom subtitle if present -->
+                    {#if subtitleBottom}
+                        <div class="subtitle subtitle-bottom">{translatedSubtitleBottom}</div>
+                    {/if}
+                    
+                    <!-- Credits display if enabled -->
+                    {#if showCredits && translatedCredits}
+                        <div class="credits">{translatedCredits}</div>
+                    {/if}
+                    
+                    <!-- App/provider icons without text -->
+                    {#if appIcons.length > 0}
+                        <div class="app-icons-container">
+                            {#each visibleIcons as appIcon, i}
+                                <div 
+                                    class="icon settings_size {appIcon.type || 'app'}-{appIcon.name.toLowerCase()}" 
+                                    style="margin-left: {i > 0 ? '-20px' : '0'}; z-index: {visibleIcons.length - i};"
+                                ></div>
+                            {/each}
+                            {#if remainingIcons > 0}
+                                <div class="icon-remaining">+{remainingIcons}</div>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
                 
-                <!-- Main title if present -->
-                {#if title}
-                    <div class="menu-title">
-                        {#if type === 'heading'}
-                            <strong>{translatedTitle}</strong>
-                        {:else if isSubmenuWithoutModify}
-                            <mark>{translatedTitle}</mark>
-                        {:else}
-                            {translatedTitle}
-                        {/if}
-                    </div>
-                {/if}
-                
-                <!-- Bottom subtitle if present -->
-                {#if subtitleBottom}
-                    <div class="subtitle subtitle-bottom">{translatedSubtitleBottom}</div>
-                {/if}
-                
-                <!-- Credits display if enabled -->
-                {#if showCredits && translatedCredits}
-                    <div class="credits">{translatedCredits}</div>
-                {/if}
-                
-                <!-- App/provider icons without text -->
-                {#if appIcons.length > 0}
-                    <div class="app-icons-container">
-                        {#each visibleIcons as appIcon, i}
-                            <div 
-                                class="icon settings_size {appIcon.type || 'app'}-{appIcon.name.toLowerCase()}" 
-                                style="margin-left: {i > 0 ? '-20px' : '0'}; z-index: {visibleIcons.length - i};"
-                            ></div>
-                        {/each}
-                        {#if remainingIcons > 0}
-                            <div class="icon-remaining">+{remainingIcons}</div>
-                        {/if}
+                <!-- Nested items container - now inside text-and-nested-container -->
+                {#if hasNestedItems}
+                    <div class="nested-items-container">
+                        <slot></slot>
                     </div>
                 {/if}
             </div>
         </div>
         
-        <!-- Right aligned content -->
+        <!-- Right aligned content - now absolutely positioned -->
         <div class="menu-item-right">
             <!-- Toggle switch if enabled -->
             {#if hasToggle}
@@ -283,13 +294,6 @@ A settingsitem can have any of these things:
             {/if}
         </div>
     </div>
-    
-    <!-- Nested items container -->
-    {#if hasNestedItems}
-        <div class="nested-items-container">
-            <slot></slot>
-        </div>
-    {/if}
 </div>
 
 <style>
@@ -299,24 +303,42 @@ A settingsitem can have any of these things:
         padding: 5px 10px;
         border-radius: 12px;
         transition: background-color 0.2s ease;
+        position: relative; /* Establish positioning context */
     }
 
     .menu-item-content {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
         width: 100%;
+        position: relative; /* For positioning child elements */
     }
 
     .menu-item-left {
         display: flex;
-        align-items: center; /* Default center alignment for all items */
+        align-items: flex-start; /* Align to top to allow for nested items */
         gap: 12px;
+        flex-grow: 1;
+        overflow: hidden;
+        padding-right: 60px; /* Make space for absolute positioned buttons */
+    }
+
+    .icon-container {
+        flex-shrink: 0; /* Prevents icon from shrinking */
+        display: flex;
+        align-items: center;
+    }
+
+    .text-and-nested-container {
+        display: flex;
+        flex-direction: column;
         flex-grow: 1;
         overflow: hidden;
     }
 
     .menu-item-right {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -326,7 +348,6 @@ A settingsitem can have any of these things:
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        flex-grow: 1;
     }
     
     /* For title-only items, center the title vertically */
@@ -394,8 +415,8 @@ A settingsitem can have any of these things:
     }
 
     .nested-items-container {
-        margin-left: 32px;
         margin-top: 8px;
+        width: 100%;
     }
 
     .has-nested-items {

@@ -145,12 +145,11 @@ step_8_top_content_svelte:
         <SettingsItem 
             type="submenu" 
             icon="app-ai" 
-            title={$text('settings.ai_providers.text')}
-            subtitleBottom={$text('signup.ai_providers.text')}
-            onClick={() => handleSettingsClick('app')}
+            subtitleTop={$text('signup.ai_providers.text')}
+            onClick={() => handleSettingsClick('apps')}
             hasToggle={true}
             checked={aiProvidersToggleOn}
-            on:toggleClick={(e) => handleToggleClick('app', e.detail)}
+            on:toggleClick={(e) => handleToggleClick('apps', e.detail)}
             hasNestedItems={true}
         >
             <!-- Provider items as nested content -->
