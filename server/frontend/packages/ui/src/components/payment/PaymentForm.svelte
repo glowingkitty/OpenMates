@@ -519,7 +519,6 @@
 <style>
     .payment-form {
         width: 100%;
-        height: 100%;
         position: relative;
         display: flex;
         flex-direction: column;
@@ -528,7 +527,7 @@
     
     .bottom-container {
         position: absolute;
-        bottom: 0;
+        bottom: 10px;
         left: 0;
         width: 100%;
         display: flex;
@@ -540,8 +539,8 @@
     
     .visibility-toggle {
         position: absolute;
-        top: 10px;
-        right: 10px;
+        top: 0px;
+        right: 0px;
         z-index: 10;
     }
 
@@ -559,7 +558,7 @@
     
     .payment-title {
         text-align: center;
-        margin-bottom: 24px;
+        margin-bottom: 10px;
     }
     
     .input-row {
