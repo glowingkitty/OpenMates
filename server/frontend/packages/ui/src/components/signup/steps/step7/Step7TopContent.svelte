@@ -135,7 +135,7 @@ step_7_top_content_svelte:
             onClick={() => handleSettingsClick('privacy')}
             hasToggle={true}
             checked={privacyToggleOn}
-            on:toggleClick={(e) => handleToggleClick('privacy', e)}
+            on:toggleClick={(e) => handleToggleClick('privacy', e.detail)}
         />
         <SettingsItem 
             type="submenu" 
@@ -144,7 +144,7 @@ step_7_top_content_svelte:
             onClick={() => handleSettingsClick('apps')}
             hasToggle={true}
             checked={appsToggleOn}
-            on:toggleClick={(e) => handleToggleClick('apps', e)}
+            on:toggleClick={(e) => handleToggleClick('apps', e.detail)}
         />
         <SettingsItem 
             type="submenu" 
@@ -153,7 +153,7 @@ step_7_top_content_svelte:
             onClick={() => handleSettingsClick('interface')}
             hasToggle={true}
             checked={interfaceToggleOn}
-            on:toggleClick={(e) => handleToggleClick('interface', e)}
+            on:toggleClick={(e) => handleToggleClick('interface', e.detail)}
         />
     </div>
 </div>

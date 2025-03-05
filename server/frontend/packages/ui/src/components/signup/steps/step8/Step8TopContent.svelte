@@ -27,19 +27,22 @@ step_8_top_content_svelte:
         text:
             - $text('signup.default_settings.text')
             - $text('settings.mates.text')
-            - $text('settings.mates.text')
+            - $text('settings.ai_providers.text')
         purpose:
-            - 'Quick access to Mates settings.'
+            - 'Quick access to Mates and AI provider settings.'
         processing:
             - 'If the mates button is clicked or the toggle next to it is turned off, then settings menu with the mates category is opened.'
-            - 'If the toggle is turned on again or the button is clicked a second time, the settings menu is closed again.'
+            - 'If the AI providers button is clicked or its toggle is turned off, then app settings menu is opened.'
+            - 'If a toggle is turned on again or the button is clicked a second time, the settings menu is closed again.'
         bigger_context:
             - 'Signup'
         tags:
             - 'signup'
             - 'mates'
+            - 'ai providers'
         connected_documentation:
             - '/signup/mates'
+            - '/settings/app'
 -->
 
 <script lang="ts">
@@ -49,8 +52,9 @@ step_8_top_content_svelte:
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
     import { isMobileView } from '../../../Settings.svelte';
     
-    // Track toggle states for the mates setting item
+    // Track toggle states for the settings items
     let matesToggleOn = true;
+    let aiProvidersToggleOn = true;
     
     // Track which item is currently open in the settings menu
     let activeSettingsPath: string | null = null;
@@ -63,6 +67,7 @@ step_8_top_content_svelte:
             activeSettingsPath = null;
             // Reset the toggle to true when closing
             if (settingsPath === 'mates') matesToggleOn = true;
+            if (settingsPath === 'app') aiProvidersToggleOn = true;
             return;
         }
         
@@ -72,6 +77,7 @@ step_8_top_content_svelte:
         // Update toggle state when opening the settings
         // Toggle OFF when opening the settings
         if (settingsPath === 'mates') matesToggleOn = false;
+        if (settingsPath === 'app') aiProvidersToggleOn = false;
         
         // First set the deep link path to navigate to specific settings
         settingsDeepLink.set(settingsPath);
@@ -86,8 +92,9 @@ step_8_top_content_svelte:
     $: if (!$settingsMenuVisible) {
         // Reset the active settings path when the menu is closed
         activeSettingsPath = null;
-        // Reset toggle state to default (ON)
+        // Reset toggle states to default (ON)
         matesToggleOn = true;
+        aiProvidersToggleOn = true;
     }
     
     // Handler for settings toggle clicks (needs to behave the same as item click)
@@ -98,6 +105,12 @@ step_8_top_content_svelte:
         // Use the same handler as the item click
         handleSettingsClick(settingsPath);
     }
+    
+    // Provider data
+    const providers = [
+        { name: "Google", region: "EU", serverProvider: "Google" },
+        { name: "Anthropic", region: "EU", serverProvider: "Google" }
+    ];
 </script>
 
 <div class="content">
@@ -117,6 +130,7 @@ step_8_top_content_svelte:
             <div class="default-settings-text">{@html $text('signup.default_settings.text')}</div>
         </div>
 
+        <!-- Mates Setting Item -->
         <SettingsItem 
             type="submenu" 
             icon="mates" 
@@ -124,8 +138,36 @@ step_8_top_content_svelte:
             onClick={() => handleSettingsClick('mates')}
             hasToggle={true}
             checked={matesToggleOn}
-            on:toggleClick={(e) => handleToggleClick('mates', e)}
+            on:toggleClick={(e) => handleToggleClick('mates', e.detail)}
         />
+        
+        <!-- AI Providers Setting Item -->
+        <SettingsItem 
+            type="submenu" 
+            icon="app-ai" 
+            title={$text('settings.ai_providers.text')}
+            subtitleBottom={$text('signup.ai_providers.text')}
+            onClick={() => handleSettingsClick('app')}
+            hasToggle={true}
+            checked={aiProvidersToggleOn}
+            on:toggleClick={(e) => handleToggleClick('app', e.detail)}
+            hasNestedItems={true}
+        >
+            <!-- Provider items as nested content -->
+            {#each providers as provider}
+                <SettingsItem
+                    type="nested"
+                    icon={`provider-${provider.name.toLowerCase()}`}
+                    title={provider.name}
+                    subtitleBottom={$text('signup.via_server.text', { 
+                        values: { 
+                            region: provider.region, 
+                            server_provider: provider.serverProvider 
+                        } 
+                    })}
+                />
+            {/each}
+        </SettingsItem>
     </div>
 </div>
 
@@ -174,5 +216,29 @@ step_8_top_content_svelte:
     .default-settings-text {
         font-size: 14px;
         color: var(--color-grey-80);
+    }
+    
+    .provider-container {
+        display: flex;
+        align-items: center;
+        padding: 5px 0;
+        margin: 4px 0;
+        gap: 12px;
+    }
+    
+    .provider-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .provider-name {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .provider-info {
+        color: var(--color-grey-60);
+        font-size: 14px;
     }
 </style>

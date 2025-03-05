@@ -1163,6 +1163,14 @@ div.clickable-icon {
   }
 }
 
+.icon.provider-google {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/google.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
 .icon.provider-mistral {
   &::before {
       background-image: url('@openmates/ui/static/icons/mistral.svg');
