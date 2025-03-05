@@ -577,7 +577,7 @@
                         {@html $text('signup.vat_info.text')}
                     </p>
                     <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
-                        <span class="lock-icon"></span>
+                        <span class="clickable-icon icon_lock inline-lock-icon"></span>
                         {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'mollie')}
                     </button>
                 </div>
@@ -810,5 +810,10 @@
         font-size: 14px;
         text-align: center;
         margin-bottom: 10px;
+    }
+
+    .inline-lock-icon {
+        position: unset;
+        margin-top: 12px;
     }
 </style>

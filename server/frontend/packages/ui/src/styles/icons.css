@@ -342,6 +342,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/calendar.svg');
 }
 
+.clickable-icon.icon_lock {
+  -webkit-mask-image: url('@openmates/ui/static/icons/lock.svg');
+  mask-image: url('@openmates/ui/static/icons/lock.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;
