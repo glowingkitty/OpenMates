@@ -170,7 +170,7 @@ step_10_top_content_svelte:
     }
 
     .separated-block {
-        position: relative; /* Make sure this has position relative */
+        position: relative;
         width: 80%;
         height: 490px;
         max-width: 400px;
@@ -178,5 +178,16 @@ step_10_top_content_svelte:
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Target the bottom containers of our payment components */
+    .separated-block :global(.bottom-container) {
+        position: absolute;
+        bottom: 50px; /* Position 50px from the bottom as requested */
+        left: 0;
+        width: 100%;
+        padding-bottom: 0;
     }
 </style>
