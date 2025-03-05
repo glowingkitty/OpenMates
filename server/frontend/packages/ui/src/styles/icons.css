@@ -1160,6 +1160,7 @@ div.clickable-icon {
   &::before {
       background-image: url('@openmates/ui/static/icons/claude.svg');
       background-size: 55%;
+      filter: unset;
   }
 }
 

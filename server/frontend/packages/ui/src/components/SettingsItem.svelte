@@ -306,6 +306,17 @@ A settingsitem can have any of these things:
         position: relative; /* Establish positioning context */
     }
 
+    /* Remove padding for nested menu items */
+    .menu-item.nested {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    /* Remove top padding for the first nested menu item */
+    .menu-item.nested:first-child {
+        padding-top: 0;
+    }
+
     .menu-item-content {
         display: flex;
         width: 100%;
@@ -314,11 +325,15 @@ A settingsitem can have any of these things:
 
     .menu-item-left {
         display: flex;
-        align-items: flex-start; /* Align to top to allow for nested items */
+        align-items: center; /* Default alignment for standard items */
         gap: 12px;
         flex-grow: 1;
         overflow: hidden;
-        padding-right: 60px; /* Make space for absolute positioned buttons */
+    }
+
+    /* Special alignment for items with nested content - align items to the top */
+    .has-nested-items .menu-item-left {
+        align-items: flex-start;
     }
 
     .icon-container {
@@ -332,13 +347,19 @@ A settingsitem can have any of these things:
         flex-direction: column;
         flex-grow: 1;
         overflow: hidden;
+        justify-content: center; /* Center content vertically when no nested items */
+    }
+
+    /* Only align to flex-start when nested items are present */
+    .has-nested-items .text-and-nested-container {
+        justify-content: flex-start;
     }
 
     .menu-item-right {
         position: absolute;
         right: 0;
-        top: 50%;
-        transform: translateY(-50%);
+        top: 6px;
+        /* Remove transform that was causing positioning issues */
         display: flex;
         align-items: center;
         gap: 8px;
@@ -348,6 +369,8 @@ A settingsitem can have any of these things:
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        justify-content: center; /* Center content vertically */
+        min-height: 24px; /* Ensure consistent height */
     }
     
     /* For title-only items, center the title vertically */
