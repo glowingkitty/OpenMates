@@ -65,17 +65,6 @@
         width: 100%;
     }
     
-    /* Bottom container for footer buttons and text */
-    .bottom-container {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 50px;
-    }
     
     /* Large billing icon for processing state */
     .large-icon {

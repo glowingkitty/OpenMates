@@ -524,19 +524,6 @@
         flex-direction: column;
         padding-bottom: 60px; /* Make room for bottom container */
     }
-    
-    .bottom-container {
-        position: absolute;
-        bottom: 10px;
-        left: 0;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        padding-bottom: 16px;
-        align-items: center;
-        min-height: 50px;
-    }
-    
     .visibility-toggle {
         position: absolute;
         top: 0px;

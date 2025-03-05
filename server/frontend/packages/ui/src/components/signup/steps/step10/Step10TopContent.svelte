@@ -75,6 +75,11 @@ step_10_top_content_svelte:
         // Forward the refund info request to parent
         dispatch('openRefundInfo');
     }
+    
+    function handlePaymentStateChange(event) {
+        // Forward payment state changes to parent component
+        dispatch('paymentStateChange', event.detail);
+    }
 </script>
 
 <div class="container">
@@ -101,6 +106,7 @@ step_10_top_content_svelte:
                     on:consentGiven={handleConsent}
                     on:payment={handlePayment}
                     on:openRefundInfo={handleOpenRefundInfo}
+                    on:paymentStateChange={handlePaymentStateChange}
                 />
             </div>
         </div>
@@ -185,7 +191,7 @@ step_10_top_content_svelte:
     /* Target the bottom containers of our payment components */
     .separated-block :global(.bottom-container) {
         position: absolute;
-        bottom: 50px; /* Position 50px from the bottom as requested */
+        bottom: 20px; /* Position 50px from the bottom as requested */
         left: 0;
         width: 100%;
         padding-bottom: 0;

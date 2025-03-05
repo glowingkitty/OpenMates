@@ -58,17 +58,20 @@
     function handleStartPayment(event) {
         paymentState = 'processing';
         dispatch('paymentProcessing', { processing: true });
+        dispatch('paymentStateChange', { state: 'processing' });
         
         // Simulate payment processing with 3 second delay
         setTimeout(() => {
             // Check if payment should fail (demo)
             if (event.detail.nameOnCard.trim() === 'Max Mustermann') {
                 paymentState = 'failure';
+                dispatch('paymentStateChange', { state: 'failure' });
                 if (paymentFormComponent) {
                     paymentFormComponent.setPaymentFailed();
                 }
             } else {
                 paymentState = 'success';
+                dispatch('paymentStateChange', { state: 'success' });
                 
                 // After payment succeeds, notify parent components
                 setTimeout(() => {

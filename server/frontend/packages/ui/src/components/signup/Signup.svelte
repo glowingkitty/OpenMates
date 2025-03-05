@@ -69,6 +69,17 @@
     let paymentConsentGiven = false;      // Has consent been given?
     let showingPaymentForm = false;       // Is payment form currently visible?
 
+    // New state to track payment processing status
+    let paymentState = 'idle';
+    
+    // Create derived state for showing/hiding nav and status bar
+    $: showUIControls = paymentState !== 'processing' && paymentState !== 'success';
+    
+    // Fade transition parameters - make them slower for better visibility
+    const fadeParams = {
+        duration: 600
+    };
+
     // Update stores when component is mounted and destroyed
     import { onMount, onDestroy } from 'svelte';
     
@@ -196,6 +207,18 @@
         goToStep(11);  // Move to completion step
     }
 
+    // Handle payment state changes
+    function handlePaymentStateChange(event) {
+        paymentState = event.detail.state;
+        
+        // If payment failed, reset to idle state after a short delay
+        if (paymentState === 'failure') {
+            setTimeout(() => {
+                paymentState = 'idle';
+            }, 500);
+        }
+    }
+
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
         currentStep === 1 
@@ -216,14 +239,18 @@
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
-    <SignupNav 
-        on:back={handleSwitchToLogin}
-        on:step={handleStep}
-        on:skip={handleSkip}
-        on:logout={handleLogout}
-        {showSkip}
-        {currentStep}
-    />
+    {#if showUIControls}
+        <div transition:fade={fadeParams}>
+            <SignupNav 
+                on:back={handleSwitchToLogin}
+                on:step={handleStep}
+                on:skip={handleSkip}
+                on:logout={handleLogout}
+                {showSkip}
+                {currentStep}
+            />
+        </div>
+    {/if}
 
     <div>
         {#if currentStep === 1}
@@ -279,6 +306,7 @@
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}
                                             on:payment={handlePaymentSubmission}
+                                            on:paymentStateChange={handlePaymentStateChange}
                                         />
                                     {/if}
                                 </div>
@@ -320,21 +348,27 @@
         {/if}
     </div>
 
-    <div class="status-wrapper" class:hidden={currentStep === 1}>
-        <SignupStatusbar {currentStep} />
-    </div>
+    {#if showUIControls}
+        <div class="status-wrapper" class:hidden={currentStep === 1} transition:fade={fadeParams}>
+            <SignupStatusbar {currentStep} />
+        </div>
+    {/if}
 
-    <div class="help-wrapper">
-        <a href={helpLink} 
-           target="_blank" 
-           use:tooltip 
-           rel="noopener noreferrer" 
-           class="help-button-container" 
-           aria-label={$_('documentation.open_documentation.text')}
-        >
-            <div class="help-button"></div>
-        </a>
-    </div>
+    {#if showUIControls}
+        <div class="help-wrapper" transition:fade={fadeParams}>
+            <a href={helpLink} 
+               target="_blank" 
+               use:tooltip 
+               rel="noopener noreferrer" 
+               class="help-button-container" 
+               aria-label={$_('documentation.open_documentation.text')}
+            >
+                <div class="help-button"></div>
+            </a>
+        </div>
+    {:else}
+        <div class="help-wrapper hidden"></div>
+    {/if}
 </div>
 
 <style>
@@ -345,5 +379,12 @@
     
     .top-content-wrapper.expanded {
         height: 640px;
+    }
+    
+    /* Add a class for hiding elements with transition */
+    .hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.6s ease, visibility 0.6s ease;
     }
 </style>
