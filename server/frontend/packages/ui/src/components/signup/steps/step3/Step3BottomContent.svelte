@@ -146,7 +146,6 @@
     }
 
     .file-upload-field {
-        width: calc(100% - 60px);
         padding: 12px 16px 12px 45px;
         padding-left: 0px;
         display: block;  /* Add this line */

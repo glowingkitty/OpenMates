@@ -412,10 +412,6 @@ form.hidden {
     .status-wrapper {
         transform: translateY(30px);
     }
-    
-    .help-wrapper {
-        transform: translateY(35px);
-    }
 
     .signup-menu-title {
         font-size: 18px;
