@@ -434,12 +434,12 @@
             "context": "Login page title"
         },
         "to_chat_to_your": {
-            "text": "Um mit deinen",
+            "text": "Zum chatten mit deinen",
             "en_original": "To chat to your",
             "context": "'Login to chat to your digital team mates"
         },
         "digital_team_mates": {
-            "text": "digitalen Teamkollegen zu chatten",
+            "text": "digitalen Kollegen",
             "en_original": "digital team mates",
             "context": "'Login to chat to your digital team mates"
         },
@@ -1711,12 +1711,12 @@
             "context": "Sign up page title"
         },
         "enter_personal_invite_code": {
-            "text": "Einladungscode eingeben",
+            "text": "Zugangscode eingeben",
             "en_original": "Enter invite code",
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
-            "text": "Du hast keinen Einladungscode?",
+            "text": "Du hast keinen Zugangscode?",
             "en_original": "Don't have a personal invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
