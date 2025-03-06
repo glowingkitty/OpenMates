@@ -439,7 +439,7 @@
                         required
                         inputmode="numeric"
                         autocomplete="cc-number"
-                        use:tooltip={paymentFailed ? $text('signup.payment_failed.text') : null}
+                        use:tooltip
                     />
                 {:else}
                     <!-- We use a regular input with normalized value but apply CSS to make bullets -->
@@ -456,7 +456,7 @@
                             required
                             inputmode="numeric"
                             autocomplete="cc-number"
-                            use:tooltip={paymentFailed ? $text('signup.payment_failed.text') : null}
+                            use:tooltip
                         />
                         <!-- Last four digits overlay when card is completed and not being edited -->
                         {#if isCardNumberComplete && cardNumber}

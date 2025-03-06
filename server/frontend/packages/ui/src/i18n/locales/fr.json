@@ -1083,21 +1083,9 @@
             }
         },
         "tagline": {
-            "line1": {
-                "text": "Notre monde a besoin de changement.",
-                "en_original": "Our world needs change.",
-                "context": "First line of footer tagline"
-            },
-            "line2": {
-                "text": "Et le changement nécessite de l'action.",
-                "en_original": "And change requires action.",
-                "context": "Second line of footer tagline"
-            },
-            "line3": {
-                "text": "Alors, agissons.",
-                "en_original": "So, let us take action.",
-                "context": "Third line of footer tagline"
-            }
+            "text": "Construire le logiciel<br>le plus utile jamais créé.",
+            "en_original": "Building the most helpful<br>software ever.",
+            "context": "Footer tagline"
         },
         "made_in_eu": {
             "text": "Fabriqué dans l'UE",

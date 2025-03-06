@@ -1083,21 +1083,9 @@
             }
         },
         "tagline": {
-            "line1": {
-                "text": "私たちの世界には変化が必要です。",
-                "en_original": "Our world needs change.",
-                "context": "First line of footer tagline"
-            },
-            "line2": {
-                "text": "そして変化には行動が必要です。",
-                "en_original": "And change requires action.",
-                "context": "Second line of footer tagline"
-            },
-            "line3": {
-                "text": "だから、行動を起こしましょう。",
-                "en_original": "So, let us take action.",
-                "context": "Third line of footer tagline"
-            }
+            "text": "史上最も役立つ<br>ソフトウェアを構築中。",
+            "en_original": "Building the most helpful<br>software ever.",
+            "context": "Footer tagline"
         },
         "made_in_eu": {
             "text": "EUで開発",

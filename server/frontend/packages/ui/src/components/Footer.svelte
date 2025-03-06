@@ -254,9 +254,7 @@
                     </a>
                 </div>
                 <div class="tagline mobile-order-1">
-                    <p>{@html $text('footer.tagline.line1.text')}</p>
-                    <p>{@html $text('footer.tagline.line2.text')}</p>
-                    <p>{@html $text('footer.tagline.line3.text')}</p>
+                    {@html $text('footer.tagline.text')}
                 </div>
                 <div class="logo invisible mobile-order-3"></div>
             </div>

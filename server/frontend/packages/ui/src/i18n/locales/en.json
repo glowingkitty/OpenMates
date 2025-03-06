@@ -1339,18 +1339,8 @@
             }
         },
         "tagline": {
-            "line1": {
-                "text": "Our world needs change.",
-                "context": "First line of footer tagline"
-            },
-            "line2": {
-                "text": "And change requires action.",
-                "context": "Second line of footer tagline"
-            },
-            "line3": {
-                "text": "So, let us take action.",
-                "context": "Third line of footer tagline"
-            }
+            "text": "Building the most helpful<br>software ever.",
+            "context": "Footer tagline"
         },
         "made_in_eu": {
             "text": "Made in the EU",

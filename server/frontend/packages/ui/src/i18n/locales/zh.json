@@ -1083,21 +1083,9 @@
             }
         },
         "tagline": {
-            "line1": {
-                "text": "我们的世界需要改变。",
-                "en_original": "Our world needs change.",
-                "context": "First line of footer tagline"
-            },
-            "line2": {
-                "text": "而改变需要行动。",
-                "en_original": "And change requires action.",
-                "context": "Second line of footer tagline"
-            },
-            "line3": {
-                "text": "所以，让我们行动起来。",
-                "en_original": "So, let us take action.",
-                "context": "Third line of footer tagline"
-            }
+            "text": "构建有史以来最有帮助的<br>软件。",
+            "en_original": "Building the most helpful<br>software ever.",
+            "context": "Footer tagline"
         },
         "made_in_eu": {
             "text": "在欧盟制造",
