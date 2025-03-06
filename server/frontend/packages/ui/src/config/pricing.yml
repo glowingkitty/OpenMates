@@ -34,25 +34,40 @@ pricingTiers:
       jpy: 18000
     label: "110.000 credits"
 
-aiModelCosts:
-  - model: "claude 3.7 sonnet"
-    costs:
-      text: 
-        credits: 1
-        per: 50
-        unit: "tokens"
-      image:
-        credits: 15
+appCosts:
+  ai:
+    - model: "claude 3.7 sonnet"
+      costs:
+        text: 
+          credits: 1
+          per: 50
+          unit: "tokens"
+        image:
+          credits: 20
+          per: 1
+          unit: "image"
+
+    - model: "gemini 2.0 flash"
+      costs:
+        text:
+          credits: 1
+          per: 1000
+          unit: "tokens"
+        image:
+          credits: 1
+          per: 1
+          unit: "image"
+
+  photos:
+    - model: "imagen 3"
+      costs:
+        credits: 60
         per: 1
         unit: "image"
-  
-  - model: "gemini 2.0 flash"
-    costs:
-      text:
-        credits: 1
-        per: 1000
-        unit: "tokens"
-      image:
-        credits: 1
+
+  videos:
+    - model: "kling 1.6 pro"
+      costs:
+        credits: 800
         per: 1
-        unit: "image"
+        unit: "5 seconds of video"
