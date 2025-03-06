@@ -33,3 +33,26 @@ pricingTiers:
       usd: 110
       jpy: 18000
     label: "110.000 credits"
+
+aiModelCosts:
+  - model: "claude 3.7 sonnet"
+    costs:
+      text: 
+        credits: 1
+        per: 50
+        unit: "tokens"
+      image:
+        credits: 15
+        per: 1
+        unit: "image"
+  
+  - model: "gemini 2.0 flash"
+    costs:
+      text:
+        credits: 1
+        per: 1000
+        unit: "tokens"
+      image:
+        credits: 1
+        per: 1
+        unit: "image"
