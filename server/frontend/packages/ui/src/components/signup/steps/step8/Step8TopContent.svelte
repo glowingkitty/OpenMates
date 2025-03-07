@@ -121,7 +121,8 @@ step_8_top_content_svelte:
     
     <div class="text-block">
         {@html $text('signup.you_can_customize_your_mates.text')}
-        <br><br>
+        <span class="break-line"></span>
+        <span class="break-line mobile-hidden"></span>
         <mark>{@html $text('signup.click_toggle_to_open_settings.text')}</mark>
     </div>
     
@@ -199,11 +200,7 @@ step_8_top_content_svelte:
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
 
-    @media (max-width: 600px) {
-        .settings-block {
-            width: 100%;
-        }
-    }
+    
     
     .settings-header {
         display: flex;
@@ -214,5 +211,24 @@ step_8_top_content_svelte:
     .default-settings-text {
         font-size: 14px;
         color: var(--color-grey-80);
+    }
+
+    .break-line {
+        display: block;
+        height: 8px;
+    }
+
+    @media (max-width: 600px) {
+        .mobile-hidden {
+            height: 0px;
+        }
+        
+        .content {
+            padding: 12px;
+        }
+
+        .settings-block {
+            width: 100%;
+        }
     }
 </style>

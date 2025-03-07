@@ -91,15 +91,25 @@ step_6_top_content_svelte:
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
-    @media (max-width: 600px) {
-        .preview-container {
-            width: 100%;
-        }
-    }
+    
 
     .preview-wrapper {
         transform: scale(0.8);
         transform-origin: top center;
         margin-top: 20px;
+    }
+
+    @media (max-width: 600px) {
+        .preview-container {
+            width: 100%;
+        }
+
+        .text-block {
+            margin: 15px 0 15px 0;
+        }
+
+        .preview-wrapper {
+            margin-top: 5px;
+        }
     }
 </style>

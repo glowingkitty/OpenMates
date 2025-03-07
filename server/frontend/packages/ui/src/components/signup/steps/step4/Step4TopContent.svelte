@@ -306,4 +306,26 @@ step_4_top_content_svelte:
         opacity: 0;
         pointer-events: none;
     }
+    
+    /* Added media query for screens 600px and smaller */
+    @media (max-width: 600px) {
+        .features {
+            width: 100%;
+            gap: 5px;
+        }
+
+        .prevent-access-text {
+            margin: 10px 0 10px 0;
+        }
+        
+        .feature {
+            flex: 1;
+            width: auto;
+            min-width: 0;
+        }
+
+        .action-buttons {
+            margin-top: 10px;
+        }
+    }
 </style>

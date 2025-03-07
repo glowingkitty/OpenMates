@@ -101,6 +101,7 @@
 @media (max-width: 730px) {
     .login-button, .signup-button {
         max-width: calc(100% - 80px);
+        margin-top: 10px;
     }
 }
 
@@ -271,6 +272,13 @@ form.hidden {
     position: absolute;
     bottom: 10px;
     right: 0px;
+}
+
+@media (max-width: 600px) {
+    .help-button-container {
+        bottom: -18px;
+    }
+    
 }
 
 .step-layout {

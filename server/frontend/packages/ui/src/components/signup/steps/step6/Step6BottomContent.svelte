@@ -198,6 +198,7 @@ step_6_bottom_content_svelte:
 
     .input-group {
         position: relative;
+        margin-bottom: 5px;
     }
 
     .input-wrapper {

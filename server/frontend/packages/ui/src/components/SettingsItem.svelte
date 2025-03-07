@@ -459,4 +459,10 @@ A settingsitem can have any of these things:
         cursor: default;
         pointer-events: none;
     }
+
+    @media (max-width: 600px) {
+        .menu-item {
+            padding: 4px 10px;
+        }
+    }
 </style>

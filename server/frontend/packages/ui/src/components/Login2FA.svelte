@@ -237,6 +237,8 @@ login_2fa_svelte:
         flex-direction: column;
     }
 
+   
+
     .app-name {
         margin: 10px 0 30px 0;
         display: flex;
@@ -296,5 +298,19 @@ login_2fa_svelte:
     .no-animation .fade-animation,
     .no-animation .fade-text {
         animation: none;
+    }
+
+    @media (max-width: 600px) {
+        .login-2fa {
+            align-items: center;
+        }
+
+        .app-name {
+            margin: 10px 0 10px 0;
+        }
+
+        .enter-backup-code {
+            margin-top: 10px;
+        }
     }
 </style>

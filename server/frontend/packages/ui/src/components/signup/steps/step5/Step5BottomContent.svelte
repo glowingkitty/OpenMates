@@ -94,6 +94,5 @@ step_5_bottom_content_svelte:
         color: var(--color-grey-50);
         font-size: 14px;
         margin-top: 28px;
-        margin-left: 36px; /* Aligns with the confirmation text */
     }
 </style>
