@@ -95,6 +95,16 @@
             icon: viewName,
             title: $text(`settings.${viewName}.text`)
         });
+        
+        // Find settings content element and scroll to top
+        // Fixed: Use document.querySelector instead of document.closest
+        const settingsContent = document.querySelector('.settings-content-wrapper');
+        if (settingsContent) {
+            settingsContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
     }
     
     // Add function to filter out nested views from main menu

@@ -270,6 +270,14 @@ changes to the documentation (to keep the documentation up to date).
         if (profileContainer) {
             profileContainer.classList.add('submenu-active');
         }
+        
+        // Scroll to the top of the settings content
+        if (settingsContentElement) {
+            settingsContentElement.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
     }
 
     // Enhanced back navigation - handle both main and nested views
@@ -301,6 +309,14 @@ changes to the documentation (to keep the documentation up to date).
             
             if (profileContainer) {
                 profileContainer.classList.remove('submenu-active');
+            }
+            
+            // Scroll to top when going back to main view
+            if (settingsContentElement) {
+                settingsContentElement.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
             }
         }
     }

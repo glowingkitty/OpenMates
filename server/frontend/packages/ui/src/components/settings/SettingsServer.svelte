@@ -35,6 +35,15 @@ changes to the documentation (to keep the documentation up to date).
             title: $text('settings.software_updates.text'),
             translationKey: 'settings.software_updates'
         });
+        
+        // Find settings content element and scroll to top
+        const settingsContent = document.querySelector('.settings-content-wrapper');
+        if (settingsContent) {
+            settingsContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
     }
 
     // Handle navigation back event

@@ -75,6 +75,15 @@ changes to the documentation (to keep the documentation up to date).
             title: $text('settings.language.text'),
             translationKey: 'settings.language'
         });
+        
+        // Find settings content element and scroll to top
+        const settingsContent = document.querySelector('.settings-content-wrapper');
+        if (settingsContent) {
+            settingsContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
     }
 
     // Handle language change event from SettingsLanguage component
