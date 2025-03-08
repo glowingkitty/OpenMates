@@ -27,15 +27,13 @@ class InviteCodeGenerator:
         }
 
     def generate_invite_code(self) -> str:
-        """Generate a unique invite code in the format XXXX-XXX-XXX-XXX"""
+        """Generate a unique invite code in the format XXXX-XXXX-XXXX"""
         chars = string.ascii_uppercase + string.digits
         segments = []
         
-        # First segment is 4 characters, the rest are 3 characters
-        segments.append(''.join(random.choice(chars) for _ in range(4)))
-        
+        # Generate three segments of 4 characters each
         for _ in range(3):
-            segment = ''.join(random.choice(chars) for _ in range(3))
+            segment = ''.join(random.choice(chars) for _ in range(4))
             segments.append(segment)
             
         return '-'.join(segments)
@@ -90,7 +88,7 @@ class InviteCodeGenerator:
         """Create a specific invite code in Directus"""
         # Validate the code format
         if not self._is_valid_code_format(code):
-            raise ValueError("Invalid code format. Must be in the format XXXX-XXX-XXX-XXX")
+            raise ValueError("Invalid code format. Must be in the format XXXX-XXXX-XXXX")
         
         payload = {
             "code": code,
@@ -124,8 +122,8 @@ class InviteCodeGenerator:
             raise
             
     def _is_valid_code_format(self, code: str) -> bool:
-        """Check if a code matches the XXXX-XXX-XXX-XXX format"""
-        pattern = r"^[A-Z0-9]{4}-[A-Z0-9]{3}-[A-Z0-9]{3}-[A-Z0-9]{3}$"
+        """Check if a code matches the XXXX-XXXX-XXXX format"""
+        pattern = r"^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$"
         return bool(re.match(pattern, code))
 
     def batch_create_invite_codes(self, 
@@ -287,11 +285,11 @@ def get_specific_code_input() -> dict:
     
     try:
         while True:
-            code = input("Enter specific code (format XXXX-XXX-XXX-XXX): ").strip().upper()
-            if re.match(r"^[A-Z0-9]{4}-[A-Z0-9]{3}-[A-Z0-9]{3}-[A-Z0-9]{3}$", code):
+            code = input("Enter specific code (format XXXX-XXXX-XXXX): ").strip().upper()
+            if re.match(r"^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", code):
                 break
             else:
-                print("Invalid format. Please use the format XXXX-XXX-XXX-XXX.")
+                print("Invalid format. Please use the format XXXX-XXXX-XXXX.")
         
         valid_from_input = input("Valid from date (YYYY-MM-DD) [leave empty for immediately valid]: ").strip()
         valid_from = None
