@@ -1245,6 +1245,10 @@
         "save": {
             "text": "Save",
             "context": "Button text for saving settings"
+        },
+        "server": {
+            "text": "Server",
+            "context": "Server settings menu item"
         }
     },
     "design_guidelines": {

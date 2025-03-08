@@ -969,6 +969,11 @@
             "text": "保存",
             "en_original": "Save",
             "context": "Button text for saving settings"
+        },
+        "server": {
+            "text": "サーバー",
+            "en_original": "Server",
+            "context": "Server settings menu item"
         }
     },
     "design_guidelines": {

@@ -46,11 +46,13 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsShared from './settings/SettingsShared.svelte';
     import SettingsMessengers from './settings/SettingsMessengers.svelte';
     import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
-    import SettingsItem from './SettingsItem.svelte'; // Add this import
+    import SettingsServer from './settings/SettingsServer.svelte';
+    import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+    
     
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
@@ -89,6 +91,7 @@ changes to the documentation (to keep the documentation up to date).
         'messengers': SettingsMessengers,
         'developers': SettingsDevelopers,
         'interface': SettingsInterface,
+        'server': SettingsServer,
         'interface/language': SettingsLanguage
     };
 

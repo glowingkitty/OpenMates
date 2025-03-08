@@ -969,6 +969,11 @@
             "text": "Guardar",
             "en_original": "Save",
             "context": "Button text for saving settings"
+        },
+        "server": {
+            "text": "Servidor",
+            "en_original": "Server",
+            "context": "Server settings menu item"
         }
     },
     "design_guidelines": {
