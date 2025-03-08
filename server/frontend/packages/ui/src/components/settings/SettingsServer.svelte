@@ -29,7 +29,7 @@ changes to the documentation (to keep the documentation up to date).
         childComponent = SettingsSoftwareUpdate;
         
         dispatch('openSettings', {
-            settingsPath: 'server/softwareUpdate', 
+            settingsPath: 'server/software-update', 
             direction: 'forward',
             icon: 'download',
             title: $text('settings.software_updates.text'),

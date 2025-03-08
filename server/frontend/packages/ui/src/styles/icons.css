@@ -142,6 +142,13 @@
   }
 }
 
+.subsetting_icon_download {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/download.svg');
+    mask-image: url('@openmates/ui/static/icons/download.svg');
+  }
+}
+
 button.clickable-icon {
   /* Reset all previous properties from button css*/
   all: unset;

@@ -45,74 +45,29 @@ changes to the documentation (to keep the documentation up to date).
     }
 </script>
 
-<div class="software-update-container">
-    <SettingsItem 
-        type="subsubmenu"
-        icon="download"
-        subtitleTop={$text('settings.new_update_available.text')}
-        title={softwareVersion}
-    />
-    
-    <div class="install-button-container">
-        <button 
-            class="install-button"
-            disabled={isInstalling || installComplete}
-            on:click={handleInstallUpdate}
-        >
-            {$text('settings.install_and_restart.text')}
-        </button>
-    </div>
+<SettingsItem 
+    type="heading"
+    icon="subsetting_icon subsetting_icon_download"
+    subtitleTop={$text('settings.new_update_available.text')}
+    title={softwareVersion}
+/>
+
+<div class="install-button-container">
+    <button 
+        disabled={isInstalling || installComplete}
+        on:click={handleInstallUpdate}
+    >
+        {$text('settings.install_and_restart.text')}
+    </button>
 </div>
 
 <style>
-    .software-update-container {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
     
     .install-button-container {
-        margin-top: 8px;
-    }
-
-    .install-button {
-        background-color: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        width: 100%;
-        position: relative;
         display: flex;
         justify-content: center;
         align-items: center;
-        transition: background-color 0.2s;
+        margin-top: 10px;
     }
 
-    .install-button:hover {
-        background-color: var(--color-primary-dark, #0056b3);
-    }
-
-    .install-button:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    .loading-spinner {
-        width: 16px;
-        height: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: white;
-        animation: spin 1s linear infinite;
-        margin-right: 8px;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
 </style>

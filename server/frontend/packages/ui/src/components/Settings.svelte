@@ -49,6 +49,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
+    import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -92,7 +93,8 @@ changes to the documentation (to keep the documentation up to date).
         'developers': SettingsDevelopers,
         'interface': SettingsInterface,
         'server': SettingsServer,
-        'interface/language': SettingsLanguage
+        'interface/language': SettingsLanguage,
+        'server/software-update': SettingsSoftwareUpdate
     };
 
     // Track navigation path parts for breadcrumb-style navigation
