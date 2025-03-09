@@ -57,9 +57,11 @@ changes to the documentation (to keep the documentation up to date).
         disabled={isInstalling || installComplete}
         on:click={handleInstallUpdate}
     >
-        {$text('settings.install_and_restart.text')}
+        {$text('settings.install.text')}
     </button>
 </div>
+
+{@html $text('settings.server_will_be_restarted.text')}
 
 <style>
     

@@ -974,6 +974,51 @@
             "text": "Servidor",
             "en_original": "Server",
             "context": "Server settings menu item"
+        },
+        "software_updates": {
+            "text": "Actualizaciones de software",
+            "en_original": "Software updates",
+            "context": "Software updates settings menu item"
+        },
+        "checking_for_updates": {
+            "text": "Buscando actualizaciones...",
+            "en_original": "Checking for updates...",
+            "context": "Message shown while checking for software updates"
+        },
+        "new_update_available": {
+            "text": "Nueva actualización disponible",
+            "en_original": "New update available",
+            "context": "Message shown when new software update is available"
+        },
+        "install": {
+            "text": "Instalar",
+            "en_original": "Install",
+            "context": "Button text for installing software updates"
+        },
+        "server_will_be_restarted": {
+            "text": "El servidor se reiniciará y<br>por lo tanto estará brevemente fuera de línea una vez<br>que se haya instalado la actualización.",
+            "en_original": "The server will be restarted and<br>therefore briefly offline once<br>the update has been installed.",
+            "context": "Message shown under the install button to inform the user that the server will be restarted"
+        },
+        "installing_update": {
+            "text": "Instalando actualización...",
+            "en_original": "Installing update...",
+            "context": "Message shown while installing software update"
+        },
+        "update_failed": {
+            "text": "Actualización fallida.<br>Revisa los registros del servidor.",
+            "en_original": "Update failed.<br>Check the server logs.",
+            "context": "Error message shown when software update fails"
+        },
+        "update_successful": {
+            "text": "Actualización exitosa",
+            "en_original": "Update successful",
+            "context": "Success message shown when software update is successful"
+        },
+        "installed": {
+            "text": "Instalado",
+            "en_original": "Installed",
+            "context": "Message shown above the currently installed software version"
         }
     },
     "design_guidelines": {
