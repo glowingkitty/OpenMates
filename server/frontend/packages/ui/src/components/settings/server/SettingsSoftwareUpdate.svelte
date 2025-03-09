@@ -99,14 +99,13 @@ component:
     }
     
     .search-icon {
-        width: 73px;
-        height: 73px;
+        width: 57px;
+        height: 57px;
         -webkit-mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
         mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
         -webkit-mask-size: contain;
         mask-size: contain;
-        background-color: #9e9e9e;
-        margin-bottom: 20px;
+        background: var(--color-primary);
     }
     
     .checking-text {
