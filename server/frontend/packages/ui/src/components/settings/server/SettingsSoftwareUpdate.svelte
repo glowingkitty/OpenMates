@@ -12,8 +12,9 @@ component:
   states:
     - checking: Initial state showing loading indicator and checking for updates message
     - updateAvailable: Shows version and install button
-    - installing: Installing update state
-    - complete: Installation complete state
+    - installing: Installing update state showing download progress
+    - restarting: Server restarting state
+    - complete: Installation complete state with success message
 -->
 
 <script lang="ts">
@@ -32,25 +33,31 @@ component:
     const softwareVersion = `v${versionYear}.${versionMonth}.${versionDay}`;
     
     // State variables
-    let isInstalling = false;
-    let installComplete = false;
     let isChecking = true;
+    let updateState = 'idle'; // idle, installing, restarting, complete
+    let subtitleText = $text('settings.new_update_available.text');
     
     function handleInstallUpdate() {
         // Set installing state
-        isInstalling = true;
+        updateState = 'installing';
         
-        // Simulate installation process
+        // Simulate installation process - downloading
         setTimeout(() => {
-            isInstalling = false;
-            installComplete = true;
+            // Transition to restarting state
+            updateState = 'restarting';
             
-            // Reset state after showing completion message
+            // Simulate server restart
             setTimeout(() => {
-                installComplete = false;
-                dispatch('back');
-            }, 2000);
-        }, 2000);
+                // Transition to complete state
+                updateState = 'complete';
+                subtitleText = $text('settings.installed.text');
+                
+                // Reset state after showing completion message
+                setTimeout(() => {
+                    dispatch('back');
+                }, 2000);
+            }, 3000);
+        }, 3000);
     }
 
     onMount(() => {
@@ -71,25 +78,40 @@ component:
         <SettingsItem 
             type="heading"
             icon="subsetting_icon subsetting_icon_download"
-            subtitleTop={$text('settings.new_update_available.text')}
+            subtitleTop={subtitleText}
             title={softwareVersion}
         />
 
-        <div class="install-button-container">
-            <button 
-                disabled={isInstalling || installComplete}
-                on:click={handleInstallUpdate}
-            >
-                {$text('settings.install.text')}
-            </button>
-        </div>
+        {#if updateState === 'idle'}
+            <div class="install-button-container">
+                <button on:click={handleInstallUpdate}>
+                    {$text('settings.install.text')}
+                </button>
+            </div>
 
-        <p class="restart-notice">{@html $text('settings.server_will_be_restarted.text')}</p>
+            <p class="restart-notice">{@html $text('settings.server_will_be_restarted.text')}</p>
+        {:else if updateState === 'installing'}
+            <div class="progress-container" in:fade={{ duration: 300 }}>
+                <span class="download-icon"></span>
+                <p class="progress-text">{$text('settings.installing_update.text')}</p>
+            </div>
+        {:else if updateState === 'restarting'}
+            <div class="progress-container" in:fade={{ duration: 300 }}>
+                <span class="server-icon"></span>
+                <p class="progress-text">{$text('settings.restarting_server.text')}</p>
+            </div>
+        {:else if updateState === 'complete'}
+            <div class="progress-container" in:fade={{ duration: 300 }}>
+                <span class="check-icon"></span>
+                <p class="progress-text">{$text('settings.update_successful.text')}</p>
+            </div>
+        {/if}
     </div>
 {/if}
 
 <style>
-    .checking-container {
+    .checking-container,
+    .progress-container {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -98,17 +120,40 @@ component:
         width: 100%;
     }
     
-    .search-icon {
+    .search-icon,
+    .download-icon,
+    .server-icon,
+    .check-icon {
         width: 57px;
         height: 57px;
-        -webkit-mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
-        mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
         -webkit-mask-size: contain;
         mask-size: contain;
         background: var(--color-primary);
     }
     
-    .checking-text {
+    .search-icon {
+        -webkit-mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
+        mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
+    }
+    
+    .download-icon {
+        -webkit-mask: url('@openmates/ui/static/icons/download.svg') no-repeat center;
+        mask: url('@openmates/ui/static/icons/download.svg') no-repeat center;
+    }
+    
+    .server-icon {
+        -webkit-mask: url('@openmates/ui/static/icons/server.svg') no-repeat center;
+        mask: url('@openmates/ui/static/icons/server.svg') no-repeat center;
+    }
+    
+    .check-icon {
+        -webkit-mask: url('@openmates/ui/static/icons/check.svg') no-repeat center;
+        mask: url('@openmates/ui/static/icons/check.svg') no-repeat center;
+        background: #58BC00;
+    }
+    
+    .checking-text,
+    .progress-text {
         color: var(--color-grey-60);
         font-size: 14px;
         text-align: center;

@@ -1005,6 +1005,11 @@
             "en_original": "Installing update...",
             "context": "Message shown while installing software update"
         },
+        "restarting_server": {
+            "text": "正在重启服务器...",
+            "en_original": "Restarting server...",
+            "context": "Message shown while restarting server after software update"
+        },
         "update_failed": {
             "text": "更新失败。<br>请检查服务器日志。",
             "en_original": "Update failed.<br>Check the server logs.",

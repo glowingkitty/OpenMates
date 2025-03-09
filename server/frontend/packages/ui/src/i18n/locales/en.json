@@ -1274,6 +1274,10 @@
             "text": "Installing update...",
             "context": "Message shown while installing software update"
         },
+        "restarting_server": {
+            "text": "Restarting server...",
+            "context": "Message shown while restarting server after software update"
+        },
         "update_failed": {
             "text": "Update failed.<br>Check the server logs.",
             "context": "Error message shown when software update fails"
