@@ -4,38 +4,36 @@ services:
   # #########################################################################
   # ##### REST API
   # #########################################################################
-  # api:
-  #   container_name: api
-  #   build:
-  #     context: ./api
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   env_file: ../../.env
-  #   environment:
-  #     PYTHONPATH: "/app"
-  #     REST_API_PORT: ${REST_API_PORT}
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
-  #     DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
-  #     VAULT_URL: "http://vault:8200"
-  #     MONITORING_URL: "http://prometheus:9090"
-  #   command: >
-  #     sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
-  #   ports:
-  #     - "${REST_API_PORT}:${REST_API_PORT}"
-  #   volumes:
-  #     - ./api:/app
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - cms
-  #     - cache
-  #     - vault
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:${REST_API_PORT}/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  api:
+    container_name: api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      REST_API_PORT: ${REST_API_PORT}
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
+      DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+      VAULT_URL: "http://vault:8200"
+      MONITORING_URL: "http://prometheus:9090"
+    command: >
+      sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
+    ports:
+      - "${REST_API_PORT}:${REST_API_PORT}"
+    volumes:
+      - ./api:/app
+    networks:
+      - openmates
+    depends_on:
+      - cms
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${REST_API_PORT}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # #########################################################################
   # ##### Email Renderer
