@@ -13,6 +13,38 @@ for arg in "$@"; do
   esac
 done
 
+# Function to check if services are already running
+check_running_services() {
+  # Check if our docker compose services are already running
+  if docker compose -f backend/core/core.docker-compose.yml ps --services --filter "status=running" | grep -q "cms"; then
+    echo "OpenMates services are already running."
+    echo ""
+    echo "Options:"
+    echo "  1) Restart all services"
+    echo "  2) Show logs"
+    echo "  3) Exit"
+    echo ""
+    read -p "Please enter your choice (1/2/3): " choice
+    
+    case $choice in
+      1)
+        echo "Restarting services..."
+        docker compose -f backend/core/core.docker-compose.yml down
+        echo "Previous containers stopped. Continuing with restart..."
+        ;;
+      2)
+        echo "Showing logs (press Ctrl+C to exit):"
+        docker compose -f backend/core/core.docker-compose.yml logs -f
+        exit 0
+        ;;
+      3|*)
+        echo "Exiting without changes."
+        exit 0
+        ;;
+    esac
+  fi
+}
+
 # Function to handle database reset
 reset_database() {
   echo "⚠️  WARNING: You are about to RESET the database and DELETE ALL DATA! ⚠️"
@@ -244,6 +276,9 @@ start_services() {
 
 # Main execution
 echo "===== OpenMates Server Initialization ====="
+
+# Check if services are already running
+check_running_services
 
 # Handle reset if flag is present
 if [ "$RESET_FLAG" = true ]; then
