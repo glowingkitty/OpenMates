@@ -226,18 +226,18 @@ def create_collection(token, schema_file):
                 }
                 
                 # Debug output to help identify issues
-                print(f"Field data being sent: {field_data}")
+                # print(f"Field data being sent: {field_data}")
                 
                 # Try the correct endpoint based on restore_models.py
                 try:
-                    print(f"Creating field using /fields/{collection_name} endpoint")
+                    # print(f"Creating field using /fields/{collection_name} endpoint")
                     field_response = requests.post(
                         f"{CMS_URL}/fields/{collection_name}",
                         json=field_data,
                         headers={"Authorization": f"Bearer {token}"}
                     )
                     field_response.raise_for_status()
-                    print(f"Successfully created field {field_name}")
+                    # print(f"Successfully created field {field_name}")
                 except Exception as e:
                     print(f"Failed to create field: {str(e)}")
                     # If there's a response object with more information, print it
@@ -324,98 +324,6 @@ def store_invite_code(token, invite_code):
         print(f"Error storing invite code: {str(e)}")
         return False
 
-def store_cms_token(token):
-    """Store CMS token for API access."""
-    try:
-        # Check if API Access role already exists
-        roles_response = requests.get(
-            f"{CMS_URL}/roles",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        roles_response.raise_for_status()
-        
-        # Check if API role already exists
-        api_role_exists = False
-        role_id = None
-        
-        for role in roles_response.json().get('data', []):
-            if role.get('name') == "API Access":
-                api_role_exists = True
-                role_id = role.get('id')
-                print('API Access role already exists')
-                break
-        
-        if not api_role_exists:
-            # Create a role for API access
-            role_response = requests.post(
-                f"{CMS_URL}/roles",
-                json={
-                    "name": "API Access",
-                    "admin_access": False,
-                    "app_access": False
-                },
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            role_response.raise_for_status()
-            
-            role_id = role_response.json()['data']['id']
-            print('Created API Access role')
-        
-        # Check if API user already exists
-        users_response = requests.get(
-            f"{CMS_URL}/users?filter[email][_eq]=api@openmates.internal",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        users_response.raise_for_status()
-        
-        users = users_response.json().get('data', [])
-        if users:
-            user_id = users[0].get('id')
-            print('API user already exists')
-        else:
-            # Create a user for API access
-            user_response = requests.post(
-                f"{CMS_URL}/users",
-                json={
-                    "email": "api@openmates.internal",
-                    "password": CMS_TOKEN[:32],  # Use part of the CMS token as password
-                    "role": role_id
-                },
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            user_response.raise_for_status()
-            
-            user_id = user_response.json()['data']['id']
-            print('Created API user')
-        
-        # Check if the API token already exists
-        tokens_response = requests.get(
-            f"{CMS_URL}/users/{user_id}/tokens",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        tokens_response.raise_for_status()
-        
-        tokens = tokens_response.json().get('data', [])
-        token_exists = any(t.get('token') == CMS_TOKEN for t in tokens)
-        
-        if not token_exists:
-            # Create a static token for API access
-            token_response = requests.post(
-                f"{CMS_URL}/users/{user_id}/token",
-                json={"token": CMS_TOKEN},
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            token_response.raise_for_status()
-            print('Created CMS API token')
-        else:
-            print('CMS API token already exists')
-        
-        print('CMS API token setup completed successfully')
-        return True
-    except Exception as e:
-        print(f'Error setting up CMS token: {str(e)}')
-        return False
-
 def setup_schemas():
     """Main function to set up schemas."""
     wait_for_directus()
@@ -448,10 +356,7 @@ def setup_schemas():
                 for schema_file in schema_files:
                     if create_collection(token, schema_file):
                         collections_created = True
-        
-        # Store CMS token for API access
-        store_cms_token(token)
-        
+
         # Generate and store invite code if new collections were created
         # or if the invite_codes collection exists but has no active codes
         invite_code_needed = collections_created
