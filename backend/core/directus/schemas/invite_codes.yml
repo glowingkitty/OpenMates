@@ -28,3 +28,8 @@ invite_codes:
       type: integer
       nullable: true
       note: "Value of credits given to new users who use this code"
+      
+    is_admin:
+      type: boolean
+      default: false
+      note: "If true, user becomes a server admin when using this code"

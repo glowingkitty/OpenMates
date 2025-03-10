@@ -445,7 +445,7 @@ def generate_invite_code():
     
     return invite_code
 
-def store_invite_code(token, invite_code):
+def store_invite_code(token, invite_code, is_admin=False):
     """Store the generated invite code in the database."""
     try:
         # Check if invite_codes collection exists
@@ -458,13 +458,14 @@ def store_invite_code(token, invite_code):
             f"{CMS_URL}/items/invite_codes",
             json={
                 "code": invite_code,
-                "remaining_uses": 1
+                "remaining_uses": 1,
+                "is_admin": is_admin
             },
             headers={"Authorization": f"Bearer {token}"}
         )
         response.raise_for_status()
         
-        print(f"Successfully stored invite code {invite_code}")
+        print(f"Successfully stored invite code {invite_code} (Admin: {is_admin})")
         return True
     except Exception as e:
         print(f"Error storing invite code: {str(e)}")
@@ -541,10 +542,12 @@ def setup_schemas():
         if invite_code_needed:
             print("Generating invite code for first user...")
             invite_code = generate_invite_code()
-            if store_invite_code(token, invite_code):
+            # Store as admin invite code
+            if store_invite_code(token, invite_code, is_admin=True):
                 print(f"\n==================================")
                 print(f"IMPORTANT: Use this invite code to create your first admin user:")
-                print(f"Invite Code: {invite_code}")
+                print(f"Admin Invite Code: {invite_code}")
+                print(f"This user will be granted full server admin privileges.")
                 print(f"==================================\n")
         else:
             print("No new collections created and active invite codes exist")
