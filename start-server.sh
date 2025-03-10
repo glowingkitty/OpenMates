@@ -73,7 +73,7 @@ check_env_file() {
 
 # Create the OpenMates network if it doesn't exist
 setup_network() {
-  if ! docker network ls | grep -q "openmates"; then
+  if (! docker network ls | grep -q "openmates"); then
     echo "Creating OpenMates network..."
     docker network create openmates
   else
@@ -167,40 +167,33 @@ start_services() {
   docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cms
   
   # Give Directus some time to initialize before checking health
-  echo "Giving Directus time to initialize (45 seconds)..."
-  sleep 45
+  echo "Giving Directus time to initialize (25 seconds)..."
+  sleep 25
   
-  # Wait for Directus to be healthy
+  # Check if Directus is running
   echo "Checking if Directus is running..."
-  max_retries=10
-  retry_count=0
-  
-  while [ $retry_count -lt $max_retries ]; do
-    # Try multiple health check methods
-    if curl -s http://localhost:8055 > /dev/null; then
-      echo "Directus is reachable. Running schema setup..."
-      docker compose -f backend/core/core.docker-compose.yml --env-file .env up cms-setup
-      return 0
+  if curl -s http://localhost:8055 > /dev/null; then
+    echo "Directus is reachable. Running schema setup manually..."
+    
+    # Run the setup container without depending on health checks
+    docker compose -f backend/core/core.docker-compose.yml --env-file .env run --rm cms-setup
+    
+    if [ $? -ne 0 ]; then
+      echo "Schema setup failed, but Directus is running."
+      echo "You can still access Directus at http://localhost:8055"
+      echo "Check the logs for more information."
+    else
+      echo "Schema setup completed successfully."
     fi
-    
-    echo "Waiting for Directus to be reachable... (attempt $((retry_count+1))/$max_retries)"
-    retry_count=$((retry_count+1))
-    
-    # Show logs to help diagnose issues
-    if [ $((retry_count % 2)) -eq 0 ]; then
-      echo "Checking Directus logs:"
-      docker compose -f backend/core/core.docker-compose.yml logs --tail 20 cms
-    fi
-    
-    sleep 10
-  done
-  
-  echo "ERROR: Directus did not become healthy after $max_retries attempts."
-  echo "Checking container status..."
-  docker compose -f backend/core/core.docker-compose.yml ps
-  echo "Check Docker logs for more information:"
-  echo "docker compose -f backend/core/core.docker-compose.yml logs cms"
-  exit 1
+    return 0
+  else
+    echo "ERROR: Directus is not reachable after initialization period."
+    echo "Checking container status:"
+    docker compose -f backend/core/core.docker-compose.yml ps
+    echo "Check logs for more information:"
+    docker compose -f backend/core/core.docker-compose.yml logs cms
+    exit 1
+  fi
 }
 
 # Main execution
