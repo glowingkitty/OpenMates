@@ -13,16 +13,18 @@ invite_codes:
       
     valid_from:
       type: datetime
+      nullable: true
       
     expire_date:
       type: datetime
+      nullable: true
 
     remaining_uses:
       type: integer
       default: 1
-      note: "Number of uses remaining  (0 for unlimited)"
+      note: "Number of uses remaining (0 for unlimited)"
       
     gifted_credits:
       type: integer
-      default: 0
+      default: 100
       note: "Value of credits given to new users who use this code"
