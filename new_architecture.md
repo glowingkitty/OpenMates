@@ -7,11 +7,13 @@ This document provides comprehensive instructions for building a modular, mainta
 
 ```
 my-chatbot-platform/
+├── start-server.sh               # Server initialization script
 ├── frontend/                     # Frontend applications
 │   ├── web-app/                  # Main web application (chatbot interface)
 │   ├── website/                  # Marketing/landing pages
 │   │   └── docs/                 # API documentation (auto-generated)
-│   ├── ui/                       # Shared UI components and assets
+│   ├── packages/
+│   │   └── ui/                   # Shared UI components and assets
 │   └── vscode-plugin/            # VS Code extension (future)
 │
 ├── backend/
@@ -37,7 +39,15 @@ my-chatbot-platform/
 │   │   │   ├── config.py         # Configuration management
 │   │   │   ├── main.py           # FastAPI application entry point
 │   │   │   └── dependencies.py   # Auth & permission checks
-│   │   │
+│   │   ├── email-renderer/         # New Node.js service for email rendering
+│   │   │   ├── templates/          # Svelte email components
+│   │   │   │   ├── welcome.svelte  # Email templates as Svelte components
+│   │   │   │   ├── invoice.svelte
+│   │   │   │   └── notification.svelte
+│   │   │   ├── server.js           # Express server to handle render requests
+│   │   │   ├── renderer.js         # Svelte-email integration
+│   │   │   ├── Dockerfile
+│   │   │   └── package.json        # With svelte-email dependency
 │   │   ├── directus/             # Database management
 │   │   │   ├── schemas/          # Directus YML schema definitions
 │   │   │   ├── backups/          # Database backup files
@@ -167,16 +177,17 @@ The system is built around three primary Docker Compose files:
 
 1. **core.docker-compose.yml**: Contains essential services:
    - API service (FastAPI)
+   - Email renderer (using Svelte-email / nodejs to open the email svelte files with variables and return the rendered emails as email compatible html code)
    - Directus (database/CMS)
-   - Celery (task management)
-   - Dragonfly (caching)
-   - Vault (encryption key management)
+   - Celery (task management, for longer running tasks, accessible by core and apps.docker-compose)
+   - Dragonfly (caching of often used data with fast access needed)
+   - Vault by Hashicorp (encryption key management)
    - Monitoring (Grafana/Prometheus)
-   - Backup service (S3)
-   - Updater service (Docker management)
+   - Backup service (S3 Hetzner, backing up encrypted user data, invoices, etc.)
+   - Updater service (allows for updating the software via git pull for latest changes & restarting (and if needed rebuilding) all updated docker containers)
 
 2. **apps.docker-compose.yml**: Contains app-specific services:
-   - Core functionality app
+   - Core functionality app (which are accessible to both frontend and developers via api: create mates (chatbots), download invoice, add chat to a collection, etc. - Seperate from frontend exclusive api endpoints in backend/core/api)
    - Support app
    - AI processing app
    - Videos app
@@ -301,6 +312,33 @@ The app store allows:
    - Separate updater container with Docker socket access
    - Safe update procedures with rollback
    - App installation/removal management
+
+### Server Initialization Script
+
+The `start-server.sh` script handles the sequential startup of services to ensure proper system initialization:
+
+1. **Sequential Service Startup:**
+   - Starts the Directus container first
+   - Waits for Directus to become healthy
+   - Checks if database schema is already initialized
+
+2. **First-Time Setup:**
+   - When first run, automatically imports schema from YML definitions
+   - Generates a secure invite code for the first administrator
+   - Stores this invite code in Directus for the web application
+
+3. **Service Coordination:**
+   - Starts remaining core services after Directus is ready
+   - Launches app services after core services are running
+   - Handles dependency order between services
+
+4. **User Onboarding:**
+   - Displays setup instructions when initialization is complete
+   - Provides the URL for accessing the web application
+   - Explains how the first user will become the administrator
+
+This approach separates technical Directus administration from application user management while ensuring all components start in the correct order.
+
 
 ## Implementation Guidelines
 
@@ -490,16 +528,11 @@ All services should implement standardized structured logging:
      - `message`
      - `context` (additional data)
 
-2. **Centralized Collection**:
-   - Logs collected from all containers
-   - Visualized in Grafana alongside metrics
-   - Critical errors accessible through admin panel
-   - For larger deployments: Consider Elasticsearch + Fluentd for advanced log search/analysis
-
-3. **Request Tracing**:
-   - Unique trace ID propagated across services
-   - Complete request flow visibility
-   - Performance monitoring per request
+- all logs are saved in grafana, from all dockers!
+- grafana dashboards include access to:
+  - number of monthly active users
+  - number of new signups this month
+  - income (payments) this month
 
 ### Kubernetes Compatibility
 
@@ -546,45 +579,16 @@ To ensure future compatibility with Kubernetes:
 - `/v1/payment/webhook` - Receive payment notifications
 - `/v1/payment/history` - Retrieve payment history
 
-The payment system will:
-- Convert completed payments to user credits
-- Store transaction records in the database
-- Handle refunds when necessary
-- Link payment accounts to user accounts
+with the payments users can buy credits, which are needed for using apps (AI, and most other apps).
 
-## Coding Best Practices
 
-### Python Code Standards
-
-1. **Style Guide**:
-   - Follow PEP 8 guidelines
-   - Use isort for import sorting
-   - Use Black for code formatting
-   - Maximum line length: 88 characters
-
-2. **Type Annotations**:
-   - Use type hints for all function parameters and return types
-   - Validate with mypy
-
-3. **Error Handling**:
-   - Use custom exception classes for different error types
-   - Implement global exception handlers for API endpoints
-   - Log all exceptions with context information
-
-4. **Security**:
-   - Never store credentials in code
-   - Validate all input data
-   - Use parameterized queries for database operations
-   - Follow OWASP security guidelines
-
-5. **Testing**:
-   - Minimum 80% test coverage for all code
-   - Use pytest for unit and integration tests
-   - Implement end-to-end tests for critical flows
-   - Use CI/CD pipelines for test automation
-
-6. **Documentation**:
-   - Document all public functions and classes
-   - Generate API documentation automatically
-   - Keep README files updated
-   - Document architectural decisions
+# Additional comments / requirements
+- backend/core/api also includes code for sending emails (via brevo) & generating pdf invoices (via ReportLab)
+- using directus user model for creating users, resetting password, etc.
+- every chat is encrypted with its own key, so the chat can also be shared with others or publically without risking the security of other chats
+- use best practices for readable, commented, maintainable, efficient, secure code
+- on first start of start-server.sh:
+  - setup directus & directus admin
+  - then other services will also start
+  - invite code in directus will be generated to allow for web app admin user to be created via web app
+  - first user using that invite code will also become web app admin and can manage server via web app (seperate from directus admin)
