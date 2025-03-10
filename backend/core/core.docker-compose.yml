@@ -1,0 +1,376 @@
+version: '3.8'
+
+name: openmates-core
+
+services:
+  # #########################################################################
+  # ##### REST API
+  # #########################################################################
+  # api:
+  #   container_name: api
+  #   build:
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file: ../../.env
+  #   environment:
+  #     PYTHONPATH: "/app"
+  #     REST_API_PORT: ${REST_API_PORT}
+  #     CMS_URL: "http://cms:${CMS_PORT}"
+  #     CMS_TOKEN: ${CMS_TOKEN}
+  #     DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+  #     VAULT_URL: "http://vault:8200"
+  #     MONITORING_URL: "http://prometheus:9090"
+  #   command: >
+  #     sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
+  #   ports:
+  #     - "${REST_API_PORT}:${REST_API_PORT}"
+  #   volumes:
+  #     - ./api:/app
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - cms
+  #     - cache
+  #     - vault
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:${REST_API_PORT}/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # #########################################################################
+  # ##### Email Renderer
+  # #########################################################################
+  # email-renderer:
+  #   container_name: email-renderer
+  #   build:
+  #     context: ./email-renderer
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file: ../../.env
+  #   ports:
+  #     - "3030:3030"
+  #   volumes:
+  #     - ./email-renderer:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - openmates
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3030/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  #########################################################################
+  ##### CMS (Directus)
+  #########################################################################
+  cms:
+    container_name: cms
+    image: directus/directus:latest
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      KEY: "${ADMIN_JWT_SECRET}"
+      SECRET: "${JWT_SECRET}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      DB_CLIENT: "pg"
+      DB_HOST: "cms-database"
+      DB_PORT: "${DATABASE_PORT}"
+      DB_DATABASE: "${DATABASE_NAME}"
+      DB_USER: "${DATABASE_USERNAME}"
+      DB_PASSWORD: "${DATABASE_PASSWORD}"
+      PUBLIC_URL: "http://localhost:${CMS_PORT}"
+      LOG_LEVEL: "info"
+    ports:
+      - "${CMS_PORT}:8055"
+    volumes:
+      - ./directus/uploads:/directus/uploads
+      - ./directus/extensions:/directus/extensions
+    networks:
+      - openmates
+    depends_on:
+      - cms-database
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8055/server/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cms-database:
+    container_name: cms-database
+    image: postgres:13-alpine
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - cms-data:/var/lib/postgresql/data
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cms-setup:
+    container_name: cms-setup
+    build:
+      context: ./directus/setup
+      dockerfile: Dockerfile
+    env_file: ../../.env
+    environment:
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CMS_TOKEN: ${CMS_TOKEN}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+    volumes:
+      - ./directus/schemas:/usr/src/app/backend/core/directus/schemas
+    networks:
+      - openmates
+    depends_on:
+      cms:
+        condition: service_healthy
+    restart: "no"
+    deploy:
+      restart_policy:
+        condition: none
+
+  # #########################################################################
+  # ##### Task Management (Celery)
+  # #########################################################################
+  # task-worker:
+  #   container_name: task-worker
+  #   build:
+  #     context: ./celery
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file: ../../.env
+  #   environment:
+  #     PYTHONPATH: "/app"
+  #     CMS_URL: "http://cms:${CMS_PORT}"
+  #     CMS_TOKEN: ${CMS_TOKEN}
+  #     DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+  #   command: >
+  #     sh -c "celery -A tasks worker --loglevel=info --uid=nobody"
+  #   volumes:
+  #     - ./celery:/app
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - cms
+  #     - cache
+
+  # task-scheduler:
+  #   container_name: task-scheduler
+  #   build:
+  #     context: ./celery
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file: ../../.env
+  #   environment:
+  #     PYTHONPATH: "/app"
+  #     CMS_URL: "http://cms:${CMS_PORT}"
+  #     CMS_TOKEN: ${CMS_TOKEN}
+  #     DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+  #   command: >
+  #     sh -c "celery -A tasks beat --loglevel=info --uid=nobody"
+  #   volumes:
+  #     - ./celery:/app
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - cms
+  #     - cache
+  #     - task-worker
+
+  # #########################################################################
+  # ##### In-Memory Cache (Dragonfly)
+  # #########################################################################
+  # cache:
+  #   container_name: cache
+  #   image: docker.dragonflydb.io/dragonflydb/dragonfly
+  #   restart: unless-stopped
+  #   ulimits:
+  #     memlock: -1
+  #   ports:
+  #     - "${IN_MEMORY_DATABASE_PORT}:6379"
+  #   volumes:
+  #     - cache-data:/data
+  #   command:
+  #     - "--maxmemory"
+  #     - "1000mb"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1.2G
+  #   networks:
+  #     - openmates
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # #########################################################################
+  # ##### Secret Management (Vault)
+  # #########################################################################
+  # vault:
+  #   container_name: vault
+  #   image: hashicorp/vault:latest
+  #   restart: unless-stopped
+  #   cap_add:
+  #     - IPC_LOCK
+  #   environment:
+  #     VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-root}
+  #     VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+  #   ports:
+  #     - "8200:8200"
+  #   volumes:
+  #     - ./vault/config:/vault/config
+  #     - vault-data:/vault/file
+  #   networks:
+  #     - openmates
+  #   healthcheck:
+  #     test: ["CMD", "vault", "status"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # vault-setup:
+  #   container_name: vault-setup
+  #   build:
+  #     context: ./vault/setup
+  #     dockerfile: Dockerfile
+  #   env_file: ../../.env
+  #   environment:
+  #     VAULT_ADDR: "http://vault:8200"
+  #     VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     vault:
+  #       condition: service_healthy
+  #   restart: "no"
+  #   deploy:
+  #     restart_policy:
+  #       condition: none
+
+  # #########################################################################
+  # ##### Monitoring (Prometheus/Grafana)
+  # #########################################################################
+  # prometheus:
+  #   container_name: prometheus
+  #   image: prom/prometheus:latest
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./monitoring/prometheus:/etc/prometheus
+  #     - prometheus-data:/prometheus
+  #   command:
+  #     - "--config.file=/etc/prometheus/prometheus.yml"
+  #     - "--storage.tsdb.path=/prometheus"
+  #     - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+  #     - "--web.console.templates=/usr/share/prometheus/consoles"
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - openmates
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # grafana:
+  #   container_name: grafana
+  #   image: grafana/grafana:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3001:3000"
+  #   volumes:
+  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+  #     - grafana-data:/var/lib/grafana
+  #   environment:
+  #     GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+  #     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+  #     GF_USERS_ALLOW_SIGN_UP: "false"
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - prometheus
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # #########################################################################
+  # ##### Backup Service (S3)
+  # #########################################################################
+  # backup-service:
+  #   container_name: backup-service
+  #   build:
+  #     context: ./backup
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file: ../../.env
+  #   environment:
+  #     PYTHONPATH: "/app"
+  #     CMS_URL: "http://cms:${CMS_PORT}"
+  #     CMS_TOKEN: ${CMS_TOKEN}
+  #     S3_ENDPOINT: ${S3_ENDPOINT}
+  #     S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+  #     S3_SECRET_KEY: ${S3_SECRET_KEY}
+  #     S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+  #     VAULT_URL: "http://vault:8200"
+  #     VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
+  #   volumes:
+  #     - ./backup:/app
+  #     - ./directus/uploads:/data/uploads:ro
+  #     - ./directus/extensions:/data/extensions:ro
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - cms
+  #     - vault
+
+  # #########################################################################
+  # ##### Updater Service
+  # #########################################################################
+  # updater-service:
+  #   container_name: updater-service
+  #   build:
+  #     context: ./updater
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file: ../../.env
+  #   environment:
+  #     PYTHONPATH: "/app"
+  #   volumes:
+  #     - ./updater:/app
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   ports:
+  #     - "3010:3010"
+  #   networks:
+  #     - openmates
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+networks:
+  openmates:
+    external: true
+
+volumes:
+  cms-data:
+  # cache-data:
+  # vault-data:
+  # prometheus-data:
+  # grafana-data:
