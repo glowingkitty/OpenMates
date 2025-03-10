@@ -102,6 +102,17 @@ def collection_exists(token, collection_name):
     except Exception:
         return False
 
+def field_exists(token, collection_name, field_name):
+    """Check if a field exists in a collection."""
+    try:
+        response = requests.get(
+            f"{CMS_URL}/fields/{collection_name}/{field_name}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        return response.status_code == 200
+    except Exception:
+        return False
+
 def map_type(type_name, length=None):
     """Map Directus types to SQL types."""
     type_map = {
@@ -151,6 +162,25 @@ def check_field_type(token, collection_name, field_name):
 def create_relation(token, collection_name, field_name, relation_config):
     """Create a relation between collections with improved error handling."""
     try:
+        # Check if relation already exists
+        try:
+            relation_check = requests.get(
+                f"{CMS_URL}/relations",
+                params={
+                    "filter[collection][_eq]": collection_name,
+                    "filter[field][_eq]": field_name
+                },
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            
+            if relation_check.status_code == 200:
+                relation_data = relation_check.json().get('data', [])
+                if relation_data and len(relation_data) > 0:
+                    print(f"Relation already exists for {collection_name}.{field_name}")
+                    return True
+        except Exception as e:
+            print(f"Error checking if relation exists: {str(e)}")
+    
         # Verify collections exist
         related_collection = relation_config.get('collection')
         related_field = relation_config.get('field', 'id')
@@ -347,18 +377,17 @@ def create_collection(token, schema_file):
                     continue
                 
                 # Check if field already exists
-                field_exists = False
-                try:
-                    field_check = requests.get(
-                        f"{CMS_URL}/fields/{collection_name}/{field_name}",
-                        headers={"Authorization": f"Bearer {token}"}
-                    )
-                    field_exists = field_check.status_code == 200
-                except Exception:
-                    field_exists = False
+                field_exists_flag = field_exists(token, collection_name, field_name)
                 
-                action = "Updating" if field_exists else "Creating"
-                print(f"{action} field: {collection_name}.{field_name}")
+                # Skip field if it already exists
+                if field_exists_flag:
+                    print(f"Field {collection_name}.{field_name} already exists, skipping")
+                    # For relation fields, still collect them for later relation setup
+                    if field_config.get('relation'):
+                        relations_to_create.append((field_name, field_config.get('relation')))
+                    continue
+                
+                print(f"Creating field: {collection_name}.{field_name}")
                 
                 # Normalize the field type for Directus
                 field_type = normalize_directus_type(field_config.get('type'))
@@ -403,13 +432,20 @@ def create_collection(token, schema_file):
                         json=field_data,
                         headers={"Authorization": f"Bearer {token}"}
                     )
-                    field_response.raise_for_status()
+                    
+                    if field_response.status_code >= 400:
+                        # Check if error is due to field already existing
+                        error_text = field_response.text
+                        if "already exists" in error_text:
+                            print(f"Field {field_name} already exists in collection. This is OK, continuing...")
+                        else:
+                            print(f"Failed to create field: {field_response.status_code}")
+                            print(f"Response body: {field_response.text}")
+                            # Don't raise exception, just log and continue
+                    
                 except Exception as e:
-                    print(f"Failed to create field: {str(e)}")
-                    if hasattr(e, 'response') and e.response is not None:
-                        print(f"Response status code: {e.response.status_code}")
-                        print(f"Response body: {e.response.text}")
-                    raise
+                    print(f"Exception while creating field {field_name}: {str(e)}")
+                    # Continue with next field
         
         # Wait before creating relations to ensure all fields are ready
         time.sleep(1)
@@ -428,7 +464,36 @@ def create_collection(token, schema_file):
         if hasattr(e, 'response') and e.response is not None:
             print(f'Response status code: {e.response.status_code}')
             print(f'Response body: {e.response.text}')
-        raise
+        return False
+
+def check_if_database_initialized(token):
+    """Check if database is already initialized by checking if key collections exist."""
+    core_collections = ['invite_codes', 'chats', 'users']
+    existing_collections = 0
+    
+    try:
+        # Get all collections
+        response = requests.get(
+            f"{CMS_URL}/collections",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if response.status_code == 200:
+            collections = response.json().get('data', [])
+            collection_names = [c.get('collection') for c in collections]
+            
+            for core in core_collections:
+                if core in collection_names or f"directus_{core}" in collection_names:
+                    existing_collections += 1
+            
+            # If most core collections exist, database is likely initialized
+            if existing_collections >= 2:
+                print(f"Found {existing_collections}/{len(core_collections)} core collections - database appears initialized")
+                return True
+    except Exception as e:
+        print(f"Error checking if database is initialized: {str(e)}")
+    
+    return False
 
 def generate_invite_code():
     """Generate an invite code in the format XXXX-XXXX-XXXX using only numbers."""
@@ -478,6 +543,11 @@ def setup_schemas():
     try:
         token = login()
         print('Successfully logged in to Directus')
+        
+        # Check if database is already initialized
+        if check_if_database_initialized(token):
+            print("Database already appears to be initialized, skipping schema setup")
+            return
         
         # Check if schema files directory exists and list content
         if not os.path.exists(SCHEMAS_DIR):
