@@ -1,0 +1,40 @@
+invoices:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    user_id:
+      type: uuid
+      relation:
+        collection: users
+        field: id
+      
+    date:
+      type: datetime
+      
+    encrypted_amount:
+      type: string
+      length: 512
+      note: "Encrypted invoice amount"
+      
+    encrypted_pdf_url:
+      type: string
+      length: 512
+      note: "Encrypted S3 URL to stored PDF invoice"
+      
+    encrypted_credits_purchased:
+      type: string
+      length: 512
+      note: "Encrypted number of credits this invoice was for"
+      
+    encrypted_payment_reference:
+      type: string
+      length: 512
+      note: "Encrypted external payment reference ID"
+      
+    vault_key_id:
+      type: string
+      length: 64
+      note: "Reference to this invoice's encryption key in Vault"

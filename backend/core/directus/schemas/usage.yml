@@ -1,0 +1,68 @@
+usage:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    user_id:
+      type: uuid
+      relation:
+        collection: users
+        field: id
+      
+    timestamp:
+      type: datetime
+      
+    type:
+      type: string
+      length: 512
+      note: "Type of usage: chat_message, api_call, etc."
+      
+    chat_id:
+      type: uuid
+      relation:
+        collection: chats
+        field: id
+      nullable: true
+      note: "Related chat (if applicable)"
+      
+    encrypted_credits_system_prompt:
+      type: string
+      length: 512
+      note: "Encrypted credits used for system prompt"
+      
+    encrypted_credits_history:
+      type: string
+      length: 512
+      note: "Encrypted credits used for including chat history"
+      
+    encrypted_credits_user_message:
+      type: string
+      length: 512
+      note: "Encrypted credits used for processing new user message"
+      
+    encrypted_credits_response:
+      type: string
+      length: 512
+      note: "Encrypted credits used for generating response"
+      
+    encrypted_credits_total:
+      type: string
+      length: 512
+      note: "Encrypted total credits consumed in this usage entry"
+      
+    encrypted_api_endpoint:
+      type: string
+      length: 512
+      nullable: true
+      note: "Encrypted API endpoint used (for api_call type)"
+      
+    vault_key_id:
+      type: string
+      length: 64
+      note: "Reference to this usage entry's encryption key in Vault"
+      
+    created:
+      type: datetime
+      note: "When this record was created"

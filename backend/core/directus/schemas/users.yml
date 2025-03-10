@@ -1,0 +1,24 @@
+users:
+  type: collection
+  fields:
+    # Standard Directus user fields
+    
+    encrypted_credit_balance:
+      type: string
+      length: 512
+      note: "Encrypted credit balance"
+    
+    encrypted_settings:
+      type: string
+      length: 2048
+      note: "Encrypted user preferences"
+    
+    vault_key_id:
+      type: string
+      length: 64
+      note: "Reference to the user's encryption key in Vault"
+    
+    api_key_hash:
+      type: string
+      length: 128
+      note: "Hashed API key for developer access"

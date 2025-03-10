@@ -1,0 +1,32 @@
+chats:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    user_id:
+      type: uuid
+      relation:
+        collection: users
+        field: id
+      
+    encrypted_title:
+      type: string
+      length: 512
+      note: "Encrypted chat title"
+      
+    encrypted_content:
+      type: text
+      note: "Encrypted chat messages"
+      
+    vault_key_id:
+      type: string
+      length: 64
+      note: "Reference to this chat's unique encryption key in Vault"
+      
+    created_at:
+      type: datetime
+      
+    updated_at:
+      type: datetime

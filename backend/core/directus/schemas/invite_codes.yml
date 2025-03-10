@@ -1,0 +1,28 @@
+invite_codes:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    code:
+      type: string
+      length: 32
+      unique: true
+      note: "Unique invite code"
+      
+    valid_from:
+      type: datetime
+      
+    expire_date:
+      type: datetime
+
+    remaining_uses:
+      type: integer
+      default: 1
+      note: "Number of uses remaining  (0 for unlimited)"
+      
+    gifted_credits:
+      type: integer
+      default: 0
+      note: "Value of credits given to new users who use this code"
