@@ -132,6 +132,112 @@ def normalize_directus_type(type_name):
     }
     return type_map.get(type_name, type_name)
 
+def check_field_type(token, collection_name, field_name):
+    """Check the type of a field in a collection."""
+    try:
+        response = requests.get(
+            f"{CMS_URL}/fields/{collection_name}/{field_name}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if response.status_code == 200:
+            data = response.json().get('data', {})
+            return data.get('type'), data.get('schema', {}).get('data_type')
+        
+        return None, None
+    except Exception:
+        return None, None
+
+def create_relation(token, collection_name, field_name, relation_config):
+    """Create a relation between collections with improved error handling."""
+    try:
+        # Verify collections exist
+        related_collection = relation_config.get('collection')
+        related_field = relation_config.get('field', 'id')
+        
+        # Check if related collection exists
+        if not collection_exists(token, related_collection):
+            print(f"Error: Related collection '{related_collection}' does not exist.")
+            
+            # Special handling for 'users' - try directus_users instead
+            if related_collection == 'users':
+                print("Attempting to use 'directus_users' instead of 'users'...")
+                relation_config['collection'] = 'directus_users'
+                related_collection = 'directus_users'
+                
+                if not collection_exists(token, 'directus_users'):
+                    print("Error: directus_users collection also not found.")
+                    return False
+            else:
+                return False
+                
+        # Check field types for compatibility
+        local_type, local_data_type = check_field_type(token, collection_name, field_name)
+        related_type, related_data_type = check_field_type(token, related_collection, related_field)
+        
+        if local_type and related_type:
+            print(f"Field types: {collection_name}.{field_name} ({local_type}/{local_data_type}) → " +
+                  f"{related_collection}.{related_field} ({related_type}/{related_data_type})")
+            
+            # Ensure types are compatible (both should be uuid)
+            if local_data_type != related_data_type:
+                print(f"Warning: Field type mismatch. Relation may fail.")
+                
+                # Try to update field type if needed
+                if (local_data_type == 'uuid' and related_data_type != 'uuid') or \
+                   (local_data_type != 'uuid' and related_data_type == 'uuid'):
+                    print(f"Attempting to fix incompatible data types...")
+        
+        # Prepare relation data with proper structure
+        relation_data = {
+            "collection": collection_name,
+            "field": field_name,
+            "related_collection": relation_config.get('collection')
+        }
+        
+        # Add meta information if provided
+        meta = {}
+        
+        # Add optional fields only if they are present in the config
+        for field in ['one_field', 'junction_field', 'many_field', 'one_collection', 
+                     'one_deselect_action', 'junction_collection']:
+            if relation_config.get(field) is not None:
+                meta[field] = relation_config.get(field)
+                
+        # Add one_allowed_collections as an array if provided
+        if relation_config.get('one_allowed_collections'):
+            meta['one_allowed_collections'] = relation_config.get('one_allowed_collections')
+            
+        # Only add meta if we have data
+        if meta:
+            relation_data['meta'] = meta
+
+        print(f"Creating relation for {collection_name}.{field_name} -> {relation_config.get('collection')}")
+        print(f"Relation data: {relation_data}")
+        
+        # Create the relation
+        relation_response = requests.post(
+            f"{CMS_URL}/relations",
+            json=relation_data,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        # Better error handling
+        if relation_response.status_code >= 400:
+            print(f"Error creating relation: Status {relation_response.status_code}")
+            print(f"Response body: {relation_response.text}")
+            return False
+            
+        print(f"Successfully created relation for {collection_name}.{field_name}")
+        return True
+        
+    except Exception as e:
+        print(f"Exception creating relation: {str(e)}")
+        if hasattr(e, 'response') and e.response:
+            print(f"Response status: {e.response.status_code}")
+            print(f"Response text: {e.response.text}")
+        return False
+
 def create_collection(token, schema_file):
     """Create collection from schema file."""
     try:
@@ -164,21 +270,74 @@ def create_collection(token, schema_file):
         
         # Create the collection if needed (non-system collections only)
         if create_new:
-            response = requests.post(
-                f"{CMS_URL}/collections",
-                json={
-                    "collection": collection_name,
+            # Set explicit schema for uuid fields
+            schema_fields = []
+            primary_field = None
+            
+            # Find the primary field
+            if collection.get('fields'):
+                for field_name, field_config in collection.get('fields').items():
+                    if field_config.get('primary'):
+                        primary_field = {
+                            "field": field_name,
+                            "type": normalize_directus_type(field_config.get('type', 'uuid')),
+                            "meta": {
+                                "hidden": False,
+                                "readonly": False,
+                                "interface": "input",
+                                "special": ["uuid"]
+                            },
+                            "schema": {
+                                "is_primary_key": True,
+                                "has_auto_increment": False,
+                                "data_type": "uuid"
+                            }
+                        }
+                        break
+            
+            # If no primary field is explicitly defined, create a default UUID one
+            if not primary_field:
+                primary_field = {
+                    "field": "id",
+                    "type": "uuid",
                     "meta": {
-                        "note": collection.get('note', ''),
-                        "display_template": collection.get('display_template')
+                        "hidden": False,
+                        "readonly": False,
+                        "interface": "input",
+                        "special": ["uuid"]
                     },
                     "schema": {
-                        "name": collection_name
+                        "is_primary_key": True,
+                        "has_auto_increment": False,
+                        "data_type": "uuid"
                     }
+                }
+            
+            # Create collection with explicit primary key type
+            collection_data = {
+                "collection": collection_name,
+                "meta": {
+                    "note": collection.get('note', ''),
+                    "display_template": collection.get('display_template')
                 },
+                "schema": {
+                    "name": collection_name
+                },
+                "fields": [primary_field]
+            }
+            
+            response = requests.post(
+                f"{CMS_URL}/collections",
+                json=collection_data,
                 headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
+            
+            # Wait to ensure collection is created properly
+            time.sleep(1)
+        
+        # Store relations to create after all fields are created
+        relations_to_create = []
         
         # Then create or update fields
         if collection.get('fields'):
@@ -204,6 +363,18 @@ def create_collection(token, schema_file):
                 # Normalize the field type for Directus
                 field_type = normalize_directus_type(field_config.get('type'))
                 
+                # For relation fields, ensure correct format
+                special = field_config.get('special', [])
+                if not isinstance(special, list):
+                    special = [special] if special else []
+                    
+                if field_config.get('relation'):
+                    field_type = "uuid"  # Relation fields should be uuid type
+                    if "uuid" not in special:
+                        special.append("uuid")
+                    # Store relation for later creation
+                    relations_to_create.append((field_name, field_config.get('relation')))
+                
                 # Prepare field data
                 field_data = {
                     "field": field_name,
@@ -220,63 +391,38 @@ def create_collection(token, schema_file):
                         "note": field_config.get('note'),
                         "interface": field_config.get('interface'),
                         "options": field_config.get('options'),
-                        "special": field_config.get('special'),
+                        "special": special,
                         "required": bool(field_config.get('required'))
                     }
                 }
                 
-                # Debug output to help identify issues
-                # print(f"Field data being sent: {field_data}")
-                
                 # Try the correct endpoint based on restore_models.py
                 try:
-                    # print(f"Creating field using /fields/{collection_name} endpoint")
                     field_response = requests.post(
                         f"{CMS_URL}/fields/{collection_name}",
                         json=field_data,
                         headers={"Authorization": f"Bearer {token}"}
                     )
                     field_response.raise_for_status()
-                    # print(f"Successfully created field {field_name}")
                 except Exception as e:
                     print(f"Failed to create field: {str(e)}")
-                    # If there's a response object with more information, print it
                     if hasattr(e, 'response') and e.response is not None:
                         print(f"Response status code: {e.response.status_code}")
                         print(f"Response body: {e.response.text}")
                     raise
-                
-                # If it's a relation field, set up the relation
-                if field_config.get('relation'):
-                    relation = field_config['relation']
-                    relation_data = {
-                        "collection": collection_name,
-                        "field": field_name,
-                        "related_collection": relation.get('collection'),
-                        "meta": {
-                            "one_field": relation.get('one_field'),
-                            "junction_field": relation.get('junction_field'),
-                            "many_field": relation.get('many_field'),
-                            "one_collection": relation.get('one_collection'),
-                            "one_allowed_collections": relation.get('one_allowed_collections'),
-                            "one_deselect_action": relation.get('one_deselect_action', 'nullify'),
-                            "junction_collection": relation.get('junction_collection')
-                        }
-                    }
-                    
-                    try:
-                        relation_response = requests.post(
-                            f"{CMS_URL}/relations",
-                            json=relation_data,
-                            headers={"Authorization": f"Bearer {token}"}
-                        )
-                        relation_response.raise_for_status()
-                    except Exception as e:
-                        print(f"Warning: Failed to create relation: {str(e)}")
-                        print("Continuing with schema setup...")
+        
+        # Wait before creating relations to ensure all fields are ready
+        time.sleep(1)
+        
+        # Create relations after all fields are created
+        for field_name, relation_config in relations_to_create:
+            # Add a small delay between relation creations
+            time.sleep(0.5)
+            create_relation(token, collection_name, field_name, relation_config)
         
         print(f"Collection {collection_name} created successfully")
         return True
+        
     except Exception as e:
         print(f'Error creating collection: {str(e)}')
         if hasattr(e, 'response') and e.response is not None:
@@ -352,6 +498,19 @@ def setup_schemas():
             else:
                 print(f"Found {len(schema_files)} schema file(s): {[os.path.basename(f) for f in schema_files]}")
                 collections_created = False
+                
+                # Sort schema files to ensure dependencies are created first
+                # Put users and chats first since they're referenced by other collections
+                def sort_key(file_path):
+                    basename = os.path.basename(file_path).lower()
+                    if 'directus_users' in basename or 'users' in basename:
+                        return 0  # First priority
+                    elif 'chats' in basename:
+                        return 1  # Second priority
+                    return 2  # Default priority
+                
+                schema_files.sort(key=sort_key)
+                print(f"Processing schema files in order: {[os.path.basename(f) for f in schema_files]}")
                 
                 for schema_file in schema_files:
                     if create_collection(token, schema_file):

@@ -8,7 +8,7 @@ invoices:
     user_id:
       type: uuid
       relation:
-        collection: users
+        collection: directus_users
         field: id
       
     date:
