@@ -86,6 +86,10 @@ setup_network() {
     echo "Removing any stale containers..."
     docker compose -f backend/core/core.docker-compose.yml down || true
   fi
+  
+  # Always rebuild the cms-setup container to ensure latest code is used
+  echo "Rebuilding cms-setup container to incorporate any code changes..."
+  docker compose -f backend/core/core.docker-compose.yml build cms-setup
 }
 
 # Function to handle database volume compatibility issues
@@ -175,7 +179,13 @@ start_services() {
   if curl -s http://localhost:8055 > /dev/null; then
     echo "Directus is reachable. Running schema setup manually..."
     
-    # Run the setup container without depending on health checks
+    # Show environment variables and directories for debugging
+    echo "Debugging information:"
+    docker compose -f backend/core/core.docker-compose.yml run --rm cms-setup env | grep SCHEMAS_DIR
+    docker compose -f backend/core/core.docker-compose.yml run --rm cms-setup ls -la /usr/src/app/
+    
+    # Just run the setup container without overriding the volume mount
+    echo "Running schema setup using docker-compose defined volumes..."
     docker compose -f backend/core/core.docker-compose.yml --env-file .env run --rm cms-setup
     
     if [ $? -ne 0 ]; then
@@ -199,7 +209,7 @@ start_services() {
 # Main execution
 echo "===== OpenMates Server Initialization ====="
 check_env_file
-setup_network
+setup_network  # This will now always rebuild the container
 handle_db_volume
 start_services
 

@@ -128,8 +128,9 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CMS_TOKEN: ${CMS_TOKEN}
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      SCHEMAS_DIR: "/usr/src/app/schemas"
     volumes:
-      - ./directus/schemas:/usr/src/app/backend/core/directus/schemas
+      - ./directus/schemas:/usr/src/app/schemas:ro
     networks:
       - openmates
     depends_on:

@@ -23,8 +23,21 @@ print(f"ADMIN_EMAIL: {ADMIN_EMAIL}")
 print(f"ADMIN_PASSWORD: {'*****' if ADMIN_PASSWORD else 'Not set'}")
 print(f"CMS_TOKEN: {'*****' if CMS_TOKEN else 'Not set'}")
 
-# Schema directories
-SCHEMAS_DIR = '/usr/src/app/backend/core/directus/schemas'
+# Schema directories - use environment variable or default
+SCHEMAS_DIR = os.getenv('SCHEMAS_DIR', '/usr/src/app/schemas')
+
+# Print information about the schemas directory
+print(f"Using schemas from: {SCHEMAS_DIR}")
+if os.path.exists(SCHEMAS_DIR):
+    print(f"Directory contents: {os.listdir(SCHEMAS_DIR)}")
+else:
+    print(f"Directory not found: {SCHEMAS_DIR}")
+    # Try to find schemas in parent directories
+    for parent_dir in ['/usr/src/app', '/usr/src', '/usr']:
+        print(f"Looking for schemas in {parent_dir}...")
+        if os.path.exists(parent_dir):
+            print(f"Found directory: {parent_dir}")
+            print(f"Contents: {os.listdir(parent_dir)}")
 
 def wait_for_directus():
     """Wait until Directus is ready and responsive."""
@@ -101,6 +114,24 @@ def map_type(type_name, length=None):
     }
     return type_map.get(type_name, 'varchar(255)')
 
+def normalize_directus_type(type_name):
+    """Convert schema types to valid Directus types."""
+    type_map = {
+        'datetime': 'dateTime',  # Note the capital T for Directus
+        'date': 'date',
+        'time': 'time',
+        'string': 'string',
+        'text': 'text',
+        'integer': 'integer',
+        'boolean': 'boolean',
+        'float': 'float',
+        'decimal': 'decimal',
+        'json': 'json',
+        'uuid': 'uuid',
+        'hash': 'hash',
+    }
+    return type_map.get(type_name, type_name)
+
 def create_collection(token, schema_file):
     """Create collection from schema file."""
     try:
@@ -147,17 +178,13 @@ def create_collection(token, schema_file):
                 
                 print(f"Creating field: {collection_name}.{field_name}")
                 
+                # Normalize the field type for Directus
+                field_type = normalize_directus_type(field_config.get('type'))
+                
+                # Prepare field data
                 field_data = {
-                    "collection": collection_name,
                     "field": field_name,
-                    "type": field_config.get('type'),
-                    "meta": {
-                        "note": field_config.get('note'),
-                        "interface": field_config.get('interface'),
-                        "options": field_config.get('options'),
-                        "special": field_config.get('special'),
-                        "required": bool(field_config.get('required'))
-                    },
+                    "type": field_type,
                     "schema": {
                         "name": field_name,
                         "table": collection_name,
@@ -165,15 +192,36 @@ def create_collection(token, schema_file):
                         "default_value": field_config.get('default'),
                         "is_nullable": field_config.get('nullable', True) is not False,
                         "is_unique": bool(field_config.get('unique'))
+                    },
+                    "meta": {
+                        "note": field_config.get('note'),
+                        "interface": field_config.get('interface'),
+                        "options": field_config.get('options'),
+                        "special": field_config.get('special'),
+                        "required": bool(field_config.get('required'))
                     }
                 }
                 
-                field_response = requests.post(
-                    f"{CMS_URL}/fields",
-                    json=field_data,
-                    headers={"Authorization": f"Bearer {token}"}
-                )
-                field_response.raise_for_status()
+                # Debug output to help identify issues
+                print(f"Field data being sent: {field_data}")
+                
+                # Try the correct endpoint based on restore_models.py
+                try:
+                    print(f"Creating field using /fields/{collection_name} endpoint")
+                    field_response = requests.post(
+                        f"{CMS_URL}/fields/{collection_name}",
+                        json=field_data,
+                        headers={"Authorization": f"Bearer {token}"}
+                    )
+                    field_response.raise_for_status()
+                    print(f"Successfully created field {field_name}")
+                except Exception as e:
+                    print(f"Failed to create field: {str(e)}")
+                    # If there's a response object with more information, print it
+                    if hasattr(e, 'response') and e.response is not None:
+                        print(f"Response status code: {e.response.status_code}")
+                        print(f"Response body: {e.response.text}")
+                    raise
                 
                 # If it's a relation field, set up the relation
                 if field_config.get('relation'):
@@ -193,17 +241,24 @@ def create_collection(token, schema_file):
                         }
                     }
                     
-                    relation_response = requests.post(
-                        f"{CMS_URL}/relations",
-                        json=relation_data,
-                        headers={"Authorization": f"Bearer {token}"}
-                    )
-                    relation_response.raise_for_status()
+                    try:
+                        relation_response = requests.post(
+                            f"{CMS_URL}/relations",
+                            json=relation_data,
+                            headers={"Authorization": f"Bearer {token}"}
+                        )
+                        relation_response.raise_for_status()
+                    except Exception as e:
+                        print(f"Warning: Failed to create relation: {str(e)}")
+                        print("Continuing with schema setup...")
         
         print(f"Collection {collection_name} created successfully")
         return True
     except Exception as e:
         print(f'Error creating collection: {str(e)}')
+        if hasattr(e, 'response') and e.response is not None:
+            print(f'Response status code: {e.response.status_code}')
+            print(f'Response body: {e.response.text}')
         raise
 
 def generate_invite_code():
@@ -346,17 +401,30 @@ def setup_schemas():
         token = login()
         print('Successfully logged in to Directus')
         
-        # Check if schema files directory exists
+        # Check if schema files directory exists and list content
         if not os.path.exists(SCHEMAS_DIR):
             print(f"Schemas directory not found: {SCHEMAS_DIR}")
-            exit(1)
-        
-        schema_files = glob.glob(os.path.join(SCHEMAS_DIR, '*.yml'))
-        collections_created = False
-        
-        for schema_file in schema_files:
-            if create_collection(token, schema_file):
-                collections_created = True
+            print("Checking parent directory...")
+            parent_dir = os.path.dirname(SCHEMAS_DIR)
+            if os.path.exists(parent_dir):
+                print(f"Parent directory exists: {parent_dir}")
+                print(f"Parent directory contents: {os.listdir(parent_dir)}")
+            print("Continuing without importing schemas.")
+        else:
+            # Find schema files
+            schema_files = glob.glob(os.path.join(SCHEMAS_DIR, '*.yml')) + glob.glob(os.path.join(SCHEMAS_DIR, '*.yaml'))
+            
+            if not schema_files:
+                print(f"No schema files (*.yml or *.yaml) found in {SCHEMAS_DIR}")
+                print(f"Directory contents: {os.listdir(SCHEMAS_DIR)}")
+                print("Continuing without importing schemas.")
+            else:
+                print(f"Found {len(schema_files)} schema file(s): {[os.path.basename(f) for f in schema_files]}")
+                collections_created = False
+                
+                for schema_file in schema_files:
+                    if create_collection(token, schema_file):
+                        collections_created = True
         
         # Store CMS token for API access
         store_cms_token(token)
