@@ -17,6 +17,12 @@ ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 CMS_TOKEN = os.getenv('CMS_TOKEN')
 
+# Print environment variables for debugging
+print(f"Environment variables loaded:")
+print(f"ADMIN_EMAIL: {ADMIN_EMAIL}")
+print(f"ADMIN_PASSWORD: {'*****' if ADMIN_PASSWORD else 'Not set'}")
+print(f"CMS_TOKEN: {'*****' if CMS_TOKEN else 'Not set'}")
+
 # Schema directories
 SCHEMAS_DIR = '/usr/src/app/backend/core/directus/schemas'
 
@@ -24,16 +30,40 @@ def wait_for_directus():
     """Wait until Directus is ready and responsive."""
     print('Waiting for Directus to be ready...')
     
-    while True:
+    # Maximum wait time: 2 minutes
+    max_retries = 30
+    retry_count = 0
+    
+    while retry_count < max_retries:
         try:
-            response = requests.get(f"{CMS_URL}/server/health")
-            if response.status_code == 200 and response.json().get('status') == 'ok':
-                print('Directus is ready!')
+            # Try direct connection first
+            response = requests.get(f"{CMS_URL}")
+            if response.status_code == 200:
+                print('Directus is ready! (Main page accessible)')
                 return
+                
+            # Try health check endpoint
+            health_response = requests.get(f"{CMS_URL}/server/health")
+            if health_response.status_code == 200:
+                print('Directus is ready! (Health check passed)')
+                return
+                
+            # Try ping endpoint as a last resort
+            ping_response = requests.get(f"{CMS_URL}/server/ping")
+            if ping_response.status_code == 200:
+                print('Directus is ready! (Ping successful)')
+                return
+                
         except Exception as e:
-            print(f'Waiting for Directus to be available... ({str(e)})')
+            pass
         
-        time.sleep(2)
+        retry_count += 1
+        if retry_count % 5 == 0:
+            print(f'Waiting for Directus to be available... (attempt {retry_count}/{max_retries})')
+        
+        time.sleep(4)
+    
+    print("Directus did not become ready in the allowed time, but we'll try to continue anyway...")
 
 def login():
     """Login to Directus and get access token."""
@@ -204,8 +234,7 @@ def store_invite_code(token, invite_code):
             f"{CMS_URL}/items/invite_codes",
             json={
                 "code": invite_code,
-                "remaining_uses": 1,
-                "gifted_credits": 100  # Default to 100 credits for new users
+                "remaining_uses": 1
             },
             headers={"Authorization": f"Bearer {token}"}
         )

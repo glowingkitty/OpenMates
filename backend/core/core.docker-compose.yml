@@ -1,5 +1,3 @@
-version: '3.8'
-
 name: openmates-core
 
 services:
@@ -91,12 +89,14 @@ services:
     networks:
       - openmates
     depends_on:
-      - cms-database
+      cms-database:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8055/server/health"]
-      interval: 30s
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:8055"]
+      interval: 10s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 40s
 
   cms-database:
     container_name: cms-database
@@ -108,7 +108,7 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
     volumes:
-      - cms-data:/var/lib/postgresql/data
+      - openmates-postgres-data:/var/lib/postgresql/data
     networks:
       - openmates
     healthcheck:
@@ -367,9 +367,11 @@ services:
 networks:
   openmates:
     external: true
+    name: openmates
 
 volumes:
-  cms-data:
+  openmates-postgres-data:
+    name: openmates-postgres-data
   # cache-data:
   # vault-data:
   # prometheus-data:

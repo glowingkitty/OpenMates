@@ -26,5 +26,5 @@ invite_codes:
       
     gifted_credits:
       type: integer
-      default: 100
+      nullable: true
       note: "Value of credits given to new users who use this code"

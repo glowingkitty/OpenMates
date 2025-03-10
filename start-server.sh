@@ -65,36 +65,149 @@ check_env_file() {
   if ! grep -q "SERVER_HOST" .env; then
     echo "SERVER_HOST=0.0.0.0" >> .env
   fi
+  
+  # Ensure the env file is available to Docker Compose
+  cp .env backend/core/.env
+  echo "Environment variables prepared and copied to backend/core/.env"
 }
 
 # Create the OpenMates network if it doesn't exist
 setup_network() {
-  if ! docker network ls | grep -q openmates; then
+  if ! docker network ls | grep -q "openmates"; then
     echo "Creating OpenMates network..."
     docker network create openmates
+  else
+    echo "OpenMates network already exists"
+  fi
+
+  # Remove any stale containers that might be causing issues
+  echo "Checking for stale containers..."
+  if docker ps -a | grep -q "cms-"; then
+    echo "Removing any stale containers..."
+    docker compose -f backend/core/core.docker-compose.yml down || true
+  fi
+}
+
+# Function to handle database volume compatibility issues
+handle_db_volume() {
+  echo "Checking for database volume compatibility..."
+  
+  # Check if volumes exist
+  if docker volume ls | grep -q "openmates-core_cms-data"; then
+    echo ""
+    echo "WARNING: Existing database volume detected."
+    echo "The error suggests you have an incompatible PostgreSQL version in your volume."
+    echo ""
+    echo "Options:"
+    echo "  1) Remove existing database volume (THIS WILL DELETE ALL DATA)"
+    echo "  2) Continue and try to use the existing volume"
+    echo ""
+    read -p "Please enter your choice (1/2): " choice
+    
+    if [ "$choice" = "1" ]; then
+      echo "Removing existing database volume..."
+      docker compose -f backend/core/core.docker-compose.yml down
+      docker volume rm openmates-core_cms-data
+      echo "Database volume removed. A new one will be created."
+    else
+      echo "Continuing with existing volume. If errors persist, you may need to remove the volume."
+    fi
   fi
 }
 
 # Start Directus and run schema setup
 start_services() {
-  echo "Starting Directus and related services..."
-  docker compose -f backend/core/core.docker-compose.yml up -d cms cms-database
+  echo "Starting Directus database..."
+  # Start database first
+  docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cms-database
   
-  # Wait for Directus to be healthy
-  echo "Waiting for Directus to become healthy..."
-  while ! docker compose -f backend/core/core.docker-compose.yml exec -T cms curl -s http://localhost:8055/server/health | grep -q "ok"; do
-    echo "Waiting for Directus health check..."
-    sleep 5
+  # Check database logs for errors
+  sleep 5
+  if docker compose -f backend/core/core.docker-compose.yml logs cms-database | grep -q "FATAL:  database files are incompatible with server"; then
+    echo "ERROR: Database version incompatibility detected!"
+    docker compose -f backend/core/core.docker-compose.yml down
+    handle_db_volume
+    echo "Restarting database with compatible settings..."
+    docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cms-database
+  fi
+  
+  echo "Waiting for database to be ready..."
+  max_db_retries=20
+  db_retry_count=0
+  
+  while [ $db_retry_count -lt $max_db_retries ]; do
+    if docker compose -f backend/core/core.docker-compose.yml --env-file .env exec -T cms-database pg_isready -U directus > /dev/null 2>&1; then
+      echo "Database is ready!"
+      break
+    fi
+    echo "Waiting for database to be ready... (attempt $((db_retry_count+1))/$max_db_retries)"
+    db_retry_count=$((db_retry_count+1))
+    sleep 3
+    
+    # Check for errors on every 5th attempt
+    if [ $((db_retry_count % 5)) -eq 0 ]; then
+      if docker compose -f backend/core/core.docker-compose.yml logs cms-database | grep -q "FATAL:"; then
+        echo "Database startup errors detected:"
+        docker compose -f backend/core/core.docker-compose.yml logs --tail 10 cms-database
+        echo "Attempting to fix database compatibility issues..."
+        docker compose -f backend/core/core.docker-compose.yml down
+        handle_db_volume
+        docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cms-database
+      fi
+    fi
   done
   
-  echo "Directus is ready. Running schema setup..."
-  docker compose -f backend/core/core.docker-compose.yml up cms-setup
+  if [ $db_retry_count -eq $max_db_retries ]; then
+    echo "ERROR: Database failed to become ready after $max_db_retries attempts."
+    docker compose -f backend/core/core.docker-compose.yml logs cms-database
+    exit 1
+  fi
+  
+  echo "Starting Directus CMS..."
+  docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cms
+  
+  # Give Directus some time to initialize before checking health
+  echo "Giving Directus time to initialize (45 seconds)..."
+  sleep 45
+  
+  # Wait for Directus to be healthy
+  echo "Checking if Directus is running..."
+  max_retries=10
+  retry_count=0
+  
+  while [ $retry_count -lt $max_retries ]; do
+    # Try multiple health check methods
+    if curl -s http://localhost:8055 > /dev/null; then
+      echo "Directus is reachable. Running schema setup..."
+      docker compose -f backend/core/core.docker-compose.yml --env-file .env up cms-setup
+      return 0
+    fi
+    
+    echo "Waiting for Directus to be reachable... (attempt $((retry_count+1))/$max_retries)"
+    retry_count=$((retry_count+1))
+    
+    # Show logs to help diagnose issues
+    if [ $((retry_count % 2)) -eq 0 ]; then
+      echo "Checking Directus logs:"
+      docker compose -f backend/core/core.docker-compose.yml logs --tail 20 cms
+    fi
+    
+    sleep 10
+  done
+  
+  echo "ERROR: Directus did not become healthy after $max_retries attempts."
+  echo "Checking container status..."
+  docker compose -f backend/core/core.docker-compose.yml ps
+  echo "Check Docker logs for more information:"
+  echo "docker compose -f backend/core/core.docker-compose.yml logs cms"
+  exit 1
 }
 
 # Main execution
 echo "===== OpenMates Server Initialization ====="
 check_env_file
 setup_network
+handle_db_volume
 start_services
 
 echo "===== Server initialization completed! ====="
