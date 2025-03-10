@@ -27,6 +27,12 @@ usage:
       nullable: true
       note: "Related chat (if applicable)"
       
+    message_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "ID of the specific message within a chat (from encrypted content)"
+      
     encrypted_credits_system_prompt:
       type: string
       length: 512
