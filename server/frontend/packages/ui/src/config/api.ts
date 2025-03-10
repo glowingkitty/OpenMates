@@ -18,7 +18,6 @@ export const apiEndpoints = {
         check_invite_token_valid:   '/v1/auth/check_invite_token_valid',        // Check if invite token is still valid
         check_username_valid:       '/v1/auth/check_username_valid',            // Check if username is valid and available
         signup:                     '/v1/auth/signup',                          // Sign up with username, email, password, mark terms & privacy policy as accepted
-        request_email_code:         '/v1/auth/request_email_code',              // For email verification
         verify_email_code:          '/v1/auth/verify_email_code',               // Verify if email code is valid, if so, mark email address as verified
         setup_2fa:                  '/v1/auth/setup_2fa',                       // Setup 2FA for user, returns the QR code for user to scan
         request_backup_codes:       '/v1/auth/request_backup_codes',            // Verify if 2FA code is valid and return backup codes (one time use)
