@@ -2,6 +2,42 @@
 
 set -e
 
+# Parse command line arguments
+RESET_FLAG=false
+for arg in "$@"; do
+  case $arg in
+    --reset)
+      RESET_FLAG=true
+      shift
+      ;;
+  esac
+done
+
+# Function to handle database reset
+reset_database() {
+  echo "⚠️  WARNING: You are about to RESET the database and DELETE ALL DATA! ⚠️"
+  echo "This action CANNOT be undone."
+  echo ""
+  read -p "Type 'DELETE ALL DATA' to confirm reset: " confirmation
+  
+  if [ "$confirmation" = "DELETE ALL DATA" ]; then
+    echo "Confirmation received. Proceeding with database reset..."
+    
+    echo "Stopping all containers..."
+    docker compose -f backend/core/core.docker-compose.yml down
+    
+    echo "Removing database volume..."
+    docker volume rm openmates-postgres-data || true
+    
+    echo "Database has been reset. Continuing with fresh setup."
+    return 0
+  else
+    echo "Reset operation cancelled. Your data remains intact."
+    echo "Continuing with normal startup..."
+    return 1
+  fi
+}
+
 # Function to check if .env file exists and contains the required variables
 check_env_file() {
   if [ ! -f .env ]; then
@@ -97,7 +133,7 @@ handle_db_volume() {
   echo "Checking for database volume compatibility..."
   
   # Check if volumes exist
-  if docker volume ls | grep -q "openmates-core_cms-data"; then
+  if docker volume ls | grep -q "openmates-postgres-data"; then
     echo ""
     echo "WARNING: Existing database volume detected."
     echo "The error suggests you have an incompatible PostgreSQL version in your volume."
@@ -111,7 +147,7 @@ handle_db_volume() {
     if [ "$choice" = "1" ]; then
       echo "Removing existing database volume..."
       docker compose -f backend/core/core.docker-compose.yml down
-      docker volume rm openmates-core_cms-data
+      docker volume rm openmates-postgres-data
       echo "Database volume removed. A new one will be created."
     else
       echo "Continuing with existing volume. If errors persist, you may need to remove the volume."
@@ -208,8 +244,14 @@ start_services() {
 
 # Main execution
 echo "===== OpenMates Server Initialization ====="
+
+# Handle reset if flag is present
+if [ "$RESET_FLAG" = true ]; then
+  reset_database
+fi
+
 check_env_file
-setup_network  # This will now always rebuild the container
+setup_network
 handle_db_volume
 start_services
 
@@ -219,3 +261,7 @@ echo "Admin email: $(grep ADMIN_EMAIL .env | cut -d '=' -f2)"
 echo "Admin password: $(grep ADMIN_PASSWORD .env | cut -d '=' -f2)"
 echo ""
 echo "Check the setup logs for your invite code for the first user!"
+echo ""
+echo "Usage information:"
+echo "  ./start-server.sh         - Start server normally"
+echo "  ./start-server.sh --reset - Reset database before starting (deletes all data)"

@@ -1,8 +1,6 @@
-users:
+directus_users:
   type: collection
   fields:
-    # Standard Directus user fields
-    
     encrypted_credit_balance:
       type: string
       length: 512

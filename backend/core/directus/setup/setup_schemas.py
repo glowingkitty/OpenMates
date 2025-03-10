@@ -143,40 +143,63 @@ def create_collection(token, schema_file):
         
         # Check if collection already exists
         exists = collection_exists(token, collection_name)
-        if exists:
-            print(f"Collection {collection_name} already exists, skipping")
-            return False
+        create_new = False
         
-        # Create collection
-        print(f"Creating collection: {collection_name}")
+        # For system collections like directus_users, we don't create them, just add fields
+        if collection_name.startswith('directus_'):
+            if exists:
+                print(f"System collection {collection_name} exists, will add/update fields")
+            else:
+                print(f"System collection {collection_name} doesn't exist, skipping")
+                return False
+        else:
+            # For non-system collections, create if they don't exist
+            if exists:
+                print(f"Collection {collection_name} already exists, will add/update fields")
+            else:
+                print(f"Creating new collection: {collection_name}")
+                create_new = True
         
         collection = schema[collection_name]
         
-        # First create the collection
-        response = requests.post(
-            f"{CMS_URL}/collections",
-            json={
-                "collection": collection_name,
-                "meta": {
-                    "note": collection.get('note', ''),
-                    "display_template": collection.get('display_template')
+        # Create the collection if needed (non-system collections only)
+        if create_new:
+            response = requests.post(
+                f"{CMS_URL}/collections",
+                json={
+                    "collection": collection_name,
+                    "meta": {
+                        "note": collection.get('note', ''),
+                        "display_template": collection.get('display_template')
+                    },
+                    "schema": {
+                        "name": collection_name
+                    }
                 },
-                "schema": {
-                    "name": collection_name
-                }
-            },
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        response.raise_for_status()
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            response.raise_for_status()
         
-        # Then create fields
+        # Then create or update fields
         if collection.get('fields'):
             for field_name, field_config in collection['fields'].items():
                 # Skip primary key fields as they are created automatically
                 if field_config.get('primary'):
                     continue
                 
-                print(f"Creating field: {collection_name}.{field_name}")
+                # Check if field already exists
+                field_exists = False
+                try:
+                    field_check = requests.get(
+                        f"{CMS_URL}/fields/{collection_name}/{field_name}",
+                        headers={"Authorization": f"Bearer {token}"}
+                    )
+                    field_exists = field_check.status_code == 200
+                except Exception:
+                    field_exists = False
+                
+                action = "Updating" if field_exists else "Creating"
+                print(f"{action} field: {collection_name}.{field_name}")
                 
                 # Normalize the field type for Directus
                 field_type = normalize_directus_type(field_config.get('type'))
