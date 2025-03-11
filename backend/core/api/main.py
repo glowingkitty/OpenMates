@@ -81,15 +81,26 @@ async def preload_invite_codes():
         logger.warning("No invite codes found to preload")
         return
     
+    imported_count = 0
+    skipped_count = 0
+    
     # Cache each invite code with its data
     for code_data in all_codes:
         code = code_data.get("code")
         if code:
             # Use the invite code as the key
             cache_key = f"invite_code:{code}"
-            await cache_service.set(cache_key, code_data)
+            
+            # Check if code already exists in cache
+            existing_data = await cache_service.get(cache_key)
+            if existing_data is None:
+                # Only add to cache if it doesn't already exist
+                await cache_service.set(cache_key, code_data)
+                imported_count += 1
+            else:
+                skipped_count += 1
     
-    logger.info(f"Preloaded {len(all_codes)} invite codes into cache")
+    logger.info(f"Preloaded {imported_count} new invite codes into cache (skipped {skipped_count} existing codes)")
 
 # Include routers
 app.include_router(auth.router)
