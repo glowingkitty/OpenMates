@@ -1,5 +1,7 @@
 name: openmates-core
 
+# images last updated: 2025-03-11
+
 services:
   # #########################################################################
   # ##### REST API
@@ -25,6 +27,7 @@ services:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
       - ./api:/app
+      - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
     networks:
       - openmates
     depends_on:
@@ -63,7 +66,7 @@ services:
   #########################################################################
   cms:
     container_name: cms
-    image: directus/directus:latest
+    image: directus/directus:11.5
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -219,7 +222,7 @@ services:
   # #########################################################################
   # vault:
   #   container_name: vault
-  #   image: hashicorp/vault:latest
+  #   image: hashicorp/vault:1.19
   #   restart: unless-stopped
   #   cap_add:
   #     - IPC_LOCK
@@ -258,54 +261,97 @@ services:
   #     restart_policy:
   #       condition: none
 
-  # #########################################################################
-  # ##### Monitoring (Prometheus/Grafana)
-  # #########################################################################
-  # prometheus:
-  #   container_name: prometheus
-  #   image: prom/prometheus:latest
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./monitoring/prometheus:/etc/prometheus
-  #     - prometheus-data:/prometheus
-  #   command:
-  #     - "--config.file=/etc/prometheus/prometheus.yml"
-  #     - "--storage.tsdb.path=/prometheus"
-  #     - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-  #     - "--web.console.templates=/usr/share/prometheus/consoles"
-  #   ports:
-  #     - "9090:9090"
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  #########################################################################
+  ##### Monitoring (Prometheus/Grafana/Loki)
+  #########################################################################
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    ports:
+      - "9090:9090"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "promtail.scrape=true"
 
-  # grafana:
-  #   container_name: grafana
-  #   image: grafana/grafana:latest
-  #   restart: unless-stopped
-  #   ports:
-  #     - "3001:3000"
-  #   volumes:
-  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-  #     - grafana-data:/var/lib/grafana
-  #   environment:
-  #     GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-  #     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-  #     GF_USERS_ALLOW_SIGN_UP: "false"
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - prometheus
-  #   healthcheck:
-  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  loki:
+    container_name: loki
+    image: grafana/loki:3.4.2
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/loki:/etc/loki
+      - loki-data:/loki
+    command:
+      - "-config.file=/etc/loki/loki-config.yaml"
+    ports:
+      - "3100:3100"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "promtail.scrape=true"
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:3.4.2
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail:/etc/promtail
+      # Disable Docker socket mounting as it's causing issues
+      # - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./api/logs:/var/log/api:ro  # Make sure this path exists
+    command:
+      - "-config.file=/etc/promtail/promtail-config.yaml"
+    depends_on:
+      - loki
+    networks:
+      - openmates
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:11.5.2
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
+      GF_SERVER_DOMAIN: "localhost"
+      GF_SMTP_ENABLED: "false"
+    networks:
+      - openmates
+    depends_on:
+      - prometheus
+      - loki
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # #########################################################################
   # ##### Backup Service (S3)
@@ -372,6 +418,9 @@ volumes:
     name: openmates-postgres-data
   cache-data:
     name: openmates-cache-data
-  # vault-data:
-  # prometheus-data:
-  # grafana-data:
+  prometheus-data:
+    name: openmates-prometheus-data
+  loki-data:
+    name: openmates-loki-data
+  grafana-data:
+    name: openmates-grafana-data
