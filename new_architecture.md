@@ -592,3 +592,16 @@ with the payments users can buy credits, which are needed for using apps (AI, an
   - then other services will also start
   - invite code in directus will be generated to allow for web app admin user to be created via web app
   - first user using that invite code will also become web app admin and can manage server via web app (seperate from directus admin)
+- the software must be fully gdpr complicant
+- we store all needed complicance logs:
+  - Authentication logs
+    - login
+    - logout
+    - login failed
+  - Critical security events
+    - password changes,
+    - 2FA activation/deactivation
+    - email change
+    - invite code generated
+  - Consent records and changes
+  - Data export/deletion requests
