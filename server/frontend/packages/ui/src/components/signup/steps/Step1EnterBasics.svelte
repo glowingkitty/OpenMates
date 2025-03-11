@@ -173,8 +173,7 @@
                 body: JSON.stringify({ invite_code: inviteCode }),
             });
 
-            const data = await response.json();
-
+            // Check for rate limiting first
             if (response.status === 429) {
                 isRateLimited = true;
                 localStorage.setItem('inviteCodeRateLimit', Date.now().toString());
@@ -182,8 +181,25 @@
                 return;
             }
 
-            if (response.ok && data.valid) {
+            // Check for server errors
+            if (!response.ok) {
+                console.error('Server error:', response.status);
+                showWarning = true;
+                isValidated = false;
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.valid) {
                 isValidated = true;
+                // Store any additional data if needed
+                if (data.gifted_credits) {
+                    localStorage.setItem('giftedCredits', data.gifted_credits.toString());
+                }
+                if (data.is_admin) {
+                    localStorage.setItem('isAdmin', 'true');
+                }
             } else {
                 showWarning = true;
                 isValidated = false;

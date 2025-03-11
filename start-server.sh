@@ -4,14 +4,65 @@ set -e
 
 # Parse command line arguments
 RESET_FLAG=false
+RESTART_API=false
+RESTART_DIRECTUS=false
+
 for arg in "$@"; do
   case $arg in
     --reset)
       RESET_FLAG=true
       shift
       ;;
+    --restart-api)
+      RESTART_API=true
+      shift
+      ;;
+    --restart-directus)
+      RESTART_DIRECTUS=true
+      shift
+      ;;
   esac
 done
+
+# Function to handle restarting the API service
+restart_api_service() {
+  echo "Restarting the API service..."
+  
+  # Rebuild the API service
+  docker compose -f backend/core/core.docker-compose.yml build api
+  
+  # Restart the API container
+  docker compose -f backend/core/core.docker-compose.yml stop api
+  docker compose -f backend/core/core.docker-compose.yml up -d api
+  
+  echo "API service has been restarted."
+  echo "Showing API logs (press Ctrl+C to exit):"
+  docker compose -f backend/core/core.docker-compose.yml logs -f api
+  exit 0
+}
+
+# Function to handle restarting the Directus service
+restart_directus_service() {
+  echo "Restarting the Directus service..."
+  
+  # Restart the Directus container
+  docker compose -f backend/core/core.docker-compose.yml stop cms
+  docker compose -f backend/core/core.docker-compose.yml up -d cms
+  
+  echo "Directus service has been restarted."
+  echo "Showing Directus logs (press Ctrl+C to exit):"
+  docker compose -f backend/core/core.docker-compose.yml logs -f cms
+  exit 0
+}
+
+# Check if we need to restart specific services
+if [ "$RESTART_API" = true ]; then
+  restart_api_service
+fi
+
+if [ "$RESTART_DIRECTUS" = true ]; then
+  restart_directus_service
+fi
 
 # Function to check if services are already running
 check_running_services() {
@@ -367,5 +418,7 @@ echo ""
 echo "Check the setup logs for your invite code for the first user!"
 echo ""
 echo "Usage information:"
-echo "  ./start-server.sh         - Start server normally"
-echo "  ./start-server.sh --reset - Reset database before starting (deletes all data)"
+echo "  ./start-server.sh               - Start server normally"
+echo "  ./start-server.sh --reset       - Reset database before starting (deletes all data)"
+echo "  ./start-server.sh --restart-api - Rebuild and restart only the API service"
+echo "  ./start-server.sh --restart-directus - Restart only the Directus service"
