@@ -127,19 +127,3 @@ async def check_invite_token_valid(
         logger.error(f"Error validating invite code: {str(e)}", exc_info=True)
         # Don't expose internal errors to client
         return InviteCodeResponse(valid=False, message="An error occurred checking the invite code")
-
-@router.get("/test_cms_connection")
-@limiter.limit("5/minute")
-async def test_cms_connection(
-    request: Request,
-    directus_service: DirectusService = Depends(get_directus_service)
-):
-    """
-    Test endpoint to check if the API can connect to Directus CMS
-    """
-    is_connected = await directus_service.test_connection()
-    
-    if is_connected:
-        return {"status": "success", "message": "Connected to Directus successfully"}
-    else:
-        return {"status": "error", "message": "Failed to connect to Directus"}

@@ -4,7 +4,6 @@ import uuid
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-import json
 
 from app.services.metrics import MetricsService
 
@@ -14,32 +13,32 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, metrics_service: MetricsService):
         super().__init__(app)
         self.metrics_service = metrics_service
+        # Paths that should not be tracked at all
+        self.exclude_paths = [
+            "/metrics",
+            "/health",
+        ]
         
     async def dispatch(self, request: Request, call_next):
+        # Add request ID to request state for potential use in handlers
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
         
-        # Start timing
+        # Skip metrics tracking for excluded paths
+        path = request.url.path
+        is_excluded = False
+        for excluded in self.exclude_paths:
+            if path.startswith(excluded):
+                is_excluded = True
+                break
+                
+        # Start timing for metrics
         start_time = time.time()
         
-        # Extract request details for logging
-        client_host = request.client.host if request.client else "unknown"
+        # Extract method for metrics
         method = request.method
-        url = str(request.url)
         
-        # Log request
-        logger.info(
-            f"Request started",
-            extra={
-                "request_id": request_id,
-                "client_host": client_host,
-                "method": method,
-                "url": url,
-                "event_type": "request_started"
-            }
-        )
-        
-        # Process request
+        # Process request - NO LOGGING AT ALL for normal requests
         try:
             response = await call_next(request)
             status_code = response.status_code
@@ -47,36 +46,37 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Calculate duration
             duration = time.time() - start_time
             
-            # Track metrics
-            endpoint = request.url.path
-            self.metrics_service.track_api_request(method, endpoint, status_code)
-            self.metrics_service.track_request_duration(method, endpoint, duration)
+            # Track metrics for non-excluded paths
+            if not is_excluded:
+                self.metrics_service.track_api_request(method, path, status_code)
+                self.metrics_service.track_request_duration(method, path, duration)
             
-            # Log response
-            logger.info(
-                f"Request completed",
-                extra={
-                    "request_id": request_id,
-                    "status_code": status_code,
-                    "duration": duration,
-                    "event_type": "request_completed"
-                }
-            )
+            # ONLY log errors (status code >= 400) at WARNING level
+            if status_code >= 400:
+                logger.warning(
+                    f"Request failed: {method} {path} - {status_code}",
+                    extra={
+                        "request_id": request_id,
+                        "status_code": status_code,
+                        "method": method,
+                        "path": path,
+                        "duration": duration,
+                        "event_type": "request_error"
+                    }
+                )
             
             return response
             
         except Exception as e:
-            # Calculate duration for failed requests
-            duration = time.time() - start_time
-            
-            # Log exception
+            # Log exceptions as errors
             logger.error(
-                f"Request failed: {str(e)}",
+                f"Request failed with exception: {method} {path} - {str(e)}",
                 extra={
                     "request_id": request_id,
                     "error": str(e),
-                    "duration": duration,
-                    "event_type": "request_failed"
+                    "method": method,
+                    "path": path,
+                    "event_type": "request_exception"
                 },
                 exc_info=True
             )

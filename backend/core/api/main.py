@@ -17,11 +17,12 @@ from app.services.metrics import MetricsService
 from app.services.limiter import limiter
 from app.middleware.logging_middleware import LoggingMiddleware
 
-# Set up structured logging
-logging.basicConfig(level=logging.INFO)
+# Set up structured logging - INFO for console output, WARNING for files
+log_level = os.getenv("LOG_LEVEL", "INFO")  # Keep INFO as default for console
+logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
 
-# Configure JSON logging for the root logger
+# Configure JSON logging for the root logger for console output
 log_handler = logging.StreamHandler()
 log_formatter = jsonlogger.JsonFormatter(
     '%(asctime)s %(name)s %(levelname)s %(message)s',
@@ -43,11 +44,43 @@ root_logger.addHandler(log_handler)
 logs_dir = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(logs_dir, exist_ok=True)
 
-# Add file handler for API logs (this will be picked up by Promtail)
+# Add file handler for API logs - ONLY log WARNING and above
 api_log_path = os.path.join(logs_dir, "api.log")
 api_handler = logging.FileHandler(api_log_path)
 api_handler.setFormatter(log_formatter)
+# More aggressively filter logs for the file handler
+api_handler.setLevel(logging.WARNING)  # Only WARNING and above in files
 root_logger.addHandler(api_handler)
+
+# Create a special event logger for business events (like invite code checks)
+event_logger = logging.getLogger("app.events")
+event_logger.propagate = False  # Don't send to root logger
+event_handler = logging.FileHandler(api_log_path)
+event_handler.setFormatter(log_formatter)
+event_handler.setLevel(logging.INFO)  # Allow INFO level for specific events
+event_logger.addHandler(event_handler)
+# Add console output for events as well
+event_console = logging.StreamHandler()
+event_console.setFormatter(log_formatter)
+event_console.setLevel(logging.INFO)
+event_logger.addHandler(event_console)
+
+# Set higher log levels only for noisy modules, but leave others at INFO for console
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)  # This one is very noisy
+logging.getLogger("httpx").setLevel(logging.WARNING)  # Also quite noisy
+logging.getLogger("app.middleware.logging_middleware").setLevel(logging.WARNING)  # Only important middleware logs
+
+# Explicitly set higher log levels for noisy modules, but leave others at INFO for console
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Force the middleware logger to never use INFO level
+logging.getLogger("app.middleware.logging_middleware").setLevel(logging.WARNING)
+
+# Disable the INFO logs for this specific module so they never get written
+log_filter = logging.Filter()
+log_filter.filter = lambda record: record.levelno >= logging.WARNING
+logging.getLogger("app.middleware.logging_middleware").addFilter(log_filter)
 
 # Configure the compliance logger to use a separate file handler
 compliance_logger = logging.getLogger("compliance")
@@ -165,4 +198,13 @@ async def health_check(request: Request):
 
 if __name__ == "__main__":
     port = int(os.getenv("REST_API_PORT", "8000"))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    # Configure uvicorn with aggressive log filtering
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=True,
+        log_level="error",  # Only log errors for uvicorn
+        access_log=False,   # Disable access logs completely
+        use_colors=False    # Disable colors for cleaner logs
+    )

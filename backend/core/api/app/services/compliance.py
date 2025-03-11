@@ -8,6 +8,8 @@ import ipaddress
 compliance_logger = logging.getLogger("compliance")
 # Get the standard logger for API events
 api_logger = logging.getLogger(__name__)
+# Get the specialized event logger for important business events
+event_logger = logging.getLogger("app.events")
 
 class ComplianceService:
     """
@@ -90,8 +92,8 @@ class ComplianceService:
                               if k not in ['password', 'token', 'secret']}
             log_data["details"] = sanitized_details
             
-        # Log the event with the standard API logger
-        api_logger.info(f"{event_type} - {status}", extra=log_data)
+        # Use the specialized event logger - will always be stored
+        event_logger.info(f"{event_type} - {status}", extra=log_data)
     
     @staticmethod
     def log_data_access(

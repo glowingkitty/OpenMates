@@ -9,16 +9,14 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # API application logs
+  # API application logs - minimal config with no filtering
   - job_name: api-logs
     static_configs:
       - targets:
           - localhost
         labels:
           job: api-logs
-          __path__: /var/log/api/*.log
-          # Exclude compliance log from being processed by this job
-          __path_exclude__: /var/log/api/compliance.log
+          __path__: /var/log/api/api.log
     pipeline_stages:
       - json:
           expressions:
@@ -26,17 +24,15 @@ scrape_configs:
             level: level
             message: message
             name: name
-            request_id: request_id
             event_type: event_type
             status: status
       - labels:
           level:
           name:
-          request_id:
           event_type:
           status:
 
-  # Compliance logs - special handling for GDPR-related logs
+  # Compliance logs config
   - job_name: compliance-logs
     static_configs:
       - targets:
@@ -53,4 +49,5 @@ scrape_configs:
             status: status
       - labels:
           event_type:
+          user_id:
           status:
