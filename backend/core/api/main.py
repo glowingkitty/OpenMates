@@ -39,14 +39,20 @@ if root_logger.handlers:
         root_logger.removeHandler(handler)
 root_logger.addHandler(log_handler)
 
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(logs_dir, exist_ok=True)
+
+# Add file handler for API logs (this will be picked up by Promtail)
+api_log_path = os.path.join(logs_dir, "api.log")
+api_handler = logging.FileHandler(api_log_path)
+api_handler.setFormatter(log_formatter)
+root_logger.addHandler(api_handler)
+
 # Configure the compliance logger to use a separate file handler
 compliance_logger = logging.getLogger("compliance")
 compliance_logger.setLevel(logging.INFO)
 compliance_logger.propagate = False  # Don't send to root logger
-
-# Create logs directory if it doesn't exist
-logs_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(logs_dir, exist_ok=True)
 
 # Create file handler for compliance logs
 compliance_log_path = os.path.join(logs_dir, "compliance.log")

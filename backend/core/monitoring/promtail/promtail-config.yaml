@@ -17,6 +17,8 @@ scrape_configs:
         labels:
           job: api-logs
           __path__: /var/log/api/*.log
+          # Exclude compliance log from being processed by this job
+          __path_exclude__: /var/log/api/compliance.log
     pipeline_stages:
       - json:
           expressions:
@@ -25,10 +27,14 @@ scrape_configs:
             message: message
             name: name
             request_id: request_id
+            event_type: event_type
+            status: status
       - labels:
           level:
           name:
           request_id:
+          event_type:
+          status:
 
   # Compliance logs - special handling for GDPR-related logs
   - job_name: compliance-logs

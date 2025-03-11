@@ -6,6 +6,8 @@ import ipaddress
 
 # Configure a special logger for compliance events
 compliance_logger = logging.getLogger("compliance")
+# Get the standard logger for API events
+api_logger = logging.getLogger(__name__)
 
 class ComplianceService:
     """
@@ -56,6 +58,40 @@ class ComplianceService:
             
         # Log the event
         compliance_logger.info(json.dumps(log_data))
+    
+    @staticmethod
+    def log_api_event(
+        event_type: str,
+        user_id: Optional[str] = None,
+        status: str = "success",
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log an event to the API logs (not to compliance logs)
+        No IP addresses are included in these logs
+        
+        Args:
+            event_type: Type of event (invite_code_check, etc)
+            user_id: User ID (if known)
+            status: Outcome of the event (success, failed)
+            details: Additional details to log (will be sanitized)
+        """
+        # Create log entry
+        log_data = {
+            "event_type": event_type,
+            "user_id": user_id or "anonymous",
+            "status": status
+        }
+        
+        # Add details if provided (sanitize as needed)
+        if details:
+            # Filter out any sensitive fields
+            sanitized_details = {k: v for k, v in details.items() 
+                              if k not in ['password', 'token', 'secret']}
+            log_data["details"] = sanitized_details
+            
+        # Log the event with the standard API logger
+        api_logger.info(f"{event_type} - {status}", extra=log_data)
     
     @staticmethod
     def log_data_access(

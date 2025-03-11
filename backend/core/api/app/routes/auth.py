@@ -46,9 +46,6 @@ async def check_invite_token_valid(
     3. Current time is after valid_from (if specified)
     4. Current time is before expire_date (if specified)
     """
-    client_ip = request.client.host if request.client else "unknown"
-    is_valid = False
-    
     try:
         # First try to get the code from cache
         cache_key = f"invite_code:{invite_request.invite_code}"
@@ -75,11 +72,10 @@ async def check_invite_token_valid(
             # Track invalid invite code check
             metrics_service.track_invite_code_check(False)
             
-            # Log failed invite code check for compliance
-            ComplianceService.log_auth_event(
+            # Log failed invite code check to API logs (without IP)
+            ComplianceService.log_api_event(
                 event_type="invite_code_check",
-                user_id=None,  # No user ID for invite code checks
-                ip_address=client_ip,
+                user_id=None,
                 status="failed",
                 details={"code_fragment": invite_request.invite_code[:3] + "..."}  # Log only a fragment
             )
@@ -108,14 +104,12 @@ async def check_invite_token_valid(
             return InviteCodeResponse(valid=False, message="Invite code has expired")
             
         # Code is valid
-        is_valid = True
         metrics_service.track_invite_code_check(True)
         
-        # Log successful invite code check
-        ComplianceService.log_auth_event(
+        # Log successful invite code check to API logs (without IP)
+        ComplianceService.log_api_event(
             event_type="invite_code_check", 
             user_id=None,
-            ip_address=client_ip,
             status="success"
         )
         
