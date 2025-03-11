@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi import APIRouter, HTTPException, Depends, status, Request, Header
 from datetime import datetime
 import logging
+from typing import Optional
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse
 from app.services.directus import DirectusService
@@ -28,7 +29,30 @@ def get_metrics_service():
     from main import metrics_service
     return metrics_service
 
-@router.post("/check_invite_token_valid", response_model=InviteCodeResponse)
+async def verify_allowed_origin(request: Request):
+    """
+    Security dependency to verify the request originates from an allowed origin.
+    This prevents direct API access to auth endpoints that should only be used by the frontend.
+    """
+    # Get the origin from the request headers
+    origin = request.headers.get("origin")
+    
+    # Get allowed origins from the FastAPI app state
+    allowed_origins = request.app.state.allowed_origins
+    
+    # If no origin is provided or it's not in our allowed list
+    if not origin or origin not in allowed_origins:
+        logger.warning(f"Unauthorized origin access to auth endpoint: {request.url.path}, Origin: {origin}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Authentication endpoints can only be accessed from authorized applications"
+        )
+    
+    # Origin is allowed
+    return True
+
+@router.post("/check_invite_token_valid", response_model=InviteCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
 async def check_invite_token_valid(
     request: Request,

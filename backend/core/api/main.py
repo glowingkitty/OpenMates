@@ -150,6 +150,10 @@ allowed_origins = [
 ]
 logger.debug(f"Allowed origins: {allowed_origins}")
 
+# Make allowed_origins accessible outside this module
+# This enables auth endpoints to validate origins
+app.state.allowed_origins = allowed_origins
+
 # Configure CORS with the allowed origins
 app.add_middleware(
     CORSMiddleware,
