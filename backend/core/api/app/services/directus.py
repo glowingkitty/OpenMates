@@ -41,6 +41,14 @@ class DirectusService:
             self._auth_lock = asyncio.Lock()
         return self._auth_lock
     
+    async def clear_tokens(self):
+        """Clear all tokens from memory and cache"""
+        self.auth_token = None
+        self.admin_token = None
+        admin_cache_key = "directus_admin_token"
+        await self.cache.delete(admin_cache_key)
+        logger.info("Cleared Directus tokens from memory and cache")
+    
     async def ensure_auth_token(self, admin_required=False):
         """
         Ensure we have a valid authentication token, refreshing if necessary
@@ -106,6 +114,24 @@ class DirectusService:
             logger.error("Admin authentication failed!")
             return None
     
+    async def handle_token_expiration(self, response):
+        """Check if the response indicates an expired token and handle it accordingly"""
+        if response.status_code == 401:
+            try:
+                error_data = response.json()
+                # Check if this is a token expired error
+                if "errors" in error_data:
+                    for error in error_data["errors"]:
+                        if "extensions" in error and "code" in error["extensions"]:
+                            if error["extensions"]["code"] == "TOKEN_EXPIRED":
+                                logger.warning("Token expired. Clearing tokens and re-authenticating...")
+                                await self.clear_tokens()
+                                return await self.ensure_auth_token(admin_required=True)
+            except Exception:
+                # If we can't parse the response, just log and continue
+                pass
+        return None
+
     async def get_invite_code(self, code: str) -> dict:
         """
         Retrieve an invite code from Directus
@@ -129,36 +155,34 @@ class DirectusService:
             logger.info(f"Checking invite code: {code}")
             headers = {"Authorization": f"Bearer {token}"}
             
-            # Try both collection names since we've seen inconsistencies
-            collection_names = ["invite_codes", "invitecode"]
+            # Use only the correct collection name
+            collection_name = "invite_codes"
+            url = f"{self.base_url}/items/{collection_name}"
+            params = {"filter[code][_eq]": code}
             
-            for collection_name in collection_names:
-                url = f"{self.base_url}/items/{collection_name}"
-                params = {"filter[code][_eq]": code}
+            logger.debug(f"Making request to: {url} with params: {params}")
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url,
+                    headers=headers,
+                    params=params
+                )
                 
-                logger.debug(f"Making request to: {url} with params: {params}")
-                
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        url,
-                        headers=headers,
-                        params=params
-                    )
+                if response.status_code == 200:
+                    response_data = response.json()
+                    items = response_data.get("data", [])
                     
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        items = response_data.get("data", [])
-                        
-                        if items:
-                            logger.info(f"Found invite code in collection {collection_name}")
-                            # Cache the result - but only if valid (remaining uses > 0)
-                            if items[0].get("remaining_uses", 0) > 0:
-                                await self.cache.set(cache_key, items[0], ttl=self.cache_ttl)
-                            return items[0]
-                    else:
-                        logger.warning(f"Directus API error for {collection_name}: {response.status_code} - {response.text}")
+                    if items:
+                        logger.info(f"Found invite code in collection {collection_name}")
+                        # Cache the result - but only if valid (remaining uses > 0)
+                        if items[0].get("remaining_uses", 0) > 0:
+                            await self.cache.set(cache_key, items[0], ttl=self.cache_ttl)
+                        return items[0]
+                else:
+                    logger.warning(f"Directus API error for {collection_name}: {response.status_code} - {response.text}")
             
-            # If we tried all collections and found nothing
+            # If we couldn't find the code
             logger.info(f"Invite code not found: {code}")
             return None
                 
@@ -196,3 +220,70 @@ class DirectusService:
         except Exception as e:
             logger.exception(f"Error testing connection to Directus: {str(e)}")
             return False
+
+    async def get_all_invite_codes(self):
+        """
+        Fetch all invite codes from Directus
+        
+        Returns:
+            list: List of invite code objects or empty list if error occurs
+        """
+        # Always get admin token since we need admin privileges
+        token = await self.ensure_auth_token(admin_required=True)
+        if not token:
+            logger.error("Cannot fetch invite codes: Authentication failed")
+            return []
+        
+        try:
+            logger.info("Fetching all invite codes from Directus")
+            headers = {"Authorization": f"Bearer {token}"}
+            
+            # Use only the correct collection name
+            collection_name = "invite_codes"
+            url = f"{self.base_url}/items/{collection_name}"
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url,
+                    headers=headers
+                )
+                
+                if response.status_code == 200:
+                    response_data = response.json()
+                    items = response_data.get("data", [])
+                    
+                    if items:
+                        logger.info(f"Found {len(items)} invite codes")
+                        return items
+                    else:
+                        logger.info("No invite codes found")
+                        return []
+                else:
+                    # Check if token has expired and get a new one if needed
+                    new_token = await self.handle_token_expiration(response)
+                    if new_token:
+                        # Retry with the new token
+                        logger.info("Retrying with new token...")
+                        headers = {"Authorization": f"Bearer {new_token}"}
+                        retry_response = await client.get(
+                            url,
+                            headers=headers
+                        )
+                        
+                        if retry_response.status_code == 200:
+                            retry_data = retry_response.json()
+                            retry_items = retry_data.get("data", [])
+                            
+                            if retry_items:
+                                logger.info(f"Retry successful. Found {len(retry_items)} invite codes")
+                                return retry_items
+                            else:
+                                logger.info("No invite codes found on retry")
+                                return []
+                    
+                    logger.warning(f"Directus API error: {response.status_code} - {response.text}")
+                    return []
+                
+        except Exception as e:
+            logger.error(f"Error fetching all invite codes: {str(e)}", exc_info=True)
+            return []

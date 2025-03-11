@@ -49,6 +49,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Startup event to preload invite codes
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Preloading invite codes into cache...")
+    try:
+        await preload_invite_codes()
+        logger.info("Successfully preloaded invite codes into cache")
+    except Exception as e:
+        logger.error(f"Failed to preload invite codes: {str(e)}", exc_info=True)
+
+async def preload_invite_codes():
+    """Load all invite codes into cache for faster lookup"""
+    all_codes = await directus_service.get_all_invite_codes()
+    if not all_codes:
+        logger.warning("No invite codes found to preload")
+        return
+    
+    # Cache each invite code with its data
+    for code_data in all_codes:
+        code = code_data.get("code")
+        if code:
+            # Use the invite code as the key
+            cache_key = f"invite_code:{code}"
+            await cache_service.set(cache_key, code_data)
+    
+    logger.info(f"Preloaded {len(all_codes)} invite codes into cache")
+
 # Include routers
 app.include_router(auth.router)
 

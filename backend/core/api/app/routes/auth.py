@@ -4,6 +4,7 @@ import logging
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse
 from app.services.directus import DirectusService
+from app.services.cache import CacheService
 
 router = APIRouter(
     prefix="/v1/auth",
@@ -16,10 +17,15 @@ def get_directus_service():
     from main import directus_service
     return directus_service
 
+def get_cache_service():
+    from main import cache_service
+    return cache_service
+
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse)
 async def check_invite_token_valid(
     request: InviteCodeRequest,
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
 ):
     """
     Check if the provided invite code is valid.
@@ -31,10 +37,27 @@ async def check_invite_token_valid(
     4. Current time is before expire_date (if specified)
     """
     try:
-        # Query the invite_codes collection in Directus
-        code_data = await directus_service.get_invite_code(request.invite_code)
+        # First try to get the code from cache
+        cache_key = f"invite_code:{request.invite_code}"
+        code_data = await cache_service.get(cache_key)
         
-        # If we couldn't connect to Directus or code wasn't found
+        # If not in cache, query Directus
+        if code_data is None:
+            logger.info(f"Invite code {request.invite_code} not found in cache, fetching from Directus")
+            
+            # Try to get the invite code
+            code_data = await directus_service.get_invite_code(request.invite_code)
+            
+            # If we couldn't get the code and our token might have expired, 
+            # clear tokens and try again
+            if code_data is None:
+                code_data = await directus_service.get_invite_code(request.invite_code)
+            
+            # Cache the result if found
+            if code_data:
+                await cache_service.set(cache_key, code_data)
+        
+        # If we couldn't find the code either in cache or Directus
         if code_data is None:
             # For security, don't disclose if it's a connection issue or invalid code
             return InviteCodeResponse(valid=False, message="Invalid invite code")
