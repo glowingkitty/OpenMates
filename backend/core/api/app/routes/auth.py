@@ -12,10 +12,14 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
+def get_directus_service():
+    from main import directus_service
+    return directus_service
+
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse)
 async def check_invite_token_valid(
     request: InviteCodeRequest,
-    directus_service: DirectusService = Depends(DirectusService)
+    directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
     Check if the provided invite code is valid.
@@ -67,7 +71,7 @@ async def check_invite_token_valid(
 
 @router.get("/test_cms_connection")
 async def test_cms_connection(
-    directus_service: DirectusService = Depends(DirectusService)
+    directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
     Test endpoint to check if the API can connect to Directus CMS

@@ -186,33 +186,33 @@ services:
   #     - cache
   #     - task-worker
 
-  # #########################################################################
-  # ##### In-Memory Cache (Dragonfly)
-  # #########################################################################
-  # cache:
-  #   container_name: cache
-  #   image: docker.dragonflydb.io/dragonflydb/dragonfly
-  #   restart: unless-stopped
-  #   ulimits:
-  #     memlock: -1
-  #   ports:
-  #     - "${IN_MEMORY_DATABASE_PORT}:6379"
-  #   volumes:
-  #     - cache-data:/data
-  #   command:
-  #     - "--maxmemory"
-  #     - "1000mb"
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 1.2G
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  #########################################################################
+  ##### In-Memory Cache (Dragonfly)
+  #########################################################################
+  cache:
+    container_name: cache
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
+    ports:
+      - "${IN_MEMORY_DATABASE_PORT}:6379"
+    volumes:
+      - cache-data:/data
+    command:
+      - "--maxmemory"
+      - "3000mb"
+    deploy:
+      resources:
+        limits:
+          memory: 3.2G
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # #########################################################################
   # ##### Secret Management (Vault)
@@ -370,7 +370,8 @@ networks:
 volumes:
   openmates-postgres-data:
     name: openmates-postgres-data
-  # cache-data:
+  cache-data:
+    name: openmates-cache-data
   # vault-data:
   # prometheus-data:
   # grafana-data:

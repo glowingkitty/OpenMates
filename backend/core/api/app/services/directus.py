@@ -2,7 +2,8 @@ import os
 import httpx
 import logging
 import asyncio
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
+from app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class DirectusService:
     Service for interacting with Directus CMS API
     """
     
-    def __init__(self):
+    def __init__(self, cache_service: CacheService = None):
         """Initialize the Directus service with configuration from environment variables"""
         # Use the CMS_URL from environment, fallback to internal docker network URL
         self.base_url = os.getenv("CMS_URL", "http://cms:8055")
@@ -21,6 +22,11 @@ class DirectusService:
         self.auth_token = None
         self.admin_token = None  # Separate token with admin privileges
         self._auth_lock = None  # Initialize as None, will create when needed
+        
+        # Cache settings
+        self.cache = cache_service or CacheService()
+        self.cache_ttl = int(os.getenv("DIRECTUS_CACHE_TTL", "3600"))  # Default 1 hour cache
+        self.token_ttl = int(os.getenv("DIRECTUS_TOKEN_TTL", "43200"))  # Default 12 hours for tokens
         
         # Log information about the configuration (mask the token if available)
         if self.token:
@@ -38,46 +44,38 @@ class DirectusService:
     async def ensure_auth_token(self, admin_required=False):
         """
         Ensure we have a valid authentication token, refreshing if necessary
-        If admin_required is True, will specifically get an admin token
+        Always use admin credentials since Directus is only accessed via local network
         """
-        # If admin required, check if we have admin token
-        if admin_required and self.admin_token:
+        # First check if we already have the admin token in memory
+        if self.admin_token:
             return self.admin_token
             
-        # If not admin required and we have regular token
+        # If not looking for admin token but we have a regular one,
+        # still return it for backwards compatibility
         if not admin_required and self.auth_token:
             return self.auth_token
             
+        # If not in memory, check cache for admin token
+        admin_cache_key = "directus_admin_token"
+        cached_token = await self.cache.get(admin_cache_key)
+        
+        if cached_token:
+            self.admin_token = cached_token
+            logger.debug("Using cached admin token")
+            return cached_token
+        
+        # If we get here, we need to authenticate with admin credentials
         # Use a lock to prevent multiple simultaneous login attempts
         auth_lock = await self.get_auth_lock()
         async with auth_lock:
             # Check again in case another request got the token while we were waiting
-            if admin_required and self.admin_token:
+            if self.admin_token:
                 return self.admin_token
-            if not admin_required and self.auth_token:
-                return self.auth_token
                 
-            # Try with environment token first if not specifically looking for admin token
-            if not admin_required and self.token:
-                # Test if token works
-                headers = {"Authorization": f"Bearer {self.token}"}
-                try:
-                    async with httpx.AsyncClient() as client:
-                        response = await client.get(
-                            f"{self.base_url}/server/ping",
-                            headers=headers
-                        )
-                        if response.status_code == 200:
-                            self.auth_token = self.token
-                            logger.info("Using token from environment variables")
-                            return self.auth_token
-                except Exception as e:
-                    logger.warning(f"Environment token failed: {str(e)}, will try admin login")
-
-            # Always try admin login if we need admin privileges or if regular token failed
+            # Always use admin login since we're on local Docker network
             if self.admin_email and self.admin_password:
                 try:
-                    logger.info(f"Attempting to login to Directus as {self.admin_email} (admin_required={admin_required})")
+                    logger.info(f"Attempting to login to Directus as {self.admin_email}")
                     async with httpx.AsyncClient() as client:
                         response = await client.post(
                             f"{self.base_url}/auth/login",
@@ -91,21 +89,21 @@ class DirectusService:
                             data = response.json()
                             if 'data' in data and 'access_token' in data['data']:
                                 new_token = data['data']['access_token']
-                                # Store token in appropriate place based on request type
-                                if admin_required:
-                                    self.admin_token = new_token
-                                    logger.info("Successfully obtained fresh ADMIN token via login")
-                                else:
-                                    self.auth_token = new_token
-                                    logger.info("Successfully obtained fresh token via admin login")
+                                # Always store as admin token
+                                self.admin_token = new_token
+                                # Also store as auth token for backwards compatibility
+                                self.auth_token = new_token
+                                # Cache the admin token
+                                await self.cache.set(admin_cache_key, new_token, ttl=self.token_ttl)
+                                logger.info("Successfully obtained fresh ADMIN token via login")
                                 return new_token
                         else:
                             logger.error(f"Admin login failed with status {response.status_code}: {response.text}")
                 except Exception as e:
                     logger.error(f"Admin login failed: {str(e)}")
                     
-            # If we get here, all authentication methods failed
-            logger.error(f"All authentication methods failed! admin_required={admin_required}")
+            # If we get here, authentication failed
+            logger.error("Admin authentication failed!")
             return None
     
     async def get_invite_code(self, code: str) -> dict:
@@ -113,8 +111,16 @@ class DirectusService:
         Retrieve an invite code from Directus
         Returns the invite code data or None if not found
         """
-        # Get an auth token - first try normal token, then admin if needed
-        token = await self.ensure_auth_token(admin_required=False)
+        # Check cache first
+        cache_key = f"invite_code:{code}"
+        cached_data = await self.cache.get(cache_key)
+        
+        if cached_data:
+            logger.info(f"Using cached invite code data for code: {code}")
+            return cached_data
+            
+        # Always get admin token since we need admin privileges
+        token = await self.ensure_auth_token(admin_required=True)
         if not token:
             logger.error("Cannot connect to Directus: Authentication failed")
             return None
@@ -125,7 +131,6 @@ class DirectusService:
             
             # Try both collection names since we've seen inconsistencies
             collection_names = ["invite_codes", "invitecode"]
-            data = None
             
             for collection_name in collection_names:
                 url = f"{self.base_url}/items/{collection_name}"
@@ -140,28 +145,15 @@ class DirectusService:
                         params=params
                     )
                     
-                    if response.status_code == 401:
-                        logger.warning(f"Regular token unauthorized for {collection_name}, trying admin credentials")
-                        # Try with admin credentials
-                        admin_token = await self.ensure_auth_token(admin_required=True)
-                        if not admin_token:
-                            logger.error("Failed to get admin token")
-                            continue
-                        
-                        # Try the request again with admin token
-                        headers = {"Authorization": f"Bearer {admin_token}"}
-                        response = await client.get(
-                            url,
-                            headers=headers,
-                            params=params
-                        )
-                    
                     if response.status_code == 200:
                         response_data = response.json()
                         items = response_data.get("data", [])
                         
                         if items:
                             logger.info(f"Found invite code in collection {collection_name}")
+                            # Cache the result - but only if valid (remaining uses > 0)
+                            if items[0].get("remaining_uses", 0) > 0:
+                                await self.cache.set(cache_key, items[0], ttl=self.cache_ttl)
                             return items[0]
                     else:
                         logger.warning(f"Directus API error for {collection_name}: {response.status_code} - {response.text}")

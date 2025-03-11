@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 from app.routes import auth
 from app.services.directus import DirectusService
+from app.services.cache import CacheService
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -20,15 +21,16 @@ cms_token = os.getenv("CMS_TOKEN")
 if not cms_token:
     logger.warning("CMS_TOKEN environment variable is not set. Authentication with Directus will fail.")
 
+# Initialize services
+cache_service = CacheService()
+directus_service = DirectusService(cache_service=cache_service)
+
 # Create FastAPI application
 app = FastAPI(
     title="OpenMates API",
     description="API for OpenMates platform",
     version="0.1.0"
 )
-
-# Initialize services
-directus_service = DirectusService()
 
 # Configure CORS with proper origin restrictions
 is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"

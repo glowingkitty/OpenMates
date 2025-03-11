@@ -288,6 +288,14 @@ start_services() {
     RUNNING_SERVICES=$(docker compose -f backend/core/core.docker-compose.yml ps --services --filter "status=running")
     echo "Currently running services: $RUNNING_SERVICES"
     
+    # Check if cache is already running
+    if echo "$RUNNING_SERVICES" | grep -q "cache"; then
+      echo "Cache service is already running."
+    else
+      echo "Starting cache service..."
+      docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cache
+    fi
+    
     # Check if API is already running
     if echo "$RUNNING_SERVICES" | grep -q "api"; then
       echo "API service is already running."
@@ -377,6 +385,14 @@ start_services() {
         echo "Schema setup completed successfully."
       fi
     fi
+    
+    # Start the cache service
+    echo "Starting cache service..."
+    docker compose -f backend/core/core.docker-compose.yml --env-file .env up -d cache
+    
+    # Wait a moment for cache to initialize
+    echo "Waiting for cache service to initialize..."
+    sleep 5
     
     # Start the API service
     echo "Starting API service..."
