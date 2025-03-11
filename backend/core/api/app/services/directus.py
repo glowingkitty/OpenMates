@@ -145,7 +145,7 @@ class DirectusService:
             logger.info(f"Using cached invite code data for code: {code}")
             return cached_data
             
-        # Always get admin token since we need admin privileges
+        # First attempt with current token
         token = await self.ensure_auth_token(admin_required=True)
         if not token:
             logger.error("Cannot connect to Directus: Authentication failed")
@@ -169,7 +169,46 @@ class DirectusService:
                     params=params
                 )
                 
-                if response.status_code == 200:
+                # Handle token expiration explicitly
+                if response.status_code == 401:
+                    try:
+                        error_data = response.json()
+                        if "errors" in error_data:
+                            for error in error_data["errors"]:
+                                if "extensions" in error and "code" in error["extensions"]:
+                                    if error["extensions"]["code"] == "TOKEN_EXPIRED":
+                                        logger.warning("Token expired. Clearing tokens and re-authenticating...")
+                                        # Clear tokens and force refresh
+                                        await self.clear_tokens()
+                                        new_token = await self.ensure_auth_token(admin_required=True)
+                                        
+                                        if new_token:
+                                            # Retry the request with the new token
+                                            logger.info("Retrying request with new token")
+                                            headers = {"Authorization": f"Bearer {new_token}"}
+                                            retry_response = await client.get(
+                                                url,
+                                                headers=headers,
+                                                params=params
+                                            )
+                                            
+                                            if retry_response.status_code == 200:
+                                                retry_data = retry_response.json()
+                                                retry_items = retry_data.get("data", [])
+                                                
+                                                if retry_items:
+                                                    logger.info(f"Found invite code in collection {collection_name} after token refresh")
+                                                    # Cache the result - but only if valid (remaining uses > 0)
+                                                    if retry_items[0].get("remaining_uses", 0) > 0:
+                                                        await self.cache.set(cache_key, retry_items[0], ttl=self.cache_ttl)
+                                                    return retry_items[0]
+                                            else:
+                                                logger.error(f"Retry failed: {retry_response.status_code} - {retry_response.text}")
+                    except Exception as e:
+                        logger.error(f"Error handling token expiration: {str(e)}")
+                
+                # If not an authentication issue or retry failed, proceed normally
+                elif response.status_code == 200:
                     response_data = response.json()
                     items = response_data.get("data", [])
                     
@@ -189,37 +228,6 @@ class DirectusService:
         except Exception as e:
             logger.exception(f"Error connecting to CMS: {str(e)}")
             return None
-
-    async def test_connection(self) -> bool:
-        """
-        Test the connection to Directus and verify authentication
-        Returns True if connection is successful, False otherwise
-        """
-        token = await self.ensure_auth_token()
-        if not token:
-            return False
-        
-        try:
-            logger.info(f"Testing connection to Directus at {self.base_url}")
-            headers = {"Authorization": f"Bearer {token}"}
-            
-            async with httpx.AsyncClient() as client:
-                # Try server/ping which should work for any authenticated user
-                response = await client.get(
-                    f"{self.base_url}/server/ping",
-                    headers=headers
-                )
-                
-                if response.status_code == 200:
-                    logger.info("Successfully connected to Directus")
-                    return True
-                
-                logger.error(f"Failed to connect to Directus: {response.status_code} - {response.text}")
-                return False
-                
-        except Exception as e:
-            logger.exception(f"Error testing connection to Directus: {str(e)}")
-            return False
 
     async def get_all_invite_codes(self):
         """

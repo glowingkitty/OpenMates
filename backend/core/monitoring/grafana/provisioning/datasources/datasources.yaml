@@ -1,0 +1,24 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    version: 1
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - name: "request_id"
+          matcherRegex: "request_id=([a-zA-Z0-9-]+)"
+          url: "http://localhost:3001/explore?orgId=1&left=%7B\"datasource\":\"Loki\",\"queries\":%5B%7B\"refId\":\"A\",\"expr\":\"%7Bjob%3D%5C\"api%5C\"%7D%20%7C%20request_id%3D%22$${__value.raw}%22\"%7D%5D%7D"
+          urlDisplayLabel: "Trace logs"
+    editable: false
+    version: 1

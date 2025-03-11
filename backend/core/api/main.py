@@ -7,15 +7,53 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from prometheus_client import make_asgi_app
+from pythonjsonlogger import jsonlogger
 
 from app.routes import auth
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
+from app.services.metrics import MetricsService
 from app.services.limiter import limiter
+from app.middleware.logging_middleware import LoggingMiddleware
 
-# Set up logging
+# Set up structured logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configure JSON logging for the root logger
+log_handler = logging.StreamHandler()
+log_formatter = jsonlogger.JsonFormatter(
+    '%(asctime)s %(name)s %(levelname)s %(message)s',
+    rename_fields={
+        'asctime': 'timestamp',
+        'levelname': 'level'
+    }
+)
+log_handler.setFormatter(log_formatter)
+
+# Replace the default handler
+root_logger = logging.getLogger()
+if root_logger.handlers:
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+root_logger.addHandler(log_handler)
+
+# Configure the compliance logger to use a separate file handler
+compliance_logger = logging.getLogger("compliance")
+compliance_logger.setLevel(logging.INFO)
+compliance_logger.propagate = False  # Don't send to root logger
+
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(logs_dir, exist_ok=True)
+
+# Create file handler for compliance logs
+compliance_log_path = os.path.join(logs_dir, "compliance.log")
+compliance_handler = logging.FileHandler(compliance_log_path)
+compliance_formatter = jsonlogger.JsonFormatter('%(message)s')
+compliance_handler.setFormatter(compliance_formatter)
+compliance_logger.addHandler(compliance_handler)
 
 # Load environment variables
 load_dotenv()
@@ -28,6 +66,7 @@ if not cms_token:
 # Initialize services
 cache_service = CacheService()
 directus_service = DirectusService(cache_service=cache_service)
+metrics_service = MetricsService()
 
 # Define lifespan context manager for startup/shutdown events
 @asynccontextmanager
@@ -53,9 +92,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Create metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 # Add rate limiting exception handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add logging middleware
+app.add_middleware(LoggingMiddleware, metrics_service=metrics_service)
 
 # Configure CORS with proper origin restrictions
 is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"

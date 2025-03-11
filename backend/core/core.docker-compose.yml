@@ -292,11 +292,14 @@ services:
     container_name: loki
     image: grafana/loki:3.4.2
     restart: unless-stopped
+    user: "0" # Run as root to avoid permission issues
     volumes:
       - ./monitoring/loki:/etc/loki
       - loki-data:/loki
+      - loki-wal:/wal # Add volume for WAL data
     command:
       - "-config.file=/etc/loki/loki-config.yaml"
+      - "-validation.allow-structured-metadata=false" # Disable structured metadata check
     ports:
       - "3100:3100"
     networks:
@@ -422,5 +425,7 @@ volumes:
     name: openmates-prometheus-data
   loki-data:
     name: openmates-loki-data
+  loki-wal:
+    name: openmates-loki-wal # Add volume for WAL data
   grafana-data:
     name: openmates-grafana-data
