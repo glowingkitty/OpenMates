@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from datetime import datetime
 import logging
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
+from app.services.limiter import limiter
 
 router = APIRouter(
     prefix="/v1/auth",
@@ -22,8 +23,10 @@ def get_cache_service():
     return cache_service
 
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse)
+@limiter.limit("5/minute")
 async def check_invite_token_valid(
-    request: InviteCodeRequest,
+    request: Request,
+    invite_request: InviteCodeRequest,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -38,20 +41,20 @@ async def check_invite_token_valid(
     """
     try:
         # First try to get the code from cache
-        cache_key = f"invite_code:{request.invite_code}"
+        cache_key = f"invite_code:{invite_request.invite_code}"
         code_data = await cache_service.get(cache_key)
         
         # If not in cache, query Directus
         if code_data is None:
-            logger.info(f"Invite code {request.invite_code} not found in cache, fetching from Directus")
+            logger.info(f"Invite code {invite_request.invite_code} not found in cache, fetching from Directus")
             
             # Try to get the invite code
-            code_data = await directus_service.get_invite_code(request.invite_code)
+            code_data = await directus_service.get_invite_code(invite_request.invite_code)
             
             # If we couldn't get the code and our token might have expired, 
             # clear tokens and try again
             if code_data is None:
-                code_data = await directus_service.get_invite_code(request.invite_code)
+                code_data = await directus_service.get_invite_code(invite_request.invite_code)
             
             # Cache the result if found
             if code_data:
@@ -93,7 +96,9 @@ async def check_invite_token_valid(
         return InviteCodeResponse(valid=False, message="An error occurred checking the invite code")
 
 @router.get("/test_cms_connection")
+@limiter.limit("5/minute")
 async def test_cms_connection(
+    request: Request,
     directus_service: DirectusService = Depends(get_directus_service)
 ):
     """

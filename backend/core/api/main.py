@@ -1,13 +1,17 @@
 import os
 import uvicorn
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.routes import auth
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
+from app.services.limiter import limiter
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -25,12 +29,33 @@ if not cms_token:
 cache_service = CacheService()
 directus_service = DirectusService(cache_service=cache_service)
 
-# Create FastAPI application
+# Define lifespan context manager for startup/shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    logger.info("Preloading invite codes into cache...")
+    try:
+        await preload_invite_codes()
+        logger.info("Successfully preloaded invite codes into cache")
+    except Exception as e:
+        logger.error(f"Failed to preload invite codes: {str(e)}", exc_info=True)
+    
+    yield  # This is where FastAPI serves requests
+    
+    # Shutdown logic (if any)
+    logger.info("Shutting down application...")
+
+# Create FastAPI application with lifespan
 app = FastAPI(
     title="OpenMates API",
     description="API for OpenMates platform",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
+
+# Add rate limiting exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS with proper origin restrictions
 is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
@@ -48,16 +73,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Startup event to preload invite codes
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Preloading invite codes into cache...")
-    try:
-        await preload_invite_codes()
-        logger.info("Successfully preloaded invite codes into cache")
-    except Exception as e:
-        logger.error(f"Failed to preload invite codes: {str(e)}", exc_info=True)
 
 async def preload_invite_codes():
     """Load all invite codes into cache for faster lookup"""
@@ -79,9 +94,10 @@ async def preload_invite_codes():
 # Include routers
 app.include_router(auth.router)
 
-# Health check endpoint
+# Health check endpoint with rate limiting
 @app.get("/health")
-def health_check():
+@limiter.limit("60/minute")
+async def health_check(request: Request):
     return {"status": "healthy"}
 
 if __name__ == "__main__":
