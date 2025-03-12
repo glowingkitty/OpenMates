@@ -4,6 +4,7 @@ import re
 from typing import Dict, Any
 from mjml import mjml2html
 from jinja2 import Template, Environment, FileSystemLoader
+from premailer import transform  # Add this import for CSS inlining
 
 from app.services.translations import TranslationService
 
@@ -60,7 +61,10 @@ class EmailTemplateService:
             # Convert to HTML
             html_output = mjml2html(processed_mjml)
             
-            return html_output
+            # Convert CSS classes to inline styles for email compatibility
+            inlined_html = transform(html_output)
+            
+            return inlined_html
             
         except Exception as e:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
