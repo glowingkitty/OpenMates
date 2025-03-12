@@ -38,28 +38,32 @@ services:
       timeout: 10s
       retries: 3
 
-  # #########################################################################
-  # ##### Email Renderer
-  # #########################################################################
-  # email-renderer:
-  #   container_name: email-renderer
-  #   build:
-  #     context: ./email-renderer
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   env_file: ../../.env
-  #   ports:
-  #     - "3030:3030"
-  #   volumes:
-  #     - ./email-renderer:/app
-  #     - /app/node_modules
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:3030/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  #########################################################################
+  ##### Email Renderer
+  #########################################################################
+  email-renderer:
+    container_name: email-renderer
+    build:
+      context: ./email-renderer
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      BASE_URL: "${BASE_URL:-http://localhost}"
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./email-renderer:/app
+      - ../../frontend/packages/ui:/app/shared-ui
+      - /app/node_modules
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   #########################################################################
   ##### CMS (Directus)
