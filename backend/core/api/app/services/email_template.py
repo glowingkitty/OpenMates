@@ -58,6 +58,9 @@ class EmailTemplateService:
             jinja_template = Template(processed_mjml)
             rendered_mjml = jinja_template.render(**context)
             
+            # Process brand name to add mark tags
+            rendered_mjml = self._process_brand_name(rendered_mjml)
+            
             # Process any mark tags in the rendered content
             rendered_mjml = self._process_mark_tags(rendered_mjml)
             
@@ -72,6 +75,18 @@ class EmailTemplateService:
         except Exception as e:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
             raise
+    
+    def _process_brand_name(self, content: str) -> str:
+        """
+        Replace all occurrences of "OpenMates" with "<mark>Open</mark>Mate"
+        """
+        # Replace "OpenMates" with "<mark>Open</mark>Mate"
+        content = content.replace("OpenMates", "<mark>Open</mark>Mate")
+        
+        # Handle case where it might just be "OpenMate" without the 's'
+        content = content.replace("OpenMate", "<mark>Open</mark>Mate")
+        
+        return content
     
     def _process_mark_tags(self, content: str) -> str:
         """
