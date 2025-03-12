@@ -21,6 +21,7 @@ services:
       DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
       VAULT_URL: "http://vault:8200"
       MONITORING_URL: "http://prometheus:9090"
+      TRANSLATIONS_DIR: "/translations"
     command: >
       sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
@@ -28,6 +29,7 @@ services:
     volumes:
       - ./api:/app
       - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
+      - ../../frontend/packages/ui/src/i18n/locales:/translations  # Mount frontend translations
     networks:
       - openmates
     depends_on:

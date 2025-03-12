@@ -1,0 +1,41 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.confirm_your_email.subject }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Helvetica, Arial, sans-serif" />
+    </mj-attributes>
+    <mj-style>
+      .dark-mode {
+        background-color: #2d2d2d;
+        color: #ffffff;
+      }
+      .light-mode {
+        background-color: #ffffff;
+        color: #2d2d2d;
+      }
+    </mj-style>
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-section>
+      <mj-column>
+        <mj-image width="100px" src="https://openmates.org/logo.png" alt="OpenMates Logo"></mj-image>
+        <mj-divider border-color="#F45E43"></mj-divider>
+        <mj-text align="center" font-size="20px" font-weight="bold">
+          {{ t.email.confirm_your_email.title }}
+        </mj-text>
+        <mj-text>
+          {{ t.email.confirm_your_email.text }}
+        </mj-text>
+        <mj-text font-size="24px" font-weight="bold" align="center">
+          {{ code }}
+        </mj-text>
+        <mj-button background-color="#F45E43" href="https://openmates.org/verify?code={{ code }}">
+          {{ t.email.confirm_your_email.button }}
+        </mj-button>
+        <mj-text font-size="12px" color="#999999">
+          {{ t.email.confirm_your_email.footer }}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

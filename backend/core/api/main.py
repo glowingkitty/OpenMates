@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger
 
-from app.routes import auth
+from app.routes import auth, email  # Add email import
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
@@ -193,6 +193,7 @@ async def preload_invite_codes():
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(email.router)  # Add email router
 
 # Health check endpoint with rate limiting
 @app.get("/health")
