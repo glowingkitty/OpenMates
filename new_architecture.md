@@ -39,15 +39,6 @@ my-chatbot-platform/
 │   │   │   ├── config.py         # Configuration management
 │   │   │   ├── main.py           # FastAPI application entry point
 │   │   │   └── dependencies.py   # Auth & permission checks
-│   │   ├── email-renderer/         # New Node.js service for email rendering
-│   │   │   ├── templates/          # Svelte email components
-│   │   │   │   ├── welcome.svelte  # Email templates as Svelte components
-│   │   │   │   ├── invoice.svelte
-│   │   │   │   └── notification.svelte
-│   │   │   ├── server.js           # Express server to handle render requests
-│   │   │   ├── renderer.js         # Svelte-email integration
-│   │   │   ├── Dockerfile
-│   │   │   └── package.json        # With svelte-email dependency
 │   │   ├── directus/             # Database management
 │   │   │   ├── schemas/          # Directus YML schema definitions
 │   │   │   ├── backups/          # Database backup files
@@ -177,7 +168,6 @@ The system is built around three primary Docker Compose files:
 
 1. **core.docker-compose.yml**: Contains essential services:
    - API service (FastAPI)
-   - Email renderer (using Svelte-email / nodejs to open the email svelte files with variables and return the rendered emails as email compatible html code)
    - Directus (database/CMS)
    - Celery (task management, for longer running tasks, accessible by core and apps.docker-compose)
    - Dragonfly (caching of often used data with fast access needed)
