@@ -15,16 +15,16 @@
     <mj-wrapper css-class="content-box" padding="20px">
       <mj-section>
         <mj-column>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.purchase_confirmation.text }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.thanks_for_purchase.text }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.invoice_pdf_attached.text }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.click_here_for_refund.text }}
           </mj-text>
         </mj-column>

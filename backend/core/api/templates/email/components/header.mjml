@@ -1,8 +1,7 @@
 <mj-section>
   <mj-column>
-    <mj-text font-size="12px" color="#999999">
+    <mj-text>
       OpenMate
     </mj-text>
-    <mj-divider border-color="#F45E43"></mj-divider>
   </mj-column>
 </mj-section>

@@ -29,15 +29,31 @@ async def preview_email_template(
         Rendered HTML email
     """
     try:
-        # Extract all query params to pass as variables to the template
-        query_params = dict(request.query_params)
+        # Start with empty context
+        context = {}
         
-        # Create context with query parameters
-        context = {
-            "darkmode": darkmode,
-            "code": code,
-            **query_params
-        }
+        # Add specific parameters to context
+        context["code"] = code
+        
+        # Handle darkmode parameter specifically
+        # Get the raw query param value to check what was actually passed
+        raw_darkmode = request.query_params.get('darkmode', 'false').lower()
+        logger.debug(f"Raw darkmode value: {raw_darkmode}")
+        
+        # Convert string to boolean
+        parsed_darkmode = raw_darkmode == 'true'
+        logger.debug(f"Parsed darkmode value: {parsed_darkmode}")
+        
+        # Use the parsed value in the context
+        context["darkmode"] = parsed_darkmode
+        
+        # Add any other query parameters that might be needed
+        for key, value in request.query_params.items():
+            if key not in ['darkmode', 'code', 'lang']:
+                context[key] = value
+        
+        # Log the final context for debugging
+        logger.debug(f"Template context: {context}")
         
         # Render the email template
         html_content = email_template_service.render_template(

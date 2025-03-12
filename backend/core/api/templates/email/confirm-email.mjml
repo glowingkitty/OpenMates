@@ -7,7 +7,7 @@
     </mj-attributes>
     <mj-include path="./components/styles.css" type="css" />
   </mj-head>
-  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+  <mj-body css-class="{% if darkmode == False %}light-mode{% else %}dark-mode{% endif %}">
     <!-- Header -->
     <mj-include path="./components/header.mjml" />
     
@@ -15,22 +15,23 @@
     <mj-wrapper css-class="content-box" padding="20px">
       <mj-section>
         <mj-column>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.confirm_your_email.text }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <!-- Debug: Darkmode value is {{ darkmode }} -->
+          <mj-text>
             {{ t.email.to_chat_to_your_mates.text }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.enter_this_code.text }}
           </mj-text>
-          <mj-text font-size="24px" font-weight="bold" align="center">
+          <mj-text>
             {{ code }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.on_openmates.text }}
           </mj-text>
-          <mj-text align="center" font-size="20px" font-weight="bold">
+          <mj-text>
             {{ t.email.did_not_request_email.text }}
           </mj-text>
         </mj-column>

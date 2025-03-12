@@ -1,20 +1,20 @@
 body {
-  font-family: 'Lexend Deca', Arial, Helvetica, sans-serif;
+    font-family: 'Lexend Deca', Arial, Helvetica, sans-serif;
 }
 
 .dark-mode {
-  background-color: #2d2d2d;
-  color: #ffffff;
+    background-color: #171717;
+    color: #ffffff;
 }
 .light-mode {
-  background-color: #ffffff;
-  color: #2d2d2d;
+    background-color: #ffffff;
+    color: #2d2d2d;
 }
 .content-box {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  background-color: #f8f8f8;
+    background-color: #f3f3f3;
+    border-radius: 17px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
 }
 .dark-mode .content-box {
-  background-color: #3d3d3d;
+    background-color: #212121;
 }
