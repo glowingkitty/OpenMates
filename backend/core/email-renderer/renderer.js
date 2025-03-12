@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Path to templates directory
-const TEMPLATES_DIR = path.join(__dirname, 'templates');
+const TEMPLATES_DIR = path.join(__dirname, 'shared-ui/src/components/emails');
 
 /**
  * Renders a Svelte email template with the provided data

@@ -139,7 +139,7 @@ app.get('/preview/:templateName', async (req, res) => {
 // List available templates
 app.get('/templates', (req, res) => {
   try {
-    const templatesDir = path.join(__dirname, 'templates');
+    const templatesDir = path.join(__dirname, 'shared-ui/src/components/emails');
     
     const templates = fs.readdirSync(templatesDir)
       .filter(file => file.endsWith('.svelte'))
