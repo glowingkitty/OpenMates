@@ -6,72 +6,122 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Path to UI translations - this should match the path in the docker-compose volume mount
+// Path to translations directory
 const TRANSLATIONS_PATH = path.join(__dirname, 'shared-ui/src/i18n/locales');
 
+// Store translations for all languages
+const translations = {};
+
 /**
- * Load translations for a specific language
- * @param {string} lang - Language code (e.g., 'en', 'de')
- * @returns {object} - Translation dictionary for the requested language
+ * Load all translation files at server startup
  */
-function loadTranslations(lang) {
+function loadTranslations() {
   try {
-    const translationFile = path.join(TRANSLATIONS_PATH, `${lang}.json`);
-    
-    // Check if translation file exists
-    if (!fs.existsSync(translationFile)) {
-        console.warn(`Path: ${translationFile}`);
-        console.warn(`Translation file  for ${lang} not found, falling back to English`);
-        // Fall back to English if requested language isn't available
-        if (lang !== 'en') {
-            return loadTranslations('en');
-        }
-        // If English doesn't exist either, return empty object
-        return {};
+    if (!fs.existsSync(TRANSLATIONS_PATH)) {
+      console.warn(`Translations directory not found at ${TRANSLATIONS_PATH}`);
+      translations['en'] = { email: {} }; // Default fallback
+      return;
     }
     
-    // Read and parse the translation file
-    const translationData = fs.readFileSync(translationFile, 'utf8');
-    return JSON.parse(translationData);
+    // Get all JSON files in the locales directory
+    const files = fs.readdirSync(TRANSLATIONS_PATH)
+      .filter(file => file.endsWith('.json'));
+    
+    if (files.length === 0) {
+      console.warn('No translation files found');
+      translations['en'] = { email: {} }; // Default fallback
+      return;
+    }
+    
+    // Load each translation file
+    files.forEach(file => {
+      try {
+        const langCode = file.replace('.json', '');
+        const filePath = path.join(TRANSLATIONS_PATH, file);
+        const content = fs.readFileSync(filePath, 'utf8');
+        const json = JSON.parse(content);
+        
+        // Store only the 'email' portion of translations
+        if (json.email) {
+          translations[langCode] = { email: json.email };
+          console.log(`Loaded email translations for ${langCode}`);
+        } else {
+          console.warn(`No 'email' key found in translation file ${file}`);
+          translations[langCode] = { email: {} };
+        }
+      } catch (err) {
+        console.error(`Error loading translation file ${file}:`, err);
+      }
+    });
+    
+    console.log(`Loaded translations for ${Object.keys(translations).length} languages`);
   } catch (error) {
-    console.error(`Error loading translations for ${lang}:`, error);
-    return {};
+    console.error('Error loading translations:', error);
+    translations['en'] = { email: {} }; // Default fallback
   }
 }
 
+// Load translations immediately when this module is imported
+loadTranslations();
+
 /**
- * Get a translated string for a key in a specific language
+ * Get translation for a specific key and language
  * 
- * @param {string} key - Translation key
- * @param {string} lang - Language code
- * @param {object} vars - Variables to interpolate
- * @returns {string} - Translated string
+ * @param {string} key - Translation key in dot notation (e.g., 'email.confirm_your_email.text')
+ * @param {string} lang - Language code (e.g., 'en', 'fr')
+ * @param {object} vars - Variables to interpolate in the translation
+ * @returns {string} - The translated string or the key if not found
  */
 function getTranslation(key, lang = 'en', vars = {}) {
-  const translations = loadTranslations(lang);
-  let text = translations[key] || key;
+  // Default to English if the requested language isn't available
+  const langData = translations[lang] || translations['en'] || { email: {} };
   
-  // Replace variables in the translation string
-  Object.entries(vars).forEach(([varName, value]) => {
-    text = text.replace(new RegExp(`{${varName}}`, 'g'), value);
-  });
+  // Split the key by dots to navigate nested objects
+  const parts = key.split('.');
   
-  return text;
+  // Remove the first part 'email' since we already have the email subset
+  if (parts[0] === 'email') {
+    parts.shift();
+  }
+  
+  // Navigate through the translation object
+  let current = langData.email;
+  for (const part of parts) {
+    if (current && typeof current === 'object' && part in current) {
+      current = current[part];
+    } else {
+      return key; // Key not found
+    }
+  }
+  
+  // If we found an object with a text property (like in the example)
+  if (current && typeof current === 'object' && current.text) {
+    current = current.text;
+  }
+  
+  // If we don't have a string at this point, return the key
+  if (typeof current !== 'string') {
+    return key;
+  }
+  
+  // Replace variables in the translation
+  let result = current;
+  for (const [varName, varValue] of Object.entries(vars)) {
+    result = result.replace(new RegExp(`\\{${varName}\\}`, 'g'), varValue);
+  }
+  
+  return result;
 }
 
 /**
- * Get list of available languages based on translation files
- * @returns {string[]} - Array of language codes
+ * Get all available languages
+ * @returns {string[]} - Array of available language codes
  */
 function getAvailableLanguages() {
-  try {
-    return fs.readdirSync(TRANSLATIONS_PATH)
-      .filter(file => file.endsWith('.json'))
-      .map(file => file.replace('.json', ''));
-  } catch (error) {
-    console.error('Error listing languages:', error);
-    return ['en']; // Default to English if directory can't be read
-  }
+  return Object.keys(translations);
 }
 
-export { loadTranslations, getTranslation, getAvailableLanguages };
+export {
+  getTranslation,
+  getAvailableLanguages
+};
