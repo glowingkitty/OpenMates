@@ -1,7 +1,31 @@
 <mj-section>
   <mj-column>
     <mj-text font-size="12px" color="#999999">
-      Footer
+      {{ t.email.this_email_was_sent_by.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.legal.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.imprint.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.privacy.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.terms_and_conditions.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.contact.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.discord.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.email.text }}
+    </mj-text>
+    <mj-text font-size="12px" color="#999999">
+      {{ t.email.made_in_eu.text }}
     </mj-text>
   </mj-column>
 </mj-section>
