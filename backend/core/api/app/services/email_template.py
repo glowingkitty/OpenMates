@@ -78,13 +78,10 @@ class EmailTemplateService:
     
     def _process_brand_name(self, content: str) -> str:
         """
-        Replace all occurrences of "OpenMates" with "<mark>Open</mark>Mate"
+        Replace all occurrences of "OpenMates" with "<mark>Open</mark>Mates"
         """
-        # Replace "OpenMates" with "<mark>Open</mark>Mate"
-        content = content.replace("OpenMates", "<mark>Open</mark>Mate")
-        
-        # Handle case where it might just be "OpenMate" without the 's'
-        content = content.replace("OpenMate", "<mark>Open</mark>Mate")
+        # Replace "OpenMates" with "<mark>Open</mark>Mates"
+        content = content.replace("OpenMates", "<mark>Open</mark>Mates")
         
         return content
     
