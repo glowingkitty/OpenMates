@@ -4,11 +4,9 @@ body {
 
 .dark-mode {
     background-color: #171717;
-    color: #ffffff;
 }
 .light-mode {
     background-color: #ffffff;
-    color: #2d2d2d;
 }
 .content-box {
     background-color: #f3f3f3;

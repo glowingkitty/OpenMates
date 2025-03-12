@@ -4,6 +4,11 @@
     <mj-font name="Lexend Deca" href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;700&display=swap" />
     <mj-attributes>
       <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
     </mj-attributes>
     <mj-include path="./components/styles.css" type="css" />
   </mj-head>
