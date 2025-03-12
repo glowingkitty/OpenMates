@@ -2313,5 +2313,374 @@
             "en_original": "You will receive an e-mail confirmation with your invoice soon.",
             "context": "Message shown after successful purchase"
         }
+    },
+    "email":{
+        "confirm_your_email": {
+            "text":"Bestätige deine E-Mail",
+            "en_original": "Confirm your email",
+            "context": "Email subject & header for email confirmation"
+        },
+        "to_chat_to_your_mates": {
+            "text":"Um mit deinen<br><mark>digitalen Kollegen</mark> zu chatten",
+            "en_original": "To chat to your<br><mark>digital team mates</mark>",
+            "context": "subheader in email"
+        },
+        "enter_this_code": {
+            "text":"Gib diesen Einmalcode ein:",
+            "en_original": "Enter this one time code:",
+            "context": "Instruction above the code in email"
+        },
+        "on_openmates": {
+            "text":"auf <a href='https://app.openmates.com'>app.openmates.org</a>",
+            "en_original": "on <a href='https://app.openmates.com'>app.openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+        },
+        "did_not_request_email": {
+            "text":"Du hast diese E-Mail nicht angefordert?<br>Dann <a href='{mailto_link_report_email}'>klicke hier</a>, um diese E-Mail zu melden.",
+            "en_original": "You did not request this email?<br>Then <a href='{mailto_link_report_email}'>click here</a> to report this email.",
+            "context": "Message at the end of the email"
+        },
+        "this_email_was_sent_by": {
+            "text":"Diese E-Mail wurde von OpenMates gesendet.",
+            "en_original": "This email was sent by OpenMates.",
+            "context": "text in the footer of the email"
+        },
+        "legal": {
+            "text":"Rechtliches",
+            "en_original": "Legal",
+            "context": "Legal section header"
+        },
+        "imprint": {
+            "text":"Impressum",
+            "en_original": "Imprint",
+            "context": "Imprint legal link"
+        },
+        "privacy": {
+            "text":"Datenschutz",
+            "en_original": "Privacy",
+            "context": "Privacy policy link"
+        },
+        "terms_and_conditions": {
+            "text":"AGB",
+            "en_original": "Terms and conditions",
+            "context": "Terms and conditions link"
+        },
+        "contact": {
+            "text":"Kontakt",
+            "en_original": "Contact",
+            "context": "Contact section header"
+        },
+        "discord": {
+            "text":"Discord",
+            "en_original": "Discord",
+            "context": "Discord contact link"
+        },
+        "email": {
+            "text":"E-Mail",
+            "en_original": "Email",
+            "context": "Email contact link"
+        },
+        "made_in_eu": {
+            "text":"Entwickelt in der EU",
+            "en_original": "Made in the EU",
+            "context": "Footer text indicating EU origin"
+        },
+        "legal_update": {
+            "text":"Rechtliche Aktualisierung",
+            "en_original": "Legal update",
+            "context": "Email subject & header for legal update"
+        },
+        "we_made_some_changes_privacy_policy": {
+            "text":"Wir haben Änderungen an unserer<br><mark>Datenschutzerklärung</mark> vorgenommen",
+            "en_original": "We made some changes to our<br><mark>privacy policy</mark>",
+            "context": "Email header for privacy policy update"
+        },
+        "you_can_see_the_new_privacy_policy": {
+            "text":"Du kannst die neue Datenschutzerklärung unter <a href='{privacy_policy_url}'>openmates.org/legal/privacy</a> einsehen",
+            "en_original": "You can see the new privacy policy under <a href='{privacy_policy_url}'>openmates.org/legal/privacy</a>",
+            "context": "Email body for privacy policy update"
+        },
+        "purchase_confirmation": {
+            "text":"Kaufbestätigung",
+            "en_original": "Purchase confirmation",
+            "context": "Email subject & header for purchase confirmation"
+        },
+        "thanks_for_purchase": {
+            "text":"Danke für deinen Kauf!",
+            "en_original": "Thanks for your purchase!",
+            "context": "email subheader for purchase confirmation"
+        },
+        "invoice_pdf_attached": {
+            "text":"Die Rechnungs-PDF ist dieser E-Mail angehängt und auch in deinen Abrechnungseinstellungen bei OpenMates zu finden.",
+            "en_original": "You can find the invoice PDF attached to this e-mail, as well as in your Billing settings on OpenMates.",
+            "context": "Email body for purchase confirmation"
+        },
+        "click_here_for_refund": {
+            "text": "Möchtest du eine Rückerstattung?<br><a href='{refund_link}'>Klicke hier, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern.</a>",
+            "en_original": "Want a refund?<br><a href='{refund_link}'>Click here to request a refund for unused credits within 14 days after purchase.</a>",
+            "context": "Refund instructions text in email body"
+        },
+        "security_alert": {
+            "text":"Sicherheitswarnung",
+            "en_original": "Security Alert",
+            "context": "Email pre-header for security alert"
+        },
+        "login_from_new_device": {
+            "text":"Anmeldung von einem neuen Gerät",
+            "en_original": "Login from a new device",
+            "context": "Email header for login from new device"
+        },
+        "security_alert_login_from_new_device": {
+            "text":"Sicherheitswarnung: Anmeldung von einem neuen Gerät",
+            "en_original": "Security Alert: Login from a new device",
+            "context": "Email subject for login from new device"
+        },
+        "device_details": {
+            "text":"Vor ein paar Sekunden,<br>von einem {device} mit {os_with_version}:",
+            "en_original": "A few seconds ago,<br>from a {device} with {os_with_version}:",
+            "context": "Device details in email body"
+        },
+        "area_around": {
+            "text":"Umgebung von",
+            "en_original": "Area around",
+            "context": "Used in 'Area around Berlin, Germany'"
+        },
+        "area_is_estimate": {
+            "text":"Die Region ist eine Schätzung basierend auf der IP-Adresse.<br>Beachte: Wenn du ein VPN verwendest, wird wahrscheinlich ein anderer Standort angezeigt als dein tatsächlicher.",
+            "en_original": "The area is an estimate based on the IP address.<br>Keep in mind: If you use a VPN, you likely will be shown in a different location than you actually are.",
+            "context": "Explainer text for location estimate"
+        },
+        "if_this_wasnt_you_react": {
+            "text":"Wenn du das nicht warst, reagiere sofort!<br><a href='{logout_link}'>Klicke hier, um alle verbundenen Geräte abzumelden & deine Anmeldedaten zurückzusetzen.</a>",
+            "en_original": "If this wasn't you, react immediately!<br><a href='{logout_link}'>Click here to logout all connected devices & reset your login data.</a>",
+            "context": "Security advice in email body"
+        },
+        "your_email_address_was_changed": {
+            "text":"Deine E-Mail-Adresse wurde geändert",
+            "en_original": "Your email address was changed",
+            "context": "Email header for email address change"
+        },
+        "security_alert_email_address_changed": {
+            "text":"Sicherheitswarnung: Deine E-Mail-Adresse wurde geändert",
+            "en_original": "Security Alert: Your Email address was changed",
+            "context": "Email subject for email address change"
+        },
+        "this_is_your_new_address": {
+            "text":"Dies ist deine neue E-Mail-Adresse:",
+            "en_original": "This is your new email address:",
+            "context": "Email body for email address change"
+        },
+        "your_password_was_changed": {
+            "text":"Dein Passwort wurde geändert",
+            "en_original": "Your password was changed",
+            "context": "Email header for password change"
+        },
+        "security_alert_password_changed": {
+            "text":"Sicherheitswarnung: Dein Passwort wurde geändert",
+            "en_original": "Security Alert: Your password was changed",
+            "context": "Email subject for password change"
+        },
+        "security_advice":{
+            "text":"Sicherheitsratschlag",
+            "en_original": "Security advice",
+            "context": "Email pre-header for security advice"
+        },
+        "generate_unique_passwords": {
+            "text":"Generiere & speichere ein einzigartiges Passwort für jede Website in deinem Passwort-Manager.",
+            "en_original": "Generate & save a unique password for each website in your password manager.",
+            "context": "Security advice in email body"
+        },
+        "your_2fa_app_was_changed": {
+            "text":"Deine 2FA-App wurde geändert",
+            "en_original": "Your 2FA app was changed",
+            "context": "Email header for 2FA app change"
+        },
+        "security_alert_2fa_app_changed": {
+            "text":"Sicherheitswarnung: Deine 2FA-App wurde geändert",
+            "en_original": "Security Alert: Your 2FA app was changed",
+            "context": "Email subject for 2FA app change"
+        },
+        "this_is_your_new_2fa_app": {
+            "text":"Dies ist deine neue 2FA-App:",
+            "en_original": "This is your new 2FA app:",
+            "context": "Email body for 2FA app change"
+        },
+        "new_invite_codes_created": {
+            "text":"Neue Einladungscodes erstellt",
+            "en_original": "New invite codes created",
+            "context": "Email header for new invite codes"
+        },
+        "security_alert_new_invite_codes": {
+            "text":"Sicherheitswarnung: Neue Einladungscodes erstellt",
+            "en_original": "Security Alert: New invite codes created",
+            "context": "Email subject for new invite codes"
+        },
+        "new_codes_created": {
+            "text":"Du hast {count} neue Einladungscodes erstellt, damit neue Nutzer deinem Server beitreten können.",
+            "en_original": "You created {count} new invite codes for new users to join your server.",
+            "context": "Email body for new invite codes"
+        },
+        "if_this_wasnt_you_react_invite_codes": {
+            "text":"Wenn du das nicht warst, reagiere sofort!<br><a href='{logout_link_delete_invite_codes}'>Klicke hier, um die Einladungscodes zu löschen, alle verbundenen Geräte abzumelden & deine Anmeldedaten zurückzusetzen.</a>",
+            "en_original": "If this wasn't you, react immediately!<br><a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>",
+            "context": "Security advice in email body for new invite codes"
+        }
+    },
+    "invoices_and_credit_notes": {
+        "invoice": {
+            "text":"Rechnung",
+            "en_original": "Invoice",
+            "context": "Invoice title"
+        },
+        "invoice_number": {
+            "text":"Rechnungsnummer",
+            "en_original": "Invoice number",
+            "context": "Invoice number label"
+        },
+        "date_of_issue": {
+            "text":"Ausstellungsdatum",
+            "en_original": "Date of issue",
+            "context": "Date of issue label"
+        },
+        "date_due": {
+            "text":"Fälligkeitsdatum",
+            "en_original": "Date due",
+            "context": "Date due label"
+        },
+        "mmmm_dd_yyyy": {
+            "text":"{DD}. {MMMM} {YYYY}",
+            "en_original": "{MMMM} {DD}, {YYYY}",
+            "context": "Date format"
+        },
+        "vat": {
+            "text":"MwSt.",
+            "en_original": "VAT",
+            "context": "VAT label"
+        },
+        "bill_to": {
+            "text":"Rechnung an:",
+            "en_original": "Bill to:",
+            "context": "Bill to label"
+        },
+        "view_usage": {
+            "text":"Nutzung ansehen",
+            "en_original": "View usage",
+            "context": "View usage label"
+        },
+        "description": {
+            "text":"Beschreibung",
+            "en_original": "Description",
+            "context": "Description label"
+        },
+        "credits_item": {
+            "text":"{amount} Credits",
+            "en_original": "{amount} credits",
+            "context": "Used in '1000 credits'"
+        },
+        "quantity": {
+            "text":"Menge",
+            "en_original": "Quantity",
+            "context": "Quantity label"
+        },
+        "unit_price_no_tax": {
+            "text":"Einzelpreis<br>(ohne Steuer)",
+            "en_original": "Unit price<br>(excl. tax)",
+            "context": "Unit price label"
+        },
+        "total_price_no_tax": {
+            "text":"Gesamtpreis<br>(ohne Steuer)",
+            "en_original": "Total price<br>(excl. tax)",
+            "context": "Total price label"
+        },
+        "vat_rate": {
+            "text":"MwSt. (0%)",
+            "en_original": "VAT (0%)",
+            "context": "VAT rate"
+        },
+        "total_paid": {
+            "text":"Gesamtbetrag bezahlt (inkl. MwSt.)",
+            "en_original": "Total paid (incl. VAT)",
+            "context": "Total paid label"
+        },
+        "paid_with": {
+            "text":"Bezahlt mit:<br>{card_provider}-Karte mit den Endziffern {last_four_digits}",
+            "en_original": "Paid with:<br{card_provider} card ending in {last_four_digits}",
+            "context": "Paid with label"
+        },
+        "credits_explainer": {
+            "text":"Credits auf OpenMates werden verwendet, um mit deinen digitalen Kollegen zu chatten und Apps auf OpenMates zu nutzen.<br>Credits können nicht ausgezahlt werden und eine Erstattung ist nur innerhalb der ersten 14 Tage nach dem Kauf möglich, und nur für die verbleibenden Credits in deinem Benutzerkonto.",
+            "en_original": "Credits on OpenMates are used to chat with your digital team mates and to use apps on OpenMates.<br>Credits cannot be payed out and a refund is only possible within the first 14 days of purchase, and only for the remaining credits in your user account.",
+            "context": "Credits explainer"
+        },
+        "vat_disclaimer": {
+            "text":"Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen, da der Verkäufer Kleinunternehmer nach deutschem Recht ist.",
+            "en_original": "According to §19 UStG, no VAT is shown as the seller is a small business under German law.",
+            "context": "VAT disclaimer"
+        },
+        "if_you_have_questions": {
+            "text":"Bei Fragen:",
+            "en_original": "If you have any questions:",
+            "context": "first line in questions helper"
+        },
+        "ask_team_mates": {
+            "text":"Frage <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hilfe & Support), deinen digitalen Kollegen (über <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "context": "second line in questions helper"
+        },
+        "check_the_documentation": {
+            "text":"Prüfe die Dokumentation (über <a href='https://openmates.org/docs'>openmates.org/docs</a>)",
+            "en_original": "Check the documentation (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)",
+            "context": "third line in questions helper"
+        },
+        "ask_in_discord": {
+            "text":"Frage in unserem Discord für allgemeine Abrechnungsfragen (beitritt über <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)",
+            "en_original": "Ask in our Discord for general billing questions (join via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)",
+            "context": "fourth line in questions helper"
+        },
+        "contact_via_email": {
+            "text":"Kontaktiere uns per E-Mail, wenn diese Optionen dein Problem nicht lösen (<a href='mailto:{email_address}'>{email_address}</a>)",
+            "en_original": "Contact us via e-mail if these options don't solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)",
+            "context": "fifth line in questions helper"
+        },
+        "this_invoice_is_a_translation": {
+            "text":"Diese Rechnung ist eine Übersetzung der Originalrechnung auf Englisch.<br>Die englische Version bleibt für steuerliche Zwecke das rechtsverbindliche Dokument.",
+            "en_original": "This invoice is a translation of the original invoice in english.<br>The english version remains the legally binding document for tax purposes.",
+            "context": "translation disclaimer"
+        },
+        "credit_note": {
+            "text":"Gutschrift",
+            "en_original": "Credit note",
+            "context": "Credit note title"
+        },
+        "credit_note_number": {
+            "text":"Gutschriftsnummer",
+            "en_original": "Credit note number",
+            "context": "Credit note number label"
+        },
+        "referenced_invoice": {
+            "text":"Referenzierte Rechnung",
+            "en_original": "Referenced invoice",
+            "context": "Referenced invoice label"
+        },
+        "refunded_credits_item": {
+            "text":"{amount_unused_credits} ungenutzte Credits erstattet<br>von {amount_total_credits} Credits",
+            "en_original": "{amount_unused_credits} unused credits refunded<br>of {amount_total_credits} credits",
+            "context": "Used in '200 unused credits refunded of 1000 credits'"
+        },
+        "total_refunded": {
+            "text":"Gesamtbetrag erstattet (inkl. MwSt.)",
+            "en_original": "Total refunded (incl. VAT)",
+            "context": "Total refunded label"
+        },
+        "refunded_to": {
+            "text":"Erstattet auf die ursprüngliche Zahlungsmethode:<br>{card_provider}-Karte mit den Endziffern {last_four_digits}",
+            "en_original": "Refunded to original payment method:<br>{card_provider} card ending in {last_four_digits}",
+            "context": "Refunded to label"
+        },
+        "this_credit_note_is_a_translation": {
+            "text":"Diese Gutschrift ist eine Übersetzung der Originalgutschrift auf Englisch.<br>Die englische Version bleibt für steuerliche Zwecke das rechtsverbindliche Dokument.",
+            "en_original": "This credit note is a translation of the original credit note in english.<br>The english version remains the legally binding document for tax purposes.",
+            "context": "translation disclaimer"
+        }
     }
 }

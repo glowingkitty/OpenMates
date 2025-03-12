@@ -2313,5 +2313,374 @@
             "en_original": "You will receive an e-mail confirmation with your invoice soon.",
             "context": "Message shown after successful purchase"
         }
+    },
+    "email":{
+        "confirm_your_email": {
+            "text":"メールアドレスを確認",
+            "en_original": "Confirm your email",
+            "context": "Email subject & header for email confirmation"
+        },
+        "to_chat_to_your_mates": {
+            "text":"<mark>デジタルチームメイト</mark>と<br>チャットするには",
+            "en_original": "To chat to your<br><mark>digital team mates</mark>",
+            "context": "subheader in email"
+        },
+        "enter_this_code": {
+            "text":"このワンタイムコードを入力してください:",
+            "en_original": "Enter this one time code:",
+            "context": "Instruction above the code in email"
+        },
+        "on_openmates": {
+            "text":"<a href='https://app.openmates.com'>app.openmates.org</a>で",
+            "en_original": "on <a href='https://app.openmates.com'>app.openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+        },
+        "did_not_request_email": {
+            "text":"このメールをリクエストしていませんか？<br>このメールを報告するには<a href='{mailto_link_report_email}'>ここをクリック</a>してください。",
+            "en_original": "You did not request this email?<br>Then <a href='{mailto_link_report_email}'>click here</a> to report this email.",
+            "context": "Message at the end of the email"
+        },
+        "this_email_was_sent_by": {
+            "text":"このメールはOpenMatesから送信されました。",
+            "en_original": "This email was sent by OpenMates.",
+            "context": "text in the footer of the email"
+        },
+        "legal": {
+            "text":"法的情報",
+            "en_original": "Legal",
+            "context": "Legal section header"
+        },
+        "imprint": {
+            "text":"インプリント",
+            "en_original": "Imprint",
+            "context": "Imprint legal link"
+        },
+        "privacy": {
+            "text":"プライバシー",
+            "en_original": "Privacy",
+            "context": "Privacy policy link"
+        },
+        "terms_and_conditions": {
+            "text":"利用規約",
+            "en_original": "Terms and conditions",
+            "context": "Terms and conditions link"
+        },
+        "contact": {
+            "text":"お問い合わせ",
+            "en_original": "Contact",
+            "context": "Contact section header"
+        },
+        "discord": {
+            "text":"Discord",
+            "en_original": "Discord",
+            "context": "Discord contact link"
+        },
+        "email": {
+            "text":"メール",
+            "en_original": "Email",
+            "context": "Email contact link"
+        },
+        "made_in_eu": {
+            "text":"EUで開発",
+            "en_original": "Made in the EU",
+            "context": "Footer text indicating EU origin"
+        },
+        "legal_update": {
+            "text":"法的アップデート",
+            "en_original": "Legal update",
+            "context": "Email subject & header for legal update"
+        },
+        "we_made_some_changes_privacy_policy": {
+            "text":"<mark>プライバシーポリシー</mark>に<br>変更を加えました",
+            "en_original": "We made some changes to our<br><mark>privacy policy</mark>",
+            "context": "Email header for privacy policy update"
+        },
+        "you_can_see_the_new_privacy_policy": {
+            "text":"新しいプライバシーポリシーは<a href='{privacy_policy_url}'>openmates.org/legal/privacy</a>でご確認いただけます",
+            "en_original": "You can see the new privacy policy under <a href='{privacy_policy_url}'>openmates.org/legal/privacy</a>",
+            "context": "Email body for privacy policy update"
+        },
+        "purchase_confirmation": {
+            "text":"購入確認",
+            "en_original": "Purchase confirmation",
+            "context": "Email subject & header for purchase confirmation"
+        },
+        "thanks_for_purchase": {
+            "text":"ご購入ありがとうございます！",
+            "en_original": "Thanks for your purchase!",
+            "context": "email subheader for purchase confirmation"
+        },
+        "invoice_pdf_attached": {
+            "text":"請求書のPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。",
+            "en_original": "You can find the invoice PDF attached to this e-mail, as well as in your Billing settings on OpenMates.",
+            "context": "Email body for purchase confirmation"
+        },
+        "click_here_for_refund": {
+            "text": "返金をご希望ですか？<br><a href='{refund_link}'>購入後14日以内の未使用クレジットの返金をリクエストするには、ここをクリックしてください。</a>",
+            "en_original": "Want a refund?<br><a href='{refund_link}'>Click here to request a refund for unused credits within 14 days after purchase.</a>",
+            "context": "Refund instructions text in email body"
+        },
+        "security_alert": {
+            "text":"セキュリティアラート",
+            "en_original": "Security Alert",
+            "context": "Email pre-header for security alert"
+        },
+        "login_from_new_device": {
+            "text":"新しいデバイスからのログイン",
+            "en_original": "Login from a new device",
+            "context": "Email header for login from new device"
+        },
+        "security_alert_login_from_new_device": {
+            "text":"セキュリティアラート: 新しいデバイスからのログイン",
+            "en_original": "Security Alert: Login from a new device",
+            "context": "Email subject for login from new device"
+        },
+        "device_details": {
+            "text":"数秒前、<br>{device}の{os_with_version}から:",
+            "en_original": "A few seconds ago,<br>from a {device} with {os_with_version}:",
+            "context": "Device details in email body"
+        },
+        "area_around": {
+            "text":"周辺地域",
+            "en_original": "Area around",
+            "context": "Used in 'Area around Berlin, Germany'"
+        },
+        "area_is_estimate": {
+            "text":"この地域はIPアドレスに基づく推定です。<br>注意: VPNを使用している場合、実際の場所とは異なる場所が表示される可能性があります。",
+            "en_original": "The area is an estimate based on the IP address.<br>Keep in mind: If you use a VPN, you likely will be shown in a different location than you actually are.",
+            "context": "Explainer text for location estimate"
+        },
+        "if_this_wasnt_you_react": {
+            "text":"これがあなたではない場合、すぐに対応してください！<br><a href='{logout_link}'>ここをクリックして、接続されているすべてのデバイスをログアウトし、ログイン情報をリセットしてください。</a>",
+            "en_original": "If this wasn't you, react immediately!<br><a href='{logout_link}'>Click here to logout all connected devices & reset your login data.</a>",
+            "context": "Security advice in email body"
+        },
+        "your_email_address_was_changed": {
+            "text":"メールアドレスが変更されました",
+            "en_original": "Your email address was changed",
+            "context": "Email header for email address change"
+        },
+        "security_alert_email_address_changed": {
+            "text":"セキュリティアラート: メールアドレスが変更されました",
+            "en_original": "Security Alert: Your Email address was changed",
+            "context": "Email subject for email address change"
+        },
+        "this_is_your_new_address": {
+            "text":"これがあなたの新しいメールアドレスです:",
+            "en_original": "This is your new email address:",
+            "context": "Email body for email address change"
+        },
+        "your_password_was_changed": {
+            "text":"パスワードが変更されました",
+            "en_original": "Your password was changed",
+            "context": "Email header for password change"
+        },
+        "security_alert_password_changed": {
+            "text":"セキュリティアラート: パスワードが変更されました",
+            "en_original": "Security Alert: Your password was changed",
+            "context": "Email subject for password change"
+        },
+        "security_advice":{
+            "text":"セキュリティアドバイス",
+            "en_original": "Security advice",
+            "context": "Email pre-header for security advice"
+        },
+        "generate_unique_passwords": {
+            "text":"パスワードマネージャーで各サイト用の固有のパスワードを生成して保存してください。",
+            "en_original": "Generate & save a unique password for each website in your password manager.",
+            "context": "Security advice in email body"
+        },
+        "your_2fa_app_was_changed": {
+            "text":"2FAアプリが変更されました",
+            "en_original": "Your 2FA app was changed",
+            "context": "Email header for 2FA app change"
+        },
+        "security_alert_2fa_app_changed": {
+            "text":"セキュリティアラート: 2FAアプリが変更されました",
+            "en_original": "Security Alert: Your 2FA app was changed",
+            "context": "Email subject for 2FA app change"
+        },
+        "this_is_your_new_2fa_app": {
+            "text":"これがあなたの新しい2FAアプリです:",
+            "en_original": "This is your new 2FA app:",
+            "context": "Email body for 2FA app change"
+        },
+        "new_invite_codes_created": {
+            "text":"新しい招待コードが作成されました",
+            "en_original": "New invite codes created",
+            "context": "Email header for new invite codes"
+        },
+        "security_alert_new_invite_codes": {
+            "text":"セキュリティアラート: 新しい招待コードが作成されました",
+            "en_original": "Security Alert: New invite codes created",
+            "context": "Email subject for new invite codes"
+        },
+        "new_codes_created": {
+            "text":"新しいユーザーがサーバーに参加できるように{count}個の招待コードを作成しました。",
+            "en_original": "You created {count} new invite codes for new users to join your server.",
+            "context": "Email body for new invite codes"
+        },
+        "if_this_wasnt_you_react_invite_codes": {
+            "text":"これがあなたではない場合、すぐに対応してください！<br><a href='{logout_link_delete_invite_codes}'>ここをクリックして、招待コードを削除し、接続されているすべてのデバイスをログアウトし、ログイン情報をリセットしてください。</a>",
+            "en_original": "If this wasn't you, react immediately!<br><a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>",
+            "context": "Security advice in email body for new invite codes"
+        }
+    },
+    "invoices_and_credit_notes": {
+        "invoice": {
+            "text":"請求書",
+            "en_original": "Invoice",
+            "context": "Invoice title"
+        },
+        "invoice_number": {
+            "text":"請求書番号",
+            "en_original": "Invoice number",
+            "context": "Invoice number label"
+        },
+        "date_of_issue": {
+            "text":"発行日",
+            "en_original": "Date of issue",
+            "context": "Date of issue label"
+        },
+        "date_due": {
+            "text":"支払期限",
+            "en_original": "Date due",
+            "context": "Date due label"
+        },
+        "mmmm_dd_yyyy": {
+            "text":"{YYYY}年{MMMM}{DD}日",
+            "en_original": "{MMMM} {DD}, {YYYY}",
+            "context": "Date format"
+        },
+        "vat": {
+            "text":"消費税",
+            "en_original": "VAT",
+            "context": "VAT label"
+        },
+        "bill_to": {
+            "text":"請求先:",
+            "en_original": "Bill to:",
+            "context": "Bill to label"
+        },
+        "view_usage": {
+            "text":"利用状況を表示",
+            "en_original": "View usage",
+            "context": "View usage label"
+        },
+        "description": {
+            "text":"説明",
+            "en_original": "Description",
+            "context": "Description label"
+        },
+        "credits_item": {
+            "text":"{amount}クレジット",
+            "en_original": "{amount} credits",
+            "context": "Used in '1000 credits'"
+        },
+        "quantity": {
+            "text":"数量",
+            "en_original": "Quantity",
+            "context": "Quantity label"
+        },
+        "unit_price_no_tax": {
+            "text":"単価<br>(税抜)",
+            "en_original": "Unit price<br>(excl. tax)",
+            "context": "Unit price label"
+        },
+        "total_price_no_tax": {
+            "text":"合計金額<br>(税抜)",
+            "en_original": "Total price<br>(excl. tax)",
+            "context": "Total price label"
+        },
+        "vat_rate": {
+            "text":"消費税 (0%)",
+            "en_original": "VAT (0%)",
+            "context": "VAT rate"
+        },
+        "total_paid": {
+            "text":"支払総額 (税込)",
+            "en_original": "Total paid (incl. VAT)",
+            "context": "Total paid label"
+        },
+        "paid_with": {
+            "text":"支払方法:<br>末尾が{last_four_digits}の{card_provider}カード",
+            "en_original": "Paid with:<br{card_provider} card ending in {last_four_digits}",
+            "context": "Paid with label"
+        },
+        "credits_explainer": {
+            "text":"OpenMatesのクレジットは、デジタルチームメイトとチャットしたり、OpenMatesのアプリを使用するために使用されます。<br>クレジットは現金化できず、返金は購入後14日以内かつユーザーアカウントに残っているクレジットに対してのみ可能です。",
+            "en_original": "Credits on OpenMates are used to chat with your digital team mates and to use apps on OpenMates.<br>Credits cannot be payed out and a refund is only possible within the first 14 days of purchase, and only for the remaining credits in your user account.",
+            "context": "Credits explainer"
+        },
+        "vat_disclaimer": {
+            "text":"ドイツ法に基づく小規模事業者であるため、§19 UStGにより消費税は表示されません。",
+            "en_original": "According to §19 UStG, no VAT is shown as the seller is a small business under German law.",
+            "context": "VAT disclaimer"
+        },
+        "if_you_have_questions": {
+            "text":"ご質問がある場合:",
+            "en_original": "If you have any questions:",
+            "context": "first line in questions helper"
+        },
+        "ask_team_mates": {
+            "text":"<a href='{start_chat_with_help_mate_link}'>@ヘレナ</a>（ヘルプ＆サポート）、あなたのデジタルチームメイトに質問してください（<a href='https://app.openmates.org'>app.openmates.org</a>経由）",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "context": "second line in questions helper"
+        },
+        "check_the_documentation": {
+            "text":"ドキュメントを確認してください（<a href='https://openmates.org/docs'>openmates.org/docs</a>経由）",
+            "en_original": "Check the documentation (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)",
+            "context": "third line in questions helper"
+        },
+        "ask_in_discord": {
+            "text":"一般的な請求に関する質問は、Discordでお問い合わせください（<a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>から参加）",
+            "en_original": "Ask in our Discord for general billing questions (join via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)",
+            "context": "fourth line in questions helper"
+        },
+        "contact_via_email": {
+            "text":"これらのオプションで問題が解決しない場合は、メールでお問い合わせください（<a href='mailto:{email_address}'>{email_address}</a>）",
+            "en_original": "Contact us via e-mail if these options don't solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)",
+            "context": "fifth line in questions helper"
+        },
+        "this_invoice_is_a_translation": {
+            "text":"この請求書は英語の原本を翻訳したものです。<br>税務目的においては英語版が法的拘束力のある文書となります。",
+            "en_original": "This invoice is a translation of the original invoice in english.<br>The english version remains the legally binding document for tax purposes.",
+            "context": "translation disclaimer"
+        },
+        "credit_note": {
+            "text":"クレジットノート",
+            "en_original": "Credit note",
+            "context": "Credit note title"
+        },
+        "credit_note_number": {
+            "text":"クレジットノート番号",
+            "en_original": "Credit note number",
+            "context": "Credit note number label"
+        },
+        "referenced_invoice": {
+            "text":"参照請求書",
+            "en_original": "Referenced invoice",
+            "context": "Referenced invoice label"
+        },
+        "refunded_credits_item": {
+            "text":"{amount_total_credits}クレジットのうち<br>{amount_unused_credits}未使用クレジットが返金されました",
+            "en_original": "{amount_unused_credits} unused credits refunded<br>of {amount_total_credits} credits",
+            "context": "Used in '200 unused credits refunded of 1000 credits'"
+        },
+        "total_refunded": {
+            "text":"返金総額 (税込)",
+            "en_original": "Total refunded (incl. VAT)",
+            "context": "Total refunded label"
+        },
+        "refunded_to": {
+            "text":"元の支払方法に返金されました:<br>末尾が{last_four_digits}の{card_provider}カード",
+            "en_original": "Refunded to original payment method:<br>{card_provider} card ending in {last_four_digits}",
+            "context": "Refunded to label"
+        },
+        "this_credit_note_is_a_translation": {
+            "text":"このクレジットノートは英語の原本を翻訳したものです。<br>税務目的においては英語版が法的拘束力のある文書となります。",
+            "en_original": "This credit note is a translation of the original credit note in english.<br>The english version remains the legally binding document for tax purposes.",
+            "context": "translation disclaimer"
+        }
     }
 }
