@@ -51,15 +51,15 @@ class EmailTemplateService:
             translations = self.translation_service.get_translations(lang)
             context['t'] = translations
             
-            # First render with Jinja to handle template variables
-            jinja_template = Template(mjml_template)
+            # First process includes (both CSS and MJML)
+            processed_mjml = self._process_includes(mjml_template)
+            
+            # Then render with Jinja to handle template variables
+            jinja_template = Template(processed_mjml)
             rendered_mjml = jinja_template.render(**context)
             
-            # Process includes (both CSS and MJML)
-            processed_mjml = self._process_includes(rendered_mjml)
-            
             # Convert to HTML
-            html_output = mjml2html(processed_mjml)
+            html_output = mjml2html(rendered_mjml)
             
             # Convert CSS classes to inline styles for email compatibility
             inlined_html = transform(html_output)
