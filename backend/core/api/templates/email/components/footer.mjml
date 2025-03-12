@@ -1,4 +1,12 @@
-<mj-section>
+<!-- Spacer -->
+<mj-section padding="0">
+    <mj-column>
+    <mj-spacer height="30px" />
+    </mj-column>
+</mj-section>
+
+<!-- Footer -->
+<mj-section css-class="footer" full-width="full-width" padding="20px 0">
   <mj-column>
     <mj-text>
       {{ t.email.this_email_was_sent_by.text }}

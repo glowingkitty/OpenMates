@@ -21,3 +21,11 @@ mark {
     background-color: unset !important;
     color: #4867CD !important;
 }
+
+.footer {
+    background-color: #4867CD !important;
+}
+
+.dark-mode .footer {
+    background-color: #293d7f !important;
+}
