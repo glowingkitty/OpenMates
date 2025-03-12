@@ -3,7 +3,7 @@
     <mj-title>{{ t.email.confirm_your_email.subject }}</mj-title>
     <mj-font name="Lexend Deca" href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;700&display=swap" />
     <mj-attributes>
-      <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" font-size="16px" />
+      <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" />
       {% if darkmode %}
       <mj-text color="#e6e6e6" />
       {% else %}
@@ -20,11 +20,10 @@
     <mj-wrapper css-class="content-box" padding="20px">
       <mj-section>
         <mj-column>
-          <mj-text>
-            {{ t.email.confirm_your_email.text }}
+          <mj-text font-size="30px">
+            <mark>{{ t.email.confirm_your_email.text }}</mark>
           </mj-text>
-          <!-- Debug: Darkmode value is {{ darkmode }} -->
-          <mj-text>
+          <mj-text font-size="22px" padding-bottom="50px">
             {{ t.email.to_chat_to_your_mates.text }}
           </mj-text>
           <mj-text>

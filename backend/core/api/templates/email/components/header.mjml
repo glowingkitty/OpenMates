@@ -1,6 +1,6 @@
 <mj-section>
   <mj-column>
-    <mj-text>
+    <mj-text align="left" font-size="18px">
       OpenMate
     </mj-text>
   </mj-column>
