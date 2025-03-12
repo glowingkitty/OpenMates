@@ -58,14 +58,20 @@ class EmailTemplateService:
             jinja_template = Template(processed_mjml)
             rendered_mjml = jinja_template.render(**context)
             
-            # Process brand name to add mark tags
-            rendered_mjml = self._process_brand_name(rendered_mjml)
+            # Get dark mode setting from context
+            dark_mode = context.get('darkmode', False)
+            
+            # Process brand name to add mark tags with appropriate styling
+            rendered_mjml = self._process_brand_name(rendered_mjml, dark_mode)
             
             # Process any mark tags in the rendered content
             rendered_mjml = self._process_mark_tags(rendered_mjml)
             
             # Convert to HTML
             html_output = mjml2html(rendered_mjml)
+            
+            # Process links to style them
+            html_output = self._process_link_tags(html_output)
             
             # Convert CSS classes to inline styles for email compatibility
             inlined_html = transform(html_output)
@@ -76,12 +82,19 @@ class EmailTemplateService:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
             raise
     
-    def _process_brand_name(self, content: str) -> str:
+    def _process_brand_name(self, content: str, dark_mode: bool = False) -> str:
         """
-        Replace all occurrences of "OpenMates" with "<mark>Open</mark>Mates"
+        Replace all occurrences of "OpenMates" with a link containing appropriately styled "Open" and "Mates" parts
         """
-        # Replace "OpenMates" with "<mark>Open</mark>Mates"
-        content = content.replace("OpenMates", "<mark>Open</mark>Mates")
+        # Determine the color for "Mates" based on dark mode
+        mates_color = "#e6e6e6" if dark_mode else "#000000"
+        
+        # Create a replacement with inline styling
+        replacement = f'<a href="https://openmates.org" target="_blank" style="text-decoration: none;">' \
+                     f'<mark>Open</mark><span style="color: {mates_color};">Mates</span></a>'
+        
+        # Replace "OpenMates" with our specially styled link
+        content = content.replace("OpenMates", replacement)
         
         return content
     
@@ -97,6 +110,38 @@ class EmailTemplateService:
         
         # Perform the replacement
         processed_content = re.sub(pattern, replacement, content)
+        
+        return processed_content
+    
+    def _process_link_tags(self, content: str) -> str:
+        """
+        Add custom styling to all anchor tags
+        """
+        # Pattern to match <a> tags
+        pattern = r'<a\s+([^>]*?)>(.*?)<\/a>'
+        
+        def style_link(match):
+            attrs = match.group(1)
+            link_content = match.group(2)
+            
+            # Check if this is our brand link by looking for the "Open" in blue
+            if 'style="color: #4867CD; background-color: unset;"' in link_content:
+                # This is our brand link, don't add color to the entire link
+                if 'style="' in attrs:
+                    attrs = attrs.replace('style="', 'style="text-decoration: none; ')
+                else:
+                    attrs += ' style="text-decoration: none;"'
+            else:
+                # For regular links, apply blue color and no underline
+                if 'style="' in attrs:
+                    attrs = attrs.replace('style="', 'style="color: #4867CD; text-decoration: none; ')
+                else:
+                    attrs += ' style="color: #4867CD; text-decoration: none;"'
+            
+            return f'<a {attrs}>{link_content}</a>'
+        
+        # Perform the replacement
+        processed_content = re.sub(pattern, style_link, content)
         
         return processed_content
             
