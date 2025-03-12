@@ -1,3 +1,7 @@
+body {
+  font-family: 'Lexend Deca', Arial, Helvetica, sans-serif;
+}
+
 .dark-mode {
   background-color: #2d2d2d;
   color: #ffffff;
