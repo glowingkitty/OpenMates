@@ -1,14 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, Header
-from datetime import datetime
 import logging
-from typing import Optional
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
-from app.services.compliance import ComplianceService
 from app.services.limiter import limiter
+from app.utils.invite_code import validate_invite_code
 
 router = APIRouter(
     prefix="/v1/auth",
@@ -34,22 +32,16 @@ async def verify_allowed_origin(request: Request):
     Security dependency to verify the request originates from an allowed origin.
     This prevents direct API access to auth endpoints that should only be used by the frontend.
     """
-    # Get the origin from the request headers
     origin = request.headers.get("origin")
-    
-    # Get allowed origins from the FastAPI app state
     allowed_origins = request.app.state.allowed_origins
     
-    # If no origin is provided or it's not in our allowed list
     if not origin or origin not in allowed_origins:
         logger.warning(f"Unauthorized origin access to auth endpoint: {request.url.path}, Origin: {origin}")
-        
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: Authentication endpoints can only be accessed from authorized applications"
         )
     
-    # Origin is allowed
     return True
 
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse, dependencies=[Depends(verify_allowed_origin)])
@@ -63,91 +55,17 @@ async def check_invite_token_valid(
 ):
     """
     Check if the provided invite code is valid.
-    
-    An invite code is valid if:
-    1. It exists in the database
-    2. It has remaining uses > 0
-    3. Current time is after valid_from (if specified)
-    4. Current time is before expire_date (if specified)
     """
     try:
-        # First try to get the code from cache
-        cache_key = f"invite_code:{invite_request.invite_code}"
-        code_data = await cache_service.get(cache_key)
+        is_valid, message = await validate_invite_code(invite_request.invite_code, directus_service, cache_service)
+        metrics_service.track_invite_code_check(is_valid)
         
-        # If not in cache, query Directus
-        if code_data is None:
-            logger.info(f"Invite code {invite_request.invite_code} not found in cache, fetching from Directus")
-            
-            # Try to get the invite code
-            code_data = await directus_service.get_invite_code(invite_request.invite_code)
-            
-            # If we couldn't get the code and our token might have expired, 
-            # clear tokens and try again
-            if code_data is None:
-                code_data = await directus_service.get_invite_code(invite_request.invite_code)
-            
-            # Cache the result if found
-            if code_data:
-                await cache_service.set(cache_key, code_data)
-        
-        # If we couldn't find the code either in cache or Directus
-        if code_data is None:
-            # Track invalid invite code check
-            metrics_service.track_invite_code_check(False)
-            
-            # Log failed invite code check to API logs (without IP)
-            ComplianceService.log_api_event(
-                event_type="invite_code_check",
-                user_id=None,
-                status="failed",
-                details={"code_fragment": invite_request.invite_code[:3] + "..."}  # Log only a fragment
-            )
-            
-            # For security, don't disclose if it's a connection issue or invalid code
-            return InviteCodeResponse(valid=False, message="Invalid invite code")
-        
-        # Check if code has remaining uses
-        if code_data.get("remaining_uses", 0) <= 0:
-            metrics_service.track_invite_code_check(False)
-            return InviteCodeResponse(valid=False, message="Invite code has been fully used")
-            
-        # Check if code is within valid date range
-        now = datetime.now()
-        
-        # Check valid_from if it exists
-        valid_from = code_data.get("valid_from")
-        if valid_from and datetime.fromisoformat(valid_from.replace('Z', '+00:00')) > now:
-            metrics_service.track_invite_code_check(False)
-            return InviteCodeResponse(valid=False, message="Invite code is not yet valid")
-            
-        # Check expire_date if it exists
-        expire_date = code_data.get("expire_date")
-        if expire_date and datetime.fromisoformat(expire_date.replace('Z', '+00:00')) < now:
-            metrics_service.track_invite_code_check(False)
-            return InviteCodeResponse(valid=False, message="Invite code has expired")
-            
-        # Code is valid
-        metrics_service.track_invite_code_check(True)
-        
-        # Log successful invite code check to API logs (without IP)
-        ComplianceService.log_api_event(
-            event_type="invite_code_check", 
-            user_id=None,
-            status="success"
-        )
-        
-        return InviteCodeResponse(
-            valid=True,
-            message="Invite code is valid", 
-            is_admin=code_data.get("is_admin", False),
-            gifted_credits=code_data.get("gifted_credits")
-        )
+        if is_valid:
+            return InviteCodeResponse(valid=True, message=message)
+        else:
+            return InviteCodeResponse(valid=False, message=message)
     
     except Exception as e:
-        # Track as invalid
         metrics_service.track_invite_code_check(False)
-        
         logger.error(f"Error validating invite code: {str(e)}", exc_info=True)
-        # Don't expose internal errors to client
         return InviteCodeResponse(valid=False, message="An error occurred checking the invite code")
