@@ -12,7 +12,7 @@ coding_rules:
     - "use /server/api/models for the database models"
   svelte:
     - "seperate into reusable components"
-    - "move CSS classes to /server/frontend/packages/ui/src/styles"
+    - "move CSS classes to /frontend/packages/ui/src/styles"
     - "prevent redefining the same styles in multiple components"
     - "aria-label always use translations, for example: 'aria-label={$_('chat.start_video_call.text')}', after using 'import { _ } from 'svelte-i18n';'"
 
@@ -24,6 +24,6 @@ documentation_rules:
 
 # Explainations for the project structure
 structure_expainations:
-  /server/frontend/packages/ui/src/styles:
+  /frontend/packages/ui/src/styles:
     - "This directory should contain the CSS styles for the svelte components."
     - "Prevent redefining the same styles in multiple components."

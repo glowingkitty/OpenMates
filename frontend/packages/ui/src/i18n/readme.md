@@ -6,7 +6,7 @@ This guide explains how to add support for a new language in the OpenMates UI.
 ## Steps
 
 ### 1. Create Language File
-Create a new JSON file in `server/frontend/packages/ui/src/i18n/locales/` with the language code as the filename.
+Create a new JSON file in `frontend/packages/ui/src/i18n/locales/` with the language code as the filename.
 
 Example for French (`fr.json`):
 ```json
@@ -25,14 +25,14 @@ Example for French (`fr.json`):
 ```
 
 ### 2. Update Types
-In `server/frontend/packages/ui/src/i18n/types.ts`, add the new language code:
+In `frontend/packages/ui/src/i18n/types.ts`, add the new language code:
 
 ```typescript
 export const SUPPORTED_LOCALES = ['en', 'de', 'ja', 'es', 'cn', 'fr'] as const;
 ```
 
 ### 3. Update Footer Component
-In `server/frontend/packages/ui/src/components/Footer.svelte`, add the new language to the `supportedLanguages` array:
+In `frontend/packages/ui/src/components/Footer.svelte`, add the new language to the `supportedLanguages` array:
 
 ```typescript
 const supportedLanguages: Language[] = [

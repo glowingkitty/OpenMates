@@ -1,6 +1,6 @@
 // src/components/MessageInput/utils/epubHelpers.ts
 import JSZip from 'jszip';
-import type { EpubMetadata } from '../types.ts'; // Corrected relative path
+import type { EpubMetadata } from '../types.js'; // Corrected relative path
 
 /**
  * Extracts the cover image URL from an EPUB file.

@@ -31,7 +31,7 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0
 
-  server/frontend/apps/web_app:
+  frontend/apps/web_app:
     dependencies:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.1.0
@@ -89,7 +89,7 @@ importers:
         specifier: ^7.3.0
         version: 7.3.0
 
-  server/frontend/apps/website:
+  frontend/apps/website:
     dependencies:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.1.0
@@ -144,7 +144,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.13.1)(terser@5.38.1)
 
-  server/frontend/packages/eslint-config:
+  frontend/packages/eslint-config:
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.2.0
@@ -168,9 +168,9 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0(eslint@9.19.0)(typescript@5.7.3)
 
-  server/frontend/packages/typescript-config: {}
+  frontend/packages/typescript-config: {}
 
-  server/frontend/packages/ui:
+  frontend/packages/ui:
     dependencies:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.1.0
