@@ -58,6 +58,9 @@ class EmailTemplateService:
             jinja_template = Template(processed_mjml)
             rendered_mjml = jinja_template.render(**context)
             
+            # Process any mark tags in the rendered content
+            rendered_mjml = self._process_mark_tags(rendered_mjml)
+            
             # Convert to HTML
             html_output = mjml2html(rendered_mjml)
             
@@ -69,6 +72,21 @@ class EmailTemplateService:
         except Exception as e:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
             raise
+    
+    def _process_mark_tags(self, content: str) -> str:
+        """
+        Replace all mark tags with spans that have inline styling
+        """
+        # Pattern to match <mark>content</mark>
+        pattern = r'<mark>(.*?)<\/mark>'
+        
+        # Replace with a span that has the desired styling
+        replacement = r'<span style="color: #4867CD; background-color: unset;">\1</span>'
+        
+        # Perform the replacement
+        processed_content = re.sub(pattern, replacement, content)
+        
+        return processed_content
             
     def _process_includes(self, mjml_content: str) -> str:
         """

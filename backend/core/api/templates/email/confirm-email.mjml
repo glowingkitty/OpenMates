@@ -3,7 +3,7 @@
     <mj-title>{{ t.email.confirm_your_email.subject }}</mj-title>
     <mj-font name="Lexend Deca" href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;700&display=swap" />
     <mj-attributes>
-      <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" />
+      <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" font-size="16px" />
       {% if darkmode %}
       <mj-text color="#e6e6e6" />
       {% else %}

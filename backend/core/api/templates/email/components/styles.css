@@ -16,3 +16,8 @@ body {
 .dark-mode .content-box {
     background-color: #212121;
 }
+
+mark {
+    background-color: unset !important;
+    color: #4867CD !important;
+}
