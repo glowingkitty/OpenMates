@@ -4,27 +4,7 @@
   export let username = "";
   export let darkMode = false;
   export let lang = "en";
-  
-  // Language-specific text
-  const texts = {
-    en: {
-      title: "Confirm Your Email Address",
-      greeting: username ? `Hello ${username},` : "Hello,",
-      instruction: "Please confirm your email address by entering this code in the app:",
-      expiration: "This code will expire in 30 minutes.",
-      footer: "If you didn't request this email, you can safely ignore it."
-    },
-    de: {
-      title: "Bestätigen Sie Ihre E-Mail-Adresse",
-      greeting: username ? `Hallo ${username},` : "Hallo,",
-      instruction: "Bitte bestätigen Sie Ihre E-Mail-Adresse, indem Sie diesen Code in der App eingeben:",
-      expiration: "Dieser Code läuft in 30 Minuten ab.",
-      footer: "Wenn Sie diese E-Mail nicht angefordert haben, können Sie sie ignorieren."
-    }
-  };
-  
-  // Get text in selected language or fall back to English
-  const t = texts[lang] || texts.en;
+  export let t = (key, vars) => key; // This will be provided by the renderer
   
   // Set colors based on dark mode
   const colors = {
@@ -40,7 +20,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{t.title}</title>
+    <title>{t('email.confirm_your_email.text', {})}</title>
   </head>
   <body style="
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -66,15 +46,15 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       ">
         <h1 style="color: {colors.accent}; text-align: center; font-size: 24px; margin-bottom: 24px;">
-          {t.title}
+          {t('email.confirm_your_email.text', {})}
         </h1>
         
         <p style="margin-bottom: 16px;">
-          {t.greeting}
+          {username ? t('email.confirm.greetingWithName', { username }) : t('email.confirm.greeting', {})}
         </p>
         
         <p style="margin-bottom: 16px;">
-          {t.instruction}
+          {t('email.confirm.instruction', {})}
         </p>
         
         <div style="
@@ -93,7 +73,7 @@
         </div>
         
         <p style="font-size: 14px; color: {darkMode ? '#909090' : '#666666'};">
-          {t.expiration}
+          {t('email.confirm.expiration', {})}
         </p>
         
         <hr style="
@@ -103,7 +83,7 @@
         " />
         
         <p style="font-size: 12px; color: {darkMode ? '#909090' : '#666666'}; text-align: center;">
-          {t.footer}
+          {t('email.confirm.footer', {})}
         </p>
       </div>
       

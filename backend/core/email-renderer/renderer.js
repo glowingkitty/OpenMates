@@ -4,6 +4,7 @@ import fs from 'fs';
 import * as svelteCompiler from 'svelte/compiler';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { getTranslation } from './translations-loader.js';
 
 // Get current file's directory path (__dirname equivalent for ES modules)
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +31,16 @@ async function renderEmail(templateName, data = {}) {
     // Read the template file
     const templateCode = fs.readFileSync(templatePath, 'utf8');
     
+    // Create a translate function based on provided language
+    const lang = data.lang || 'en';
+    
+    // Add the translate function to the template data
+    const enhancedData = {
+      ...data,
+      // Add a t() function that templates can use for translation
+      t: (key, vars = {}) => getTranslation(key, lang, vars)
+    };
+    
     // Compile Svelte component to JavaScript
     const { js } = svelteCompiler.compile(templateCode, {
       filename: templatePath,
@@ -52,7 +63,7 @@ async function renderEmail(templateName, data = {}) {
     const EmailComponent = (await import(modulePath)).default;
     
     // Render the component to HTML
-    const { html } = EmailComponent.render(data);
+    const { html } = EmailComponent.render(enhancedData);
     
     // Using react-email's render without wrapping component output
     // This avoids double-wrapping the HTML

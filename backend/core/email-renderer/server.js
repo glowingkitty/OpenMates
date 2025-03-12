@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { getAvailableLanguages } from './translations-loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -144,7 +145,13 @@ app.get('/templates', (req, res) => {
       .filter(file => file.endsWith('.svelte'))
       .map(file => file.replace('.svelte', ''));
     
-    res.json({ templates });
+    // Get available languages
+    const languages = getAvailableLanguages();
+    
+    res.json({ 
+      templates,
+      languages
+    });
   } catch (error) {
     console.error('Error listing templates:', error);
     res.status(500).json({ error: error.message });

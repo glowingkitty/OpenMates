@@ -1884,5 +1884,11 @@
                 "context": "Description for the terms and conditions page"
             }
         }
+    },
+    "email":{
+        "confirm_your_email": {
+            "text": "Confirm your email",
+            "context": "Header for email where user is asked to confirm their email"
+        }
     }
 }
