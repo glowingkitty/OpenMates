@@ -6,8 +6,6 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
-			// Add mate-images alias pointing to the API images folder
-			'@openmates/mate-images': path.resolve(__dirname, '../../../api/images/mates/profile_images'),
 			// Add new alias for UI package
 			'@openmates/ui': path.resolve(__dirname, '../../packages/ui'),
 		}
