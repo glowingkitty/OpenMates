@@ -17,12 +17,21 @@
           <mj-text align="center" font-size="20px" font-weight="bold">
             {{ t.email.confirm_your_email.text }}
           </mj-text>
+          <mj-text align="center" font-size="20px" font-weight="bold">
+            {{ t.email.to_chat_to_your_mates.text }}
+          </mj-text>
+          <mj-text align="center" font-size="20px" font-weight="bold">
+            {{ t.email.enter_this_code.text }}
+          </mj-text>
           <mj-text font-size="24px" font-weight="bold" align="center">
             {{ code }}
           </mj-text>
-          <mj-button background-color="#F45E43" href="https://openmates.org/verify?code={{ code }}">
-            Click here
-          </mj-button>
+          <mj-text align="center" font-size="20px" font-weight="bold">
+            {{ t.email.on_openmates.text }}
+          </mj-text>
+          <mj-text align="center" font-size="20px" font-weight="bold">
+            {{ t.email.did_not_request_email.text }}
+          </mj-text>
         </mj-column>
       </mj-section>
     </mj-wrapper>
