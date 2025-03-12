@@ -1,7 +1,7 @@
 import os
 import logging
+import re
 from typing import Dict, Any
-# Fix the import to use the correct function from python-mjml
 from mjml import mjml2html
 from jinja2 import Template, Environment, FileSystemLoader
 
@@ -48,19 +48,76 @@ class EmailTemplateService:
             
             # Load translations
             translations = self.translation_service.get_translations(lang)
-            
-            # Add translations to context
             context['t'] = translations
             
-            # First render the template with Jinja to replace variables
+            # First render with Jinja to handle template variables
             jinja_template = Template(mjml_template)
             rendered_mjml = jinja_template.render(**context)
             
-            # Then convert MJML to HTML using the correct function from python-mjml
-            html_output = mjml2html(rendered_mjml)
+            # Process includes (both CSS and MJML)
+            processed_mjml = self._process_includes(rendered_mjml)
+            
+            # Convert to HTML
+            html_output = mjml2html(processed_mjml)
             
             return html_output
             
         except Exception as e:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
             raise
+            
+    def _process_includes(self, mjml_content: str) -> str:
+        """
+        Process all include tags in the MJML content
+        """
+        # Process CSS includes
+        mjml_content = self._process_css_includes(mjml_content)
+        
+        # Process MJML includes
+        mjml_content = self._process_mjml_includes(mjml_content)
+        
+        return mjml_content
+    
+    def _process_css_includes(self, mjml_content: str) -> str:
+        """
+        Process mj-include tags for CSS files
+        """
+        pattern = r'<mj-include\s+path="([^"]+)"\s+type="css"\s*/>'
+        
+        def replace_css_include(match):
+            path = match.group(1)
+            # Remove leading ./ if present
+            if path.startswith('./'):
+                path = path[2:]
+            
+            try:
+                with open(os.path.join(self.templates_dir, path), 'r') as f:
+                    css_content = f.read()
+                    return f'<mj-style>{css_content}</mj-style>'
+            except Exception as e:
+                logger.error(f"Error including CSS file {path}: {str(e)}")
+                return f"<!-- Error including CSS {path} -->"
+        
+        return re.sub(pattern, replace_css_include, mjml_content)
+            
+    def _process_mjml_includes(self, mjml_content: str) -> str:
+        """
+        Process mj-include tags for MJML files
+        """
+        pattern = r'<mj-include\s+path="([^"]+)"\s*/>'
+        
+        def replace_mjml_include(match):
+            path = match.group(1)
+            # Remove leading ./ if present
+            if path.startswith('./'):
+                path = path[2:]
+            
+            try:
+                with open(os.path.join(self.templates_dir, path), 'r') as f:
+                    mjml_include = f.read()
+                    return mjml_include
+            except Exception as e:
+                logger.error(f"Error including MJML file {path}: {str(e)}")
+                return f"<!-- Error including MJML {path} -->"
+        
+        return re.sub(pattern, replace_mjml_include, mjml_content)
