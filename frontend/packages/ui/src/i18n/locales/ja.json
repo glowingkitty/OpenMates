@@ -2331,8 +2331,8 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"<a href='https://app.openmates.com'>app.openmates.org</a>で",
-            "en_original": "on <a href='https://app.openmates.com'>app.openmates.org</a>",
+            "text":"<a href='https://app.openmates.org'>app.openmates.org</a>で",
+            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
             "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
         },
         "did_not_request_email": {
