@@ -32,12 +32,35 @@ mark {
 
 /* Code container styling */
 .code-container {
-    width: 300px;
-    background-color: #f3f3f3 !important;
+    width: 270px !important;
+    max-width: 270px;
+    margin: 0 auto;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25) !important;
     border-radius: 24px !important;
+    background-color: #f3f3f3 !important;
 }
 
 .dark-mode .code-container {
     background-color: #212121 !important;
+}
+
+/* Force columns to stay side by side on mobile */
+@media only screen and (max-width:480px) {
+  .code-container .mj-group-content {
+    width: 100% !important;
+    display: flex !important;
+  }
+  
+  .code-container .mj-column {
+    display: table-cell !important;
+    width: auto !important;
+  }
+  
+  .code-container .mj-column-per-30 {
+    width: 30% !important;
+  }
+  
+  .code-container .mj-column-per-70 {
+    width: 70% !important;
+  }
 }

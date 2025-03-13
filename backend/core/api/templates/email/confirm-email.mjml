@@ -34,15 +34,17 @@
       </mj-section>
       
       <!-- Code container with specified styling - properly placed and styled -->
-      <mj-section css-class="code-container" padding="0">
-        <mj-column width="30%">
-          <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
-        </mj-column>
-        <mj-column width="70%">
-          <mj-text font-size="25px" font-weight="regular" align="center" padding-right="80px">
-            {{ code }}
-          </mj-text>
-        </mj-column>
+      <mj-section css-class="code-container" padding="10px">
+        <mj-group>
+          <mj-column width="30%" vertical-align="middle">
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+          </mj-column>
+          <mj-column width="70%" vertical-align="middle">
+            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="60px">
+              {{ code }}
+            </mj-text>
+          </mj-column>
+        </mj-group>
       </mj-section>
       
       <mj-section>
