@@ -262,17 +262,12 @@ class EmailTemplateService:
     def _add_shared_urls_to_context(self, context: Dict[Any, Any]) -> None:
         """Add shared URLs from the YAML file to the template context"""
         try:
-            # Print full YAML structure for debugging
-            logger.info(f"Full shared_urls structure: {self.shared_urls}")
-            
             # Determine environment
             is_prod = context.get('is_production', True)
             env_name = 'production' if is_prod else 'development'
-            logger.info(f"Using environment: {env_name}")
             
             # Get base website URL
             base_website = self.shared_urls.get('urls', {}).get('base', {}).get('website', {}).get(env_name, '')
-            logger.info(f"Base website URL: {base_website}")
             
             # Fix double slashes: remove trailing slash from base_website if present
             if base_website and base_website.endswith('/'):
@@ -306,35 +301,26 @@ class EmailTemplateService:
             context['discord_url'] = contact_urls.get('discord', '')
             context['contact_email'] = contact_urls.get('email', '')
             
-            # Verify URLs are not empty
+            # Verify URLs are not empty - use the base fallback URL if needed
             if not context['privacy_url']:
-                logger.warning("Privacy URL is empty")
+                context['privacy_url'] = "https://openmates.org"
             if not context['terms_url']:
-                logger.warning("Terms URL is empty")
+                context['terms_url'] = "https://openmates.org"
             if not context['imprint_url']:
-                logger.warning("Imprint URL is empty")
+                context['imprint_url'] = "https://openmates.org"
             if not context['discord_url']:
-                logger.warning("Discord URL is empty")
+                context['discord_url'] = "https://openmates.org"
             if not context['contact_email']:
-                logger.warning("Contact email is empty")
-            
-            # Log the final URLs
-            logger.info(f"Final URLs in template context:")
-            logger.info(f"  privacy_url: {context['privacy_url']}")
-            logger.info(f"  terms_url: {context['terms_url']}")
-            logger.info(f"  imprint_url: {context['imprint_url']}")
-            logger.info(f"  discord_url: {context['discord_url']}")
-            logger.info(f"  contact_email: {context['contact_email']}")
+                context['contact_email'] = "contact@openmates.org"
             
         except Exception as e:
-            logger.error(f"Error adding shared URLs to context: {str(e)}")
-            # Set fallback values
-            context['privacy_url'] = "https://openmates.org/legal/privacy"
-            context['terms_url'] = "https://openmates.org/legal/terms"
-            context['imprint_url'] = "https://openmates.org/legal/imprint"
-            context['discord_url'] = "https://discord.gg/bHtkxZB5cc"
+            logger.error(f"Error adding shared URLs to context: {str(e)}. Using fallback URL.")
+            # Set all fallbacks to just the base URL
+            context['privacy_url'] = "https://openmates.org"
+            context['terms_url'] = "https://openmates.org"
+            context['imprint_url'] = "https://openmates.org"
+            context['discord_url'] = "https://openmates.org"
             context['contact_email'] = "contact@openmates.org"
-            logger.info("Using fallback URLs")
 
     def _embed_images_safely(self, content: str) -> str:
         """
