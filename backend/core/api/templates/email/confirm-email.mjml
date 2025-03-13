@@ -17,7 +17,7 @@
     <mj-include path="./components/header.mjml" />
     
     <!-- Main Content -->
-    <mj-wrapper css-class="content-box" padding="20px">
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section>
         <mj-column>
           <mj-image width="50px" height="50px" src="icons/mail.png" align="center" />
@@ -33,10 +33,18 @@
           <mj-text>
             {{ code }}
           </mj-text>
-          <mj-text>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="40px">
+          {% else %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="40px">
+          {% endif %}
             {{ t.email.on_openmates.text }}
           </mj-text>
-          <mj-text>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080">
+          {% else %}
+          <mj-text font-size="14px" color="#808080">
+          {% endif %}
             {{ t.email.did_not_request_email.text }}
           </mj-text>
         </mj-column>

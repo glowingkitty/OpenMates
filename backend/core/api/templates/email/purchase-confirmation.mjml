@@ -17,7 +17,7 @@
     <mj-include path="./components/header.mjml" />
     
     <!-- Main Content -->
-    <mj-wrapper css-class="content-box" padding="20px">
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section>
         <mj-column>
           <mj-image width="50px" height="50px" src="icons/coins.png" align="center" />
@@ -27,10 +27,14 @@
           <mj-text font-size="22px" padding-bottom="50px">
             {{ t.email.thanks_for_purchase.text }}
           </mj-text>
-          <mj-text>
+          <mj-text padding-bottom="80px">
             {{ t.email.invoice_pdf_attached.text }}
           </mj-text>
-          <mj-text>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080">
+          {% else %}
+          <mj-text font-size="14px" color="#808080">
+          {% endif %}
             {{ t.email.click_here_for_refund.text }}
           </mj-text>
         </mj-column>
