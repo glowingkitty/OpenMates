@@ -2,6 +2,7 @@ import os
 import logging
 import re
 import base64
+import yaml
 from typing import Dict, Any
 from mjml import mjml2html
 from jinja2 import Template, Environment, FileSystemLoader
@@ -39,8 +40,121 @@ class EmailTemplateService:
         # Cache hit counter for analytics
         self.cache_hits = 0
         
+        # Load shared URL configuration
+        self.shared_urls = self._load_shared_urls()
+        
         logger.info(f"Email template service initialized with templates directory: {self.templates_dir}")
     
+    def _load_shared_urls(self) -> Dict:
+        """Load the shared URL configuration from YAML file"""
+        shared_config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
+            "shared", "config", "urls.yaml"
+        )
+        
+        logger.info(f"Attempting to load shared URL config from: {shared_config_path}")
+        
+        try:
+            # First check if file exists
+            if not os.path.exists(shared_config_path):
+                logger.error(f"Shared URL config file does not exist at {shared_config_path}")
+                return self._get_fallback_urls()
+                
+            # Try to open and parse the file
+            with open(shared_config_path, 'r') as file:
+                file_content = file.read()
+                logger.debug(f"Raw YAML content:\n{file_content}")
+                
+                config = yaml.safe_load(file_content)
+                
+                # Basic validation
+                if not isinstance(config, dict):
+                    logger.error("Loaded YAML is not a dictionary")
+                    return self._get_fallback_urls()
+                    
+                if 'urls' not in config:
+                    logger.error("YAML is missing 'urls' key")
+                    return self._get_fallback_urls()
+                    
+                logger.info(f"Successfully loaded shared URL configuration")
+                return config
+                
+        except yaml.YAMLError as e:
+            logger.error(f"YAML parsing error: {str(e)}")
+            return self._get_fallback_urls()
+        except Exception as e:
+            logger.error(f"Unexpected error loading shared URL configuration: {str(e)}")
+            return self._get_fallback_urls()
+
+    def _get_fallback_urls(self) -> Dict:
+        """Return fallback URLs when YAML loading fails"""
+        logger.warning("Using fallback URL configuration")
+        return {
+            "urls": {
+                "legal": {
+                    "privacy": "/legal/privacy",
+                    "terms": "/legal/terms", 
+                    "imprint": "/legal/imprint"
+                },
+                "contact": {
+                    "email": "contact@openmates.org",
+                    "discord": "https://discord.gg/bHtkxZB5cc"
+                },
+                "base": {
+                    "website": {
+                        "production": "https://openmates.org",
+                        "development": "http://localhost:5173"
+                    }
+                }
+            }
+        }
+
+    def debug_shared_urls(self):
+        """Debug helper to print URL configuration"""
+        logger.info("=== DEBUG: Shared URL Configuration ===")
+        
+        try:
+            # Print the raw configuration
+            logger.info(f"Raw configuration: {self.shared_urls}")
+            
+            # Print specific parts that we need
+            urls = self.shared_urls.get('urls', {})
+            
+            logger.info("Legal URLs:")
+            legal = urls.get('legal', {})
+            for key, value in legal.items():
+                logger.info(f"  {key}: {value}")
+                
+            logger.info("Contact URLs:")
+            contact = urls.get('contact', {})
+            for key, value in contact.items():
+                logger.info(f"  {key}: {value}")
+                
+            logger.info("Base URLs:")
+            base = urls.get('base', {})
+            for env_type, env_urls in base.items():
+                logger.info(f"  {env_type}:")
+                for env, url in env_urls.items():
+                    logger.info(f"    {env}: {url}")
+                    
+            # Test URL construction
+            logger.info("Test URL construction:")
+            for env in ['development', 'production']:
+                base_url = urls.get('base', {}).get('website', {}).get(env, '')
+                if base_url.endswith('/'):
+                    base_url = base_url[:-1]
+                    
+                for path_key, path in legal.items():
+                    if not path.startswith('/'):
+                        path = '/' + path
+                    full_url = f"{base_url}{path}"
+                    logger.info(f"  {env} {path_key}: {full_url}")
+                    
+        except Exception as e:
+            logger.error(f"Error in debug_shared_urls: {str(e)}")
+            
+        logger.info("=== END DEBUG ===")
+
     def render_template(self, template_name: str, context: Dict[Any, Any], lang: str = "en") -> str:
         """
         Render an MJML email template with the given context and language
@@ -54,6 +168,9 @@ class EmailTemplateService:
             Rendered HTML string
         """
         try:
+            # Add shared URLs to context
+            self._add_shared_urls_to_context(context)
+            
             # Load template file
             template_path = f"{template_name}.mjml"
             with open(os.path.join(self.templates_dir, template_path), 'r') as f:
@@ -142,6 +259,83 @@ class EmailTemplateService:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
             raise
     
+    def _add_shared_urls_to_context(self, context: Dict[Any, Any]) -> None:
+        """Add shared URLs from the YAML file to the template context"""
+        try:
+            # Print full YAML structure for debugging
+            logger.info(f"Full shared_urls structure: {self.shared_urls}")
+            
+            # Determine environment
+            is_prod = context.get('is_production', True)
+            env_name = 'production' if is_prod else 'development'
+            logger.info(f"Using environment: {env_name}")
+            
+            # Get base website URL
+            base_website = self.shared_urls.get('urls', {}).get('base', {}).get('website', {}).get(env_name, '')
+            logger.info(f"Base website URL: {base_website}")
+            
+            # Fix double slashes: remove trailing slash from base_website if present
+            if base_website and base_website.endswith('/'):
+                base_website = base_website[:-1]
+                
+            # Process legal URLs
+            legal_urls = self.shared_urls.get('urls', {}).get('legal', {})
+            
+            # Process privacy URL - ensure path starts with slash
+            privacy_path = legal_urls.get('privacy', '')
+            if privacy_path and not privacy_path.startswith('/'):
+                privacy_path = '/' + privacy_path
+            
+            # Process terms URL - ensure path starts with slash
+            terms_path = legal_urls.get('terms', '')
+            if terms_path and not terms_path.startswith('/'):
+                terms_path = '/' + terms_path
+            
+            # Process imprint URL - ensure path starts with slash
+            imprint_path = legal_urls.get('imprint', '')
+            if imprint_path and not imprint_path.startswith('/'):
+                imprint_path = '/' + imprint_path
+            
+            # Construct full URLs
+            context['privacy_url'] = f"{base_website}{privacy_path}" if base_website and privacy_path else ""
+            context['terms_url'] = f"{base_website}{terms_path}" if base_website and terms_path else ""
+            context['imprint_url'] = f"{base_website}{imprint_path}" if base_website and imprint_path else ""
+            
+            # Get contact URLs
+            contact_urls = self.shared_urls.get('urls', {}).get('contact', {})
+            context['discord_url'] = contact_urls.get('discord', '')
+            context['contact_email'] = contact_urls.get('email', '')
+            
+            # Verify URLs are not empty
+            if not context['privacy_url']:
+                logger.warning("Privacy URL is empty")
+            if not context['terms_url']:
+                logger.warning("Terms URL is empty")
+            if not context['imprint_url']:
+                logger.warning("Imprint URL is empty")
+            if not context['discord_url']:
+                logger.warning("Discord URL is empty")
+            if not context['contact_email']:
+                logger.warning("Contact email is empty")
+            
+            # Log the final URLs
+            logger.info(f"Final URLs in template context:")
+            logger.info(f"  privacy_url: {context['privacy_url']}")
+            logger.info(f"  terms_url: {context['terms_url']}")
+            logger.info(f"  imprint_url: {context['imprint_url']}")
+            logger.info(f"  discord_url: {context['discord_url']}")
+            logger.info(f"  contact_email: {context['contact_email']}")
+            
+        except Exception as e:
+            logger.error(f"Error adding shared URLs to context: {str(e)}")
+            # Set fallback values
+            context['privacy_url'] = "https://openmates.org/legal/privacy"
+            context['terms_url'] = "https://openmates.org/legal/terms"
+            context['imprint_url'] = "https://openmates.org/legal/imprint"
+            context['discord_url'] = "https://discord.gg/bHtkxZB5cc"
+            context['contact_email'] = "contact@openmates.org"
+            logger.info("Using fallback URLs")
+
     def _embed_images_safely(self, content: str) -> str:
         """
         A safer version of image embedding that handles problematic Base64 data

@@ -1,0 +1,25 @@
+# URLs shared between frontend and email templates
+urls:
+  # Legal URLs - relative paths that will be combined with base URLs
+  legal:
+    privacy: "/legal/privacy"
+    terms: "/legal/terms"
+    imprint: "/legal/imprint"
+  
+  # Contact information
+  contact:
+    email: "contact@openmates.org"
+    discord: "https://discord.gg/bHtkxZB5cc"
+    github: null
+  
+  # Base URLs for different environments
+  base:
+    website:
+      development: "http://localhost:5173"
+      production: "https://openmates.org"
+    webapp:
+      development: "http://localhost:5174" 
+      production: "https://app.openmates.org"
+    api:
+      development: "http://localhost:8000"
+      production: "https://api.openmates.org"

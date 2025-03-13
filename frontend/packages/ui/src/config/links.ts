@@ -2,39 +2,60 @@
  * Central configuration file for all external links used across the website
  * This makes it easier to maintain and update links in one place
  */
+import { parse } from 'yaml';
 
-// Update contact email from environment
-export const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'contact@openmates.org';
+// Load shared URL configuration
+let sharedUrls: Record<string, any> = { urls: { base: {}, legal: {}, contact: {} } };
+
+// Try to load the shared YAML file
+try {
+  const yamlModule = import.meta.glob('/../../../../../../shared/config/urls.yaml', { eager: true, as: 'raw' });
+  const yamlPath = Object.keys(yamlModule)[0];
+  if (yamlPath) {
+    const yamlContent = yamlModule[yamlPath] as string;
+    sharedUrls = parse(yamlContent);
+  }
+} catch (error) {
+  console.error('Failed to load shared URL configuration:', error);
+}
+
+// Use contact email from shared config or environment variable
+export const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 
+  sharedUrls?.urls?.contact?.email || 'contact@openmates.org';
 
 // Create external links with dynamic email
 export const externalLinks = {
-    // Social/Community
-    discord: "https://discord.gg/bHtkxZB5cc",
-    github: null,
+  // Social/Community
+  discord: sharedUrls?.urls?.contact?.discord || "https://discord.gg/bHtkxZB5cc",
+  github: sharedUrls?.urls?.contact?.github || null,
 
-    // Contact
-    get email() {
-        return `mailto:${contactEmail}`;
-    },
+  // Contact
+  get email() {
+    return `mailto:${contactEmail}`;
+  },
 
-    // Legal
-    legal: {
-        privacyPolicy: "/legal/privacy",
-        terms: "/legal/terms",
-        imprint: "/legal/imprint",
-    }
+  // Legal
+  legal: {
+    privacyPolicy: sharedUrls?.urls?.legal?.privacy || "/legal/privacy",
+    terms: sharedUrls?.urls?.legal?.terms || "/legal/terms",
+    imprint: sharedUrls?.urls?.legal?.imprint || "/legal/imprint",
+  }
 } as const;
 
-// Load base URLs from environment
+// Load base URLs from shared config or environment
 export const baseUrls = {
-    website: {
-        development: import.meta.env.VITE_WEBSITE_URL_DEV || 'http://localhost:5173',
-        production: import.meta.env.VITE_WEBSITE_URL_PROD || 'https://openmates.org'
-    },
-    webapp: {
-        development: import.meta.env.VITE_WEBAPP_URL_DEV || 'http://localhost:5174',
-        production: import.meta.env.VITE_WEBAPP_URL_PROD || 'https://app.openmates.org'
-    }
+  website: {
+    development: import.meta.env.VITE_WEBSITE_URL_DEV || 
+      sharedUrls?.urls?.base?.website?.development || 'http://localhost:5173',
+    production: import.meta.env.VITE_WEBSITE_URL_PROD || 
+      sharedUrls?.urls?.base?.website?.production || 'https://openmates.org'
+  },
+  webapp: {
+    development: import.meta.env.VITE_WEBAPP_URL_DEV || 
+      sharedUrls?.urls?.base?.webapp?.development || 'http://localhost:5174',
+    production: import.meta.env.VITE_WEBAPP_URL_PROD || 
+      sharedUrls?.urls?.base?.webapp?.production || 'https://app.openmates.org'
+  }
 } as const;
 
 // Helper to get correct base URL
