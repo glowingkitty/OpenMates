@@ -5,34 +5,53 @@
     </mj-column>
 </mj-section>
 
-<!-- Footer -->
-<mj-section css-class="footer" full-width="full-width" padding="20px 0">
+<!-- Header Footer Text -->
+<mj-section css-class="footer" full-width="full-width" padding="20px 0 10px 0">
   <mj-column>
-    <mj-text>
+    <!-- This email was sent by - centered and white -->
+    <mj-text align="center" color="#ffffff">
       {{ t.email.this_email_was_sent_by.text }}
     </mj-text>
-    <mj-text>
+  </mj-column>
+</mj-section>
+
+<!-- Two column layout for legal and contact -->
+<mj-section css-class="footer" full-width="full-width" padding="0 0 10px 0">
+  <!-- Left column - Legal section -->
+  <mj-column width="50%">
+    <mj-text align="left" color="#ffffff">
       {{ t.email.legal.text }}
     </mj-text>
-    <mj-text>
+    <mj-text align="left" color="#BFBFBF">
       {{ t.email.imprint.text }}
     </mj-text>
-    <mj-text>
+    <mj-text align="left" color="#BFBFBF">
       {{ t.email.privacy.text }}
     </mj-text>
-    <mj-text>
+    <mj-text align="left" color="#BFBFBF">
       {{ t.email.terms_and_conditions.text }}
     </mj-text>
-    <mj-text>
+  </mj-column>
+  
+  <!-- Right column - Contact section -->
+  <mj-column width="50%">
+    <mj-text align="left" color="#ffffff">
       {{ t.email.contact.text }}
     </mj-text>
-    <mj-text>
+    <mj-text align="left" color="#BFBFBF">
       {{ t.email.discord.text }}
     </mj-text>
-    <mj-text>
+    <mj-text align="left" color="#BFBFBF">
       {{ t.email.email.text }}
     </mj-text>
-    <mj-text>
+  </mj-column>
+</mj-section>
+
+<!-- Made in EU Footer Section -->
+<mj-section css-class="footer" full-width="full-width" padding="10px 0 20px 0">
+  <mj-column>
+    <!-- Made in EU - centered and white -->
+    <mj-text align="center" color="#ffffff">
       {{ t.email.made_in_eu.text }}
     </mj-text>
   </mj-column>

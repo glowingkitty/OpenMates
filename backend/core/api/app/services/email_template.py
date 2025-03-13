@@ -84,17 +84,26 @@ class EmailTemplateService:
     
     def _process_brand_name(self, content: str, dark_mode: bool = False) -> str:
         """
-        Replace all occurrences of "OpenMates" with a link containing appropriately styled "Open" and "Mates" parts
+        Replace all occurrences of "OpenMates" with a link containing appropriately styled "Open" and "Mates" parts.
+        Uses special styling for occurrences within footer sections.
         """
-        # Determine the color for "Mates" based on dark mode
+        # Determine the color for "Mates" based on dark mode for regular occurrences
         mates_color = "#e6e6e6" if dark_mode else "#000000"
         
-        # Create a replacement with inline styling
-        replacement = f'<a href="https://openmates.org" target="_blank" style="text-decoration: none;">' \
-                     f'<mark>Open</mark><span style="color: {mates_color};">Mates</span></a>'
+        # First, handle OpenMates in footer sections with special colors
+        footer_pattern = r'(<mj-section[^>]*css-class="footer"[^>]*>.*?)OpenMates(.*?</mj-section>)'
+        footer_replacement = r'\1<a href="https://openmates.org" target="_blank" style="text-decoration: none;">' \
+                            r'<span style="color: #FFFFFF;">Open</span><span style="color: #1C1C1C;">Mates</span></a>\2'
         
-        # Replace "OpenMates" with our specially styled link
-        content = content.replace("OpenMates", replacement)
+        # Replace "OpenMates" in footer sections with the special styling
+        content = re.sub(footer_pattern, footer_replacement, content, flags=re.DOTALL)
+        
+        # Create regular replacement with inline styling for non-footer occurrences
+        regular_replacement = f'<a href="https://openmates.org" target="_blank" style="text-decoration: none;">' \
+                             f'<mark>Open</mark><span style="color: {mates_color};">Mates</span></a>'
+        
+        # Replace remaining "OpenMates" with our regular styled link
+        content = content.replace("OpenMates", regular_replacement)
         
         return content
     
