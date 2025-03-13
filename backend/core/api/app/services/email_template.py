@@ -47,10 +47,8 @@ class EmailTemplateService:
     
     def _load_shared_urls(self) -> Dict:
         """Load the shared URL configuration from YAML file"""
-        shared_config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
-            "shared", "config", "urls.yaml"
-        )
+        # Simplified path that works with Docker volume mount
+        shared_config_path = "/shared/config/urls.yaml"
         
         logger.info(f"Attempting to load shared URL config from: {shared_config_path}")
         

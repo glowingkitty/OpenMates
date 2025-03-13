@@ -30,6 +30,7 @@ services:
       - ./api:/app
       - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
       - ../../frontend/packages/ui/src/i18n/locales:/translations  # Mount frontend translations
+      - ../../shared:/shared  # Mount shared directory for configuration
     networks:
       - openmates
     depends_on:
