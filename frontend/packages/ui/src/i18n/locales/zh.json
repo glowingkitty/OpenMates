@@ -2406,8 +2406,8 @@
             "context": "Email header for privacy policy update"
         },
         "you_can_see_the_new_privacy_policy": {
-            "text":"您可以在 <a href='{privacy_policy_url}'>openmates.org/legal/privacy</a> 查看新的隐私政策",
-            "en_original": "You can see the new privacy policy under <a href='{privacy_policy_url}'>openmates.org/legal/privacy</a>",
+            "text":"您可以在 <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> 查看新的隐私政策",
+            "en_original": "You can see the new privacy policy under <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>",
             "context": "Email body for privacy policy update"
         },
         "purchase_confirmation": {

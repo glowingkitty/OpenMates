@@ -1951,7 +1951,7 @@
             "context": "Email header for privacy policy update"
         },
         "you_can_see_the_new_privacy_policy": {
-            "text": "You can see the new privacy policy under <a href='{privacy_policy_url}'>openmates.org/legal/privacy</a>",
+            "text": "You can see the new privacy policy under <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>",
             "context": "Email body for privacy policy update"
         },
         "purchase_confirmation": {
