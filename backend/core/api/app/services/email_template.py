@@ -6,8 +6,12 @@ from typing import Dict, Any
 from mjml import mjml2html
 from jinja2 import Template, Environment, FileSystemLoader
 from premailer import transform  # Add this import for CSS inlining
+import cssutils  # Add this import to configure cssutils logger
 
 from app.services.translations import TranslationService
+
+# Configure cssutils logger to suppress email-specific CSS property warnings
+cssutils.log.setLevel(logging.ERROR)  # Only show ERROR level messages from cssutils
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,13 @@ class EmailTemplateService:
         
         # Initialize translation service
         self.translation_service = TranslationService()
+        
+        # Initialize image cache
+        self.image_cache = {}
+        # Maximum cache size (number of images to store in memory)
+        self.max_cache_size = 50
+        # Cache hit counter for analytics
+        self.cache_hits = 0
         
         logger.info(f"Email template service initialized with templates directory: {self.templates_dir}")
     
@@ -134,9 +145,14 @@ class EmailTemplateService:
     def _embed_images_safely(self, content: str) -> str:
         """
         A safer version of image embedding that handles problematic Base64 data
+        Now with image caching
         """
         # Pattern to match mj-image tags with src attributes pointing to PNG files
         pattern = r'<mj-image([^>]*?)src="([^"]+\.png)"([^>]*?)(/?)>'
+        
+        # Log cache stats periodically
+        if self.cache_hits > 0 and self.cache_hits % 10 == 0:
+            logger.info(f"Image cache stats: {len(self.image_cache)} cached images, {self.cache_hits} cache hits")
         
         def replace_with_base64(match):
             before_src = match.group(1)
@@ -146,8 +162,8 @@ class EmailTemplateService:
             # Remove leading slash if present
             if image_path.startswith('/'):
                 image_path = image_path[1:]
-                
-            # Check if the path is relative to components/icons
+            
+            # Get full path to the image    
             if not os.path.isabs(image_path):
                 if image_path.startswith('icons/'):
                     # Path is relative to components folder
@@ -157,6 +173,11 @@ class EmailTemplateService:
                     full_path = os.path.join(self.templates_dir, image_path)
             else:
                 full_path = image_path
+            
+            # Check if image is in cache
+            if full_path in self.image_cache:
+                self.cache_hits += 1
+                return self.image_cache[full_path]
             
             try:
                 # Read the image file
@@ -169,9 +190,9 @@ class EmailTemplateService:
                 if len(img_data) > 30000:  # 30KB limit
                     logger.warning(f"Image {image_path} is too large ({len(img_data)} bytes), skipping embedding")
                     # Return original tag with proper self-closing format
-                    if not match.group(4):  # If it wasn't self-closing
-                        return f'<mj-image{before_src}src="{image_path}"{after_src} />'
-                    return match.group(0)
+                    replacement = f'<mj-image{before_src}src="{image_path}"{after_src} />'
+                    self._update_cache(full_path, replacement)
+                    return replacement
                 
                 # Convert to Base64
                 base64_data = base64.b64encode(img_data).decode('utf-8')
@@ -182,25 +203,43 @@ class EmailTemplateService:
                 # Create the replacement tag - ENSURE it's self-closing
                 replacement = f'<mj-image{before_src}src="{data_url}"{after_src} />'
                 
+                # Cache the result
+                self._update_cache(full_path, replacement)
+                
                 return replacement
             except FileNotFoundError:
                 logger.error(f"Image file not found: {full_path}")
                 # Return a properly formatted tag even if file wasn't found
-                if not match.group(4):  # If it wasn't self-closing
-                    return f'<mj-image{before_src}src="{image_path}"{after_src} />'
-                return match.group(0)
+                replacement = f'<mj-image{before_src}src="{image_path}"{after_src} />'
+                return replacement
             except Exception as e:
                 logger.error(f"Error embedding image {image_path}: {str(e)}")
                 # Return a properly formatted tag
-                if not match.group(4):  # If it wasn't self-closing
-                    return f'<mj-image{before_src}src="{image_path}"{after_src} />'
-                return match.group(0)
+                replacement = f'<mj-image{before_src}src="{image_path}"{after_src} />'
+                return replacement
         
         # Replace all image references with Base64 data URLs
         result = re.sub(pattern, replace_with_base64, content)
         
         return result
     
+    def _update_cache(self, key: str, value: str) -> None:
+        """Update the image cache with LRU-like behavior"""
+        # If cache is at max size, remove the oldest entry
+        if len(self.image_cache) >= self.max_cache_size:
+            # Get first key (oldest) and remove it
+            oldest_key = next(iter(self.image_cache))
+            del self.image_cache[oldest_key]
+            logger.debug(f"Cache full, removed oldest entry: {oldest_key}")
+        
+        # Add new entry
+        self.image_cache[key] = value
+    
+    def clear_cache(self) -> None:
+        """Clear the image cache"""
+        self.image_cache = {}
+        logger.info("Image cache cleared")
+        
     def _process_brand_name(self, content: str, dark_mode: bool = False) -> str:
         """
         Replace all occurrences of "OpenMates" with a link containing appropriately styled "Open" and "Mates" parts.
