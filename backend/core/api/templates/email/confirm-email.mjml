@@ -30,7 +30,8 @@
           <mj-text>
             {{ t.email.enter_this_code.text }}
           </mj-text>
-          <mj-text>
+          <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="center" />
+          <mj-text font-size="25px" font-weight="regular">
             {{ code }}
           </mj-text>
           {% if darkmode %}
