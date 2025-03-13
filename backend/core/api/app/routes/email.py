@@ -15,6 +15,12 @@ async def preview_email_template(
     lang: str = Query("en", description="Language code for translations"),
     darkmode: bool = Query(False, description="Enable dark mode for the email"),
     code: str = Query(None, description="Verification code or token"),
+    refund_link: str = Query(None, description="Custom refund link URL"),
+    mailto_link_report_email: str = Query(None, description="Custom report email link"),
+    device: str = Query(None, description="Device type"),
+    os_with_version: str = Query(None, description="Operating system with version"),
+    count: str = Query(None, description="Count of items"),
+    logout_link_delete_invite_codes: str = Query(None, description="Logout and delete invite codes link"),
 ):
     """
     Preview an email template with specified parameters
@@ -23,7 +29,13 @@ async def preview_email_template(
         template_name: Name of the email template to render
         lang: Language code for translations
         darkmode: Whether to use dark mode styling
-        code: Verification code or token to include in the email
+        code: Verification code or token to include in the email (optional)
+        refund_link: Custom refund link (defaults to support email if not provided)
+        mailto_link_report_email: Custom report email link (defaults to support email if not provided)
+        device: Device type (optional)
+        os_with_version: Operating system version (optional)
+        count: Count of items (optional)
+        logout_link_delete_invite_codes: Logout and delete invite codes link (optional)
         
     Returns:
         Rendered HTML email
@@ -34,6 +46,12 @@ async def preview_email_template(
         
         # Add specific parameters to context
         context["code"] = code
+        context["refund_link"] = refund_link
+        context["mailto_link_report_email"] = mailto_link_report_email
+        context["device"] = device
+        context["os_with_version"] = os_with_version
+        context["count"] = count
+        context["logout_link_delete_invite_codes"] = logout_link_delete_invite_codes
         
         # Handle darkmode parameter specifically
         # Get the raw query param value to check what was actually passed
@@ -49,7 +67,10 @@ async def preview_email_template(
         
         # Add any other query parameters that might be needed
         for key, value in request.query_params.items():
-            if key not in ['darkmode', 'code', 'lang']:
+            if key not in ['darkmode', 'code', 'lang', 'refund_link', 
+                          'mailto_link_report_email', 'device', 
+                          'os_with_version', 'count', 
+                          'logout_link_delete_invite_codes']:
                 context[key] = value
         
         # Log the final context for debugging
