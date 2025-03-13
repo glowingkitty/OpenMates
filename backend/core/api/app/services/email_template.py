@@ -1,6 +1,7 @@
 import os
 import logging
 import re
+import base64
 from typing import Dict, Any
 from mjml import mjml2html
 from jinja2 import Template, Environment, FileSystemLoader
@@ -64,11 +65,59 @@ class EmailTemplateService:
             # Process brand name to add mark tags with appropriate styling
             rendered_mjml = self._process_brand_name(rendered_mjml, dark_mode)
             
-            # Process any mark tags in the rendered content
+            # Process any mark tags in the rendered content - make sure this works properly
             rendered_mjml = self._process_mark_tags(rendered_mjml)
+
+            # Log the MJML before image embedding
+            logger.debug(f"MJML content before image embedding (first 500 chars): {rendered_mjml[:500]}")
+            
+            # Use safer image embedding
+            rendered_mjml = self._embed_images_safely(rendered_mjml)
+            
+            # Log just a portion of the result to avoid excessive logging
+            logger.debug(f"MJML after image embedding (first 500 chars): {rendered_mjml[:500]}...")
+            logger.debug(f"MJML after image embedding (last 500 chars): ...{rendered_mjml[-500:]}")
             
             # Convert to HTML
-            html_output = mjml2html(rendered_mjml)
+            try:
+                # Add debug logging to show problematic sections
+                logger.debug("Attempting to process MJML to HTML")
+                html_output = mjml2html(rendered_mjml)
+                logger.debug("Successfully processed MJML to HTML")
+            except ValueError as e:
+                error_msg = str(e)
+                logger.error(f"MJML parsing error: {error_msg}")
+                
+                # Extract position information from error message if available
+                if "position" in error_msg:
+                    pos_match = re.search(r'position (\d+)\.\.(\d+)', error_msg)
+                    if pos_match:
+                        start_pos = int(pos_match.group(1))
+                        end_pos = int(pos_match.group(2))
+                        
+                        # Log more context around the problematic area
+                        context_start = max(0, start_pos - 100)
+                        context_end = min(len(rendered_mjml), end_pos + 100)
+                        
+                        # Log the problematic region with more context
+                        logger.error(f"Problematic MJML region (position {start_pos}-{end_pos}):")
+                        logger.error(f"Content before: '{rendered_mjml[context_start:start_pos]}'")
+                        logger.error(f"Problem token: '{rendered_mjml[start_pos:end_pos]}'")
+                        logger.error(f"Content after: '{rendered_mjml[end_pos:context_end]}'")
+                
+                # Try using original image links instead
+                logger.info("Falling back to original image links...")
+                try:
+                    # Use a different approach - instead of embedding, use HTTP URLs
+                    jinja_template = Template(processed_mjml)
+                    original_rendered = jinja_template.render(**context)
+                    processed_original = self._process_brand_name(original_rendered, dark_mode)
+                    processed_original = self._process_mark_tags(processed_original)
+                    html_output = mjml2html(processed_original)
+                    logger.info("Fallback to original image links successful!")
+                except Exception as e2:
+                    logger.error(f"All fallback attempts failed: {str(e2)}")
+                    raise e
             
             # Process links to style them
             html_output = self._process_link_tags(html_output)
@@ -81,6 +130,76 @@ class EmailTemplateService:
         except Exception as e:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}")
             raise
+    
+    def _embed_images_safely(self, content: str) -> str:
+        """
+        A safer version of image embedding that handles problematic Base64 data
+        """
+        # Pattern to match mj-image tags with src attributes pointing to PNG files
+        pattern = r'<mj-image([^>]*?)src="([^"]+\.png)"([^>]*?)(/?)>'
+        
+        def replace_with_base64(match):
+            before_src = match.group(1)
+            image_path = match.group(2)
+            after_src = match.group(3)
+            
+            # Remove leading slash if present
+            if image_path.startswith('/'):
+                image_path = image_path[1:]
+                
+            # Check if the path is relative to components/icons
+            if not os.path.isabs(image_path):
+                if image_path.startswith('icons/'):
+                    # Path is relative to components folder
+                    full_path = os.path.join(self.templates_dir, 'components', image_path)
+                else:
+                    # Path might be relative to templates directory
+                    full_path = os.path.join(self.templates_dir, image_path)
+            else:
+                full_path = image_path
+            
+            try:
+                # Read the image file
+                with open(full_path, 'rb') as img_file:
+                    img_data = img_file.read()
+                    
+                logger.debug(f"Reading image from {full_path}, size: {len(img_data)} bytes")
+                
+                # More conservative size limit - MJML parser has issues with very large Base64 strings
+                if len(img_data) > 30000:  # 30KB limit
+                    logger.warning(f"Image {image_path} is too large ({len(img_data)} bytes), skipping embedding")
+                    # Return original tag with proper self-closing format
+                    if not match.group(4):  # If it wasn't self-closing
+                        return f'<mj-image{before_src}src="{image_path}"{after_src} />'
+                    return match.group(0)
+                
+                # Convert to Base64
+                base64_data = base64.b64encode(img_data).decode('utf-8')
+                
+                # Create a clean data URL
+                data_url = f"data:image/png;base64,{base64_data}"
+                
+                # Create the replacement tag - ENSURE it's self-closing
+                replacement = f'<mj-image{before_src}src="{data_url}"{after_src} />'
+                
+                return replacement
+            except FileNotFoundError:
+                logger.error(f"Image file not found: {full_path}")
+                # Return a properly formatted tag even if file wasn't found
+                if not match.group(4):  # If it wasn't self-closing
+                    return f'<mj-image{before_src}src="{image_path}"{after_src} />'
+                return match.group(0)
+            except Exception as e:
+                logger.error(f"Error embedding image {image_path}: {str(e)}")
+                # Return a properly formatted tag
+                if not match.group(4):  # If it wasn't self-closing
+                    return f'<mj-image{before_src}src="{image_path}"{after_src} />'
+                return match.group(0)
+        
+        # Replace all image references with Base64 data URLs
+        result = re.sub(pattern, replace_with_base64, content)
+        
+        return result
     
     def _process_brand_name(self, content: str, dark_mode: bool = False) -> str:
         """
@@ -110,12 +229,13 @@ class EmailTemplateService:
     def _process_mark_tags(self, content: str) -> str:
         """
         Replace all mark tags with spans that have inline styling
+        Use stronger styling to ensure background is removed
         """
         # Pattern to match <mark>content</mark>
         pattern = r'<mark>(.*?)<\/mark>'
         
-        # Replace with a span that has the desired styling
-        replacement = r'<span style="color: #4867CD; background-color: unset;">\1</span>'
+        # Replace with a span that has the desired styling with !important to ensure it overrides browser defaults
+        replacement = r'<span style="color: #4867CD !important; background-color: transparent !important; background: none !important;">\1</span>'
         
         # Perform the replacement
         processed_content = re.sub(pattern, replacement, content)

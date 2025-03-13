@@ -9,7 +9,7 @@
 <mj-section css-class="footer" full-width="full-width" padding="20px 0 10px 0">
   <mj-column>
     <!-- This email was sent by - centered and white -->
-    <mj-text align="center" color="#ffffff">
+    <mj-text align="center" color="#ffffff" font-size="14px">
       {{ t.email.this_email_was_sent_by.text }}
     </mj-text>
   </mj-column>
@@ -19,30 +19,30 @@
 <mj-section css-class="footer" full-width="full-width" padding="0 0 10px 0">
   <!-- Left column - Legal section -->
   <mj-column width="50%">
-    <mj-text align="left" color="#ffffff">
+    <mj-text align="left" color="#ffffff" font-size="14px" line-height="0.9">
       {{ t.email.legal.text }}
     </mj-text>
-    <mj-text align="left" color="#BFBFBF">
-      {{ t.email.imprint.text }}
+    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
+      <a href="{{ imprint_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.imprint.text }}</a>
     </mj-text>
-    <mj-text align="left" color="#BFBFBF">
-      {{ t.email.privacy.text }}
+    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
+      <a href="{{ privacy_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.privacy.text }}</a>
     </mj-text>
-    <mj-text align="left" color="#BFBFBF">
-      {{ t.email.terms_and_conditions.text }}
+    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="00.9">
+      <a href="{{ terms_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.terms_and_conditions.text }}</a>
     </mj-text>
   </mj-column>
   
   <!-- Right column - Contact section -->
   <mj-column width="50%">
-    <mj-text align="left" color="#ffffff">
+    <mj-text align="left" color="#ffffff" font-size="14px" line-height="0.9">
       {{ t.email.contact.text }}
     </mj-text>
-    <mj-text align="left" color="#BFBFBF">
-      {{ t.email.discord.text }}
+    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
+      <a href="{{ discord_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.discord.text }}</a>
     </mj-text>
-    <mj-text align="left" color="#BFBFBF">
-      {{ t.email.email.text }}
+    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
+      <a href="mailto:{{ contact_email }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.email.text }}</a>
     </mj-text>
   </mj-column>
 </mj-section>
@@ -50,9 +50,10 @@
 <!-- Made in EU Footer Section -->
 <mj-section css-class="footer" full-width="full-width" padding="10px 0 20px 0">
   <mj-column>
-    <!-- Made in EU - centered and white -->
-    <mj-text align="center" color="#ffffff">
+    <mj-text align="center" color="#ffffff" font-size="14px" line-height="1.2">
       {{ t.email.made_in_eu.text }}
     </mj-text>
+    <!-- EU Image - centered, 60x60 -->
+    <mj-image width="60px" height="60px" src="icons/eu.png" align="center" />
   </mj-column>
 </mj-section>
