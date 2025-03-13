@@ -29,3 +29,15 @@ mark {
 .dark-mode .footer {
     background-color: #293d7f !important;
 }
+
+/* Code container styling */
+.code-container {
+    width: 300px;
+    background-color: #f3f3f3 !important;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25) !important;
+    border-radius: 24px !important;
+}
+
+.dark-mode .code-container {
+    background-color: #212121 !important;
+}

@@ -30,10 +30,23 @@
           <mj-text>
             {{ t.email.enter_this_code.text }}
           </mj-text>
-          <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="center" />
-          <mj-text font-size="25px" font-weight="regular">
+        </mj-column>
+      </mj-section>
+      
+      <!-- Code container with specified styling - properly placed and styled -->
+      <mj-section css-class="code-container" padding="0">
+        <mj-column width="30%">
+          <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+        </mj-column>
+        <mj-column width="70%">
+          <mj-text font-size="25px" font-weight="regular" align="center" padding-right="80px">
             {{ code }}
           </mj-text>
+        </mj-column>
+      </mj-section>
+      
+      <mj-section>
+        <mj-column>
           {% if darkmode %}
           <mj-text font-size="14px" color="#808080" padding-bottom="40px">
           {% else %}
