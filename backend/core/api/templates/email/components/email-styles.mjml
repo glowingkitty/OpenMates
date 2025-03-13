@@ -1,0 +1,74 @@
+<mj-style>
+  body {
+      font-family: 'Lexend Deca', Arial, Helvetica, sans-serif;
+  }
+
+  .dark-mode {
+      background-color: #171717;
+  }
+  .light-mode {
+      background-color: #ffffff;
+  }
+  .content-box {
+      background-color: #f3f3f3;
+      border-radius: 17px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  }
+  .dark-mode .content-box {
+      background-color: #212121;
+  }
+
+  mark {
+      background-color: unset !important;
+      color: #4867CD !important;
+  }
+
+  .footer {
+      background-color: #4867CD !important;
+  }
+
+  .dark-mode .footer {
+      background-color: #293d7f !important;
+  }
+
+  /* Code container styling */
+  .code-container {
+      width: 270px !important;
+      max-width: 270px;
+      margin: 0 auto;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.25) !important;
+      border-radius: 24px !important;
+      background-color: #f3f3f3 !important;
+  }
+
+  .dark-mode .code-container {
+      background-color: #212121 !important;
+  }
+
+  /* Improved email client compatibility for responsive layout */
+  @media screen and (max-width:480px) {
+    .code-container table,
+    .code-container tbody,
+    .code-container tr,
+    .code-container td {
+      width: 100% !important;
+      display: block !important;
+      box-sizing: border-box !important;
+    }
+    
+    .code-container-inner {
+      display: flex !important;
+      align-items: center !important;
+    }
+    
+    .code-icon {
+      width: 30% !important;
+      display: inline-block !important;
+    }
+    
+    .code-text {
+      width: 70% !important;
+      display: inline-block !important;
+    }
+  }
+</mj-style>

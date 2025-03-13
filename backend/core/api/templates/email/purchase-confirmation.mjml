@@ -10,7 +10,8 @@
       <mj-text color="#000000" />
       {% endif %}
     </mj-attributes>
-    <mj-include path="./components/styles.css" type="css" />
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
   </mj-head>
   <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
     <!-- Header -->

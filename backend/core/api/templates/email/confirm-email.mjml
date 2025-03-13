@@ -10,7 +10,9 @@
       <mj-text color="#000000" />
       {% endif %}
     </mj-attributes>
-    <mj-include path="./components/styles.css" type="css" />
+    
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
   </mj-head>
   <mj-body css-class="{% if darkmode == False %}light-mode{% else %}dark-mode{% endif %}">
     <!-- Header -->
@@ -18,7 +20,7 @@
     
     <!-- Main Content -->
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
-      <mj-section>
+      <mj-section padding-bottom="10px">
         <mj-column>
           <mj-image width="50px" height="50px" src="icons/mail.png" align="center" />
           <mj-text font-size="30px">
@@ -27,21 +29,21 @@
           <mj-text font-size="22px" padding-bottom="50px">
             {{ t.email.to_chat_to_your_mates.text }}
           </mj-text>
-          <mj-text>
+          <mj-text padding-bottom="0">
             {{ t.email.enter_this_code.text }}
           </mj-text>
         </mj-column>
       </mj-section>
       
-      <!-- Code container with specified styling - properly placed and styled -->
+      <!-- Code container with improved email client compatibility -->
       {% if darkmode %}
       <mj-section css-class="code-container" padding="0" background-color="#171717" border-radius="24px">
-        <mj-group>
-          <mj-column width="30%" vertical-align="middle">
+        <mj-group css-class="code-container-inner">
+          <mj-column width="30%" vertical-align="middle" css-class="code-icon">
             <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
           </mj-column>
-          <mj-column width="70%" vertical-align="middle">
-            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="60px">
+          <mj-column width="70%" vertical-align="middle" css-class="code-text">
+            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
               {{ code }}
             </mj-text>
           </mj-column>
@@ -49,12 +51,12 @@
       </mj-section>
       {% else %}
       <mj-section css-class="code-container" padding="0" background-color="#ffffff" border-radius="24px">
-        <mj-group>
-          <mj-column width="30%" vertical-align="middle">
+        <mj-group css-class="code-container-inner">
+          <mj-column width="30%" vertical-align="middle" css-class="code-icon">
             <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
           </mj-column>
-          <mj-column width="70%" vertical-align="middle">
-            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="60px">
+          <mj-column width="70%" vertical-align="middle" css-class="code-text">
+            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
               {{ code }}
             </mj-text>
           </mj-column>
@@ -62,12 +64,12 @@
       </mj-section>
       {% endif %}
       
-      <mj-section>
+      <mj-section padding-top="10px">
         <mj-column>
           {% if darkmode %}
-          <mj-text font-size="14px" color="#808080" padding-bottom="40px">
+          <mj-text font-size="14px" color="#808080" padding-bottom="40px" padding-top="0px">
           {% else %}
-          <mj-text font-size="14px" color="#808080" padding-bottom="40px">
+          <mj-text font-size="14px" color="#808080" padding-bottom="40px" padding-top="0px">
           {% endif %}
             {{ t.email.on_openmates.text }}
           </mj-text>
