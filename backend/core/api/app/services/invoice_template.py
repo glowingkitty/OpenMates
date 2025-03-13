@@ -25,30 +25,50 @@ class ColoredLine(Flowable):
 
 class InvoiceTemplateService:
     def __init__(self):
-        self.font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Regular.ttf")
-        pdfmetrics.registerFont(TTFont('LexendDeca', self.font_path))
+        # Register both regular and bold fonts
+        self.regular_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Regular.ttf")
+        self.bold_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Bold.ttf")
+        
+        pdfmetrics.registerFont(TTFont('LexendDeca', self.regular_font_path))
+        pdfmetrics.registerFont(TTFont('LexendDeca-Bold', self.bold_font_path))
+        
+        # Create font family to link the fonts
+        pdfmetrics.registerFontFamily('LexendDeca', normal='LexendDeca', bold='LexendDeca-Bold')
+        
         self.styles = getSampleStyleSheet()
         
         # Modify existing styles
         self.styles['Normal'].fontName = 'LexendDeca'
         self.styles['Normal'].fontSize = 10
         
-        # Modify Heading1 instead of adding it
-        self.styles['Heading1'].fontName = 'LexendDeca'
+        # Create bold style
+        self.styles.add(ParagraphStyle(name='Bold', 
+                                      parent=self.styles['Normal'],
+                                      fontName='LexendDeca-Bold'))
+        
+        # Modify Heading1 to use bold font
+        self.styles['Heading1'].fontName = 'LexendDeca-Bold'
         self.styles['Heading1'].fontSize = 20
         
-        # Modify or add Heading2
+        # Modify or add Heading2 for OpenMates text
         if 'Heading2' in self.styles:
-            self.styles['Heading2'].fontName = 'LexendDeca'
+            self.styles['Heading2'].fontName = 'LexendDeca-Bold'
             self.styles['Heading2'].fontSize = 27
             self.styles['Heading2'].alignment = 2  # Right align
         else:
-            self.styles.add(ParagraphStyle(name='Heading2', fontName='LexendDeca', fontSize=27, alignment=2))
+            self.styles.add(ParagraphStyle(name='Heading2', 
+                                          fontName='LexendDeca-Bold', 
+                                          fontSize=27, 
+                                          alignment=2))
         
-        # Add styles that don't already exist
-        self.styles.add(ParagraphStyle(name='Bold', fontName='LexendDeca', fontSize=10, fontWeight='bold'))
-        self.styles.add(ParagraphStyle(name='ColorLinks', fontName='LexendDeca', fontSize=10, textColor=colors.HexColor("#7D74FF")))
-        self.styles.add(ParagraphStyle(name='FooterText', fontName='LexendDeca', fontSize=10, textColor=colors.HexColor("#848484")))
+        # Add additional styles
+        self.styles.add(ParagraphStyle(name='ColorLinks', 
+                                      parent=self.styles['Normal'],
+                                      textColor=colors.HexColor("#7D74FF")))
+        
+        self.styles.add(ParagraphStyle(name='FooterText', 
+                                      parent=self.styles['Normal'],
+                                      textColor=colors.HexColor("#848484")))
         
         # Define colors
         self.top_line_color = colors.HexColor("#5951D0")
@@ -94,30 +114,34 @@ class InvoiceTemplateService:
         elements.append(header_table)
         elements.append(Spacer(1, 24))
         
-        # Add invoice details with proper alignment
+        # Add invoice details aligned to the left edge
         invoice_data_table = [
             [Paragraph("Invoice number:", self.styles['Normal']), Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
             [Paragraph("Date of issue:", self.styles['Normal']), Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
             [Paragraph("Date due:", self.styles['Normal']), Paragraph(invoice_data['date_due'], self.styles['Normal'])]
         ]
         
-        invoice_table = Table(invoice_data_table, colWidths=[100, 200])
+        # Use full width and align properly
+        invoice_table = Table(invoice_data_table, colWidths=[100, doc.width-100])
         invoice_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Remove left padding to align with edge
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(invoice_table)
         elements.append(Spacer(1, 24))
         
         # Create three-column layout: sender, receiver, and usage info
-        sender_details = f'<b>OpenMates</b><br/>Name Nachname<br/>Mustermann Str. 14<br/>12344 Frankfurt<br/>Deutschland<br/>support@openmates.org<br/>VAT: DE9281313'
-        sender_paragraph = Paragraph(sender_details, self.styles['Normal'])
+        # Use Bold style for specific parts
+        sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
+        sender_details = Paragraph("Name Nachname<br/>Mustermann Str. 14<br/>12344 Frankfurt<br/>Deutschland<br/>support@openmates.org<br/>VAT: DE9281313", self.styles['Normal'])
         
-        receiver_details = f'<b>Bill to:</b><br/>{invoice_data["receiver_name"]}<br/>{invoice_data["receiver_address"]}<br/>{invoice_data["receiver_city"]}<br/>{invoice_data["receiver_country"]}<br/>{invoice_data["receiver_email"]}<br/>VAT: {invoice_data["receiver_vat"]}'
-        receiver_paragraph = Paragraph(receiver_details, self.styles['Normal'])
+        bill_to_title = Paragraph("<b>Bill to:</b>", self.styles['Bold'])
+        receiver_details = Paragraph(f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{invoice_data['receiver_country']}<br/>{invoice_data['receiver_email']}<br/>VAT: {invoice_data['receiver_vat']}", self.styles['Normal'])
         
-        usage_title = Paragraph("<b>View usage:</b>", self.styles['Normal'])
+        usage_title = Paragraph("<b>View usage:</b>", self.styles['Bold'])
         usage_url = Paragraph(invoice_data['qr_code_url'], self.styles['Normal'])
         
         # Generate QR code
@@ -128,20 +152,39 @@ class InvoiceTemplateService:
         d = Drawing(70, 70, transform=[70./width, 0, 0, 70./height, 0, 0])
         d.add(qr_code)
         
-        # Create a table for the usage column
-        usage_elements = [[usage_title], [usage_url], [d]]
-        usage_table = Table(usage_elements)
+        # Create tables for each column to ensure proper layout
+        sender_table = Table([[sender_title], [sender_details]])
+        sender_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+        ]))
+        
+        receiver_table = Table([[bill_to_title], [receiver_details]])
+        receiver_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+        ]))
+        
+        usage_table = Table([[usage_title], [usage_url], [d]])
+        usage_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+        ]))
         
         # Combine the three columns
         info_table = Table([
-            [sender_paragraph, receiver_paragraph, usage_table]
+            [sender_table, receiver_table, usage_table]
         ], colWidths=[doc.width/3, doc.width/3, doc.width/3])
         
         info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-            ('ALIGN', (1, 0), (1, 0), 'LEFT'),
-            ('ALIGN', (2, 0), (2, 0), 'LEFT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(info_table)
         
@@ -150,23 +193,31 @@ class InvoiceTemplateService:
         elements.append(ColoredLine(doc.width, 1, self.separator_color))
         elements.append(Spacer(1, 24))
         
-        # Add item details with proper styling
-        item_data = [
-            ["Description", "Quantity", "Unit price\n(excl. tax)", "Total\n(excl. tax)"],
-            [f"{invoice_data['credits']} credits", "1x", f"€{invoice_data['unit_price']:.2f}", f"€{invoice_data['total_price']:.2f}"]
+        # Add item details with proper styling - no borders or background
+        column_headers = [
+            Paragraph("<b>Description</b>", self.styles['Bold']),
+            Paragraph("<b>Quantity</b>", self.styles['Bold']),
+            Paragraph("<b>Unit price<br/>(excl. tax)</b>", self.styles['Bold']),
+            Paragraph("<b>Total<br/>(excl. tax)</b>", self.styles['Bold'])
         ]
-        table = Table(item_data, colWidths=[doc.width*0.4, doc.width*0.2, doc.width*0.2, doc.width*0.2])
+        
+        data_row = [
+            Paragraph(f"{invoice_data['credits']} credits", self.styles['Normal']),
+            Paragraph("1x", self.styles['Normal']),
+            Paragraph(f"€{invoice_data['unit_price']:.2f}", self.styles['Normal']),
+            Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])
+        ]
+        
+        # Create table without visible borders
+        table = Table([column_headers, data_row], colWidths=[doc.width*0.4, doc.width*0.2, doc.width*0.2, doc.width*0.2])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.top_line_color),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (2, 0), (3, -1), 'CENTER'),  # Center align Unit price and Total columns
-            ('FONTNAME', (0, 0), (-1, -1), 'LexendDeca'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, self.separator_color),  # Only line below headers
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(table)
         
