@@ -58,7 +58,7 @@ class EmailTemplateService:
             # First check if file exists
             if not os.path.exists(shared_config_path):
                 logger.error(f"Shared URL config file does not exist at {shared_config_path}")
-                return self._get_fallback_urls()
+                return {}
                 
             # Try to open and parse the file
             with open(shared_config_path, 'r') as file:
@@ -70,90 +70,21 @@ class EmailTemplateService:
                 # Basic validation
                 if not isinstance(config, dict):
                     logger.error("Loaded YAML is not a dictionary")
-                    return self._get_fallback_urls()
+                    return {}
                     
                 if 'urls' not in config:
                     logger.error("YAML is missing 'urls' key")
-                    return self._get_fallback_urls()
+                    return {}
                     
                 logger.info(f"Successfully loaded shared URL configuration")
                 return config
                 
         except yaml.YAMLError as e:
             logger.error(f"YAML parsing error: {str(e)}")
-            return self._get_fallback_urls()
+            return {}
         except Exception as e:
             logger.error(f"Unexpected error loading shared URL configuration: {str(e)}")
-            return self._get_fallback_urls()
-
-    def _get_fallback_urls(self) -> Dict:
-        """Return fallback URLs when YAML loading fails"""
-        logger.warning("Using fallback URL configuration")
-        return {
-            "urls": {
-                "legal": {
-                    "privacy": "/legal/privacy",
-                    "terms": "/legal/terms", 
-                    "imprint": "/legal/imprint"
-                },
-                "contact": {
-                    "email": "contact@openmates.org",
-                    "discord": "https://discord.gg/bHtkxZB5cc"
-                },
-                "base": {
-                    "website": {
-                        "production": "https://openmates.org",
-                        "development": "http://localhost:5173"
-                    }
-                }
-            }
-        }
-
-    def debug_shared_urls(self):
-        """Debug helper to print URL configuration"""
-        logger.info("=== DEBUG: Shared URL Configuration ===")
-        
-        try:
-            # Print the raw configuration
-            logger.info(f"Raw configuration: {self.shared_urls}")
-            
-            # Print specific parts that we need
-            urls = self.shared_urls.get('urls', {})
-            
-            logger.info("Legal URLs:")
-            legal = urls.get('legal', {})
-            for key, value in legal.items():
-                logger.info(f"  {key}: {value}")
-                
-            logger.info("Contact URLs:")
-            contact = urls.get('contact', {})
-            for key, value in contact.items():
-                logger.info(f"  {key}: {value}")
-                
-            logger.info("Base URLs:")
-            base = urls.get('base', {})
-            for env_type, env_urls in base.items():
-                logger.info(f"  {env_type}:")
-                for env, url in env_urls.items():
-                    logger.info(f"    {env}: {url}")
-                    
-            # Test URL construction
-            logger.info("Test URL construction:")
-            for env in ['development', 'production']:
-                base_url = urls.get('base', {}).get('website', {}).get(env, '')
-                if base_url.endswith('/'):
-                    base_url = base_url[:-1]
-                    
-                for path_key, path in legal.items():
-                    if not path.startswith('/'):
-                        path = '/' + path
-                    full_url = f"{base_url}{path}"
-                    logger.info(f"  {env} {path_key}: {full_url}")
-                    
-        except Exception as e:
-            logger.error(f"Error in debug_shared_urls: {str(e)}")
-            
-        logger.info("=== END DEBUG ===")
+            return {}
 
     def render_template(self, template_name: str, context: Dict[Any, Any], lang: str = "en") -> str:
         """
@@ -292,35 +223,23 @@ class EmailTemplateService:
                 imprint_path = '/' + imprint_path
             
             # Construct full URLs
-            context['privacy_url'] = f"{base_website}{privacy_path}" if base_website and privacy_path else ""
-            context['terms_url'] = f"{base_website}{terms_path}" if base_website and terms_path else ""
-            context['imprint_url'] = f"{base_website}{imprint_path}" if base_website and imprint_path else ""
+            context['privacy_url'] = f"{base_website}{privacy_path}" if base_website and privacy_path else "https://openmates.org"
+            context['terms_url'] = f"{base_website}{terms_path}" if base_website and terms_path else "https://openmates.org"
+            context['imprint_url'] = f"{base_website}{imprint_path}" if base_website and imprint_path else "https://openmates.org"
             
             # Get contact URLs
             contact_urls = self.shared_urls.get('urls', {}).get('contact', {})
-            context['discord_url'] = contact_urls.get('discord', '')
-            context['contact_email'] = contact_urls.get('email', '')
-            
-            # Verify URLs are not empty - use the base fallback URL if needed
-            if not context['privacy_url']:
-                context['privacy_url'] = "https://openmates.org"
-            if not context['terms_url']:
-                context['terms_url'] = "https://openmates.org"
-            if not context['imprint_url']:
-                context['imprint_url'] = "https://openmates.org"
-            if not context['discord_url']:
-                context['discord_url'] = "https://openmates.org"
-            if not context['contact_email']:
-                context['contact_email'] = "contact@openmates.org"
+            context['discord_url'] = contact_urls.get('discord', '') or "https://openmates.org"
+            context['contact_email'] = contact_urls.get('email', '') or "https://openmates.org"
             
         except Exception as e:
             logger.error(f"Error adding shared URLs to context: {str(e)}. Using fallback URL.")
             # Set all fallbacks to just the base URL
             context['privacy_url'] = "https://openmates.org"
-            context['terms_url'] = "https://openmates.org"
+            context['terms_url'] = "https://openmates.org" 
             context['imprint_url'] = "https://openmates.org"
             context['discord_url'] = "https://openmates.org"
-            context['contact_email'] = "contact@openmates.org"
+            context['contact_email'] = "https://openmates.org"
 
     def _embed_images_safely(self, content: str) -> str:
         """
