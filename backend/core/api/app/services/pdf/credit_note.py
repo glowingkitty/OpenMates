@@ -41,7 +41,10 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         unit_price = self._get_price_for_credits(total_credits, currency)
         
         # Calculate the refund amount based on the proportion of unused credits
-        if total_credits > 0:
+        if credit_note_data.get('manual_refund_amount') is not None:
+            # Use the manually provided refund amount instead of calculating it
+            refund_amount = credit_note_data['manual_refund_amount']
+        elif total_credits > 0:
             refund_amount = (unused_credits / total_credits) * unit_price
         else:
             refund_amount = 0

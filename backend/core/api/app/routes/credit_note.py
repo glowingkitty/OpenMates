@@ -23,7 +23,8 @@ async def preview_credit_note(
     total_credits: int, 
     unused_credits: int, 
     lang: str = Query("en"), 
-    currency: str = Query("eur")
+    currency: str = Query("eur"),
+    refund_amount: float = Query(None, description="Optional manual override for the refund amount")
 ):
     try:
         # Ensure that unused_credits is not greater than total_credits
@@ -54,6 +55,10 @@ async def preview_credit_note(
             "card_name": "Visa",
             "card_last4": "1234"
         }
+        
+        # Add manual refund amount if provided
+        if refund_amount is not None:
+            credit_note_data['manual_refund_amount'] = refund_amount
         
         pdf_buffer = credit_note_template_service.generate_credit_note(credit_note_data, lang, currency)
         return StreamingResponse(

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, JSONResponse
-from app.services.invoice_template import InvoiceTemplateService
+from app.services.pdf.invoice import InvoiceTemplateService
 import io
 
 router = APIRouter(prefix="/v1/invoice", tags=["invoice"])
