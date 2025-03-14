@@ -56,6 +56,10 @@ class InvoiceTemplateService:
         self.regular_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Regular.ttf")
         self.bold_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Bold.ttf")
         
+        # Define languages not supported by LexendDeca (primarily CJK languages)
+        self.unsupported_languages = ['ja', 'zh', 'ko', 'zh-Hans', 'zh-Hant', 'ar', 'th', 'hi']
+        
+        # Register fonts
         pdfmetrics.registerFont(TTFont('LexendDeca', self.regular_font_path))
         pdfmetrics.registerFont(TTFont('LexendDeca-Bold', self.bold_font_path))
         
@@ -148,7 +152,7 @@ class InvoiceTemplateService:
         canvas.setFillColor(self.bottom_line_color)
         canvas.rect(0, 0, width, self.line_height, fill=1, stroke=0)
         
-        # Add translation disclaimer text for non-English languages
+        # Show translation disclaimer for non-English languages
         if self.current_lang != "en":
             # Use translated disclaimer text
             disclaimer_text = self.t["invoices_and_credit_notes"]["this_invoice_is_a_translation"]["text"]
@@ -210,9 +214,25 @@ class InvoiceTemplateService:
         except (KeyError, TypeError):
             # Return original country name if translation not found
             return country_name
+        
+    def _is_language_supported(self, lang):
+        """Check if a language is supported by LexendDeca font
+        
+        Args:
+            lang: Language code to check
+            
+        Returns:
+            True if the language is supported, False otherwise
+        """
+        return lang not in self.unsupported_languages
 
     def generate_invoice(self, invoice_data, lang="en"):
         """Generate an invoice PDF with the specified language"""
+        # Check if language is supported, fall back to English if not
+        if not self._is_language_supported(lang):
+            # Fall back to English silently
+            lang = "en"
+        
         # Set current language for use in _draw_header_footer
         self.current_lang = lang
         
