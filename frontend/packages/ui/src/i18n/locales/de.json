@@ -2628,7 +2628,7 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"Frage <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hilfe & Support), deinen digitalen Kollegen (über <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"Frage <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hilfe & Support), deine digitale Kollegin (über <a href='https://app.openmates.org'>app.openmates.org</a>)",
             "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
             "context": "second line in questions helper"
         },

@@ -544,7 +544,7 @@ class InvoiceTemplateService:
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
         ]))
         
         receiver_table = Table([[bill_to_title], [receiver_details]])
@@ -552,7 +552,7 @@ class InvoiceTemplateService:
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
         ]))
         
         usage_table = Table([
@@ -566,7 +566,7 @@ class InvoiceTemplateService:
             # Set explicit zero padding for all cells, especially the QR code cell
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
             # Special negative padding for QR code to force left alignment
             ('LEFTPADDING', (0, 2), (0, 2), -7),
         ]))
