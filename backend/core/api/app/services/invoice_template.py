@@ -253,10 +253,10 @@ class InvoiceTemplateService:
         
         # Create table with proper indent
         inner_table = Table([column_headers, data_row], 
-                          colWidths=[(doc.width-self.left_indent)*0.6,  # Description takes 60% (increased)
-                                     (doc.width-self.left_indent)*0.1,  # Quantity takes 10% (reduced)
-                                     (doc.width-self.left_indent)*0.15, # Unit price takes 15% (reduced)
-                                     (doc.width-self.left_indent)*0.15]) # Total takes 15% (reduced)
+                          colWidths=[(doc.width-self.left_indent)*0.55,  # Description takes 55% (decreased)
+                                     (doc.width-self.left_indent)*0.15,  # Quantity takes 15% (increased)
+                                     (doc.width-self.left_indent)*0.15,  # Unit price takes 15%
+                                     (doc.width-self.left_indent)*0.15]) # Total takes 15%
         inner_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (2, 0), (3, -1), 'CENTER'),  # Center align Unit price and Total columns
