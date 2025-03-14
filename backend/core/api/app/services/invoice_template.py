@@ -210,9 +210,12 @@ class InvoiceTemplateService:
             canvas.setFont('LexendDeca', 10)
             canvas.setFillColor(colors.HexColor("#848484"))
             
+            # Calculate x position to align with document content (doc's left margin + self.left_indent)
+            x_position = 36 + self.left_indent  # Match the left alignment of the main content
+            
             y_position = self.line_height + 25
             for line in disclaimer_lines:
-                canvas.drawString(40, y_position, line)
+                canvas.drawString(x_position, y_position, line)
                 y_position -= 12
 
     def _format_date_for_locale(self, date_str, lang='en'):
