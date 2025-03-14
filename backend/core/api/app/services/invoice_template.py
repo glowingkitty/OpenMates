@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -10,6 +11,12 @@ from reportlab.graphics.barcode.qr import QrCodeWidget
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import io
+import re
+
+from app.services.translations import TranslationService
+
+# Load environment variables
+load_dotenv()
 
 class ColoredLine(Flowable):
     """Custom flowable for drawing colored lines"""
@@ -25,6 +32,17 @@ class ColoredLine(Flowable):
 
 class InvoiceTemplateService:
     def __init__(self):
+        # Initialize translation service
+        self.translation_service = TranslationService()
+        
+        # Get sender details from environment variables
+        self.sender_addressline1 = os.getenv("INVOICE_SENDER_ADDRESSLINE1", "")
+        self.sender_addressline2 = os.getenv("INVOICE_SENDER_ADDRESSLINE2", "")
+        self.sender_addressline3 = os.getenv("INVOICE_SENDER_ADDRESSLINE3", "")
+        self.sender_country = os.getenv("INVOICE_SENDER_COUNTRY", "")
+        self.sender_email = "support@openmates.org"
+        self.sender_vat = os.getenv("INVOICE_SENDER_VAT", "")
+        
         # Register both regular and bold fonts
         self.regular_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Regular.ttf")
         self.bold_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Bold.ttf")
@@ -80,12 +98,38 @@ class InvoiceTemplateService:
         self.contact_url = "https://openmates.org/contact"
         self.terms_url = "https://openmates.org/terms"
         self.privacy_url = "https://openmates.org/privacy"
+        self.start_chat_with_help_mate_link = "https://app.openmates.org/chat/help"
+        self.discord_group_invite_code = os.getenv("DISCORD_GROUP_INVITE_CODE", "openmates")
+        self.email_address = "support@openmates.org"
         
         # Define line height for top and bottom bars
         self.line_height = 9
         
         # Add a small left indent to align elements properly
         self.left_indent = 10
+
+    def _sanitize_html_for_reportlab(self, text):
+        """
+        Sanitize HTML for ReportLab compatibility
+        
+        Args:
+            text: HTML text to sanitize
+            
+        Returns:
+            Sanitized text compatible with ReportLab
+        """
+        if not isinstance(text, str):
+            return text
+            
+        # Fix common HTML issues
+        text = text.replace("<br>", "<br/>")
+        text = text.replace("<br{", "<br/>{")
+        
+        # Remove any unclosed tags to prevent parsing errors
+        unclosed_pattern = r'<([a-zA-Z]+)(?![^<>]*>)'
+        text = re.sub(unclosed_pattern, r'', text)
+        
+        return text
 
     def _draw_header_footer(self, canvas, doc):
         """Draw the colored bars at the top and bottom of the page"""
@@ -99,14 +143,37 @@ class InvoiceTemplateService:
         canvas.setFillColor(self.bottom_line_color)
         canvas.rect(0, 0, width, self.line_height, fill=1, stroke=0)
         
-        # Add German disclaimer text just above the bottom line
-        # Use font size 10 to match other text and increase vertical spacing from bottom line
-        canvas.setFont('LexendDeca', 10)
-        canvas.setFillColor(colors.HexColor("#848484"))  # Same gray color as FooterText
-        canvas.drawString(40, self.line_height + 25, "Diese Rechnung ist eine Übersetzung der originalen englischen Rechnung.")
-        canvas.drawString(40, self.line_height + 13, "Die englische Version bleibt das rechtlich bindende Dokument für steuerliche Zwecke.")
+        # Add translation disclaimer text for non-English languages
+        if self.current_lang != "en":
+            # Use translated disclaimer text
+            disclaimer_text = self.t["invoices_and_credit_notes"]["this_invoice_is_a_translation"]["text"]
+            
+            # Convert <br> tags to line breaks for direct canvas writing
+            disclaimer_lines = disclaimer_text.replace("<br>", "<br/>").split("<br/>")
+            
+            canvas.setFont('LexendDeca', 10)
+            canvas.setFillColor(colors.HexColor("#848484"))
+            
+            y_position = self.line_height + 25
+            for line in disclaimer_lines:
+                canvas.drawString(40, y_position, line)
+                y_position -= 12
 
-    def generate_invoice(self, invoice_data):
+    def generate_invoice(self, invoice_data, lang="en"):
+        """Generate an invoice PDF with the specified language"""
+        # Set current language for use in _draw_header_footer
+        self.current_lang = lang
+        
+        # Get translations
+        self.t = self.translation_service.get_translations(lang, variables={
+            "card_provider": invoice_data.get("card_name", ""),
+            "last_four_digits": invoice_data.get("card_last4", ""),
+            "email_address": self.email_address,
+            "discord_group_invite_code": self.discord_group_invite_code,
+            "start_chat_with_help_mate_link": self.start_chat_with_help_mate_link,
+            "amount": invoice_data.get("credits", 0)
+        })
+        
         buffer = io.BytesIO()
         
         # Use the whole page width and adjust margins - reduced top margin
@@ -125,7 +192,7 @@ class InvoiceTemplateService:
         elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
         # Create header with Invoice and OpenMates side by side - no extra padding
-        invoice_text = Paragraph("Invoice", self.styles['Heading1'])
+        invoice_text = Paragraph(self._sanitize_html_for_reportlab(self.t["invoices_and_credit_notes"]["invoice"]["text"]), self.styles['Heading1'])
         
         # Create a custom paragraph with two differently colored parts for "OpenMates"
         open_text = '<font color="#4867CD">Open</font><font color="black">Mates</font>'
@@ -143,17 +210,14 @@ class InvoiceTemplateService:
         elements.append(Spacer(1, 24))
         
         # Fix invoice details alignment to match other elements
-        invoice_data_rows = [
-            [Paragraph("Invoice number:", self.styles['Normal']), Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
-            [Paragraph("Date of issue:", self.styles['Normal']), Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
-            [Paragraph("Date due:", self.styles['Normal']), Paragraph(invoice_data['date_due'], self.styles['Normal'])]
-        ]
-        
         # Direct approach without nested tables to fix alignment
         invoice_table = Table([
-            [Spacer(self.left_indent, 0), Paragraph("Invoice number:", self.styles['Normal']), Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
-            [Spacer(self.left_indent, 0), Paragraph("Date of issue:", self.styles['Normal']), Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
-            [Spacer(self.left_indent, 0), Paragraph("Date due:", self.styles['Normal']), Paragraph(invoice_data['date_due'], self.styles['Normal'])]
+            [Spacer(self.left_indent, 0), Paragraph(self.t["invoices_and_credit_notes"]["invoice_number"]["text"] + ":", self.styles['Normal']), 
+             Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
+            [Spacer(self.left_indent, 0), Paragraph(self.t["invoices_and_credit_notes"]["date_of_issue"]["text"] + ":", self.styles['Normal']), 
+             Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
+            [Spacer(self.left_indent, 0), Paragraph(self.t["invoices_and_credit_notes"]["date_due"]["text"] + ":", self.styles['Normal']), 
+             Paragraph(invoice_data['date_due'], self.styles['Normal'])]
         ], colWidths=[self.left_indent, 100, doc.width-self.left_indent-100])
         
         invoice_table.setStyle(TableStyle([
@@ -166,14 +230,20 @@ class InvoiceTemplateService:
         elements.append(invoice_table)
         elements.append(Spacer(1, 24))
         
+        # Create sender details string using environment variables
+        sender_details_str = f"OpenMates<br/>{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{self.sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
+        
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
-        sender_details = Paragraph("Name Nachname<br/>Mustermann Str. 14<br/>12344 Frankfurt<br/>Deutschland<br/>support@openmates.org<br/>VAT: DE9281313", self.styles['Normal'])
+        sender_details = Paragraph(sender_details_str, self.styles['Normal'])
         
-        bill_to_title = Paragraph("<b>Bill to:</b>", self.styles['Bold'])
-        receiver_details = Paragraph(f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{invoice_data['receiver_country']}<br/>{invoice_data['receiver_email']}<br/>VAT: {invoice_data['receiver_vat']}", self.styles['Normal'])
+        bill_to_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['bill_to']['text']}</b>", self.styles['Bold'])
+        receiver_details = Paragraph(
+            f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{invoice_data['receiver_country']}<br/>{invoice_data['receiver_email']}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}", 
+            self.styles['Normal']
+        )
         
-        usage_title = Paragraph("<b>View usage:</b>", self.styles['Bold'])
+        usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
         
         # Format URL properly with line break while maintaining a single clickable link
         url = invoice_data['qr_code_url']
@@ -245,14 +315,19 @@ class InvoiceTemplateService:
         
         # Add item details without extra padding
         column_headers = [
-            Paragraph("<b>Description</b>", self.styles['Bold']),
-            Paragraph("<b>Quantity</b>", self.styles['Bold']),
-            Paragraph("<b>Unit price<br/>(excl. tax)</b>", self.styles['Bold']),
-            Paragraph("<b>Total<br/>(excl. tax)</b>", self.styles['Bold'])
+            Paragraph(f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['description']['text'])}</b>", self.styles['Bold']),
+            Paragraph(f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['quantity']['text'])}</b>", self.styles['Bold']),
+            Paragraph(f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['unit_price_no_tax']['text'])}</b>", self.styles['Bold']),
+            Paragraph(f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['total_price_no_tax']['text'])}</b>", self.styles['Bold'])
         ]
         
+        # Format the credits text using the translation
+        credits_text = self._sanitize_html_for_reportlab(
+            self.t["invoices_and_credit_notes"]["credits_item"]["text"].replace("{amount}", str(invoice_data['credits']))
+        )
+        
         data_row = [
-            Paragraph(f"{invoice_data['credits']} credits", self.styles['Normal']),
+            Paragraph(credits_text, self.styles['Normal']),
             Paragraph("1x", self.styles['Normal']),
             Paragraph(f"€{invoice_data['unit_price']:.2f}", self.styles['Normal']),
             Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])
@@ -291,11 +366,11 @@ class InvoiceTemplateService:
         
         # Create data for totals table - remove bold from first two rows
         totals_data = [
-            [Paragraph("Total (excl. VAT)", self.styles['Normal']), 
+            [Paragraph(f"Total (excl. {self.t['invoices_and_credit_notes']['vat']['text']})", self.styles['Normal']), 
              Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])],
-            [Paragraph("VAT (0% *)", self.styles['Normal']), 
+            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']), 
              Paragraph("€0.00", self.styles['Normal'])],
-            [Paragraph("<b>Total paid (incl. VAT)</b>", self.styles['Bold']), 
+            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']), 
              Paragraph(f"<b>€{invoice_data['total_price']:.2f}</b>", self.styles['Bold'])]
         ]
         
@@ -334,37 +409,98 @@ class InvoiceTemplateService:
         elements.append(totals_table)
         elements.append(Spacer(1, 10))
         
-        # Add payment details - this is our reference position
-        # We will add left indent here too for consistency with paragraph style
-        payment_table = Table([[Spacer(self.left_indent, 0), 
-                              Paragraph(f"Paid with:<br/>{invoice_data['card_name']} card ending in {invoice_data['card_last4']}", self.styles['Normal'])]], 
-                              colWidths=[self.left_indent, doc.width-self.left_indent])
+        # Add payment details with translation - fix <br> tags
+        # Special handling for the paid_with text that might contain unclosed br tags
+        paid_with_text = self.t["invoices_and_credit_notes"]["paid_with"]["text"]
+        
+        # First fix any potential HTML issues
+        if "<br{" in paid_with_text:
+            paid_with_text = paid_with_text.replace("<br{", "<br/>{") 
+        
+        # Now replace variables
+        paid_with_text = paid_with_text.replace("{card_provider}", invoice_data["card_name"])
+        paid_with_text = paid_with_text.replace("{last_four_digits}", invoice_data["card_last4"])
+        
+        # Finally sanitize the HTML
+        paid_with_text = self._sanitize_html_for_reportlab(paid_with_text)
+        
+        try:
+            # Create paragraph with error catching
+            paid_with_paragraph = Paragraph(paid_with_text, self.styles['Normal'])
+            payment_table = Table([[Spacer(self.left_indent, 0), paid_with_paragraph]], 
+                                 colWidths=[self.left_indent, doc.width-self.left_indent])
+        except Exception as e:
+            # Fallback to plain text if HTML parsing fails
+            fallback_text = f"Paid with: {invoice_data['card_name']} card ending in {invoice_data['card_last4']}"
+            payment_table = Table([[Spacer(self.left_indent, 0), 
+                                  Paragraph(fallback_text, self.styles['Normal'])]], 
+                                  colWidths=[self.left_indent, doc.width-self.left_indent])
+        
         payment_table.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(payment_table)
         
-        # Add contact information with colored links - keep consistent indentation
-        contact_table = Table([[Spacer(self.left_indent, 0),
-                              Paragraph(f"If you have any questions, contact us at <a href='{self.contact_url}' color='#7D74FF'>openmates.org/contact</a> or read our <a href='{self.terms_url}' color='#7D74FF'>terms</a> and <a href='{self.privacy_url}' color='#7D74FF'>privacy policy</a>.", self.styles['Normal'])]], 
-                              colWidths=[self.left_indent, doc.width-self.left_indent])
-        contact_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(contact_table)
-        
-        # Add footer with same indentation
+        # Add contact information with questions helper
         elements.append(Spacer(1, 24))
+        
+        # Convert question helpers to paragraphs with proper links - fix <br> tags
+        questions_helper = [
+            Paragraph(f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['if_you_have_questions']['text'])}</b>", self.styles['Bold']),
+            Paragraph(self._sanitize_html_for_reportlab(
+                self.t['invoices_and_credit_notes']['ask_team_mates']['text']
+                .replace("{start_chat_with_help_mate_link}", self.start_chat_with_help_mate_link)
+            ), self.styles['Normal']),
+            Paragraph(self._sanitize_html_for_reportlab(
+                self.t['invoices_and_credit_notes']['check_the_documentation']['text']
+            ), self.styles['Normal']),
+            Paragraph(self._sanitize_html_for_reportlab(
+                self.t['invoices_and_credit_notes']['ask_in_discord']['text']
+                .replace("{discord_group_invite_code}", self.discord_group_invite_code)
+            ), self.styles['Normal']),
+            Paragraph(self._sanitize_html_for_reportlab(
+                self.t['invoices_and_credit_notes']['contact_via_email']['text']
+                .replace("{email_address}", self.email_address)
+            ), self.styles['Normal'])
+        ]
+        
+        # Add each question helper as a separate row
+        for helper_text in questions_helper:
+            helper_table = Table([[Spacer(self.left_indent, 0), helper_text]], 
+                               colWidths=[self.left_indent, doc.width-self.left_indent])
+            helper_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (1, 0), (1, 0), 2),
+            ]))
+            elements.append(helper_table)
+        
+        # Add footer with credit explainer - fix <br> tags
+        credits_explainer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['credits_explainer']['text'])
+        # For paragraph flow, convert <br/> to spaces when used in a paragraph
+        credits_explainer = re.sub(r'<br\s*/?>', ' ', credits_explainer)
+        
         footer_table = Table([[Spacer(self.left_indent, 0),
-                             Paragraph("Credits on OpenMates are used to chat with your digital team mates and to use apps on OpenMates. Credits cannot be payed out and a refund is only possible within the first 14 days of purchase, and only for the remaining credits in your user account.", self.styles['FooterText'])]], 
+                             Paragraph(credits_explainer, self.styles['FooterText'])]], 
                              colWidths=[self.left_indent, doc.width-self.left_indent])
         footer_table.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(footer_table)
+        
+        # Add VAT disclaimer
+        elements.append(Spacer(1, 10))
+        vat_disclaimer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
+        vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
+                                     Paragraph("* " + vat_disclaimer, self.styles['FooterText'])]], 
+                                     colWidths=[self.left_indent, doc.width-self.left_indent])
+        vat_disclaimer_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(vat_disclaimer_table)
         
         # Add spacer before bottom line
         elements.append(Spacer(1, 20))

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from app.services.invoice_template import InvoiceTemplateService
 import io
@@ -7,16 +7,16 @@ router = APIRouter(prefix="/v1/invoice", tags=["invoice"])
 invoice_template_service = InvoiceTemplateService()
 
 @router.post("/generate")
-async def generate_invoice(request: Request):
+async def generate_invoice(request: Request, lang: str = Query("en")):
     try:
         invoice_data = await request.json()
-        pdf_buffer = invoice_template_service.generate_invoice(invoice_data)
+        pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang)
         return StreamingResponse(io.BytesIO(pdf_buffer.getvalue()), media_type="application/pdf")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/preview")
-async def preview_invoice(credits: int):
+async def preview_invoice(credits: int, lang: str = Query("en")):
     try:
         invoice_data = {
             "invoice_number": "475D6855-004",
@@ -35,7 +35,7 @@ async def preview_invoice(credits: int):
             "card_name": "Visa",
             "card_last4": "XXXX"
         }
-        pdf_buffer = invoice_template_service.generate_invoice(invoice_data)
+        pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang)
         return StreamingResponse(io.BytesIO(pdf_buffer.getvalue()), media_type="application/pdf")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
