@@ -25,6 +25,8 @@ export const apiEndpoints = {
         setup_2fa_provider:         '/v1/auth/setup_2fa_provider',              // Save in profile which 2FA provider was used (to show correct 2FA setup instructions on login screen)
         accept_settings:            '/v1/auth/accept_settings',                 // Accept settings (default or custom)
         accept_mate_settings:       '/v1/auth/accept_mate_settings',            // Accept mate settings (default or custom), and AI providers
+        request_confirm_email_code: '/v1/auth/request_confirm_email_code',      // Request confirmation email code
+        check_confirm_email_code:   '/v1/auth/check_confirm_email_code',        // Check confirmation email code
     },
     login: {
         login:                      '/v1/auth/login',                           // Login with username and password. If 2FA is enabled and 2FA provider is saved, also returns the 2FA provider as hint.
@@ -52,5 +54,7 @@ export const apiEndpoints = {
 
 // Helper to get full API endpoint URL
 export function getApiEndpoint(path: string): string {
-    return `${getApiUrl()}${path}`;
+    // Get the base API URL from environment or use default
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    return `${apiBase}${path}`;
 }

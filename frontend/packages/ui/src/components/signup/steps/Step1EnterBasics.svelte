@@ -221,11 +221,42 @@
             return;
         }
 
-        // Continue with form submission
-        // TODO: Add your form submission logic here
+        try {
+            isLoading = true;
+            // Request email verification code
+            const response = await fetch(getApiEndpoint(apiEndpoints.signup.request_confirm_email_code), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    username: username,
+                    invite_code: inviteCode
+                }),
+            });
 
-        // Dispatch the next event to transition to step 2
-        dispatch('next');
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // Store data in localStorage for use in the next steps
+                localStorage.setItem('signupEmail', email);
+                localStorage.setItem('signupUsername', username);
+                localStorage.setItem('inviteCode', inviteCode);
+                
+                // Dispatch the next event to transition to step 2
+                dispatch('next');
+            } else {
+                // Show error message
+                showWarning = true;
+                console.error('Error requesting verification code:', data.message);
+            }
+        } catch (error) {
+            showWarning = true;
+            console.error('Error requesting verification code:', error);
+        } finally {
+            isLoading = false;
+        }
     }
 
     // Add debounce helper

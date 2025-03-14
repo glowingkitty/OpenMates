@@ -1,11 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, Header
 import logging
+import random
+import secrets
+from datetime import datetime, timedelta
+from typing import Dict, Tuple
 
-from app.schemas.auth import InviteCodeRequest, InviteCodeResponse
+from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
 from app.services.limiter import limiter
+from app.services.email_template import EmailTemplateService
 from app.utils.invite_code import validate_invite_code
 
 router = APIRouter(
@@ -14,6 +19,9 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+event_logger = logging.getLogger("app.events")
+
+# Remove in-memory storage and use cache_service instead
 
 def get_directus_service():
     from main import directus_service
@@ -26,6 +34,10 @@ def get_cache_service():
 def get_metrics_service():
     from main import metrics_service
     return metrics_service
+
+def get_email_template_service():
+    from app.services.email_template import EmailTemplateService
+    return EmailTemplateService()
 
 async def verify_allowed_origin(request: Request):
     """
@@ -69,3 +81,123 @@ async def check_invite_token_valid(
         metrics_service.track_invite_code_check(False)
         logger.error(f"Error validating invite code: {str(e)}", exc_info=True)
         return InviteCodeResponse(valid=False, message="An error occurred checking the invite code")
+
+@router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("3/minute")
+async def request_confirm_email_code(
+    request: Request,
+    email_request: RequestEmailCodeRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    email_template_service: EmailTemplateService = Depends(get_email_template_service)
+):
+    """
+    Generate and send a 6-digit confirmation code to the provided email.
+    """
+    try:
+        # Validate the invite code again to prevent abuse
+        is_valid, _ = await validate_invite_code(email_request.invite_code, directus_service, cache_service)
+        if not is_valid:
+            logger.warning(f"Invalid invite code used in email verification request: {email_request.invite_code}")
+            return RequestEmailCodeResponse(
+                success=False, 
+                message="Invalid invite code. Please go back and start again."
+            )
+            
+        # Generate a 6-digit code
+        verification_code = ''.join(random.choices('0123456789', k=6))
+        
+        # Store the code in cache with 20 minute expiration
+        # Fix: Update the parameter name from 'expiration' to 'ttl' (or the correct parameter)
+        cache_key = f"email_verification:{email_request.email}"
+        await cache_service.set(cache_key, verification_code, ttl=1200)  # 1200 seconds = 20 minutes
+        
+        # Store invite code in localStorage for resend functionality
+        # Save in cache for use during registration completion
+        invite_cache_key = f"invite_code:{email_request.email}"
+        await cache_service.set(invite_cache_key, email_request.invite_code, ttl=1200)
+        
+        # Log the event (but don't log the actual code in production)
+        event_logger.info(f"Email verification code generated for: {email_request.email}")
+        
+        # Send the email using the email template service
+        success = await email_template_service.send_email(
+            template="confirm-email",
+            recipient_email=email_request.email,
+            recipient_name=email_request.username,
+            context={
+                "code": verification_code, 
+                "username": email_request.username
+            }
+        )
+        
+        if not success:
+            logger.error(f"Failed to send verification email to: {email_request.email}")
+            return RequestEmailCodeResponse(
+                success=False, 
+                message="Failed to send verification email. Please try again."
+            )
+            
+        # Clean up expired codes is handled automatically by cache expiration
+            
+        return RequestEmailCodeResponse(
+            success=True, 
+            message="Verification code sent to your email."
+        )
+        
+    except Exception as e:
+        logger.error(f"Error requesting email verification code: {str(e)}", exc_info=True)
+        return RequestEmailCodeResponse(
+            success=False, 
+            message="An error occurred while sending the verification code."
+        )
+
+@router.post("/check_confirm_email_code", response_model=CheckEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("5/minute")
+async def check_confirm_email_code(
+    request: Request,
+    code_request: CheckEmailCodeRequest,
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Verify the 6-digit confirmation code for the provided email.
+    """
+    try:
+        # Get the code from cache
+        cache_key = f"email_verification:{code_request.email}"
+        stored_code = await cache_service.get(cache_key)
+        
+        # Check if we have a code for this email
+        if not stored_code:
+            logger.warning(f"Email verification attempted with no code on record: {code_request.email}")
+            return CheckEmailCodeResponse(
+                success=False, 
+                message="No verification code requested for this email or code expired."
+            )
+        
+        # Check if code matches
+        if stored_code != code_request.code:
+            logger.warning(f"Invalid verification code for: {code_request.email}")
+            return CheckEmailCodeResponse(
+                success=False, 
+                message="Invalid verification code. Please try again."
+            )
+        
+        # Code is valid - remove it from cache
+        await cache_service.delete(cache_key)
+        
+        # Log successful verification
+        event_logger.info(f"Email verified successfully for: {code_request.email}")
+        logger.info(f"Email verification successful for: {code_request.email}")
+        
+        return CheckEmailCodeResponse(
+            success=True, 
+            message="Email verified successfully."
+        )
+        
+    except Exception as e:
+        logger.error(f"Error checking email verification code: {str(e)}", exc_info=True)
+        return CheckEmailCodeResponse(
+            success=False, 
+            message="An error occurred while verifying the code."
+        )
