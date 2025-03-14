@@ -11,9 +11,15 @@ async def generate_credit_note(request: Request, lang: str = Query("en"), curren
     try:
         credit_note_data = await request.json()
         pdf_buffer = credit_note_template_service.generate_credit_note(credit_note_data, lang, currency)
+        
+        # Create a filename based on the credit note number
+        credit_note_number = credit_note_data.get('credit_note_number', 'unknown')
+        filename = f"openmates_credit_note_{credit_note_number}.pdf"
+        
         return StreamingResponse(
             io.BytesIO(pdf_buffer.getvalue()), 
-            media_type="application/pdf"
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -61,9 +67,14 @@ async def preview_credit_note(
             credit_note_data['manual_refund_amount'] = refund_amount
         
         pdf_buffer = credit_note_template_service.generate_credit_note(credit_note_data, lang, currency)
+        
+        # Create a preview filename using the sample credit note number
+        filename = f"openmates-credit-note-2025-03-15-U475D6855-CN001.pdf"
+        
         return StreamingResponse(
             io.BytesIO(pdf_buffer.getvalue()),
-            media_type="application/pdf"
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

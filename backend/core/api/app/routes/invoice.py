@@ -11,9 +11,15 @@ async def generate_invoice(request: Request, lang: str = Query("en"), currency: 
     try:
         invoice_data = await request.json()
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang, currency)
+        
+        # Create a filename based on the invoice number
+        invoice_number = invoice_data.get('invoice_number', 'unknown')
+        filename = f"openmates_invoice_{invoice_number}.pdf"
+        
         return StreamingResponse(
             io.BytesIO(pdf_buffer.getvalue()), 
-            media_type="application/pdf"
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -46,9 +52,14 @@ async def preview_invoice(credits: int, lang: str = Query("en"), currency: str =
         }
         
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang, currency)
+        
+        # Create a preview filename using the sample invoice number
+        filename = f"openmates-invoice-2025-03-15-U475D6855-I001.pdf"
+        
         return StreamingResponse(
             io.BytesIO(pdf_buffer.getvalue()),
-            media_type="application/pdf"
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
