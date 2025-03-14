@@ -2121,7 +2121,7 @@
             "context": "Total paid label"
         },
         "paid_with": {
-            "text": "Paid with:<br{card_provider} card ending in {last_four_digits}",
+            "text": "Paid with:<br>{card_provider} card ending in {last_four_digits}",
             "context": "Paid with label"
         },
         "credits_explainer": {

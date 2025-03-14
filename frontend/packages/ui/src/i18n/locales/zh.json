@@ -2619,7 +2619,7 @@
         },
         "paid_with": {
             "text":"支付方式：<br>末尾数字为 {last_four_digits} 的 {card_provider} 卡",
-            "en_original": "Paid with:<br{card_provider} card ending in {last_four_digits}",
+            "en_original": "Paid with:<br>{card_provider} card ending in {last_four_digits}",
             "context": "Paid with label"
         },
         "credits_explainer": {

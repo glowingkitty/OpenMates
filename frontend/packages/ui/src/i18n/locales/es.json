@@ -2609,7 +2609,7 @@
         },
         "paid_with": {
             "text":"Pagado con:<br>Tarjeta {card_provider} terminada en {last_four_digits}",
-            "en_original": "Paid with:<br{card_provider} card ending in {last_four_digits}",
+            "en_original": "Paid with:<br>{card_provider} card ending in {last_four_digits}",
             "context": "Paid with label"
         },
         "credits_explainer": {
