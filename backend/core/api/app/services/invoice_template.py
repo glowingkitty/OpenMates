@@ -1,4 +1,5 @@
 import os
+import yaml
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -95,7 +96,7 @@ class InvoiceTemplateService:
         # Add additional styles
         self.styles.add(ParagraphStyle(name='ColorLinks', 
                                       parent=self.styles['Normal'],
-                                      textColor=colors.HexColor("#7D74FF")))
+                                      textColor=colors.HexColor("#4867CD")))
         
         self.styles.add(ParagraphStyle(name='FooterText', 
                                       parent=self.styles['Normal'],
@@ -117,6 +118,9 @@ class InvoiceTemplateService:
         # Add a small left indent to align elements properly
         self.left_indent = 10
         
+        # Load pricing config
+        self.pricing_tiers = self._load_pricing_config()
+        
     def _sanitize_html_for_reportlab(self, text):
         """
         Sanitize HTML for ReportLab compatibility
@@ -134,10 +138,53 @@ class InvoiceTemplateService:
         text = text.replace("<br>", "<br/>")
         text = text.replace("<br{", "<br/>{")
         
-        # Remove any unclosed tags to prevent parsing errors
+        # Fix problematic nested link formatting
+        # Remove any href attributes that aren't part of <a> tags
+        text = re.sub(r'href=([\'"])(.*?)\1(?![^<]*>)', r'\2', text)
+        
+        # Handle unclosed tags to prevent parsing errors
         unclosed_pattern = r'<([a-zA-Z]+)(?![^<>]*>)'
         text = re.sub(unclosed_pattern, r'', text)
         
+        return text
+
+    def _replace_placeholders_safely(self, text, replacements):
+        """
+        Replace placeholders in text while respecting HTML structure
+        
+        Args:
+            text: Original text with placeholders
+            replacements: Dictionary of {placeholder: replacement_value}
+            
+        Returns:
+            Text with placeholders replaced safely
+        """
+        if not isinstance(text, str):
+            return text
+            
+        # First extract any links to avoid nesting issues
+        link_pattern = r'<a\s+href=[\'"]([^\'"]*)[\'"]>(.*?)<\/a>'
+        
+        def replace_link_placeholders(match):
+            href = match.group(1)
+            link_text = match.group(2)
+            
+            # Replace any placeholders in the href
+            for placeholder, value in replacements.items():
+                if placeholder in href:
+                    href = href.replace(placeholder, value)
+            
+            # Return properly formatted link
+            return f'<a href="{href}" color="#4867CD">{link_text}</a>'
+        
+        # First handle links to prevent nesting issues
+        text = re.sub(link_pattern, replace_link_placeholders, text)
+        
+        # Now replace any remaining placeholders in text
+        for placeholder, value in replacements.items():
+            if placeholder in text:
+                text = text.replace(placeholder, value)
+                
         return text
 
     def _draw_header_footer(self, canvas, doc):
@@ -247,27 +294,116 @@ class InvoiceTemplateService:
         # Join non-empty lines with HTML line breaks
         return "<br/>".join(lines)
 
-    def generate_invoice(self, invoice_data, lang="en"):
-        """Generate an invoice PDF with the specified language"""
+    def _load_pricing_config(self):
+        """Load pricing configuration from shared YAML file"""
+        # Use the correct path to the pricing.yml file
+        shared_pricing_path = '/shared/config/pricing.yml'
+        try:
+            with open(shared_pricing_path, 'r') as file:
+                config = yaml.safe_load(file)
+                return config.get('pricingTiers', [])
+        except Exception as e:
+            print(f"Error loading pricing config from {shared_pricing_path}: {e}")
+            return []
+
+    def _validate_credits(self, credits):
+        """Validate credits against available pricing tiers"""
+        valid_credits = [tier.get('credits') for tier in self.pricing_tiers]
+        if not valid_credits:
+            # If we couldn't load pricing tiers, just return the original value
+            return credits
+            
+        if credits in valid_credits:
+            return credits
+            
+        # If credits value is invalid, use the closest valid value
+        closest = min(valid_credits, key=lambda x: abs(x - credits))
+        print(f"Warning: Invalid credit amount {credits}, using closest valid value: {closest}")
+        return closest
+
+    def _get_price_for_credits(self, credits, currency='eur'):
+        """Get the price for the given credit amount from pricing config
+        
+        Args:
+            credits: The number of credits
+            currency: The currency code (default: 'eur')
+            
+        Returns:
+            The price in the specified currency or 0 if not found
+        """
+        # Normalize currency to lowercase
+        currency = currency.lower()
+        
+        for tier in self.pricing_tiers:
+            if tier.get('credits') == credits:
+                # Return the price in the specified currency or 0 if currency not found
+                return tier.get('price', {}).get(currency, 0)
+        
+        # If we can't find the exact match (shouldn't happen after validation)
+        print(f"Warning: No price found for {credits} credits in {currency}")
+        return 0
+
+    def _format_credits(self, credits):
+        """Format credits with thousand separator (e.g., 1.000)"""
+        return f"{credits:,}".replace(",", ".")
+        
+    def _format_link_safely(self, url, display_text=None):
+        """
+        Format a URL as a safe hyperlink for ReportLab
+        
+        Args:
+            url: The URL to link to
+            display_text: Optional text to display instead of the URL
+            
+        Returns:
+            Properly formatted HTML link
+        """
+        if not display_text:
+            display_text = url
+        
+        # Simple formatting without nesting tags for safety
+        return f'<a href="{url}" color="#4867CD">{display_text}</a>'
+    
+    def generate_invoice(self, invoice_data, lang="en", currency="eur"):
+        """Generate an invoice PDF with the specified language and currency
+        
+        Args:
+            invoice_data: Dictionary containing invoice data
+            lang: Language code (default: "en")
+            currency: Currency code (default: "eur")
+            
+        Returns:
+            PDF buffer
+        """
+        # Create a buffer for the PDF
+        buffer = io.BytesIO()
+        
+        # Set the current language for use throughout the template
+        self.current_lang = lang
+        
+        # Load translations for the specified language
+        self.t = self.translation_service.get_translations(lang)
+        
+        # Validate and get the credits from invoice data
+        credits = self._validate_credits(invoice_data.get('credits', 1000))
+        
+        # Format the credits for display
+        formatted_credits = self._format_credits(credits)
+        
+        # Get the unit price for these credits
+        unit_price = self._get_price_for_credits(credits, currency)
+        
+        # Set the unit and total price in the invoice data
+        invoice_data['unit_price'] = unit_price
+        invoice_data['total_price'] = unit_price  # Since quantity is 1
+        
         # Check if language is supported, fall back to English if not
         if not self._is_language_supported(lang):
             # Fall back to English silently
             lang = "en"
         
-        # Set current language for use in _draw_header_footer
-        self.current_lang = lang
-        
-        # Get translations
-        self.t = self.translation_service.get_translations(lang, variables={
-            "card_provider": invoice_data.get("card_name", ""),
-            "last_four_digits": invoice_data.get("card_last4", ""),
-            "email_address": self.email_address,
-            "discord_group_invite_code": self.discord_group_invite_code,
-            "start_chat_with_help_mate_link": self.start_chat_with_help_mate_link,
-            "amount": invoice_data.get("credits", 0)
-        })
-        
-        buffer = io.BytesIO()
+        # Normalize currency to lowercase
+        currency = currency.lower()
         
         # Use the whole page width and adjust margins - reduced top margin
         doc = SimpleDocTemplate(
@@ -460,14 +596,23 @@ class InvoiceTemplateService:
         
         # Format the credits text using the translation
         credits_text = self._sanitize_html_for_reportlab(
-            self.t["invoices_and_credit_notes"]["credits_item"]["text"].replace("{amount}", str(invoice_data['credits']))
+            self.t["invoices_and_credit_notes"]["credits_item"]["text"].replace("{amount}", formatted_credits)
         )
+        
+        # Get the appropriate currency symbol based on the currency
+        currency_symbols = {
+            'eur': '€',
+            'usd': '$',
+            'jpy': '¥',
+            # Add more currencies as needed
+        }
+        currency_symbol = currency_symbols.get(currency.lower(), '€')  # Default to Euro symbol
         
         data_row = [
             Paragraph(credits_text, self.styles['Normal']),
             Paragraph("1x", self.styles['Normal']),
-            Paragraph(f"€{invoice_data['unit_price']:.2f}", self.styles['Normal']),
-            Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])
+            Paragraph(f"{currency_symbol}{invoice_data['unit_price']:.2f}", self.styles['Normal']),
+            Paragraph(f"{currency_symbol}{invoice_data['total_price']:.2f}", self.styles['Normal'])
         ]
         
         # Create table with proper indent
@@ -504,11 +649,11 @@ class InvoiceTemplateService:
         # Create data for totals table - remove bold from first two rows
         totals_data = [
             [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']), 
-             Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])],
+             Paragraph(f"{currency_symbol}{invoice_data['total_price']:.2f}", self.styles['Normal'])],
             [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']), 
-             Paragraph("€0.00", self.styles['Normal'])],
+             Paragraph(f"{currency_symbol}0.00", self.styles['Normal'])],
             [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']), 
-             Paragraph(f"<b>€{invoice_data['total_price']:.2f}</b>", self.styles['Bold'])]
+             Paragraph(f"<b>{currency_symbol}{invoice_data['total_price']:.2f}</b>", self.styles['Bold'])]
         ]
         
         # Calculate column widths for the totals table
@@ -583,24 +728,68 @@ class InvoiceTemplateService:
         elements.append(Spacer(1, 24))
         
         # Convert question helpers to paragraphs with proper links - fix <br> tags
-        questions_helper = [
-            Paragraph(f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['if_you_have_questions']['text'])}</b>", self.styles['Bold']),
-            Paragraph(self._sanitize_html_for_reportlab(
-                self.t['invoices_and_credit_notes']['ask_team_mates']['text']
-                .replace("{start_chat_with_help_mate_link}", self.start_chat_with_help_mate_link)
-            ), self.styles['Normal']),
-            Paragraph(self._sanitize_html_for_reportlab(
-                self.t['invoices_and_credit_notes']['check_the_documentation']['text']
-            ), self.styles['Normal']),
-            Paragraph(self._sanitize_html_for_reportlab(
-                self.t['invoices_and_credit_notes']['ask_in_discord']['text']
-                .replace("{discord_group_invite_code}", self.discord_group_invite_code)
-            ), self.styles['Normal']),
-            Paragraph(self._sanitize_html_for_reportlab(
-                self.t['invoices_and_credit_notes']['contact_via_email']['text']
-                .replace("{email_address}", self.email_address)
-            ), self.styles['Normal'])
+        questions_helper_texts = [
+            # First paragraph doesn't need replacements
+            {
+                "text": f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['if_you_have_questions']['text'])}</b>",
+                "style": self.styles['Bold'],
+                "replacements": {}
+            },
+            # Second paragraph with safe placeholder replacement
+            {
+                "text": self.t['invoices_and_credit_notes']['ask_team_mates']['text'],
+                "style": self.styles['Normal'],
+                "replacements": {
+                    "{start_chat_with_help_mate_link}": self.start_chat_with_help_mate_link
+                }
+            },
+            # Third paragraph doesn't need replacements
+            {
+                "text": self.t['invoices_and_credit_notes']['check_the_documentation']['text'],
+                "style": self.styles['Normal'],
+                "replacements": {}
+            },
+            # Fourth paragraph with safe placeholder replacement
+            {
+                "text": self.t['invoices_and_credit_notes']['ask_in_discord']['text'],
+                "style": self.styles['Normal'],
+                "replacements": {
+                    "{discord_group_invite_code}": f"discord.gg/{self.discord_group_invite_code}"
+                }
+            },
+            # Fifth paragraph with safe placeholder replacement
+            {
+                "text": self.t['invoices_and_credit_notes']['contact_via_email']['text'],
+                "style": self.styles['Normal'],
+                "replacements": {
+                    "{email_address}": self.email_address
+                }
+            }
         ]
+        
+        # Process each question helper with appropriate replacements
+        questions_helper = []
+        for helper_data in questions_helper_texts:
+            # Apply replacements safely (respecting HTML structure)
+            processed_text = self._replace_placeholders_safely(
+                helper_data["text"],
+                helper_data["replacements"]
+            )
+            
+            # Sanitize the HTML
+            sanitized_text = self._sanitize_html_for_reportlab(processed_text)
+            
+            try:
+                # Create paragraph with error handling
+                paragraph = Paragraph(sanitized_text, helper_data["style"])
+                questions_helper.append(paragraph)
+            except Exception as e:
+                # Log the error for debugging
+                print(f"Error creating paragraph: {e}")
+                print(f"Problematic text: {sanitized_text}")
+                # Use a simpler fallback
+                fallback = "Please contact support@openmates.org if you have questions."
+                questions_helper.append(Paragraph(fallback, self.styles['Normal']))
         
         # Add each question helper as a separate row
         for helper_text in questions_helper:

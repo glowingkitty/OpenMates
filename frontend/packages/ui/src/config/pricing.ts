@@ -1,4 +1,4 @@
-import pricingYaml from './pricing.yml';
+import pricingYaml from '../../../../../shared/config/pricing.yml';
 
 export interface PricingTier {
   credits: number;

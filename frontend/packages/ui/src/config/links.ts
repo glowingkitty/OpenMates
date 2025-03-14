@@ -9,7 +9,7 @@ let sharedUrls: Record<string, any> = { urls: { base: {}, legal: {}, contact: {}
 
 // Try to load the shared YAML file
 try {
-  const yamlModule = import.meta.glob('/../../../../../../shared/config/urls.yaml', { eager: true, as: 'raw' });
+  const yamlModule = import.meta.glob('/../../../../../../shared/config/urls.yml', { eager: true, as: 'raw' });
   const yamlPath = Object.keys(yamlModule)[0];
   if (yamlPath) {
     const yamlContent = yamlModule[yamlPath] as string;

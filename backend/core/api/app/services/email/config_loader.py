@@ -13,7 +13,7 @@ def load_shared_urls() -> Dict[str, Any]:
         Dictionary with URL configurations
     """
     # Simplified path that works with Docker volume mount
-    shared_config_path = "/shared/config/urls.yaml"
+    shared_config_path = "/shared/config/urls.yml"
     
     logger.info(f"Attempting to load shared URL config from: {shared_config_path}")
     
