@@ -167,7 +167,17 @@ class InvoiceTemplateService:
         receiver_details = Paragraph(f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{invoice_data['receiver_country']}<br/>{invoice_data['receiver_email']}<br/>VAT: {invoice_data['receiver_vat']}", self.styles['Normal'])
         
         usage_title = Paragraph("<b>View usage:</b>", self.styles['Bold'])
-        usage_url = Paragraph(invoice_data['qr_code_url'], self.styles['Normal'])
+        
+        # Format URL properly with line break while maintaining a single clickable link
+        url = invoice_data['qr_code_url']
+        # Find a good spot to split the URL - after the domain
+        split_index = url.find('/', 8)  # Find first '/' after http(s)://
+        if (split_index != -1):
+            formatted_url = f"<a href='{url}'>{url[:split_index+1]}<br/>{url[split_index+1:]}</a>"
+        else:
+            formatted_url = f"<a href='{url}'>{url}</a>"
+            
+        usage_url = Paragraph(formatted_url, self.styles['Normal'])
         
         # Generate QR code
         qr_code = QrCodeWidget(invoice_data['qr_code_url'])
@@ -204,6 +214,8 @@ class InvoiceTemplateService:
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+            # Ensure QR code is left-aligned with text above
+            ('ALIGN', (0, 2), (0, 2), 'LEFT'),
         ]))
         
         # Add left indent to info table
