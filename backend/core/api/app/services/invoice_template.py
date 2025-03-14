@@ -80,6 +80,21 @@ class InvoiceTemplateService:
         self.contact_url = "https://openmates.org/contact"
         self.terms_url = "https://openmates.org/terms"
         self.privacy_url = "https://openmates.org/privacy"
+        
+        # Define line height for top and bottom bars
+        self.line_height = 9
+
+    def _draw_header_footer(self, canvas, doc):
+        """Draw the colored bars at the top and bottom of the page"""
+        width, height = A4
+        
+        # Draw top line at the absolute top of the page
+        canvas.setFillColor(self.top_line_color)
+        canvas.rect(0, height - self.line_height, width, self.line_height, fill=1, stroke=0)
+        
+        # Draw bottom line at the absolute bottom of the page
+        canvas.setFillColor(self.bottom_line_color)
+        canvas.rect(0, 0, width, self.line_height, fill=1, stroke=0)
 
     def generate_invoice(self, invoice_data):
         buffer = io.BytesIO()
@@ -90,14 +105,13 @@ class InvoiceTemplateService:
             pagesize=A4,
             leftMargin=36,
             rightMargin=36,
-            topMargin=36,
-            bottomMargin=36
+            topMargin=36 + self.line_height,  # Add the line height to the top margin
+            bottomMargin=36 + self.line_height  # Add the line height to the bottom margin
         )
         
         elements = []
         
-        # Add colored line at the top
-        elements.append(ColoredLine(doc.width + 72, 9, self.top_line_color))
+        # Remove the colored lines from the document flow since they'll be drawn directly on canvas
         elements.append(Spacer(1, 20))
         
         # Create header with Invoice and OpenMates side by side
@@ -109,7 +123,9 @@ class InvoiceTemplateService:
         
         header_table = Table([[invoice_text, openmates_text]], colWidths=[doc.width/2, doc.width/2])
         header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP')
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (0, 0), 0),  # Ensure left alignment for invoice text
+            ('RIGHTPADDING', (1, 0), (1, 0), 0)  # Ensure right alignment for OpenMates text
         ]))
         elements.append(header_table)
         elements.append(Spacer(1, 24))
@@ -169,7 +185,12 @@ class InvoiceTemplateService:
             ('BOTTOMPADDING', (0, 0), (0, 0), 6),
         ]))
         
-        usage_table = Table([[usage_title], [usage_url], [d]])
+        # Fix QR code alignment by using a more precise table structure
+        usage_table = Table([
+            [usage_title], 
+            [usage_url], 
+            [d]
+        ])
         usage_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -177,7 +198,7 @@ class InvoiceTemplateService:
             ('BOTTOMPADDING', (0, 0), (0, 0), 6),
         ]))
         
-        # Combine the three columns
+        # Combine the three columns with proper alignment
         info_table = Table([
             [sender_table, receiver_table, usage_table]
         ], colWidths=[doc.width/3, doc.width/3, doc.width/3])
@@ -185,6 +206,7 @@ class InvoiceTemplateService:
         info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(info_table)
         
@@ -249,7 +271,7 @@ class InvoiceTemplateService:
         # Add colored line at the bottom
         elements.append(ColoredLine(doc.width + 72, 9, self.bottom_line_color))
         
-        # Build PDF
-        doc.build(elements)
+        # Build PDF with header and footer callbacks
+        doc.build(elements, onFirstPage=self._draw_header_footer, onLaterPages=self._draw_header_footer)
         buffer.seek(0)
         return buffer
