@@ -2557,10 +2557,10 @@
             "en_original": "VAT",
             "context": "VAT number label"
         },
-        "bill_to": {
-            "text":"Facturar a:",
-            "en_original": "Bill to:",
-            "context": "Bill to label"
+        "receiver": {
+            "text":"Destinatario:",
+            "en_original": "Receiver:",
+            "context": "Receiver label"
         },
         "view_usage": {
             "text":"Ver uso",

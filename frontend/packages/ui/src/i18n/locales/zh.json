@@ -2567,10 +2567,10 @@
             "en_original": "VAT",
             "context": "VAT number label"
         },
-        "bill_to": {
-            "text":"收费方：",
-            "en_original": "Bill to:",
-            "context": "Bill to label"
+        "receiver": {
+            "text":"接收者",
+            "en_original": "Receiver:",
+            "context": "Receiver label"
         },
         "view_usage": {
             "text":"查看使用情况",

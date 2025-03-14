@@ -2557,10 +2557,10 @@
             "en_original": "VAT",
             "context": "VAT number label"
         },
-        "bill_to": {
-            "text":"請求先:",
-            "en_original": "Bill to:",
-            "context": "Bill to label"
+        "receiver": {
+            "text":"受取人:",
+            "en_original": "Receiver:",
+            "context": "Receiver label"
         },
         "view_usage": {
             "text":"利用状況を表示",

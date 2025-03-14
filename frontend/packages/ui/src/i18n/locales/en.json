@@ -2080,9 +2080,9 @@
             "text": "VAT",
             "context": "VAT number label"
         },
-        "bill_to": {
-            "text": "Bill to:",
-            "context": "Bill to label"
+        "receiver": {
+            "text": "Receiver:",
+            "context": "Receiver label"
         },
         "view_usage": {
             "text": "View usage",

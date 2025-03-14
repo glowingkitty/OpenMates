@@ -481,7 +481,7 @@ class InvoiceTemplateService:
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
         sender_details = Paragraph(sender_details_str, self.styles['Normal'])
         
-        bill_to_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['bill_to']['text']}</b>", self.styles['Bold'])
+        receiver_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['receiver']['text']}</b>", self.styles['Bold'])
         
         # Get translated receiver country if it exists
         translated_receiver_country = ""
@@ -550,7 +550,7 @@ class InvoiceTemplateService:
             ('BOTTOMPADDING', (0, 0), (0, 0), 0),
         ]))
         
-        receiver_table = Table([[bill_to_title], [receiver_details]])
+        receiver_table = Table([[receiver_title], [receiver_details]])
         receiver_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
