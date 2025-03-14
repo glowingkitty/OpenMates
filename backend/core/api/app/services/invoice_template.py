@@ -745,7 +745,7 @@ class InvoiceTemplateService:
         elements.append(Spacer(1, 10))
         vat_disclaimer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
         vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
-                                     Paragraph("* " + vat_disclaimer, self.styles['FooterText'])]], 
+                                     Paragraph("* " + vat_disclaimer, self.styles['Normal'])]], # Changed from 'FooterText' to 'Normal'
                                      colWidths=[self.left_indent, doc.width-self.left_indent])
         vat_disclaimer_table.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -783,7 +783,7 @@ class InvoiceTemplateService:
                 "text": "• " + self.t['invoices_and_credit_notes']['ask_in_discord']['text'],
                 "style": self.styles['Normal'],
                 "replacements": {
-                    "{discord_group_invite_code}": f"discord.gg/{self.discord_group_invite_code}"
+                    "{discord_group_invite_code}": self.discord_group_invite_code  # Fixed: removed the "discord.gg/" prefix
                 }
             },
             # Fifth paragraph with safe placeholder replacement - as bullet point
