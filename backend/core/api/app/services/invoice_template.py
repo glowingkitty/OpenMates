@@ -278,11 +278,6 @@ class InvoiceTemplateService:
         ]))
         elements.append(padded_table)
         
-        # Add separator line before total
-        elements.append(Spacer(1, 12))
-        elements.append(ColoredLine(doc.width, 1, self.separator_color))
-        elements.append(Spacer(1, 12))
-        
         # Add payment details - this is our reference position
         # We will add left indent here too for consistency with paragraph style
         payment_table = Table([[Spacer(self.left_indent, 0), 
@@ -293,11 +288,6 @@ class InvoiceTemplateService:
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(payment_table)
-        
-        # Add separator line after total
-        elements.append(Spacer(1, 12))
-        elements.append(ColoredLine(doc.width, 1, self.separator_color))
-        elements.append(Spacer(1, 24))
         
         # Add contact information with colored links - keep consistent indentation
         contact_table = Table([[Spacer(self.left_indent, 0),
