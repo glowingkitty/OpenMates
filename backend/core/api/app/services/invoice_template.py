@@ -135,24 +135,28 @@ class InvoiceTemplateService:
         elements.append(header_table)
         elements.append(Spacer(1, 24))
         
-        # Add invoice details without extra padding
-        invoice_data_table = [
+        # Fix invoice details alignment to match other elements
+        invoice_data_rows = [
             [Paragraph("Invoice number:", self.styles['Normal']), Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
             [Paragraph("Date of issue:", self.styles['Normal']), Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
             [Paragraph("Date due:", self.styles['Normal']), Paragraph(invoice_data['date_due'], self.styles['Normal'])]
         ]
         
-        # Add proper left indent
-        invoice_table_with_indent = Table([
-            [Spacer(self.left_indent, 0), 
-             Table(invoice_data_table, colWidths=[100, doc.width-self.left_indent-100])]
-        ], colWidths=[self.left_indent, doc.width-self.left_indent])
+        # Direct approach without nested tables to fix alignment
+        invoice_table = Table([
+            [Spacer(self.left_indent, 0), Paragraph("Invoice number:", self.styles['Normal']), Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
+            [Spacer(self.left_indent, 0), Paragraph("Date of issue:", self.styles['Normal']), Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
+            [Spacer(self.left_indent, 0), Paragraph("Date due:", self.styles['Normal']), Paragraph(invoice_data['date_due'], self.styles['Normal'])]
+        ], colWidths=[self.left_indent, 100, doc.width-self.left_indent-100])
         
-        invoice_table_with_indent.setStyle(TableStyle([
+        invoice_table.setStyle(TableStyle([
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (2, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
-        elements.append(invoice_table_with_indent)
+        elements.append(invoice_table)
         elements.append(Spacer(1, 24))
         
         # Create three-column layout without extra padding
