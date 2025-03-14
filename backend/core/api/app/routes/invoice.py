@@ -26,11 +26,11 @@ async def preview_invoice(credits: int, lang: str = Query("en")):
             "date_of_issue": "2025-03-15",  # ISO format
             "date_due": "2025-03-15",       # ISO format
             "receiver_name": "Name Nachname",
-            "receiver_address": "Musterstraße 31",
-            "receiver_city": "10990 Hamburg",
-            "receiver_country": "Germany",
+            # "receiver_address": "Musterstraße 31",
+            # "receiver_city": "10990 Hamburg",
+            # "receiver_country": "Germany",
             "receiver_email": "user@domain.com",
-            "receiver_vat": "DE9882931",
+            # "receiver_vat": "DE9882931",
             "qr_code_url": "https://app.openmates.org/settings/usage",
             "credits": credits,
             "unit_price": credits / 1000,
@@ -41,7 +41,7 @@ async def preview_invoice(credits: int, lang: str = Query("en")):
         
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang)
         return StreamingResponse(
-            io.BytesIO(pdf_buffer.getvalue()), 
+            io.BytesIO(pdf_buffer.getvalue()),
             media_type="application/pdf"
         )
     except Exception as e:

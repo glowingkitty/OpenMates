@@ -226,6 +226,27 @@ class InvoiceTemplateService:
         """
         return lang not in self.unsupported_languages
 
+    def _build_address_string(self, data_dict):
+        """
+        Build an address string from dictionary values, 
+        only including non-empty fields
+        
+        Args:
+            data_dict: Dictionary containing address fields
+            
+        Returns:
+            String with HTML line breaks, with no empty lines
+        """
+        lines = []
+        
+        # Add non-empty fields to lines array
+        for key, value in data_dict.items():
+            if value and value.strip():
+                lines.append(value.strip())
+                
+        # Join non-empty lines with HTML line breaks
+        return "<br/>".join(lines)
+
     def generate_invoice(self, invoice_data, lang="en"):
         """Generate an invoice PDF with the specified language"""
         # Check if language is supported, fall back to English if not
@@ -323,12 +344,41 @@ class InvoiceTemplateService:
         
         bill_to_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['bill_to']['text']}</b>", self.styles['Bold'])
         
-        # Get translated receiver country
-        translated_receiver_country = self._get_translated_country_name(invoice_data['receiver_country'])
-        receiver_details = Paragraph(
-            f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{translated_receiver_country}<br/>{invoice_data['receiver_email']}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}", 
-            self.styles['Normal']
-        )
+        # Get translated receiver country if it exists
+        translated_receiver_country = ""
+        if invoice_data.get('receiver_country'):
+            translated_receiver_country = self._get_translated_country_name(invoice_data['receiver_country'])
+        
+        # Build receiver details with only non-empty fields
+        receiver_fields = []
+        
+        # Add name if present
+        if invoice_data.get('receiver_name'):
+            receiver_fields.append(invoice_data['receiver_name'])
+            
+        # Add address if present
+        if invoice_data.get('receiver_address'):
+            receiver_fields.append(invoice_data['receiver_address'])
+            
+        # Add city if present
+        if invoice_data.get('receiver_city'):
+            receiver_fields.append(invoice_data['receiver_city'])
+            
+        # Add country if present
+        if translated_receiver_country:
+            receiver_fields.append(translated_receiver_country)
+            
+        # Add email if present
+        if invoice_data.get('receiver_email'):
+            receiver_fields.append(invoice_data['receiver_email'])
+            
+        # Add VAT if present
+        if invoice_data.get('receiver_vat'):
+            receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")
+        
+        # Join all non-empty fields with line breaks
+        receiver_details_str = "<br/>".join(receiver_fields)
+        receiver_details = Paragraph(receiver_details_str, self.styles['Normal'])
         
         usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
         
