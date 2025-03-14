@@ -2555,7 +2555,7 @@
         "vat": {
             "text":"IVA",
             "en_original": "VAT",
-            "context": "VAT label"
+            "context": "VAT number label"
         },
         "bill_to": {
             "text":"Facturar a:",

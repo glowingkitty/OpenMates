@@ -2553,9 +2553,9 @@
             "context": "Date format"
         },
         "vat": {
-            "text":"MwSt.",
+            "text":"USt-ID",
             "en_original": "VAT",
-            "context": "VAT label"
+            "context": "VAT number label"
         },
         "bill_to": {
             "text":"Rechnung an:",

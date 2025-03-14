@@ -231,7 +231,7 @@ class InvoiceTemplateService:
         elements.append(Spacer(1, 24))
         
         # Create sender details string using environment variables
-        sender_details_str = f"OpenMates<br/>{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{self.sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
+        sender_details_str = f"{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{self.sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
         
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])

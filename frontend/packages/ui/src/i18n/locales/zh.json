@@ -2565,7 +2565,7 @@
         "vat": {
             "text":"增值税",
             "en_original": "VAT",
-            "context": "VAT label"
+            "context": "VAT number label"
         },
         "bill_to": {
             "text":"收费方：",
