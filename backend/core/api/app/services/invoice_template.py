@@ -689,7 +689,7 @@ class InvoiceTemplateService:
         
         elements.append(Spacer(1, 10))
         elements.append(totals_table)
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 24))  # Increased from 10 to 24
         
         # Add payment details with translation - fix <br> tags
         # Special handling for the paid_with text that might contain unclosed br tags
@@ -724,42 +724,71 @@ class InvoiceTemplateService:
         ]))
         elements.append(payment_table)
         
-        # Add contact information with questions helper
-        elements.append(Spacer(1, 24))
+        # Add larger spacer before credits explainer
+        elements.append(Spacer(1, 40))
+        
+        # Add footer with credit explainer - fix <br> tags - now in black, not grey
+        credits_explainer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['credits_explainer']['text'])
+        # For paragraph flow, convert <br/> to spaces when used in a paragraph
+        credits_explainer = re.sub(r'<br\s*/?>', ' ', credits_explainer)
+        
+        footer_table = Table([[Spacer(self.left_indent, 0),
+                             Paragraph(credits_explainer, self.styles['Normal'])]], # Changed from 'FooterText' to 'Normal'
+                             colWidths=[self.left_indent, doc.width-self.left_indent])
+        footer_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(footer_table)
+        
+        # Add VAT disclaimer
+        elements.append(Spacer(1, 10))
+        vat_disclaimer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
+        vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
+                                     Paragraph("* " + vat_disclaimer, self.styles['FooterText'])]], 
+                                     colWidths=[self.left_indent, doc.width-self.left_indent])
+        vat_disclaimer_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(vat_disclaimer_table)
+        
+        # Add larger spacer before questions helper
+        elements.append(Spacer(1, 40))
         
         # Convert question helpers to paragraphs with proper links - fix <br> tags
         questions_helper_texts = [
             # First paragraph doesn't need replacements
             {
                 "text": f"<b>{self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['if_you_have_questions']['text'])}</b>",
-                "style": self.styles['Bold'],
+                "style": self.styles['Normal'],
                 "replacements": {}
             },
-            # Second paragraph with safe placeholder replacement
+            # Second paragraph with safe placeholder replacement - as bullet point
             {
-                "text": self.t['invoices_and_credit_notes']['ask_team_mates']['text'],
+                "text": "• " + self.t['invoices_and_credit_notes']['ask_team_mates']['text'],
                 "style": self.styles['Normal'],
                 "replacements": {
                     "{start_chat_with_help_mate_link}": self.start_chat_with_help_mate_link
                 }
             },
-            # Third paragraph doesn't need replacements
+            # Third paragraph doesn't need replacements - as bullet point
             {
-                "text": self.t['invoices_and_credit_notes']['check_the_documentation']['text'],
+                "text": "• " + self.t['invoices_and_credit_notes']['check_the_documentation']['text'],
                 "style": self.styles['Normal'],
                 "replacements": {}
             },
-            # Fourth paragraph with safe placeholder replacement
+            # Fourth paragraph with safe placeholder replacement - as bullet point
             {
-                "text": self.t['invoices_and_credit_notes']['ask_in_discord']['text'],
+                "text": "• " + self.t['invoices_and_credit_notes']['ask_in_discord']['text'],
                 "style": self.styles['Normal'],
                 "replacements": {
                     "{discord_group_invite_code}": f"discord.gg/{self.discord_group_invite_code}"
                 }
             },
-            # Fifth paragraph with safe placeholder replacement
+            # Fifth paragraph with safe placeholder replacement - as bullet point
             {
-                "text": self.t['invoices_and_credit_notes']['contact_via_email']['text'],
+                "text": "• " + self.t['invoices_and_credit_notes']['contact_via_email']['text'],
                 "style": self.styles['Normal'],
                 "replacements": {
                     "{email_address}": self.email_address
@@ -790,7 +819,7 @@ class InvoiceTemplateService:
                 # Use a simpler fallback
                 fallback = "Please contact support@openmates.org if you have questions."
                 questions_helper.append(Paragraph(fallback, self.styles['Normal']))
-        
+
         # Add each question helper as a separate row
         for helper_text in questions_helper:
             helper_table = Table([[Spacer(self.left_indent, 0), helper_text]], 
@@ -801,36 +830,7 @@ class InvoiceTemplateService:
                 ('BOTTOMPADDING', (1, 0), (1, 0), 2),
             ]))
             elements.append(helper_table)
-        
-        # Add footer with credit explainer - fix <br> tags
-        credits_explainer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['credits_explainer']['text'])
-        # For paragraph flow, convert <br/> to spaces when used in a paragraph
-        credits_explainer = re.sub(r'<br\s*/?>', ' ', credits_explainer)
-        
-        footer_table = Table([[Spacer(self.left_indent, 0),
-                             Paragraph(credits_explainer, self.styles['FooterText'])]], 
-                             colWidths=[self.left_indent, doc.width-self.left_indent])
-        footer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(footer_table)
-        
-        # Add VAT disclaimer
-        elements.append(Spacer(1, 10))
-        vat_disclaimer = self._sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
-        vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
-                                     Paragraph("* " + vat_disclaimer, self.styles['FooterText'])]], 
-                                     colWidths=[self.left_indent, doc.width-self.left_indent])
-        vat_disclaimer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(vat_disclaimer_table)
-        
-        # Add spacer before bottom line
-        elements.append(Spacer(1, 20))
-        
+
         # Build PDF with header and footer callbacks
         doc.build(elements, onFirstPage=self._draw_header_footer, onLaterPages=self._draw_header_footer)
         buffer.seek(0)
