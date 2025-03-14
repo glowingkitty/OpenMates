@@ -269,7 +269,7 @@ class InvoiceTemplateService:
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ]))
         
-        # Add indent to table
+        # Add indent to table - restore normal left alignment
         padded_table = Table([[Spacer(self.left_indent, 0), inner_table]], 
                             colWidths=[self.left_indent, doc.width-self.left_indent])
         padded_table.setStyle(TableStyle([
@@ -277,6 +277,55 @@ class InvoiceTemplateService:
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(padded_table)
+        
+        # Add totals table starting at 45% of document width
+        total_start_position = doc.width * 0.45
+        left_space = total_start_position - self.left_indent
+        
+        # Create data for totals table - remove bold from first two rows
+        totals_data = [
+            [Paragraph("Total (excl. VAT)", self.styles['Normal']), 
+             Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])],
+            [Paragraph("VAT (0% *)", self.styles['Normal']), 
+             Paragraph("€0.00", self.styles['Normal'])],
+            [Paragraph("<b>Total paid (incl. VAT)</b>", self.styles['Bold']), 
+             Paragraph(f"<b>€{invoice_data['total_price']:.2f}</b>", self.styles['Bold'])]
+        ]
+        
+        # Calculate column widths for the totals table
+        totals_width = doc.width - total_start_position
+        totals_col1_width = totals_width * 0.65
+        totals_col2_width = totals_width * 0.35
+        
+        # Create the totals table
+        totals_inner_table = Table(totals_data, 
+                                  colWidths=[totals_col1_width, totals_col2_width])
+        
+        totals_inner_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            # Remove line above first row
+            ('LINEABOVE', (0, 2), (-1, 2), 1, self.separator_color), # Line above total paid row only
+            ('LINEBELOW', (0, 2), (-1, 2), 1, self.separator_color), # Line below total paid row
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        
+        # Add totals table with proper positioning
+        totals_table = Table([[Spacer(self.left_indent, 0), 
+                             Spacer(left_space - self.left_indent, 0),
+                             totals_inner_table]], 
+                            colWidths=[self.left_indent, left_space - self.left_indent, totals_width])
+        
+        totals_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        
+        elements.append(Spacer(1, 10))
+        elements.append(totals_table)
+        elements.append(Spacer(1, 10))
         
         # Add payment details - this is our reference position
         # We will add left indent here too for consistency with paragraph style
