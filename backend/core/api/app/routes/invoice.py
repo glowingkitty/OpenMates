@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from app.services.invoice_template import InvoiceTemplateService
 import io
 
@@ -11,7 +11,10 @@ async def generate_invoice(request: Request, lang: str = Query("en")):
     try:
         invoice_data = await request.json()
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang)
-        return StreamingResponse(io.BytesIO(pdf_buffer.getvalue()), media_type="application/pdf")
+        return StreamingResponse(
+            io.BytesIO(pdf_buffer.getvalue()), 
+            media_type="application/pdf"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -35,7 +38,11 @@ async def preview_invoice(credits: int, lang: str = Query("en")):
             "card_name": "Visa",
             "card_last4": "XXXX"
         }
+        
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang)
-        return StreamingResponse(io.BytesIO(pdf_buffer.getvalue()), media_type="application/pdf")
+        return StreamingResponse(
+            io.BytesIO(pdf_buffer.getvalue()), 
+            media_type="application/pdf"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
