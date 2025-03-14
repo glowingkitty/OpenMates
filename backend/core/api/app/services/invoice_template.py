@@ -83,6 +83,9 @@ class InvoiceTemplateService:
         
         # Define line height for top and bottom bars
         self.line_height = 9
+        
+        # Add a small left indent to align elements properly
+        self.left_indent = 10
 
     def _draw_header_footer(self, canvas, doc):
         """Draw the colored bars at the top and bottom of the page"""
@@ -99,58 +102,60 @@ class InvoiceTemplateService:
     def generate_invoice(self, invoice_data):
         buffer = io.BytesIO()
         
-        # Use the whole page width and adjust margins
+        # Use the whole page width and adjust margins - reduced top margin
         doc = SimpleDocTemplate(
             buffer, 
             pagesize=A4,
-            leftMargin=36,
+            leftMargin=36,  # Keep standard left margin
             rightMargin=36,
-            topMargin=36 + self.line_height,  # Add the line height to the top margin
+            topMargin=20 + self.line_height,  # Reduced top margin to move content up
             bottomMargin=36 + self.line_height  # Add the line height to the bottom margin
         )
         
         elements = []
         
-        # Remove the colored lines from the document flow since they'll be drawn directly on canvas
-        elements.append(Spacer(1, 20))
+        # Reduce the initial spacer to move content up
+        elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
-        # Create header with Invoice and OpenMates side by side
+        # Create header with Invoice and OpenMates side by side - no extra padding
         invoice_text = Paragraph("Invoice", self.styles['Heading1'])
         
         # Create a custom paragraph with two differently colored parts for "OpenMates"
         open_text = '<font color="#4867CD">Open</font><font color="black">Mates</font>'
         openmates_text = Paragraph(open_text, self.styles['Heading2'])
         
-        header_table = Table([[invoice_text, openmates_text]], colWidths=[doc.width/2, doc.width/2])
+        # Add left indent to invoice_text
+        header_table = Table([[Spacer(self.left_indent, 0), invoice_text, openmates_text]], 
+                            colWidths=[self.left_indent, (doc.width-self.left_indent)/2, (doc.width-self.left_indent)/2])
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (0, 0), 0),  # Ensure left alignment for invoice text
-            ('RIGHTPADDING', (1, 0), (1, 0), 0)  # Ensure right alignment for OpenMates text
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(header_table)
         elements.append(Spacer(1, 24))
         
-        # Add invoice details aligned to the left edge
+        # Add invoice details without extra padding
         invoice_data_table = [
             [Paragraph("Invoice number:", self.styles['Normal']), Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
             [Paragraph("Date of issue:", self.styles['Normal']), Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
             [Paragraph("Date due:", self.styles['Normal']), Paragraph(invoice_data['date_due'], self.styles['Normal'])]
         ]
         
-        # Use full width and align properly
-        invoice_table = Table(invoice_data_table, colWidths=[100, doc.width-100])
-        invoice_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Remove left padding to align with edge
+        # Add proper left indent
+        invoice_table_with_indent = Table([
+            [Spacer(self.left_indent, 0), 
+             Table(invoice_data_table, colWidths=[100, doc.width-self.left_indent-100])]
+        ], colWidths=[self.left_indent, doc.width-self.left_indent])
+        
+        invoice_table_with_indent.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
-        elements.append(invoice_table)
+        elements.append(invoice_table_with_indent)
         elements.append(Spacer(1, 24))
         
-        # Create three-column layout: sender, receiver, and usage info
-        # Use Bold style for specific parts
+        # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
         sender_details = Paragraph("Name Nachname<br/>Mustermann Str. 14<br/>12344 Frankfurt<br/>Deutschland<br/>support@openmates.org<br/>VAT: DE9281313", self.styles['Normal'])
         
@@ -168,7 +173,7 @@ class InvoiceTemplateService:
         d = Drawing(70, 70, transform=[70./width, 0, 0, 70./height, 0, 0])
         d.add(qr_code)
         
-        # Create tables for each column to ensure proper layout
+        # Create tables for each column
         sender_table = Table([[sender_title], [sender_details]])
         sender_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -185,7 +190,6 @@ class InvoiceTemplateService:
             ('BOTTOMPADDING', (0, 0), (0, 0), 6),
         ]))
         
-        # Fix QR code alignment by using a more precise table structure
         usage_table = Table([
             [usage_title], 
             [usage_url], 
@@ -198,24 +202,24 @@ class InvoiceTemplateService:
             ('BOTTOMPADDING', (0, 0), (0, 0), 6),
         ]))
         
-        # Combine the three columns with proper alignment
-        info_table = Table([
-            [sender_table, receiver_table, usage_table]
-        ], colWidths=[doc.width/3, doc.width/3, doc.width/3])
+        # Add left indent to info table
+        info_table_with_indent = Table([
+            [Spacer(self.left_indent, 0), sender_table, receiver_table, usage_table]
+        ], colWidths=[self.left_indent, (doc.width-self.left_indent)/3, (doc.width-self.left_indent)/3, (doc.width-self.left_indent)/3])
         
-        info_table.setStyle(TableStyle([
+        info_table_with_indent.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
-        elements.append(info_table)
+        elements.append(info_table_with_indent)
         
         # Add separator line
         elements.append(Spacer(1, 24))
         elements.append(ColoredLine(doc.width, 1, self.separator_color))
         elements.append(Spacer(1, 24))
         
-        # Add item details with proper styling - no borders or background
+        # Add item details without extra padding
         column_headers = [
             Paragraph("<b>Description</b>", self.styles['Bold']),
             Paragraph("<b>Quantity</b>", self.styles['Bold']),
@@ -230,9 +234,13 @@ class InvoiceTemplateService:
             Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])
         ]
         
-        # Create table without visible borders
-        table = Table([column_headers, data_row], colWidths=[doc.width*0.4, doc.width*0.2, doc.width*0.2, doc.width*0.2])
-        table.setStyle(TableStyle([
+        # Create table with proper indent
+        inner_table = Table([column_headers, data_row], 
+                          colWidths=[(doc.width-self.left_indent)*0.4, 
+                                     (doc.width-self.left_indent)*0.2, 
+                                     (doc.width-self.left_indent)*0.2, 
+                                     (doc.width-self.left_indent)*0.2])
+        inner_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (2, 0), (3, -1), 'CENTER'),  # Center align Unit price and Total columns
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -241,35 +249,60 @@ class InvoiceTemplateService:
             ('TOPPADDING', (0, 0), (-1, 0), 0),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ]))
-        elements.append(table)
+        
+        # Add indent to table
+        padded_table = Table([[Spacer(self.left_indent, 0), inner_table]], 
+                            colWidths=[self.left_indent, doc.width-self.left_indent])
+        padded_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(padded_table)
         
         # Add separator line before total
         elements.append(Spacer(1, 12))
         elements.append(ColoredLine(doc.width, 1, self.separator_color))
         elements.append(Spacer(1, 12))
         
-        # Add payment details
-        elements.append(Paragraph(f"Paid with: {invoice_data['card_name']} card ending in {invoice_data['card_last4']}", self.styles['Normal']))
+        # Add payment details - this is our reference position
+        # We will add left indent here too for consistency with paragraph style
+        payment_table = Table([[Spacer(self.left_indent, 0), 
+                              Paragraph(f"Paid with: {invoice_data['card_name']} card ending in {invoice_data['card_last4']}", self.styles['Normal'])]], 
+                              colWidths=[self.left_indent, doc.width-self.left_indent])
+        payment_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(payment_table)
         
         # Add separator line after total
         elements.append(Spacer(1, 12))
         elements.append(ColoredLine(doc.width, 1, self.separator_color))
         elements.append(Spacer(1, 24))
         
-        # Add contact information with colored links
-        contact_text = f"If you have any questions, contact us at <a href='{self.contact_url}' color='#7D74FF'>openmates.org/contact</a> or read our <a href='{self.terms_url}' color='#7D74FF'>terms</a> and <a href='{self.privacy_url}' color='#7D74FF'>privacy policy</a>."
-        elements.append(Paragraph(contact_text, self.styles['Normal']))
+        # Add contact information with colored links - keep consistent indentation
+        contact_table = Table([[Spacer(self.left_indent, 0),
+                              Paragraph(f"If you have any questions, contact us at <a href='{self.contact_url}' color='#7D74FF'>openmates.org/contact</a> or read our <a href='{self.terms_url}' color='#7D74FF'>terms</a> and <a href='{self.privacy_url}' color='#7D74FF'>privacy policy</a>.", self.styles['Normal'])]], 
+                              colWidths=[self.left_indent, doc.width-self.left_indent])
+        contact_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(contact_table)
         
-        # Add footer
+        # Add footer with same indentation
         elements.append(Spacer(1, 24))
-        footer_text = "Credits on OpenMates are used to chat with your digital team mates and to use apps on OpenMates. Credits cannot be payed out and a refund is only possible within the first 14 days of purchase, and only for the remaining credits in your user account."
-        elements.append(Paragraph(footer_text, self.styles['FooterText']))
+        footer_table = Table([[Spacer(self.left_indent, 0),
+                             Paragraph("Credits on OpenMates are used to chat with your digital team mates and to use apps on OpenMates. Credits cannot be payed out and a refund is only possible within the first 14 days of purchase, and only for the remaining credits in your user account.", self.styles['FooterText'])]], 
+                             colWidths=[self.left_indent, doc.width-self.left_indent])
+        footer_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(footer_table)
         
         # Add spacer before bottom line
         elements.append(Spacer(1, 20))
-        
-        # Add colored line at the bottom
-        elements.append(ColoredLine(doc.width + 72, 9, self.bottom_line_color))
         
         # Build PDF with header and footer callbacks
         doc.build(elements, onFirstPage=self._draw_header_footer, onLaterPages=self._draw_header_footer)
