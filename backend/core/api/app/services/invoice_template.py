@@ -15,8 +15,6 @@ import re
 
 from app.services.translations import TranslationService
 
-# Load environment variables
-load_dotenv()
 
 class ColoredLine(Flowable):
     """Custom flowable for drawing colored lines"""
@@ -35,7 +33,7 @@ class InvoiceTemplateService:
         # Initialize translation service
         self.translation_service = TranslationService()
         
-        # Get sender details from environment variables
+        # Get sender details from environment variables - with defaults for safety
         self.sender_addressline1 = os.getenv("INVOICE_SENDER_ADDRESSLINE1", "")
         self.sender_addressline2 = os.getenv("INVOICE_SENDER_ADDRESSLINE2", "")
         self.sender_addressline3 = os.getenv("INVOICE_SENDER_ADDRESSLINE3", "")
@@ -210,15 +208,26 @@ class InvoiceTemplateService:
         elements.append(Spacer(1, 24))
         
         # Fix invoice details alignment to match other elements
-        # Direct approach without nested tables to fix alignment
+        # Calculate dynamic width based on text length
+        invoice_number_text = self.t["invoices_and_credit_notes"]["invoice_number"]["text"] + ":"
+        date_issue_text = self.t["invoices_and_credit_notes"]["date_of_issue"]["text"] + ":"
+        date_due_text = self.t["invoices_and_credit_notes"]["date_due"]["text"] + ":"
+        
+        # Estimate appropriate column width based on longest text plus some padding
+        # This gives extra space between label and value, prevents crowding
+        label_texts = [invoice_number_text, date_issue_text, date_due_text]
+        max_text_len = max(len(text) for text in label_texts)
+        # Scale factor: approximately 6 points per character (depends on font)
+        label_col_width = max_text_len * 6 + 20  # Add padding
+        
         invoice_table = Table([
-            [Spacer(self.left_indent, 0), Paragraph(self.t["invoices_and_credit_notes"]["invoice_number"]["text"] + ":", self.styles['Normal']), 
+            [Spacer(self.left_indent, 0), Paragraph(invoice_number_text, self.styles['Normal']), 
              Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
-            [Spacer(self.left_indent, 0), Paragraph(self.t["invoices_and_credit_notes"]["date_of_issue"]["text"] + ":", self.styles['Normal']), 
+            [Spacer(self.left_indent, 0), Paragraph(date_issue_text, self.styles['Normal']), 
              Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
-            [Spacer(self.left_indent, 0), Paragraph(self.t["invoices_and_credit_notes"]["date_due"]["text"] + ":", self.styles['Normal']), 
+            [Spacer(self.left_indent, 0), Paragraph(date_due_text, self.styles['Normal']), 
              Paragraph(invoice_data['date_due'], self.styles['Normal'])]
-        ], colWidths=[self.left_indent, 100, doc.width-self.left_indent-100])
+        ], colWidths=[self.left_indent, label_col_width, doc.width-self.left_indent-label_col_width])
         
         invoice_table.setStyle(TableStyle([
             ('ALIGN', (1, 0), (1, -1), 'LEFT'),
