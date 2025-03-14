@@ -20,12 +20,12 @@ async def preview_invoice(credits: int, lang: str = Query("en")):
     try:
         invoice_data = {
             "invoice_number": "475D6855-004",
-            "date_of_issue": "March 15, 2025",
-            "date_due": "March 15, 2025",
+            "date_of_issue": "2025-03-15",  # ISO format
+            "date_due": "2025-03-15",       # ISO format
             "receiver_name": "Name Nachname",
             "receiver_address": "Musterstraße 31",
             "receiver_city": "10990 Hamburg",
-            "receiver_country": "Deutschland",
+            "receiver_country": "Germany",
             "receiver_email": "user@domain.com",
             "receiver_vat": "DE9882931",
             "qr_code_url": "https://app.openmates.org/settings/usage",

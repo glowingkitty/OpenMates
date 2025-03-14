@@ -12,8 +12,12 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import io
 import re
+import datetime
+import locale
+from babel.dates import format_date
 
 from app.services.translations import TranslationService
+from app.services.email.config_loader import load_shared_urls
 
 
 class ColoredLine(Flowable):
@@ -33,13 +37,20 @@ class InvoiceTemplateService:
         # Initialize translation service
         self.translation_service = TranslationService()
         
+        # Load shared URLs configuration
+        self.shared_urls = load_shared_urls().get('urls', {})
+        
         # Get sender details from environment variables - with defaults for safety
         self.sender_addressline1 = os.getenv("INVOICE_SENDER_ADDRESSLINE1", "")
         self.sender_addressline2 = os.getenv("INVOICE_SENDER_ADDRESSLINE2", "")
         self.sender_addressline3 = os.getenv("INVOICE_SENDER_ADDRESSLINE3", "")
         self.sender_country = os.getenv("INVOICE_SENDER_COUNTRY", "")
-        self.sender_email = "support@openmates.org"
+        self.sender_email = self.shared_urls.get('contact', {}).get('email', "support@openmates.org")
         self.sender_vat = os.getenv("INVOICE_SENDER_VAT", "")
+        
+        # Get Discord URL from shared config
+        self.discord_url = self.shared_urls.get('contact', {}).get('discord', "")
+        self.discord_group_invite_code = self.discord_url.split("/")[-1]
         
         # Register both regular and bold fonts
         self.regular_font_path = os.path.join(os.path.dirname(__file__), "fonts", "LexendDeca-Regular.ttf")
@@ -93,19 +104,15 @@ class InvoiceTemplateService:
         self.open_color = colors.HexColor("#4867CD")
         
         # Define URLs
-        self.contact_url = "https://openmates.org/contact"
-        self.terms_url = "https://openmates.org/terms"
-        self.privacy_url = "https://openmates.org/privacy"
-        self.start_chat_with_help_mate_link = "https://app.openmates.org/chat/help"
-        self.discord_group_invite_code = os.getenv("DISCORD_GROUP_INVITE_CODE", "openmates")
-        self.email_address = "support@openmates.org"
+        self.start_chat_with_help_mate_link = self.shared_urls.get('base', {}).get('webapp', {}).get('production', "https://app.openmates.org")
+        self.email_address = self.sender_email
         
         # Define line height for top and bottom bars
         self.line_height = 9
         
         # Add a small left indent to align elements properly
         self.left_indent = 10
-
+        
     def _sanitize_html_for_reportlab(self, text):
         """
         Sanitize HTML for ReportLab compatibility
@@ -156,6 +163,30 @@ class InvoiceTemplateService:
             for line in disclaimer_lines:
                 canvas.drawString(40, y_position, line)
                 y_position -= 12
+
+    def _format_date_for_locale(self, date_str, lang='en'):
+        """
+        Format date based on locale
+        
+        Args:
+            date_str: Date in string format (YYYY-MM-DD)
+            lang: Language code for formatting
+            
+        Returns:
+            Formatted date string according to locale
+        """
+        try:
+            # Parse the date string into a datetime object
+            date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+            
+            # Format the date according to the locale
+            # Use format='long' to get the full month name with appropriate formatting per locale
+            return format_date(date_obj, format='long', locale=lang)
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Date formatting error: {e}")
+            # Return original string if formatting fails
+            return date_str
 
     def generate_invoice(self, invoice_data, lang="en"):
         """Generate an invoice PDF with the specified language"""
@@ -224,9 +255,9 @@ class InvoiceTemplateService:
             [Spacer(self.left_indent, 0), Paragraph(invoice_number_text, self.styles['Normal']), 
              Paragraph(invoice_data['invoice_number'], self.styles['Normal'])],
             [Spacer(self.left_indent, 0), Paragraph(date_issue_text, self.styles['Normal']), 
-             Paragraph(invoice_data['date_of_issue'], self.styles['Normal'])],
+             Paragraph(self._format_date_for_locale(invoice_data['date_of_issue'], self.current_lang), self.styles['Normal'])],
             [Spacer(self.left_indent, 0), Paragraph(date_due_text, self.styles['Normal']), 
-             Paragraph(invoice_data['date_due'], self.styles['Normal'])]
+             Paragraph(self._format_date_for_locale(invoice_data['date_due'], self.current_lang), self.styles['Normal'])]
         ], colWidths=[self.left_indent, label_col_width, doc.width-self.left_indent-label_col_width])
         
         invoice_table.setStyle(TableStyle([
