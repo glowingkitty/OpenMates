@@ -263,7 +263,7 @@ class InvoiceTemplateService:
             ('VALIGN', (0, 0), (-1, 0), 'BOTTOM'), # Align headers to bottom
             ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'), # Keep data row centered vertically
             ('LINEBELOW', (0, 0), (-1, 0), 1, self.separator_color),  # Only line below headers
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),  # Reduced from 12 to 5 to bring header text closer to line
             ('TOPPADDING', (0, 1), (-1, 1), 8),    # Add padding above data row to increase spacing
             ('TOPPADDING', (0, 0), (-1, 0), 0),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -286,7 +286,7 @@ class InvoiceTemplateService:
         # Add payment details - this is our reference position
         # We will add left indent here too for consistency with paragraph style
         payment_table = Table([[Spacer(self.left_indent, 0), 
-                              Paragraph(f"Paid with: {invoice_data['card_name']} card ending in {invoice_data['card_last4']}", self.styles['Normal'])]], 
+                              Paragraph(f"Paid with:<br/>{invoice_data['card_name']} card ending in {invoice_data['card_last4']}", self.styles['Normal'])]], 
                               colWidths=[self.left_indent, doc.width-self.left_indent])
         payment_table.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
