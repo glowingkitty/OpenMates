@@ -2691,6 +2691,461 @@
             "text":"此退款单是英文原始退款单的翻译。<br>英文版本仍然是税务用途的具有法律约束力的文件。",
             "en_original": "This credit note is a translation of the original credit note in english.<br>The english version remains the legally binding document for tax purposes.",
             "context": "translation disclaimer"
+        },
+        "germany": {
+            "text": "德国",
+            "en_original": "Germany",
+            "context": "Sender or recipient country"
+        },
+        "united_states": {
+            "text": "美国",
+            "en_original": "United States",
+            "context": "Sender or recipient country"
+        },
+        "united_kingdom": {
+            "text": "英国",
+            "en_original": "United Kingdom",
+            "context": "Sender or recipient country"
+        },
+        "france": {
+            "text": "法国",
+            "en_original": "France",
+            "context": "Sender or recipient country"
+        },
+        "spain": {
+            "text": "西班牙",
+            "en_original": "Spain",
+            "context": "Sender or recipient country"
+        },
+        "italy": {
+            "text": "意大利",
+            "en_original": "Italy",
+            "context": "Sender or recipient country"
+        },
+        "netherlands": {
+            "text": "荷兰",
+            "en_original": "Netherlands",
+            "context": "Sender or recipient country"
+        },
+        "belgium": {
+            "text": "比利时",
+            "en_original": "Belgium",
+            "context": "Sender or recipient country"
+        },
+        "sweden": {
+            "text": "瑞典",
+            "en_original": "Sweden",
+            "context": "Sender or recipient country"
+        },
+        "norway": {
+            "text": "挪威",
+            "en_original": "Norway",
+            "context": "Sender or recipient country"
+        },
+        "denmark": {
+            "text": "丹麦",
+            "en_original": "Denmark",
+            "context": "Sender or recipient country"
+        },
+        "finland": {
+            "text": "芬兰",
+            "en_original": "Finland",
+            "context": "Sender or recipient country"
+        },
+        "poland": {
+            "text": "波兰",
+            "en_original": "Poland",
+            "context": "Sender or recipient country"
+        },
+        "austria": {
+            "text": "奥地利",
+            "en_original": "Austria",
+            "context": "Sender or recipient country"
+        },
+        "switzerland": {
+            "text": "瑞士",
+            "en_original": "Switzerland",
+            "context": "Sender or recipient country"
+        },
+        "ireland": {
+            "text": "爱尔兰",
+            "en_original": "Ireland",
+            "context": "Sender or recipient country"
+        },
+        "portugal": {
+            "text": "葡萄牙",
+            "en_original": "Portugal",
+            "context": "Sender or recipient country"
+        },
+        "canada": {
+            "text": "加拿大",
+            "en_original": "Canada",
+            "context": "Sender or recipient country"
+        },
+        "australia": {
+            "text": "澳大利亚",
+            "en_original": "Australia",
+            "context": "Sender or recipient country"
+        },
+        "japan": {
+            "text": "日本",
+            "en_original": "Japan",
+            "context": "Sender or recipient country"
+        },
+        "china": {
+            "text": "中国",
+            "en_original": "China",
+            "context": "Sender or recipient country"
+        },
+        "india": {
+            "text": "印度",
+            "en_original": "India",
+            "context": "Sender or recipient country"
+        },
+        "brazil": {
+            "text": "巴西",
+            "en_original": "Brazil",
+            "context": "Sender or recipient country"
+        },
+        "south_africa": {
+            "text": "南非",
+            "en_original": "South Africa",
+            "context": "Sender or recipient country"
+        },
+        "mexico": {
+            "text": "墨西哥",
+            "en_original": "Mexico",
+            "context": "Sender or recipient country"
+        },
+        "argentina": {
+            "text": "阿根廷",
+            "en_original": "Argentina",
+            "context": "Sender or recipient country"
+        },
+        "chile": {
+            "text": "智利",
+            "en_original": "Chile",
+            "context": "Sender or recipient country"
+        },
+        "colombia": {
+            "text": "哥伦比亚",
+            "en_original": "Colombia",
+            "context": "Sender or recipient country"
+        },
+        "peru": {
+            "text": "秘鲁",
+            "en_original": "Peru",
+            "context": "Sender or recipient country"
+        },
+        "new_zealand": {
+            "text": "新西兰",
+            "en_original": "New Zealand",
+            "context": "Sender or recipient country"
+        },
+        "singapore": {
+            "text": "新加坡",
+            "en_original": "Singapore",
+            "context": "Sender or recipient country"
+        },
+        "malaysia": {
+            "text": "马来西亚",
+            "en_original": "Malaysia",
+            "context": "Sender or recipient country"
+        },
+        "thailand": {
+            "text": "泰国",
+            "en_original": "Thailand",
+            "context": "Sender or recipient country"
+        },
+        "indonesia": {
+            "text": "印度尼西亚",
+            "en_original": "Indonesia",
+            "context": "Sender or recipient country"
+        },
+        "philippines": {
+            "text": "菲律宾",
+            "en_original": "Philippines",
+            "context": "Sender or recipient country"
+        },
+        "vietnam": {
+            "text": "越南",
+            "en_original": "Vietnam",
+            "context": "Sender or recipient country"
+        },
+        "south_korea": {
+            "text": "韩国",
+            "en_original": "South Korea",
+            "context": "Sender or recipient country"
+        },
+        "russia": {
+            "text": "俄罗斯",
+            "en_original": "Russia",
+            "context": "Sender or recipient country"
+        },
+        "turkey": {
+            "text": "土耳其",
+            "en_original": "Turkey",
+            "context": "Sender or recipient country"
+        },
+        "greece": {
+            "text": "希腊",
+            "en_original": "Greece",
+            "context": "Sender or recipient country"
+        },
+        "czech_republic": {
+            "text": "捷克共和国",
+            "en_original": "Czech Republic",
+            "context": "Sender or recipient country"
+        },
+        "hungary": {
+            "text": "匈牙利",
+            "en_original": "Hungary",
+            "context": "Sender or recipient country"
+        },
+        "romania": {
+            "text": "罗马尼亚",
+            "en_original": "Romania",
+            "context": "Sender or recipient country"
+        },
+        "bulgaria": {
+            "text": "保加利亚",
+            "en_original": "Bulgaria",
+            "context": "Sender or recipient country"
+        },
+        "croatia": {
+            "text": "克罗地亚",
+            "en_original": "Croatia",
+            "context": "Sender or recipient country"
+        },
+        "slovakia": {
+            "text": "斯洛伐克",
+            "en_original": "Slovakia",
+            "context": "Sender or recipient country"
+        },
+        "slovenia": {
+            "text": "斯洛文尼亚",
+            "en_original": "Slovenia",
+            "context": "Sender or recipient country"
+        },
+        "luxembourg": {
+            "text": "卢森堡",
+            "en_original": "Luxembourg",
+            "context": "Sender or recipient country"
+        },
+        "estonia": {
+            "text": "爱沙尼亚",
+            "en_original": "Estonia",
+            "context": "Sender or recipient country"
+        },
+        "latvia": {
+            "text": "拉脱维亚",
+            "en_original": "Latvia",
+            "context": "Sender or recipient country"
+        },
+        "lithuania": {
+            "text": "立陶宛",
+            "en_original": "Lithuania",
+            "context": "Sender or recipient country"
+        },
+        "ukraine": {
+            "text": "乌克兰",
+            "en_original": "Ukraine",
+            "context": "Sender or recipient country"
+        },
+        "belarus": {
+            "text": "白俄罗斯",
+            "en_original": "Belarus",
+            "context": "Sender or recipient country"
+        },
+        "moldova": {
+            "text": "摩尔多瓦",
+            "en_original": "Moldova",
+            "context": "Sender or recipient country"
+        },
+        "iceland": {
+            "text": "冰岛",
+            "en_original": "Iceland",
+            "context": "Sender or recipient country"
+        },
+        "malta": {
+            "text": "马耳他",
+            "en_original": "Malta",
+            "context": "Sender or recipient country"
+        },
+        "cyprus": {
+            "text": "塞浦路斯",
+            "en_original": "Cyprus",
+            "context": "Sender or recipient country"
+        },
+        "united_arab_emirates": {
+            "text": "阿拉伯联合酋长国",
+            "en_original": "United Arab Emirates",
+            "context": "Sender or recipient country"
+        },
+        "saudi_arabia": {
+            "text": "沙特阿拉伯",
+            "en_original": "Saudi Arabia",
+            "context": "Sender or recipient country"
+        },
+        "israel": {
+            "text": "以色列",
+            "en_original": "Israel",
+            "context": "Sender or recipient country"
+        },
+        "egypt": {
+            "text": "埃及",
+            "en_original": "Egypt",
+            "context": "Sender or recipient country"
+        },
+        "morocco": {
+            "text": "摩洛哥",
+            "en_original": "Morocco",
+            "context": "Sender or recipient country"
+        },
+        "nigeria": {
+            "text": "尼日利亚",
+            "en_original": "Nigeria",
+            "context": "Sender or recipient country"
+        },
+        "kenya": {
+            "text": "肯尼亚",
+            "en_original": "Kenya",
+            "context": "Sender or recipient country"
+        },
+        "ghana": {
+            "text": "加纳",
+            "en_original": "Ghana",
+            "context": "Sender or recipient country"
+        },
+        "tanzania": {
+            "text": "坦桑尼亚",
+            "en_original": "Tanzania",
+            "context": "Sender or recipient country"
+        },
+        "ethiopia": {
+            "text": "埃塞俄比亚",
+            "en_original": "Ethiopia",
+            "context": "Sender or recipient country"
+        },
+        "pakistan": {
+            "text": "巴基斯坦",
+            "en_original": "Pakistan",
+            "context": "Sender or recipient country"
+        },
+        "bangladesh": {
+            "text": "孟加拉国",
+            "en_original": "Bangladesh",
+            "context": "Sender or recipient country"
+        },
+        "sri_lanka": {
+            "text": "斯里兰卡",
+            "en_original": "Sri Lanka",
+            "context": "Sender or recipient country"
+        },
+        "nepal": {
+            "text": "尼泊尔",
+            "en_original": "Nepal",
+            "context": "Sender or recipient country"
+        },
+        "kazakhstan": {
+            "text": "哈萨克斯坦",
+            "en_original": "Kazakhstan",
+            "context": "Sender or recipient country"
+        },
+        "mongolia": {
+            "text": "蒙古",
+            "en_original": "Mongolia",
+            "context": "Sender or recipient country"
+        },
+        "hong_kong": {
+            "text": "香港",
+            "en_original": "Hong Kong",
+            "context": "Sender or recipient country"
+        },
+        "taiwan": {
+            "text": "台湾",
+            "en_original": "Taiwan",
+            "context": "Sender or recipient country"
+        },
+        "qatar": {
+            "text": "卡塔尔",
+            "en_original": "Qatar",
+            "context": "Sender or recipient country"
+        },
+        "kuwait": {
+            "text": "科威特",
+            "en_original": "Kuwait",
+            "context": "Sender or recipient country"
+        },
+        "bahrain": {
+            "text": "巴林",
+            "en_original": "Bahrain",
+            "context": "Sender or recipient country"
+        },
+        "oman": {
+            "text": "阿曼",
+            "en_original": "Oman",
+            "context": "Sender or recipient country"
+        },
+        "myanmar": {
+            "text": "缅甸",
+            "en_original": "Myanmar",
+            "context": "Sender or recipient country"
+        },
+        "venezuela": {
+            "text": "委内瑞拉",
+            "en_original": "Venezuela",
+            "context": "Sender or recipient country"
+        },
+        "panama": {
+            "text": "巴拿马",
+            "en_original": "Panama",
+            "context": "Sender or recipient country"
+        },
+        "costa_rica": {
+            "text": "哥斯达黎加",
+            "en_original": "Costa Rica",
+            "context": "Sender or recipient country"
+        },
+        "algeria": {
+            "text": "阿尔及利亚",
+            "en_original": "Algeria",
+            "context": "Sender or recipient country"
+        },
+        "tunisia": {
+            "text": "突尼斯",
+            "en_original": "Tunisia",
+            "context": "Sender or recipient country"
+        },
+        "senegal": {
+            "text": "塞内加尔",
+            "en_original": "Senegal",
+            "context": "Sender or recipient country"
+        },
+        "ivory_coast": {
+            "text": "科特迪瓦",
+            "en_original": "Ivory Coast",
+            "context": "Sender or recipient country"
+        },
+        "serbia": {
+            "text": "塞尔维亚",
+            "en_original": "Serbia",
+            "context": "Sender or recipient country"
+        },
+        "north_macedonia": {
+            "text": "北马其顿",
+            "en_original": "North Macedonia",
+            "context": "Sender or recipient country"
+        },
+        "albania": {
+            "text": "阿尔巴尼亚",
+            "en_original": "Albania",
+            "context": "Sender or recipient country"
+        },
+        "montenegro": {
+            "text": "黑山",
+            "en_original": "Montenegro",
+            "context": "Sender or recipient country"
         }
     }
 }

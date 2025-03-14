@@ -188,6 +188,29 @@ class InvoiceTemplateService:
             # Return original string if formatting fails
             return date_str
 
+    def _get_translated_country_name(self, country_name):
+        """
+        Get translated country name from translations
+        
+        Args:
+            country_name: Original country name
+            
+        Returns:
+            Translated country name or original if translation not found
+        """
+        if not country_name:
+            return ""
+            
+        # Convert country name to lowercase and remove spaces for translation key
+        country_key = country_name.lower().replace(" ", "_")
+        
+        # Try to get translation
+        try:
+            return self.t["invoices_and_credit_notes"][country_key]["text"]
+        except (KeyError, TypeError):
+            # Return original country name if translation not found
+            return country_name
+
     def generate_invoice(self, invoice_data, lang="en"):
         """Generate an invoice PDF with the specified language"""
         # Set current language for use in _draw_header_footer
@@ -270,16 +293,20 @@ class InvoiceTemplateService:
         elements.append(invoice_table)
         elements.append(Spacer(1, 24))
         
-        # Create sender details string using environment variables
-        sender_details_str = f"{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{self.sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
+        # Create sender details string using environment variables and translated country
+        translated_sender_country = self._get_translated_country_name(self.sender_country)
+        sender_details_str = f"{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{translated_sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
         
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
         sender_details = Paragraph(sender_details_str, self.styles['Normal'])
         
         bill_to_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['bill_to']['text']}</b>", self.styles['Bold'])
+        
+        # Get translated receiver country
+        translated_receiver_country = self._get_translated_country_name(invoice_data['receiver_country'])
         receiver_details = Paragraph(
-            f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{invoice_data['receiver_country']}<br/>{invoice_data['receiver_email']}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}", 
+            f"{invoice_data['receiver_name']}<br/>{invoice_data['receiver_address']}<br/>{invoice_data['receiver_city']}<br/>{translated_receiver_country}<br/>{invoice_data['receiver_email']}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}", 
             self.styles['Normal']
         )
         
