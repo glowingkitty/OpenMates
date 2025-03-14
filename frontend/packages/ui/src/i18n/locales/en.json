@@ -2108,6 +2108,10 @@
             "text": "Total price<br>(excl. tax)",
             "context": "Total price label"
         },
+        "total_excl_tax": {
+            "text": "Total (excl. tax)",
+            "context": "Total excl. tax label"
+        },
         "vat_rate": {
             "text": "VAT (0%)",
             "context": "VAT rate"

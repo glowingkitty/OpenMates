@@ -36,7 +36,7 @@ async def preview_invoice(credits: int, lang: str = Query("en")):
             "unit_price": credits / 1000,
             "total_price": credits / 1000,
             "card_name": "Visa",
-            "card_last4": "XXXX"
+            "card_last4": "1234"
         }
         
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang)

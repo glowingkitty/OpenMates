@@ -453,7 +453,7 @@ class InvoiceTemplateService:
         
         # Create data for totals table - remove bold from first two rows
         totals_data = [
-            [Paragraph(f"Total (excl. {self.t['invoices_and_credit_notes']['vat']['text']})", self.styles['Normal']), 
+            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']), 
              Paragraph(f"€{invoice_data['total_price']:.2f}", self.styles['Normal'])],
             [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']), 
              Paragraph("€0.00", self.styles['Normal'])],

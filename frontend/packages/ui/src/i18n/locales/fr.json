@@ -2592,6 +2592,11 @@
             "en_original": "Total price<br>(excl. tax)",
             "context": "Total price label"
         },
+        "total_excl_tax": {
+            "text": "Total (hors taxes)",
+            "en_original": "Total (excl. tax)",
+            "context": "Total excl. tax label"
+        },
         "vat_rate": {
             "text":"TVA (0%)",
             "en_original": "VAT (0%)",

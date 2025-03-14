@@ -2592,6 +2592,11 @@
             "en_original": "Total price<br>(excl. tax)",
             "context": "Total price label"
         },
+        "total_excl_tax": {
+            "text": "合計（税抜）",
+            "en_original": "Total (excl. tax)",
+            "context": "Total excl. tax label"
+        },
         "vat_rate": {
             "text":"消費税 (0%)",
             "en_original": "VAT (0%)",
