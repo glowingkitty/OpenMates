@@ -184,6 +184,7 @@ class InvoiceTemplateService:
         bounds = qr_code.getBounds()
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
+        # Modify the Drawing to start from the absolute left (x=0)
         d = Drawing(70, 70, transform=[70./width, 0, 0, 70./height, 0, 0])
         d.add(qr_code)
         
@@ -212,10 +213,12 @@ class InvoiceTemplateService:
         usage_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            # Set explicit zero padding for all cells, especially the QR code cell
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (0, 0), 6),
-            # Ensure QR code is left-aligned with text above
-            ('ALIGN', (0, 2), (0, 2), 'LEFT'),
+            # Special negative padding for QR code to force left alignment
+            ('LEFTPADDING', (0, 2), (0, 2), -7),
         ]))
         
         # Add left indent to info table
