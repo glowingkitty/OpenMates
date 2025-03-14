@@ -98,6 +98,13 @@ class InvoiceTemplateService:
         # Draw bottom line at the absolute bottom of the page
         canvas.setFillColor(self.bottom_line_color)
         canvas.rect(0, 0, width, self.line_height, fill=1, stroke=0)
+        
+        # Add German disclaimer text just above the bottom line
+        # Use font size 10 to match other text and increase vertical spacing from bottom line
+        canvas.setFont('LexendDeca', 10)
+        canvas.setFillColor(colors.HexColor("#848484"))  # Same gray color as FooterText
+        canvas.drawString(40, self.line_height + 25, "Diese Rechnung ist eine Übersetzung der originalen englischen Rechnung.")
+        canvas.drawString(40, self.line_height + 13, "Die englische Version bleibt das rechtlich bindende Dokument für steuerliche Zwecke.")
 
     def generate_invoice(self, invoice_data):
         buffer = io.BytesIO()
@@ -124,9 +131,9 @@ class InvoiceTemplateService:
         open_text = '<font color="#4867CD">Open</font><font color="black">Mates</font>'
         openmates_text = Paragraph(open_text, self.styles['Heading2'])
         
-        # Add left indent to invoice_text
+        # Add left indent to invoice_text and adjust widths to match inner tables
         header_table = Table([[Spacer(self.left_indent, 0), invoice_text, openmates_text]], 
-                            colWidths=[self.left_indent, (doc.width-self.left_indent)/2, (doc.width-self.left_indent)/2])
+                            colWidths=[self.left_indent, (doc.width-self.left_indent)*0.5, (doc.width-self.left_indent)*0.5])
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
