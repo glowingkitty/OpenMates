@@ -235,8 +235,6 @@ class InvoiceTemplateService:
         
         # Add separator line
         elements.append(Spacer(1, 24))
-        elements.append(ColoredLine(doc.width, 1, self.separator_color))
-        elements.append(Spacer(1, 24))
         
         # Add item details without extra padding
         column_headers = [
@@ -255,16 +253,18 @@ class InvoiceTemplateService:
         
         # Create table with proper indent
         inner_table = Table([column_headers, data_row], 
-                          colWidths=[(doc.width-self.left_indent)*0.4, 
-                                     (doc.width-self.left_indent)*0.2, 
-                                     (doc.width-self.left_indent)*0.2, 
-                                     (doc.width-self.left_indent)*0.2])
+                          colWidths=[(doc.width-self.left_indent)*0.5,  # Description takes 50%
+                                     (doc.width-self.left_indent)*0.15, # Quantity takes 15%
+                                     (doc.width-self.left_indent)*0.175, # Unit price takes 17.5%
+                                     (doc.width-self.left_indent)*0.175]) # Total takes 17.5%
         inner_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (2, 0), (3, -1), 'CENTER'),  # Center align Unit price and Total columns
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('VALIGN', (0, 0), (-1, 0), 'BOTTOM'), # Align headers to bottom
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'), # Keep data row centered vertically
             ('LINEBELOW', (0, 0), (-1, 0), 1, self.separator_color),  # Only line below headers
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 1), (-1, 1), 8),    # Add padding above data row to increase spacing
             ('TOPPADDING', (0, 0), (-1, 0), 0),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ]))
