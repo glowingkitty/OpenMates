@@ -242,7 +242,6 @@
                 },
                 body: JSON.stringify({
                     email: email,
-                    username: username,
                     invite_code: inviteCode,
                     language: currentLang,
                     darkmode: darkModeEnabled
@@ -254,7 +253,6 @@
             if (response.ok && data.success) {
                 // Store data in localStorage for use in the next steps
                 localStorage.setItem('signupEmail', email);
-                localStorage.setItem('signupUsername', username);
                 localStorage.setItem('inviteCode', inviteCode);
                 
                 // Dispatch the next event to transition to step 2

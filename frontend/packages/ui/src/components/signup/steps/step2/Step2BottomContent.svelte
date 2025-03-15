@@ -55,6 +55,7 @@
             if (response.ok && data.success) {
                 // Proceed to next step on success
                 localStorage.removeItem('signupEmail');
+                localStorage.removeItem('inviteCode');
                 dispatch('step', { step: 3 });
             } else {
                 // Show error message

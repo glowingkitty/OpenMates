@@ -7,12 +7,19 @@ import asyncio
 from celery import shared_task
 from app.services.email_template import EmailTemplateService
 from app.services.cache import CacheService
+from app.utils.log_filters import SensitiveDataFilter  # Import the filter
 
 # Import the Celery app directly 
 from app.tasks.celery_config import app
 
 logger = logging.getLogger(__name__)
+# Add filter to email tasks logger
+sensitive_filter = SensitiveDataFilter()
+logger.addFilter(sensitive_filter)
+
 event_logger = logging.getLogger("app.events")
+# Also ensure event_logger has the filter
+event_logger.addFilter(sensitive_filter)
 
 @app.task(name='app.tasks.email_tasks.generate_and_send_verification_email', bind=True)
 def generate_and_send_verification_email(
@@ -83,7 +90,7 @@ async def _async_generate_and_send_verification_email(
             "darkmode": darkmode
         }
         
-        logger.info(f"Sending verification email")
+        logger.info(f"Sending verification email - language: {language}")
         success = await email_template_service.send_email(
             template="confirm-email",
             recipient_email=email,

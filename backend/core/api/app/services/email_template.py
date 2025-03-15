@@ -14,17 +14,34 @@ import cssutils  # Add this import to configure cssutils logger
 import string
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import sys
 
 from app.services.translations import TranslationService
 from app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
 from app.services.email.variable_processor import process_template_variables
 from app.services.email.renderer import render_mjml_template
 from app.services.email.mjml_processor import image_cache
+from app.utils.log_filters import SensitiveDataFilter  # Import the filter
 
 # Configure cssutils logger to suppress email-specific CSS property warnings
 cssutils.log.setLevel(logging.ERROR)  # Only show ERROR level messages from cssutils
 
+# Configure our logger with direct output to ensure visibility
 logger = logging.getLogger(__name__)
+
+# Make sure this module's logger passes all messages through
+logger.setLevel(logging.INFO)
+
+# Apply sensitive data filter to this logger
+logger.addFilter(SensitiveDataFilter())
+
+# Force this module's logger to have a direct console handler to ensure output
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.propagate = False  # Don't pass to root logger to avoid duplicates
 
 class EmailTemplateService:
     """Service for rendering and sending email templates using Brevo API."""
@@ -190,7 +207,7 @@ class EmailTemplateService:
                 "htmlContent": html_content
             }
             
-            # Log that we're sending an email, but don't include sensitive context
+            # Return the original log message - filter will redact the email
             logger.info(f"Sending email to {recipient_email} using template {template} in language {lang}")
             
             # Send the email via Brevo API

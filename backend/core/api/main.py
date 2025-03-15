@@ -16,6 +16,7 @@ from app.services.cache import CacheService
 from app.services.metrics import MetricsService
 from app.services.limiter import limiter
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.utils.log_filters import SensitiveDataFilter  # Import the new filter
 
 # Add import for Celery app
 from app.tasks.celery_config import app as celery_app
@@ -24,6 +25,9 @@ from app.tasks.celery_config import app as celery_app
 log_level = os.getenv("LOG_LEVEL", "INFO")  # Keep INFO as default for console
 logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
+
+# Create sensitive data filter instance
+sensitive_filter = SensitiveDataFilter()
 
 # Configure JSON logging for the root logger for console output
 log_handler = logging.StreamHandler()
@@ -35,6 +39,7 @@ log_formatter = jsonlogger.JsonFormatter(
     }
 )
 log_handler.setFormatter(log_formatter)
+log_handler.addFilter(sensitive_filter)  # Add filter to console handler
 
 # Replace the default handler
 root_logger = logging.getLogger()
@@ -51,6 +56,7 @@ os.makedirs(logs_dir, exist_ok=True)
 api_log_path = os.path.join(logs_dir, "api.log")
 api_handler = logging.FileHandler(api_log_path)
 api_handler.setFormatter(log_formatter)
+api_handler.addFilter(sensitive_filter)  # Add filter to file handler
 # More aggressively filter logs for the file handler
 api_handler.setLevel(logging.WARNING)  # Only WARNING and above in files
 root_logger.addHandler(api_handler)
@@ -60,11 +66,13 @@ event_logger = logging.getLogger("app.events")
 event_logger.propagate = False  # Don't send to root logger
 event_handler = logging.FileHandler(api_log_path)
 event_handler.setFormatter(log_formatter)
+event_handler.addFilter(sensitive_filter)  # Add filter to event file handler
 event_handler.setLevel(logging.INFO)  # Allow INFO level for specific events
 event_logger.addHandler(event_handler)
 # Add console output for events as well
 event_console = logging.StreamHandler()
 event_console.setFormatter(log_formatter)
+event_console.addFilter(sensitive_filter)  # Add filter to event console handler
 event_console.setLevel(logging.INFO)
 event_logger.addHandler(event_console)
 
@@ -95,6 +103,7 @@ compliance_log_path = os.path.join(logs_dir, "compliance.log")
 compliance_handler = logging.FileHandler(compliance_log_path)
 compliance_formatter = jsonlogger.JsonFormatter('%(message)s')
 compliance_handler.setFormatter(compliance_formatter)
+compliance_handler.addFilter(sensitive_filter)  # Add filter to compliance handler as well
 compliance_logger.addHandler(compliance_handler)
 
 # Load environment variables
