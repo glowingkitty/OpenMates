@@ -318,7 +318,7 @@
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>{@html $text('chat.welcome.hey.text')} {username}!</h2>
+                                    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', username)}</h2>
                                     <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
                                 </div>
                             </div>
