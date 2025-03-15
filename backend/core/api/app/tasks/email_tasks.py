@@ -83,7 +83,7 @@ async def _async_generate_and_send_verification_email(
             "darkmode": darkmode
         }
         
-        logger.info(f"Sending verification email to {email}")
+        logger.info(f"Sending verification email")
         success = await email_template_service.send_email(
             template="confirm-email",
             recipient_email=email,
@@ -92,10 +92,10 @@ async def _async_generate_and_send_verification_email(
         )
         
         if not success:
-            logger.error(f"Failed to send verification email to: {email}")
+            logger.error(f"Failed to send verification email")
             return False
             
-        logger.info(f"Verification email sent successfully to: {email}")
+        logger.info(f"Verification email sent successfully")
         return True
         
     except Exception as e:

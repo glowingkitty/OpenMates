@@ -10,7 +10,43 @@ from app.utils.invite_code import validate_invite_code
 
 # Import the Celery task directly from the tasks module
 from app.tasks.celery_config import app as celery_app
-from app.tasks.email_tasks import generate_and_send_verification_email
+
+# IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
+#
+# LOGGING PRIVACY RULES
+# 1. NEVER LOG SENSITIVE USER DATA under normal circumstances:
+#    - IP addresses
+#    - User IDs
+#    - Email addresses
+#    - Names
+#    - Usernames
+#    - Passwords
+#
+# 2. COMPLIANCE EXCEPTION: For EU/Germany legal requirements, the following events:
+#    - Successful/failed login
+#    - Signup
+#    - Consent to terms
+#    - Password change
+#    - Email address change
+#    - 2FA change
+#    - Account deletion
+#
+# 3. FOR COMPLIANCE LOGS ONLY, record:
+#    - IP address
+#    - User ID
+#    - Action type
+#    - Timestamp
+#
+# 4. RETENTION & STORAGE:
+#    - PRIMARY STORAGE: Compliance logs remain in Grafana for 48 hours
+#    - BACKUP PROCEDURE: After 48 hours, logs are automatically:
+#        a) Encrypted and transferred to Hetzner S3
+#        b) Deleted from Grafana
+#    - LONG-TERM RETENTION: Encrypted logs in Hetzner S3 are permanently deleted after 1 year
+#    - ACCESS CONTROLS: Only authorized security personnel may access archived logs
+#    - DOCUMENTATION: All automatic transfers and deletions must be logged in a separate audit system
+#
+# IMPORTANT INSTRUCTION END (DO NOT DELETE/MODIFY)
 
 router = APIRouter(
     prefix="/v1/auth",
@@ -96,7 +132,7 @@ async def request_confirm_email_code(
         # Validate the invite code first
         is_valid, message = await validate_invite_code(email_request.invite_code, directus_service, cache_service)
         if not is_valid:
-            logger.warning(f"Invalid invite code used in email verification request: {email_request.invite_code}")
+            logger.warning(f"Invalid invite code used in email verification request")
             return RequestEmailCodeResponse(
                 success=False, 
                 message="Invalid invite code. Please go back and start again."
@@ -149,7 +185,7 @@ async def check_confirm_email_code(
         
         # Check if we have a code for this email
         if not stored_code:
-            logger.warning(f"Email verification attempted with no code on record: {code_request.email}")
+            logger.warning(f"Email verification attempted with no code on record")
             return CheckEmailCodeResponse(
                 success=False, 
                 message="No verification code requested for this email or code expired."
@@ -157,7 +193,7 @@ async def check_confirm_email_code(
         
         # Check if code matches
         if stored_code != code_request.code:
-            logger.warning(f"Invalid verification code for: {code_request.email}")
+            logger.warning(f"Invalid verification code")
             return CheckEmailCodeResponse(
                 success=False, 
                 message="Invalid verification code. Please try again."
