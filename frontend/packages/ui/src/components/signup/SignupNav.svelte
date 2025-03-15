@@ -68,9 +68,9 @@
     
     {#if showAdminButton}
         <button class="admin-button" on:click={openSelfHostedDocs}>
-            <div class="icon server admin-icon"></div>
+            <div class="clickable-icon icon_server admin-icon"></div>
             <span class="admin-text">{$_('signup.server_admin.text')}</span>
-            <div class="icon server question-icon"></div>
+            <div class="clickable-icon icon_question question-icon"></div>
         </button>
     {/if}
     
@@ -118,6 +118,10 @@
     }
 
     .admin-button {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -129,8 +133,6 @@
         font-size: 16px;
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        margin-right: auto;
-        margin-left: 24px;
     }
     
     .admin-text {

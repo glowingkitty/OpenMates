@@ -354,6 +354,16 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/lock.svg');
 }
 
+.clickable-icon.icon_server {
+  -webkit-mask-image: url('@openmates/ui/static/icons/server.svg');
+  mask-image: url('@openmates/ui/static/icons/server.svg');
+}
+
+.clickable-icon.icon_question {
+  -webkit-mask-image: url('@openmates/ui/static/icons/question.svg');
+  mask-image: url('@openmates/ui/static/icons/question.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;

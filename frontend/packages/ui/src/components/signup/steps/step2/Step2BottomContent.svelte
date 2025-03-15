@@ -115,13 +115,6 @@
         gap: 16px;
     }
 
-    .resend-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-    }
-    
     .error-message {
         color: #e74c3c;
         font-size: 0.9rem;
