@@ -171,6 +171,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ invite_code: inviteCode }),
+                credentials: 'include'  // Important: This sends cookies with the request
             });
 
             // Check for rate limiting first
@@ -235,6 +236,7 @@
             const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
             
             // Request email verification code with language and dark mode preferences
+            // Now also send username and password which will be stored in secure cookies
             const response = await fetch(getApiEndpoint(apiEndpoints.signup.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
@@ -242,18 +244,20 @@
                 },
                 body: JSON.stringify({
                     email: email,
-                    invite_code: inviteCode,
+                    username: username,
+                    password: password,  // This will now be stored as an HTTP-only cookie
                     language: currentLang,
                     darkmode: darkModeEnabled
                 }),
+                credentials: 'include'  // Important: This sends cookies with the request
             });
 
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // Store data in localStorage for use in the next steps
-                localStorage.setItem('signupEmail', email);
-                localStorage.setItem('inviteCode', inviteCode);
+                // No need to store in localStorage anymore as it's now in secure cookies
+                // Just store UI-related information for display purposes
+                localStorage.setItem('displayUsername', username);
                 
                 // Dispatch the next event to transition to step 2
                 dispatch('next');

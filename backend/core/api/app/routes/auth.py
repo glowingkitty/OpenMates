@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi import APIRouter, HTTPException, Depends, status, Request, Response, Cookie
 import logging
+from typing import Optional
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from app.services.directus import DirectusService
@@ -96,18 +97,29 @@ async def verify_allowed_origin(request: Request):
 async def check_invite_token_valid(
     request: Request,
     invite_request: InviteCodeRequest,
+    response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """
     Check if the provided invite code is valid.
+    If valid, store it in a secure HTTP-only cookie.
     """
     try:
         is_valid, message = await validate_invite_code(invite_request.invite_code, directus_service, cache_service)
         metrics_service.track_invite_code_check(is_valid)
         
         if is_valid:
+            # Set invite code in HTTP-only cookie
+            response.set_cookie(
+                key="signup_invite_code",
+                value=invite_request.invite_code,
+                httponly=True,
+                secure=True,
+                samesite="strict",
+                max_age=3600  # 1 hour expiry
+            )
             return InviteCodeResponse(valid=True, message=message)
         else:
             return InviteCodeResponse(valid=False, message=message)
@@ -122,15 +134,28 @@ async def check_invite_token_valid(
 async def request_confirm_email_code(
     request: Request,
     email_request: RequestEmailCodeRequest,
+    response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    signup_invite_code: Optional[str] = Cookie(None)
 ):
     """
     Generate and send a 6-digit confirmation code to the provided email.
+    Store signup information in secure HTTP-only cookies.
     """
     try:
+        # Use invite code from cookie if available, otherwise from request
+        invite_code = signup_invite_code or email_request.invite_code
+        
+        if not invite_code:
+            logger.warning(f"Missing invite code in email verification request")
+            return RequestEmailCodeResponse(
+                success=False, 
+                message="Missing invite code. Please go back and try again."
+            )
+        
         # Validate the invite code first
-        is_valid, message = await validate_invite_code(email_request.invite_code, directus_service, cache_service)
+        is_valid, message = await validate_invite_code(invite_code, directus_service, cache_service)
         if not is_valid:
             logger.warning(f"Invalid invite code used in email verification request")
             return RequestEmailCodeResponse(
@@ -141,12 +166,55 @@ async def request_confirm_email_code(
         # Log that we're submitting task to Celery
         logger.info(f"Submitting email verification task to Celery")
         
+        # Set cookies for all signup information
+        # Set invite code (even if it's already set, to refresh expiry)
+        response.set_cookie(
+            key="signup_invite_code",
+            value=invite_code,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=3600  # 1 hour expiry
+        )
+        
+        # Set email
+        response.set_cookie(
+            key="signup_email",
+            value=email_request.email,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=3600
+        )
+        
+        # Set username if provided
+        if email_request.username:
+            response.set_cookie(
+                key="signup_username",
+                value=email_request.username,
+                httponly=True,
+                secure=True,
+                samesite="strict",
+                max_age=3600
+            )
+        
+        # Set password if provided
+        if email_request.password:
+            response.set_cookie(
+                key="signup_password",
+                value=email_request.password,
+                httponly=True,
+                secure=True,
+                samesite="strict",
+                max_age=3600
+            )
+        
         # Send the task with explicit task name
         task = celery_app.send_task(
             name='app.tasks.email_tasks.generate_and_send_verification_email',
             kwargs={
                 'email': email_request.email,
-                'invite_code': email_request.invite_code,
+                'invite_code': invite_code,
                 'language': email_request.language,
                 'darkmode': email_request.darkmode
             },
@@ -173,14 +241,58 @@ async def request_confirm_email_code(
 async def check_confirm_email_code(
     request: Request,
     code_request: CheckEmailCodeRequest,
-    cache_service: CacheService = Depends(get_cache_service)
+    response: Response,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    signup_invite_code: Optional[str] = Cookie(None),
+    signup_email: Optional[str] = Cookie(None),
+    signup_username: Optional[str] = Cookie(None),
+    signup_password: Optional[str] = Cookie(None)
 ):
     """
     Verify the 6-digit confirmation code for the provided email.
+    Also re-verify the invite code is still valid.
+    If all is valid, proceed to create the user account.
     """
     try:
+        # Use email from cookie if available, otherwise from request
+        email = signup_email or code_request.email
+        
+        # Use invite code from cookie if available, otherwise from request
+        invite_code = signup_invite_code or code_request.invite_code
+        
+        if not email:
+            logger.warning(f"Missing email in code verification request")
+            return CheckEmailCodeResponse(
+                success=False, 
+                message="Email address not found. Please go back and try again."
+            )
+            
+        if not invite_code:
+            logger.warning(f"Missing invite code in code verification request")
+            return CheckEmailCodeResponse(
+                success=False, 
+                message="Invite code not found. Please go back and try again."
+            )
+        
+        # First, validate that the invite code is still valid
+        is_valid, message = await validate_invite_code(invite_code, directus_service, cache_service)
+        if not is_valid:
+            logger.warning(f"Invalid invite code used in email verification check")
+            
+            # Clear all signup cookies
+            response.delete_cookie(key="signup_invite_code")
+            response.delete_cookie(key="signup_email")
+            response.delete_cookie(key="signup_username")
+            response.delete_cookie(key="signup_password")
+            
+            return CheckEmailCodeResponse(
+                success=False, 
+                message="Invalid invite code. Please go back and start again."
+            )
+
         # Get the code from cache
-        cache_key = f"email_verification:{code_request.email}"
+        cache_key = f"email_verification:{email}"
         stored_code = await cache_service.get(cache_key)
         
         # Check if we have a code for this email
@@ -204,7 +316,20 @@ async def check_confirm_email_code(
         
         # Log successful verification
         event_logger.info(f"Email verified successfully")
-        logger.info(f"Email verification successful")
+        logger.info(f"Email verified successfully")
+        
+        # Here we would normally create the user account
+        # For now, just log that we would create it
+        logger.info(f"Creating user account next... (placeholder)")
+        if signup_username and signup_password:
+            logger.info(f"Account creation would use username and password from cookies")
+        
+        # Clear all signup cookies after successful verification
+        # This is important for security
+        response.delete_cookie(key="signup_invite_code")
+        response.delete_cookie(key="signup_email")
+        response.delete_cookie(key="signup_username")
+        response.delete_cookie(key="signup_password")
         
         return CheckEmailCodeResponse(
             success=True, 

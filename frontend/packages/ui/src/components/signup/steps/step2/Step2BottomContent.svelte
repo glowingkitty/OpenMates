@@ -15,7 +15,7 @@
     onMount(() => {
         // Check if device is touch-enabled
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        
+
         // Only auto-focus on non-touch devices
         if (otpInput && !isTouchDevice) {
             otpInput.focus();
@@ -30,32 +30,23 @@
             errorMessage = '';
             showError = false;
             
-            // Get the email from localStorage
-            const email = localStorage.getItem('signupEmail');
-            
-            if (!email) {
-                errorMessage = 'Email address not found. Please go back and try again.';
-                showError = true;
-                return;
-            }
-            
+            // We don't need to send email or invite code in the body anymore
+            // as they are already in HTTP-only cookies
             const response = await fetch(getApiEndpoint(apiEndpoints.signup.check_confirm_email_code), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: email,
                     code: code
-                })
+                }),
+                credentials: 'include'  // Important: This sends cookies with the request
             });
             
             const data = await response.json();
             
             if (response.ok && data.success) {
                 // Proceed to next step on success
-                localStorage.removeItem('signupEmail');
-                localStorage.removeItem('inviteCode');
                 dispatch('step', { step: 3 });
             } else {
                 // Show error message
@@ -86,33 +77,28 @@
 
     async function handleResend() {
         try {
-            const email = localStorage.getItem('signupEmail');
-            const username = localStorage.getItem('signupUsername') || '';
-            const inviteCode = localStorage.getItem('inviteCode') || '';
+            // Get current language from localStorage or use browser default
+            const currentLang = localStorage.getItem('preferredLanguage') || 
+                              navigator.language.split('-')[0] || 
+                              'en';
             
-            if (!email) {
-                errorMessage = 'Email address not found. Please go back and try again.';
-                showError = true;
-                return;
-            }
+            // Get dark mode setting from system preference or user setting
+            const prefersDarkMode = window.matchMedia && 
+                                window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
             
-            // If we don't have the invite code in localStorage, can't proceed
-            if (!inviteCode) {
-                errorMessage = 'Missing invite code. Please go back and try again.';
-                showError = true;
-                return;
-            }
-            
+            // No need to send email or invite code in request body
+            // as they are already in HTTP-only cookies
             const response = await fetch(getApiEndpoint(apiEndpoints.signup.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: email,
-                    username: username,
-                    invite_code: inviteCode
+                    language: currentLang,
+                    darkmode: darkModeEnabled
                 }),
+                credentials: 'include'  // Important: This sends cookies with the request
             });
             
             const data = await response.json();
