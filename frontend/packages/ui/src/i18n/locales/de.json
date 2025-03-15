@@ -521,9 +521,9 @@
             "context": "Button label for starting a video call"
         },
         "welcome": {
-            "hey": {
-                "text": "Hallo",
-                "en_original": "Hey",
+            "hey_user": {
+                "text": "Hallo {username}!",
+                "en_original": "Hey {username}!",
                 "context": "Welcome greeting in chat"
             },
             "what_do_you_need_help_with": {

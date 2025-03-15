@@ -7,7 +7,7 @@
 </script>
 
 <div class="content">
-    <h2>{@html $text('chat.welcome.hey.text')} {username}</h2>
+    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', username)}</h2>
     <div class="image-container">
         <div class="image-circle">
             {#if $processedImageUrl}
