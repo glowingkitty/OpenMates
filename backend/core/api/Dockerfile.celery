@@ -1,0 +1,51 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies with retry logic to handle hash mismatches
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/99use-gzip-compression && \
+    for i in $(seq 1 3); do \
+        echo "Attempt $i to update and install packages..." && \
+        apt-get update -o Acquire::CompressionTypes::Order::="gz" && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            libpq-dev \
+            gcc \
+            curl \
+            && break || \
+        echo "Retrying in 5 seconds..." && \
+        sleep 5; \
+    done && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
+COPY requirements.txt /app/
+
+# Install Python dependencies and explicitly install celery
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . /app/
+
+# Create logs directory
+RUN mkdir -p /app/logs && chmod 777 /app/logs
+
+# Set up a non-root user
+RUN adduser --disabled-password --gecos '' celeryuser
+RUN chown -R celeryuser:celeryuser /app
+
+# Switch to non-root user
+USER celeryuser
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Set the working directory
+WORKDIR /app
+
+# Use improved command with explicit queue and debug settings
+CMD ["python", "-m", "celery", "-A", "app.tasks.celery_config", "worker", "--loglevel=info", "-Q", "email"]

@@ -17,6 +17,9 @@ from app.services.metrics import MetricsService
 from app.services.limiter import limiter
 from app.middleware.logging_middleware import LoggingMiddleware
 
+# Add import for Celery app
+from app.tasks.celery_config import app as celery_app
+
 # Set up structured logging - INFO for console output, WARNING for files
 log_level = os.getenv("LOG_LEVEL", "INFO")  # Keep INFO as default for console
 logging.basicConfig(level=log_level)
@@ -202,6 +205,17 @@ app.include_router(credit_note.router)
 @limiter.limit("60/minute")
 async def health_check(request: Request):
     return {"status": "healthy"}
+
+# Make sure there's a section where you set up the event loop for async tasks
+@app.on_event("startup")
+async def startup_event():
+    # Add event loop for async background tasks
+    import asyncio
+    loop = asyncio.get_event_loop()
+    app.state.loop = loop
+
+# Make Celery app accessible through the main module
+__all__ = ['app', 'celery_app']
 
 if __name__ == "__main__":
     port = int(os.getenv("REST_API_PORT", "8000"))

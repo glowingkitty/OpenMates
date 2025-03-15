@@ -58,15 +58,6 @@ class EmailTemplateService:
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
         self.default_sender_email = os.getenv("EMAIL_SENDER_EMAIL", "noreply@openmates.org")
         
-        # Email subject templates
-        self.email_subjects = {
-            "confirm-email": "Verify your email address for OpenMates",
-            "welcome": "Welcome to OpenMates!",
-            "password-reset": "Reset your OpenMates password",
-            "login-alert": "New login detected on your OpenMates account",
-            "invoice": "Your OpenMates invoice",
-        }
-        
         logger.info(f"Email template service initialized with templates directory: {self.templates_dir}")
     
     def render_template(
@@ -159,9 +150,26 @@ class EmailTemplateService:
             sender_name = sender_name or self.default_sender_name
             sender_email = sender_email or self.default_sender_email
             
-            # Get default subject for template or use provided subject
+            # Get translations for the current language
+            translations = self.translation_service.get_translations(lang, variables=context)
+            
+            # Get the subject from translations if not provided
             if not subject:
-                subject = self.email_subjects.get(template, f"Message from {self.default_sender_name}")
+                if template == "confirm-email":
+                    subject_key = "email.confirm_your_email.text"
+                elif template == "purchase-confirmation":
+                    subject_key = "email.purchase_confirmation.text"
+                else:
+                    subject_key = f"email.{template}.subject"
+                
+                # Try to get the translated subject
+                subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                if subject == subject_key:  # If key not found, use default
+                    subject = f"Message from {self.default_sender_name}"
+                
+            # Add translations to context
+            if 't' not in context:
+                context['t'] = translations
                 
             # Render the HTML template
             html_content = self.render_template(template, context, lang)
@@ -183,7 +191,7 @@ class EmailTemplateService:
             }
             
             # Log that we're sending an email, but don't include sensitive context
-            logger.info(f"Sending email to {recipient_email} using template {template}")
+            logger.info(f"Sending email to {recipient_email} using template {template} in language {lang}")
             
             # Send the email via Brevo API
             async with aiohttp.ClientSession() as session:

@@ -10,11 +10,12 @@ class InviteCodeResponse(BaseModel):
     is_admin: Optional[bool] = None
     gifted_credits: Optional[int] = None
 
-# New models for email verification
+# Updated model for email verification
 class RequestEmailCodeRequest(BaseModel):
     email: EmailStr
-    username: str
     invite_code: str
+    language: str = "en"  # Default to English if not provided
+    darkmode: bool = False  # Default to light mode if not provided
     
 class RequestEmailCodeResponse(BaseModel):
     success: bool

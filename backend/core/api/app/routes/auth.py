@@ -1,17 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request, Header
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 import logging
-import random
-import secrets
-from datetime import datetime, timedelta
-from typing import Dict, Tuple
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
 from app.services.limiter import limiter
-from app.services.email_template import EmailTemplateService
 from app.utils.invite_code import validate_invite_code
+
+# Import the Celery task directly from the tasks module
+from app.tasks.celery_config import app as celery_app
+from app.tasks.email_tasks import generate_and_send_verification_email
 
 router = APIRouter(
     prefix="/v1/auth",
@@ -83,73 +82,54 @@ async def check_invite_token_valid(
         return InviteCodeResponse(valid=False, message="An error occurred checking the invite code")
 
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("3/minute")
+@limiter.limit("2/minute")
 async def request_confirm_email_code(
     request: Request,
     email_request: RequestEmailCodeRequest,
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service),
-    email_template_service: EmailTemplateService = Depends(get_email_template_service)
+    cache_service: CacheService = Depends(get_cache_service)
 ):
     """
     Generate and send a 6-digit confirmation code to the provided email.
     """
     try:
-        # Validate the invite code again to prevent abuse
-        is_valid, _ = await validate_invite_code(email_request.invite_code, directus_service, cache_service)
+        # Validate the invite code first
+        is_valid, message = await validate_invite_code(email_request.invite_code, directus_service, cache_service)
         if not is_valid:
             logger.warning(f"Invalid invite code used in email verification request: {email_request.invite_code}")
             return RequestEmailCodeResponse(
                 success=False, 
                 message="Invalid invite code. Please go back and start again."
             )
-            
-        # Generate a 6-digit code
-        verification_code = ''.join(random.choices('0123456789', k=6))
         
-        # Store the code in cache with 20 minute expiration
-        # Fix: Update the parameter name from 'expiration' to 'ttl' (or the correct parameter)
-        cache_key = f"email_verification:{email_request.email}"
-        await cache_service.set(cache_key, verification_code, ttl=1200)  # 1200 seconds = 20 minutes
+        # Log that we're submitting task to Celery
+        logger.info(f"Submitting email verification task to Celery")
         
-        # Store invite code in localStorage for resend functionality
-        # Save in cache for use during registration completion
-        invite_cache_key = f"invite_code:{email_request.email}"
-        await cache_service.set(invite_cache_key, email_request.invite_code, ttl=1200)
-        
-        # Log the event (but don't log the actual code in production)
-        event_logger.info(f"Email verification code generated for: {email_request.email}")
-        
-        # Send the email using the email template service
-        success = await email_template_service.send_email(
-            template="confirm-email",
-            recipient_email=email_request.email,
-            recipient_name=email_request.username,
-            context={
-                "code": verification_code, 
-                "username": email_request.username
-            }
+        # Send the task with explicit task name
+        task = celery_app.send_task(
+            name='app.tasks.email_tasks.generate_and_send_verification_email',
+            kwargs={
+                'email': email_request.email,
+                'invite_code': email_request.invite_code,
+                'language': email_request.language,
+                'darkmode': email_request.darkmode
+            },
+            queue='email'
         )
         
-        if not success:
-            logger.error(f"Failed to send verification email to: {email_request.email}")
-            return RequestEmailCodeResponse(
-                success=False, 
-                message="Failed to send verification email. Please try again."
-            )
-            
-        # Clean up expired codes is handled automatically by cache expiration
-            
+        logger.info(f"Task {task.id} submitted to Celery")
+        
+        # Return success immediately, which is common for email sending endpoints
         return RequestEmailCodeResponse(
             success=True, 
-            message="Verification code sent to your email."
+            message="Verification code will be sent to your email."
         )
-        
+            
     except Exception as e:
         logger.error(f"Error requesting email verification code: {str(e)}", exc_info=True)
         return RequestEmailCodeResponse(
             success=False, 
-            message="An error occurred while sending the verification code."
+            message="An error occurred while processing your request."
         )
 
 @router.post("/check_confirm_email_code", response_model=CheckEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
@@ -187,8 +167,8 @@ async def check_confirm_email_code(
         await cache_service.delete(cache_key)
         
         # Log successful verification
-        event_logger.info(f"Email verified successfully for: {code_request.email}")
-        logger.info(f"Email verification successful for: {code_request.email}")
+        event_logger.info(f"Email verified successfully")
+        logger.info(f"Email verification successful")
         
         return CheckEmailCodeResponse(
             success=True, 

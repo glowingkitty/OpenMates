@@ -223,7 +223,18 @@
 
         try {
             isLoading = true;
-            // Request email verification code
+            
+            // Get current language from localStorage or use browser default
+            const currentLang = localStorage.getItem('preferredLanguage') || 
+                              navigator.language.split('-')[0] || 
+                              'en';
+            
+            // Get dark mode setting from system preference or user setting
+            const prefersDarkMode = window.matchMedia && 
+                                  window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
+            
+            // Request email verification code with language and dark mode preferences
             const response = await fetch(getApiEndpoint(apiEndpoints.signup.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
@@ -232,7 +243,9 @@
                 body: JSON.stringify({
                     email: email,
                     username: username,
-                    invite_code: inviteCode
+                    invite_code: inviteCode,
+                    language: currentLang,
+                    darkmode: darkModeEnabled
                 }),
             });
 

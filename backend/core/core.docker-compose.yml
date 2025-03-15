@@ -22,6 +22,7 @@ services:
       VAULT_URL: "http://vault:8200"
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"  # Add Redis password to API environment
     command: >
       sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
@@ -62,6 +63,13 @@ services:
       DB_PASSWORD: "${DATABASE_PASSWORD}"
       PUBLIC_URL: "http://localhost:${CMS_PORT}"
       LOG_LEVEL: "info"
+      # Add Redis configuration for Directus
+      CACHE_ENABLED: "true"
+      CACHE_STORE: "redis"
+      REDIS_HOST: "cache"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+      REDIS_USERNAME: "default"
     ports:
       - "${CMS_PORT}:8055"
     volumes:
@@ -71,6 +79,8 @@ services:
       - openmates
     depends_on:
       cms-database:
+        condition: service_healthy
+      cache:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8055/ || exit 1"]
@@ -121,53 +131,65 @@ services:
       restart_policy:
         condition: none
 
-  # #########################################################################
-  # ##### Task Management (Celery)
-  # #########################################################################
-  # task-worker:
-  #   container_name: task-worker
-  #   build:
-  #     context: ./celery
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   env_file: ../../.env
-  #   environment:
-  #     PYTHONPATH: "/app"
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
-  #     DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
-  #   command: >
-  #     sh -c "celery -A tasks worker --loglevel=info --uid=nobody"
-  #   volumes:
-  #     - ./celery:/app
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - cms
-  #     - cache
+  #########################################################################
+  ##### Task Management (Celery)
+  #########################################################################
+  task-worker:
+    container_name: task-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
+      DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+      CELERY_BROKER_URL: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
+      CELERY_RESULT_BACKEND: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
+      TRANSLATIONS_DIR: "/translations"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+    command: >
+      python -m celery -A app.tasks.celery_config worker --loglevel=info -Q email
+    volumes:
+      - ./api:/app
+      - ./api/logs:/app/logs
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+    networks:
+      - openmates
+    depends_on:
+      - cms
+      - cache
 
-  # task-scheduler:
-  #   container_name: task-scheduler
-  #   build:
-  #     context: ./celery
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   env_file: ../../.env
-  #   environment:
-  #     PYTHONPATH: "/app"
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
-  #     DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
-  #   command: >
-  #     sh -c "celery -A tasks beat --loglevel=info --uid=nobody"
-  #   volumes:
-  #     - ./celery:/app
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     - cms
-  #     - cache
-  #     - task-worker
+  task-scheduler:
+    container_name: task-scheduler
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      CMS_URL: "http://cms:${CMS_PORT}"
+      CMS_TOKEN: ${CMS_TOKEN}
+      DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+      CELERY_BROKER_URL: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
+      CELERY_RESULT_BACKEND: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
+      TRANSLATIONS_DIR: "/translations"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+    command: >
+      python -m celery -A app.tasks.celery_config beat --loglevel=info
+    volumes:
+      - ./api:/app
+      - ./api/logs:/app/logs
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+    networks:
+      - openmates
+    depends_on:
+      - cms
+      - cache
+      - task-worker
 
   #########################################################################
   ##### In-Memory Cache (Dragonfly)
@@ -185,6 +207,8 @@ services:
     command:
       - "--maxmemory"
       - "3000mb"
+      - "--requirepass"
+      - "${REDIS_PASSWORD:-openmates_cache}"  # Use environment variable or default password
     deploy:
       resources:
         limits:
@@ -192,7 +216,7 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-openmates_cache}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
