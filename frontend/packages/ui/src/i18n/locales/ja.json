@@ -2315,9 +2315,9 @@
         }
     },
     "email":{
-        "confirm_your_email": {
+        "confirm_your_email_address": {
             "text":"メールアドレスを確認",
-            "en_original": "Confirm your email",
+            "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
         },
         "to_chat_to_your_mates": {

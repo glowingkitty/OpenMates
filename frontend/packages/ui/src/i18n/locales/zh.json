@@ -2325,9 +2325,9 @@
         }
     },
     "email":{
-        "confirm_your_email": {
-            "text":"确认您的电子邮件",
-            "en_original": "Confirm your email",
+        "confirm_your_email_address": {
+            "text":"确认您的电子邮件地址",
+            "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
         },
         "to_chat_to_your_mates": {

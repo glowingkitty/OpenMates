@@ -156,7 +156,7 @@ class EmailTemplateService:
             # Get the subject from translations if not provided
             if not subject:
                 if template == "confirm-email":
-                    subject_key = "email.confirm_your_email.text"
+                    subject_key = "email.confirm_your_email_address.text"
                 elif template == "purchase-confirmation":
                     subject_key = "email.purchase_confirmation.text"
                 else:

@@ -1886,9 +1886,9 @@
         }
     },
     "email":{
-        "confirm_your_email": {
-            "text": "Confirm your email",
-            "context": "Email subject & header for email confirmation"
+        "confirm_your_email_address": {
+            "text": "Confirm your email address",
+            "context": "Email subject & header for email address confirmation"
         },
         "to_chat_to_your_mates": {
             "text": "To chat to your<br><mark>digital team mates</mark>",
