@@ -252,6 +252,14 @@
                 credentials: 'include'  // Important: This sends cookies with the request
             });
 
+            // Check for rate limiting - use existing rate limit system
+            if (response.status === 429) {
+                isRateLimited = true;
+                localStorage.setItem('inviteCodeRateLimit', Date.now().toString());
+                setRateLimitTimer(RATE_LIMIT_DURATION);
+                return;
+            }
+
             const data = await response.json();
 
             if (response.ok && data.success) {
@@ -640,13 +648,19 @@
         {#if !isValidated}
             <WaitingList showPersonalInviteMessage={true} />
         {:else}
-            <button 
-                class="signup-button" 
-                disabled={!isFormValid}
-                on:click={handleSubmit}
-            >
-                {$text('signup.create_new_account.text')}
-            </button>
+            {#if isRateLimited}
+                <div class="rate-limit-message" transition:fade>
+                    {$text('signup.too_many_requests.text')}
+                </div>
+            {:else}
+                <button 
+                    class="signup-button" 
+                    disabled={!isFormValid}
+                    on:click={handleSubmit}
+                >
+                    {$text('signup.create_new_account.text')}
+                </button>
+            {/if}
         {/if}
     </div>
 </div>

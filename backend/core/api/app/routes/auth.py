@@ -130,7 +130,7 @@ async def check_invite_token_valid(
         return InviteCodeResponse(valid=False, message="An error occurred checking the invite code")
 
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("2/minute")
+@limiter.limit("3/minute")
 async def request_confirm_email_code(
     request: Request,
     email_request: RequestEmailCodeRequest,
@@ -328,7 +328,6 @@ async def check_confirm_email_code(
         # This is important for security
         response.delete_cookie(key="signup_invite_code")
         response.delete_cookie(key="signup_email")
-        response.delete_cookie(key="signup_username")
         response.delete_cookie(key="signup_password")
         
         return CheckEmailCodeResponse(
