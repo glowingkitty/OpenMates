@@ -76,23 +76,24 @@ export const routes = {
     docs: {
         main: import.meta.env.DEV ? "/docs" : null,
         userGuide: import.meta.env.DEV ? "/docs/userguide" : null,
-        userGuide_signup_1a: import.meta.env.DEV ? "/docs/userguide/signup/invite-code" : null,
-        userGuide_signup_1b: import.meta.env.DEV ? "/docs/userguide/signup/basics" : null,
-        userGuide_signup_2: import.meta.env.DEV ? "/docs/userguide/signup/confirm-email" : null,
-        userGuide_signup_3: import.meta.env.DEV ? "/docs/userguide/signup/upload-profile-image" : null,
-        userGuide_signup_4: import.meta.env.DEV ? "/docs/userguide/signup/2fa" : null,
-        userGuide_signup_5: import.meta.env.DEV ? "/docs/userguide/signup/backup-codes" : null,
-        userGuide_signup_6: import.meta.env.DEV ? "/docs/userguide/signup/2fa-reminder" : null,
-        userGuide_signup_7: import.meta.env.DEV ? "/docs/userguide/signup/settings" : null,
-        userGuide_signup_8: import.meta.env.DEV ? "/docs/userguide/signup/mates" : null,
-        userGuide_signup_9: import.meta.env.DEV ? "/docs/userguide/signup/pay-per-use" : null,
-        userGuide_signup_10_1: import.meta.env.DEV ? "/docs/userguide/signup/limited-refund" : null,
-        userGuide_signup_10_2: import.meta.env.DEV ? "/docs/userguide/signup/payment" : null,
-        userGuide_settings: import.meta.env.DEV ? "/docs/userguide/settings" : null,
+        userGuide_signup_1a: "/docs/userguide/signup/invite-code",
+        userGuide_signup_1b: "/docs/userguide/signup/basics",
+        userGuide_signup_2: "/docs/userguide/signup/confirm-email",
+        userGuide_signup_3: "/docs/userguide/signup/upload-profile-image",
+        userGuide_signup_4: "/docs/userguide/signup/2fa",
+        userGuide_signup_5: "/docs/userguide/signup/backup-codes",
+        userGuide_signup_6: "/docs/userguide/signup/2fa-reminder",
+        userGuide_signup_7: "/docs/userguide/signup/settings",
+        userGuide_signup_8: "/docs/userguide/signup/mates",
+        userGuide_signup_9: "/docs/userguide/signup/pay-per-use",
+        userGuide_signup_10_1: "/docs/userguide/signup/limited-refund",
+        userGuide_signup_10_2: "/docs/userguide/signup/payment",
+        userGuide_settings: "/docs/userguide/settings",
         api: import.meta.env.DEV ? "/docs/api" : null,
         roadmap: import.meta.env.DEV ? "/docs/roadmap" : null,
         designGuidelines: import.meta.env.DEV ? "/docs/designguidelines" : null,
-        designSystem: import.meta.env.DEV ? "/docs/designsystem" : null
+        designSystem: import.meta.env.DEV ? "/docs/designsystem" : null,
+        selfhosted: "/docs/selfhosted"
     }
 } as const;
 

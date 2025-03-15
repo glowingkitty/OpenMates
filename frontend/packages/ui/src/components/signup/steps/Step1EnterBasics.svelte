@@ -17,6 +17,7 @@
     let isValidFormat = false;
     let isLoading = false;
     export let isValidated = false;
+    export let isAdmin = false;
     let showWarning = false;
 
     // Signup form fields
@@ -194,21 +195,21 @@
 
             if (data.valid) {
                 isValidated = true;
-                // Store any additional data if needed
-                if (data.gifted_credits) {
-                    localStorage.setItem('giftedCredits', data.gifted_credits.toString());
-                }
                 if (data.is_admin) {
-                    localStorage.setItem('isAdmin', 'true');
+                    isAdmin = true;
+                } else {
+                    isAdmin = false;
                 }
             } else {
                 showWarning = true;
                 isValidated = false;
+                isAdmin = false;
             }
         } catch (error) {
             console.error('Error validating invite code:', error);
             showWarning = true;
             isValidated = false;
+            isAdmin = false;
         } finally {
             isLoading = false;
         }

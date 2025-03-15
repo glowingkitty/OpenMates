@@ -735,6 +735,14 @@ div.clickable-icon {
   }
 }
 
+.icon.question {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/question.svg');
+  }
+}
+
 .icon.download {
   background: var(--color-primary);
 

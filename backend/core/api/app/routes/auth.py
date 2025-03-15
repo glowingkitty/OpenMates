@@ -107,7 +107,7 @@ async def check_invite_token_valid(
     If valid, store it in a secure HTTP-only cookie.
     """
     try:
-        is_valid, message = await validate_invite_code(invite_request.invite_code, directus_service, cache_service)
+        is_valid, message, code_data = await validate_invite_code(invite_request.invite_code, directus_service, cache_service)
         metrics_service.track_invite_code_check(is_valid)
         
         if is_valid:
@@ -120,7 +120,17 @@ async def check_invite_token_valid(
                 samesite="strict",
                 max_age=3600  # 1 hour expiry
             )
-            return InviteCodeResponse(valid=True, message=message)
+            
+            # Extract additional properties from code_data
+            is_admin = code_data.get('is_admin', False) if code_data else False
+            gifted_credits = code_data.get('gifted_credits') if code_data else None
+            
+            return InviteCodeResponse(
+                valid=True, 
+                message=message,
+                is_admin=is_admin,
+                gifted_credits=gifted_credits
+            )
         else:
             return InviteCodeResponse(valid=False, message=message)
     
@@ -155,7 +165,7 @@ async def request_confirm_email_code(
             )
         
         # Validate the invite code first
-        is_valid, message = await validate_invite_code(invite_code, directus_service, cache_service)
+        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
         if not is_valid:
             logger.warning(f"Invalid invite code used in email verification request")
             return RequestEmailCodeResponse(
@@ -276,7 +286,7 @@ async def check_confirm_email_code(
             )
         
         # First, validate that the invite code is still valid
-        is_valid, message = await validate_invite_code(invite_code, directus_service, cache_service)
+        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
         if not is_valid:
             logger.warning(f"Invalid invite code used in email verification check")
             

@@ -2,12 +2,15 @@
     import { createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import { processedImageUrl } from '../../stores/profileImage';
+    import { getWebsiteUrl, routes } from '../../config/links';
     
     const dispatch = createEventDispatcher();
 
     export let showSkip = false;
     export let currentStep = 1;
-    export let selectedAppName: string | null = null; // Add this prop
+    export let selectedAppName: string | null = null;
+    export let isAdmin = false;
+    export let showAdminButton = false;
 
     function handleBackClick() {
         if (currentStep === 1) {
@@ -28,6 +31,11 @@
         } else {
             dispatch('skip');
         }
+    }
+
+    function openSelfHostedDocs() {
+        const docsUrl = getWebsiteUrl(routes.docs.selfhosted);
+        window.open(docsUrl, '_blank');
     }
 
     function getNavText(step: number) {
@@ -57,6 +65,15 @@
         <div class="clickable-icon icon_back"></div>
         {getNavText(currentStep)}
     </button>
+    
+    {#if showAdminButton}
+        <button class="admin-button" on:click={openSelfHostedDocs}>
+            <div class="icon server admin-icon"></div>
+            <span class="admin-text">{$_('signup.server_admin.text')}</span>
+            <div class="icon server question-icon"></div>
+        </button>
+    {/if}
+    
     {#if showSkip}
         <button class="nav-button" on:click={handleSkipClick}>
             {skipButtonText}
@@ -98,5 +115,40 @@
 
     .icon-mirrored {
         transform: scaleX(-1);
+    }
+
+    .admin-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 19px;
+        padding: 6px 12px;
+        font-size: 16px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        margin-right: auto;
+        margin-left: 24px;
+    }
+    
+    .admin-text {
+        white-space: nowrap;
+        font-weight: medium;
+        color: white;
+    }
+    
+    .admin-icon {
+        width: 17px;
+        height: 17px;
+        background: white;
+    }
+    
+    .question-icon {
+        width: 17px;
+        height: 17px;
+        background: white;
+        opacity: 0.5;
     }
 </style>
