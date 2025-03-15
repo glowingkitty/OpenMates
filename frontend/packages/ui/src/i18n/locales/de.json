@@ -1753,6 +1753,11 @@
             "en_original": "Sign up",
             "context": "Sign up page title"
         },
+        "server_admin": {
+            "text": "Server-Admin",
+            "en_original": "Server admin",
+            "context": "Heading on signup page indicating server admin signup"
+        },
         "enter_personal_invite_code": {
             "text": "Zugangscode eingeben",
             "en_original": "Enter invite code",
@@ -2127,6 +2132,16 @@
             "text": "Empfohlen",
             "en_original": "Recommended",
             "context": "Highlights the recommended credits package"
+        },
+        "your_gift": {
+            "text": "Dein Geschenk",
+            "en_original": "Your gift",
+            "context": "Highlights if the credits are a gift"
+        },
+        "accept": {
+            "text": "Akzeptieren",
+            "en_original": "Accept",
+            "context": "Button text for accepting the gift"
         },
         "pay_per_use": {
             "text": "Zahle {credits} pro Nutzung",

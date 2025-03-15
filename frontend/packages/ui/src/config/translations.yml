@@ -1,74 +1,73 @@
-website_context: |
-    OpenMates is a web app where users can chat with digital team mates and 
-    ask them questions and ask them to fullfill tasks using a wide range of apps.
-    For personal use, and for work.
-    Communication style of the website should be friendly, like talking to friends. 
-    Using words like "du" and "deine" (in german) instead of "Sie" and "Ihre".
-    The website should be easy to use for everyone, not just tech-savvy people.
-    The text may include variables and html tags. They also must be considered when translating.
+website_context:        |
+                        OpenMates is a web app where users can chat with digital team mates and 
+                        ask them questions and ask them to fullfill tasks using a wide range of apps.
+                        For personal use, and for work.
+                        Communication style of the website should be friendly, like talking to friends. 
+                        Using words like "du" and "deine" (in german) instead of "Sie" and "Ihre".
+                        The website should be easy to use for everyone, not just tech-savvy people.
+                        The text may include variables and html tags. They also must be considered when translating.
 
-editor_notes:
-  - 'For line breaks on website always use <br> tag (linebreak in yml file is not recognized).'
+editor_notes:           |
+                        'For line breaks on website always use <br> tag (linebreak in yml file is not recognized).'
 
 translations:
   digital_team_mates:
-    en_US: |
-      'Digital Team Mates'
-    de_DE: |
-      'Digitale Kollegen'
-    context:
-      - |
-        Digital team mates that can help you with tasks. 
-        Wording that everyone should be able to grasp, not just geeks with indepth knowledge.
+    en_US:              'Digital Team Mates'
+    de_DE:              'Digitale Kollegen'
+    es_ES:              'Compañeros de equipo digitales'
+    max_length_chars:   25
+    context:            |
+                        Digital team mates that can help you with tasks. 
+                        Wording that everyone should be able to grasp, not just geeks with indepth knowledge.
   app_team_mates:
-    en_US: |
-      '{app_name} Team Mates'
-    de_DE: |
-      '{app_name} Kollegen'
-    context:
-      - |
-        Used in header together with app icons to visualize what areas the team mates are used in. 
-        Examples: 'Jobs Team Mates', 'Calendar Team Mates', 'Events Team Mates'
+    en_US:              '{app_name} Team Mates'
+    de_DE:              '{app_name} Kollegen'
+    es_ES:              'Compañeros de equipo de {app_name}'
+    context:            |
+                        Used in header together with app icons to visualize what areas the team mates are used in. 
+                        Examples: 'Jobs Team Mates', 'Calendar Team Mates', 'Events Team Mates'
   for_all_of_us:
-    en_US: |
-      'For all of us'
-    de_DE: |
-      'Für uns alle'
-    context:
-      - |
-        Wording that shows this software is primarily designed for everyday people, 
-        not big companies who want to automate their employees or geeks with indepth knowledge.
+    en_US:              'For all of us'
+    de_DE:              'Für uns alle'
+    es_ES:              'Para todos nosotros'
+    context:            |
+                        Wording that shows this software is primarily designed for everyday people, 
+                        not big companies who want to automate their employees or geeks with indepth knowledge.
   search:
-    en_US: |
-      'Search'
-    de_DE: |
-      'Suchen'
-    context:
-      - |
-        Used in search input placeholder.
+    en_US:              'Search'
+    de_DE:              'Suchen'
+    context:            |
+                        Used in search input placeholder.
   i_am_unhappy_in_my_current_job:
-    en_US: |
-      'I am unhappy in my current job. 
-      Any ideas in what direction I could go instead?'
-    de_DE: |
-      'Ich bin unzufrieden in meinem aktuellen Job. 
-      Hast du Ideen, in welche Richtung ich mich stattdessen orientieren könnte?'
-    context:
-      - |
-        Example question about career change
+    en_US:              |
+                        'I am unhappy in my current job. 
+                        Any ideas in what direction I could go instead?'
+    de_DE:              |
+                        'Ich bin unzufrieden in meinem aktuellen Job. 
+                        Hast du Ideen, in welche Richtung ich mich stattdessen orientieren könnte?'
+    es_ES:              |
+                        'Estoy descontento en mi trabajo actual. 
+                        ¿Tienes alguna idea en qué dirección podría ir en su lugar?'
+    context:            |
+                        Example question about career change
   of_course_since_you_mentioned_experience_in_marketing:
-    en_US: |
-      'Of course! 
-      Since you mentioned that you have a background in marketing and enjoy storytelling, 
-      we could look for roles that leverage those skills.<br><br>
-      To get a better sense of direction, could you tell me:<br>
-      1. What aspects of your previous jobs did you find most fulfilling?
-    de_DE: |
-      'Natürlich! 
-      Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, 
-      könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.<br<br>
-      Um eine bessere Richtung zu finden, kannst du mir sagen:<br>
-      1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?
-    context:
-      - |
-        AI response to career change question
+    en_US:              |
+                        'Of course! 
+                        Since you mentioned that you have a background in marketing and enjoy storytelling, 
+                        we could look for roles that leverage those skills.<br><br>
+                        To get a better sense of direction, could you tell me:<br>
+                        1. What aspects of your previous jobs did you find most fulfilling?
+    de_DE:              |
+                        'Natürlich! 
+                        Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, 
+                        könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.<br><br>
+                        Um eine bessere Richtung zu finden, kannst du mir sagen:<br>
+                        1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?
+    es_ES:              |
+                        '¡Por supuesto! 
+                        Dado que mencionaste que tienes experiencia en marketing y disfrutas contando historias, 
+                        podríamos buscar roles que aprovechen esas habilidades.<br><br>
+                        Para tener una mejor idea de la dirección, ¿podrías decirme:<br>
+                        1. ¿Qué aspectos de tus trabajos anteriores te resultaron más gratificantes?
+    context:            |
+                        AI response to career change question

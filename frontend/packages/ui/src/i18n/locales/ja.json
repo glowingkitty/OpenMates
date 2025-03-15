@@ -1753,6 +1753,11 @@
             "en_original": "Sign up",
             "context": "Sign up page title"
         },
+        "server_admin": {
+            "text": "サーバー管理者",
+            "en_original": "Server admin",
+            "context": "Heading on signup page indicating server admin signup"
+        },
         "enter_personal_invite_code": {
             "text": "招待コードを入力してください",
             "en_original": "Enter invite code",
@@ -2132,6 +2137,16 @@
             "text": "おすすめ",
             "en_original": "Recommended",
             "context": "Highlights the recommended credits package"
+        },
+        "your_gift": {
+            "text": "ギフト",
+            "en_original": "Your gift",
+            "context": "Highlights if the credits are a gift"
+        },
+        "accept": {
+            "text": "受け取る",
+            "en_original": "Accept",
+            "context": "Button text for accepting the gift"
         },
         "amount_currency": {
             "text": "{amount} {currency}",

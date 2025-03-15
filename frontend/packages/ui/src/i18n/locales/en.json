@@ -356,6 +356,10 @@
             "text": "Sign up",
             "context": "Sign up page title"
         },
+        "server_admin": {
+            "text": "Server admin",
+            "context": "Heading on signup page indicating server admin signup"
+        },
         "enter_personal_invite_code": {
             "text": "Enter invite code",
             "context": "Placeholder text for personal invite code input field"
@@ -659,6 +663,14 @@
         "recommended": {
             "text": "Recommended",
             "context": "Highlights the recommended credits package"
+        },
+        "your_gift": {
+            "text": "Your gift",
+            "context": "Highlights if the credits are a gift"
+        },
+        "accept": {
+            "text": "Accept",
+            "context": "Button text for accepting the gift"
         },
         "amount_currency": {
             "text": "{amount} {currency}",
