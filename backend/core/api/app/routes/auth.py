@@ -328,6 +328,7 @@ async def check_confirm_email_code(
         # This is important for security
         response.delete_cookie(key="signup_invite_code")
         response.delete_cookie(key="signup_email")
+        response.delete_cookie(key="signup_username")
         response.delete_cookie(key="signup_password")
         
         return CheckEmailCodeResponse(
