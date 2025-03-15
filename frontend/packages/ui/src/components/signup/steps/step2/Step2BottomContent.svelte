@@ -80,17 +80,23 @@
     <div class="input-group">
         <div class="input-wrapper">
             <span class="clickable-icon icon_2fa"></span>
-            <input
-                bind:this={otpInput}
-                type="text"
-                bind:value={otpCode}
-                on:input={handleInput}
-                placeholder={$text('signup.enter_one_time_code.text')}
-                inputmode="numeric"
-                maxlength="6"
-                disabled={isVerifying}
-                class:error={showError}
-            />
+            <div class="overlay-container">
+                <input
+                    bind:this={otpInput}
+                    type="text"
+                    bind:value={otpCode}
+                    on:input={handleInput}
+                    placeholder={$text('signup.enter_one_time_code.text')}
+                    inputmode="numeric"
+                    maxlength="6"
+                    disabled={isVerifying}
+                    class:error={showError}
+                    class:fade-out={isVerifying}
+                />
+                <div class="loading-text color-grey-60" class:fade-in={isVerifying}>
+                    {$text('login.loading.text')}
+                </div>
+            </div>
         </div>
         
         {#if showError}
@@ -125,5 +131,51 @@
     
     .error {
         border-color: #e74c3c !important;
+    }
+
+    .overlay-container {
+        position: relative;
+        display: inline-block; /* Changed from width: 100% to maintain original size */
+        flex: 1; /* Maintain flex properties that were on the input */
+    }
+
+    .overlay-container input {
+        width: 100%; /* Ensure input keeps its width */
+        box-sizing: border-box;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s ease-in-out forwards;
+    }
+
+    .fade-out {
+        animation: fadeOut 0.3s ease-in-out forwards;
+    }
+
+    .loading-text {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none; /* Prevents interfering with input interaction */
+    }
+
+    .color-grey-60 {
+        color: rgba(0, 0, 0, 0.6);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
     }
 </style>
