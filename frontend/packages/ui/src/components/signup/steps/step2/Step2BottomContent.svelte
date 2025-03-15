@@ -74,48 +74,6 @@
             verifyCode(otpCode);
         }
     }
-
-    async function handleResend() {
-        try {
-            // Get current language from localStorage or use browser default
-            const currentLang = localStorage.getItem('preferredLanguage') || 
-                              navigator.language.split('-')[0] || 
-                              'en';
-            
-            // Get dark mode setting from system preference or user setting
-            const prefersDarkMode = window.matchMedia && 
-                                window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
-            
-            // No need to send email or invite code in request body
-            // as they are already in HTTP-only cookies
-            const response = await fetch(getApiEndpoint(apiEndpoints.signup.request_confirm_email_code), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    language: currentLang,
-                    darkmode: darkModeEnabled
-                }),
-                credentials: 'include'  // Important: This sends cookies with the request
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                errorMessage = '';
-                showError = false;
-            } else {
-                errorMessage = data.message || 'Failed to resend code. Please try again.';
-                showError = true;
-            }
-        } catch (error) {
-            console.error('Error resending code:', error);
-            errorMessage = 'Error resending code. Please try again.';
-            showError = true;
-        }
-    }
 </script>
 
 <div class="bottom-content">
@@ -140,13 +98,6 @@
                 {errorMessage}
             </div>
         {/if}
-    </div>
-    
-    <div class="resend-section">
-        <span class="color-grey-60">{@html $text('signup.havent_received_a_code.text')}</span>
-        <button class="text-button" on:click={handleResend} disabled={isVerifying}>
-            {$text('signup.click_to_resend.text')}
-        </button>
     </div>
 </div>
 
