@@ -221,49 +221,59 @@ services:
       timeout: 5s
       retries: 5
 
-  # #########################################################################
-  # ##### Secret Management (Vault)
-  # #########################################################################
-  # vault:
-  #   container_name: vault
-  #   image: hashicorp/vault:1.19
-  #   restart: unless-stopped
-  #   cap_add:
-  #     - IPC_LOCK
-  #   environment:
-  #     VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-root}
-  #     VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-  #   ports:
-  #     - "8200:8200"
-  #   volumes:
-  #     - ./vault/config:/vault/config
-  #     - vault-data:/vault/file
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "vault", "status"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  #########################################################################
+  ##### Secret Management (Vault)
+  #########################################################################
+  vault:
+    container_name: vault
+    image: hashicorp/vault:1.19
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_LOG_LEVEL: "debug"
+    command: "vault server -log-level=debug -config=/vault/config/vault.hcl"
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault-data:/vault/file
+    networks:
+      - openmates
+    healthcheck:
+      # Simply check if port 8200 is open and responding
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # vault-setup:
-  #   container_name: vault-setup
-  #   build:
-  #     context: ./vault/setup
-  #     dockerfile: Dockerfile
-  #   env_file: ../../.env
-  #   environment:
-  #     VAULT_ADDR: "http://vault:8200"
-  #     VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
-  #   networks:
-  #     - openmates
-  #   depends_on:
-  #     vault:
-  #       condition: service_healthy
-  #   restart: "no"
-  #   deploy:
-  #     restart_policy:
-  #       condition: none
+  vault-setup:
+    container_name: vault-setup
+    build:
+      context: ./vault/setup
+      dockerfile: Dockerfile
+    env_file: ../../.env
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
+      VAULT_LOG_LEVEL: "debug"
+    volumes:
+      - ./vault/setup:/app
+    networks:
+      - openmates
+    # Use simple service name dependency instead of condition
+    depends_on:
+      - vault
+    restart: "no"
+    deploy:
+      restart_policy:
+        condition: none
+    # Add an explicit command to wait for vault to be ready
+    command: >
+      sh -c "echo 'Waiting for Vault to be ready...' &&
+             sleep 10 &&
+             python setup_vault.py"
 
   #########################################################################
   ##### Monitoring (Prometheus/Grafana/Loki)
@@ -433,3 +443,5 @@ volumes:
     name: openmates-loki-wal # Add volume for WAL data
   grafana-data:
     name: openmates-grafana-data
+  vault-data:
+    name: openmates-vault-data

@@ -6,13 +6,13 @@
         Header,
         Settings,
         Footer,
-        isAuthenticated,
-        // constants
+        // Constants
         MOBILE_BREAKPOINT,
         // stores
         isMenuOpen,
         settingsMenuVisible,
         isMobileView,
+        authStore,
         // types
         type Chat,
     } from '@repo/ui';
@@ -25,7 +25,7 @@
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 
     // Handle initial sidebar state based on auth
-    $: if ($isAuthenticated) {
+    $: if ($authStore.isAuthenticated) {
         // Only open menu on desktop when authenticated
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
@@ -62,7 +62,7 @@
 
     // Add reactive statement to handle auth state changes
     $: {
-        if (!$isAuthenticated) {
+        if (!$authStore.isAuthenticated) {
             // Close sidebar when logged out
             isMenuOpen.set(false);
             // Close settings if open
@@ -80,20 +80,20 @@
     }
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen || !$isAuthenticated}>
-    {#if $isAuthenticated}
+<div class="sidebar" class:closed={!$isMenuOpen || !$authStore.isAuthenticated}>
+    {#if $authStore.isAuthenticated}
         <ActivityHistory on:chatSelected={handleChatSelected} />
     {/if}
 </div>
 
 <div class="main-content" 
-    class:menu-closed={!$isMenuOpen || !$isAuthenticated}
+    class:menu-closed={!$isMenuOpen || !$authStore.isAuthenticated}
     class:initial-load={isInitialLoad}
-    class:login-mode={!$isAuthenticated}>
-    <Header context="webapp" isLoggedIn={$isAuthenticated} />
+    class:login-mode={!$authStore.isAuthenticated}>
+    <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container" 
         class:menu-open={menuClass}
-        class:authenticated={$isAuthenticated}>
+        class:authenticated={$authStore.isAuthenticated}>
         <div class="chat-wrapper">
             <ActiveChat 
                 bind:this={activeChat}
@@ -101,13 +101,13 @@
             />
         </div>
         <div class="settings-wrapper">
-            <Settings isLoggedIn={$isAuthenticated} />
+            <Settings isLoggedIn={$authStore.isAuthenticated} />
         </div>
     </div>
 </div>
 
 <!-- Footer outside main content -->
-{#if !$isAuthenticated}
+{#if !$authStore.isAuthenticated}
 <div class="footer-wrapper" transition:fade>
     <Footer metaKey="webapp" context="webapp" />
 </div>

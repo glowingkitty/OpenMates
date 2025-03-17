@@ -3,7 +3,7 @@
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
     import { isMenuOpen } from '../../stores/menuState';
-    import { isAuthenticated } from '../../stores/authState';
+    import { authStore } from '../../stores/authStore';
     import { chatDB } from '../../services/db';
     import type { Chat as ChatType } from '../../types/chat';
     import { tooltip } from '../../actions/tooltip';
@@ -216,7 +216,7 @@
     }
 </script>
 
-{#if $isAuthenticated}
+{#if $authStore.isAuthenticated}
     <div class="activity-history">
         <div class="top-buttons-container">
             <div class="top-buttons">

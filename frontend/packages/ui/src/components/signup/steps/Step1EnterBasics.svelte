@@ -166,7 +166,7 @@
         showWarning = false;
 
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.signup.check_invite_token_valid), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.check_invite_token_valid), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -238,7 +238,7 @@
             
             // Request email verification code with language and dark mode preferences
             // Now also send username and password which will be stored in secure cookies
-            const response = await fetch(getApiEndpoint(apiEndpoints.signup.request_confirm_email_code), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

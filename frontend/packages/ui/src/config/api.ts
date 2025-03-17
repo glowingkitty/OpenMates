@@ -14,25 +14,34 @@ export function getApiUrl(): string {
 
 // API endpoints
 export const apiEndpoints = {
-    signup: {
-        check_invite_token_valid:   '/v1/auth/check_invite_token_valid',        // Check if invite token is still valid
-        check_username_valid:       '/v1/auth/check_username_valid',            // Check if username is valid and available
-        signup:                     '/v1/auth/signup',                          // Sign up with username, email, password, mark terms & privacy policy as accepted
-        verify_email_code:          '/v1/auth/verify_email_code',               // Verify if email code is valid, if so, mark email address as verified
-        setup_2fa:                  '/v1/auth/setup_2fa',                       // Setup 2FA for user, returns the QR code for user to scan
-        request_backup_codes:       '/v1/auth/request_backup_codes',            // Verify if 2FA code is valid and return backup codes (one time use)
-        confirm_codes_stored:       '/v1/auth/confirm_codes_stored',            // Confirm that user has safely stored backup codes (sets 2FA as setup and mandatory for login)
-        setup_2fa_provider:         '/v1/auth/setup_2fa_provider',              // Save in profile which 2FA provider was used (to show correct 2FA setup instructions on login screen)
-        accept_settings:            '/v1/auth/accept_settings',                 // Accept settings (default or custom)
-        accept_mate_settings:       '/v1/auth/accept_mate_settings',            // Accept mate settings (default or custom), and AI providers
-        request_confirm_email_code: '/v1/auth/request_confirm_email_code',      // Request confirmation email code
-        check_confirm_email_code:   '/v1/auth/check_confirm_email_code',        // Check confirmation email code
-    },
-    login: {
-        login:                      '/v1/auth/login',                           // Login with username and password. If 2FA is enabled and 2FA provider is saved, also returns the 2FA provider as hint.
-        token_refresh:              '/v1/auth/refresh',                         // Refresh login token
-        logout:                     '/v1/auth/logout',                          // Logout and invalidate token
-        verify_2fa_code:            '/v1/auth/verify_2fa_code',                 // Check if 2FA OTP code is valid
+    auth: {
+        // Session management
+        session:                    '/v1/auth/session',                        // Check current session status and user info
+        login:                      '/v1/auth/login',                          // Login with username/email and password
+        logout:                     '/v1/auth/logout',                         // Logout and invalidate token
+        logoutAll:                  '/v1/auth/logout/all',                     // Logout all sessions
+        token_refresh:              '/v1/auth/refresh',                        // Refresh login token
+        
+        // Registration and verification
+        check_invite_token_valid:   '/v1/auth/check_invite_token_valid',       // Check if invite token is valid
+        check_username_valid:       '/v1/auth/check_username_valid',           // Check if username is valid and available
+        request_confirm_email_code: '/v1/auth/request_confirm_email_code',     // Request confirmation email code
+        check_confirm_email_code:   '/v1/auth/check_confirm_email_code',       // Verify email confirmation code
+        
+        // Legacy signup endpoints
+        signup:                     '/v1/auth/signup',                         // Sign up with username, email, password
+        verify_email_code:          '/v1/auth/verify_email_code',              // Verify email code for older signup flow
+        
+        // 2FA management
+        setup_2fa:                  '/v1/auth/setup_2fa',                      // Setup 2FA, returns QR code to scan
+        request_backup_codes:       '/v1/auth/request_backup_codes',           // Get backup codes after verifying 2FA
+        confirm_codes_stored:       '/v1/auth/confirm_codes_stored',           // Confirm backup codes are stored by user
+        setup_2fa_provider:         '/v1/auth/setup_2fa_provider',             // Save which 2FA provider was used
+        verify_2fa_code:            '/v1/auth/verify_2fa_code',                // Verify 2FA OTP code during login
+        
+        // User setup and preferences
+        accept_settings:            '/v1/auth/accept_settings',                // Accept initial user settings
+        accept_mate_settings:       '/v1/auth/accept_mate_settings',           // Accept AI provider settings
     },
     chat: {
         sendMessage:                '/v1/chat/message',                         // Send a message to a chat (or create a new chat if it doesn't exist)
@@ -49,7 +58,7 @@ export const apiEndpoints = {
             install:                '/v1/settings/software_update/install',     // Install software update
             install_status:         '/v1/settings/software_update/install_status', // Get status of software update installation
         }
-    },
+    }
 } as const;
 
 // Helper to get full API endpoint URL

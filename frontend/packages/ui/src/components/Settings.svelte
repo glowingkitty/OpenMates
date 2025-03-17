@@ -20,7 +20,7 @@ changes to the documentation (to keep the documentation up to date).
     import { onMount } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition'; // Add slide transition import
     import { cubicOut } from 'svelte/easing';
-    import { isAuthenticated, currentUser, logout } from '../stores/authState';
+    import { authStore } from '../stores/authStore';
     import { isMenuOpen } from '../stores/menuState';
     import { isCheckingAuth } from '../stores/authCheckState';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
@@ -473,12 +473,12 @@ changes to the documentation (to keep the documentation up to date).
 
                 finalLogout: () => {
                     // Finally perform the client-side logout
-                    logout();
+                    authStore.logout();
                 }
             });
         } catch (error) {
             console.error('Error during logout:', error);
-            logout();
+            authStore.logout();
         }
     }
 

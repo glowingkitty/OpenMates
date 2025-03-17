@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, Request, Response
 import logging
 from typing import Optional
 
-from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
+from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse, LoginRequest, LoginResponse, LogoutResponse, SessionResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
@@ -11,6 +11,9 @@ from app.utils.invite_code import validate_invite_code
 
 # Import the Celery task directly from the tasks module
 from app.tasks.celery_config import app as celery_app
+
+# Add new import for session response schema
+from app.schemas.auth import SessionResponse
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -261,8 +264,7 @@ async def check_confirm_email_code(
 ):
     """
     Verify the 6-digit confirmation code for the provided email.
-    Also re-verify the invite code is still valid.
-    If all is valid, proceed to create the user account.
+    If valid, create user account and log user in.
     """
     try:
         # Use email from cookie if available, otherwise from request
@@ -328,21 +330,89 @@ async def check_confirm_email_code(
         event_logger.info(f"Email verified successfully")
         logger.info(f"Email verified successfully")
         
-        # Here we would normally create the user account
-        # For now, just log that we would create it
-        logger.info(f"Creating user account next... (placeholder)")
-        if signup_username and signup_password:
-            logger.info(f"Account creation would use username and password from cookies")
+        # Extract additional information from invite code
+        is_admin = code_data.get('is_admin', False) if code_data else False
+        role = code_data.get('role') if code_data else None
         
-        # Clear all signup cookies after successful verification
-        # This is important for security
+        # Check if user already exists
+        exists_result, existing_user, _ = await directus_service.get_user_by_email(email)
+        if exists_result and existing_user:
+            logger.warning(f"Attempted to register with existing email")
+            
+            # Clear signup cookies
+            response.delete_cookie(key="signup_invite_code")
+            response.delete_cookie(key="signup_email")
+            response.delete_cookie(key="signup_username")
+            response.delete_cookie(key="signup_password")
+            
+            return CheckEmailCodeResponse(
+                success=False,
+                message="This email is already registered. Please log in instead."
+            )
+        
+        # Create the user account
+        success, user_data, create_message = await directus_service.create_user(
+            username=signup_username,
+            email=email,
+            password=signup_password,
+            is_admin=is_admin,
+            role=role
+        )
+        
+        if not success:
+            logger.error(f"Failed to create user: {create_message}")
+            return CheckEmailCodeResponse(
+                success=False,
+                message="Failed to create your account. Please try again later."
+            )
+        
+        # User created successfully - log the compliance event
+        user_id = user_data.get("id")
+        event_logger.info(f"User account created - ID: {user_id}, Email: [REDACTED]")
+        
+        # Now log the user in
+        login_success, auth_data, login_message = await directus_service.login_user(
+            email=email,
+            password=signup_password
+        )
+        
+        if not login_success:
+            logger.error(f"Failed to log in new user: {login_message}")
+            return CheckEmailCodeResponse(
+                success=True,
+                message="Account created successfully. Please log in to continue."
+            )
+        
+        # Set authentication cookies
+        if "cookies" in auth_data:
+            for name, value in auth_data["cookies"].items():
+                response.set_cookie(
+                    key=name,
+                    value=value,
+                    httponly=True,
+                    secure=True,
+                    samesite="strict",
+                    max_age=86400  # 24 hours
+                )
+        
+        # Log the successful login for compliance
+        event_logger.info(f"User logged in - ID: {user_id}")
+        
+        # Clear signup cookies now that we've created & logged in the user
+        response.delete_cookie(key="signup_invite_code")
         response.delete_cookie(key="signup_email")
         response.delete_cookie(key="signup_username")
         response.delete_cookie(key="signup_password")
         
+        # Return success with user information
         return CheckEmailCodeResponse(
-            success=True, 
-            message="Email verified successfully."
+            success=True,
+            message="Email verified and account created successfully.",
+            user={
+                "id": user_id,
+                "username": signup_username,
+                "is_admin": is_admin
+            }
         )
         
     except Exception as e:
@@ -350,4 +420,188 @@ async def check_confirm_email_code(
         return CheckEmailCodeResponse(
             success=False, 
             message="An error occurred while verifying the code."
+        )
+
+@router.get("/session", response_model=SessionResponse)
+async def get_session(
+    request: Request,
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Check if the user is authenticated and return user information.
+    Used primarily for initializing the client-side auth state.
+    """
+    try:
+        # Get user data from directus session
+        success, user_data, message = await directus_service.get_current_user()
+        
+        if not success or not user_data:
+            logger.debug("Session check: No authenticated user found")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+        
+        # Return user data
+        return {
+            "id": user_data.get("id"),
+            "username": user_data.get("encrypted_username"),
+            "is_admin": user_data.get("is_admin", False),
+            "avatar_url": user_data.get("encrypted_profileimage_url")  # Use encrypted_profileimage_url instead
+        }
+    except Exception as e:
+        logger.error(f"Error checking session: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+@router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("5/minute")
+async def login(
+    request: Request,
+    login_data: LoginRequest,
+    response: Response,
+    directus_service: DirectusService = Depends(get_directus_service),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Authenticate a user and create a session
+    """
+    try:
+        success, auth_data, message = await directus_service.login_user(
+            email=login_data.email,
+            password=login_data.password
+        )
+        
+        metrics_service.track_login_attempt(success)
+        
+        if success and auth_data:
+            # Set authentication cookies
+            if "cookies" in auth_data:
+                for name, value in auth_data["cookies"].items():
+                    response.set_cookie(
+                        key=name,
+                        value=value,
+                        httponly=True,
+                        secure=True,
+                        samesite="strict",
+                        max_age=86400  # 24 hours
+                    )
+            
+            # Log the successful login for compliance
+            user_id = auth_data.get("user", {}).get("id")
+            if user_id:
+                event_logger.info(f"User logged in - ID: {user_id}")
+            
+            return LoginResponse(
+                success=True,
+                message="Login successful",
+                user=auth_data.get("user")
+            )
+        else:
+            return LoginResponse(
+                success=False,
+                message=message or "Invalid credentials"
+            )
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}", exc_info=True)
+        metrics_service.track_login_attempt(False)
+        return LoginResponse(
+            success=False,
+            message="An error occurred during login"
+        )
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout(
+    request: Request,
+    response: Response,
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Log out the current user by clearing session cookies
+    """
+    try:
+        # Attempt to logout from Directus
+        success, message = await directus_service.logout_user()
+        
+        # Clear all auth cookies regardless of server response
+        for cookie in request.cookies:
+            if cookie.startswith(("directus_", "auth_")):
+                response.delete_cookie(key=cookie, httponly=True, secure=True)
+        
+        return LogoutResponse(
+            success=True,
+            message="Logged out successfully"
+        )
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}", exc_info=True)
+        
+        # Still clear cookies on error
+        for cookie in request.cookies:
+            if cookie.startswith(("directus_", "auth_")):
+                response.delete_cookie(key=cookie, httponly=True, secure=True)
+        
+        return LogoutResponse(
+            success=False,
+            message="An error occurred during logout"
+        )
+
+@router.post("/refresh", response_model=LoginResponse)
+async def refresh_token(
+    request: Request,
+    response: Response,
+    directus_service: DirectusService = Depends(get_directus_service),
+    refresh_token: Optional[str] = Cookie(None, alias="directus_refresh_token")
+):
+    """
+    Refresh the authentication token using the refresh token.
+    Returns a new access token and sets it in cookies.
+    """
+    try:
+        if not refresh_token:
+            logger.warning("Token refresh attempted without refresh token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No refresh token provided"
+            )
+        
+        # Call the DirectusService to refresh the token
+        success, auth_data, message = await directus_service.refresh_token(refresh_token)
+        
+        if success and auth_data:
+            # Set new authentication cookies
+            if "cookies" in auth_data:
+                for name, value in auth_data["cookies"].items():
+                    response.set_cookie(
+                        key=name,
+                        value=value,
+                        httponly=True,
+                        secure=True,
+                        samesite="strict",
+                        max_age=86400  # 24 hours
+                    )
+            
+            return LoginResponse(
+                success=True,
+                message="Token refreshed successfully",
+                user=auth_data.get("user")
+            )
+        else:
+            # Clear all auth cookies on refresh failure
+            for cookie in request.cookies:
+                if cookie.startswith(("directus_", "auth_")):
+                    response.delete_cookie(key=cookie, httponly=True, secure=True)
+                    
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=message or "Failed to refresh token"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while refreshing the token"
         )

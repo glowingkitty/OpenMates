@@ -36,8 +36,9 @@ export * from "./src/i18n/translations";
 
 // Stores
 export * from "./src/stores/theme";
-export * from "./src/stores/authState";
+export { authStore } from "./src/stores/authStore";
 export * from "./src/stores/menuState";
+
 // Styles
 export * from "./src/styles/constants";
 import "./src/styles/buttons.css";

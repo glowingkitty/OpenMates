@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { login, isAuthenticated, checkAuth } from '../stores/authState';
+    import { authStore } from '../stores/authStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { AuthService } from '../services/authService';
@@ -190,7 +190,7 @@
             showLoadingUntil = Date.now() + 500;
             
             $isCheckingAuth = true;
-            await checkAuth();
+            await authStore.init();
             
             // Set initial screen width
             screenWidth = window.innerWidth;
@@ -210,7 +210,7 @@
             $isCheckingAuth = false;
             
             // Only focus if not touch device and not authenticated
-            if (!$isAuthenticated && emailInput && !isTouchDevice) {
+            if (!$authStore.isAuthenticated && emailInput && !isTouchDevice) {
                 emailInput.focus();
             }
 
@@ -248,28 +248,18 @@
         loginFailedWarning = false;
 
         try {
-            const response = await AuthService.login(email, password);
+            const result = await authStore.login(email, password);
 
-            if (response.status === 429) {
-                isRateLimited = true;
-                localStorage.setItem('loginRateLimit', Date.now().toString());
-                setRateLimitTimer(RATE_LIMIT_DURATION);
+            if (!result.success) {
+                loginFailedWarning = true;
                 return;
             }
 
-            // Response is already processed by AuthService
-            if (response.status === 200 && response.user) {
-                login({
-                    email: response.user.email,
-                });
-                console.log('Login successful');
-                dispatch('loginSuccess', { 
-                    user: response.user,
-                    isMobile 
-                });
-            } else {
-                loginFailedWarning = true;
-            }
+            console.log('Login successful');
+            dispatch('loginSuccess', { 
+                user: $authStore.user,
+                isMobile 
+            });
         } catch (error) {
             console.error('Login error details:', error);
             loginFailedWarning = true;
@@ -279,7 +269,7 @@
     }
 </script>
 
-{#if !$isAuthenticated}
+{#if !$authStore.isAuthenticated}
     <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
         {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>

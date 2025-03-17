@@ -8,7 +8,7 @@
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../config/meta';
-    import { isAuthenticated } from '../stores/authState';
+    import { authStore } from '../stores/authStore';
     import { isInSignupProcess } from '../stores/signupState';
     import { isSignupSettingsStep } from '../stores/signupState';
 
@@ -235,7 +235,7 @@
     };
 
     // Hide footer when authenticated or specifically on settings step
-    $: showFooter = !$isAuthenticated && !$isSignupSettingsStep;
+    $: showFooter = !$authStore.isAuthenticated && !$isSignupSettingsStep;
 </script>
 
 {#if showFooter}

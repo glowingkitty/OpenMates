@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, Dict, Any
 
 class InviteCodeRequest(BaseModel):
     invite_code: str
@@ -31,3 +31,59 @@ class CheckEmailCodeRequest(BaseModel):
 class CheckEmailCodeResponse(BaseModel):
     success: bool
     message: str
+    user: Optional[Dict[str, Any]] = None  # Include user data in the response
+
+from pydantic import BaseModel, Field, EmailStr, validator
+from typing import Optional, Dict, Any
+
+class LoginRequest(BaseModel):
+    """Schema for login request"""
+    email: EmailStr = Field(..., description="User's email address")
+    password: str = Field(..., description="User's password")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "securePassword123!"
+            }
+        }
+
+class LoginResponse(BaseModel):
+    """Schema for login response"""
+    success: bool = Field(..., description="Whether the login was successful")
+    message: str = Field(..., description="Response message")
+    user: Optional[Dict[str, Any]] = Field(None, description="User information if login successful")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Login successful",
+                "user": {
+                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                    "username": "johndoe",
+                    "is_admin": False
+                }
+            }
+        }
+
+class LogoutResponse(BaseModel):
+    """Schema for logout response"""
+    success: bool = Field(..., description="Whether the logout was successful")
+    message: str = Field(..., description="Response message")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Logged out successfully"
+            }
+        }
+
+class SessionResponse(BaseModel):
+    """Schema for current user session data"""
+    id: str
+    username: str
+    is_admin: bool = False
+    avatar_url: Optional[str] = None  # This will receive the encrypted_profileimage_url from the endpoint

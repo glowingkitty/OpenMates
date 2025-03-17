@@ -13,7 +13,7 @@ export class AuthService {
             formData.append('username', email.trim());  // Trim whitespace
             formData.append('password', password);
 
-            const response = await fetch(getApiEndpoint(apiEndpoints.login.login), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
@@ -59,7 +59,7 @@ export class AuthService {
      */
     static async refreshToken(): Promise<{success: boolean, email?: string}> {
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.login.token_refresh), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.token_refresh), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -105,7 +105,7 @@ export class AuthService {
             }
             
             // Make the logout request to the server
-            const response = await fetch(getApiEndpoint(apiEndpoints.login.logout), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.logout), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {

@@ -1,21 +1,44 @@
 directus_users:
   type: collection
   fields:
+    is_admin:
+      type: boolean
+      note: "Is the user an admin?"
+
+    encrypted_email_address:
+      type: string
+      length: 512
+      note: "Encrypted email address"
+
+    encrypted_username:
+      type: string
+      length: 512
+      note: "Encrypted username"
+
+    encrypted_profileimage_url:
+      type: string
+      length: 512
+      note: "Encrypted profile image URL"
+
     encrypted_credit_balance:
       type: string
       length: 512
       note: "Encrypted credit balance"
-    
+
     encrypted_settings:
       type: string
       length: 2048
       note: "Encrypted user preferences"
-    
+
     vault_key_id:
       type: string
       length: 64
       note: "Reference to the user's encryption key in Vault"
-    
+
+    vault_key_version:
+      type: integer
+      note: "Version of the user's encryption key in Vault"
+
     api_key_hash:
       type: string
       length: 128

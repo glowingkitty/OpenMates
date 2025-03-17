@@ -3,6 +3,7 @@
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { authStore } from '../../../../stores/authStore';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
@@ -32,7 +33,7 @@
             
             // We don't need to send email or invite code in the body anymore
             // as they are already in HTTP-only cookies
-            const response = await fetch(getApiEndpoint(apiEndpoints.signup.check_confirm_email_code), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.check_confirm_email_code), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,6 +47,24 @@
             const data = await response.json();
             
             if (response.ok && data.success) {
+                // User is now created and logged in automatically
+                
+                // Update auth store with user information
+                if (data.user) {
+                    // Update the global auth store
+                    authStore.updateUser({
+                        id: data.user.id,
+                        username: data.user.username,
+                        isAdmin: data.user.is_admin
+                    });
+                    
+                    // Also store in localStorage for components that need it
+                    localStorage.setItem('user_display_name', data.user.username);
+                    
+                    // Set authentication state to true
+                    authStore.setAuthenticated(true);
+                }
+                
                 // Proceed to next step on success
                 dispatch('step', { step: 3 });
             } else {

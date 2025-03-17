@@ -7,7 +7,7 @@
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount } from 'svelte';
-    import { isAuthenticated } from '../stores/authState';
+    import { authStore } from '../stores/authStore';
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
@@ -28,8 +28,8 @@
         lineCount: 0
     };
 
-    // No need for local isLoggedIn prop, use the store value directly
-    $: isLoggedIn = $isAuthenticated;
+    // Use authStore for authentication state
+    $: isLoggedIn = $authStore.isAuthenticated;
 
     function handleLoginSuccess() {
         dispatch('loginSuccess');
@@ -247,8 +247,8 @@
     });
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$isAuthenticated} class:scaled={activeScaling}>
-    {#if !$isAuthenticated}
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$authStore.isAuthenticated} class:scaled={activeScaling}>
+    {#if !$authStore.isAuthenticated}
         <div 
             class="login-wrapper" 
             in:fly={loginTransitionProps} 
