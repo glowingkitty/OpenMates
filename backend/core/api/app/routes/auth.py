@@ -360,6 +360,14 @@ async def check_confirm_email_code(
         )
         
         if not success:
+            # Check for Vault-related errors
+            if "Vault request failed" in create_message:
+                logger.error(f"Failed to create user due to Vault error: {create_message}")
+                return CheckEmailCodeResponse(
+                    success=False,
+                    message="Account creation failed due to encryption service error. Please contact support."
+                )
+            
             logger.error(f"Failed to create user: {create_message}")
             return CheckEmailCodeResponse(
                 success=False,

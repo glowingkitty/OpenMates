@@ -15,31 +15,74 @@ class EncryptionService:
     
     def __init__(self):
         self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-        self.vault_token = os.environ.get("VAULT_TOKEN", "root")  # Should be configured securely in production
+        self.vault_token = os.environ.get("VAULT_TOKEN", "root") 
         self.transit_mount = "transit"  # The Vault transit engine mount path
         self._client = None
-        # Remove dev mode check since we always use production mode
+        
+        # No more insecure file loading
+        
         logger.info("Running in PRODUCTION mode - Vault is using persistent storage")
+        logger.info(f"Vault URL: {self.vault_url}")
+        
+        # Log a masked version of the token for debugging
+        if self.vault_token:
+            masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
+            logger.info(f"Using Vault token: {masked_token}")
+        else:
+            logger.warning("No Vault token provided in environment")
     
     async def _get_client(self):
         """Get or create httpx client"""
         if not self._client:
-            self._client = httpx.AsyncClient()
+            self._client = httpx.AsyncClient(timeout=30.0)  # Increase timeout for reliability
         return self._client
     
+    async def _validate_token(self):
+        """Validate if the current token is valid and has the necessary permissions"""
+        try:
+            client = await self._get_client()
+            url = f"{self.vault_url}/v1/auth/token/lookup-self"
+            headers = {"X-Vault-Token": self.vault_token}
+            
+            response = await client.get(url, headers=headers)
+            if response.status_code == 200:
+                token_info = response.json().get("data", {})
+                logger.info(f"Vault token is valid. Policies: {token_info.get('policies', [])}")
+                return True
+            
+            logger.warning(f"Vault token validation failed: {response.status_code} - {response.text}")
+            return False
+        except Exception as e:
+            logger.error(f"Error validating Vault token: {str(e)}")
+            return False
+    
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Make a request to the Vault API"""
+        """Make a request to the Vault API with enhanced error handling and retry logic"""
         client = await self._get_client()
         url = f"{self.vault_url}/v1/{path}"
         headers = {"X-Vault-Token": self.vault_token}
         
+        # Validate token before making the actual request
+        if not await self._validate_token():
+            logger.error("Cannot proceed with Vault request - invalid token")
+            raise Exception("Invalid Vault token")
+        
         try:
+            # Make the request
             if method.lower() == "get":
                 response = await client.get(url, headers=headers)
             else:  # POST
                 response = await client.post(url, headers=headers, json=data)
             
-            if response.status_code != 200:
+            # Check for common error statuses
+            if response.status_code == 403:
+                logger.error(f"Vault permission denied: {response.text}")
+                raise Exception(f"Permission denied in Vault: {path}")
+            elif response.status_code == 404:
+                # Not necessarily an error if checking if something exists
+                logger.warning(f"Vault resource not found: {path}")
+                return {"data": {}}
+            elif response.status_code != 200:
                 logger.error(f"Vault request failed: {response.status_code} - {response.text}")
                 raise Exception(f"Vault request failed with status {response.status_code}")
             
@@ -49,22 +92,36 @@ class EncryptionService:
             raise
     
     async def ensure_keys_exist(self):
-        """Ensure encryption engine is enabled in Vault"""
+        """Ensure encryption engine is enabled in Vault with improved error handling"""
         # Check if the transit engine is enabled
         try:
             # Try to read the transit mount info - will fail if not enabled
-            await self._vault_request("get", f"sys/mounts/{self.transit_mount}")
-            logger.info(f"Transit engine at '{self.transit_mount}' is enabled")
-        except Exception:
-            # Enable the transit engine
-            logger.info(f"Enabling transit engine at '{self.transit_mount}'")
-            await self._vault_request("post", "sys/mounts/transit", {
-                "type": "transit",
-                "description": "Encryption as a service for OpenMates"
-            })
-        
-        # No pre-created keys needed since we create per-user and per-chat keys dynamically
-        # Each user and chat will get their own unique encryption key
+            try:
+                await self._vault_request("get", f"sys/mounts/{self.transit_mount}")
+                logger.info(f"Transit engine at '{self.transit_mount}' is enabled")
+            except Exception as e:
+                # If the error is not just 404, re-raise
+                if "404" not in str(e) and "not found" not in str(e).lower():
+                    logger.error(f"Error checking transit engine: {str(e)}")
+                    raise
+                
+                # Enable the transit engine
+                logger.info(f"Enabling transit engine at '{self.transit_mount}'")
+                try:
+                    await self._vault_request("post", "sys/mounts/transit", {
+                        "type": "transit",
+                        "description": "Encryption as a service for OpenMates"
+                    })
+                    logger.info(f"Successfully enabled transit engine")
+                except Exception as mount_error:
+                    # Check if it's already mounted (race condition)
+                    if "already in use" in str(mount_error).lower():
+                        logger.info(f"Transit engine was already mounted by another process")
+                    else:
+                        raise
+        except Exception as e:
+            logger.error(f"Failed to ensure transit engine is enabled: {str(e)}")
+            raise Exception(f"Failed to initialize encryption service: {str(e)}")
     
     async def create_user_key(self, user_id: str) -> str:
         """

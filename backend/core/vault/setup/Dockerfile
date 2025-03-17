@@ -6,6 +6,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create a directory for persistent data
+RUN mkdir -p /app/data
+
 # Copy setup script
 COPY setup_vault.py .
 

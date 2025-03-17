@@ -20,9 +20,10 @@ services:
       CMS_TOKEN: ${CMS_TOKEN}
       DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
       VAULT_URL: "http://vault:8200"
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}  # Use the VAULT_ROOT_TOKEN directly
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"  # Add Redis password to API environment
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
     command: >
       sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
     ports:
@@ -36,6 +37,7 @@ services:
       - openmates
     depends_on:
       - cms
+      - vault-setup # Add dependency on vault-setup
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${REST_API_PORT}/health"]
       interval: 30s
@@ -258,22 +260,24 @@ services:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
       VAULT_LOG_LEVEL: "debug"
+      VAULT_AUTO_UNSEAL: "true"  # Set to "false" to disable auto-unsealing
     volumes:
       - ./vault/setup:/app
+      - vault-setup-data:/app/data  # Persistent storage for unseal key
     networks:
       - openmates
-    # Use simple service name dependency instead of condition
     depends_on:
       - vault
-    restart: "no"
+    restart: "on-failure"
     deploy:
       restart_policy:
-        condition: none
-    # Add an explicit command to wait for vault to be ready
+        condition: on-failure
+        max_attempts: 5
     command: >
       sh -c "echo 'Waiting for Vault to be ready...' &&
              sleep 10 &&
-             python setup_vault.py"
+             python setup_vault.py &&
+             echo 'Setup complete.'"
 
   #########################################################################
   ##### Monitoring (Prometheus/Grafana/Loki)
@@ -445,3 +449,5 @@ volumes:
     name: openmates-grafana-data
   vault-data:
     name: openmates-vault-data
+  vault-setup-data:
+    name: openmates-vault-setup-data
