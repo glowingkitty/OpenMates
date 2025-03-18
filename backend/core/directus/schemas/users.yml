@@ -36,7 +36,8 @@ directus_users:
       note: "Reference to the user's encryption key in Vault"
 
     vault_key_version:
-      type: integer
+      type: string
+      length: 64
       note: "Version of the user's encryption key in Vault"
 
     api_key_hash:

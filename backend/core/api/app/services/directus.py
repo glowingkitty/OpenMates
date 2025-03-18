@@ -255,7 +255,7 @@ class DirectusService:
         """
         Create a new user in Directus
         - Creates a unique encryption key for the user in Vault
-        - Stores hashed email for authentication
+        - Stores email as a hash with @example.com to pass validation
         - Stores encrypted email and username using the user's key
         - Returns (success, user_data, message)
         """
@@ -269,6 +269,9 @@ class DirectusService:
             # Hash the email for authentication
             hashed_email = hash_email(email)
             
+            # Create a valid email format using the hash (max 64 chars for username part)
+            directus_email = f"{hashed_email[:64]}@example.com"
+            
             # Encrypt sensitive data with the user-specific key
             encrypted_email_address, key_version = await self.encryption_service.encrypt_with_user_key(email, vault_key_id)
             encrypted_username, _ = await self.encryption_service.encrypt_with_user_key(username, vault_key_id)
@@ -276,7 +279,7 @@ class DirectusService:
             
             # Create the user payload with no cleartext sensitive data
             user_data = {
-                "email": hashed_email,  # Using hashed email as username for login
+                "email": directus_email,  # Use hash-based email that passes validation
                 "password": password,
                 "status": "active",  # Automatically activate since email is verified
                 "role": role,  # Role ID from Directus
@@ -310,20 +313,23 @@ class DirectusService:
             error_msg = f"Error creating user: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return False, None, error_msg
-    
+
     async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Authenticate a user with Directus
-        - Uses hashed email for authentication
+        - Converts real email to hash-based email for lookup
         - Returns (success, auth_data, message)
         """
         try:
             # Hash the email for login
             hashed_email = hash_email(email)
             
-            # Prepare login payload
+            # Create a valid email format using the hash (same format as in create_user)
+            directus_email = f"{hashed_email[:64]}@example.com"
+            
+            # Prepare login payload with the hash-based email
             login_data = {
-                "email": hashed_email,  # Use hashed email for authentication
+                "email": directus_email,
                 "password": password,
                 "mode": "cookie"  # This will set HTTP-only cookies
             }
@@ -431,16 +437,19 @@ class DirectusService:
     async def get_user_by_email(self, email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Find a user by their email address
-        - Uses hashed email for lookup
+        - Converts real email to hash-based email for lookup
         - Returns (success, user_data, message)
         """
         try:
             # Hash the email for lookup
             hashed_email = hash_email(email)
             
+            # Create a valid email format using the hash (same format as in create_user)
+            directus_email = f"{hashed_email[:64]}@example.com"
+            
             # Query Directus for the user using async httpx
             url = f"{self.base_url}/users"
-            params = {"filter": json.dumps({"email": {"_eq": hashed_email}})}
+            params = {"filter": json.dumps({"email": {"_eq": directus_email}})}
             
             response = await self._make_api_request("GET", url, params=params)
             

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, Response, Cookie
 import logging
-from typing import Optional
+from typing import Optional, Tuple
+import regex  # Use regex module instead of re
 
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse, LoginRequest, LoginResponse, LogoutResponse, SessionResponse
 from app.services.directus import DirectusService
@@ -249,6 +250,56 @@ async def request_confirm_email_code(
             message="An error occurred while processing your request."
         )
 
+# Add these validation functions that match the frontend validation
+
+def validate_username(username: str) -> Tuple[bool, str]:
+    """Validate username according to our requirements with international character support"""
+    if not username:
+        return False, "Username is required"
+    
+    if len(username) < 3:
+        return False, "Username must be at least 3 characters"
+    
+    if len(username) > 20:
+        return False, "Username cannot be longer than 20 characters"
+    
+    # Check for at least one letter (including international letters)
+    if not regex.search(r'\p{L}', username):
+        return False, "Username must contain at least one letter"
+    
+    # Allow letters (including international), numbers, dots, and underscores
+    if not regex.fullmatch(r'[\p{L}\p{M}0-9._]+', username):
+        return False, "Username can only contain letters, numbers, dots, and underscores"
+    
+    return True, ""
+
+def validate_password(password: str) -> Tuple[bool, str]:
+    """Validate password according to our requirements with international character support"""
+    if not password:
+        return False, "Password is required"
+    
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    
+    if len(password) > 60:
+        return False, "Password cannot be longer than 60 characters"
+    
+    # Check for at least one letter (including international letters)
+    if not regex.search(r'\p{L}', password):
+        return False, "Password must contain at least one letter"
+    
+    # Check for at least one number
+    if not regex.search(r'[0-9]', password):
+        return False, "Password must contain at least one number"
+    
+    # Check for at least one special character (anything not a letter or number)
+    if not regex.search(r'[^\p{L}\p{N}]', password):
+        return False, "Password must contain at least one special character"
+    
+    return True, ""
+
+# Update the check_confirm_email_code function to include validation
+
 @router.post("/check_confirm_email_code", response_model=CheckEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
 async def check_confirm_email_code(
@@ -329,6 +380,23 @@ async def check_confirm_email_code(
         # Log successful verification
         event_logger.info(f"Email verified successfully")
         logger.info(f"Email verified successfully")
+        
+        # Validate username and password
+        username_valid, username_error = validate_username(signup_username)
+        if not username_valid:
+            logger.warning(f"Invalid username format: {username_error}")
+            return CheckEmailCodeResponse(
+                success=False,
+                message=f"Invalid username: {username_error}"
+            )
+            
+        password_valid, password_error = validate_password(signup_password)
+        if not password_valid:
+            logger.warning(f"Invalid password format: {password_error}")
+            return CheckEmailCodeResponse(
+                success=False,
+                message=f"Invalid password: {password_error}"
+            )
         
         # Extract additional information from invite code
         is_admin = code_data.get('is_admin', False) if code_data else False

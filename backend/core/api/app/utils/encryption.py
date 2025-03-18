@@ -231,7 +231,7 @@ class EncryptionService:
                 "type": "aes256-gcm96",  # AES with GCM mode for authenticated encryption
                 "derived": True  # Derive encryption key from a combination of the key and context
             })
-            logger.info(f"Created user-specific encryption key: {key_id}")
+            logger.info(f"Created user-specific encryption key.")
             return key_id
         except Exception as e:
             logger.error(f"Error creating user key: {str(e)}")
@@ -341,10 +341,10 @@ class EncryptionService:
                 "type": "aes256-gcm96",
                 "derived": True
             })
-            logger.info(f"Created chat-specific encryption key: {key_id}")
+            logger.info(f"Created chat-specific encryption key.")
             return True
         except Exception as e:
-            logger.error(f"Failed to create chat key {key_id}: {str(e)}")
+            logger.error(f"Failed to create chat key: {str(e)}")
             return False
 
     async def encrypt_with_chat_key(self, plaintext: str, key_id: str) -> Tuple[str, str]:
