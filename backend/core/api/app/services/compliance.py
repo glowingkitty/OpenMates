@@ -46,7 +46,7 @@ class ComplianceService:
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": event_type,
-            "user_id": user_id or "anonymous",
+            "user_id": user_id or "anonymous",  # Never redact user_id in compliance logs
             "ip_address": ip_address,
             "status": status
         }
@@ -58,8 +58,8 @@ class ComplianceService:
                               if k not in ['password', 'token', 'secret']}
             log_data["details"] = sanitized_details
             
-        # Log the event
-        compliance_logger.info(json.dumps(log_data))
+        # Log the raw dictionary - let the JSON handler format it
+        compliance_logger.info(log_data)
     
     @staticmethod
     def log_user_creation(
@@ -84,7 +84,7 @@ class ComplianceService:
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": "user_creation",
-            "user_id": user_id,
+            "user_id": user_id,  # Never redact user_id in compliance logs
             "device_fingerprint": device_fingerprint,  # Already hashed in the device_fingerprint util
             "location": location,
             "status": status
@@ -95,8 +95,8 @@ class ComplianceService:
                               if k not in ['password', 'token', 'secret']}
             log_data["details"] = sanitized_details
             
-        # Log the event
-        compliance_logger.info(json.dumps(log_data))
+        # Log the raw dictionary - let the JSON handler format it
+        compliance_logger.info(log_data)
     
     @staticmethod
     def log_api_event(
@@ -225,7 +225,7 @@ class ComplianceService:
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": event_type,
-            "user_id": user_id or "anonymous",
+            "user_id": user_id or "anonymous",  # Never redact user_id in compliance logs
             "device_fingerprint": device_fingerprint,
             "location": location,
             "status": status
@@ -238,8 +238,8 @@ class ComplianceService:
                                if k not in ['password', 'token', 'secret']}
             log_data["details"] = sanitized_details
             
-        # Log the event
-        compliance_logger.info(json.dumps(log_data))
+        # Log the raw dictionary - let the JSON handler format it
+        compliance_logger.info(log_data)
 
 # TODO: Implement S3 archive functionality for compliance logs
 # This will:

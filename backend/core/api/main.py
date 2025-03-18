@@ -21,6 +21,9 @@ from app.utils.log_filters import SensitiveDataFilter  # Import the new filter
 # Add import for Celery app
 from app.tasks.celery_config import app as celery_app
 
+# Import our new compliance logging setup
+from app.utils.setup_compliance_logging import setup_compliance_logging
+
 # Set up structured logging - INFO for console output, WARNING for files
 log_level = os.getenv("LOG_LEVEL", "INFO")  # Keep INFO as default for console
 logging.basicConfig(level=log_level)
@@ -119,9 +122,17 @@ cache_service = CacheService()
 directus_service = DirectusService(cache_service=cache_service)
 metrics_service = MetricsService()
 
+# Create the application instance
+app = None
+
 # Define lifespan context manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Set up event loop for async background tasks
+    import asyncio
+    loop = asyncio.get_event_loop()
+    app.state.loop = loop
+    
     # Startup logic
     logger.info("Preloading invite codes into cache...")
     try:
@@ -136,44 +147,62 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down application...")
 
 # Create FastAPI application with lifespan
-app = FastAPI(
-    title="OpenMates API",
-    description="API for OpenMates platform",
-    version="0.1.0",
-    lifespan=lifespan
-)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="OpenMates API",
+        description="API for OpenMates platform",
+        version="0.1.0",
+        lifespan=lifespan
+    )
 
-# Create metrics endpoint
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
+    # Set up compliance logging
+    setup_compliance_logging()
 
-# Add rate limiting exception handler
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # Create metrics endpoint
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
 
-# Add logging middleware
-app.add_middleware(LoggingMiddleware, metrics_service=metrics_service)
+    # Add rate limiting exception handler
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Configure CORS with proper origin restrictions
-is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
-allowed_origins = [
-    os.getenv("FRONTEND_URL", "http://localhost:5174") if is_dev else
-    os.getenv("PRODUCTION_URL", "https://app.openmates.org")
-]
-logger.debug(f"Allowed origins: {allowed_origins}")
+    # Add logging middleware
+    app.add_middleware(LoggingMiddleware, metrics_service=metrics_service)
 
-# Make allowed_origins accessible outside this module
-# This enables auth endpoints to validate origins
-app.state.allowed_origins = allowed_origins
+    # Configure CORS with proper origin restrictions
+    is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
+    allowed_origins = [
+        os.getenv("FRONTEND_URL", "http://localhost:5174") if is_dev else
+        os.getenv("PRODUCTION_URL", "https://app.openmates.org")
+    ]
+    logger.debug(f"Allowed origins: {allowed_origins}")
 
-# Configure CORS with the allowed origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # Make allowed_origins accessible outside this module
+    # This enables auth endpoints to validate origins
+    app.state.allowed_origins = allowed_origins
+
+    # Configure CORS with the allowed origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Include routers
+    app.include_router(auth.router)
+    app.include_router(email.router)
+    app.include_router(invoice.router)
+    app.include_router(credit_note.router)
+
+    # Health check endpoint with rate limiting
+    @app.get("/health")
+    @limiter.limit("60/minute")
+    async def health_check(request: Request):
+        return {"status": "healthy"}
+
+    return app
 
 async def preload_invite_codes():
     """Load all invite codes into cache for faster lookup"""
@@ -203,25 +232,8 @@ async def preload_invite_codes():
     
     logger.info(f"Preloaded {imported_count} new invite codes into cache (skipped {skipped_count} existing codes)")
 
-# Include routers
-app.include_router(auth.router)
-app.include_router(email.router)
-app.include_router(invoice.router)
-app.include_router(credit_note.router)
-
-# Health check endpoint with rate limiting
-@app.get("/health")
-@limiter.limit("60/minute")
-async def health_check(request: Request):
-    return {"status": "healthy"}
-
-# Make sure there's a section where you set up the event loop for async tasks
-@app.on_event("startup")
-async def startup_event():
-    # Add event loop for async background tasks
-    import asyncio
-    loop = asyncio.get_event_loop()
-    app.state.loop = loop
+# Create the application at module level to make it available for import
+app = create_app()
 
 # Make Celery app accessible through the main module
 __all__ = ['app', 'celery_app']

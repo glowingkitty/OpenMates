@@ -29,6 +29,7 @@ class MetricsService:
             'Total number of user logins'
         )
         
+        # Fix these metrics to be gauges that represent exact counts
         self.monthly_active_users = Gauge(
             'monthly_active_users',
             'Number of monthly active users'
@@ -75,7 +76,15 @@ class MetricsService:
         self.user_login_total.inc()
     
     def update_active_users(self, daily: int, monthly: int):
-        """Update the active users gauges"""
+        """
+        Update the active users gauges with integer values
+        Ensures we always set the exact count, not increment
+        """
+        # Make sure values are integers
+        daily = int(daily)
+        monthly = int(monthly)
+        
+        # Set the gauges directly (don't increment)
         self.daily_active_users.set(daily)
         self.monthly_active_users.set(monthly)
         
