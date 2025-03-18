@@ -1853,6 +1853,11 @@
             "en_original": "Create new account",
             "context": "Button text for creating a new account"
         },
+        "email_address_already_in_use": {
+            "text": "Dirección de correo electrónico ya en uso",
+            "en_original": "E-Mail address already in use",
+            "context": "Error message shown when email address is already in use"
+        },
         "you_received_a_one_time_code_via_email": {
             "text": "Has recibido un código de un solo uso por correo electrónico",
             "en_original": "You received a one time code via E-mail",

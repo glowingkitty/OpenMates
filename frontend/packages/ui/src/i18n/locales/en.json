@@ -436,6 +436,10 @@
             "text": "Create new account",
             "context": "Button text for creating a new account"
         },
+        "email_address_already_in_use": {
+            "text": "E-Mail address already in use",
+            "context": "Error message shown when email address is already in use"
+        },
         "you_received_a_one_time_code_via_email": {
             "text": "You received a one time code via E-mail",
             "context": "Message shown when a one-time code has been sent via email"

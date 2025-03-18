@@ -48,6 +48,7 @@
 
     // Add email validation state tracker
     let isEmailValidationPending = false;
+    let emailAlreadyInUse = false; // Add new state variable
 
     // Add username validation state
     let showUsernameWarning = false;
@@ -271,9 +272,20 @@
                 // Dispatch the next event to transition to step 2
                 dispatch('next');
             } else {
-                // Show error message
-                showWarning = true;
-                console.error('Error requesting verification code:', data.message);
+                // Check if this is an email already registered error
+                if (data.message && data.message.includes("email is already registered")) {
+                    emailAlreadyInUse = true;
+                    showEmailWarning = true;
+                    
+                    // Focus the email input
+                    if (emailInput && !isTouchDevice) {
+                        emailInput.focus();
+                    }
+                } else {
+                    // Show generic error message
+                    showWarning = true;
+                    console.error('Error requesting verification code:', data.message);
+                }
             }
         } catch (error) {
             showWarning = true;
@@ -467,11 +479,13 @@
     $: {
         if (email) {
             isEmailValidationPending = true;
+            emailAlreadyInUse = false; // Reset the already in use warning when email changes
             debouncedCheckEmail(email);
         } else {
             emailError = '';
             showEmailWarning = false;
             isEmailValidationPending = false;
+            emailAlreadyInUse = false;
         }
     }
 
@@ -569,11 +583,17 @@
                             placeholder={$text('login.email_placeholder.text')}
                             required
                             autocomplete="email"
-                            class:error={!!emailError}
+                            class:error={!!emailError || emailAlreadyInUse}
                         />
                         {#if showEmailWarning && emailError}
                             <InputWarning 
                                 message={emailError}
+                                target={emailInput}
+                            />
+                        {/if}
+                        {#if emailAlreadyInUse}
+                            <InputWarning 
+                                message={$text('signup.email_address_already_in_use.text')}
                                 target={emailInput}
                             />
                         {/if}

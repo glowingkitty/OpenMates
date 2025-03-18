@@ -1853,6 +1853,11 @@
             "en_original": "Create new account",
             "context": "Button text for creating a new account"
         },
+        "email_address_already_in_use": {
+            "text": "电子邮件地址已在使用中",
+            "en_original": "E-Mail address already in use",
+            "context": "Error message shown when email address is already in use"
+        },
         "you_received_a_one_time_code_via_email": {
             "text": "您已通过电子邮件收到一次性验证码",
             "en_original": "You received a one time code via E-mail",

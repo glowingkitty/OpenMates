@@ -177,6 +177,15 @@ async def request_confirm_email_code(
                 message="Invalid invite code. Please go back and start again."
             )
         
+        # Check if email is already registered
+        exists_result, existing_user, _ = await directus_service.get_user_by_email(email_request.email)
+        if exists_result and existing_user:
+            logger.warning(f"Attempted to register with existing email")
+            return RequestEmailCodeResponse(
+                success=False,
+                message="This email is already registered. Please log in instead."
+            )
+        
         # Log that we're submitting task to Celery
         logger.info(f"Submitting email verification task to Celery")
         

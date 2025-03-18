@@ -1853,6 +1853,11 @@
             "en_original": "Create new account",
             "context": "Button text for creating a new account"
         },
+        "email_address_already_in_use": {
+            "text": "Eメールアドレスはすでに使用されています",
+            "en_original": "E-Mail address already in use",
+            "context": "Error message shown when email address is already in use"
+        },
         "you_received_a_one_time_code_via_email": {
             "text": "ワンタイムコードをメールで送信しました",
             "en_original": "You received a one time code via E-mail",
