@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, Response, Cookie
 import logging
+import time  # Add time module import
 from typing import Optional, Tuple
 import regex  # Use regex module instead of re
 
@@ -7,8 +8,10 @@ from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmail
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
+from app.services.compliance import ComplianceService  # Add compliance service import
 from app.services.limiter import limiter
 from app.utils.invite_code import validate_invite_code
+from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip  # Add device fingerprinting utilities
 
 # Import the Celery task directly from the tasks module
 from app.tasks.celery_config import app as celery_app
@@ -74,6 +77,10 @@ def get_cache_service():
 def get_metrics_service():
     from main import metrics_service
     return metrics_service
+
+def get_compliance_service():
+    from app.services.compliance import ComplianceService
+    return ComplianceService()
 
 def get_email_template_service():
     from app.services.email_template import EmailTemplateService
@@ -317,6 +324,8 @@ async def check_confirm_email_code(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
     signup_invite_code: Optional[str] = Cookie(None),
     signup_email: Optional[str] = Cookie(None),
     signup_username: Optional[str] = Cookie(None),
@@ -427,13 +436,20 @@ async def check_confirm_email_code(
                 message="This email is already registered. Please log in instead."
             )
         
-        # Create the user account
+        # Get device fingerprint and location information for compliance
+        device_fingerprint = get_device_fingerprint(request)
+        client_ip = get_client_ip(request)
+        device_location = get_location_from_ip(client_ip)
+        
+        # Create the user account with device information
         success, user_data, create_message = await directus_service.create_user(
             username=signup_username,
             email=email,
             password=signup_password,
             is_admin=is_admin,
-            role=role
+            role=role,
+            device_fingerprint=device_fingerprint,
+            device_location=device_location
         )
         
         if not success:
@@ -451,9 +467,30 @@ async def check_confirm_email_code(
                 message="Failed to create your account. Please try again later."
             )
         
-        # User created successfully - log the compliance event
+        # User created successfully - log the compliance event and metrics
         user_id = user_data.get("id")
-        event_logger.info(f"User account created - ID: {user_id}, Email: [REDACTED]")
+        
+        # Log compliance event for account creation - only store fingerprint hash, not IP
+        compliance_service.log_user_creation(
+            user_id=user_id, 
+            device_fingerprint=device_fingerprint,
+            location=device_location,
+            status="success"
+        )
+        
+        # Track user creation in metrics
+        metrics_service.track_user_creation()
+        
+        # Add device to cache for quick lookups
+        await cache_service.set(
+            f"user_device:{user_id}:{device_fingerprint}", 
+            {
+                "loc": device_location, 
+                "first": int(time.time()),
+                "recent": int(time.time())
+            },
+            ttl=86400  # 24 hour cache
+        )
         
         # Now log the user in
         login_success, auth_data, login_message = await directus_service.login_user(
@@ -548,12 +585,19 @@ async def login(
     login_data: LoginRequest,
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
 ):
     """
     Authenticate a user and create a session
     """
     try:
+        # Get device fingerprint and location for tracking
+        device_fingerprint = get_device_fingerprint(request)
+        client_ip = get_client_ip(request)
+        device_location = get_location_from_ip(client_ip)
+        
         success, auth_data, message = await directus_service.login_user(
             email=login_data.email,
             password=login_data.password
@@ -574,10 +618,60 @@ async def login(
                         max_age=86400  # 24 hours
                     )
             
-            # Log the successful login for compliance
+            # Get user ID for device tracking and compliance logging
             user_id = auth_data.get("user", {}).get("id")
             if user_id:
-                event_logger.info(f"User logged in - ID: {user_id}")
+                # Check if this device is already known (in cache)
+                cache_key = f"user_device:{user_id}:{device_fingerprint}"
+                existing_device = await cache_service.get(cache_key)
+                is_new_device = existing_device is None
+                
+                # For security events (new device login), log with IP
+                if is_new_device:
+                    compliance_service.log_auth_event(
+                        event_type="login_new_device",
+                        user_id=user_id,
+                        ip_address=client_ip,  # Include IP for new device login
+                        status="success",
+                        details={
+                            "device_fingerprint": device_fingerprint,
+                            "location": device_location
+                        }
+                    )
+                else:
+                    # For normal logins (known device), only log device hash, not IP
+                    compliance_service.log_auth_event_safe(
+                        event_type="login",
+                        user_id=user_id,
+                        device_fingerprint=device_fingerprint,
+                        location=device_location,
+                        status="success"
+                    )
+                
+                # Update device in cache
+                current_time = int(time.time())
+                if is_new_device:
+                    # New device - store in cache
+                    await cache_service.set(
+                        cache_key, 
+                        {
+                            "loc": device_location, 
+                            "first": current_time,
+                            "recent": current_time
+                        },
+                        ttl=86400  # 24 hour cache
+                    )
+                else:
+                    # Just update the recent timestamp for existing device
+                    existing_device["recent"] = current_time
+                    await cache_service.set(cache_key, existing_device, ttl=86400)
+                
+                # Update device information in Directus
+                await directus_service.update_user_device(
+                    user_id=user_id,
+                    device_fingerprint=device_fingerprint,
+                    device_location=device_location
+                )
             
             return LoginResponse(
                 success=True,
@@ -585,6 +679,17 @@ async def login(
                 user=auth_data.get("user")
             )
         else:
+            # Failed login attempt - always log IP address for security events
+            exists_result, user_data, _ = await directus_service.get_user_by_email(login_data.email)
+            if exists_result and user_data:
+                compliance_service.log_auth_event(
+                    event_type="login_failed",
+                    user_id=user_data.get("id"),
+                    ip_address=client_ip,  # For security events, include IP
+                    status="failed",
+                    details={"reason": "invalid_credentials"}
+                )
+                
             return LoginResponse(
                 success=False,
                 message=message or "Invalid credentials"

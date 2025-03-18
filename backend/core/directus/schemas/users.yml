@@ -30,6 +30,11 @@ directus_users:
       length: 2048
       note: "Encrypted user preferences"
 
+    encrypted_devices:
+      type: string
+      length: 4096
+      note: "Encrypted JSON containing device fingerprints and associated data"
+
     vault_key_id:
       type: string
       length: 64

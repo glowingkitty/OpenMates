@@ -62,6 +62,43 @@ class ComplianceService:
         compliance_logger.info(json.dumps(log_data))
     
     @staticmethod
+    def log_user_creation(
+        user_id: str,
+        device_fingerprint: str,
+        location: str,
+        status: str = "success",
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log a user creation event for compliance purposes.
+        For privacy reasons, does NOT store IP address - only device fingerprint and location.
+        
+        Args:
+            user_id: Newly created user ID
+            device_fingerprint: Hashed device fingerprint 
+            location: Estimated location (city) based on IP
+            status: Outcome of the creation (success, failed)
+            details: Additional details to log (will be sanitized)
+        """
+        # Create log entry without IP address
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "user_creation",
+            "user_id": user_id,
+            "device_fingerprint": device_fingerprint,  # Already hashed in the device_fingerprint util
+            "location": location,
+            "status": status
+        }
+        
+        if details:
+            sanitized_details = {k: v for k, v in details.items() 
+                              if k not in ['password', 'token', 'secret']}
+            log_data["details"] = sanitized_details
+            
+        # Log the event
+        compliance_logger.info(json.dumps(log_data))
+    
+    @staticmethod
     def log_api_event(
         event_type: str,
         user_id: Optional[str] = None,
@@ -158,6 +195,47 @@ class ComplianceService:
         
         if details:
             sanitized_details = {k: v for k, v in details.items()}
+            log_data["details"] = sanitized_details
+            
+        # Log the event
+        compliance_logger.info(json.dumps(log_data))
+
+    @staticmethod
+    def log_auth_event_safe(
+        event_type: str, 
+        user_id: Optional[str],
+        device_fingerprint: str,
+        location: str,
+        status: str = "success",
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log an authentication-related compliance event, but without storing IP address
+        Used for routine successful logins from known devices
+        
+        Args:
+            event_type: Type of event (login, etc)
+            user_id: User ID
+            device_fingerprint: Hashed device fingerprint
+            location: Location derived from IP
+            status: Outcome of the event (success, failed)
+            details: Additional details to log (will be sanitized)
+        """
+        # Create log entry without IP address
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": event_type,
+            "user_id": user_id or "anonymous",
+            "device_fingerprint": device_fingerprint,
+            "location": location,
+            "status": status
+        }
+        
+        # Add details if provided (sanitize as needed)
+        if details:
+            # Filter out any sensitive fields
+            sanitized_details = {k: v for k, v in details.items() 
+                               if k not in ['password', 'token', 'secret']}
             log_data["details"] = sanitized_details
             
         # Log the event

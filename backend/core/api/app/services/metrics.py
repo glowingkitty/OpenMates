@@ -18,10 +18,26 @@ class MetricsService:
             ['status']  # 'valid', 'invalid'
         )
         
-        # TODO: Implement the following metrics:
-        # self.login_attempts = Counter('login_attempts', 'Login attempts', ['status'])
-        # self.logout_total = Counter('logout_total', 'Logout events')
-        # self.signup_total = Counter('signup_total', 'New user signups')
+        # User metrics
+        self.user_created_total = Counter(
+            'user_created_total',
+            'Total number of users created'
+        )
+        
+        self.user_login_total = Counter(
+            'user_login_total',
+            'Total number of user logins'
+        )
+        
+        self.monthly_active_users = Gauge(
+            'monthly_active_users',
+            'Number of monthly active users'
+        )
+        
+        self.daily_active_users = Gauge(
+            'daily_active_users',
+            'Number of daily active users'
+        )
         
         # API usage metrics
         self.api_requests = Counter(
@@ -43,19 +59,30 @@ class MetricsService:
             ['endpoint']
         )
         
-        # TODO: Track these metrics as discussed:
-        # - App skills used
-        # - User metrics (active users, 2FA adoption)
-        # - Chat metrics (new chats, messages, average length)
-        # - System metrics (to be collected via node_exporter)
-        # - Payment/income metrics
-        
         logger.info("Metrics service initialized")
     
     def track_invite_code_check(self, is_valid: bool):
         """Track an invite code check with its result"""
         status = "valid" if is_valid else "invalid"
         self.invite_code_check_total.labels(status=status).inc()
+    
+    def track_user_creation(self):
+        """Track a new user creation"""
+        self.user_created_total.inc()
+    
+    def track_user_login(self):
+        """Track a user login"""
+        self.user_login_total.inc()
+    
+    def update_active_users(self, daily: int, monthly: int):
+        """Update the active users gauges"""
+        self.daily_active_users.set(daily)
+        self.monthly_active_users.set(monthly)
+        
+    def track_login_attempt(self, is_successful: bool):
+        """Track a login attempt"""
+        if is_successful:
+            self.track_user_login()
         
     def track_api_request(self, method: str, endpoint: str, status_code: int):
         """Track an API request with method, endpoint, and status code"""

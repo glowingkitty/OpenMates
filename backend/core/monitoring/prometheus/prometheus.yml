@@ -22,6 +22,16 @@ scrape_configs:
     static_configs:
       - targets: ["api:8000"]
 
+  # New job for user metrics - same endpoint but different labels
+  - job_name: "user_metrics"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'user_.*|monthly_active_users|daily_active_users'
+        action: keep
+
   # Commented out unavailable exporters for now
   # - job_name: "node-exporter"
   #  static_configs:

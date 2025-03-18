@@ -1,0 +1,106 @@
+import hashlib
+import logging
+import httpx
+from typing import Dict, Any, Optional
+from fastapi import Request
+from functools import lru_cache
+
+logger = logging.getLogger(__name__)
+
+# IP-API configuration (free tier: up to 45 requests/minute)
+IP_API_URL = "http://ip-api.com/json/"  # Using non-SSL endpoint for free tier
+
+def get_device_fingerprint(request: Request) -> str:
+    """
+    Create a unique device fingerprint based on client IP and user agent
+    Returns a SHA-256 hash of the combined string
+    """
+    # Get client IP - use X-Forwarded-For if behind proxy, otherwise use client host
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.client.host if request.client else "unknown"
+    
+    # Get user agent string
+    user_agent = request.headers.get("User-Agent", "unknown")
+    
+    # Combine data and hash
+    fingerprint_data = f"{client_ip}:{user_agent}"
+    hashed = hashlib.sha256(fingerprint_data.encode()).hexdigest()
+    
+    return hashed
+
+def get_client_ip(request: Request) -> str:
+    """Extract client IP address from request"""
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.client.host if request.client else "unknown"
+    return client_ip
+
+@lru_cache(maxsize=1024)
+def get_location_from_ip(ip_address: str) -> str:
+    """
+    Get city location from IP address using ip-api.com
+    Returns city name or "unknown" if not found
+    Uses caching to avoid unnecessary API calls
+    """
+    if ip_address == "unknown" or ip_address == "127.0.0.1" or ip_address == "localhost":
+        return "unknown"
+        
+    try:
+        # Use synchronous request instead of async
+        response = httpx.get(
+            f"{IP_API_URL}/{ip_address}",
+            params={"fields": "status,message,city,countryCode"},
+            timeout=5.0
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Check if the request was successful
+            if data.get("status") == "success":
+                city = data.get("city")
+                country_code = data.get("countryCode")
+                
+                if city:
+                    return f"{city}, {country_code}" if country_code else city
+                elif country_code:
+                    return country_code
+            else:
+                logger.warning(f"IP location lookup failed: {data.get('message', 'Unknown error')}")
+                
+        else:
+            logger.warning(f"Failed to get location for IP {ip_address}: {response.status_code}")
+            
+    except Exception as e:
+        logger.error(f"Error looking up location for IP {ip_address}: {str(e)}")
+        
+    return "unknown"
+
+def update_device_record(
+    existing_devices: Optional[Dict[str, Any]], 
+    fingerprint: str, 
+    location: str
+) -> Dict[str, Any]:
+    """
+    Update the devices dictionary with new device information
+    Create the dictionary if it doesn't exist
+    """
+    import time
+    current_time = int(time.time())
+    
+    # Initialize empty dict if None
+    devices = existing_devices or {}
+    
+    if fingerprint in devices:
+        # Update existing device record
+        devices[fingerprint]["recent"] = current_time
+    else:
+        # Create new device record
+        devices[fingerprint] = {
+            "loc": location,
+            "first": current_time,
+            "recent": current_time
+        }
+    
+    return devices

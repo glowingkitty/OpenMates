@@ -1,0 +1,20 @@
+providers:
+  vercel:
+    privacy_policy: https://vercel.com/legal/privacy-policy
+    used_for:
+      - web app static frontend hosting
+      - website static frontend hosting
+  hetzner:
+    privacy_policy: https://www.hetzner.com/legal/privacy-policy
+    used_for:
+      - web app backend hosting
+      - all backend processing
+      - database hosting
+  ip-api:
+    privacy_policy: https://members.ip-api.com/privacy-policy
+    used_for:
+      - IP address geolocation
+  brevo:
+    privacy_policy: https://www.brevo.com/legal/privacypolicy
+    used_for:
+      - email sending

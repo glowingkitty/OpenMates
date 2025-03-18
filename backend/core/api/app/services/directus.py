@@ -9,6 +9,7 @@ from app.services.cache import CacheService
 from app.utils.email_hash import hash_email
 from app.utils.encryption import EncryptionService
 from typing import Dict, Any, Optional, Tuple
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,9 @@ class DirectusService:
             return []
 
     async def create_user(self, username: str, email: str, password: str, 
-                          is_admin: bool = False, role: str = None) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+                          is_admin: bool = False, role: str = None,
+                          device_fingerprint: str = None,
+                          device_location: str = None) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Create a new user in Directus
         - Creates a unique encryption key for the user in Vault
@@ -277,6 +280,22 @@ class DirectusService:
             encrypted_username, _ = await self.encryption_service.encrypt_with_user_key(username, vault_key_id)
             encrypted_credit_balance, _ = await self.encryption_service.encrypt_with_user_key("0", vault_key_id)
             
+            # If device fingerprint provided, create and encrypt devices dictionary
+            encrypted_devices = None
+            if device_fingerprint and device_location:
+                import time
+                current_time = int(time.time())
+                devices_dict = {
+                    device_fingerprint: {
+                        "loc": device_location,
+                        "first": current_time,
+                        "recent": current_time
+                    }
+                }
+                encrypted_devices, _ = await self.encryption_service.encrypt_with_user_key(
+                    json.dumps(devices_dict), vault_key_id
+                )
+            
             # Create the user payload with no cleartext sensitive data
             user_data = {
                 "email": directus_email,  # Use hash-based email that passes validation
@@ -292,6 +311,9 @@ class DirectusService:
                 "encrypted_email_address": encrypted_email_address,
                 "encrypted_username": encrypted_username,
                 "encrypted_credit_balance": encrypted_credit_balance,
+                
+                # Add encrypted devices if available
+                "encrypted_devices": encrypted_devices,
                 
                 # Non-sensitive data
                 "is_admin": is_admin
@@ -313,6 +335,88 @@ class DirectusService:
             error_msg = f"Error creating user: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return False, None, error_msg
+
+    async def update_user_device(self, user_id: str, device_fingerprint: str, device_location: str) -> Tuple[bool, str]:
+        """
+        Update a user's device information in Directus
+        - Retrieves and decrypts existing devices
+        - Adds or updates the device info
+        - Re-encrypts and stores back in Directus
+        """
+        try:
+            # Get the user first to retrieve encrypted_devices and vault key
+            url = f"{self.base_url}/users/{user_id}"
+            response = await self._make_api_request("GET", url)
+            
+            if response.status_code != 200:
+                return False, f"Failed to retrieve user: {response.status_code}"
+                
+            user_data = response.json().get("data", {})
+            vault_key_id = user_data.get("vault_key_id")
+            encrypted_devices_str = user_data.get("encrypted_devices")
+            
+            if not vault_key_id:
+                return False, "User has no encryption key"
+                
+            # If user has existing encrypted devices, decrypt them
+            devices_dict = {}
+            if encrypted_devices_str:
+                try:
+                    decrypted_devices = await self.encryption_service.decrypt_with_user_key(
+                        encrypted_devices_str, vault_key_id
+                    )
+                    devices_dict = json.loads(decrypted_devices)
+                except Exception as e:
+                    logger.error(f"Error decrypting devices: {str(e)}")
+                    # Continue with empty dict if we can't decrypt
+                    devices_dict = {}
+            
+            # Get current time for updating
+            current_time = int(time.time())
+            
+            needs_update = False
+            if device_fingerprint in devices_dict:
+                # Only update if the recent timestamp has changed significantly (> 1 hour)
+                # to avoid excessive writes to the database
+                last_update = devices_dict[device_fingerprint].get("recent", 0)
+                if (current_time - last_update) > 3600:  # 1 hour
+                    devices_dict[device_fingerprint]["recent"] = current_time
+                    needs_update = True
+            else:
+                # Add new device
+                devices_dict[device_fingerprint] = {
+                    "loc": device_location,
+                    "first": current_time,
+                    "recent": current_time
+                }
+                needs_update = True
+            
+            # Only update Directus if something changed
+            if needs_update:
+                # Encrypt the updated devices dictionary
+                encrypted_devices, _ = await self.encryption_service.encrypt_with_user_key(
+                    json.dumps(devices_dict), vault_key_id
+                )
+                
+                # Update the user record
+                update_data = {
+                    "encrypted_devices": encrypted_devices
+                }
+                
+                update_response = await self._make_api_request("PATCH", url, json=update_data)
+                
+                if update_response.status_code == 200:
+                    return True, "Device information updated successfully"
+                else:
+                    return False, f"Failed to update device info: {update_response.status_code}"
+            else:
+                # No changes needed
+                return True, "Device information is up to date"
+                
+        except Exception as e:
+            error_msg = f"Error updating device info: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return False, error_msg
 
     async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
@@ -392,11 +496,12 @@ class DirectusService:
             if refresh_token:
                 logout_data["refresh_token"] = refresh_token
             
-            # Make request to Directus logout endpoint
-            response = requests.post(
-                f"{self.base_url}/auth/logout",
-                json=logout_data
-            )
+            # Make request to Directus logout endpoint using async httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/auth/logout",
+                    json=logout_data
+                )
             
             if response.status_code == 200:
                 return True, "Logout successful"
@@ -409,23 +514,29 @@ class DirectusService:
             error_msg = f"Error during logout: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
-    
+
     async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
         """
         Log out all sessions for a user
         - Returns (success, message)
         """
         try:
-            # Make request to Directus logout-all endpoint
-            response = requests.post(
-                f"{self.base_url}/auth/logout/all",
-                headers=self._get_admin_headers()
-            )
+            # Get token first
+            token = await self.ensure_auth_token(admin_required=True)
+            if not token:
+                return False, "Failed to get admin token"
+            
+            # Make request to Directus logout-all endpoint using async httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/auth/logout/all",
+                    headers={"Authorization": f"Bearer {token}"}
+                )
             
             if response.status_code == 200:
                 return True, "All sessions logged out"
             else:
-                error_msg = f"Logout all failed: {response.text}"
+                error_msg = f"Logout all failed: {response.status_code}: {response.text}"
                 logger.warning(error_msg)
                 return False, error_msg
                 
