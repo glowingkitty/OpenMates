@@ -18,7 +18,7 @@ class MetricsService:
             ['status']  # 'valid', 'invalid'
         )
         
-        # User metrics
+        # User metrics - using Counter for total users (cumulative count)
         self.user_created_total = Counter(
             'user_created_total',
             'Total number of users created'
@@ -29,7 +29,7 @@ class MetricsService:
             'Total number of user logins'
         )
         
-        # Fix these metrics to be gauges that represent exact counts
+        # Active users - using Gauge for current values 
         self.monthly_active_users = Gauge(
             'monthly_active_users',
             'Number of monthly active users'
@@ -69,22 +69,29 @@ class MetricsService:
     
     def track_user_creation(self):
         """Track a new user creation"""
+        logger.info("Incrementing user_created_total counter")
         self.user_created_total.inc()
     
     def track_user_login(self):
         """Track a user login"""
+        logger.info("Incrementing user_login_total counter")
         self.user_login_total.inc()
     
     def update_active_users(self, daily: int, monthly: int):
         """
-        Update the active users gauges with integer values
-        Ensures we always set the exact count, not increment
+        Update the active users gauges with exact counts
+        
+        Args:
+            daily: Exact count of daily active users
+            monthly: Exact count of monthly active users
         """
-        # Make sure values are integers
+        # Convert to integer to avoid floating-point values
         daily = int(daily)
         monthly = int(monthly)
         
-        # Set the gauges directly (don't increment)
+        logger.info(f"Setting daily_active_users to {daily} and monthly_active_users to {monthly}")
+        
+        # Set the gauges to the exact values - don't increment/decrement
         self.daily_active_users.set(daily)
         self.monthly_active_users.set(monthly)
         

@@ -45,10 +45,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -84,8 +80,9 @@
           },
           "editorMode": "code",
           "expr": "user_created_total",
+          "instant": true,
           "legendFormat": "Total Users",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
@@ -144,8 +141,9 @@
           },
           "editorMode": "code",
           "expr": "monthly_active_users",
+          "instant": true,
           "legendFormat": "Monthly Active Users",
-          "range": true,
+          "range": false,
           "refId": "A"
         },
         {
@@ -155,9 +153,9 @@
           },
           "editorMode": "code",
           "expr": "daily_active_users",
-          "hide": false,
+          "instant": true,
           "legendFormat": "Daily Active Users",
-          "range": true,
+          "range": false,
           "refId": "B"
         }
       ],
@@ -220,7 +218,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 8
       },
@@ -245,29 +243,107 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(increase(user_created_total[1d]))",
+          "expr": "increase(user_created_total[1d])",
           "legendFormat": "New Users",
           "range": true,
           "refId": "A"
+        }
+      ],
+      "title": "New Users per Day",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
         },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(increase(user_login_total[1d]))",
-          "hide": false,
+          "expr": "increase(user_login_total[1d])",
           "legendFormat": "Logins",
           "range": true,
-          "refId": "B"
+          "refId": "A"
         }
       ],
-      "title": "Daily User Activity",
+      "title": "Logins per Day",
       "type": "timeseries"
     }
   ],
-  "refresh": "5s",
+  "refresh": "10s",
   "schemaVersion": 37,
   "style": "dark",
   "tags": ["users"],
@@ -275,7 +351,7 @@
     "list": []
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},

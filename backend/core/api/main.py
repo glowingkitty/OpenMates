@@ -24,6 +24,9 @@ from app.tasks.celery_config import app as celery_app
 # Import our new compliance logging setup
 from app.utils.setup_compliance_logging import setup_compliance_logging
 
+# Import the metrics update task
+from app.tasks.user_metrics import periodic_metrics_update, update_active_users_metrics
+
 # Set up structured logging - INFO for console output, WARNING for files
 log_level = os.getenv("LOG_LEVEL", "INFO")  # Keep INFO as default for console
 logging.basicConfig(level=log_level)
@@ -138,13 +141,29 @@ async def lifespan(app: FastAPI):
     try:
         await preload_invite_codes()
         logger.info("Successfully preloaded invite codes into cache")
+        
+        # Initialize metrics right away
+        await update_active_users_metrics()
+        
+        # Start the background task for periodic metrics updates
+        # We use create_task to avoid blocking startup
+        app.state.metrics_task = asyncio.create_task(periodic_metrics_update())
+        logger.info("Started periodic metrics update task")
     except Exception as e:
-        logger.error(f"Failed to preload invite codes: {str(e)}", exc_info=True)
+        logger.error(f"Failed to initialize: {str(e)}", exc_info=True)
     
     yield  # This is where FastAPI serves requests
     
-    # Shutdown logic (if any)
+    # Shutdown logic
     logger.info("Shutting down application...")
+    
+    # Clean up background tasks
+    if hasattr(app.state, 'metrics_task'):
+        app.state.metrics_task.cancel()
+        try:
+            await app.state.metrics_task
+        except asyncio.CancelledError:
+            logger.info("Metrics update task cancelled")
 
 # Create FastAPI application with lifespan
 def create_app() -> FastAPI:

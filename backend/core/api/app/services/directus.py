@@ -664,3 +664,85 @@ class DirectusService:
             error_msg = f"Error during token refresh: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return False, None, error_msg
+
+    async def get_total_users_count(self) -> int:
+        """
+        Get the total count of registered users
+        Returns the count as an integer
+        """
+        try:
+            url = f"{self.base_url}/users"
+            params = {
+                "limit": 1,
+                "meta": "filter_count"
+            }
+            
+            response = await self._make_api_request("GET", url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                meta = data.get("meta", {})
+                filter_count = meta.get("filter_count")
+                
+                if filter_count is not None:
+                    return int(filter_count) - 1  # Exclude the directus admin user
+                else:
+                    logger.error("Filter count not returned by Directus API")
+                    return 0
+            else:
+                error_msg = f"Failed to get user count: {response.status_code} - {response.text}"
+                logger.error(error_msg)
+                return 0
+                
+        except Exception as e:
+            error_msg = f"Error getting user count: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return 0
+
+    async def get_active_users_since(self, timestamp: int) -> int:
+        """
+        Get the count of users who have logged in since the given timestamp
+        Returns the count as an integer
+        
+        Args:
+            timestamp: Unix timestamp to check users against
+        """
+        try:
+            # This will depend on how login information is stored in your system
+            # For this example, we'll query users who have logged in recently
+            
+            url = f"{self.base_url}/users"
+            # Define your filter based on how last login time is stored
+            # For example, if there's a last_login field:
+            params = {
+                "limit": 1,
+                "meta": "filter_count",
+                "filter": json.dumps({
+                    # Example: adjust this to your actual Directus schema
+                    "last_access": {
+                        "_gte": timestamp
+                    }
+                })
+            }
+            
+            response = await self._make_api_request("GET", url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                meta = data.get("meta", {})
+                filter_count = meta.get("filter_count")
+                
+                if filter_count is not None:
+                    return int(filter_count)
+                else:
+                    logger.error("Filter count not returned by Directus API")
+                    return 0
+            else:
+                error_msg = f"Failed to get active users: {response.status_code} - {response.text}"
+                logger.error(error_msg)
+                return 0
+                
+        except Exception as e:
+            error_msg = f"Error getting active users: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return 0
