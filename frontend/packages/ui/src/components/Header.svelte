@@ -134,8 +134,12 @@
         if (!isLoggedIn) {
             // Reset to website navigation when logged out
             navItems = websiteNavItems;
-        } else {
+        } else if (context === 'webapp') {
+            // Use web app navigation when logged in and in webapp context
             navItems = webAppNavItems;
+        } else {
+            // Otherwise use website nav items
+            navItems = websiteNavItems;
         }
     }
 

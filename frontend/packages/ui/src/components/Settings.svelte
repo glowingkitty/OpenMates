@@ -18,17 +18,14 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { fly, fade, slide } from 'svelte/transition'; // Add slide transition import
+    import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
-    import { authStore } from '../stores/authStore';
+    import { authStore, isCheckingAuth } from '../stores/authStore';
     import { isMenuOpen } from '../stores/menuState';
-    import { isCheckingAuth } from '../stores/authCheckState';
-    import { getApiEndpoint, apiEndpoints } from '../config/api';
-    import { externalLinks, getWebsiteUrl, routes } from '../config/links';
+    import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
     import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
-    import { AuthService } from '../services/authService';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     
     // Import modular components
@@ -445,7 +442,7 @@ changes to the documentation (to keep the documentation up to date).
                 return;
             }
 
-            await AuthService.logout({
+            await authStore.logout({
                 beforeServerLogout: () => {
                     // Reset the checking auth state immediately
                     isCheckingAuth.set(false);
@@ -469,11 +466,6 @@ changes to the documentation (to keep the documentation up to date).
 
                     // Small delay to allow sidebar animation
                     await new Promise(resolve => setTimeout(resolve, 300));
-                },
-
-                finalLogout: () => {
-                    // Finally perform the client-side logout
-                    authStore.logout();
                 }
             });
         } catch (error) {

@@ -51,18 +51,11 @@
                 
                 // Update auth store with user information
                 if (data.user) {
-                    // Update the global auth store
-                    authStore.updateUser({
-                        id: data.user.id,
-                        username: data.user.username,
-                        isAdmin: data.user.is_admin
-                    });
+                    // Use the unified authStore to complete signup
+                    authStore.completeSignup(data.user);
                     
                     // Also store in localStorage for components that need it
                     localStorage.setItem('user_display_name', data.user.username);
-                    
-                    // Set authentication state to true
-                    authStore.setAuthenticated(true);
                 }
                 
                 // Proceed to next step on success

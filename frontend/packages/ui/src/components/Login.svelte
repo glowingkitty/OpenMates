@@ -4,14 +4,11 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore } from '../stores/authStore';
+    import { authStore, isCheckingAuth } from '../stores/authStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
-    import { AuthService } from '../services/authService';
-    import { isCheckingAuth } from '../stores/authCheckState';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
-    import { getApiEndpoint, apiEndpoints } from '../config/api';
     
     const dispatch = createEventDispatcher();
 
@@ -248,10 +245,15 @@
         loginFailedWarning = false;
 
         try {
+            // Use the unified authStore for login
             const result = await authStore.login(email, password);
 
             if (!result.success) {
                 loginFailedWarning = true;
+                if (result.message) {
+                    emailError = result.message;
+                    showEmailWarning = true;
+                }
                 return;
             }
 
