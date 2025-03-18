@@ -247,8 +247,11 @@ class EncryptionService:
         if not plaintext or not key_id:
             return "", ""
             
-        # Use the user's specific key for encryption
-        ciphertext, key_version = await self.encrypt(plaintext, key_name=key_id)
+        # Use a consistent context for this key - the key_id itself works well
+        context = base64.b64encode(key_id.encode()).decode("utf-8")
+        
+        # Use the user's specific key for encryption with context
+        ciphertext, key_version = await self.encrypt(plaintext, key_name=key_id, context=context)
         
         return ciphertext, key_version
     
@@ -259,13 +262,18 @@ class EncryptionService:
         if not ciphertext or not key_id:
             return None
             
-        # Use the user's specific key for decryption
-        return await self.decrypt(ciphertext, key_name=key_id)
+        # Use the same context as encryption - must be consistent!
+        context = base64.b64encode(key_id.encode()).decode("utf-8")
+        
+        # Use the user's specific key for decryption with context
+        return await self.decrypt(ciphertext, key_name=key_id, context=context)
     
-    async def encrypt(self, plaintext: str, key_name: str = "user_data") -> Tuple[str, str]:
+    async def encrypt(self, plaintext: str, key_name: str = "user_data", context: str = None) -> Tuple[str, str]:
         """
         Encrypt plaintext using Vault's transit engine
         Returns (ciphertext, key_version)
+        
+        If the key is a derived key, context must be provided
         """
         if not plaintext:
             return "", ""
@@ -276,6 +284,10 @@ class EncryptionService:
         # Send to Vault for encryption
         path = f"{self.transit_mount}/encrypt/{key_name}"
         payload = {"plaintext": encoded}
+        
+        # Add context for derived keys
+        if context:
+            payload["context"] = context
         
         try:
             result = await self._vault_request("post", path, payload)
@@ -288,9 +300,11 @@ class EncryptionService:
             logger.error(f"Encryption error: {str(e)}")
             raise
     
-    async def decrypt(self, ciphertext: str, key_name: str = "user_data") -> Optional[str]:
+    async def decrypt(self, ciphertext: str, key_name: str = "user_data", context: str = None) -> Optional[str]:
         """
         Decrypt ciphertext using Vault's transit engine
+        
+        If the key is a derived key, context must be provided
         """
         if not ciphertext:
             return None
@@ -298,6 +312,10 @@ class EncryptionService:
         # Send to Vault for decryption
         path = f"{self.transit_mount}/decrypt/{key_name}"
         payload = {"ciphertext": ciphertext}
+        
+        # Add context for derived keys
+        if context:
+            payload["context"] = context
         
         try:
             result = await self._vault_request("post", path, payload)
@@ -337,8 +355,11 @@ class EncryptionService:
         if not plaintext or not key_id:
             return "", ""
             
+        # Use consistent context for chat keys too
+        context = base64.b64encode(key_id.encode()).decode("utf-8")
+        
         # Use the chat's specific key for encryption
-        return await self.encrypt(plaintext, key_name=key_id)
+        return await self.encrypt(plaintext, key_name=key_id, context=context)
 
     async def decrypt_with_chat_key(self, ciphertext: str, key_id: str) -> Optional[str]:
         """
@@ -347,5 +368,8 @@ class EncryptionService:
         if not ciphertext or not key_id:
             return None
             
+        # Use consistent context for chat keys
+        context = base64.b64encode(key_id.encode()).decode("utf-8")
+        
         # Use the chat's specific key for decryption
-        return await self.decrypt(ciphertext, key_name=key_id)
+        return await self.decrypt(ciphertext, key_name=key_id, context=context)
