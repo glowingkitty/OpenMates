@@ -553,11 +553,13 @@ class DirectusService:
         """
         try:
             # Hash the email for lookup
+            logger.debug(f"Hashing email for lookup")
             hashed_email = hash_email(email)
             
             # Create a valid email format using the hash (same format as in create_user)
             directus_email = f"{hashed_email[:64]}@example.com"
             
+            logger.debug(f"Checking for user with hashed email")
             # Query Directus for the user using async httpx
             url = f"{self.base_url}/users"
             params = {"filter": json.dumps({"email": {"_eq": directus_email}})}
@@ -567,6 +569,7 @@ class DirectusService:
             if response.status_code == 200:
                 users = response.json().get("data", [])
                 if users and len(users) > 0:
+                    logger.debug(f"Found user with matching hashed email")
                     user = users[0]
                     
                     # Get the user's vault key ID
@@ -586,6 +589,7 @@ class DirectusService:
                     
                     return True, user, "User found"
                 else:
+                    logger.debug(f"No user found with matching hashed email")
                     return False, None, "User not found"
             else:
                 error_msg = f"Failed to get user: {response.status_code} - {response.text}"
