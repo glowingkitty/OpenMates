@@ -24,8 +24,7 @@ services:
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
-    command: >
-      sh -c "uvicorn main:app --host ${SERVER_HOST} --port ${REST_API_PORT}"
+    command: sh /app/wait-for-vault.sh
     ports:
       - "${REST_API_PORT}:${REST_API_PORT}"
     volumes:
@@ -33,6 +32,7 @@ services:
       - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
       - ../../frontend/packages/ui/src/i18n/locales:/translations  # Mount frontend translations
       - ../../shared:/shared  # Mount shared directory for configuration
+      - vault-setup-data:/vault-data  # Mount vault setup data to access the root token
     networks:
       - openmates
     depends_on:

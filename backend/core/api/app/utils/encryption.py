@@ -4,6 +4,8 @@ import httpx
 import json
 import logging
 import uuid
+import time
+import glob
 from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -19,17 +21,29 @@ class EncryptionService:
         self.transit_mount = "transit"  # The Vault transit engine mount path
         self._client = None
         
-        # No more insecure file loading
+        # Path where vault-setup saves the root token - try multiple possible locations
+        self.token_file_paths = [
+            "/vault-data/root.token",       # Current mount point
+            "/vault-data/api.token",        # Alternative file name
+            "/app/data/root.token",         # Original path
+        ]
         
-        logger.info("Running in PRODUCTION mode - Vault is using persistent storage")
+        logger.info("EncryptionService initialized")
         logger.info(f"Vault URL: {self.vault_url}")
         
         # Log a masked version of the token for debugging
         if self.vault_token:
             masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
-            logger.info(f"Using Vault token: {masked_token}")
+            logger.info(f"Using Vault token from environment: {masked_token}")
         else:
             logger.warning("No Vault token provided in environment")
+            
+        # Try to get token from file immediately on initialization
+        file_token = self._get_token_from_file()
+        if file_token:
+            self.vault_token = file_token
+            masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
+            logger.info(f"Updated token from file on init: {masked_token}")
     
     async def _get_client(self):
         """Get or create httpx client"""
@@ -37,9 +51,46 @@ class EncryptionService:
             self._client = httpx.AsyncClient(timeout=30.0)  # Increase timeout for reliability
         return self._client
     
+    def _get_token_from_file(self):
+        """Try to read the token from the file created by vault-setup"""
+        for token_path in self.token_file_paths:
+            try:
+                logger.debug(f"Looking for token file at {token_path}")
+                if os.path.exists(token_path):
+                    logger.info(f"Token file found at {token_path}")
+                    
+                    with open(token_path, 'r') as f:
+                        token = f.read().strip()
+                        
+                    if token:
+                        masked_token = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
+                        logger.info(f"Retrieved token from file: {masked_token}")
+                        return token
+                    else:
+                        logger.warning(f"Token file at {token_path} is empty")
+                        
+            except Exception as e:
+                logger.error(f"Failed to read token from {token_path}: {str(e)}")
+        
+        # If we get here, check if the directory exists and list contents for debugging
+        for directory in set(os.path.dirname(p) for p in self.token_file_paths):
+            if os.path.exists(directory):
+                logger.info(f"Directory {directory} exists. Contents: {os.listdir(directory)}")
+            else:
+                logger.warning(f"Directory {directory} does not exist")
+                
+        logger.error("Could not find a valid token file in any of the expected locations")
+        return None
+    
     async def _validate_token(self):
         """Validate if the current token is valid and has the necessary permissions"""
         try:
+            # Always try to get the token from file first in case it was just created
+            file_token = self._get_token_from_file()
+            if file_token and file_token != self.vault_token:
+                logger.info("Found newer token in file, updating")
+                self.vault_token = file_token
+            
             client = await self._get_client()
             url = f"{self.vault_url}/v1/auth/token/lookup-self"
             headers = {"X-Vault-Token": self.vault_token}
@@ -51,15 +102,58 @@ class EncryptionService:
                 return True
             
             logger.warning(f"Vault token validation failed: {response.status_code} - {response.text}")
+            
+            # If the current token failed, try to get a fresh one from the file
+            file_token = self._get_token_from_file()
+            if file_token and file_token != self.vault_token:
+                logger.info("Trying token from file instead")
+                self.vault_token = file_token
+                
+                # Try again with the new token
+                headers = {"X-Vault-Token": self.vault_token}
+                response = await client.get(url, headers=headers)
+                if response.status_code == 200:
+                    token_info = response.json().get("data", {})
+                    logger.info(f"Token from file is valid. Policies: {token_info.get('policies', [])}")
+                    return True
+                
+                logger.warning(f"Token from file also failed: {response.status_code} - {response.text}")
+            
             return False
         except Exception as e:
             logger.error(f"Error validating Vault token: {str(e)}")
             return False
     
+    async def wait_for_valid_token(self, max_attempts=30, delay=2):
+        """Wait for a valid token to become available"""
+        logger.info(f"Waiting for valid Vault token (max {max_attempts} attempts, {delay}s delay)")
+        
+        for attempt in range(max_attempts):
+            # Try to get token from file
+            file_token = self._get_token_from_file()
+            if file_token:
+                self.vault_token = file_token
+                
+                if await self._validate_token():
+                    logger.info(f"Found valid token after {attempt+1} attempts")
+                    return True
+            
+            logger.info(f"No valid token found (attempt {attempt+1}/{max_attempts}), waiting {delay}s...")
+            time.sleep(delay)
+        
+        logger.error(f"Failed to find valid token after {max_attempts} attempts")
+        return False
+    
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
         """Make a request to the Vault API with enhanced error handling and retry logic"""
         client = await self._get_client()
         url = f"{self.vault_url}/v1/{path}"
+        
+        # Wait for a valid token if this is our first request
+        if not hasattr(self, '_token_validated') or not self._token_validated:
+            await self.wait_for_valid_token()
+            self._token_validated = True
+        
         headers = {"X-Vault-Token": self.vault_token}
         
         # Validate token before making the actual request

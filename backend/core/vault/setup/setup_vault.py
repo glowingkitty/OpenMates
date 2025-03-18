@@ -184,11 +184,16 @@ class VaultSetup:
             masked_token = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
             logger.info(f"API service token created successfully: {masked_token}")
             
+            # Save token to file for API service to use
+            self.save_root_token(token)
+            
             # Output ONLY the API token clearly - this is the ONLY token needed
             print("\n" + "="*80)
             print("VAULT TOKEN - ADD THIS TO YOUR .ENV FILE")
             print("="*80)
             print(f"VAULT_ROOT_TOKEN={token}")
+            print("="*80)
+            print(f"The token has been saved to {self.token_file} and /app/data/api.token for automatic use")
             print("="*80)
             
             return token
@@ -225,10 +230,17 @@ class VaultSetup:
             with open(self.token_file, 'w') as f:
                 f.write(root_token)
             
+            # Also create a dedicated API token file that will be easily accessible
+            api_token_file = "/app/data/api.token"
+            with open(api_token_file, 'w') as f:
+                f.write(root_token)
+            
             # Set restrictive permissions (600 - owner read/write only)
             os.chmod(self.token_file, stat.S_IRUSR | stat.S_IWUSR)
+            os.chmod(api_token_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)  # Make readable
             
-            logger.info("Saved root token")
+            logger.info(f"Saved root token to {self.token_file}")
+            logger.info(f"Saved API token to {api_token_file}")
             return True
         except Exception as e:
             logger.error(f"Failed to save root token: {str(e)}")
