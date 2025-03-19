@@ -44,10 +44,10 @@ if not logger.handlers:
     logger.propagate = False  # Don't pass to root logger to avoid duplicates
 
 class EmailTemplateService:
-    """Service for rendering and sending email templates using Brevo API."""
+    """Service for rendering and sending email templates using Mailjet API."""
     
     def __init__(self):
-        """Initialize the email template service with template directory and Brevo API key."""
+        """Initialize the email template service with template directory and Mailjet API keys."""
         # Path to email templates directory
         self.templates_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -63,13 +63,14 @@ class EmailTemplateService:
         # Load shared URL configuration
         self.shared_urls = load_shared_urls()
         
-        # Get Brevo API key from environment
-        self.brevo_api_key = os.getenv("BREVO_API_KEY")
-        if not self.brevo_api_key:
-            logger.warning("BREVO_API_KEY not set. Email sending will not work.")
+        # Get Mailjet API keys from environment
+        self.mailjet_api_key = os.getenv("MAILJET_API_KEY")
+        self.mailjet_api_secret = os.getenv("MAILJET_API_SECRET")
+        if not self.mailjet_api_key or not self.mailjet_api_secret:
+            logger.warning("MAILJET_API_KEY or MAILJET_API_SECRET not set. Email sending will not work.")
             
-        # Brevo API endpoint
-        self.brevo_api_url = "https://api.brevo.com/v3/smtp/email"
+        # Mailjet API endpoint
+        self.mailjet_api_url = "https://api.mailjet.com/v3.1/send"
         
         # Default sender info
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
@@ -139,7 +140,7 @@ class EmailTemplateService:
         lang: str = "en"
     ) -> bool:
         """
-        Send an email using the Brevo API with a rendered template.
+        Send an email using the Mailjet API with a rendered template.
         
         Args:
             template: Template name to use
@@ -154,8 +155,8 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        if not self.brevo_api_key:
-            logger.error("Cannot send email: BREVO_API_KEY not set")
+        if not self.mailjet_api_key or not self.mailjet_api_secret:
+            logger.error("Cannot send email: MAILJET_API_KEY or MAILJET_API_SECRET not set")
             return False
             
         try:
@@ -191,41 +192,46 @@ class EmailTemplateService:
             # Render the HTML template
             html_content = self.render_template(template, context, lang)
             
-            # Prepare the email data for Brevo API
+            # Prepare the email data for Mailjet API (different format)
             email_data = {
-                "sender": {
-                    "name": sender_name,
-                    "email": sender_email
-                },
-                "to": [
+                "Messages": [
                     {
-                        "email": recipient_email,
-                        "name": recipient_name or recipient_email
+                        "From": {
+                            "Name": sender_name,
+                            "Email": sender_email
+                        },
+                        "To": [
+                            {
+                                "Email": recipient_email,
+                                "Name": recipient_name or recipient_email
+                            }
+                        ],
+                        "Subject": subject,
+                        "HTMLPart": html_content
                     }
-                ],
-                "subject": subject,
-                "htmlContent": html_content
+                ]
             }
             
             # Return the original log message - filter will redact the email
             logger.info(f"Sending email to {recipient_email} using template {template} in language {lang}")
             
-            # Send the email via Brevo API
+            # Send the email via Mailjet API
             async with aiohttp.ClientSession() as session:
+                auth = aiohttp.BasicAuth(self.mailjet_api_key, self.mailjet_api_secret)
                 headers = {
-                    "api-key": self.brevo_api_key,
-                    "content-type": "application/json",
-                    "accept": "application/json"
+                    "Content-Type": "application/json"
                 }
                 
                 async with session.post(
-                    self.brevo_api_url,
+                    self.mailjet_api_url,
+                    auth=auth,
                     headers=headers,
                     data=json.dumps(email_data)
                 ) as response:
-                    if response.status == 201:
+                    if response.status == 200:
                         response_data = await response.json()
-                        logger.info(f"Email sent successfully. Message ID: {response_data.get('messageId')}")
+                        message_id = response_data.get('Messages', [{}])[0].get('MessageID', 'unknown')
+                        logger.info(f"Email sent successfully. Message ID: {message_id}")
                         return True
                     else:
                         error_text = await response.text()

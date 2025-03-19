@@ -573,7 +573,7 @@ with the payments users can buy credits, which are needed for using apps (AI, an
 
 
 # Additional comments / requirements
-- backend/core/api also includes code for sending emails (via brevo) & generating pdf invoices (via ReportLab)
+- backend/core/api also includes code for sending emails (via MailJet) & generating pdf invoices (via ReportLab)
 - using directus user model for creating users, resetting password, etc.
 - every chat is encrypted with its own key, so the chat can also be shared with others or publically without risking the security of other chats
 - use best practices for readable, commented, maintainable, efficient, secure code

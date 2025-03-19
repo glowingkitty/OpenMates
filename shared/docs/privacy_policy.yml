@@ -14,7 +14,7 @@ providers:
     privacy_policy: https://members.ip-api.com/privacy-policy
     used_for:
       - IP address geolocation
-  brevo:
-    privacy_policy: https://www.brevo.com/legal/privacypolicy
+  mailjet:
+    privacy_policy: https://www.mailjet.com/privacy-policy
     used_for:
       - email sending
