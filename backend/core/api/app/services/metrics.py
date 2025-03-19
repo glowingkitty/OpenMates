@@ -11,6 +11,9 @@ class MetricsService:
     """
     def __init__(self):
         """Initialize all metric collectors"""
+        # Set the instance label first to ensure consistency
+        self.instance = "api:8000"
+        
         # Authentication metrics
         self.invite_code_check_total = Counter(
             'invite_code_check_total', 
@@ -19,25 +22,29 @@ class MetricsService:
         )
         
         # User metrics - using Counter for total users (cumulative count)
-        self.user_created_total = Counter(
+        self.user_created_total = Gauge(
             'user_created_total',
-            'Total number of users created'
+            'Total number of users created',
+            ['instance']
         )
         
         self.user_login_total = Counter(
             'user_login_total',
-            'Total number of user logins'
+            'Total number of user logins',
+            ['instance']
         )
         
         # Active users - using Gauge for current values 
         self.monthly_active_users = Gauge(
             'monthly_active_users',
-            'Number of monthly active users'
+            'Number of monthly active users',
+            ['instance']
         )
         
         self.daily_active_users = Gauge(
             'daily_active_users',
-            'Number of daily active users'
+            'Number of daily active users',
+            ['instance']
         )
         
         # API usage metrics
@@ -62,6 +69,22 @@ class MetricsService:
         
         logger.info("Metrics service initialized")
     
+    async def initialize_metrics(self, directus_service):
+        """Initialize metrics with correct values on startup"""
+        try:
+            # Get actual user count from Directus
+            total_users = await directus_service.get_total_users_count()
+            logger.info(f"Initializing metrics with {total_users} total users")
+            
+            # Use the gauge directly - not a counter that needs incrementing
+            self.user_created_total.labels(instance=self.instance).set(total_users)
+            
+            logger.info(f"User counter initialized to {total_users}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to initialize metrics: {str(e)}", exc_info=True)
+            return False
+    
     def track_invite_code_check(self, is_valid: bool):
         """Track an invite code check with its result"""
         status = "valid" if is_valid else "invalid"
@@ -70,12 +93,12 @@ class MetricsService:
     def track_user_creation(self):
         """Track a new user creation"""
         logger.info("Incrementing user_created_total counter")
-        self.user_created_total.inc()
+        self.user_created_total.labels(instance=self.instance).inc()
     
     def track_user_login(self):
         """Track a user login"""
         logger.info("Incrementing user_login_total counter")
-        self.user_login_total.inc()
+        self.user_login_total.labels(instance=self.instance).inc()
     
     def update_active_users(self, daily: int, monthly: int):
         """
@@ -92,8 +115,8 @@ class MetricsService:
         logger.info(f"Setting daily_active_users to {daily} and monthly_active_users to {monthly}")
         
         # Set the gauges to the exact values - don't increment/decrement
-        self.daily_active_users.set(daily)
-        self.monthly_active_users.set(monthly)
+        self.daily_active_users.labels(instance=self.instance).set(daily)
+        self.monthly_active_users.labels(instance=self.instance).set(monthly)
         
     def track_login_attempt(self, is_successful: bool):
         """Track a login attempt"""

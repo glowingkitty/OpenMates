@@ -31,22 +31,3 @@ scrape_configs:
       - source_labels: [__name__]
         regex: 'user_.*|monthly_active_users|daily_active_users'
         action: keep
-
-  # Commented out unavailable exporters for now
-  # - job_name: "node-exporter"
-  #  static_configs:
-  #    - targets: ["node-exporter:9100"]
-
-  # - job_name: "cadvisor"
-  #  static_configs:
-  #    - targets: ["cadvisor:8080"]
-
-  # Modified cache scraping config without using invalid property
-  - job_name: "cache"
-    static_configs:
-      - targets: ["cache:6379"]
-    metrics_path: /metrics
-    honor_labels: true
-    # Add params for compatibility
-    params:
-      format: ['prometheus']

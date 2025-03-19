@@ -27,7 +27,7 @@ async def update_active_users_metrics():
         # 3. Calculate monthly active users (users who logged in this month)
         monthly_active = await get_monthly_active_users(directus_service)
         
-        # 4. Update metrics
+        # 4. Update metrics - don't subtract admin here, we'll do it in Grafana
         metrics_service.update_active_users(daily_active, monthly_active)
         
         logger.info(f"Updated metrics: total_users={total_users}, daily_active={daily_active}, monthly_active={monthly_active}")

@@ -142,6 +142,10 @@ async def lifespan(app: FastAPI):
         await preload_invite_codes()
         logger.info("Successfully preloaded invite codes into cache")
         
+        # Initialize metrics with correct values
+        logger.info("Initializing metrics...")
+        await metrics_service.initialize_metrics(directus_service)
+        
         # Initialize metrics right away
         await update_active_users_metrics()
         
