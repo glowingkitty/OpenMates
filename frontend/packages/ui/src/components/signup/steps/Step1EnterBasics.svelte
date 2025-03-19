@@ -675,20 +675,15 @@
                 </div>
             {:else}
                 <div class="action-button-container">
-                    {#if isLoading}
-                        <div class="action-button loading-message" transition:fade>
-                            {$text('login.loading.text')}
-                        </div>
-                    {:else}
-                        <button 
-                            class="action-button signup-button" 
-                            disabled={!isFormValid}
-                            on:click={handleSubmit}
-                            transition:fade
-                        >
-                            {$text('signup.create_new_account.text')}
-                        </button>
-                    {/if}
+                    <button 
+                        class="action-button signup-button" 
+                        class:loading={isLoading}
+                        disabled={!isFormValid || isLoading}
+                        on:click={handleSubmit}
+                        transition:fade
+                    >
+                        {isLoading ? $text('login.loading.text') : $text('signup.create_new_account.text')}
+                    </button>
                 </div>
             {/if}
         {/if}
@@ -696,30 +691,8 @@
 </div>
 
 <style>
-/* Add these styles at the end of your existing styles */
-.action-button-container {
-    position: relative;
-    width: 100%;
-    height: 44px; /* Match your button height */
-    margin-bottom: 10px;
-}
-
-.action-button {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--border-radius, 4px);
-}
-
-.loading-message {
-    background: var(--button-bg-color, #f0f0f0);
-    color: var(--button-text-color, #333);
-    font-weight: 600;
-    font-size: 16px;
-}
+    .action-button.loading {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
 </style>
