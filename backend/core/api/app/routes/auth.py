@@ -488,6 +488,12 @@ async def check_confirm_email_code(
         # User created successfully - log the compliance event and metrics
         user_id = user_data.get("id")
         
+        # Track user creation in metrics
+        metrics_service.track_user_creation()
+        
+        # Also update active users count immediately - fix the call to use positional arguments
+        metrics_service.update_active_users(1, 1)  # Daily active, Monthly active
+        
         # Log compliance event for account creation - only store fingerprint hash, not IP
         compliance_service.log_user_creation(
             user_id=user_id, 
@@ -495,9 +501,6 @@ async def check_confirm_email_code(
             location=device_location,
             status="success"
         )
-        
-        # Track user creation in metrics
-        metrics_service.track_user_creation()
         
         # Add device to cache for quick lookups
         await cache_service.set(

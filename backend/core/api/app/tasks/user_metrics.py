@@ -72,8 +72,8 @@ async def get_monthly_active_users(directus_service: DirectusService) -> int:
         return 0
 
 async def periodic_metrics_update():
-    """Run a periodic task to update user metrics every few minutes"""
+    """Run a periodic task to update user metrics more frequently"""
     while True:
         await update_active_users_metrics()
-        # Wait 5 minutes before updating again
-        await asyncio.sleep(300)
+        # Wait 60 seconds before updating again (instead of 300)
+        await asyncio.sleep(60)
