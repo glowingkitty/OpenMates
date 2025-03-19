@@ -220,7 +220,7 @@
     async function handleSubmit(event: Event) {
         event.preventDefault();
         
-        if (!passwordsMatch) {
+        if (!passwordsMatch || emailAlreadyInUse) {
             return;
         }
 
@@ -238,7 +238,6 @@
             const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
             
             // Request email verification code with language and dark mode preferences
-            // Now also send username and password which will be stored in secure cookies
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
@@ -247,14 +246,14 @@
                 body: JSON.stringify({
                     email: email,
                     username: username,
-                    password: password,  // This will now be stored as an HTTP-only cookie
+                    password: password,
                     language: currentLang,
                     darkmode: darkModeEnabled
                 }),
-                credentials: 'include'  // Important: This sends cookies with the request
+                credentials: 'include'
             });
 
-            // Check for rate limiting - use existing rate limit system
+            // Check for rate limiting
             if (response.status === 429) {
                 isRateLimited = true;
                 localStorage.setItem('inviteCodeRateLimit', Date.now().toString());
@@ -272,8 +271,8 @@
                 // Dispatch the next event to transition to step 2
                 dispatch('next');
             } else {
-                // Check if this is an email already registered error
-                if (data.message && data.message.includes("email is already registered")) {
+                // Check for specific error codes
+                if (data.error_code === 'EMAIL_ALREADY_EXISTS') {
                     emailAlreadyInUse = true;
                     showEmailWarning = true;
                     
@@ -422,6 +421,7 @@
                      email && 
                      !emailError &&
                      !isEmailValidationPending &&
+                     !emailAlreadyInUse && // Block submission if email is already in use
                      password && 
                      passwordRepeat && 
                      termsAgreed && 
@@ -674,14 +674,52 @@
                     {$text('signup.too_many_requests.text')}
                 </div>
             {:else}
-                <button 
-                    class="signup-button" 
-                    disabled={!isFormValid}
-                    on:click={handleSubmit}
-                >
-                    {$text('signup.create_new_account.text')}
-                </button>
+                <div class="action-button-container">
+                    {#if isLoading}
+                        <div class="action-button loading-message" transition:fade>
+                            {$text('login.loading.text')}
+                        </div>
+                    {:else}
+                        <button 
+                            class="action-button signup-button" 
+                            disabled={!isFormValid}
+                            on:click={handleSubmit}
+                            transition:fade
+                        >
+                            {$text('signup.create_new_account.text')}
+                        </button>
+                    {/if}
+                </div>
             {/if}
         {/if}
     </div>
 </div>
+
+<style>
+/* Add these styles at the end of your existing styles */
+.action-button-container {
+    position: relative;
+    width: 100%;
+    height: 44px; /* Match your button height */
+    margin-bottom: 10px;
+}
+
+.action-button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius, 4px);
+}
+
+.loading-message {
+    background: var(--button-bg-color, #f0f0f0);
+    color: var(--button-text-color, #333);
+    font-weight: 600;
+    font-size: 16px;
+}
+</style>

@@ -22,6 +22,7 @@ class RequestEmailCodeRequest(BaseModel):
 class RequestEmailCodeResponse(BaseModel):
     success: bool
     message: str
+    error_code: Optional[str] = None  # Add error code field
     
 class CheckEmailCodeRequest(BaseModel):
     email: Optional[EmailStr] = None  # Can come from cookie

@@ -559,7 +559,7 @@ class DirectusService:
             # Create a valid email format using the hash (same format as in create_user)
             directus_email = f"{hashed_email[:64]}@example.com"
             
-            logger.debug(f"Checking for user with hashed email")
+            logger.info(f"Checking for user with hashed email (last 8 chars: {hashed_email[-8:]})")
             # Query Directus for the user using async httpx
             url = f"{self.base_url}/users"
             params = {"filter": json.dumps({"email": {"_eq": directus_email}})}
@@ -567,9 +567,14 @@ class DirectusService:
             response = await self._make_api_request("GET", url, params=params)
             
             if response.status_code == 200:
-                users = response.json().get("data", [])
+                data = response.json()
+                users = data.get("data", [])
+                
+                # Debug log to help investigate issues
+                logger.debug(f"User lookup returned {len(users)} results")
+                
                 if users and len(users) > 0:
-                    logger.debug(f"Found user with matching hashed email")
+                    logger.info(f"Found user with matching hashed email")
                     user = users[0]
                     
                     # Get the user's vault key ID
@@ -589,7 +594,7 @@ class DirectusService:
                     
                     return True, user, "User found"
                 else:
-                    logger.debug(f"No user found with matching hashed email")
+                    logger.info(f"No user found with matching hashed email")
                     return False, None, "User not found"
             else:
                 error_msg = f"Failed to get user: {response.status_code} - {response.text}"
@@ -683,9 +688,10 @@ class DirectusService:
                 data = response.json()
                 meta = data.get("meta", {})
                 filter_count = meta.get("filter_count")
+                logger.debug(f"Total users count: {filter_count}")
                 
                 if filter_count is not None:
-                    return int(filter_count) - 1  # Exclude the directus admin user
+                    return int(filter_count)
                 else:
                     logger.error("Filter count not returned by Directus API")
                     return 0
@@ -708,19 +714,17 @@ class DirectusService:
             timestamp: Unix timestamp to check users against
         """
         try:
-            # This will depend on how login information is stored in your system
-            # For this example, we'll query users who have logged in recently
+            # Convert the Unix timestamp to ISO-8601 format string which is compatible with Directus
+            from datetime import datetime
+            iso_date = datetime.fromtimestamp(timestamp).isoformat()
             
             url = f"{self.base_url}/users"
-            # Define your filter based on how last login time is stored
-            # For example, if there's a last_login field:
             params = {
                 "limit": 1,
                 "meta": "filter_count",
                 "filter": json.dumps({
-                    # Example: adjust this to your actual Directus schema
                     "last_access": {
-                        "_gte": timestamp
+                        "_gte": iso_date
                     }
                 })
             }

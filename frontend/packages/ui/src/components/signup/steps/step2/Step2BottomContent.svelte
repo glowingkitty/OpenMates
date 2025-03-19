@@ -91,7 +91,7 @@
 <div class="bottom-content">
     <div class="input-group">
         <div class="input-wrapper">
-            <span class="clickable-icon icon_2fa"></span>
+            <span class="clickable-icon icon_2fa" class:fade-out={isVerifying}></span>
             <div class="overlay-container">
                 <input
                     bind:this={otpInput}
@@ -105,7 +105,7 @@
                     class:error={showError}
                     class:fade-out={isVerifying}
                 />
-                <div class="loading-text color-grey-60" class:fade-in={isVerifying}>
+                <div class="loading-text color-grey-80" class:fade-in={isVerifying}>
                     {$text('login.loading.text')}
                 </div>
             </div>

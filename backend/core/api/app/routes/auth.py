@@ -172,7 +172,8 @@ async def request_confirm_email_code(
             logger.warning(f"Missing invite code in email verification request")
             return RequestEmailCodeResponse(
                 success=False, 
-                message="Missing invite code. Please go back and try again."
+                message="Missing invite code. Please go back and try again.",
+                error_code="MISSING_INVITE_CODE"
             )
         
         # Validate the invite code first
@@ -181,21 +182,30 @@ async def request_confirm_email_code(
             logger.warning(f"Invalid invite code used in email verification request")
             return RequestEmailCodeResponse(
                 success=False, 
-                message="Invalid invite code. Please go back and start again."
+                message="Invalid invite code. Please go back and start again.",
+                error_code="INVALID_INVITE_CODE"
             )
         
         # Check if email is already registered - IMPORTANT! Don't remove this code!
         logger.info(f"Checking if email is already registered...")
         exists_result, existing_user, error_msg = await directus_service.get_user_by_email(email_request.email)
         
-        if error_msg:
-            logger.warning(f"Error checking email existence: {error_msg}")
+        # Only log actual errors, not expected responses like "User found" or "User not found"
+        if error_msg and error_msg not in ["User found", "User not found"]:
+            logger.error(f"Error checking email existence: {error_msg}")
+            return RequestEmailCodeResponse(
+                success=False,
+                message="Unable to verify email availability. Please try again later.",
+                error_code="EMAIL_CHECK_ERROR"
+            )
         
-        if exists_result and existing_user:
+        # This is the critical check - if exists_result is True, the email is already registered
+        if exists_result:
             logger.warning(f"Attempted to register with existing email")
             return RequestEmailCodeResponse(
                 success=False,
-                message="This email is already registered. Please log in instead."
+                message="This email is already registered. Please log in instead.",
+                error_code="EMAIL_ALREADY_EXISTS"
             )
             
         logger.info(f"Email check passed, not already registered")
@@ -270,7 +280,8 @@ async def request_confirm_email_code(
         logger.error(f"Error requesting email verification code: {str(e)}", exc_info=True)
         return RequestEmailCodeResponse(
             success=False, 
-            message="An error occurred while processing your request."
+            message="An error occurred while processing your request.",
+            error_code="SERVER_ERROR"
         )
 
 # Add these validation functions that match the frontend validation
