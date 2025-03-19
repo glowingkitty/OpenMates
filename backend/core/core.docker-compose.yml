@@ -328,29 +328,6 @@ services:
       timeout: 10s
       retries: 3
 
-  node-exporter:
-    container_name: node-exporter
-    image: prom/node-exporter:v1.9.0
-    restart: unless-stopped
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    ports:
-      - "9100:9100"
-    networks:
-      - openmates
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9100/metrics"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   loki:
     container_name: loki
     image: grafana/loki:3.4.2
