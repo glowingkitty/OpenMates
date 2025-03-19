@@ -75,5 +75,5 @@ async def periodic_metrics_update():
     """Run a periodic task to update user metrics more frequently"""
     while True:
         await update_active_users_metrics()
-        # Wait 60 seconds before updating again (instead of 300)
-        await asyncio.sleep(60)
+        # Wait 15 seconds before updating again (instead of 60)
+        await asyncio.sleep(15)
