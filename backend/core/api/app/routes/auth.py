@@ -797,98 +797,110 @@ async def refresh_token(
         # Step 2: Call DirectusService to refresh the token
         success, auth_data, message = await directus_service.refresh_token(token_to_use)
         
-        if success and auth_data and "user" in auth_data:
-            user_id = auth_data["user"].get("id")
-            
-            # Step 3: Check if this device is already known for this user
-            if user_id:
-                # Check if this device fingerprint is in the user's known devices
-                cache_key = f"user_device:{user_id}:{device_fingerprint}"
-                existing_device = await cache_service.get(cache_key)
+        if success and auth_data:
+            # Check if we got user data
+            if "user" in auth_data:
+                user_id = auth_data["user"].get("id")
                 
-                if not existing_device:
-                    # Device not recognized - check if it's stored in the database but not in cache
-                    device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
+                # Step 3: Check if this device is already known for this user
+                if user_id:
+                    # Check if this device fingerprint is in the user's known devices
+                    cache_key = f"user_device:{user_id}:{device_fingerprint}"
+                    existing_device = await cache_service.get(cache_key)
                     
-                    if not device_in_db:
-                        # Unknown device - deny refresh and force re-login for security
-                        logger.warning(f"Refresh attempt from unknown device")
+                    if not existing_device:
+                        # Device not recognized - check if it's stored in the database but not in cache
+                        device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
                         
-                        # For security events, log the IP address
-                        compliance_service.log_auth_event(
-                            event_type="refresh_new_device_denied", 
-                            user_id=user_id,
-                            ip_address=client_ip,  # Include IP for security events
-                            status="failed",
-                            details={
-                                "device_fingerprint": device_fingerprint,
-                                "location": device_location
-                            }
-                        )
-                        
-                        # Clear all auth cookies on security mismatch
-                        for cookie in request.cookies:
-                            if cookie.startswith("auth_"):
-                                response.delete_cookie(key=cookie)
-                        
-                        return LoginResponse(
-                            success=False,
-                            message="Not logged in"
-                        )
+                        if not device_in_db:
+                            # Unknown device - deny refresh and force re-login for security
+                            logger.warning(f"Refresh attempt from unknown device")
+                            
+                            # For security events, log the IP address
+                            compliance_service.log_auth_event(
+                                event_type="refresh_new_device_denied", 
+                                user_id=user_id,
+                                ip_address=client_ip,  # Include IP for security events
+                                status="failed",
+                                details={
+                                    "device_fingerprint": device_fingerprint,
+                                    "location": device_location
+                                }
+                            )
+                            
+                            # Clear all auth cookies on security mismatch
+                            for cookie in request.cookies:
+                                if cookie.startswith("auth_"):
+                                    response.delete_cookie(key=cookie)
+                            
+                            return LoginResponse(
+                                success=False,
+                                message="Not logged in"
+                            )
+                        else:
+                            # Device is in DB but not in cache - add to cache
+                            current_time = int(time.time())
+                            await cache_service.set(
+                                cache_key, 
+                                {
+                                    "loc": device_location, 
+                                    "first": current_time - 86400,  # Assume it's at least a day old
+                                    "recent": current_time
+                                },
+                                ttl=86400  # 24 hour cache
+                            )
                     else:
-                        # Device is in DB but not in cache - add to cache
-                        current_time = int(time.time())
-                        await cache_service.set(
-                            cache_key, 
-                            {
-                                "loc": device_location, 
-                                "first": current_time - 86400,  # Assume it's at least a day old
-                                "recent": current_time
-                            },
-                            ttl=86400  # 24 hour cache
+                        # Update last seen time for known device
+                        existing_device["recent"] = int(time.time())
+                        await cache_service.set(cache_key, existing_device, ttl=86400)
+                
+                # Step 4: Set new authentication cookies with proper prefixes
+                # Only set cookies if we received new ones from Directus
+                if "cookies" in auth_data and auth_data["cookies"]:
+                    for name, value in auth_data["cookies"].items():
+                        # Rename cookies to use our prefix instead of directus prefix
+                        cookie_name = name
+                        if name.startswith("directus_"):
+                            cookie_name = "auth_" + name[9:]  # Replace "directus_" with "auth_"
+                            
+                        response.set_cookie(
+                            key=cookie_name,
+                            value=value,
+                            httponly=True,
+                            secure=True,
+                            samesite="strict",
+                            max_age=86400  # 24 hours
                         )
-                else:
-                    # Update last seen time for known device
-                    existing_device["recent"] = int(time.time())
-                    await cache_service.set(cache_key, existing_device, ttl=86400)
-            
-            # Step 4: Set new authentication cookies with proper prefixes
-            if "cookies" in auth_data:
-                for name, value in auth_data["cookies"].items():
-                    # Rename cookies to use our prefix instead of directus prefix
-                    cookie_name = name
-                    if name.startswith("directus_"):
-                        cookie_name = "auth_" + name[9:]  # Replace "directus_" with "auth_"
-                        
-                    response.set_cookie(
-                        key=cookie_name,
-                        value=value,
-                        httponly=True,
-                        secure=True,
-                        samesite="strict",
-                        max_age=86400  # 24 hours
-                    )
-            
-            # Add credits information to the response if available
-            user_data = auth_data.get("user", {})
-            if user_data and user_id:
-                # Try to get the user's credits information
-                try:
-                    credits_info = await directus_service.get_user_credits(user_id)
-                    if credits_info:
-                        user_data["credits"] = credits_info
-                except Exception as e:
-                    logger.error(f"Error getting credits for user {user_id}: {str(e)}")
-                    user_data["credits"] = 0
-            
-            # Remove unnecessary token refresh compliance logging
-            # Only log for security events (new device login, failed login attempts)
-            
-            return LoginResponse(
-                success=True,
-                message="Token refreshed successfully",
-                user=user_data
-            )
+                
+                # Add credits information to the response if available
+                user_data = auth_data.get("user", {})
+                if user_data and user_id:
+                    # Try to get the user's credits information
+                    try:
+                        credits_info = await directus_service.get_user_credits(user_id)
+                        if credits_info:
+                            user_data["credits"] = credits_info
+                    except Exception as e:
+                        logger.error(f"Error getting credits for user {user_id}: {str(e)}")
+                        user_data["credits"] = 0
+                
+                # If we're using cached data (no new cookies), indicate this to the client
+                if "cookies" not in auth_data or not auth_data["cookies"]:
+                    message = "Session extended using existing data"
+                
+                return LoginResponse(
+                    success=True,
+                    message=message,
+                    user=user_data
+                )
+            else:
+                # Failed refresh but still have success flag - this is the fallback case
+                # We need to return the user data we have without clearing cookies
+                return LoginResponse(
+                    success=True,
+                    message=message,
+                    user=auth_data  # This might be the cached user data
+                )
         else:
             # Failed refresh - clear cookies
             for cookie in request.cookies:
