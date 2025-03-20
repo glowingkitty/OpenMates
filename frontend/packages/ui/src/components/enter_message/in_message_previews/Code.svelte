@@ -53,17 +53,17 @@
 
     // Helper function to determine language from filename
     function getLanguageFromFilename(filename: string): string {
-        console.log('Getting language for filename:', filename);
+        console.debug('Getting language for filename:', filename);
         
         // If filename is already a language name with 'code.' prefix, extract it
         if (filename.startsWith('code.')) {
             const lang = filename.substring(5); // Remove 'code.' prefix
-            console.log('Extracted language from code. prefix:', lang);
+            console.debug('Extracted language from code. prefix:', lang);
             return lang.charAt(0).toUpperCase() + lang.slice(1); // Capitalize first letter
         }
 
         const ext = filename.split('.').pop()?.toLowerCase() || '';
-        console.log('Extracted extension:', ext);
+        console.debug('Extracted extension:', ext);
 
         // Special cases for files without extensions
         if (filename.toLowerCase() === 'dockerfile') {
@@ -118,7 +118,7 @@
         };
         
         const mappedLanguage = languageMap[ext] || ext.charAt(0).toUpperCase() + ext.slice(1);
-        console.log('Final mapped language:', mappedLanguage);
+        console.debug('Final mapped language:', mappedLanguage);
         
         return mappedLanguage;
     }
@@ -189,7 +189,7 @@
 
     // Update the handleFullscreen function
     async function handleFullscreen() {
-        console.log('Handling fullscreen request');
+        console.debug('Handling fullscreen request');
         try {
             isTransitioningToFullscreen = true;
             let code: string;
@@ -204,7 +204,7 @@
             // Calculate line count here to ensure it's accurate
             const actualLineCount = code.split('\n').length;
             
-            console.log('Dispatching fullscreen with line count:', actualLineCount);
+            console.debug('Dispatching fullscreen with line count:', actualLineCount);
             
             dispatch('codefullscreen', {
                 code: sanitizeCode(code),
@@ -224,7 +224,7 @@
 
     // Update the handleMenuAction function
     function handleMenuAction(action: string) {
-        console.log('Menu action:', action);
+        console.debug('Menu action:', action);
         if (action === 'view') {
             handleFullscreen();
         }

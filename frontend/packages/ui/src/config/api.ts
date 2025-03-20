@@ -16,7 +16,6 @@ export function getApiUrl(): string {
 export const apiEndpoints = {
     auth: {
         // Session management
-        session:                    '/v1/auth/session',                        // Check current session status and user info
         login:                      '/v1/auth/login',                          // Login with username/email and password
         logout:                     '/v1/auth/logout',                         // Logout and invalidate token
         logoutAll:                  '/v1/auth/logout/all',                     // Logout all sessions

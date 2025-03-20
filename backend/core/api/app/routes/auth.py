@@ -518,16 +518,16 @@ async def check_confirm_email_code(
             email=email,
             password=signup_password
         )
-        
-        if not login_success:
+
+        if not login_success or not auth_data:
             logger.error(f"Failed to log in new user: {login_message}")
             return CheckEmailCodeResponse(
                 success=True,
                 message="Account created successfully. Please log in to continue."
             )
-        
+
         # Set authentication cookies
-        if "cookies" in auth_data:
+        if auth_data and "cookies" in auth_data:
             for name, value in auth_data["cookies"].items():
                 response.set_cookie(
                     key=name,
@@ -554,7 +554,8 @@ async def check_confirm_email_code(
             user={
                 "id": user_id,
                 "username": signup_username,
-                "is_admin": is_admin
+                "is_admin": is_admin,
+                "last_opened": "/signup/step-3"  # Add last_opened information to the response
             }
         )
         
@@ -565,39 +566,6 @@ async def check_confirm_email_code(
             message="An error occurred while verifying the code."
         )
 
-@router.get("/session", response_model=SessionResponse)
-async def get_session(
-    request: Request,
-    directus_service: DirectusService = Depends(get_directus_service)
-):
-    """
-    Check if the user is authenticated and return user information.
-    Used primarily for initializing the client-side auth state.
-    """
-    try:
-        # Get user data from directus session
-        success, user_data, message = await directus_service.get_current_user()
-        
-        if not success or not user_data:
-            logger.debug("Session check: No authenticated user found")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated"
-            )
-        
-        # Return user data
-        return {
-            "id": user_data.get("id"),
-            "username": user_data.get("encrypted_username"),
-            "is_admin": user_data.get("is_admin", False),
-            "avatar_url": user_data.get("encrypted_profileimage_url")  # Use encrypted_profileimage_url instead
-        }
-    except Exception as e:
-        logger.error(f"Error checking session: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
@@ -627,11 +595,16 @@ async def login(
         metrics_service.track_login_attempt(success)
         
         if success and auth_data:
-            # Set authentication cookies
+            # Set authentication cookies with proper prefixes
             if "cookies" in auth_data:
                 for name, value in auth_data["cookies"].items():
+                    # Rename cookies to use our prefix instead of directus prefix
+                    cookie_name = name
+                    if name.startswith("directus_"):
+                        cookie_name = "auth_" + name[9:]  # Replace "directus_" with "auth_"
+                        
                     response.set_cookie(
-                        key=name,
+                        key=cookie_name,
                         value=value,
                         httponly=True,
                         secure=True,
@@ -640,64 +613,93 @@ async def login(
                     )
             
             # Get user ID for device tracking and compliance logging
-            user_id = auth_data.get("user", {}).get("id")
-            if user_id:
-                # Check if this device is already known (in cache)
-                cache_key = f"user_device:{user_id}:{device_fingerprint}"
-                existing_device = await cache_service.get(cache_key)
-                is_new_device = existing_device is None
+            user = auth_data.get("user", {}) or {}
+            
+            if user and isinstance(user, dict):
+                user_id = user.get("id")
                 
-                # For security events (new device login), log with IP
-                if is_new_device:
-                    compliance_service.log_auth_event(
-                        event_type="login_new_device",
-                        user_id=user_id,
-                        ip_address=client_ip,  # Include IP for new device login
-                        status="success",
-                        details={
-                            "device_fingerprint": device_fingerprint,
-                            "location": device_location
-                        }
-                    )
-                else:
-                    # For normal logins (known device), only log device hash, not IP
-                    compliance_service.log_auth_event_safe(
-                        event_type="login",
+                if user_id:
+                    # Get credits information
+                    try:
+                        credits_info = await directus_service.get_user_credits(user_id)
+                        if credits_info:
+                            user["credits"] = credits_info
+                    except Exception as e:
+                        logger.error(f"Error getting credits for user {user_id}: {str(e)}")
+                        user["credits"] = 0
+                    
+                    # Check if this device is already known (in cache)
+                    cache_key = f"user_device:{user_id}:{device_fingerprint}"
+                    existing_device = await cache_service.get(cache_key)
+                    is_new_device = existing_device is None
+                    
+                    if is_new_device:
+                        # Check if it's in the database but not in cache
+                        device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
+                        is_new_device = not device_in_db
+                    
+                    # For security events (new device login), log with IP and eventually send email
+                    if is_new_device:
+                        compliance_service.log_auth_event(
+                            event_type="login_new_device",
+                            user_id=user_id,
+                            ip_address=client_ip,  # Include IP for new device login
+                            status="success",
+                            details={
+                                "device_fingerprint": device_fingerprint,
+                                "location": device_location
+                            }
+                        )
+                        
+                        # TODO: Send notification email about new device login
+                        # This will be implemented later to notify users about logins from new devices
+                        # Example call would be:
+                        # await email_service.send_new_device_login_notification(
+                        #     user_email=login_data.email,
+                        #     location=device_location,
+                        #     device_info=get_device_info(request),
+                        #     timestamp=int(time.time())
+                        # )
+                    else:
+                        # For normal logins (known device), only log device hash, not IP
+                        compliance_service.log_auth_event_safe(
+                            event_type="login",
+                            user_id=user_id,
+                            device_fingerprint=device_fingerprint,
+                            location=device_location,
+                            status="success"
+                        )
+                    
+                    # Update device in cache
+                    current_time = int(time.time())
+                    if is_new_device:
+                        # New device - store in cache
+                        await cache_service.set(
+                            cache_key, 
+                            {
+                                "loc": device_location, 
+                                "first": current_time,
+                                "recent": current_time
+                            },
+                            ttl=86400  # 24 hour cache
+                        )
+                    else:
+                        # Just update the recent timestamp for existing device
+                        if existing_device:
+                            existing_device["recent"] = current_time
+                            await cache_service.set(cache_key, existing_device, ttl=86400)
+                    
+                    # Update device information in Directus
+                    await directus_service.update_user_device(
                         user_id=user_id,
                         device_fingerprint=device_fingerprint,
-                        location=device_location,
-                        status="success"
+                        device_location=device_location
                     )
-                
-                # Update device in cache
-                current_time = int(time.time())
-                if is_new_device:
-                    # New device - store in cache
-                    await cache_service.set(
-                        cache_key, 
-                        {
-                            "loc": device_location, 
-                            "first": current_time,
-                            "recent": current_time
-                        },
-                        ttl=86400  # 24 hour cache
-                    )
-                else:
-                    # Just update the recent timestamp for existing device
-                    existing_device["recent"] = current_time
-                    await cache_service.set(cache_key, existing_device, ttl=86400)
-                
-                # Update device information in Directus
-                await directus_service.update_user_device(
-                    user_id=user_id,
-                    device_fingerprint=device_fingerprint,
-                    device_location=device_location
-                )
             
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=auth_data.get("user")
+                user=user
             )
         else:
             # Failed login attempt - always log IP address for security events
@@ -738,7 +740,7 @@ async def logout(
         
         # Clear all auth cookies regardless of server response
         for cookie in request.cookies:
-            if cookie.startswith(("directus_", "auth_")):
+            if cookie.startswith("auth_"):  # Only use our auth prefix
                 response.delete_cookie(key=cookie, httponly=True, secure=True)
         
         return LogoutResponse(
@@ -750,7 +752,7 @@ async def logout(
         
         # Still clear cookies on error
         for cookie in request.cookies:
-            if cookie.startswith(("directus_", "auth_")):
+            if cookie.startswith("auth_"):  # Only use our auth prefix
                 response.delete_cookie(key=cookie, httponly=True, secure=True)
         
         return LogoutResponse(
@@ -763,29 +765,97 @@ async def refresh_token(
     request: Request,
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
-    refresh_token: Optional[str] = Cookie(None, alias="directus_refresh_token")
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
 ):
     """
     Refresh the authentication token using the refresh token.
-    Returns a new access token and sets it in cookies.
+    Checks device fingerprint against known user devices for security.
+    Returns a new access token and user data if authentication is successful.
     """
     try:
+        # Get device fingerprint and location for validation
+        device_fingerprint = get_device_fingerprint(request)
+        client_ip = get_client_ip(request)
+        device_location = get_location_from_ip(client_ip)
+        
+        # Step 1: Check if refresh token exists
         if not refresh_token:
-            logger.warning("Token refresh attempted without refresh token")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No refresh token provided"
+            logger.info("No refresh token provided in request")
+            return LoginResponse(
+                success=False,
+                message="Not logged in"
             )
         
-        # Call the DirectusService to refresh the token
+        # Step 2: Call DirectusService to refresh the token
         success, auth_data, message = await directus_service.refresh_token(refresh_token)
         
-        if success and auth_data:
-            # Set new authentication cookies
+        if success and auth_data and "user" in auth_data:
+            user_id = auth_data["user"].get("id")
+            
+            # Step 3: Check if this device is already known for this user
+            if user_id:
+                # Check if this device fingerprint is in the user's known devices
+                cache_key = f"user_device:{user_id}:{device_fingerprint}"
+                existing_device = await cache_service.get(cache_key)
+                
+                if not existing_device:
+                    # Device not recognized - check if it's stored in the database but not in cache
+                    device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
+                    
+                    if not device_in_db:
+                        # Unknown device - deny refresh and force re-login for security
+                        logger.warning(f"Refresh attempt from unknown device")
+                        
+                        # For security events, log the IP address
+                        compliance_service.log_auth_event(
+                            event_type="refresh_new_device_denied", 
+                            user_id=user_id,
+                            ip_address=client_ip,  # Include IP for security events
+                            status="failed",
+                            details={
+                                "device_fingerprint": device_fingerprint,
+                                "location": device_location
+                            }
+                        )
+                        
+                        # Clear all auth cookies on security mismatch
+                        for cookie in request.cookies:
+                            if cookie.startswith("auth_"):
+                                response.delete_cookie(key=cookie)
+                        
+                        return LoginResponse(
+                            success=False,
+                            message="Not logged in"
+                        )
+                    else:
+                        # Device is in DB but not in cache - add to cache
+                        current_time = int(time.time())
+                        await cache_service.set(
+                            cache_key, 
+                            {
+                                "loc": device_location, 
+                                "first": current_time - 86400,  # Assume it's at least a day old
+                                "recent": current_time
+                            },
+                            ttl=86400  # 24 hour cache
+                        )
+                else:
+                    # Update last seen time for known device
+                    existing_device["recent"] = int(time.time())
+                    await cache_service.set(cache_key, existing_device, ttl=86400)
+            
+            # Step 4: Set new authentication cookies with proper prefixes
             if "cookies" in auth_data:
                 for name, value in auth_data["cookies"].items():
+                    # Rename cookies to use our prefix instead of directus prefix
+                    cookie_name = name
+                    if name.startswith("directus_"):
+                        cookie_name = "auth_" + name[9:]  # Replace "directus_" with "auth_"
+                        
                     response.set_cookie(
-                        key=name,
+                        key=cookie_name,
                         value=value,
                         httponly=True,
                         secure=True,
@@ -793,26 +863,52 @@ async def refresh_token(
                         max_age=86400  # 24 hours
                     )
             
+            # Add credits information to the response if available
+            user_data = auth_data.get("user", {})
+            if user_data and user_id:
+                # Try to get the user's credits information
+                try:
+                    credits_info = await directus_service.get_user_credits(user_id)
+                    if credits_info:
+                        user_data["credits"] = credits_info
+                except Exception as e:
+                    logger.error(f"Error getting credits for user {user_id}: {str(e)}")
+                    user_data["credits"] = 0
+            
+            # Log successful refresh
+            compliance_service.log_auth_event_safe(
+                event_type="token_refresh",
+                user_id=user_id,
+                device_fingerprint=device_fingerprint,
+                location=device_location,
+                status="success"
+            )
+            
             return LoginResponse(
                 success=True,
                 message="Token refreshed successfully",
-                user=auth_data.get("user")
+                user=user_data
             )
         else:
-            # Clear all auth cookies on refresh failure
+            # Failed refresh - clear cookies
             for cookie in request.cookies:
-                if cookie.startswith(("directus_", "auth_")):
-                    response.delete_cookie(key=cookie, httponly=True, secure=True)
+                if cookie.startswith("auth_"):
+                    response.delete_cookie(key=cookie)
                     
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=message or "Failed to refresh token"
+            return LoginResponse(
+                success=False,
+                message="Not logged in"
             )
-    except HTTPException:
-        raise
+            
     except Exception as e:
         logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while refreshing the token"
+        
+        # Clear all auth cookies on error
+        for cookie in request.cookies:
+            if cookie.startswith("auth_"):
+                response.delete_cookie(key=cookie)
+                
+        return LoginResponse(
+            success=False,
+            message="Not logged in"
         )

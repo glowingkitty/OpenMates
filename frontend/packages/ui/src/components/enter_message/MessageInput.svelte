@@ -132,7 +132,7 @@
             }
             
             dispatch('draftSaved', { chat: updatedChat });
-            console.log("[MessageInput] Draft saved:", updatedChat.id);
+            console.debug("[MessageInput] Draft saved:", updatedChat.id);
         } catch (error) {
             console.error("[MessageInput] Error saving draft:", error);
         }
@@ -732,13 +732,13 @@
 
             // If chat has no messages, delete it entirely
             if (!chat.messages || chat.messages.length === 0) {
-                console.log("[MessageInput] Deleting empty chat:", currentChatId);
+                console.debug("[MessageInput] Deleting empty chat:", currentChatId);
                 await chatDB.deleteChat(currentChatId);
                 // Reset currentChatId after deletion
                 currentChatId = undefined;
             } else {
                 // Otherwise just remove the draft
-                console.log("[MessageInput] Removing draft from chat:", currentChatId);
+                console.debug("[MessageInput] Removing draft from chat:", currentChatId);
                 const updatedChat = await chatDB.removeDraft(currentChatId);
                 dispatch('draftSaved', { chat: updatedChat });
             }
@@ -759,19 +759,19 @@
     function handleKeyboardShortcut(event: CustomEvent) {
         switch (event.detail.type) {
             case 'startRecording':
-                console.log('Starting spacebar recording');
+                console.debug('Starting spacebar recording');
                 showRecordAudio = true;
                 isRecordButtonPressed = true;
                 break;
                 
             case 'stopRecording':
-                console.log('Stopping spacebar recording');
+                console.debug('Stopping spacebar recording');
                 showRecordAudio = false;
                 isRecordButtonPressed = false;
                 break;
                 
             case 'cancelRecording':
-                console.log('Canceling spacebar recording');
+                console.debug('Canceling spacebar recording');
                 if (recordAudioComponent) {
                     recordAudioComponent.cancel();
                 }
@@ -871,7 +871,7 @@
                 
                 // If content status changed from true to false
                 if (hasContent && !newHasContent) {
-                    console.log("[MessageInput] Content cleared, removing draft");
+                    console.debug("[MessageInput] Content cleared, removing draft");
                     removeDraft();
                 }
                 
@@ -897,7 +897,7 @@
             // Handle the @mention click.  You'll likely want to open a profile
             // or perform some other action related to the mentioned user.
             const { id, elementId } = event.detail;
-            console.log('Mate clicked:', id, elementId);
+            console.debug('Mate clicked:', id, elementId);
             // Example: dispatch('mateclick', { id });
         }) as EventListener);
 

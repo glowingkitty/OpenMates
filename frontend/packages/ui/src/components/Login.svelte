@@ -5,6 +5,7 @@
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth } from '../stores/authStore';
+    import { currentSignupStep, isInSignupProcess } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
@@ -186,8 +187,17 @@
             
             showLoadingUntil = Date.now() + 500;
             
-            $isCheckingAuth = true;
-            await authStore.init();
+            // Check if user is in signup process based on last_opened
+            if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
+                // Extract step number from path
+                const stepMatch = $authStore.user.last_opened.match(/\/signup\/step-(\d+)/);
+                if (stepMatch && stepMatch[1]) {
+                    const step = parseInt(stepMatch[1], 10);
+                    currentSignupStep.set(step);
+                    currentView = 'signup';
+                    isInSignupProcess.set(true);
+                }
+            }
             
             // Set initial screen width
             screenWidth = window.innerWidth;
@@ -203,8 +213,6 @@
             showForm = true; // Show form before removing loading state
             // Now that we've determined the screen size and loading is complete, show the appropriate grid
             gridsReady = true;
-            await tick();
-            $isCheckingAuth = false;
             
             // Only focus if not touch device and not authenticated
             if (!$authStore.isAuthenticated && emailInput && !isTouchDevice) {
@@ -257,10 +265,20 @@
                 return;
             }
 
-            console.log('Login successful');
+            console.debug('Login successful');
+            
+            // Check if we need to switch to signup flow
+            if (result.inSignupFlow) {
+                console.debug('User is in signup process, switching to signup view');
+                currentView = 'signup';
+                // Wait for the next tick to ensure components are updated
+                await tick();
+            }
+            
             dispatch('loginSuccess', { 
                 user: $authStore.user,
-                isMobile 
+                isMobile,
+                inSignupFlow: result.inSignupFlow
             });
         } catch (error) {
             console.error('Login error details:', error);
@@ -269,9 +287,17 @@
             isLoading = false;
         }
     }
+    
+    // Strengthen the reactive statement to switch views when in signup process
+    $: {
+        if ($authStore.isAuthenticated && $isInSignupProcess) {
+            console.debug("Detected signup process, switching to signup view");
+            currentView = 'signup';
+        }
+    }
 </script>
 
-{#if !$authStore.isAuthenticated}
+{#if !$authStore.isAuthenticated || $isInSignupProcess}
     <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
         {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
@@ -294,6 +320,10 @@
                             {#if isRateLimited}
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
                                     {$text('signup.too_many_requests.text')}
+                                </div>
+                            {:else if $isCheckingAuth}
+                                <div class="checking-auth" in:fade={{ duration: 200 }}>
+                                    <p>{@html $text('login.loading.text')}</p>
                                 </div>
                             {:else}
                                 <form 
@@ -353,16 +383,9 @@
                                     </button>
                                 </form>
                             {/if}
-
-                            {#if $isCheckingAuth}
-                                <div class="checking-auth" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-                                    <span class="loading-spinner"></span>
-                                    <p>{@html $text('login.loading.text')}</p>
-                                </div>
-                            {/if}
                         </div>
 
-                        <div class="bottom-positioned" class:visible={showForm} hidden={!showForm}>
+                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
                             <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
                             <button class="text-button" on:click={switchToSignup}>
                                 {$text('login.click_here_to_create_a_new_account.text')}

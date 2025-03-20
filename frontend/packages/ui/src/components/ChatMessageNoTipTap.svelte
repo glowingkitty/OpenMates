@@ -70,7 +70,7 @@
       }
   
       // Log the final markdown.
-      console.log("Final markdown:", markdown.trim());
+      console.debug("Final markdown:", markdown.trim());
       return markdown.trim();
     }
   

@@ -4,6 +4,7 @@
     import { createEventDispatcher } from 'svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { authStore } from '../../../../stores/authStore';
+    import { currentSignupStep, isInSignupProcess } from '../../../../stores/signupState';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
@@ -56,6 +57,10 @@
                     
                     // Also store in localStorage for components that need it
                     localStorage.setItem('user_display_name', data.user.username);
+                    
+                    // Make sure we stay in signup flow and move to step 3
+                    currentSignupStep.set(3);
+                    isInSignupProcess.set(true);
                 }
                 
                 // Proceed to next step on success

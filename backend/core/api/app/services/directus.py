@@ -316,7 +316,10 @@ class DirectusService:
                 "encrypted_devices": encrypted_devices,
                 
                 # Non-sensitive data
-                "is_admin": is_admin
+                "is_admin": is_admin,
+                
+                # Add last_opened field to track the signup step
+                "last_opened": "/signup/step-3"
             }
             
             # Make request to Directus using async httpx
@@ -467,13 +470,18 @@ class DirectusService:
                         except Exception as e:
                             logger.error(f"Error decrypting username: {str(e)}")
                 
-                # Extract cookies for setting in our response
-                cookies = response.cookies
-                
+                # Extract cookies safely
+                cookies_dict = {}
+                try:
+                    for name, value in response.cookies.items():
+                        cookies_dict[name] = value
+                except Exception as e:
+                    logger.error(f"Error processing cookies: {str(e)}")
+                    
                 # Return success with auth data and cookies
                 return True, {
                     "user": auth_data.get("user"),
-                    "cookies": {c.name: c.value for c in cookies}
+                    "cookies": cookies_dict
                 }, "Login successful"
             else:
                 error_msg = f"Login failed: {response.status_code} - {response.text}"
@@ -749,4 +757,92 @@ class DirectusService:
         except Exception as e:
             error_msg = f"Error getting active users: {str(e)}"
             logger.error(error_msg, exc_info=True)
+            return 0
+
+    async def check_user_device(self, user_id: str, device_fingerprint: str) -> bool:
+        """
+        Check if a device fingerprint exists in a user's known devices
+        - Returns True if the device is known, False otherwise
+        """
+        try:
+            # Get the user first to retrieve encrypted_devices and vault key
+            url = f"{self.base_url}/users/{user_id}"
+            response = await self._make_api_request("GET", url)
+            
+            if response.status_code != 200:
+                logger.warning(f"Failed to retrieve user: {response.status_code}")
+                return False
+                
+            user_data = response.json().get("data", {})
+            vault_key_id = user_data.get("vault_key_id")
+            encrypted_devices_str = user_data.get("encrypted_devices")
+            
+            # If no vault key or encrypted devices, device is unknown
+            if not vault_key_id or not encrypted_devices_str:
+                return False
+            
+            # Decrypt the devices data
+            try:
+                decrypted_devices = await self.encryption_service.decrypt_with_user_key(
+                    encrypted_devices_str, vault_key_id
+                )
+                devices_dict = json.loads(decrypted_devices)
+                
+                # Check if the fingerprint exists in the devices
+                return device_fingerprint in devices_dict
+                
+            except Exception as e:
+                logger.error(f"Error decrypting devices: {str(e)}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error checking user device: {str(e)}", exc_info=True)
+            return False
+
+    async def get_user_credits(self, user_id: str) -> int:
+        """
+        Get a user's credit balance
+        - Decrypts the encrypted_credit_balance field
+        - Returns the credit balance as an integer
+        """
+        try:
+            # Get the user data
+            url = f"{self.base_url}/users/{user_id}"
+            response = await self._make_api_request("GET", url)
+            
+            if response.status_code != 200:
+                logger.warning(f"Failed to retrieve user: {response.status_code}")
+                return 0
+                
+            user_data = response.json().get("data", {})
+            vault_key_id = user_data.get("vault_key_id")
+            encrypted_credit_balance = user_data.get("encrypted_credit_balance")
+            
+            # If no vault key or encrypted balance, return 0
+            if not vault_key_id or not encrypted_credit_balance:
+                return 0
+            
+            # Decrypt the credit balance
+            try:
+                decrypted_credits = await self.encryption_service.decrypt_with_user_key(
+                    encrypted_credit_balance, vault_key_id
+                )
+                
+                # Convert to integer
+                try:
+                    return int(decrypted_credits)
+                except ValueError:
+                    # If it can't be converted to int, try float and then convert to int
+                    try:
+                        return int(float(decrypted_credits))
+                    except ValueError:
+                        logger.error(f"Invalid credit balance format: {decrypted_credits}")
+                        return 0
+                    
+            except Exception as e:
+                logger.error(f"Error decrypting credit balance: {str(e)}")
+                return 0
+                
+        except Exception as e:
+            logger.error(f"Error getting user credits: {str(e)}", exc_info=True)
             return 0

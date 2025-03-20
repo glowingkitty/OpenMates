@@ -22,13 +22,13 @@
             (navigator.maxTouchPoints > 0) || 
             // @ts-ignore
             (navigator.msMaxTouchPoints > 0);
-        console.log('Touch device detected:', isTouchDevice); // Debug log
+        console.debug('Touch device detected:', isTouchDevice); // Debug log
     }
     
     function showTooltipWithDelay(event: MouseEvent) {
         // Don't show tooltip on touch devices
         if (isTouchDevice) {
-            console.log('Preventing tooltip on touch device'); // Debug log
+            console.debug('Preventing tooltip on touch device'); // Debug log
             return;
         }
         

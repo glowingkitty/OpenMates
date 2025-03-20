@@ -10,7 +10,7 @@
     import ExpandableHeader from './ExpandableHeader.svelte';
 
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep } from '../../stores/signupState';
     import { settingsMenuVisible } from '../Settings.svelte';
 
     // Dynamic imports for step contents
@@ -37,6 +37,7 @@
 
     const dispatch = createEventDispatcher();
 
+    // Initialize step from store instead of always starting at 1
     let currentStep = 1;
     let direction: 'forward' | 'backward' = 'forward';
     let isInviteCodeValidated = false;
@@ -86,6 +87,8 @@
     
     onMount(() => {
         isInSignupProcess.set(true);
+        // Get step from store if set
+        currentStep = $currentSignupStep;
         updateSettingsStep();
     });
     
@@ -202,7 +205,7 @@
         cvv: string,
         amount: number
     }>) {
-        console.log('Processing payment...', event.detail);
+        console.debug('Processing payment...', event.detail);
         // Implement payment submission logic here
         
         // For demo, simulate success and move to next step

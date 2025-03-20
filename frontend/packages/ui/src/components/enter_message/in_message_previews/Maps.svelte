@@ -21,7 +21,7 @@
 
     // Logger for debugging
     const logger = {
-        debug: (...args: any[]) => console.log('[MapsPreview]', ...args),
+        debug: (...args: any[]) => console.debug('[MapsPreview]', ...args),
         info: (...args: any[]) => console.info('[MapsPreview]', ...args)
     };
 

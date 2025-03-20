@@ -6,7 +6,7 @@ if (browser) {
     // Dynamically import the font CSS only in the browser.
     import('@fontsource-variable/lexend-deca')
         .then(() => {
-            console.log('Font lexend-deca loaded successfully on the client.');
+            console.debug('Font lexend-deca loaded successfully on the client.');
         })
         .catch((err) => {
             console.error('Failed to load lexend-deca font:', err);

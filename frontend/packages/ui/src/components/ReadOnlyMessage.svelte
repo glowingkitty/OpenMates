@@ -27,7 +27,7 @@
         // Look for any embed container with either data attribute
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
         if (embedContainer) {
-            console.log('[ReadOnlyMessage] Embed container clicked');
+            console.debug('[ReadOnlyMessage] Embed container clicked');
             
             // Get the node from the editor
             const pos = editor?.view.posAtDOM(embedContainer, 0);

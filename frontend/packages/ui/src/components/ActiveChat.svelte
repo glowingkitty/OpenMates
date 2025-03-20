@@ -13,6 +13,7 @@
     import { chatDB } from '../services/db';
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import { userProfile } from '../stores/userProfile';
+    import { isInSignupProcess, currentSignupStep, getStepFromPath } from '../stores/signupState';
     
     const dispatch = createEventDispatcher();
     
@@ -31,20 +32,26 @@
     // Use authStore for authentication state
     $: isLoggedIn = $authStore.isAuthenticated;
 
-    function handleLoginSuccess() {
-        dispatch('loginSuccess');
+    function handleLoginSuccess(event) {
+        const { user, inSignupFlow } = event.detail;
+        console.debug("Login success, in signup flow:", inSignupFlow);
+        
+        if (!inSignupFlow) {
+            dispatch('loginSuccess');
+        }
+        // If in signup flow, don't dispatch the event as we need to stay on the login/signup page
     }
 
     // Add handler for code fullscreen
     function handleCodeFullscreen(event: CustomEvent) {
-        console.log('Received code fullscreen event:', event.detail);
+        console.debug('Received code fullscreen event:', event.detail);
         fullscreenCodeData = {
             code: event.detail.code,
             filename: event.detail.filename,
             language: event.detail.language,
             lineCount: event.detail.lineCount // Make sure we're capturing the line count
         };
-        console.log('Set fullscreen data:', fullscreenCodeData);
+        console.debug('Set fullscreen data:', fullscreenCodeData);
         showCodeFullscreen = true;
     }
 
@@ -105,7 +112,7 @@
 
         // *** KEY CHANGE: Update currentChat when a new draft is saved ***
         currentChat = chat;
-        console.log("[ActiveChat] Draft saved, updating currentChat:", currentChat);
+        console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
     }
 
     /**
@@ -129,7 +136,7 @@
      */
     function handleSendMessage(event: CustomEvent) {
         const message = event.detail;
-        console.log("[ActiveChat] Adding message:", message);
+        console.debug("[ActiveChat] Adding message:", message);
         chatHistoryRef.addMessage(message);
         showWelcome = false;
     }
@@ -147,7 +154,7 @@
      * Handler for when the create icon is clicked.
      */
     function handleNewChatClick() {
-        console.log("[ActiveChat] New chat creation initiated");
+        console.debug("[ActiveChat] New chat creation initiated");
         // Reset current chat
         currentChat = null;
         // Trigger chat history fade-out and cleaning:
@@ -168,8 +175,8 @@
     // Add a handler for the share button click.
     // This function will be triggered when the share button is clicked.
     function handleShareChat() {
-        // Using console.log for logging in Svelte.
-        console.log("[ActiveChat] Share chat button clicked.");
+        // Using console.debug for logging in Svelte.
+        console.debug("[ActiveChat] Share chat button clicked.");
         // TODO: Insert the actual share logic here if needed.
     }
 
@@ -178,7 +185,7 @@
         const { chat } = event.detail;
         if (!chat || currentChat?.id !== chat.id) return;
         
-        console.log("[ActiveChat] Updating chat messages");
+        console.debug("[ActiveChat] Updating chat messages");
         currentChat = chat;
         
         // Always force a messages update to ensure UI is in sync
@@ -222,6 +229,20 @@
     }
 
     onMount(() => {
+        // Check if the user is in the middle of a signup process (based on last_opened)
+        if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
+            console.debug("User detected in signup process:", $authStore.user.last_opened);
+            // Set the signup process state to true so the signup component shows in Login
+            isInSignupProcess.set(true);
+            
+            // Extract step from last_opened to ensure we're on the right step
+            if ($authStore.user.last_opened) {
+                const step = getStepFromPath($authStore.user.last_opened);
+                console.debug("Setting signup step to:", step);
+                currentSignupStep.set(step);
+            }
+        }
+        
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
@@ -247,8 +268,8 @@
     });
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$authStore.isAuthenticated} class:scaled={activeScaling}>
-    {#if !$authStore.isAuthenticated}
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$authStore.isAuthenticated || $isInSignupProcess} class:scaled={activeScaling}>
+    {#if !$authStore.isAuthenticated || $isInSignupProcess}
         <div 
             class="login-wrapper" 
             in:fly={loginTransitionProps} 

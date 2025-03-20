@@ -13,6 +13,7 @@
         settingsMenuVisible,
         isMobileView,
         authStore,
+        isCheckingAuth,
         // types
         type Chat,
     } from '@repo/ui';
@@ -36,14 +37,22 @@
 
     // Add state for initial load
     let isInitialLoad = true;
+    let isAuthInitialized = false;
 
     // Add reference to ActiveChat instance
     let activeChat: ActiveChat | null = null;
 
-    onMount(() => {
+    onMount(async () => {
+        // Initialize authentication state on app load
+        $isCheckingAuth = true;
+        await authStore.initialize();
+        isAuthInitialized = true;
+        $isCheckingAuth = false;
+        
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
         }
+        
         // Remove initial load state after a small delay to ensure proper rendering
         setTimeout(() => {
             isInitialLoad = false;
@@ -73,7 +82,7 @@
     // Add handler for chatSelected event
     function handleChatSelected(event: CustomEvent) {
         const selectedChat: Chat = event.detail.chat;
-        console.log("[+page.svelte] Received chatSelected event:", selectedChat.id);
+        console.debug("[+page.svelte] Received chatSelected event:", selectedChat.id);
         if (activeChat) {
             activeChat.loadChat(selectedChat);
         }

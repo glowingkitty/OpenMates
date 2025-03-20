@@ -55,7 +55,7 @@
 
   // Log when the component mounts for debugging purposes
   onMount(() => {
-      console.log("HeroHeader component mounted");
+      console.debug("HeroHeader component mounted");
       
       // Set initial screen width
       screenWidth = window.innerWidth;

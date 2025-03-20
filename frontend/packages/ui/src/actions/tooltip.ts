@@ -12,7 +12,7 @@ export function tooltip(node: HTMLElement) {
     
     // Don't initialize tooltip on touch devices
     if (isTouchDevice) {
-        console.log('Skipping tooltip creation on touch device'); // Debug log
+        console.debug('Skipping tooltip creation on touch device'); // Debug log
         return;
     }
 

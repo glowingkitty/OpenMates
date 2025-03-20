@@ -45,7 +45,7 @@
         // Calculate actual line count if not provided
         if (!lineCount) {
             lineCount = code.split('\n').length;
-            console.log('Calculated line count:', lineCount);
+            console.debug('Calculated line count:', lineCount);
         }
         
         // Generate line numbers
@@ -53,7 +53,7 @@
             lineNumbersElement.innerHTML = generateLineNumbers(lineCount);
         }
         
-        console.log('Fullscreen code preview mounted:', { filename, language, lineCount });
+        console.debug('Fullscreen code preview mounted:', { filename, language, lineCount });
     });
 </script>
 

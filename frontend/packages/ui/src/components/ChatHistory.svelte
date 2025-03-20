@@ -74,7 +74,7 @@
    */
   function handleOutroEnd() {
     if (!showMessages) {
-      console.log("[ChatHistory] Fade out complete, clearing messages");
+      console.debug("[ChatHistory] Fade out complete, clearing messages");
       messages = []; // Clear messages after fade out completes
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
@@ -86,7 +86,7 @@
 
   // Add method to update messages
   export function updateMessages(newMessages: Message[]) {
-    console.log('Updating messages:', newMessages);
+    console.debug('Updating messages:', newMessages);
     // Force a re-render by creating a new array
     messages = [...newMessages];
     dispatch('messagesChange', { hasMessages: newMessages.length > 0 });

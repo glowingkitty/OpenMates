@@ -68,7 +68,7 @@
   // Handle embed menu events
   function handleEmbedClick(event: CustomEvent) {
     const { view, node, dom, rect } = event.detail;
-    console.log('[ChatMessage] Embed clicked:', { view, node, dom, rect });
+    console.debug('[ChatMessage] Embed clicked:', { view, node, dom, rect });
 
     if (!dom) return;
 
@@ -180,7 +180,7 @@
     }
 
     // Log the final markdown.
-    console.log("Final markdown:", markdown.trim());
+    console.debug("Final markdown:", markdown.trim());
     return markdown.trim();
   }
 

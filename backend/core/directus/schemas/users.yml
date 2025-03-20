@@ -5,6 +5,11 @@ directus_users:
       type: boolean
       note: "Is the user an admin?"
 
+    last_opened:
+      type: string
+      length: 512
+      note: "Last opened chat or signup step. Example: /chats/1234, /signup/step-3"
+
     encrypted_email_address:
       type: string
       length: 512

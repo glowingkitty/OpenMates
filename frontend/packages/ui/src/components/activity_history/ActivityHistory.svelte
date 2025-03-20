@@ -93,13 +93,13 @@
         window.addEventListener('language-changed', languageChangeHandler);
         
         try {
-            console.log("[ActivityHistory] Initializing database");
+            console.debug("[ActivityHistory] Initializing database");
             await chatDB.init();
             
             // Check if we have any chats
             const existingChats = await chatDB.getAllChats();
             if (existingChats.length === 0) {
-                console.log("[ActivityHistory] No existing chats, loading examples");
+                console.debug("[ActivityHistory] No existing chats, loading examples");
                 await chatDB.loadExampleChats();
             }
             
@@ -119,7 +119,7 @@
 
     // Function to navigate to next chat
     async function navigateToNextChat() {
-        console.log("[ActivityHistory] Navigating to next chat");
+        console.debug("[ActivityHistory] Navigating to next chat");
         if (flattenedChats.length === 0) return;
 
         // If at the end, don't do anything
@@ -138,7 +138,7 @@
 
     // Function to navigate to previous chat
     async function navigateToPreviousChat() {
-        console.log("[ActivityHistory] Navigating to previous chat");
+        console.debug("[ActivityHistory] Navigating to previous chat");
         if (flattenedChats.length === 0) return;
 
         // If at the beginning, don't do anything
@@ -157,7 +157,7 @@
 
     // Update currentChatIndex when a chat is clicked directly
     async function handleChatClick(chat: ChatType) {
-        console.log("[ActivityHistory] Chat clicked:", chat.id);
+        console.debug("[ActivityHistory] Chat clicked:", chat.id);
         currentChatIndex = flattenedChats.findIndex(c => c.id === chat.id);
         
         // Dispatch a custom event to save any pending draft before switching chats

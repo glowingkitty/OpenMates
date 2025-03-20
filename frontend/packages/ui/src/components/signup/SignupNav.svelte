@@ -26,7 +26,7 @@
         if (currentStep === 3) {
             dispatch('step', { step: 4 });
         } else if (currentStep === 9) {
-            console.log('Skip and show demo first');
+            console.debug('Skip and show demo first');
             // Custom action for step 9 - will be replaced later with real action
         } else {
             dispatch('skip');

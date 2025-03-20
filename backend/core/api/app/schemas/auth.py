@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Dict, Any, Union
 
 class InviteCodeRequest(BaseModel):
     invite_code: str
@@ -33,9 +33,6 @@ class CheckEmailCodeResponse(BaseModel):
     success: bool
     message: str
     user: Optional[Dict[str, Any]] = None  # Include user data in the response
-
-from pydantic import BaseModel, Field, EmailStr, validator
-from typing import Optional, Dict, Any
 
 class LoginRequest(BaseModel):
     """Schema for login request"""
@@ -84,7 +81,9 @@ class LogoutResponse(BaseModel):
 
 class SessionResponse(BaseModel):
     """Schema for current user session data"""
-    id: str
-    username: str
+    authenticated: bool = False
+    # Use empty string as default instead of None for string fields
+    id: Optional[str] = ""  
+    username: Optional[str] = ""
     is_admin: bool = False
-    avatar_url: Optional[str] = None  # This will receive the encrypted_profileimage_url from the endpoint
+    avatar_url: Optional[str] = None

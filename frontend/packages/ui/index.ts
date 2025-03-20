@@ -36,7 +36,11 @@ export * from "./src/i18n/translations";
 
 // Stores
 export * from "./src/stores/theme";
-export { authStore } from "./src/stores/authStore";
+export { 
+  authStore, 
+  profileImage,
+  isCheckingAuth  // Add this export
+} from "./src/stores/authStore";
 export * from "./src/stores/menuState";
 
 // Styles

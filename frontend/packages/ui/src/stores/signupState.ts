@@ -1,15 +1,26 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 
-// Track if we're in the signup process
+// Store to track if user is in signup process
 export const isInSignupProcess = writable(false);
 
-// Track if the current step should show settings
+// Store to track current signup step
+export const currentSignupStep = writable(1);
+
+// Helper to determine if we're in settings steps (7+)
+export function isSettingsStep(step: number): boolean {
+    return step >= 7;
+}
+
+// Store to track if we're in a settings step
 export const isSignupSettingsStep = writable(false);
 
-// Set the threshold for settings-enabled steps
-export const SETTINGS_STEP_THRESHOLD = 7;
-
-// Helper function to check if a step should show settings (for step 7 and higher)
-export function isSettingsStep(step: number): boolean {
-    return step >= SETTINGS_STEP_THRESHOLD;
+// Parse step number from last_opened path
+export function getStepFromPath(path: string): number {
+    if (!path) return 1;
+    
+    const match = path.match(/\/signup\/step-(\d+)/);
+    if (match && match[1]) {
+        return parseInt(match[1], 10);
+    }
+    return 1;
 }

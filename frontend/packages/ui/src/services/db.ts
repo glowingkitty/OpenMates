@@ -11,7 +11,7 @@ class ChatDatabase {
      * Initialize the database
      */
     async init(): Promise<void> {
-        console.log("[ChatDatabase] Initializing database");
+        console.debug("[ChatDatabase] Initializing database");
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
@@ -21,13 +21,13 @@ class ChatDatabase {
             };
 
             request.onsuccess = () => {
-                console.log("[ChatDatabase] Database opened successfully");
+                console.debug("[ChatDatabase] Database opened successfully");
                 this.db = request.result;
                 resolve();
             };
 
             request.onupgradeneeded = (event) => {
-                console.log("[ChatDatabase] Database upgrade needed");
+                console.debug("[ChatDatabase] Database upgrade needed");
                 const db = (event.target as IDBOpenDBRequest).result;
                 
                 if (!db.objectStoreNames.contains(this.STORE_NAME)) {
@@ -42,7 +42,7 @@ class ChatDatabase {
      * Load example chats into the database
      */
     async loadExampleChats(): Promise<void> {
-        console.log("[ChatDatabase] Loading example chats");
+        console.debug("[ChatDatabase] Loading example chats");
         const store = this.getStore('readwrite');
         
         const chats = exampleChats.chats.map((chat: any) => {
@@ -105,7 +105,7 @@ class ChatDatabase {
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.log("[ChatDatabase] Chat added successfully:", chat.id);
+                console.debug("[ChatDatabase] Chat added successfully:", chat.id);
                 resolve();
             };
 
@@ -176,7 +176,7 @@ class ChatDatabase {
      * @returns The updated or created chat
      */
     async saveDraft(content: any, chatId?: string): Promise<Chat> {
-        console.log("[ChatDatabase] Saving draft", { chatId, content });
+        console.debug("[ChatDatabase] Saving draft", { chatId, content });
         
         let chat: Chat;
         
@@ -271,7 +271,7 @@ class ChatDatabase {
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.log("[ChatDatabase] Chat updated successfully:", chat.id);
+                console.debug("[ChatDatabase] Chat updated successfully:", chat.id);
                 resolve();
             };
 

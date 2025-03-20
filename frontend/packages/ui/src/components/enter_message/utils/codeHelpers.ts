@@ -58,7 +58,7 @@ lowlight.register('html', xml) // lowlight uses 'xml' for HTML
  * @returns True if the text is likely code, false otherwise.
  */
 export function isLikelyCode(text: string): boolean {
-    console.log('Analyzing text for code detection...');
+    console.debug('Analyzing text for code detection...');
     
     // More specific code patterns that are less likely to appear in regular text
     const codePatterns = [
@@ -120,7 +120,7 @@ export function isLikelyCode(text: string): boolean {
                   (hasBalancedBrackets && patternCount >= 1) ||
                   (hasCodeFileExtension && patternCount >= 1);
 
-    console.log('Code detection metrics:', {
+    console.debug('Code detection metrics:', {
         patternCount,
         hasConsistentIndentation,
         hasBalancedBrackets,

@@ -1,6 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import type { User } from '../types/user';
+import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
 
 // Define the types for the auth store
 interface AuthState {
@@ -26,48 +27,77 @@ function createAuthStore() {
   return {
     subscribe,
     
-    // Initialize the auth state by checking for existing session
-    init: async () => {
+    // Check authentication status using refresh token
+    checkAuth: async (): Promise<boolean> => {
+      isCheckingAuth.set(true);
+      
       try {
-        isCheckingAuth.set(true);
-        const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
-          credentials: 'include',
+        console.debug("Checking authentication with refresh token...");
+        const response = await fetch(getApiEndpoint(apiEndpoints.auth.token_refresh), {
+          method: 'POST',
           headers: {
-            'Accept': 'application/json'
-          }
+            'Accept': 'application/json',
+            'Origin': window.location.origin
+          },
+          credentials: 'include' // Important for sending httpOnly cookies
         });
 
-        if (response.ok) {
-          const userData = await response.json();
+        // Even if response is not OK, we still process it as the server may return 200
+        // with a "Not logged in" message for various authentication failure cases
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+          const inSignupFlow = data.user.last_opened?.startsWith('/signup/');
+          
+          if (inSignupFlow) {
+            console.debug("User is in signup process:", data.user.last_opened);
+            const step = getStepFromPath(data.user.last_opened);
+            currentSignupStep.set(step);
+            isInSignupProcess.set(true);
+          } else {
+            isInSignupProcess.set(false);
+          }
           
           update(state => ({
             ...state,
             isAuthenticated: true,
+            isInitialized: true,
             user: {
-              id: userData.id,
-              username: userData.username || 'User',
-              isAdmin: userData.is_admin || false,
-              profileImageUrl: userData.avatar_url || null
-            },
-            isInitialized: true
+              id: data.user.id,
+              username: data.user.username || 'User',
+              isAdmin: data.user.is_admin || false,
+              profileImageUrl: data.user.avatar_url || null,
+              last_opened: data.user.last_opened || null,
+              credits: data.user.credits || 0
+            }
           }));
           
           return true;
         } else {
-          set({
-            ...initialState,
-            isInitialized: true
-          });
+          // Not logged in or failed auth
+          update(state => ({
+            ...state,
+            isAuthenticated: false,
+            isInitialized: true,
+            user: null
+          }));
+          
           return false;
         }
       } catch (error) {
-        console.error("Auth init error:", error);
-        set({
-          ...initialState,
-          isInitialized: true
-        });
+        console.error("Auth check error:", error);
+        
+        // On error, assume not authenticated
+        update(state => ({
+            ...state,
+            isAuthenticated: false,
+            isInitialized: true,
+            user: null
+        }));
+        
         return false;
       } finally {
+        // Always set isCheckingAuth to false when done
         isCheckingAuth.set(false);
       }
     },
@@ -75,6 +105,7 @@ function createAuthStore() {
     // Login the user
     login: async (email: string, password: string) => {
       try {
+        console.debug("Attempting login...");
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
           method: 'POST',
           headers: {
@@ -94,23 +125,40 @@ function createAuthStore() {
         }
 
         const data = await response.json();
+        console.debug("Login response:", data);
 
         if (!response.ok) {
           return { success: false, message: data.message || "Login failed" };
         }
 
         if (data.success && data.user) {
+          const inSignupFlow = data.user.last_opened?.startsWith('/signup/');
+          
+          // Check if user is in signup process
+          if (inSignupFlow) {
+            console.debug("User is in signup process:", data.user.last_opened);
+            const step = getStepFromPath(data.user.last_opened);
+            currentSignupStep.set(step);
+            isInSignupProcess.set(true);
+          } else {
+            isInSignupProcess.set(false);
+          }
+          
           update(state => ({
             ...state,
             isAuthenticated: true,
+            isInitialized: true,
             user: {
               id: data.user.id,
               username: data.user.username || 'User',
               isAdmin: data.user.is_admin || false,
-              profileImageUrl: data.user.avatar_url || null
+              profileImageUrl: data.user.avatar_url || null,
+              last_opened: data.user.last_opened || null,
+              credits: data.user.credits || 0
             }
           }));
-          return { success: true };
+          
+          return { success: true, inSignupFlow };
         } else {
           return { success: false, message: data.message || "Login failed" };
         }
@@ -123,16 +171,29 @@ function createAuthStore() {
     // Handle signup completion and auto-login
     completeSignup: (userData: any) => {
       if (userData && userData.id) {
+        // Explicitly check for signup state
+        const inSignupFlow = userData.last_opened?.startsWith('/signup/');
+        if (inSignupFlow) {
+          const step = getStepFromPath(userData.last_opened);
+          console.debug("Setting signup state from completeSignup:", step);
+          currentSignupStep.set(step);
+          isInSignupProcess.set(true);
+        }
+        
         update(state => ({
           ...state,
           isAuthenticated: true,
+          isInitialized: true,
           user: {
             id: userData.id,
             username: userData.username || 'User',
             isAdmin: userData.is_admin || false,
-            profileImageUrl: null // New users won't have a profile image yet
+            profileImageUrl: null, // New users won't have a profile image yet
+            last_opened: userData.last_opened || null,
+            credits: userData.credits || 0
           }
         }));
+        
         return true;
       }
       return false;
@@ -150,8 +211,15 @@ function createAuthStore() {
     setAuthenticated: (value: boolean) => {
       update(state => ({
         ...state,
-        isAuthenticated: value
+        isAuthenticated: value,
+        isInitialized: true
       }));
+    },
+    
+    // Initialize auth state - call this once on app startup
+    initialize: async () => {
+      console.debug("Initializing auth state...");
+      return await authStore.checkAuth();
     },
     
     // Logout the user with optional callbacks for complex logout flows
@@ -162,7 +230,7 @@ function createAuthStore() {
       finalLogout?: () => void | Promise<void>
     }) => {
       try {
-        console.log('Logging out...');
+        console.debug('Logging out...');
         
         // Call pre-logout callback if provided
         if (callbacks?.beforeServerLogout) {

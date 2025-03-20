@@ -7,7 +7,7 @@
     $: filename = content?.split('\n')[0]?.slice(0, 50) || 'Text preview';
     
     $: {
-        console.log('Text preview rendered:', { id, contentLength: content?.length });
+        console.debug('Text preview rendered:', { id, contentLength: content?.length });
     }
 </script>
 
