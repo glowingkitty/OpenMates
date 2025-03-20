@@ -112,6 +112,9 @@ compliance_handler.setFormatter(compliance_formatter)
 compliance_handler.addFilter(sensitive_filter)  # Add filter to compliance handler as well
 compliance_logger.addHandler(compliance_handler)
 
+# Make sure auth module logs at INFO level appear in console
+logging.getLogger("app.routes.auth").setLevel(logging.INFO)
+
 # Load environment variables
 load_dotenv()
 

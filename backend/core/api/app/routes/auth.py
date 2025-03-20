@@ -64,6 +64,9 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
+# Ensure the logger is configured to show INFO logs
+logger.setLevel(logging.INFO)
+
 # Remove in-memory storage and use cache_service instead
 
 def get_directus_service():
@@ -581,6 +584,9 @@ async def login(
     """
     Authenticate a user and create a session
     """
+    # Add clear request log at INFO level
+    logger.info(f"Processing login request for email: {login_data.email[:2]}***")
+    
     try:
         # Get device fingerprint and location for tracking
         device_fingerprint = get_device_fingerprint(request)
@@ -734,6 +740,9 @@ async def logout(
     """
     Log out the current user by clearing session cookies
     """
+    # Add clear request log at INFO level
+    logger.info(f"Processing logout request")
+    
     try:
         # Attempt to logout from Directus
         success, message = await directus_service.logout_user()
@@ -775,6 +784,9 @@ async def refresh_token(
     Checks device fingerprint against known user devices for security.
     Returns a new access token and user data if authentication is successful.
     """
+    # Add clear request log at INFO level
+    logger.info(f"Processing token refresh request")
+    
     try:
         # Get device fingerprint and location for validation
         device_fingerprint = get_device_fingerprint(request)
