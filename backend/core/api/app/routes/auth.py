@@ -767,7 +767,8 @@ async def refresh_token(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token"),
+    directus_refresh_token: Optional[str] = Cookie(None)  # Also try original directus name
 ):
     """
     Refresh the authentication token using the refresh token.
@@ -780,16 +781,21 @@ async def refresh_token(
         client_ip = get_client_ip(request)
         device_location = get_location_from_ip(client_ip)
         
+        # Use either our renamed cookie or the original directus cookie
+        token_to_use = refresh_token or directus_refresh_token
+        
         # Step 1: Check if refresh token exists
-        if not refresh_token:
-            logger.info("No refresh token provided in request")
+        if not token_to_use:
+            # Let's examine all cookies to help debug the issue
+            all_cookies = {k: v for k, v in request.cookies.items() if k.endswith('refresh_token')}
+            logger.info(f"No valid refresh token found. Available refresh token cookies: {list(all_cookies.keys())}")
             return LoginResponse(
                 success=False,
                 message="Not logged in"
             )
         
         # Step 2: Call DirectusService to refresh the token
-        success, auth_data, message = await directus_service.refresh_token(refresh_token)
+        success, auth_data, message = await directus_service.refresh_token(token_to_use)
         
         if success and auth_data and "user" in auth_data:
             user_id = auth_data["user"].get("id")
@@ -875,14 +881,8 @@ async def refresh_token(
                     logger.error(f"Error getting credits for user {user_id}: {str(e)}")
                     user_data["credits"] = 0
             
-            # Log successful refresh
-            compliance_service.log_auth_event_safe(
-                event_type="token_refresh",
-                user_id=user_id,
-                device_fingerprint=device_fingerprint,
-                location=device_location,
-                status="success"
-            )
+            # Remove unnecessary token refresh compliance logging
+            # Only log for security events (new device login, failed login attempts)
             
             return LoginResponse(
                 success=True,

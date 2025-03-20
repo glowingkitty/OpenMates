@@ -37,9 +37,11 @@ function createAuthStore() {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
             'Origin': window.location.origin
           },
-          credentials: 'include' // Important for sending httpOnly cookies
+          body: JSON.stringify({}),  // Send empty body
+          credentials: 'include' // Critical for sending cookies
         });
 
         // Even if response is not OK, we still process it as the server may return 200

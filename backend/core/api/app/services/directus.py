@@ -620,58 +620,66 @@ class DirectusService:
         Returns (success, auth_data, message)
         """
         try:
-            # Make request to Directus refresh endpoint
+            # Add debug logging for the refresh token
+            masked_token = refresh_token[:5] + "..." + refresh_token[-5:] if len(refresh_token) > 10 else "***"
+            logger.info(f"Attempting to refresh token with: {masked_token}")
+            
+            # Make request to Directus refresh endpoint - send as cookie instead of JSON payload
             async with httpx.AsyncClient() as client:
+                # Set the refresh token in cookies as Directus expects it
+                cookies = {"directus_refresh_token": refresh_token}
+                
                 response = await client.post(
                     f"{self.base_url}/auth/refresh",
-                    json={"refresh_token": refresh_token},
+                    json={"mode": "cookie"},  # Specify cookie mode but don't include token in payload
+                    cookies=cookies,  # Send the refresh token in cookie
                     headers={"Content-Type": "application/json"}
                 )
             
-            if response.status_code == 200:
-                auth_data = response.json().get("data", {})
-                
-                # If we have user data, get the user info
-                if "access_token" in auth_data:
-                    # Get user data using the new access token
-                    user_response = await client.get(
-                        f"{self.base_url}/users/me",
-                        headers={"Authorization": f"Bearer {auth_data['access_token']}"}
-                    )
+                if response.status_code == 200:
+                    auth_data = response.json().get("data", {})
                     
-                    if user_response.status_code == 200:
-                        user_data = user_response.json().get("data", {})
+                    # If we have user data, get the user info - this must be done while the client is still open
+                    if "access_token" in auth_data:
+                        # Get user data using the new access token
+                        user_response = await client.get(
+                            f"{self.base_url}/users/me",
+                            headers={"Authorization": f"Bearer {auth_data['access_token']}"}
+                        )
                         
-                        # Get the user's vault key ID
-                        vault_key_id = user_data.get("vault_key_id")
-                        
-                        # Try to decrypt the username for display
-                        if vault_key_id and "encrypted_username" in user_data:
-                            try:
-                                decrypted_username = await self.encryption_service.decrypt_with_user_key(
-                                    user_data["encrypted_username"], 
-                                    vault_key_id
-                                )
-                                if decrypted_username:
-                                    user_data["username"] = decrypted_username
-                            except Exception as e:
-                                logger.error(f"Error decrypting username: {str(e)}")
-                        
-                        # Add user data to auth response
-                        auth_data["user"] = user_data
+                        if user_response.status_code == 200:
+                            user_data = user_response.json().get("data", {})
+                            
+                            # Get the user's vault key ID
+                            vault_key_id = user_data.get("vault_key_id")
+                            
+                            # Try to decrypt the username for display
+                            if vault_key_id and "encrypted_username" in user_data:
+                                try:
+                                    decrypted_username = await self.encryption_service.decrypt_with_user_key(
+                                        user_data["encrypted_username"], 
+                                        vault_key_id
+                                    )
+                                    if decrypted_username:
+                                        user_data["username"] = decrypted_username
+                                except Exception as e:
+                                    logger.error(f"Error decrypting username: {str(e)}")
+                            
+                            # Add user data to auth response
+                            auth_data["user"] = user_data
                 
-                # Extract cookies for setting in our response
-                cookies = response.cookies
-                
-                # Return success with auth data and cookies
-                return True, {
-                    "user": auth_data.get("user"),
-                    "cookies": {c.name: c.value for c in cookies}
-                }, "Token refreshed successfully"
-            else:
-                error_msg = f"Token refresh failed: {response.status_code} - {response.text}"
-                logger.error(error_msg)
-                return False, None, error_msg
+                    # Extract cookies for setting in our response - httpx cookies are a dictionary-like object
+                    cookies_dict = dict(response.cookies)
+                    
+                    # Return success with auth data and cookies
+                    return True, {
+                        "user": auth_data.get("user"),
+                        "cookies": cookies_dict
+                    }, "Token refreshed successfully"
+                else:
+                    error_msg = f"Token refresh failed: {response.status_code} - {response.text}"
+                    logger.error(error_msg)
+                    return False, None, error_msg
                 
         except Exception as e:
             error_msg = f"Error during token refresh: {str(e)}"
