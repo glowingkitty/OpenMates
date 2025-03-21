@@ -4,6 +4,7 @@ import time  # Add time module import
 from typing import Optional, Tuple
 import regex  # Use regex module instead of re
 import json  # Add json import
+import hashlib
 from app.schemas.auth import InviteCodeRequest, InviteCodeResponse, RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse, LoginRequest, LoginResponse, LogoutResponse, SessionResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
@@ -748,12 +749,12 @@ async def logout(
     
     try:
         # Use either our renamed cookie or the original directus cookie
-        token_to_use = refresh_token or directus_refresh_token
+        refresh_token = refresh_token or directus_refresh_token
         
-        if token_to_use:
+        if refresh_token:
             # Hash the token for cache operations
             import hashlib
-            token_hash = hashlib.sha256(token_to_use.encode()).hexdigest()
+            token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             cache_key = f"session:{token_hash}"
             user_key = f"user_token:{token_hash}"
             
@@ -761,7 +762,7 @@ async def logout(
             user_id = await cache_service.get(user_key)
             
             # Attempt to logout from Directus
-            success, message = await directus_service.logout_user(token_to_use)
+            success, message = await directus_service.logout_user(refresh_token)
             if not success:
                 logger.warning(f"Directus logout failed: {message}")
             
@@ -826,9 +827,9 @@ async def logout_all(
     
     try:
         # Use either our renamed cookie or the original directus cookie
-        token_to_use = refresh_token or directus_refresh_token
+        refresh_token = refresh_token or directus_refresh_token
         
-        if not token_to_use:
+        if not refresh_token:
             logger.warning("No valid refresh token found in cookies for logout-all")
             return LogoutResponse(
                 success=False,
@@ -837,7 +838,7 @@ async def logout_all(
             
         # Hash the token to get user_id
         import hashlib
-        token_hash = hashlib.sha256(token_to_use.encode()).hexdigest()
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         user_key = f"user_token:{token_hash}"
         
         # Get user_id from cache
@@ -847,7 +848,7 @@ async def logout_all(
             logger.warning(f"User ID not found in cache for logout-all request")
             
             # Try to get user information from Directus by refreshing the token
-            success, auth_data, message = await directus_service.refresh_token(token_to_use)
+            success, auth_data, message = await directus_service.refresh_token(refresh_token)
             
             if success and auth_data and "user" in auth_data:
                 user_id = auth_data["user"].get("id")
@@ -904,9 +905,7 @@ async def get_session(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    compliance_service: ComplianceService = Depends(get_compliance_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token"),
-    directus_refresh_token: Optional[str] = Cookie(None)  # Also try original directus name
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
 ):
     """
     Efficient session validation endpoint that uses cache to minimize Directus calls
@@ -915,16 +914,11 @@ async def get_session(
     logger.info("Processing session request")
     
     try:
-        # Get device fingerprint for validation
-        device_fingerprint = get_device_fingerprint(request)
-        logger.info(f"Device fingerprint: {device_fingerprint}")  # Log full fingerprint for debugging
-        device_location = get_location_from_ip(get_client_ip(request))
-        
         # Use either our renamed cookie or the original directus cookie
-        token_to_use = refresh_token or directus_refresh_token
+        refresh_token = refresh_token
         token_expiry = None
         
-        if not token_to_use:
+        if not refresh_token:
             logger.warning("No valid refresh token found in cookies")
             return SessionResponse(
                 success=False,
@@ -932,22 +926,27 @@ async def get_session(
                 token_refresh_needed=False
             )
         
+        # Get device fingerprint for validation
+        device_fingerprint = get_device_fingerprint(request)
+        logger.info(f"Device fingerprint: {device_fingerprint[:6]}...")
+        
+        # Don't get location immediately - only determine it if needed later for new devices
+        device_location = None
+        
         # Step 1: Try to get session data from cache
         # Hash the token for cache key to avoid storing raw tokens
-        import hashlib
-        token_hash = hashlib.sha256(token_to_use.encode()).hexdigest()
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         cache_key = f"session:{token_hash}"
         user_key = f"user_token:{token_hash}"
         
         # Log the hash (partial) to help debug consistency
-        logger.info(f"Session cache lookup with key hash: {token_hash[:6]}...{token_hash[-6:]}")
+        logger.info(f"Session cache lookup with key hash: {token_hash[:6]}...")
         
         # Get session from cache
         cached_session = await cache_service.get(cache_key)
-        cached_user_id = await cache_service.get(user_key)
         
         if cached_session:
-            logger.info("✓ Found session in cache!")
+            logger.info("Found session in cache!")
             
             # Get user data from session
             user_id = cached_session.get("user_id")
@@ -967,6 +966,10 @@ async def get_session(
                 logger.warning(f"Device fingerprint {device_fingerprint} not found in cached session devices")
                 # Check in directus if device exists there but not in cache
                 if user_id:
+                    # For potentially new devices, get the location only when needed
+                    if not device_location:
+                        device_location = get_location_from_ip(get_client_ip(request))
+                    
                     device_in_directus = await directus_service.check_user_device(user_id, device_fingerprint)
                     if device_in_directus:
                         # Device exists in Directus but not in cache, update cache
@@ -992,6 +995,10 @@ async def get_session(
                         message="Session not valid for this device",
                         token_refresh_needed=False
                     )
+            
+            # For authorized devices, retrieve location from cache instead of recalculating
+            if device_fingerprint in cached_devices and not device_location:
+                device_location = cached_devices[device_fingerprint].get("loc")
             
             # Check if token is about to expire (within 5 minutes)
             current_time = int(time.time())
@@ -1032,7 +1039,7 @@ async def get_session(
                 
         # Step 2: No valid cache or token needs refresh - check with Directus
         logger.info("Calling Directus refresh_token API...")
-        success, auth_data, message = await directus_service.refresh_token(token_to_use)
+        success, auth_data, message = await directus_service.refresh_token(refresh_token)
         
         # If successful, cache the session data
         if success and auth_data and "user" in auth_data:
@@ -1062,6 +1069,10 @@ async def get_session(
                     
                     if not device_authorized:
                         logger.warning(f"Device fingerprint {device_fingerprint} not found in user's devices")
+                        # Only get location for new devices if we don't have it yet
+                        if not device_location:
+                            device_location = get_location_from_ip(get_client_ip(request))
+                            
                         # Add device if not found since token is valid
                         current_time = int(time.time())
                         user_devices[device_fingerprint] = {
@@ -1077,6 +1088,10 @@ async def get_session(
                         await directus_service.update_user_devices(user_id, encrypted_updated_devices)
                         logger.info(f"Added new device {device_fingerprint} to user devices")
                     else:
+                        # Use existing location data from user_devices instead of recalculating
+                        if not device_location:
+                            device_location = user_devices[device_fingerprint].get("loc")
+                        
                         # Update the last access time for the device
                         current_time = int(time.time())
                         user_devices[device_fingerprint]["recent"] = current_time
@@ -1115,10 +1130,10 @@ async def get_session(
                     
             # Use the new token for caching if available
             if new_refresh_token:
-                # Update token_to_use to the new token
-                token_to_use = new_refresh_token
+                # Update refresh_token to the new token
+                refresh_token = new_refresh_token
                 # Update the token hash for the cache key
-                token_hash = hashlib.sha256(token_to_use.encode()).hexdigest()
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
                 cache_key = f"session:{token_hash}"
                 user_key = f"user_token:{token_hash}"
                 logger.info(f"Using new token for cache. Key hash: {token_hash[:6]}...{token_hash[-6:]}")

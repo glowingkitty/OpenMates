@@ -4,6 +4,7 @@ import logging
 import asyncio
 import uuid
 import json
+import hashlib  # Add missing hashlib import
 from fastapi import HTTPException, Depends
 from app.services.cache import CacheService
 from app.utils.email_hash import hash_email
@@ -380,16 +381,15 @@ class DirectusService:
             
             needs_update = False
             if device_fingerprint in devices_dict:
-                # Only update if the recent timestamp has changed significantly (> 1 hour)
-                # to avoid excessive writes to the database
+                # For existing devices: Keep existing location, only update timestamp
                 last_update = devices_dict[device_fingerprint].get("recent", 0)
                 if (current_time - last_update) > 3600:  # 1 hour
                     devices_dict[device_fingerprint]["recent"] = current_time
                     needs_update = True
             else:
-                # Add new device
+                # For new devices: Add with provided location data
                 devices_dict[device_fingerprint] = {
-                    "loc": device_location,
+                    "loc": device_location,  # Store the location for new device
                     "first": current_time,
                     "recent": current_time
                 }
@@ -659,18 +659,19 @@ class DirectusService:
                 # Check if we have cached user data for this token to use as fallback
                 token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
                 cache_key = f"session:{token_hash}"
-                cached_session = await self.cache.get(cache_key)
-                cached_user_data = cached_session.get("user_id") if cached_session else None
+                cached_session = await self.cache.get(cache_key) or None  # Initialize with None if not found
                 
-                # Make request to Directus refresh endpoint - send as cookie instead of JSON payload
-                async with httpx.AsyncClient(timeout=2.0) as client:  # Shorter timeout for faster failure detection
-                    # We need to send the refresh token in the payload now
+                # Make request to Directus refresh endpoint
+                # Set both cookies AND json payload for maximum compatibility
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    # Create cookies dict with the refresh token
+                    cookies = {"directus_refresh_token": refresh_token}
+                    
+                    # Make the request with both cookies and JSON payload
                     response = await client.post(
                         f"{self.base_url}/auth/refresh",
-                        json={
-                            "refresh_token": refresh_token,
-                            "mode": "cookie"
-                        },
+                        json={"refresh_token": refresh_token, "mode": "cookie"},
+                        cookies=cookies,
                         headers={"Content-Type": "application/json"}
                     )
                 
