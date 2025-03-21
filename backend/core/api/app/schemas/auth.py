@@ -80,10 +80,8 @@ class LogoutResponse(BaseModel):
         }
 
 class SessionResponse(BaseModel):
-    """Schema for current user session data"""
-    authenticated: bool = False
-    # Use empty string as default instead of None for string fields
-    id: Optional[str] = ""  
-    username: Optional[str] = ""
-    is_admin: bool = False
-    avatar_url: Optional[str] = None
+    """Response for session endpoint"""
+    success: bool
+    message: str
+    user: Optional[dict] = None
+    token_refresh_needed: bool = False

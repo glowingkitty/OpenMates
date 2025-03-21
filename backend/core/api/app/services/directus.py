@@ -422,6 +422,27 @@ class DirectusService:
             logger.error(error_msg, exc_info=True)
             return False, error_msg
 
+    async def update_user_devices(self, user_id: str, encrypted_devices: str) -> Tuple[bool, str]:
+        """
+        Update a user's encrypted devices directly
+        """
+        try:
+            # Update the user record with new encrypted devices
+            url = f"{self.base_url}/users/{user_id}"
+            update_data = {"encrypted_devices": encrypted_devices}
+            
+            response = await self._make_api_request("PATCH", url, json=update_data)
+            
+            if response.status_code == 200:
+                return True, "Devices updated successfully"
+            else:
+                return False, f"Failed to update devices: {response.status_code}"
+                
+        except Exception as e:
+            error_msg = f"Error updating devices: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return False, error_msg
+
     async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Authenticate a user with Directus
@@ -500,10 +521,12 @@ class DirectusService:
         - Returns (success, message)
         """
         try:
+            if not refresh_token:
+                logger.warning("No refresh token provided for logout")
+                return False, "No refresh token provided"
+                
             # Prepare logout payload
-            logout_data = {}
-            if refresh_token:
-                logout_data["refresh_token"] = refresh_token
+            logout_data = {"refresh_token": refresh_token}
             
             # Make request to Directus logout endpoint using async httpx
             async with httpx.AsyncClient() as client:
@@ -513,9 +536,10 @@ class DirectusService:
                 )
             
             if response.status_code == 200:
+                logger.info("Logout successful on Directus")
                 return True, "Logout successful"
             else:
-                error_msg = f"Logout failed: {response.text}"
+                error_msg = f"Logout failed: {response.status_code}: {response.text}"
                 logger.warning(error_msg)
                 return False, error_msg
                 
@@ -539,10 +563,12 @@ class DirectusService:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/auth/logout/all",
-                    headers={"Authorization": f"Bearer {token}"}
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"user": user_id}  # Add user parameter to specify which user
                 )
             
             if response.status_code == 200:
+                logger.info(f"All sessions logged out for user {user_id}")
                 return True, "All sessions logged out"
             else:
                 error_msg = f"Logout all failed: {response.status_code}: {response.text}"
@@ -553,7 +579,7 @@ class DirectusService:
             error_msg = f"Error during logout all: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
-    
+
     async def get_user_by_email(self, email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Find a user by their email address
@@ -631,18 +657,20 @@ class DirectusService:
                 logger.info(f"Attempting to refresh token with: {masked_token}" + (f" (attempt {attempt+1}/{max_retries+1})" if attempt > 0 else ""))
                 
                 # Check if we have cached user data for this token to use as fallback
-                cache_key = f"user_data:{hash(refresh_token)}"
-                cached_user_data = await self.cache.get(cache_key)
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                cache_key = f"session:{token_hash}"
+                cached_session = await self.cache.get(cache_key)
+                cached_user_data = cached_session.get("user_id") if cached_session else None
                 
                 # Make request to Directus refresh endpoint - send as cookie instead of JSON payload
                 async with httpx.AsyncClient(timeout=2.0) as client:  # Shorter timeout for faster failure detection
-                    # Set the refresh token in cookies as Directus expects it
-                    cookies = {"directus_refresh_token": refresh_token}
-                    
+                    # We need to send the refresh token in the payload now
                     response = await client.post(
                         f"{self.base_url}/auth/refresh",
-                        json={"mode": "cookie"},  # Specify cookie mode but don't include token in payload
-                        cookies=cookies,  # Send the refresh token in cookie
+                        json={
+                            "refresh_token": refresh_token,
+                            "mode": "cookie"
+                        },
                         headers={"Content-Type": "application/json"}
                     )
                 
@@ -679,7 +707,10 @@ class DirectusService:
                                 auth_data["user"] = user_data
                                 
                                 # Cache user data for fallback in case of future failures
-                                await self.cache.set(cache_key, user_data, ttl=3600)  # 1 hour cache
+                                if cached_session:
+                                    cached_session["user_id"] = user_data.get("id")
+                                    cached_session["username"] = user_data.get("username")
+                                    await self.cache.set(cache_key, cached_session, ttl=3600)  # Update cache
                     
                         # Extract cookies for setting in our response - httpx cookies are a dictionary-like object
                         cookies_dict = dict(response.cookies)
@@ -697,11 +728,15 @@ class DirectusService:
                             continue
                         
                         # If we have cached user data, use it as a fallback on the last attempt
-                        if cached_user_data:
+                        if cached_session:
                             logger.info("Using cached user data as fallback after service unavailable")
                             # We can't refresh the token, but we can return the user data to avoid logout
                             return True, {
-                                "user": cached_user_data,
+                                "user": {
+                                    "id": cached_session.get("user_id"),
+                                    "username": cached_session.get("username"),
+                                    "is_admin": cached_session.get("is_admin", False)
+                                },
                                 "cookies": {}  # No new cookies to set
                             }, "Using cached user data due to service unavailability"
                         
@@ -714,10 +749,14 @@ class DirectusService:
                         logger.error(error_msg)
                         
                         # If we have cached user data, try to use it as a fallback
-                        if cached_user_data:
+                        if cached_session:
                             logger.info("Using cached user data as fallback after refresh failure")
                             return True, {
-                                "user": cached_user_data,
+                                "user": {
+                                    "id": cached_session.get("user_id"),
+                                    "username": cached_session.get("username"),
+                                    "is_admin": cached_session.get("is_admin", False)
+                                },
                                 "cookies": {}  # No new cookies to set
                             }, "Using cached user data due to refresh failure"
                             
@@ -732,10 +771,14 @@ class DirectusService:
                     await asyncio.sleep(fixed_delay)
                 else:
                     # Check for cached user data on last attempt
-                    if cached_user_data:
+                    if cached_session:
                         logger.info("Using cached user data as fallback after exception")
                         return True, {
-                            "user": cached_user_data,
+                            "user": {
+                                "id": cached_session.get("user_id"),
+                                "username": cached_session.get("username"),
+                                "is_admin": cached_session.get("is_admin", False)
+                            },
                             "cookies": {}
                         }, "Using cached user data due to errors"
                     
@@ -821,8 +864,7 @@ class DirectusService:
                 return 0
                 
         except Exception as e:
-            error_msg = f"Error getting active users: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(f"Error getting active users: {str(e)}")
             return 0
 
     async def check_user_device(self, user_id: str, device_fingerprint: str) -> bool:

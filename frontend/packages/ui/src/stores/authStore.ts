@@ -27,13 +27,13 @@ function createAuthStore() {
   return {
     subscribe,
     
-    // Check authentication status using refresh token
+    // Check authentication status using session endpoint
     checkAuth: async (): Promise<boolean> => {
       isCheckingAuth.set(true);
       
       try {
-        console.debug("Checking authentication with refresh token...");
-        const response = await fetch(getApiEndpoint(apiEndpoints.auth.token_refresh), {
+        console.debug("Checking authentication with session endpoint...");
+        const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
@@ -44,8 +44,7 @@ function createAuthStore() {
           credentials: 'include' // Critical for sending cookies
         });
 
-        // Even if response is not OK, we still process it as the server may return 200
-        // with a "Not logged in" message for various authentication failure cases
+        // Process the response
         const data = await response.json();
         
         if (data.success && data.user) {

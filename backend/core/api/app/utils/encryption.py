@@ -15,11 +15,16 @@ class EncryptionService:
     Service for encrypting/decrypting sensitive user data using HashiCorp Vault
     """
     
-    def __init__(self):
+    def __init__(self, cache_service=None):
         self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
         self.vault_token = os.environ.get("VAULT_TOKEN", "root") 
         self.transit_mount = "transit"  # The Vault transit engine mount path
         self._client = None
+        self.cache = cache_service  # Store the cache service
+        
+        # Add caching properties
+        self._token_valid_until = 0  # Token validation expiry timestamp
+        self._token_validation_ttl = 300  # Cache token validation for 5 minutes
         
         # Path where vault-setup saves the root token - try multiple possible locations
         self.token_file_paths = [
@@ -43,7 +48,7 @@ class EncryptionService:
         if file_token:
             self.vault_token = file_token
             masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
-            logger.info(f"Updated token from file on init: {masked_token}")
+            logger.debug(f"Updated token from file on init: {masked_token}")
     
     async def _get_client(self):
         """Get or create httpx client"""
@@ -53,18 +58,24 @@ class EncryptionService:
     
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup"""
+        # Check if we have a cached token
+        if hasattr(self, '_cached_file_token') and self._cached_file_token:
+            return self._cached_file_token
+            
         for token_path in self.token_file_paths:
             try:
                 logger.debug(f"Looking for token file at {token_path}")
                 if os.path.exists(token_path):
-                    logger.info(f"Token file found at {token_path}")
+                    logger.debug(f"Token file found at {token_path}")
                     
                     with open(token_path, 'r') as f:
                         token = f.read().strip()
                         
                     if token:
                         masked_token = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
-                        logger.info(f"Retrieved token from file: {masked_token}")
+                        logger.debug(f"Retrieved token from file: {masked_token}")
+                        # Cache the token in memory
+                        self._cached_file_token = token
                         return token
                     else:
                         logger.warning(f"Token file at {token_path} is empty")
@@ -75,7 +86,7 @@ class EncryptionService:
         # If we get here, check if the directory exists and list contents for debugging
         for directory in set(os.path.dirname(p) for p in self.token_file_paths):
             if os.path.exists(directory):
-                logger.info(f"Directory {directory} exists. Contents: {os.listdir(directory)}")
+                logger.debug(f"Directory {directory} exists. Contents: {os.listdir(directory)}")
             else:
                 logger.warning(f"Directory {directory} does not exist")
                 
@@ -84,11 +95,17 @@ class EncryptionService:
     
     async def _validate_token(self):
         """Validate if the current token is valid and has the necessary permissions"""
+        # Check if we have a cached validation result
+        current_time = time.time()
+        if self._token_valid_until > current_time:
+            logger.debug("Using cached token validation result")
+            return True
+            
         try:
             # Always try to get the token from file first in case it was just created
             file_token = self._get_token_from_file()
             if file_token and file_token != self.vault_token:
-                logger.info("Found newer token in file, updating")
+                logger.debug("Found newer token in file, updating")
                 self.vault_token = file_token
             
             client = await self._get_client()
@@ -98,10 +115,12 @@ class EncryptionService:
             response = await client.get(url, headers=headers)
             if response.status_code == 200:
                 token_info = response.json().get("data", {})
-                logger.info(f"Vault token is valid. Policies: {token_info.get('policies', [])}")
+                logger.debug(f"Vault token is valid. Policies: {token_info.get('policies', [])}")
+                # Cache the validation result
+                self._token_valid_until = current_time + self._token_validation_ttl
                 return True
             
-            logger.warning(f"Vault token validation failed: {response.status_code} - {response.text}")
+            logger.warning(f"Vault token validation failed: {response.status_code}")
             
             # If the current token failed, try to get a fresh one from the file
             file_token = self._get_token_from_file()
@@ -114,20 +133,32 @@ class EncryptionService:
                 response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     token_info = response.json().get("data", {})
-                    logger.info(f"Token from file is valid. Policies: {token_info.get('policies', [])}")
+                    logger.debug(f"Token from file is valid. Policies: {token_info.get('policies', [])}")
+                    # Cache the validation result
+                    self._token_valid_until = current_time + self._token_validation_ttl
                     return True
                 
-                logger.warning(f"Token from file also failed: {response.status_code} - {response.text}")
+                logger.warning(f"Token from file also failed: {response.status_code}")
             
+            # Reset the validation timestamp
+            self._token_valid_until = 0
             return False
         except Exception as e:
             logger.error(f"Error validating Vault token: {str(e)}")
+            # Reset the validation timestamp
+            self._token_valid_until = 0
             return False
     
     async def wait_for_valid_token(self, max_attempts=30, delay=2):
         """Wait for a valid token to become available"""
-        logger.info(f"Waiting for valid Vault token (max {max_attempts} attempts, {delay}s delay)")
+        logger.debug(f"Waiting for valid Vault token (max {max_attempts} attempts, {delay}s delay)")
         
+        # Check if we already have a valid token (based on cached result)
+        current_time = time.time()
+        if self._token_valid_until > current_time:
+            logger.debug("Using cached valid token")
+            return True
+            
         for attempt in range(max_attempts):
             # Try to get token from file
             file_token = self._get_token_from_file()
@@ -135,10 +166,10 @@ class EncryptionService:
                 self.vault_token = file_token
                 
                 if await self._validate_token():
-                    logger.info(f"Found valid token after {attempt+1} attempts")
+                    logger.debug(f"Found valid token after {attempt+1} attempts")
                     return True
             
-            logger.info(f"No valid token found (attempt {attempt+1}/{max_attempts}), waiting {delay}s...")
+            logger.debug(f"No valid token found (attempt {attempt+1}/{max_attempts}), waiting {delay}s...")
             time.sleep(delay)
         
         logger.error(f"Failed to find valid token after {max_attempts} attempts")
@@ -149,17 +180,15 @@ class EncryptionService:
         client = await self._get_client()
         url = f"{self.vault_url}/v1/{path}"
         
-        # Wait for a valid token if this is our first request
-        if not hasattr(self, '_token_validated') or not self._token_validated:
-            await self.wait_for_valid_token()
-            self._token_validated = True
+        # Only do full validation if we don't have a cached result
+        current_time = time.time()
+        if self._token_valid_until <= current_time:
+            # This will use the cached result if available
+            if not await self._validate_token():
+                logger.error("Cannot proceed with Vault request - invalid token")
+                raise Exception("Invalid Vault token")
         
         headers = {"X-Vault-Token": self.vault_token}
-        
-        # Validate token before making the actual request
-        if not await self._validate_token():
-            logger.error("Cannot proceed with Vault request - invalid token")
-            raise Exception("Invalid Vault token")
         
         try:
             # Make the request
@@ -171,19 +200,44 @@ class EncryptionService:
             # Check for common error statuses
             if response.status_code == 403:
                 logger.error(f"Vault permission denied: {response.text}")
+                # Reset token validation cache on permission error
+                self._token_valid_until = 0
                 raise Exception(f"Permission denied in Vault: {path}")
             elif response.status_code == 404:
                 # Not necessarily an error if checking if something exists
-                logger.warning(f"Vault resource not found: {path}")
+                logger.debug(f"Vault resource not found: {path}")
                 return {"data": {}}
+            elif response.status_code == 401:
+                logger.warning(f"Vault token expired or invalid")
+                # Reset token validation cache
+                self._token_valid_until = 0
+                raise Exception(f"Vault token is expired or invalid")
             elif response.status_code != 200:
-                logger.error(f"Vault request failed: {response.status_code} - {response.text}")
+                logger.error(f"Vault request failed: {response.status_code}")
                 raise Exception(f"Vault request failed with status {response.status_code}")
             
             return response.json()
         except Exception as e:
             logger.error(f"Error in Vault request: {str(e)}")
             raise
+    
+    # Initialize token specifically at startup
+    async def initialize(self):
+        """Initialize the encryption service at startup"""
+        logger.info("Initializing encryption service")
+        # Get and validate token
+        file_token = self._get_token_from_file()
+        if file_token:
+            self.vault_token = file_token
+        
+        # Validate the token and cache the result
+        valid = await self._validate_token()
+        if valid:
+            logger.info("Encryption service successfully initialized with valid token")
+            return True
+        else:
+            logger.warning("Failed to initialize encryption service with valid token")
+            return False
     
     async def ensure_keys_exist(self):
         """Ensure encryption engine is enabled in Vault with improved error handling"""

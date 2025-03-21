@@ -1,5 +1,3 @@
-import { verify } from "crypto";
-
 // API base URLs from environment
 export const apiUrls = {
     development: import.meta.env.VITE_API_URL_DEV || 'http://localhost:8000',
@@ -19,7 +17,7 @@ export const apiEndpoints = {
         login:                      '/v1/auth/login',                          // Login with username/email and password
         logout:                     '/v1/auth/logout',                         // Logout and invalidate token
         logoutAll:                  '/v1/auth/logout/all',                     // Logout all sessions
-        token_refresh:              '/v1/auth/refresh',                        // Refresh login token
+        session:                    '/v1/auth/session',                        // New session endpoint
         
         // Registration and verification
         check_invite_token_valid:   '/v1/auth/check_invite_token_valid',       // Check if invite token is valid

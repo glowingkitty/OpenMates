@@ -112,7 +112,7 @@ compliance_handler.setFormatter(compliance_formatter)
 compliance_handler.addFilter(sensitive_filter)  # Add filter to compliance handler as well
 compliance_logger.addHandler(compliance_handler)
 
-# Make sure auth module logs at INFO level appear in console
+logging.getLogger("app.utils.encryption").setLevel(logging.INFO)
 logging.getLogger("app.routes.auth").setLevel(logging.INFO)
 
 # Load environment variables
@@ -138,6 +138,22 @@ async def lifespan(app: FastAPI):
     import asyncio
     loop = asyncio.get_event_loop()
     app.state.loop = loop
+    
+    # Initialize encryption service at startup to prevent delays on first request
+    from app.utils.encryption import EncryptionService
+    encryption_service = EncryptionService(cache_service=cache_service)
+    app.state.encryption_service = encryption_service
+    
+    try:
+        # Initialize encryption service first
+        logger.info("Initializing encryption service...")
+        await encryption_service.initialize()
+        
+        # Ensure transit engine is ready for encryption operations
+        logger.info("Ensuring encryption keys exist...")
+        await encryption_service.ensure_keys_exist()
+    except Exception as e:
+        logger.error(f"Failed to initialize encryption service: {str(e)}", exc_info=True)
     
     # Startup logic
     logger.info("Preloading invite codes into cache...")
@@ -171,6 +187,10 @@ async def lifespan(app: FastAPI):
             await app.state.metrics_task
         except asyncio.CancelledError:
             logger.info("Metrics update task cancelled")
+            
+    # Close encryption service client
+    if hasattr(app.state, 'encryption_service'):
+        await app.state.encryption_service.close()
 
 # Create FastAPI application with lifespan
 def create_app() -> FastAPI:
