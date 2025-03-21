@@ -258,10 +258,6 @@
 
             if (!result.success) {
                 loginFailedWarning = true;
-                if (result.message) {
-                    emailError = result.message;
-                    showEmailWarning = true;
-                }
                 return;
             }
 
