@@ -213,15 +213,31 @@ class UserDatabaseService {
             const transaction = this.db!.transaction([this.STORE_NAME], 'readonly');
             const store = transaction.objectStore(this.STORE_NAME);
             
-            const request = store.get('userData');
+            const username = store.get('username');
+            const isAdmin = store.get('isAdmin');
+            const profileImageUrl = store.get('profileImageUrl');
+            const credits = store.get('credits');
             
-            request.onsuccess = () => {
-                resolve(request.result || null);
+            let userData: User = {
+                username: '',
+                isAdmin: false,
+                profileImageUrl: null,
+                credits: 0
             };
 
-            request.onerror = () => {
-                console.error("[UserDatabase] Error retrieving user data:", request.error);
-                reject(request.error);
+            username.onsuccess = () => userData.username = username.result || '';
+            isAdmin.onsuccess = () => userData.isAdmin = !!isAdmin.result;
+            profileImageUrl.onsuccess = () => userData.profileImageUrl = profileImageUrl.result;
+            credits.onsuccess = () => userData.credits = credits.result || 0;
+
+            transaction.oncomplete = () => {
+                console.debug("[UserDatabase] User data retrieved:", userData);
+                resolve(userData);
+            };
+
+            transaction.onerror = () => {
+                console.error("[UserDatabase] Error retrieving user data:", transaction.error);
+                reject(transaction.error);
             };
         });
     }
@@ -234,55 +250,35 @@ class UserDatabaseService {
             await this.init();
         }
 
-        return new Promise(async (resolve, reject) => {
-            try {
-                // Get current data first
-                const currentData = await this.getUserData();
-                if (!currentData) {
-                    throw new Error("No user data found to update");
-                }
-
-                // Merge with new data
-                const updatedData = {
-                    ...currentData,
-                    ...partialData
-                };
-
-                // Update individual fields
-                const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(this.STORE_NAME);
-                
-                if (partialData.username !== undefined) {
-                    store.put(partialData.username, 'username');
-                }
-                
-                if (partialData.profileImageUrl !== undefined) {
-                    store.put(partialData.profileImageUrl, 'profileImageUrl');
-                }
-                
-                if (partialData.credits !== undefined) {
-                    store.put(partialData.credits, 'credits');
-                }
-                
-                if (partialData.isAdmin !== undefined) {
-                    store.put(partialData.isAdmin, 'isAdmin');
-                }
-                
-                // Also update the complete user object
-                store.put(updatedData, 'userData');
-                
-                transaction.oncomplete = () => {
-                    console.debug("[UserDatabase] User data updated successfully");
-                    resolve();
-                };
-                
-                transaction.onerror = () => {
-                    console.error("[UserDatabase] Error updating user data:", transaction.error);
-                    reject(transaction.error);
-                };
-            } catch (error) {
-                reject(error);
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.STORE_NAME);
+            
+            if (partialData.username !== undefined) {
+                store.put(partialData.username, 'username');
             }
+            
+            if (partialData.profileImageUrl !== undefined) {
+                store.put(partialData.profileImageUrl, 'profileImageUrl');
+            }
+            
+            if (partialData.credits !== undefined) {
+                store.put(partialData.credits, 'credits');
+            }
+            
+            if (partialData.isAdmin !== undefined) {
+                store.put(partialData.isAdmin, 'isAdmin');
+            }
+            
+            transaction.oncomplete = () => {
+                console.debug("[UserDatabase] User data updated successfully");
+                resolve();
+            };
+            
+            transaction.onerror = () => {
+                console.error("[UserDatabase] Error updating user data:", transaction.error);
+                reject(transaction.error);
+            };
         });
     }
 }
