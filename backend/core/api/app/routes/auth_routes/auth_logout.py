@@ -9,6 +9,7 @@ from app.routes.auth_routes.auth_dependencies import get_directus_service, get_c
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 @router.post("/logout", response_model=LogoutResponse)
 async def logout(

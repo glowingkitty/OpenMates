@@ -5,6 +5,7 @@ import time
 from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def create_user(self, username: str, email: str, password: str, 
                       is_admin: bool = False, role: str = None,

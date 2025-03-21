@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def get_user_by_email(self, email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """

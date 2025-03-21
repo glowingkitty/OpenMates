@@ -12,6 +12,7 @@ from app.routes.auth_routes.auth_dependencies import get_directus_service, get_c
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 @router.post("/session", response_model=SessionResponse)
 async def get_session(
@@ -71,83 +72,99 @@ async def get_session(
             vault_key_id = cached_session.get("vault_key_id")
             cached_devices = cached_session.get("devices", {})
             
-            logger.info(f"Cached session for user: {username}, expires: {token_expiry}")
+            # Debug log the cached data
+            logger.info("[Cache Debug] Retrieved cached session data:")
+            logger.info(f"  User ID: {user_id}")
+            logger.info(f"  Username: {username}")
+            logger.info(f"  Is Admin: {is_admin}")
+            logger.info(f"  Credits: {credits}")
+            logger.info(f"  Token Expiry: {token_expiry}")
+            logger.info(f"  Vault Key ID: {vault_key_id}")
+            logger.info(f"  Devices count: {len(cached_devices)}")
             
-            # Check if this device is authorized
-            device_authorized = device_fingerprint in cached_devices
-            
-            if not device_authorized:
-                logger.warning(f"Device fingerprint not found in cached session devices")
-                # Check in directus if device exists there but not in cache
-                if user_id:
-                    # For potentially new devices, get the location only when needed
-                    if not device_location:
-                        device_location = get_location_from_ip(get_client_ip(request))
-                    
-                    device_in_directus = await directus_service.check_user_device(user_id, device_fingerprint)
-                    if device_in_directus:
-                        # Device exists in Directus but not in cache, update cache
-                        logger.info("Device found in Directus but not in cache, adding to cache")
-                        current_time = int(time.time())
-                        if not cached_devices:
-                            cached_devices = {}
-                        cached_devices[device_fingerprint] = {
-                            "loc": device_location,
-                            "first": current_time,
-                            "recent": current_time
-                        }
-                        # Update session in cache
-                        cached_session["devices"] = cached_devices
-                        await cache_service.set(cache_key, cached_session, ttl=86400)
-                        device_authorized = True
+            # Force refresh if username is None or missing
+            if not username:
+                logger.warning("Username is None in cached data - forcing refresh")
+                cached_session = None
+                
+            else:
+                logger.info(f"Cached session for user: {username}, expires: {token_expiry}")
+                
+                # Check if this device is authorized
+                device_authorized = device_fingerprint in cached_devices
                 
                 if not device_authorized:
-                    logger.warning("Device not authorized for this session")
-                    # Don't clear session - it might be valid for other devices
+                    logger.warning(f"Device fingerprint not found in cached session devices")
+                    # Check in directus if device exists there but not in cache
+                    if user_id:
+                        # For potentially new devices, get the location only when needed
+                        if not device_location:
+                            device_location = get_location_from_ip(get_client_ip(request))
+                        
+                        device_in_directus = await directus_service.check_user_device(user_id, device_fingerprint)
+                        if device_in_directus:
+                            # Device exists in Directus but not in cache, update cache
+                            logger.info("Device found in Directus but not in cache, adding to cache")
+                            current_time = int(time.time())
+                            if not cached_devices:
+                                cached_devices = {}
+                            cached_devices[device_fingerprint] = {
+                                "loc": device_location,
+                                "first": current_time,
+                                "recent": current_time
+                            }
+                            # Update session in cache
+                            cached_session["devices"] = cached_devices
+                            await cache_service.set(cache_key, cached_session, ttl=86400)
+                            device_authorized = True
+                    
+                    if not device_authorized:
+                        logger.warning("Device not authorized for this session")
+                        # Don't clear session - it might be valid for other devices
+                        return SessionResponse(
+                            success=False,
+                            message="Session not valid for this device",
+                            token_refresh_needed=False
+                        )
+                
+                # For authorized devices, retrieve location from cache instead of recalculating
+                if device_fingerprint in cached_devices and not device_location:
+                    device_location = cached_devices[device_fingerprint].get("loc")
+                
+                # Check if token is about to expire (within 5 minutes)
+                current_time = int(time.time())
+                token_needs_refresh = False
+                
+                if token_expiry and token_expiry - current_time < 300:  # Less than 5 minutes left
+                    logger.info(f"Token expiry approaching (expires at {token_expiry}, now {current_time}), refreshing")
+                    token_needs_refresh = True
+                
+                # If token is still valid and not about to expire, return cached data
+                if token_expiry and token_expiry > current_time and not token_needs_refresh:
+                    # Update last access time for the device
+                    if cached_devices and device_fingerprint in cached_devices:
+                        cached_devices[device_fingerprint]["recent"] = current_time
+                        # Update the cache with the new device access time
+                        cached_session["devices"] = cached_devices
+                        await cache_service.set(cache_key, cached_session, ttl=86400)  # Update with 24h TTL
+                    
+                    # Return success with cached user data
+                    logger.info("Using cached session data - token still valid")
                     return SessionResponse(
-                        success=False,
-                        message="Session not valid for this device",
+                        success=True,
+                        message="Session valid",
+                        user={
+                            "id": user_id,
+                            "username": username,
+                            "is_admin": is_admin,
+                            "credits": credits,
+                            "last_opened": cached_session.get("last_opened")
+                        },
                         token_refresh_needed=False
                     )
-            
-            # For authorized devices, retrieve location from cache instead of recalculating
-            if device_fingerprint in cached_devices and not device_location:
-                device_location = cached_devices[device_fingerprint].get("loc")
-            
-            # Check if token is about to expire (within 5 minutes)
-            current_time = int(time.time())
-            token_needs_refresh = False
-            
-            if token_expiry and token_expiry - current_time < 300:  # Less than 5 minutes left
-                logger.info(f"Token expiry approaching (expires at {token_expiry}, now {current_time}), refreshing")
-                token_needs_refresh = True
-            
-            # If token is still valid and not about to expire, return cached data
-            if token_expiry and token_expiry > current_time and not token_needs_refresh:
-                # Update last access time for the device
-                if cached_devices and device_fingerprint in cached_devices:
-                    cached_devices[device_fingerprint]["recent"] = current_time
-                    # Update the cache with the new device access time
-                    cached_session["devices"] = cached_devices
-                    await cache_service.set(cache_key, cached_session, ttl=86400)  # Update with 24h TTL
-                
-                # Return success with cached user data
-                logger.info("Using cached session data - token still valid")
-                return SessionResponse(
-                    success=True,
-                    message="Session valid",
-                    user={
-                        "id": user_id,
-                        "username": username,
-                        "is_admin": is_admin,
-                        "credits": credits,
-                        "last_opened": cached_session.get("last_opened")
-                    },
-                    token_refresh_needed=False
-                )
-                
-            # If token needs refresh, continue to the refresh process
-            logger.info(f"Cache found but token needs refreshing (expiry: {token_expiry}, now: {current_time})")
+                    
+                # If token needs refresh, continue to the refresh process
+                logger.info(f"Cache found but token needs refreshing (expiry: {token_expiry}, now: {current_time})")
         else:
             logger.info("No session found in cache, will refresh token")
                 
@@ -273,7 +290,15 @@ async def get_session(
                 "last_opened": user_data.get("last_opened")
             }
             
-            logger.info(f"Caching session data with TTL: 86400, expiry: {token_expiry}")
+            logger.info(f"[Cache Debug] Caching session data for user {user_id}:")
+            logger.info(f"  Username: {username}")
+            logger.info(f"  Is Admin: {is_admin}")
+            logger.info(f"  Credits: {credits}")
+            logger.info(f"  Token Expiry: {token_expiry}")
+            logger.info(f"  Vault Key ID: {vault_key_id}")
+            logger.info(f"  Last Opened: {user_data.get('last_opened')}")
+            logger.info(f"  Devices count: {len(user_devices)}")
+            
             await cache_service.set(cache_key, session_data, ttl=86400)  # 24 hour TTL
             
             # Link token to user id for logout handling

@@ -1,7 +1,9 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import type { User } from '../types/user';
 import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
+import { userDB } from '../services/userDB';
+import { updateProfile } from './userProfile';
 
 // Define the types for the auth store
 interface AuthState {
@@ -59,19 +61,35 @@ function createAuthStore() {
             isInSignupProcess.set(false);
           }
           
+          const userData = {
+            id: data.user.id,
+            username: data.user.username || 'User',
+            isAdmin: data.user.is_admin || false,
+            profileImageUrl: data.user.profile_image_url || data.user.avatar_url || null, // Handle both field names
+            last_opened: data.user.last_opened || null,
+            credits: data.user.credits || 0
+          };
+          
           update(state => ({
             ...state,
             isAuthenticated: true,
             isInitialized: true,
-            user: {
-              id: data.user.id,
-              username: data.user.username || 'User',
-              isAdmin: data.user.is_admin || false,
-              profileImageUrl: data.user.avatar_url || null,
-              last_opened: data.user.last_opened || null,
-              credits: data.user.credits || 0
-            }
+            user: userData
           }));
+          
+          // Save the user data to IndexedDB
+          try {
+            await userDB.saveUserData(userData);
+            
+            // Update the user profile store
+            updateProfile({
+              username: userData.username,
+              profileImageUrl: userData.profileImageUrl,
+              credits: userData.credits
+            });
+          } catch (dbError) {
+            console.error("Failed to save user data to database:", dbError);
+          }
           
           return true;
         } else {
@@ -145,19 +163,35 @@ function createAuthStore() {
             isInSignupProcess.set(false);
           }
           
+          const userData = {
+            id: data.user.id,
+            username: data.user.username || 'User',
+            isAdmin: data.user.is_admin || false,
+            profileImageUrl: data.user.profile_image_url || data.user.avatar_url || null, // Handle both field names
+            last_opened: data.user.last_opened || null,
+            credits: data.user.credits || 0
+          };
+          
           update(state => ({
             ...state,
             isAuthenticated: true,
             isInitialized: true,
-            user: {
-              id: data.user.id,
-              username: data.user.username || 'User',
-              isAdmin: data.user.is_admin || false,
-              profileImageUrl: data.user.avatar_url || null,
-              last_opened: data.user.last_opened || null,
-              credits: data.user.credits || 0
-            }
+            user: userData
           }));
+          
+          // Save the user data to IndexedDB
+          try {
+            await userDB.saveUserData(userData);
+            
+            // Update the user profile store
+            updateProfile({
+              username: userData.username,
+              profileImageUrl: userData.profileImageUrl,
+              credits: userData.credits
+            });
+          } catch (dbError) {
+            console.error("Failed to save user data to database:", dbError);
+          }
           
           return { success: true, inSignupFlow };
         } else {
@@ -258,6 +292,13 @@ function createAuthStore() {
         // Call post-server-logout callback if provided
         if (callbacks?.afterServerLogout) {
           await callbacks.afterServerLogout();
+        }
+        
+        // Clear user data from IndexedDB
+        try {
+          await userDB.clearUserData();
+        } catch (dbError) {
+          console.error("Failed to clear user data from database:", dbError);
         }
         
         // Reset the store state

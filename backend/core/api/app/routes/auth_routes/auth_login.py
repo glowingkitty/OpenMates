@@ -10,9 +10,11 @@ from app.services.limiter import limiter
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
 from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
+import json
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
@@ -28,7 +30,6 @@ async def login(
     """
     Authenticate a user and create a session
     """
-    # Add clear request log at INFO level
     logger.info(f"Processing login request for email: {login_data.email[:2]}***")
     
     try:
@@ -45,8 +46,22 @@ async def login(
         metrics_service.track_login_attempt(success)
         
         if success and auth_data:
-            # Set authentication cookies with proper prefixes
+            user = auth_data.get("user", {})
+            if user:
+                # We already have user data from login, fetch complete profile
+                logger.info("Fetching complete profile for user")
+                user_id = user.get("id")
+                if user_id:
+                    success, user_profile, _ = await directus_service.get_user_profile(user_id)
+                    if success and user_profile:
+                        logger.info("Successfully fetched user profile")
+                        # Update user data with complete profile
+                        user.update(user_profile)
+                        auth_data["user"] = user
+
+            # Set authentication cookies
             if "cookies" in auth_data:
+                logger.info(f"Setting {len(auth_data['cookies'])} cookies")
                 for name, value in auth_data["cookies"].items():
                     # Rename cookies to use our prefix instead of directus prefix
                     cookie_name = name
@@ -62,20 +77,19 @@ async def login(
                         max_age=86400  # 24 hours
                     )
             
-            # Get user ID for device tracking and compliance logging
-            user = auth_data.get("user", {}) or {}
-            
             if user and isinstance(user, dict):
                 user_id = user.get("id")
                 
                 if user_id:
                     # Get credits information
                     try:
+                        logger.info(f"Fetching credits for user")
                         credits_info = await directus_service.get_user_credits(user_id)
                         if credits_info:
                             user["credits"] = credits_info
+                            logger.info(f"Credits fetched successfully: {credits_info}")
                     except Exception as e:
-                        logger.error(f"Error getting credits for user {user_id}: {str(e)}")
+                        logger.error(f"Error getting credits for user: {str(e)}")
                         user["credits"] = 0
                     
                     # Check if this device is already known (in cache)
@@ -83,11 +97,14 @@ async def login(
                     existing_device = await cache_service.get(cache_key)
                     is_new_device = existing_device is None
                     
+                    logger.info(f"Device check - New device: {is_new_device}")
+                    
                     if is_new_device:
                         # Check if it's in the database but not in cache
                         device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
                         is_new_device = not device_in_db
-                    
+                        logger.info(f"Device in DB check - Still new device: {is_new_device}")
+
                     # For security events (new device login), log with IP and eventually send email
                     if is_new_device:
                         compliance_service.log_auth_event(
@@ -138,10 +155,11 @@ async def login(
                         device_location=device_location
                     )
             
+            logger.info("Login completed successfully, returning user data")
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=user
+                user=auth_data.get("user", {})
             )
         else:
             # Failed login attempt - always log IP address for security events

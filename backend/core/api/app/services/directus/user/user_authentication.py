@@ -6,77 +6,92 @@ import json
 from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
     Authenticate a user with Directus
     - Converts real email to hash-based email for lookup
+    - Gets access token from login
+    - Uses access token to fetch user data
     - Returns (success, auth_data, message)
     """
     try:
         # Hash the email for login
         from app.utils.email_hash import hash_email
         hashed_email = hash_email(email)
-        
-        # Create a valid email format using the hash
         directus_email = f"{hashed_email[:64]}@example.com"
         
-        # Prepare login payload with the hash-based email
-        login_data = {
-            "email": directus_email,
-            "password": password,
-            "mode": "cookie"
-        }
-        
-        # Make request to Directus auth endpoint
+        # Step 1: Get access token via login
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            login_response = await client.post(
                 f"{self.base_url}/auth/login",
-                json=login_data
+                json={
+                    "email": directus_email,
+                    "password": password,
+                    "mode": "cookie"
+                }
             )
         
-        if response.status_code == 200:
-            auth_data = response.json().get("data", {})
+        if login_response.status_code != 200:
+            if login_response.status_code == 401:
+                logger.info("Login failed. Credentials wrong.")
+            else:
+                logger.error(f"Login failed: {login_response.status_code} - {login_response.text}")
+            return False, None, "Login failed. Credentials wrong."
             
-            # If we have user data, decrypt encrypted fields
-            if "user" in auth_data:
-                user_data = auth_data["user"]
+        login_data = login_response.json().get("data", {})
+        access_token = login_data.get("access_token")
+        
+        if not access_token:
+            logger.error("No access token received from login")
+            return False, None, "No access token received"
+
+        logger.info("Got access token from login")
+
+        # Step 2: Use access token to get user data
+        async with httpx.AsyncClient() as client:
+            user_response = await client.get(
+                f"{self.base_url}/users/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            
+            if user_response.status_code != 200:
+                logger.error(f"Failed to get user data: {user_response.status_code}")
+                return False, None, "Failed to get user data"
                 
-                # Get the user's vault key ID
-                vault_key_id = user_data.get("vault_key_id")
-                
-                # Try to decrypt the username for display
-                if vault_key_id and "encrypted_username" in user_data:
-                    try:
+            user_data = user_response.json().get("data", {})
+            
+            # Step 3: Decrypt user data if needed
+            vault_key_id = user_data.get("vault_key_id")
+            if vault_key_id:
+                try:
+                    # Decrypt username if present
+                    if "encrypted_username" in user_data:
                         decrypted_username = await self.encryption_service.decrypt_with_user_key(
-                            user_data["encrypted_username"], 
-                            vault_key_id
+                            user_data["encrypted_username"], vault_key_id
                         )
                         if decrypted_username:
                             user_data["username"] = decrypted_username
-                    except Exception as e:
-                        logger.error(f"Error decrypting username: {str(e)}")
+                            
+                    # Add more decryption here as needed
+                    
+                except Exception as e:
+                    logger.error(f"Error decrypting user data: {str(e)}")
             
-            # Extract cookies safely
+            # Extract cookies for session management
             cookies_dict = {}
             try:
-                for name, value in response.cookies.items():
+                for name, value in login_response.cookies.items():
                     cookies_dict[name] = value
             except Exception as e:
                 logger.error(f"Error processing cookies: {str(e)}")
-                
+            
             return True, {
-                "user": auth_data.get("user"),
+                "access_token": access_token,
+                "user": user_data,
                 "cookies": cookies_dict
             }, "Login successful"
-        else:
-            # Change from ERROR to INFO level for authentication failures (usually 401)
-            if response.status_code == 401:
-                logger.info("Login failed. Credentials wrong.")
-            else:
-                error_msg = f"Login failed: {response.status_code} - {response.text}"
-                logger.error(error_msg)
-            return False, None, "Login failed. Credentials wrong."
             
     except Exception as e:
         error_msg = f"Error during login: {str(e)}"
@@ -182,6 +197,10 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
                 if response.status_code == 200:
                     auth_data = response.json().get("data", {})
                     
+                    # Add debug log for raw user data
+                    logger.info("[Debug] Raw Directus user data:")
+                    logger.info(json.dumps(auth_data.get("user", {}), indent=2))
+                    
                     if "access_token" in auth_data:
                         # Get user data using the new access token
                         user_response = await client.get(
@@ -191,7 +210,20 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
                         
                         if user_response.status_code == 200:
                             user_data = user_response.json().get("data", {})
+                            
+                            # Log raw user data from /users/me endpoint
+                            logger.info("[Debug] Raw user data from /users/me:")
+                            logger.info(json.dumps(user_data, indent=2))
+                            
                             vault_key_id = user_data.get("vault_key_id")
+                            logger.info(f"[Debug] Found vault_key_id: {vault_key_id}")
+                            
+                            # Add debug logs for encrypted fields
+                            logger.info("[Debug] Available encrypted fields:")
+                            for field in ["encrypted_username", "encrypted_profileimage_url", 
+                                        "encrypted_credit_balance", "encrypted_devices"]:
+                                if field in user_data:
+                                    logger.info(f"  - {field}: {'present' if user_data[field] else 'missing'}")
                             
                             # Try to decrypt the username for display
                             if vault_key_id and "encrypted_username" in user_data:
@@ -200,10 +232,11 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
                                         user_data["encrypted_username"], 
                                         vault_key_id
                                     )
+                                    logger.info(f"[Debug] Username decryption success: {bool(decrypted_username)}")
                                     if decrypted_username:
                                         user_data["username"] = decrypted_username
                                 except Exception as e:
-                                    logger.error(f"Error decrypting username: {str(e)}")
+                                    logger.error(f"[Debug] Error decrypting username: {str(e)}", exc_info=True)
                             
                             # Add user data to auth response
                             auth_data["user"] = user_data

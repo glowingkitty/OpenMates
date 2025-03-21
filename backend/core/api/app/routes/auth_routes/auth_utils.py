@@ -5,6 +5,7 @@ import hashlib
 from typing import Tuple
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def verify_allowed_origin(request: Request):
     """

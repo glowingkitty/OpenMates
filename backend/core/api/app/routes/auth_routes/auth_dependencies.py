@@ -2,9 +2,6 @@
 Shared dependencies for authentication routes.
 This file contains functions that provide services to all auth-related endpoints.
 """
-import logging
-
-logger = logging.getLogger(__name__)
 
 def get_directus_service():
     """Get the Directus service instance from main application."""

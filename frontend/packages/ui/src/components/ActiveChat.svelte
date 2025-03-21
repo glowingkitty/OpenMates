@@ -12,8 +12,9 @@
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
-    import { userProfile } from '../stores/userProfile';
+    import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath } from '../stores/signupState';
+    import { initializeApp } from '../app';
     
     const dispatch = createEventDispatcher();
     
@@ -28,9 +29,6 @@
         language: '',
         lineCount: 0
     };
-
-    // Use authStore for authentication state
-    $: isLoggedIn = $authStore.isAuthenticated;
 
     function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
@@ -228,7 +226,10 @@
         }
     }
 
-    onMount(() => {
+    onMount(async () => {
+        // Initialize app which handles loading profile from IndexedDB and checking auth
+        await initializeApp();
+        
         // Check if the user is in the middle of a signup process (based on last_opened)
         if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
             console.debug("User detected in signup process:", $authStore.user.last_opened);

@@ -1,6 +1,7 @@
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def get_user_credits(self, user_id: str) -> int:
     """

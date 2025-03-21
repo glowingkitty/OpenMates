@@ -3,6 +3,7 @@ import json
 from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
@@ -33,10 +34,22 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             return False, None, error_msg
             
         user_data = response.json().get("data", {})
+        
+        # Log raw user data from Directus
+        logger.info("[Debug] Raw user data from Directus:")
+        logger.info(json.dumps(user_data, indent=2))
+        
         vault_key_id = user_data.get("vault_key_id")
+        logger.info(f"[Debug] Found vault_key_id: {vault_key_id}")
         
         if not vault_key_id:
+            logger.error("[Debug] No vault_key_id found in user data")
             return False, None, "User has no encryption key"
+        
+        # Log available fields before decryption
+        logger.info("[Debug] Available fields in user data:")
+        for key, value in user_data.items():
+            logger.info(f"  - {key}: {'present' if value else 'missing'}")
         
         # Create a profile object with both encrypted and decrypted data
         profile = {
@@ -54,50 +67,45 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "encrypted_settings": user_data.get("encrypted_settings"),
         }
         
+        # Log initial profile data
+        logger.info("[Debug] Initial profile data before decryption:")
+        logger.info(json.dumps(profile, indent=2))
+
         # Decrypt fields that are safe to cache and commonly needed
         try:
-            # Decrypt username
-            if "encrypted_username" in user_data:
-                decrypted_username = await self.encryption_service.decrypt_with_user_key(
-                    user_data["encrypted_username"], vault_key_id
-                )
-                profile["username"] = decrypted_username
-            
-            # Decrypt credit balance
-            if "encrypted_credit_balance" in user_data:
-                decrypted_credits = await self.encryption_service.decrypt_with_user_key(
-                    user_data["encrypted_credit_balance"], vault_key_id
-                )
-                try:
-                    profile["credits"] = int(decrypted_credits)
-                except ValueError:
+            # Add debug logs for each decryption attempt
+            for field, encrypted_field in [
+                ("username", "encrypted_username"),
+                ("credits", "encrypted_credit_balance"),
+                ("profile_image_url", "encrypted_profileimage_url"),
+                ("devices", "encrypted_devices")
+            ]:
+                if encrypted_field in user_data and user_data[encrypted_field]:
                     try:
-                        profile["credits"] = int(float(decrypted_credits))
-                    except ValueError:
-                        logger.error(f"Invalid credit balance format: {decrypted_credits}")
-                        profile["credits"] = 0
-            
-            # Decrypt profile image URL if present
-            if "encrypted_profileimage_url" in user_data and user_data["encrypted_profileimage_url"]:
-                decrypted_image_url = await self.encryption_service.decrypt_with_user_key(
-                    user_data["encrypted_profileimage_url"], vault_key_id
-                )
-                profile["profile_image_url"] = decrypted_image_url
-            
-            # Decrypt and parse devices if present
-            if "encrypted_devices" in user_data and user_data["encrypted_devices"]:
-                decrypted_devices = await self.encryption_service.decrypt_with_user_key(
-                    user_data["encrypted_devices"], vault_key_id
-                )
-                devices_dict = json.loads(decrypted_devices) if decrypted_devices else {}
-                profile["devices"] = devices_dict
-            else:
-                profile["devices"] = {}
+                        logger.info(f"[Debug] Attempting to decrypt {encrypted_field}")
+                        decrypted_value = await self.encryption_service.decrypt_with_user_key(
+                            user_data[encrypted_field], vault_key_id
+                        )
+                        logger.info(f"[Debug] Decryption success for {field}: {bool(decrypted_value)}")
+                        
+                        if decrypted_value:
+                            if field == "devices":
+                                profile[field] = json.loads(decrypted_value)
+                            elif field == "credits":
+                                profile[field] = int(float(decrypted_value))
+                            else:
+                                profile[field] = decrypted_value
+                    except Exception as e:
+                        logger.error(f"[Debug] Error decrypting {field}: {str(e)}", exc_info=True)
                 
         except Exception as e:
             logger.error(f"Error decrypting user data: {str(e)}")
             # Continue with whatever we have successfully decrypted
         
+        # Log final profile data before caching
+        logger.info("[Debug] Final profile data being cached:")
+        logger.info(json.dumps(profile, indent=2))
+
         # Cache the profile
         await self.cache.set(cache_key, profile, ttl=self.cache_ttl)
         
@@ -107,3 +115,48 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         error_msg = f"Error getting user profile: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return False, None, error_msg
+
+async def get_user_profile_by_token(self, access_token: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """
+    Get user profile using an access token
+    """
+    try:
+        logger.info("[Debug] Getting user profile with access token")
+        
+        # Make request to Directus /users/me endpoint
+        url = f"{self.base_url}/users/me"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            
+        if response.status_code != 200:
+            logger.error(f"[Debug] Failed to get user profile: {response.status_code}")
+            return False, None, "Failed to get user profile"
+            
+        user_data = response.json().get("data", {})
+        logger.info("[Debug] Got raw user data from Directus")
+        
+        # Get the user's vault key ID for decryption
+        vault_key_id = user_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error("[Debug] No vault key ID found")
+            return False, None, "No encryption key found"
+            
+        # Decrypt necessary fields
+        try:
+            if "encrypted_username" in user_data:
+                username = await self.encryption_service.decrypt_with_user_key(
+                    user_data["encrypted_username"],
+                    vault_key_id
+                )
+                user_data["username"] = username
+                logger.info(f"[Debug] Decrypted username: {bool(username)}")
+        except Exception as e:
+            logger.error(f"[Debug] Error decrypting fields: {e}")
+            
+        return True, user_data, "Profile retrieved successfully"
+            
+    except Exception as e:
+        logger.error(f"Error getting user profile: {str(e)}")
+        return False, None, str(e)

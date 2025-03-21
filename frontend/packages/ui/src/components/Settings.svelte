@@ -209,6 +209,7 @@ changes to the documentation (to keep the documentation up to date).
     $: username = $userProfile.username || 'Guest';
     $: profileImageUrl = $userProfile.profileImageUrl;
     $: isInSignupMode = $isInSignupProcess;
+    $: credits = $userProfile.credits || 0;
 
     // State to track active submenu view
     let activeSettingsView = 'main';
@@ -635,6 +636,21 @@ changes to the documentation (to keep the documentation up to date).
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement}>
+        <!-- Add user info with credits at the top of settings menu when on main screen -->
+        {#if activeSettingsView === 'main'}
+            <div class="user-info-container">
+                <div class="user-avatar" style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}>
+                    {#if !profileImageUrl}
+                        <span class="avatar-initial">{username ? username[0].toUpperCase() : 'U'}</span>
+                    {/if}
+                </div>
+                <div class="user-details">
+                    <div class="username">{username}</div>
+                    <div class="user-credits">{credits} {$text('settings.credits.text')}</div>
+                </div>
+            </div>
+        {/if}
+        
         <CurrentSettingsPage 
             {activeSettingsView}
             {direction}
@@ -932,5 +948,48 @@ changes to the documentation (to keep the documentation up to date).
 
     :global(.active-chat-container.dimmed) {
         opacity: 0.3;
+    }
+
+    .user-info-container {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+    
+    .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-size: cover;
+        background-position: center;
+        margin-right: 12px;
+        background-color: var(--color-grey-40);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .avatar-initial {
+        font-size: 22px;
+        color: var(--color-grey-0);
+        font-weight: 500;
+    }
+    
+    .user-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .username {
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--color-grey-90);
+        margin-bottom: 4px;
+    }
+    
+    .user-credits {
+        font-size: 14px;
+        color: var(--color-grey-60);
     }
 </style>

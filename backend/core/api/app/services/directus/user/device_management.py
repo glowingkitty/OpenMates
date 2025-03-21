@@ -4,6 +4,7 @@ import time
 from typing import Tuple
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def update_user_device(self, user_id: str, device_fingerprint: str, device_location: str) -> Tuple[bool, str]:
     """
