@@ -99,7 +99,7 @@ async def logout_user(self, refresh_token: str = None) -> Tuple[bool, str]:
                 json=logout_data
             )
         
-        if response.status_code == 200:
+        if response.status_code == 204:
             logger.info("Logout successful on Directus")
             return True, "Logout successful"
         else:
