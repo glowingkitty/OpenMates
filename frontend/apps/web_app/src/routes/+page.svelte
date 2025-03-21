@@ -14,6 +14,7 @@
         isMobileView,
         isCheckingAuth,
         isInSignupProcess,
+        isLoggingOut,
         // types
         type Chat,
     } from '@repo/ui';
@@ -27,8 +28,8 @@
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 
     // Handle initial sidebar state based on auth and signup process
-    $: if ($authStore.isAuthenticated && !$isInSignupProcess) {
-        // Only open menu on desktop when authenticated and not in signup
+    $: if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut) {
+        // Only open menu on desktop when authenticated and not in signup and not logging out
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
         }

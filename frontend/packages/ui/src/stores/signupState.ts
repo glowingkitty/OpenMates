@@ -2,6 +2,7 @@ import { writable, derived } from 'svelte/store';
 
 // Store to track if user is in signup process
 export const isInSignupProcess = writable(false);
+export const isLoggingOut = writable(false);
 
 // Store to track current signup step
 export const currentSignupStep = writable(1);

@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, currentSignupStep } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     
@@ -445,10 +445,7 @@ changes to the documentation (to keep the documentation up to date).
 
     async function handleLogout() {
         try {
-            console.debug('Logging out...');
-
-            // Exit signup mode FIRST, before resetting the step
-            // This order is important to prevent the step change from re-triggering signup view
+            isLoggingOut.set(true);
             isInSignupProcess.set(false);
 
             await authStore.logout({
@@ -476,6 +473,8 @@ changes to the documentation (to keep the documentation up to date).
                     await new Promise(resolve => setTimeout(resolve, 300));
                 }
             });
+
+            isLoggingOut.set(false);
         } catch (error) {
             console.error('Error during logout:', error);
             // Even on error, ensure we exit signup mode properly
