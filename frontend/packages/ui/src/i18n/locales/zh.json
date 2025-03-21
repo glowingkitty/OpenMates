@@ -956,8 +956,8 @@
             "context": "Terms and conditions link"
         },
          "credits": {
-            "text": "积分",
-            "en_original": "credits",
+            "text": "{credits_amount} 信用",
+            "en_original": "{credits_amount} credits",
             "context": "User credits amount"
         },
         "modify": {

@@ -572,7 +572,14 @@ changes to the documentation (to keep the documentation up to date).
             aria-label={$text('settings.open_settings_menu.text')}
             bind:this={profileContainer}
         >
-            <div class="profile-picture" style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}></div>
+            <div 
+                class="profile-picture" 
+                style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+            >
+                {#if !profileImageUrl}
+                    <div class="default-user-icon"></div>
+                {/if}
+            </div>
         </div>
 
         <div class="close-icon-container" class:visible={isMenuVisible}>
@@ -637,19 +644,6 @@ changes to the documentation (to keep the documentation up to date).
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement}>
         <!-- Add user info with credits at the top of settings menu when on main screen -->
-        {#if activeSettingsView === 'main'}
-            <div class="user-info-container">
-                <div class="user-avatar" style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}>
-                    {#if !profileImageUrl}
-                        <span class="avatar-initial">{username ? username[0].toUpperCase() : 'U'}</span>
-                    {/if}
-                </div>
-                <div class="user-details">
-                    <div class="username">{username}</div>
-                    <div class="user-credits">{credits} {$text('settings.credits.text')}</div>
-                </div>
-            </div>
-        {/if}
         
         <CurrentSettingsPage 
             {activeSettingsView}
@@ -747,8 +741,24 @@ changes to the documentation (to keep the documentation up to date).
         background-position: center;
         background-repeat: no-repeat;
         background-color: var(--color-grey-20);
-        background-image: url('@openmates/ui/static/images/placeholders/userprofileimage.jpeg');
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .default-user-icon {
+        width: 32px;
+        height: 32px;
+        -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: url('@openmates/ui/static/icons/user.svg');
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        background-color: var(--color-grey-60);
     }
 
     .settings-menu {

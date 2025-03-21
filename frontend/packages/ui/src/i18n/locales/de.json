@@ -956,8 +956,8 @@
             "context": "Terms and conditions link"
         },
         "credits": {
-            "text": "Credits",
-            "en_original": "credits",
+            "text": "{credits_amount} Credits",
+            "en_original": "{credits_amount} credits",
             "context": "User credits amount"
         },
         "modify": {

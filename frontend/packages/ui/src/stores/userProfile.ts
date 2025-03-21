@@ -5,12 +5,14 @@ export interface UserProfile {
   username: string;
   profileImageUrl: string | null;
   credits?: number;
+  isAdmin?: boolean;
 }
 
 const defaultProfile: UserProfile = {
   username: '',
   profileImageUrl: null,
-  credits: 0
+  credits: 0,
+  isAdmin: false
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
@@ -19,14 +21,32 @@ export const userProfile = writable<UserProfile>(defaultProfile);
 export async function loadUserProfileFromDB(): Promise<void> {
   try {
     const profile = await userDB.getUserProfile();
+    
+    // Get additional user data
+    const credits = await userDB.getUserCredits();
+    
+    // Get isAdmin status - using a try/catch in case this field doesn't exist yet
+    let isAdmin = false;
+    try {
+      const transaction = userDB.db?.transaction([userDB.STORE_NAME], 'readonly');
+      if (transaction) {
+        const store = transaction.objectStore(userDB.STORE_NAME);
+        const request = store.get('isAdmin');
+        isAdmin = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(!!request.result);
+          request.onerror = () => resolve(false);
+        });
+      }
+    } catch (error) {
+      console.warn('Could not load isAdmin status:', error);
+    }
+    
     if (profile) {
-      // Get credits as well
-      const credits = await userDB.getUserCredits();
-      
       userProfile.update(currentProfile => ({
         ...currentProfile,
         ...profile,
-        credits
+        credits,
+        isAdmin
       }));
     }
   } catch (error) {
@@ -40,6 +60,9 @@ export function updateUsername(username: string): void {
     ...profile,
     username
   }));
+  
+  // Also persist to database
+  userDB.updateUserData({ username });
 }
 
 // Helper function to update just the profile image
@@ -48,6 +71,9 @@ export function updateProfileImage(imageUrl: string | null): void {
     ...profile,
     profileImageUrl: imageUrl
   }));
+  
+  // Also persist to database
+  userDB.updateUserData({ profileImageUrl: imageUrl });
 }
 
 // Helper function to update just the credits
@@ -56,6 +82,9 @@ export function updateCredits(credits: number): void {
     ...profile,
     credits
   }));
+  
+  // Also persist to database
+  userDB.updateUserData({ credits });
 }
 
 // Helper to update the entire profile
@@ -64,4 +93,7 @@ export function updateProfile(profile: Partial<UserProfile>): void {
     ...currentProfile,
     ...profile
   }));
+  
+  // Also persist to database
+  userDB.updateUserData(profile);
 }

@@ -956,8 +956,8 @@
             "context": "Terms and conditions link"
         },
         "credits": {
-            "text": "クレジット",
-            "en_original": "credits",
+            "text": "{credits_amount} クレジット",
+            "en_original": "{credits_amount} credits",
             "context": "User credits amount"
         },
         "modify": {

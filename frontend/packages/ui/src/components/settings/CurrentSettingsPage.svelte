@@ -130,6 +130,9 @@
         visibleViews = new Set([activeSettingsView]);
         previousView = activeSettingsView;
     });
+
+    // Get credits from userProfile store
+    $: credits = $userProfile.credits || 0;
 </script>
 
 <div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;">
@@ -150,7 +153,7 @@
                 <div class="credits-container">
                     <span class="credits-icon"></span>
                     <div class="credits-text">
-                        <span class="credits-amount"><mark>4800 {$text('settings.credits.text')}</mark></span>
+                        <span class="credits-amount"><mark>{$text('settings.credits.text').replace('{credits_amount}', credits)}</mark></span>
                     </div>
                 </div>
             </div>

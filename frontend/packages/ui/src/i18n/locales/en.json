@@ -1251,7 +1251,7 @@
             "context": "Terms and conditions link"
         },
         "credits": {
-            "text": "credits",
+            "text": "{credits_amount} credits",
             "context": "User credits amount"
         },
         "modify": {

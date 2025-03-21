@@ -2,9 +2,9 @@ import type { User } from '../types/user';
 import type { UserProfile } from '../stores/userProfile';
 
 class UserDatabaseService {
-    private db: IDBDatabase | null = null;
-    private readonly DB_NAME = 'user_db';
-    private readonly STORE_NAME = 'user_data';
+    public db: IDBDatabase | null = null;
+    public readonly DB_NAME = 'user_db';
+    public readonly STORE_NAME = 'user_data';
     private readonly VERSION = 1;
     
     /**
