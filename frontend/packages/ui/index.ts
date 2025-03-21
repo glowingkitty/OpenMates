@@ -42,6 +42,7 @@ export {
   isCheckingAuth  // Add this export
 } from "./src/stores/authStore";
 export * from "./src/stores/menuState";
+export * from "./src/stores/signupState";
 
 // Styles
 export * from "./src/styles/constants";

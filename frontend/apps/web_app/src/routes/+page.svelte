@@ -13,6 +13,7 @@
         settingsMenuVisible,
         isMobileView,
         isCheckingAuth,
+        isInSignupProcess,
         // types
         type Chat,
     } from '@repo/ui';
@@ -25,9 +26,9 @@
     // Compute gap class based on menu state and view
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 
-    // Handle initial sidebar state based on auth
-    $: if ($authStore.isAuthenticated) {
-        // Only open menu on desktop when authenticated
+    // Handle initial sidebar state based on auth and signup process
+    $: if ($authStore.isAuthenticated && !$isInSignupProcess) {
+        // Only open menu on desktop when authenticated and not in signup
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
         }
@@ -89,8 +90,8 @@
     }
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen || !$authStore.isAuthenticated}>
-    {#if $authStore.isAuthenticated}
+<div class="sidebar" class:closed={!$isMenuOpen || !$authStore.isAuthenticated || $isInSignupProcess}>
+    {#if $authStore.isAuthenticated && !$isInSignupProcess}
         <ActivityHistory on:chatSelected={handleChatSelected} />
     {/if}
 </div>
