@@ -90,8 +90,8 @@
     }
 </script>
 
-<div class="sidebar" class:closed={!$isMenuOpen || !$authStore.isAuthenticated || $isInSignupProcess}>
-    {#if $authStore.isAuthenticated && !$isInSignupProcess}
+<div class="sidebar" class:closed={!$isMenuOpen}>
+    {#if $isMenuOpen}
         <ActivityHistory on:chatSelected={handleChatSelected} />
     {/if}
 </div>
