@@ -70,9 +70,13 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                 "cookies": cookies_dict
             }, "Login successful"
         else:
-            error_msg = f"Login failed: {response.status_code} - {response.text}"
-            logger.error(error_msg)
-            return False, None, error_msg
+            # Change from ERROR to INFO level for authentication failures (usually 401)
+            if response.status_code == 401:
+                logger.info("Login failed. Credentials wrong.")
+            else:
+                error_msg = f"Login failed: {response.status_code} - {response.text}"
+                logger.error(error_msg)
+            return False, None, "Login failed. Credentials wrong."
             
     except Exception as e:
         error_msg = f"Error during login: {str(e)}"
