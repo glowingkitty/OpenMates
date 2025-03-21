@@ -123,15 +123,6 @@ async def login(
                         )
                         
                         # TODO: Send notification email about new device login
-                    else:
-                        # For normal logins (known device), only log device hash, not IP
-                        compliance_service.log_auth_event_safe(
-                            event_type="login",
-                            user_id=user_id,
-                            device_fingerprint=device_fingerprint,
-                            location=device_location,
-                            status="success"
-                        )
                     
                     # Update device in cache
                     current_time = int(time.time())
