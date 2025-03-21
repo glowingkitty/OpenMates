@@ -447,13 +447,12 @@ changes to the documentation (to keep the documentation up to date).
         try {
             console.debug('Logging out...');
 
-            // Reset signup states before server logout
+            // Exit signup mode FIRST, before resetting the step
+            // This order is important to prevent the step change from re-triggering signup view
             isInSignupProcess.set(false);
-            currentSignupStep.set(1);
 
             await authStore.logout({
                 beforeServerLogout: () => {
-                    // Reset the checking auth state immediately
                     isCheckingAuth.set(false);
                 },
 
@@ -479,9 +478,8 @@ changes to the documentation (to keep the documentation up to date).
             });
         } catch (error) {
             console.error('Error during logout:', error);
-            // On error, still reset signup states and try basic logout
+            // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
-            currentSignupStep.set(1);
             authStore.logout();
         }
     }

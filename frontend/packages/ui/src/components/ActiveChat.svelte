@@ -30,6 +30,9 @@
         lineCount: 0
     };
 
+    // Add state to track logout from signup
+    let isLoggingOutFromSignup = false;
+
     function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
         console.debug("Login success, in signup flow:", inSignupFlow);
@@ -37,7 +40,32 @@
         if (!inSignupFlow) {
             dispatch('loginSuccess');
         }
-        // If in signup flow, don't dispatch the event as we need to stay on the login/signup page
+    }
+
+    // Modify handleLogout to track signup state
+    async function handleLogout() {
+        // Set the flag if we're in signup process
+        isLoggingOutFromSignup = $isInSignupProcess;
+        try {
+            await authStore.logout();
+        } catch (error) {
+            console.error('Error during logout:', error);
+            authStore.logout();
+        }
+    }
+
+    // Update the reactive statement to ensure chat never shows during signup
+    $: showChat = $authStore.isAuthenticated && 
+                  !$isInSignupProcess && 
+                  !isLoggingOutFromSignup && 
+                  // Add this condition to prevent flash during auth state changes
+                  $authStore.user?.last_opened?.startsWith('/signup/') !== true;
+
+    $: showLogin = !showChat;
+
+    // Reset the flag when auth state changes
+    $: if (!$authStore.isAuthenticated) {
+        isLoggingOutFromSignup = false;
     }
 
     // Add handler for code fullscreen
@@ -273,14 +301,14 @@
     });
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!$authStore.isAuthenticated || $isInSignupProcess} class:scaled={activeScaling}>
-    {#if !$authStore.isAuthenticated || $isInSignupProcess}
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={showLogin} class:scaled={activeScaling}>
+    {#if showLogin}
         <div 
             class="login-wrapper" 
             in:fly={loginTransitionProps} 
             out:fade={{ duration: 200 }}
         >
-            <Login on:loginSuccess={handleLoginSuccess} />
+            <Login on:loginSuccess={handleLoginSuccess} on:logout={handleLogout} />
         </div>
     {:else}
         <div 

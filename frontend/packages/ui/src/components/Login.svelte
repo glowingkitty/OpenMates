@@ -261,6 +261,10 @@
                 return;
             }
 
+            // Clear the form fields after successful login
+            email = '';
+            password = '';
+
             console.debug('Login successful');
             
             // Check if we need to switch to signup flow
@@ -289,6 +293,17 @@
         if ($authStore.isAuthenticated && $isInSignupProcess) {
             console.debug("Detected signup process, switching to signup view");
             currentView = 'signup';
+        }
+    }
+
+    // Strengthen the reactive statement to handle both signup process and logout
+    $: {
+        if ($authStore.isAuthenticated && $isInSignupProcess) {
+            console.debug("Detected signup process, switching to signup view");
+            currentView = 'signup';
+        } else if (!$authStore.isAuthenticated) {
+            // Force view to login when logged out
+            currentView = 'login';
         }
     }
 </script>
