@@ -216,7 +216,7 @@ changes to the documentation (to keep the documentation up to date).
     // Only show settings icon when:
     // 1. User is logged in but not in signup process, OR
     // 2. User is in signup process AND we're at step 7 or higher (isSignupSettingsStep)
-    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess) || 
+    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) || 
                           (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep);
     
     $: isInSignup = $isInSignupProcess;

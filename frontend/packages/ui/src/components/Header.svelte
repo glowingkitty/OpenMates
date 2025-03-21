@@ -8,7 +8,7 @@
     import { onMount, tick } from 'svelte';
     import { isMenuOpen } from '../stores/menuState';
     import { text } from '@repo/ui';
-    import { isInSignupProcess } from '../stores/signupState'; // Import the signup state
+    import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
 
     export let context: 'website' | 'webapp' = 'website';
     export let isLoggedIn = false;
@@ -123,9 +123,9 @@
         };
     });
 
-    // Update menu toggle logic to only work when logged in and not in signup process
+    // Update menu toggle logic to consider the logging out state as well
     const toggleMenu = () => {
-        if (isLoggedIn && !$isInSignupProcess) {
+        if (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) {
             isMenuOpen.set(!$isMenuOpen);
         }
     };
@@ -178,7 +178,7 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    {#if context === 'webapp' && isLoggedIn && (isMobile || !$isMenuOpen) && !$isInSignupProcess}
+                    {#if context === 'webapp' && isLoggedIn && (isMobile || !$isMenuOpen) && !$isInSignupProcess && !$isLoggingOut}
                         <div transition:slideFade={{ duration: 200 }}>
                             <button 
                                 class="clickable-icon icon_menu"

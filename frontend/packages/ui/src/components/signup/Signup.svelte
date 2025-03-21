@@ -12,6 +12,8 @@
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep } from '../../stores/signupState';
     import { settingsMenuVisible } from '../Settings.svelte';
+    import { authStore, isCheckingAuth } from '../../stores/authStore';
+    import { isLoggingOut } from '../../stores/signupState';
 
     // Dynamic imports for step contents
     import Step2TopContent from './steps/step2/Step2TopContent.svelte';
@@ -171,9 +173,33 @@
         // updateSettingsStep() is called via the reactive statement
     }
 
-    function handleLogout() {
-        // Handle logout and switch to login
-        dispatch('switchToLogin');
+    async function handleLogout() {
+        try {
+            isLoggingOut.set(true);
+            isInSignupProcess.set(false);
+
+            await authStore.logout({
+                beforeServerLogout: () => {
+                    isCheckingAuth.set(false);
+                },
+
+                afterServerLogout: async () => {
+                    // Small delay to allow any UI transitions to complete
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            });
+
+            isLoggingOut.set(false);
+            
+            // Switch to login view after logout is complete
+            dispatch('switchToLogin');
+        } catch (error) {
+            console.error('Error during logout:', error);
+            // Even on error, ensure we exit signup mode properly
+            isInSignupProcess.set(false);
+            authStore.logout();
+            dispatch('switchToLogin');
+        }
     }
 
     function handleImageUploading(event: CustomEvent<{isProcessing: boolean, isUploading: boolean}>) {
