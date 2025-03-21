@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     
@@ -213,7 +213,12 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Reactive variables
-    $: showSettingsIcon = isLoggedIn || $isSignupSettingsStep;
+    // Only show settings icon when:
+    // 1. User is logged in but not in signup process, OR
+    // 2. User is in signup process AND we're at step 7 or higher (isSignupSettingsStep)
+    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess) || 
+                          (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep);
+    
     $: isInSignup = $isInSignupProcess;
     $: username = $userProfile.username || 'Guest';
     $: profileImageUrl = $userProfile.profileImageUrl;
