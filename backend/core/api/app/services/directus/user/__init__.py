@@ -8,7 +8,10 @@ from app.services.directus.user.user_lookup import (
 from app.services.directus.user.device_management import (
     update_user_device, update_user_devices, check_user_device
 )
-from app.services.directus.user.user_data import get_user_credits
+from app.services.directus.user.user_data import (
+    get_user_credits, get_user_username, get_user_profile_image, invalidate_user_profile_cache
+)
+from app.services.directus.user.user_profile import get_user_profile
 
 __all__ = [
     'create_user',
@@ -22,5 +25,9 @@ __all__ = [
     'update_user_device',
     'update_user_devices',
     'check_user_device',
-    'get_user_credits'
+    'get_user_credits',
+    'get_user_username',
+    'get_user_profile_image',
+    'invalidate_user_profile_cache',
+    'get_user_profile'
 ]

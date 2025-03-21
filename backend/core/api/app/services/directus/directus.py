@@ -12,7 +12,8 @@ from app.services.directus.invite_methods import get_invite_code, get_all_invite
 from app.services.directus.user import (
     create_user, update_user_device, update_user_devices, login_user, logout_user,
     logout_all_sessions, get_user_by_email, refresh_token, get_total_users_count,
-    get_active_users_since, check_user_device, get_user_credits
+    get_active_users_since, check_user_device, get_user_credits, get_user_username,
+    get_user_profile_image, invalidate_user_profile_cache, get_user_profile
 )
 
 logger = logging.getLogger(__name__)
@@ -69,4 +70,10 @@ class DirectusService:
     get_total_users_count = get_total_users_count
     get_active_users_since = get_active_users_since
     check_user_device = check_user_device
+    
+    # User profile methods
+    get_user_profile = get_user_profile
     get_user_credits = get_user_credits
+    get_user_username = get_user_username
+    get_user_profile_image = get_user_profile_image
+    invalidate_user_profile_cache = invalidate_user_profile_cache

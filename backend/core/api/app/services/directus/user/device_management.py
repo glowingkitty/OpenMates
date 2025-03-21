@@ -110,37 +110,17 @@ async def update_user_devices(self, user_id: str, encrypted_devices: str) -> Tup
 async def check_user_device(self, user_id: str, device_fingerprint: str) -> bool:
     """
     Check if a device fingerprint exists in a user's known devices
+    - Uses get_user_profile to retrieve cached user data including devices
     - Returns True if the device is known, False otherwise
     """
     try:
-        # Get the user first to retrieve encrypted_devices and vault key
-        url = f"{self.base_url}/users/{user_id}"
-        response = await self._make_api_request("GET", url)
+        success, profile, message = await self.get_user_profile(user_id)
         
-        if response.status_code != 200:
-            logger.warning(f"Failed to retrieve user: {response.status_code}")
-            return False
-            
-        user_data = response.json().get("data", {})
-        vault_key_id = user_data.get("vault_key_id")
-        encrypted_devices_str = user_data.get("encrypted_devices")
-        
-        # If no vault key or encrypted devices, device is unknown
-        if not vault_key_id or not encrypted_devices_str:
-            return False
-        
-        # Decrypt the devices data
-        try:
-            decrypted_devices = await self.encryption_service.decrypt_with_user_key(
-                encrypted_devices_str, vault_key_id
-            )
-            devices_dict = json.loads(decrypted_devices)
-            
+        if success and profile and "devices" in profile:
             # Check if the fingerprint exists in the devices
-            return device_fingerprint in devices_dict
-            
-        except Exception as e:
-            logger.error(f"Error decrypting devices: {str(e)}")
+            return device_fingerprint in profile["devices"]
+        else:
+            logger.warning(f"Failed to get user profile for device check: {message}")
             return False
             
     except Exception as e:
