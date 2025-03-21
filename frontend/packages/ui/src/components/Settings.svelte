@@ -77,8 +77,8 @@ changes to the documentation (to keep the documentation up to date).
     // Create a reactive help link that updates based on the active view
     let currentHelpLink = baseHelpLink;
 
-    // Define settingsViews map for component mapping
-    const settingsViews: Record<string, any> = {
+    // Define base settingsViews map for component mapping
+    const allSettingsViews: Record<string, any> = {
         'privacy': SettingsPrivacy,
         'user': SettingsUser,
         'usage': SettingsUsage,
@@ -93,6 +93,15 @@ changes to the documentation (to keep the documentation up to date).
         'interface/language': SettingsLanguage,
         'server/software-update': SettingsSoftwareUpdate
     };
+
+    // Reactive settingsViews that filters out server options for non-admins
+    $: settingsViews = Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+        // Include all non-server settings, or include server settings if user is admin
+        if (!key.startsWith('server') || $userProfile.isAdmin) {
+            filtered[key] = component;
+        }
+        return filtered;
+    }, {} as Record<string, any>);
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = [];
