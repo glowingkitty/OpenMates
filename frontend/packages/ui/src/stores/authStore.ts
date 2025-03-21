@@ -338,8 +338,9 @@ function createAuthStore() {
   };
 }
 
-// Create and export the auth store
-export const authStore = createAuthStore();
+// Create and export the auth store as a singleton
+const authStoreInstance = createAuthStore();
+export const authStore = authStoreInstance;
 
 // Create a derived store for profile image URL with default fallback logic
 export const profileImage = derived(

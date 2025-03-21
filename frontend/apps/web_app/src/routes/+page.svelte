@@ -12,11 +12,11 @@
         isMenuOpen,
         settingsMenuVisible,
         isMobileView,
-        authStore,
         isCheckingAuth,
         // types
         type Chat,
     } from '@repo/ui';
+    import { authStore } from '@repo/ui';
     import { _ } from 'svelte-i18n'; // Import the translation function
     import { fade } from 'svelte/transition';
     // Subscribe to settings menu visibility state

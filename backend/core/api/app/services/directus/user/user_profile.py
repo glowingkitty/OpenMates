@@ -35,21 +35,12 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             
         user_data = response.json().get("data", {})
         
-        # Log raw user data from Directus
-        logger.info("[Debug] Raw user data from Directus:")
-        logger.info(json.dumps(user_data, indent=2))
-        
         vault_key_id = user_data.get("vault_key_id")
-        logger.info(f"[Debug] Found vault_key_id: {vault_key_id}")
+        logger.info(f"Found vault_key_id")
         
         if not vault_key_id:
-            logger.error("[Debug] No vault_key_id found in user data")
+            logger.error("No vault_key_id found in user data")
             return False, None, "User has no encryption key"
-        
-        # Log available fields before decryption
-        logger.info("[Debug] Available fields in user data:")
-        for key, value in user_data.items():
-            logger.info(f"  - {key}: {'present' if value else 'missing'}")
         
         # Create a profile object with both encrypted and decrypted data
         profile = {
@@ -102,10 +93,6 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             logger.error(f"Error decrypting user data: {str(e)}")
             # Continue with whatever we have successfully decrypted
         
-        # Log final profile data before caching
-        logger.info("[Debug] Final profile data being cached:")
-        logger.info(json.dumps(profile, indent=2))
-
         # Cache the profile
         await self.cache.set(cache_key, profile, ttl=self.cache_ttl)
         

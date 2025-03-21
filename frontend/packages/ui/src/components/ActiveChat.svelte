@@ -226,24 +226,28 @@
         }
     }
 
-    onMount(async () => {
-        // Initialize app which handles loading profile from IndexedDB and checking auth
-        await initializeApp();
-        
-        // Check if the user is in the middle of a signup process (based on last_opened)
-        if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
-            console.debug("User detected in signup process:", $authStore.user.last_opened);
-            // Set the signup process state to true so the signup component shows in Login
-            isInSignupProcess.set(true);
+    onMount(() => {
+        const initialize = async () => {
+            // Initialize app but skip auth initialization since it's already done in +page.svelte
+            await initializeApp({ skipAuthInitialization: true });
             
-            // Extract step from last_opened to ensure we're on the right step
-            if ($authStore.user.last_opened) {
-                const step = getStepFromPath($authStore.user.last_opened);
-                console.debug("Setting signup step to:", step);
-                currentSignupStep.set(step);
+            // Check if the user is in the middle of a signup process (based on last_opened)
+            if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
+                console.debug("User detected in signup process:", $authStore.user.last_opened);
+                // Set the signup process state to true so the signup component shows in Login
+                isInSignupProcess.set(true);
+                
+                // Extract step from last_opened to ensure we're on the right step
+                if ($authStore.user.last_opened) {
+                    const step = getStepFromPath($authStore.user.last_opened);
+                    console.debug("Setting signup step to:", step);
+                    currentSignupStep.set(step);
+                }
             }
-        }
-        
+        };
+
+        initialize();
+
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);

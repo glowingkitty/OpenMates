@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response
 import logging
 import time
+import hashlib
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
@@ -30,7 +31,7 @@ async def login(
     """
     Authenticate a user and create a session
     """
-    logger.info(f"Processing login request for email: {login_data.email[:2]}***")
+    logger.info(f"Processing /login request for email: {login_data.email[:2]}***")
     
     try:
         # Get device fingerprint and location for tracking
@@ -62,7 +63,10 @@ async def login(
             # Set authentication cookies
             if "cookies" in auth_data:
                 logger.info(f"Setting {len(auth_data['cookies'])} cookies")
+                refresh_token = None
                 for name, value in auth_data["cookies"].items():
+                    if name == "directus_refresh_token":
+                        refresh_token = value
                     # Rename cookies to use our prefix instead of directus prefix
                     cookie_name = name
                     if name.startswith("directus_"):
@@ -155,11 +159,34 @@ async def login(
                         device_location=device_location
                     )
             
+            # Cache the user data with the refresh token
+            if refresh_token and user:
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                cache_key = f"session:{token_hash}"
+                
+                # Cache standardized user data
+                cached_data = {
+                    "username": user.get("username"),
+                    "is_admin": user.get("is_admin", False),
+                    "credits": user.get("credits", 0),
+                    "profile_image_url": user.get("profile_image_url"),
+                    "last_opened": user.get("last_opened"),
+                    "token_expiry": int(time.time()) + 86400
+                }
+                
+                await cache_service.set(cache_key, cached_data, ttl=86400)
+            
             logger.info("Login completed successfully, returning user data")
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=auth_data.get("user", {})
+                user={
+                    "username": user.get("username"),
+                    "is_admin": user.get("is_admin", False),
+                    "credits": user.get("credits", 0),
+                    "profile_image_url": user.get("profile_image_url"),
+                    "last_opened": user.get("last_opened")
+                }
             )
         else:
             # Failed login attempt - always log IP address for security events

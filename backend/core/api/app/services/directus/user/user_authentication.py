@@ -165,157 +165,27 @@ async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
 
 async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Refresh an authentication token using the refresh token
-    Returns (success, auth_data, message)
+    Only refreshes the token with Directus - does not fetch user data
+    Returns (success, {"cookies": {...}}, message)
     """
-    # Use faster retry logic with fixed delay
-    max_retries = 2
-    fixed_delay = 0.2
-    
-    for attempt in range(max_retries + 1):
-        try:
-            # Add debug logging for the refresh token
-            masked_token = refresh_token[:5] + "..." + refresh_token[-5:] if len(refresh_token) > 10 else "***"
-            logger.info(f"Attempting to refresh token with: {masked_token}" + (f" (attempt {attempt+1}/{max_retries+1})" if attempt > 0 else ""))
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            response = await client.post(
+                f"{self.base_url}/auth/refresh",
+                json={"refresh_token": refresh_token, "mode": "cookie"},
+                cookies={"directus_refresh_token": refresh_token}
+            )
             
-            # Check if we have cached user data for this token to use as fallback
-            token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-            cache_key = f"session:{token_hash}"
-            cached_session = await self.cache.get(cache_key) or None
+            if response.status_code == 200:
+                logger.info("Token refresh successful")
+                # Only return the new cookies - no user data needed
+                return True, {
+                    "cookies": dict(response.cookies)
+                }, "Token refreshed"
+                
+            logger.error(f"Token refresh failed: {response.status_code}")
+            return False, None, "Token refresh failed"
             
-            # Make request to Directus refresh endpoint
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                cookies = {"directus_refresh_token": refresh_token}
-                
-                response = await client.post(
-                    f"{self.base_url}/auth/refresh",
-                    json={"refresh_token": refresh_token, "mode": "cookie"},
-                    cookies=cookies,
-                    headers={"Content-Type": "application/json"}
-                )
-            
-                if response.status_code == 200:
-                    auth_data = response.json().get("data", {})
-                    
-                    # Add debug log for raw user data
-                    logger.info("[Debug] Raw Directus user data:")
-                    logger.info(json.dumps(auth_data.get("user", {}), indent=2))
-                    
-                    if "access_token" in auth_data:
-                        # Get user data using the new access token
-                        user_response = await client.get(
-                            f"{self.base_url}/users/me",
-                            headers={"Authorization": f"Bearer {auth_data['access_token']}"}
-                        )
-                        
-                        if user_response.status_code == 200:
-                            user_data = user_response.json().get("data", {})
-                            
-                            # Log raw user data from /users/me endpoint
-                            logger.info("[Debug] Raw user data from /users/me:")
-                            logger.info(json.dumps(user_data, indent=2))
-                            
-                            vault_key_id = user_data.get("vault_key_id")
-                            logger.info(f"[Debug] Found vault_key_id: {vault_key_id}")
-                            
-                            # Add debug logs for encrypted fields
-                            logger.info("[Debug] Available encrypted fields:")
-                            for field in ["encrypted_username", "encrypted_profileimage_url", 
-                                        "encrypted_credit_balance", "encrypted_devices"]:
-                                if field in user_data:
-                                    logger.info(f"  - {field}: {'present' if user_data[field] else 'missing'}")
-                            
-                            # Try to decrypt the username for display
-                            if vault_key_id and "encrypted_username" in user_data:
-                                try:
-                                    decrypted_username = await self.encryption_service.decrypt_with_user_key(
-                                        user_data["encrypted_username"], 
-                                        vault_key_id
-                                    )
-                                    logger.info(f"[Debug] Username decryption success: {bool(decrypted_username)}")
-                                    if decrypted_username:
-                                        user_data["username"] = decrypted_username
-                                except Exception as e:
-                                    logger.error(f"[Debug] Error decrypting username: {str(e)}", exc_info=True)
-                            
-                            # Add user data to auth response
-                            auth_data["user"] = user_data
-                            
-                            # Cache user data for fallback
-                            if cached_session:
-                                cached_session["user_id"] = user_data.get("id")
-                                cached_session["username"] = user_data.get("username")
-                                await self.cache.set(cache_key, cached_session, ttl=3600)
-                
-                    # Extract cookies for setting in our response
-                    cookies_dict = dict(response.cookies)
-                    
-                    return True, {
-                        "user": auth_data.get("user"),
-                        "cookies": cookies_dict
-                    }, "Token refreshed successfully"
-                
-                elif response.status_code in [503, 429]:  # Service unavailable or rate limited
-                    if attempt < max_retries:
-                        logger.warning(f"Directus service issue ({response.status_code}), retrying in {fixed_delay}s (attempt {attempt+1}/{max_retries+1})")
-                        await asyncio.sleep(fixed_delay)
-                        continue
-                    
-                    # If we have cached user data, use it as a fallback on the last attempt
-                    if cached_session:
-                        logger.info("Using cached user data as fallback after service unavailable")
-                        return True, {
-                            "user": {
-                                "id": cached_session.get("user_id"),
-                                "username": cached_session.get("username"),
-                                "is_admin": cached_session.get("is_admin", False)
-                            },
-                            "cookies": {}
-                        }, "Using cached user data due to service unavailability"
-                    
-                    error_msg = f"Token refresh failed: {response.status_code} - {response.text}"
-                    logger.error(error_msg)
-                    return False, None, error_msg
-                
-                else:
-                    error_msg = f"Token refresh failed: {response.status_code} - {response.text}"
-                    logger.error(error_msg)
-                    
-                    # If we have cached user data, try to use it as a fallback
-                    if cached_session:
-                        logger.info("Using cached user data as fallback after refresh failure")
-                        return True, {
-                            "user": {
-                                "id": cached_session.get("user_id"),
-                                "username": cached_session.get("username"),
-                                "is_admin": cached_session.get("is_admin", False)
-                            },
-                            "cookies": {}
-                        }, "Using cached user data due to refresh failure"
-                        
-                    return False, None, error_msg
-        
-        except Exception as e:
-            error_msg = f"Error during token refresh: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            
-            if attempt < max_retries:
-                logger.warning(f"Token refresh error, retrying in {fixed_delay}s (attempt {attempt+1}/{max_retries+1})")
-                await asyncio.sleep(fixed_delay)
-            else:
-                # Check for cached user data on last attempt
-                if cached_session:
-                    logger.info("Using cached user data as fallback after exception")
-                    return True, {
-                        "user": {
-                            "id": cached_session.get("user_id"),
-                            "username": cached_session.get("username"),
-                            "is_admin": cached_session.get("is_admin", False)
-                        },
-                        "cookies": {}
-                    }, "Using cached user data due to errors"
-                
-                return False, None, error_msg
-    
-    # If we've exhausted all retries
-    return False, None, "Maximum retry attempts reached for token refresh"
+    except Exception as e:
+        logger.error(f"Error during token refresh: {str(e)}")
+        return False, None, str(e)

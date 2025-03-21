@@ -58,7 +58,6 @@ class UserDatabaseService {
             });
             
             // Only store essential fields
-            store.put(userData.id, 'userId');
             store.put(userData.username || '', 'username');
             store.put(!!userData.isAdmin, 'isAdmin');  // Convert to boolean
             store.put(userData.profileImageUrl || null, 'profileImageUrl');
