@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, currentSignupStep } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     
@@ -445,12 +445,11 @@ changes to the documentation (to keep the documentation up to date).
 
     async function handleLogout() {
         try {
-            // If in signup process, just close the menu without actual logout
-            if (isInSignup) {
-                isMenuVisible = false;
-                settingsMenuVisible.set(false);
-                return;
-            }
+            console.debug('Logging out...');
+
+            // Reset signup states before server logout
+            isInSignupProcess.set(false);
+            currentSignupStep.set(1);
 
             await authStore.logout({
                 beforeServerLogout: () => {
@@ -480,6 +479,9 @@ changes to the documentation (to keep the documentation up to date).
             });
         } catch (error) {
             console.error('Error during logout:', error);
+            // On error, still reset signup states and try basic logout
+            isInSignupProcess.set(false);
+            currentSignupStep.set(1);
             authStore.logout();
         }
     }
