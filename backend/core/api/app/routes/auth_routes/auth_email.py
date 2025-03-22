@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
+import hashlib
 from typing import Optional, Tuple
 from app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from app.services.directus import DirectusService
@@ -347,11 +348,16 @@ async def check_confirm_email_code(
 
         # Set authentication cookies
         if auth_data and "cookies" in auth_data:
+            refresh_token = None
             for name, value in auth_data["cookies"].items():
-                # Rename cookies to use our prefix instead of directus prefix
-                cookie_name = name
-                if name.startswith("directus_"):
-                    cookie_name = "auth_" + name[9:]  # Replace "directus_" with "auth_"
+                if name == "directus_refresh_token":
+                    refresh_token = value
+                    cookie_name = "auth_refresh_token"
+                elif name == "directus_session_token":
+                    # Skip setting the session token cookie
+                    continue
+                else:
+                    cookie_name = name
                     
                 response.set_cookie(
                     key=cookie_name,
@@ -361,7 +367,25 @@ async def check_confirm_email_code(
                     samesite="strict",
                     max_age=86400  # 24 hours
                 )
-        
+
+            # Cache the session data if we have a refresh token
+            if refresh_token:
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                cache_key = f"session:{token_hash}"
+                
+                # Cache standardized user data
+                cached_data = {
+                    "username": signup_username,
+                    "is_admin": is_admin,
+                    "credits": 0,
+                    "profile_image_url": None,
+                    "last_opened": "/signup/step-3",
+                    "token_expiry": int(time.time()) + 86400
+                }
+                
+                await cache_service.set(cache_key, cached_data, ttl=86400)
+                logger.info("Session data cached successfully")
+
         # Log the successful login for compliance
         event_logger.info(f"User logged in - ID: {user_id}")
         
