@@ -301,6 +301,9 @@ function createAuthStore() {
           console.error("Failed to clear user data from database:", dbError);
         }
         
+        // Reset signup step
+        currentSignupStep.set(1);
+        
         // Reset the store state
         set({
           ...initialState,
@@ -320,6 +323,9 @@ function createAuthStore() {
         if (callbacks?.onError) {
           await callbacks?.onError(error);
         }
+        
+        // Reset signup step even on error
+        currentSignupStep.set(1);
         
         // Reset the store state even on error
         set({

@@ -71,10 +71,10 @@
         }
     }
 
-    // Add reactive statement to handle auth state changes
+    // Strengthen the reactive statement to handle auth state changes
     $: {
-        if (!$authStore.isAuthenticated) {
-            // Close sidebar when logged out
+        if (!$authStore.isAuthenticated || $isLoggingOut) {
+            // Close sidebar when logged out or logging out
             isMenuOpen.set(false);
             // Close settings if open
             settingsMenuVisible.set(false);

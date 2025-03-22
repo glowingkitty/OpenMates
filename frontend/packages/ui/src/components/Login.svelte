@@ -167,8 +167,11 @@
         }
     }
     
-    // Improve switchToSignup function to ensure state changes are coordinated
+    // Improve switchToSignup function to reset the signup step and ensure state changes are coordinated
     async function switchToSignup() {
+        // Reset the signup step to 1 when starting a new signup process
+        currentSignupStep.set(1);
+        
         // Set the signup process flag first
         isInSignupProcess.set(true);
         
@@ -177,7 +180,7 @@
         
         // Now update the view
         currentView = 'signup';
-        console.debug("Switched to signup view, isInSignupProcess:", $isInSignupProcess);
+        console.debug("Switched to signup view, isInSignupProcess:", $isInSignupProcess, "step:", $currentSignupStep);
     }
     
     async function switchToLogin() {

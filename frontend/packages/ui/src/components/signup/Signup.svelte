@@ -89,8 +89,17 @@
     
     onMount(() => {
         isInSignupProcess.set(true);
-        // Get step from store if set
-        currentStep = $currentSignupStep;
+        
+        // Check if we're starting a fresh signup from the login screen
+        // If we are, make sure we're at step 1
+        if (!$authStore.isAuthenticated) {
+            currentSignupStep.set(1);
+            currentStep = 1;
+        } else {
+            // Otherwise, get step from store if set (for authenticated users continuing signup)
+            currentStep = $currentSignupStep;
+        }
+        
         updateSettingsStep();
     });
     
@@ -177,6 +186,9 @@
         try {
             isLoggingOut.set(true);
             isInSignupProcess.set(false);
+            
+            // Reset signup step to 1 when logging out
+            currentSignupStep.set(1);
 
             await authStore.logout({
                 beforeServerLogout: () => {
@@ -184,12 +196,15 @@
                 },
 
                 afterServerLogout: async () => {
-                    // Small delay to allow any UI transitions to complete
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    // Longer delay to ensure UI transitions complete correctly
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
             });
-
-            isLoggingOut.set(false);
+            
+            // Keep the logging out state for a moment longer to prevent UI flash
+            setTimeout(() => {
+                isLoggingOut.set(false);
+            }, 300);
             
             // Switch to login view after logout is complete
             dispatch('switchToLogin');
@@ -197,7 +212,17 @@
             console.error('Error during logout:', error);
             // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
+            
+            // Reset signup step to 1 when logging out
+            currentSignupStep.set(1);
+            
             authStore.logout();
+            
+            // Reset logging out state
+            setTimeout(() => {
+                isLoggingOut.set(false);
+            }, 300);
+            
             dispatch('switchToLogin');
         }
     }

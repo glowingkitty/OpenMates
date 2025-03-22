@@ -42,11 +42,14 @@
         }
     }
 
-    // Modify handleLogout to track signup state
+    // Modify handleLogout to track signup state and reset signup step
     async function handleLogout() {
         // Set the flag if we're in signup process
         isLoggingOutFromSignup = $isInSignupProcess;
         isLoggingOut.set(true);
+        
+        // Reset signup step to 1
+        currentSignupStep.set(1);
         
         try {
             await authStore.logout();
@@ -75,16 +78,6 @@
                    $isInSignupProcess || 
                    isLoggingOutFromSignup ||
                    $isLoggingOut;
-
-    // Add debug for state changes
-    $: console.debug("ActiveChat state:", { 
-        isAuthenticated: $authStore.isAuthenticated, 
-        isInSignupProcess: $isInSignupProcess,
-        isLoggingOut: $isLoggingOut,
-        isLoggingOutFromSignup,
-        showChat,
-        showLogin 
-    });
 
     // Reset the flags when auth state changes
     $: if (!$authStore.isAuthenticated) {
