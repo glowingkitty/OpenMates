@@ -15,6 +15,7 @@
         isCheckingAuth,
         isInSignupProcess,
         isLoggingOut,
+        currentSignupStep,
         // types
         type Chat,
     } from '@repo/ui';
@@ -43,6 +44,9 @@
 
     // Add reference to ActiveChat instance
     let activeChat: ActiveChat | null = null;
+
+    // Add reactive statement for scrollable class
+    $: scrollableClass = !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep < 7) ? 'scrollable' : '';
 
     onMount(async () => {
         // Initialize authentication state on app load
@@ -100,7 +104,7 @@
 <div class="main-content" 
     class:menu-closed={!$isMenuOpen || !$authStore.isAuthenticated}
     class:initial-load={isInitialLoad}
-    class:login-mode={!$authStore.isAuthenticated}>
+    class:scrollable={scrollableClass}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container" 
         class:menu-open={menuClass}
@@ -118,7 +122,7 @@
 </div>
 
 <!-- Footer outside main content -->
-{#if !$authStore.isAuthenticated}
+{#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep < 7)}
 <div class="footer-wrapper" transition:fade>
     <Footer metaKey="webapp" context="webapp" />
 </div>
@@ -186,7 +190,7 @@
     }
 
     .main-content {
-        /* Change from fixed to absolute positioning when in login mode */
+        /* Change from fixed to absolute positioning when in scrollable mode */
         position: fixed;
         left: calc(var(--sidebar-width) + var(--sidebar-margin));
         top: 0;
@@ -197,8 +201,8 @@
         transition: left 0.3s ease, transform 0.3s ease;
     }
 
-    /* Add new login mode styles */
-    .main-content.login-mode {
+    /* Add new scrollable mode styles */
+    .main-content.scrollable {
         position: absolute;
         bottom: auto; /* Remove bottom constraint */
         min-height: max(var(--chat-container-min-height-mobile), 100vh); /* Ensure it takes at least full viewport height */
@@ -304,7 +308,7 @@
             transform: translateX(0);
         }
 
-        .main-content.login-mode {
+        .main-content.scrollable {
             transform: none;
             left: 0;
         }

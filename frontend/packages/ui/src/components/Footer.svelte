@@ -11,6 +11,7 @@
     import { authStore } from '../stores/authStore';
     import { isInSignupProcess } from '../stores/signupState';
     import { isSignupSettingsStep } from '../stores/signupState';
+    import { currentSignupStep } from '../stores/signupState';
 
     // Type definition for footer links
     type FooterLink = {
@@ -234,8 +235,9 @@
         }
     };
 
-    // Hide footer when authenticated or specifically on settings step
-    $: showFooter = !$authStore.isAuthenticated && !$isSignupSettingsStep;
+    // Show footer when not authenticated OR in signup steps 1-6
+    $: showFooter = !$authStore.isAuthenticated || 
+                   ($isInSignupProcess && $currentSignupStep < 7);
 </script>
 
 {#if showFooter}
