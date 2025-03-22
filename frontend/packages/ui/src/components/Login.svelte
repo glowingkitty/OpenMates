@@ -167,20 +167,41 @@
         }
     }
     
-    function switchToSignup() {
+    // Improve switchToSignup function to ensure state changes are coordinated
+    async function switchToSignup() {
+        // Set the signup process flag first
+        isInSignupProcess.set(true);
+        
+        // Wait for next tick to ensure the flag is processed
+        await tick();
+        
+        // Now update the view
         currentView = 'signup';
+        console.debug("Switched to signup view, isInSignupProcess:", $isInSignupProcess);
     }
     
     async function switchToLogin() {
+        // First change the view
         currentView = 'login';
+        
+        // Wait for the view change to take effect
         await tick();
+        
+        // Then reset the signup process flag
+        isInSignupProcess.set(false);
+        
         // Only focus if not touch device
         if (emailInput && !isTouchDevice) {
             emailInput.focus();
         }
     }
 
+    // Add debug subscription to track isInSignupProcess changes
     onMount(() => {
+        const unsubscribe = isInSignupProcess.subscribe(value => {
+            console.debug(`[Login.svelte] isInSignupProcess changed to: ${value}`);
+        });
+        
         (async () => {
             // Check if device is touch-enabled
             isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -236,10 +257,13 @@
         const handleResize = () => {
             screenWidth = window.innerWidth;
             isMobile = screenWidth < MOBILE_BREAKPOINT;
-        };
-        
+        }; 
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        
+        return () => {
+            unsubscribe();
+            window.removeEventListener('resize', handleResize);
+        }; 
     });
 
     onDestroy(() => {
@@ -287,7 +311,7 @@
             isLoading = false;
         }
     }
-    
+
     // Strengthen the reactive statement to switch views when in signup process
     $: {
         if ($authStore.isAuthenticated && $isInSignupProcess) {
@@ -313,7 +337,6 @@
         {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
         {/if}
-
         <div class="login-content">
             {#if showMobileGrid && gridsReady}
                 <div class="mobile-grid-fixed">
@@ -346,7 +369,7 @@
                                         <div class="input-wrapper">
                                             <span class="clickable-icon icon_mail"></span>
                                             <input 
-                                                type="email" 
+                                                type="email"
                                                 bind:value={email}
                                                 placeholder={$text('login.email_placeholder.text')}
                                                 required
@@ -372,7 +395,7 @@
                                         <div class="input-wrapper">
                                             <span class="clickable-icon icon_secret"></span>
                                             <input 
-                                                type="password" 
+                                                type="password"
                                                 bind:value={password}
                                                 placeholder={$text('login.password_placeholder.text')}
                                                 required
@@ -395,7 +418,6 @@
                                 </form>
                             {/if}
                         </div>
-
                         <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
                             <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
                             <button class="text-button" on:click={switchToSignup}>

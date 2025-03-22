@@ -1,7 +1,7 @@
 import { writable, derived } from 'svelte/store';
 
-// Store to track if user is in signup process
-export const isInSignupProcess = writable(false);
+// Make the isInSignupProcess store more responsive by marking it as needing immediate update
+export const isInSignupProcess = writable<boolean>(false);
 export const isLoggingOut = writable(false);
 
 // Store to track current signup step

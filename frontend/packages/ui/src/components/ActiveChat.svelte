@@ -13,7 +13,7 @@
     import { chatDB } from '../services/db';
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
-    import { isInSignupProcess, currentSignupStep, getStepFromPath } from '../stores/signupState';
+    import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
     import { initializeApp } from '../app';
     
     const dispatch = createEventDispatcher();
@@ -46,24 +46,47 @@
     async function handleLogout() {
         // Set the flag if we're in signup process
         isLoggingOutFromSignup = $isInSignupProcess;
+        isLoggingOut.set(true);
+        
         try {
             await authStore.logout();
         } catch (error) {
             console.error('Error during logout:', error);
             authStore.logout();
         }
+        
+        // Keep the flags active for a moment to prevent UI flash
+        setTimeout(() => {
+            isLoggingOut.set(false);
+        }, 500);
     }
 
-    // Update the reactive statement to ensure chat never shows during signup
+    // Fix the reactive statement to properly handle logout during signup
     $: showChat = $authStore.isAuthenticated && 
                   !$isInSignupProcess && 
-                  !isLoggingOutFromSignup && 
+                  !isLoggingOutFromSignup &&
+                  !$isLoggingOut && 
                   // Add this condition to prevent flash during auth state changes
                   $authStore.user?.last_opened?.startsWith('/signup/') !== true;
 
-    $: showLogin = !showChat;
+    // Update this line to properly handle all edge cases
+    $: showLogin = !showChat || 
+                   !$authStore.isAuthenticated || 
+                   $isInSignupProcess || 
+                   isLoggingOutFromSignup ||
+                   $isLoggingOut;
 
-    // Reset the flag when auth state changes
+    // Add debug for state changes
+    $: console.debug("ActiveChat state:", { 
+        isAuthenticated: $authStore.isAuthenticated, 
+        isInSignupProcess: $isInSignupProcess,
+        isLoggingOut: $isLoggingOut,
+        isLoggingOutFromSignup,
+        showChat,
+        showLogin 
+    });
+
+    // Reset the flags when auth state changes
     $: if (!$authStore.isAuthenticated) {
         isLoggingOutFromSignup = false;
     }
