@@ -1,13 +1,17 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { processedImageUrl } from '../../../../stores/profileImage';
+    import { userProfile } from '../../../../stores/userProfile';
     export let username: string;
     export let isProcessing = false;
     export let isUploading = false;
+    
+    // Use username from userProfile store if available, otherwise use the provided username
+    $: displayUsername = $userProfile?.username || username;
 </script>
 
 <div class="content">
-    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', username)}</h2>
+    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', displayUsername)}</h2>
     <div class="image-container">
         <div class="image-circle">
             {#if $processedImageUrl}
