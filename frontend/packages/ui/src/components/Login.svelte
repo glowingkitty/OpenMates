@@ -10,6 +10,7 @@
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
+    import { userProfile } from '../stores/userProfile';
     
     const dispatch = createEventDispatcher();
 
@@ -212,9 +213,8 @@
             showLoadingUntil = Date.now() + 500;
             
             // Check if user is in signup process based on last_opened
-            if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
-                // Extract step number from path
-                const stepMatch = $authStore.user.last_opened.match(/\/signup\/step-(\d+)/);
+            if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
+                const stepMatch = $userProfile.last_opened.match(/\/signup\/step-(\d+)/);
                 if (stepMatch && stepMatch[1]) {
                     const step = parseInt(stepMatch[1], 10);
                     currentSignupStep.set(step);
@@ -303,7 +303,7 @@
             }
             
             dispatch('loginSuccess', { 
-                user: $authStore.user,
+                user: $userProfile,  // Changed from $authStore.user to $userProfile
                 isMobile,
                 inSignupFlow: result.inSignupFlow
             });

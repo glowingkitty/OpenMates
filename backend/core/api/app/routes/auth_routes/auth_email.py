@@ -348,8 +348,13 @@ async def check_confirm_email_code(
         # Set authentication cookies
         if auth_data and "cookies" in auth_data:
             for name, value in auth_data["cookies"].items():
+                # Rename cookies to use our prefix instead of directus prefix
+                cookie_name = name
+                if name.startswith("directus_"):
+                    cookie_name = "auth_" + name[9:]  # Replace "directus_" with "auth_"
+                    
                 response.set_cookie(
-                    key=name,
+                    key=cookie_name,
                     value=value,
                     httponly=True,
                     secure=True,

@@ -1,6 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import type { User } from '../types/user';
 import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
 import { userDB } from '../services/userDB';
 import { updateProfile } from './userProfile';
@@ -8,14 +7,12 @@ import { updateProfile } from './userProfile';
 // Define the types for the auth store
 interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
   isInitialized: boolean;
 }
 
 // Create the initial state
 const initialState: AuthState = {
   isAuthenticated: false,
-  user: null,
   isInitialized: false
 };
 
@@ -61,31 +58,23 @@ function createAuthStore() {
             isInSignupProcess.set(false);
           }
           
-          const userData = {
-            id: data.user.id,
-            username: data.user.username || 'User',
-            isAdmin: data.user.is_admin || false,
-            profileImageUrl: data.user.profile_image_url || data.user.avatar_url || null, // Handle both field names
-            last_opened: data.user.last_opened || null,
-            credits: data.user.credits || 0
-          };
-          
           update(state => ({
             ...state,
             isAuthenticated: true,
-            isInitialized: true,
-            user: userData
+            isInitialized: true
           }));
           
           // Save the user data to IndexedDB
           try {
-            await userDB.saveUserData(userData);
+            await userDB.saveUserData(data.user);
             
             // Update the user profile store
             updateProfile({
-              username: userData.username,
-              profileImageUrl: userData.profileImageUrl,
-              credits: userData.credits
+              username: data.user.username,
+              profileImageUrl: data.user.profile_image_url,
+              credits: data.user.credits,
+              isAdmin: data.user.is_admin,
+              last_opened: data.user.last_opened
             });
           } catch (dbError) {
             console.error("Failed to save user data to database:", dbError);
@@ -97,8 +86,7 @@ function createAuthStore() {
           update(state => ({
             ...state,
             isAuthenticated: false,
-            isInitialized: true,
-            user: null
+            isInitialized: true
           }));
           
           return false;
@@ -110,8 +98,7 @@ function createAuthStore() {
         update(state => ({
             ...state,
             isAuthenticated: false,
-            isInitialized: true,
-            user: null
+            isInitialized: true
         }));
         
         return false;
@@ -163,31 +150,23 @@ function createAuthStore() {
             isInSignupProcess.set(false);
           }
           
-          const userData = {
-            id: data.user.id,
-            username: data.user.username || 'User',
-            isAdmin: data.user.is_admin || false,
-            profileImageUrl: data.user.profile_image_url || data.user.avatar_url || null, // Handle both field names
-            last_opened: data.user.last_opened || null,
-            credits: data.user.credits || 0
-          };
-          
           update(state => ({
             ...state,
             isAuthenticated: true,
-            isInitialized: true,
-            user: userData
+            isInitialized: true
           }));
           
           // Save the user data to IndexedDB
           try {
-            await userDB.saveUserData(userData);
+            await userDB.saveUserData(data.user);
             
             // Update the user profile store
             updateProfile({
-              username: userData.username,
-              profileImageUrl: userData.profileImageUrl,
-              credits: userData.credits
+              username: data.user.username,
+              profileImageUrl: data.user.profile_image_url,
+              credits: data.user.credits,
+              isAdmin: data.user.is_admin,
+              last_opened: data.user.last_opened
             });
           } catch (dbError) {
             console.error("Failed to save user data to database:", dbError);
@@ -218,15 +197,7 @@ function createAuthStore() {
         update(state => ({
           ...state,
           isAuthenticated: true,
-          isInitialized: true,
-          user: {
-            id: userData.id,
-            username: userData.username || 'User',
-            isAdmin: userData.is_admin || false,
-            profileImageUrl: null, // New users won't have a profile image yet
-            last_opened: userData.last_opened || null,
-            credits: userData.credits || 0
-          }
+          isInitialized: true
         }));
         
         return true;
@@ -236,10 +207,7 @@ function createAuthStore() {
     
     // Update user information
     updateUser: (userData: Partial<User>) => {
-      update(state => ({
-        ...state,
-        user: state.user ? { ...state.user, ...userData } : null
-      }));
+      updateProfile(userData);
     },
     
     // Set authentication state directly (useful for API responses that confirm auth)
@@ -352,8 +320,8 @@ export const authStore = authStoreInstance;
 export const profileImage = derived(
   authStore,
   $authStore => {
-    if ($authStore.isAuthenticated && $authStore.user?.profileImageUrl) {
-      return $authStore.user.profileImageUrl;
+    if ($authStore.isAuthenticated) {
+      return get(updateProfile).profileImageUrl || '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
     }
     return '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
   }

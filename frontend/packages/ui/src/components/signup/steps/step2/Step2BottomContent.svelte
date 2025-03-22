@@ -5,6 +5,8 @@
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { authStore } from '../../../../stores/authStore';
     import { currentSignupStep, isInSignupProcess } from '../../../../stores/signupState';
+    import { userDB } from '../../../../services/userDB';
+    import { updateProfile } from '../../../../stores/userProfile';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
@@ -52,11 +54,34 @@
                 
                 // Update auth store with user information
                 if (data.user) {
+                    // Prepare complete user data object
+                    const userData = {
+                        id: data.user.id,
+                        username: data.user.username || 'User',
+                        isAdmin: data.user.is_admin || false,
+                        profileImageUrl: data.user.profile_image_url || data.user.avatar_url || null,
+                        last_opened: data.user.last_opened || null,
+                        credits: data.user.credits || 0
+                    };
+
                     // Use the unified authStore to complete signup
                     authStore.completeSignup(data.user);
                     
-                    // Also store in localStorage for components that need it
-                    localStorage.setItem('user_display_name', data.user.username);
+                    // Save user data to IndexedDB
+                    try {
+                        await userDB.saveUserData(userData);
+                        
+                        // Update the user profile store
+                        updateProfile({
+                            username: userData.username,
+                            profileImageUrl: userData.profileImageUrl,
+                            credits: userData.credits,
+                            isAdmin: userData.isAdmin,
+                            last_opened: userData.last_opened
+                        });
+                    } catch (dbError) {
+                        console.error("Failed to save user data to database:", dbError);
+                    }
                     
                     // Make sure we stay in signup flow and move to step 3
                     currentSignupStep.set(3);

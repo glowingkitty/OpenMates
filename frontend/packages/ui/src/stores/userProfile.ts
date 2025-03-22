@@ -4,15 +4,17 @@ import { userDB } from '../services/userDB';
 export interface UserProfile {
   username: string;
   profileImageUrl: string | null;
-  credits?: number;
-  isAdmin?: boolean;
+  credits: number;
+  isAdmin: boolean;
+  last_opened: string | null;
 }
 
 const defaultProfile: UserProfile = {
   username: '',
   profileImageUrl: null,
   credits: 0,
-  isAdmin: false
+  isAdmin: false,
+  last_opened: null
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
@@ -87,13 +89,21 @@ export function updateCredits(credits: number): void {
   userDB.updateUserData({ credits });
 }
 
-// Helper to update the entire profile
+// This becomes the single point of update for user data
 export function updateProfile(profile: Partial<UserProfile>): void {
+  // Update store
   userProfile.update(currentProfile => ({
     ...currentProfile,
     ...profile
   }));
   
-  // Also persist to database
+  // Persist to IndexedDB
   userDB.updateUserData(profile);
+}
+
+// Add getter for components that need user data
+export function getUserProfile(): UserProfile {
+  let profile: UserProfile;
+  userProfile.subscribe(value => profile = value)();
+  return profile;
 }

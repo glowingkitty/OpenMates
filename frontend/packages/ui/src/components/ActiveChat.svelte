@@ -69,8 +69,8 @@
                   !$isInSignupProcess && 
                   !isLoggingOutFromSignup &&
                   !$isLoggingOut && 
-                  // Add this condition to prevent flash during auth state changes
-                  $authStore.user?.last_opened?.startsWith('/signup/') !== true;
+                  // Use userProfile instead of authStore.user
+                  $userProfile.last_opened?.startsWith('/signup/') !== true;
 
     // Update this line to properly handle all edge cases
     $: showLogin = !showChat || 
@@ -276,14 +276,14 @@
             await initializeApp({ skipAuthInitialization: true });
             
             // Check if the user is in the middle of a signup process (based on last_opened)
-            if ($authStore.isAuthenticated && $authStore.user?.last_opened?.startsWith('/signup/')) {
-                console.debug("User detected in signup process:", $authStore.user.last_opened);
+            if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
+                console.debug("User detected in signup process:", $userProfile.last_opened);
                 // Set the signup process state to true so the signup component shows in Login
                 isInSignupProcess.set(true);
                 
                 // Extract step from last_opened to ensure we're on the right step
-                if ($authStore.user.last_opened) {
-                    const step = getStepFromPath($authStore.user.last_opened);
+                if ($userProfile.last_opened) {
+                    const step = getStepFromPath($userProfile.last_opened);
                     console.debug("Setting signup step to:", step);
                     currentSignupStep.set(step);
                 }
