@@ -38,7 +38,7 @@
     style="left: {position.left}px; top: {position.top}px"
     transition:fade
 >
-    {message}
+    {@html message}
     <div class="arrow"></div>
 </div>
 

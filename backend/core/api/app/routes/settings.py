@@ -48,24 +48,37 @@ async def get_current_user(
             last_opened=cached_data.get("last_opened")
         )
     
-    # If no cache hit, try to get from Directus
-    success, user_data = await directus_service.validate_token(refresh_token)
-    if not success or not user_data:
+    # If no cache hit, validate token and get user data
+    success, token_data = await directus_service.validate_token(refresh_token)
+    if not success or not token_data:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     
-    # Create User object from Directus data
+    # Get user ID from token data
+    user_id = token_data.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token data")
+
+    # Fetch complete user profile
+    success, user_data, _ = await directus_service.get_user_profile(user_id)
+    if not success or not user_data:
+        raise HTTPException(status_code=401, detail="Could not fetch user data")
+
+    # Get credits information
+    credits = await directus_service.get_user_credits(user_id) or 0
+
+    # Create User object from profile data
     user = User(
-        id=user_data.get("id"),
+        id=user_id,
         username=user_data.get("username"),
-        is_admin=user_data.get("role", {}).get("name") == "admin",
-        credits=user_data.get("credits", 0),
+        is_admin=user_data.get("is_admin", False),  # Use direct is_admin field
+        credits=credits,
         profile_image_url=user_data.get("profile_image_url"),
         last_opened=user_data.get("last_opened")
     )
     
     # Cache the user data for future requests
     await cache_service.set(cache_key, {
-        "user_id": user.id,
+        "user_id": user_id,
         "username": user.username,
         "is_admin": user.is_admin,
         "credits": user.credits,
@@ -99,10 +112,35 @@ async def update_profile_image(
         if len(image_content) > bucket_config['max_size']:
             raise HTTPException(status_code=400, detail="File too large")
 
-        # Check image safety
-        is_safe = await image_safety_service.check_image_safety(image_content)
+        # Check rejected uploads count from cache
+        reject_key = f"profile_image_rejects:{current_user.id}"
+        reject_count = await cache_service.get(reject_key) or 0
+
+        # Check image safety with stricter profile image rules
+        is_safe = await image_safety_service.check_profile_image(image_content)
         if not is_safe:
-            raise HTTPException(status_code=400, detail="Image content not allowed")
+            # Increment and store reject count
+            reject_count += 1
+            await cache_service.set(reject_key, reject_count, ttl=86400)  # 24h TTL
+
+            if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
+                # Delete user account
+                await directus_service.delete_user(current_user.id)
+                # Clear user from cache
+                await cache_service.delete(f"session:{current_user.id}")
+                return {
+                    "status": "account_deleted",
+                    "detail": "Account deleted due to policy violations"
+                }
+            
+            return {
+                "status": "error",
+                "detail": "Image not allowed",
+                "reject_count": reject_count
+            }
+
+        # Reset reject count if upload is successful
+        await cache_service.delete(reject_key)
 
         # Generate unique filename
         file_ext = os.path.splitext(file.filename)[1].lower()

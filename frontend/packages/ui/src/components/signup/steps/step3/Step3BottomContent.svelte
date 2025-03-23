@@ -6,6 +6,8 @@
     import { createEventDispatcher } from 'svelte';
     import { updateProfileImage } from '../../../../stores/userProfile';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { fade } from 'svelte/transition';
+    import { authStore } from '../../../../stores/authStore';
 
     let errorMessage = '';
     let showWarning = false;
@@ -16,8 +18,11 @@
     let isProcessing = false;
     let isUploading = false;
     const dispatch = createEventDispatcher();
+    let showUploadButton = true;
+    let showLastWarning = false;
+    const WARNING_DISPLAY_TIME = 10000; // 10 seconds
 
-    async function uploadImage(blob: Blob): Promise<void> {
+    async function uploadImage(blob: Blob): Promise<string> {
         const formData = new FormData();
         formData.append('file', blob);
 
@@ -27,23 +32,57 @@
             credentials: 'include'
         });
 
-        if (!response.ok) {
-            const data = await response.json();
+        const data = await response.json();
+        
+        if (data.status === 'error') {
             if (data.detail === "Image not allowed") {
-                errorMessage = $text('signup.image_not_allowed.text');
+                errorMessage = $text('settings.profile_image_not_allowed.text');
                 showWarning = true;
+
+                if (data.reject_count === 3) {  // Show last warning on 3rd attempt
+                    // Hide upload button
+                    showUploadButton = false;
+                    
+                    // After upload button fades out, show last warning
+                    setTimeout(() => {
+                        showWarning = false; // Hide the normal warning
+                        showLastWarning = true;
+                        // Show the warning for 10 seconds
+                        setTimeout(() => {
+                            showLastWarning = false;
+                            showUploadButton = true;
+                        }, WARNING_DISPLAY_TIME);
+                    }, 300); // Wait for fade out to complete
+                    
+                    errorMessage = $text('settings.last_warning_image_not_allowed.text');
+                }
                 throw new Error(data.detail);
             }
+        }
+
+        if (data.status === 'account_deleted') {
+            // Set local storage flag for 10 minute lockout
+            localStorage.setItem('policy_violation_lockout', (Date.now() + 600000).toString());
+            
+            // Set flag in sessionStorage to show deletion message on login page
+            sessionStorage.setItem('account_deleted', 'true');
+            
+            // Trigger logout with skipServerLogout flag
+            authStore.logout({ skipServerLogout: true });
+            throw new Error('account_deleted');
+        }
+
+        if (!response.ok) {
             throw new Error('Upload failed');
         }
 
-        const data = await response.json();
         return data.url;
     }
 
     async function processImage(file: File) {
         isProcessing = true;
         dispatch('uploading', { isProcessing, isUploading });
+        showWarning = false; // Reset warning state
 
         try {
             // Create source image
@@ -85,18 +124,18 @@
             isUploading = true;
             dispatch('uploading', { isProcessing, isUploading });
 
-            await uploadImage(blob);
+            const imageUrl = await uploadImage(blob);
 
-            // Update store
+            // Update store only if upload was successful
             processedImageUrl.set(processedUrl);
             
-            // Also update the user profile store with the image URL
-            updateProfileImage(processedUrl);
+            // Also update the user profile store with the uploaded image URL
+            updateProfileImage(imageUrl);
 
             // Cleanup
             URL.revokeObjectURL(img.src);
 
-            // Auto-progress to next step
+            // Auto-progress to next step only if everything succeeded
             dispatch('step', { step: 4 });
         } finally {
             isProcessing = false;
@@ -132,24 +171,30 @@
 </script>
 
 <div class="bottom-content">
-    <label class="file-upload-field">
-        <input 
-            bind:this={fileInput}
-            type="file"
-            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-            class="file-input"
-            on:change={handleFileSelect}
-        />
-        <span class="file-upload-button" class:error={showWarning}>
-            <div class="file-icon"></div>
-            <span class="upload-text">{@html $text('signup.upload_profile_image.text')}</span>
-        </span>
-    </label>
-    {#if showWarning && errorMessage}
-        <InputWarning 
-            message={errorMessage}
-            target={fileInput}
-        />
+    {#if showUploadButton}
+        <label class="file-upload-field" transition:fade={{ duration: 300 }}>
+            <input 
+                bind:this={fileInput}
+                type="file"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                class="file-input"
+                on:change={handleFileSelect}
+            />
+            <span class="file-upload-button" class:error={showWarning}>
+                <div class="file-icon"></div>
+                <span class="upload-text">{@html $text('signup.upload_profile_image.text')}</span>
+            </span>
+        </label>
+        {#if showWarning && errorMessage && !showLastWarning}
+            <InputWarning 
+                message={errorMessage}
+                target={fileInput}
+            />
+        {/if}
+    {:else if showLastWarning}
+        <div class="warning-message" transition:fade={{ duration: 300 }}>
+            {@html $text('settings.last_warning_image_not_allowed.text')}
+        </div>
     {/if}
 </div>
 
@@ -229,5 +274,17 @@
         color: var(--color-grey-60);
         font-size: 14px;
         margin-bottom: 8px;
+    }
+
+    .warning-message {
+        padding: 16px;
+        background-color: var(--color-error-light);
+        color: var(--color-error-dark);
+        border: 1px solid var(--color-error);
+        border-radius: 12px;
+        text-align: center;
+        font-weight: 500;
+        max-width: 350px;
+        margin: 0 auto;
     }
 </style>

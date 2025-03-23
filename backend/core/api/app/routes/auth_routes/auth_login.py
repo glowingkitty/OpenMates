@@ -159,6 +159,7 @@ async def login(
                 
                 # Cache standardized user data
                 cached_data = {
+                    "user_id": user.get("id"),
                     "username": user.get("username"),
                     "is_admin": user.get("is_admin", False),
                     "credits": user.get("credits", 0),

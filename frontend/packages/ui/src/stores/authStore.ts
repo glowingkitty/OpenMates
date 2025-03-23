@@ -230,7 +230,8 @@ function createAuthStore() {
       beforeServerLogout?: () => void | Promise<void>,
       afterServerLogout?: () => void | Promise<void>,
       onError?: (error: any) => void | Promise<void>,
-      finalLogout?: () => void | Promise<void>
+      finalLogout?: () => void | Promise<void>,
+      skipServerLogout?: boolean  // Add new option to skip server logout
     }) => {
       try {
         console.debug('Logging out...');
@@ -240,21 +241,23 @@ function createAuthStore() {
           await callbacks.beforeServerLogout();
         }
         
-        // Make the logout request to the server
-        try {
-          const response = await fetch(getApiEndpoint(apiEndpoints.auth.logout), {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json'
+        // Make the logout request to the server only if not skipped
+        if (!callbacks?.skipServerLogout) {
+          try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.logout), {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+  
+            if (!response.ok) {
+              console.error('Logout request failed:', response.statusText);
             }
-          });
-
-          if (!response.ok) {
-            console.error('Logout request failed:', response.statusText);
+          } catch (e) {
+            console.error("Logout API error:", e);
           }
-        } catch (e) {
-          console.error("Logout API error:", e);
         }
         
         // Call post-server-logout callback if provided

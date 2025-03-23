@@ -375,6 +375,7 @@ async def check_confirm_email_code(
                 
                 # Cache standardized user data
                 cached_data = {
+                    "user_id": user_id,
                     "username": signup_username,
                     "is_admin": is_admin,
                     "credits": 0,

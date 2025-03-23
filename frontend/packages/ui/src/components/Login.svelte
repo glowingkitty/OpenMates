@@ -53,6 +53,9 @@
     let isRateLimited = false;
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
+    let isPolicyViolationLockout = false;
+    let isAccountDeleted = false;
+
     const leftIconGrid = [
         ['videos', 'health', 'web'],
         ['calendar', 'nutrition', 'language'],
@@ -254,6 +257,27 @@
                     localStorage.removeItem('loginRateLimit');
                 }
             }
+
+            const lockoutUntil = localStorage.getItem('policy_violation_lockout');
+            if (lockoutUntil) {
+                const lockoutTime = parseInt(lockoutUntil);
+                if (Date.now() < lockoutTime) {
+                    isPolicyViolationLockout = true;
+                    setTimeout(() => {
+                        isPolicyViolationLockout = false;
+                        localStorage.removeItem('policy_violation_lockout');
+                    }, lockoutTime - Date.now());
+                } else {
+                    localStorage.removeItem('policy_violation_lockout');
+                }
+            }
+
+            // Check if account was deleted
+            isAccountDeleted = sessionStorage.getItem('account_deleted') === 'true';
+            if (isAccountDeleted) {
+                // Clear after reading once
+                sessionStorage.removeItem('account_deleted');
+            }
         })();
         
         // Handle resize events
@@ -348,7 +372,13 @@
             {/if}
             
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
-                {#if currentView === 'login'}
+                {#if isPolicyViolationLockout || isAccountDeleted}
+                    <div class="content-area" in:fade={{ duration: 400 }}>
+                        <p class="violation-message">
+                            {@html $text('settings.your_account_got_deleted.text')}
+                        </p>
+                    </div>
+                {:else if currentView === 'login'}
                     <div class="content-area" in:fade={{ duration: 400 }}>
                         <h1><mark>{@html $text('login.login.text')}</mark></h1>
                         <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
@@ -441,3 +471,17 @@
         {/if}
     </div>
 {/if}
+
+<style>
+    .violation-message {
+        color: var(--color-error);
+        padding: 24px;
+        text-align: center;
+        font-weight: 500;
+        font-size: 16px;
+        line-height: 1.5;
+        background-color: var(--color-error-light);
+        border-radius: 8px;
+        margin: 24px 0;
+    }
+</style>
