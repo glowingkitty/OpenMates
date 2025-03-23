@@ -48,15 +48,9 @@ class UserDatabaseService {
         return new Promise((resolve, reject) => {
             const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
             const store = transaction.objectStore(this.STORE_NAME);
-            
-            console.debug("[UserDatabase] Saving user data:", {
-                id: userData.id,
-                username: userData.username,
-                isAdmin: userData.isAdmin,
-                profileImage: userData.profileImageUrl ? 'present' : 'none',
-                credits: userData.credits
-            });
-            
+
+            // console.debug(userData);
+
             // Only store essential fields
             store.put(userData.username || '', 'username');
             store.put(!!userData.isAdmin, 'isAdmin');  // Convert to boolean

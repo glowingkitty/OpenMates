@@ -5,6 +5,7 @@
     import { processedImageUrl } from '../../../../stores/profileImage';
     import { createEventDispatcher } from 'svelte';
     import { updateProfileImage } from '../../../../stores/userProfile';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
 
     let errorMessage = '';
     let showWarning = false;
@@ -16,12 +17,28 @@
     let isUploading = false;
     const dispatch = createEventDispatcher();
 
-    // Placeholder upload function
     async function uploadImage(blob: Blob): Promise<void> {
-        // Simulate network request
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        // TODO: Implement actual upload
-        return Promise.resolve();
+        const formData = new FormData();
+        formData.append('file', blob);
+
+        const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.update_profile_image), {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            if (data.detail === "Image not allowed") {
+                errorMessage = $text('signup.image_not_allowed.text');
+                showWarning = true;
+                throw new Error(data.detail);
+            }
+            throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+        return data.url;
     }
 
     async function processImage(file: File) {

@@ -9,6 +9,8 @@ from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
 from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
+from app.models.user import User
+from app.schemas.user import UserResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -73,13 +75,13 @@ async def get_session(
         return SessionResponse(
             success=True,
             message="Session valid",
-            user={
-                "username": cached_data.get("username"),
-                "is_admin": cached_data.get("is_admin", False),
-                "credits": cached_data.get("credits", 0),
-                "profile_image_url": cached_data.get("profile_image_url"),
-                "last_opened": cached_data.get("last_opened")
-            },
+            user=UserResponse(
+                username=cached_data.get("username"),
+                is_admin=cached_data.get("is_admin", False),
+                credits=cached_data.get("credits", 0),
+                profile_image_url=cached_data.get("profile_image_url"),
+                last_opened=cached_data.get("last_opened")
+            ),
             token_refresh_needed=False
         )
 

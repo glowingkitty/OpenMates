@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Dict, Any, Union
+from app.schemas.user import UserResponse
 
 class InviteCodeRequest(BaseModel):
     invite_code: str
@@ -51,17 +52,19 @@ class LoginResponse(BaseModel):
     """Schema for login response"""
     success: bool = Field(..., description="Whether the login was successful")
     message: str = Field(..., description="Response message")
-    user: Optional[Dict[str, Any]] = Field(None, description="User information if login successful")
+    user: Optional[UserResponse] = None
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Login successful",
                 "user": {
-                    "id": "123e4567-e89b-12d3-a456-426614174000",
                     "username": "johndoe",
-                    "is_admin": False
+                    "is_admin": False,
+                    "credits": 100,
+                    "profile_image_url": None,
+                    "last_opened": "/signup/step-3"
                 }
             }
         }
@@ -83,5 +86,5 @@ class SessionResponse(BaseModel):
     """Response for session endpoint"""
     success: bool
     message: str
-    user: Optional[dict] = None
+    user: Optional[UserResponse] = None
     token_refresh_needed: bool = False

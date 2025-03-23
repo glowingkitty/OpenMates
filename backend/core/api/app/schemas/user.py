@@ -1,0 +1,20 @@
+from pydantic import BaseModel
+from typing import Optional
+
+class UserResponse(BaseModel):
+    username: str
+    is_admin: bool
+    credits: int
+    profile_image_url: Optional[str] = None
+    last_opened: Optional[str] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "johndoe",
+                "is_admin": False,
+                "credits": 100,
+                "profile_image_url": "https://example.com/profile.jpg",
+                "last_opened": "/signup/step-3"
+            }
+        }

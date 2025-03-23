@@ -28,6 +28,7 @@ __all__ = [
     'get_user_credits',
     'get_user_username',
     'get_user_profile_image',
+    'get_user_profile_image_url',
     'invalidate_user_profile_cache',
     'get_user_profile'
 ]

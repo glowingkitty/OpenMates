@@ -12,6 +12,8 @@ from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, 
 from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
 import json
+from app.models.user import User
+from app.schemas.user import UserResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -168,16 +170,17 @@ async def login(
                 await cache_service.set(cache_key, cached_data, ttl=86400)
             
             logger.info("Login completed successfully, returning user data")
+            # Update to use UserResponse schema
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user={
-                    "username": user.get("username"),
-                    "is_admin": user.get("is_admin", False),
-                    "credits": user.get("credits", 0),
-                    "profile_image_url": user.get("profile_image_url"),
-                    "last_opened": user.get("last_opened")
-                }
+                user=UserResponse(
+                    username=user.get("username"),
+                    is_admin=user.get("is_admin", False),
+                    credits=user.get("credits", 0),
+                    profile_image_url=user.get("profile_image_url"),
+                    last_opened=user.get("last_opened")
+                )
             )
         else:
             # Failed login attempt - always log IP address for security events

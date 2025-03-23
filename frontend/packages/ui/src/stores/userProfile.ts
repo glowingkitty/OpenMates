@@ -5,16 +5,14 @@ export interface UserProfile {
   username: string;
   profileImageUrl: string | null;
   credits: number;
-  isAdmin: boolean;
-  last_opened: string | null;
+  isAdmin: boolean
 }
 
 const defaultProfile: UserProfile = {
   username: '',
   profileImageUrl: null,
   credits: 0,
-  isAdmin: false,
-  last_opened: null
+  isAdmin: false
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
