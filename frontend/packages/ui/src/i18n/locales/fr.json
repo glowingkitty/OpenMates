@@ -1024,6 +1024,21 @@
             "text": "Installé",
             "en_original": "Installed",
             "context": "Message shown above the currently installed software version"
+        },
+        "profile_image_not_allowed": {
+            "text": "Pas de nudité, de violence ou de sang<br>dans les images de profil.",
+            "en_original": "No nudity, violence or gore<br>in profile images.",
+            "context": "Error message shown when profile image contains nudity or violence or gore"
+        },
+        "last_warning_image_not_allowed": {
+            "text": "Dernier avertissement :<br>Pas de nudité, de violence ou de sang dans les images de profil.<br>Une violation supplémentaire et votre compte sera supprimé.",
+            "en_original": "Last warning:<br>No nudity, violence or gore in profile images.<br>One more violation and your account will be deleted.",
+            "context": "Last warning error message shown when profile image contains nudity or violence or gore"
+        },
+        "your_account_got_deleted": {
+            "text": "Votre compte a été supprimé.",
+            "en_original": "Your account got deleted.",
+            "context": "Message shown when account got deleted due to violation of guidelines or when user manually deletes account"
         }
     },
     "design_guidelines": {

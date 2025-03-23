@@ -1024,6 +1024,21 @@
             "text": "已安装",
             "en_original": "Installed",
             "context": "Message shown above the currently installed software version"
+        },
+        "profile_image_not_allowed": {
+            "text": "在个人资料图片中<br>不允许裸露、暴力或血腥。",
+            "en_original": "No nudity, violence or gore<br>in profile images.",
+            "context": "Error message shown when profile image contains nudity or violence or gore"
+        },
+        "last_warning_image_not_allowed": {
+            "text": "最后警告：<br>个人资料图片中不允许裸露、暴力或血腥。<br>再次违规，您的帐户将被删除。",
+            "en_original": "Last warning:<br>No nudity, violence or gore in profile images.<br>One more violation and your account will be deleted.",
+            "context": "Last warning error message shown when profile image contains nudity or violence or gore"
+        },
+        "your_account_got_deleted": {
+            "text": "您的帐户已被删除。",
+            "en_original": "Your account got deleted.",
+            "context": "Message shown when account got deleted due to violation of guidelines or when user manually deletes account"
         }
     },
     "design_guidelines": {

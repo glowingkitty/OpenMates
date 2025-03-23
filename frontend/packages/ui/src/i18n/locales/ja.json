@@ -1024,6 +1024,21 @@
             "text": "インストール済み",
             "en_original": "Installed",
             "context": "Message shown above the currently installed software version"
+        },
+        "profile_image_not_allowed": {
+            "text": "プロフィール画像にはヌード、暴力、またはグロテスクなものを含めないでください。",
+            "en_original": "No nudity, violence or gore<br>in profile images.",
+            "context": "Error message shown when profile image contains nudity or violence or gore"
+        },
+        "last_warning_image_not_allowed": {
+            "text": "最後の警告：<br>プロフィール画像にヌード、暴力、またはグロテスクなものを含めないでください。<br>もう1回違反するとアカウントが削除されます。",
+            "en_original": "Last warning:<br>No nudity, violence or gore in profile images.<br>One more violation and your account will be deleted.",
+            "context": "Last warning error message shown when profile image contains nudity or violence or gore"
+        },
+        "your_account_got_deleted": {
+            "text": "アカウントが削除されました。",
+            "en_original": "Your account got deleted.",
+            "context": "Message shown when account got deleted due to violation of guidelines or when user manually deletes account"
         }
     },
     "design_guidelines": {
