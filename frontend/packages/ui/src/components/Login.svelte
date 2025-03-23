@@ -56,6 +56,9 @@
     let isPolicyViolationLockout = false;
     let isAccountDeleted = false;
 
+    // Add state for tracking account deletion during the current session
+    let accountJustDeleted = false;
+
     const leftIconGrid = [
         ['videos', 'health', 'web'],
         ['calendar', 'nutrition', 'language'],
@@ -280,6 +283,15 @@
             }
         })();
         
+        // Add event listener for account deletion
+        const handleAccountDeleted = () => {
+            console.debug("Account deletion event received");
+            accountJustDeleted = true;
+            isAccountDeleted = true;
+        };
+        
+        window.addEventListener('account-deleted', handleAccountDeleted);
+        
         // Handle resize events
         const handleResize = () => {
             screenWidth = window.innerWidth;
@@ -290,6 +302,7 @@
         return () => {
             unsubscribe();
             window.removeEventListener('resize', handleResize);
+            window.removeEventListener('account-deleted', handleAccountDeleted);
         }; 
     });
 
@@ -355,6 +368,18 @@
         } else if (!$authStore.isAuthenticated) {
             // Force view to login when logged out
             currentView = 'login';
+            
+            // Check for account deletion (either from storage or from event)
+            if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
+                console.debug("Account deleted, showing deletion message");
+                isAccountDeleted = true;
+                isPolicyViolationLockout = true;
+                
+                // Reset the flag after we've handled it, but keep in sessionStorage for reloads
+                if (accountJustDeleted) {
+                    accountJustDeleted = false;
+                }
+            }
         }
     }
 </script>
@@ -374,9 +399,14 @@
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
-                        <p class="violation-message">
-                            {@html $text('settings.your_account_got_deleted.text')}
-                        </p>
+                        <h1><mark>{@html $text('login.login.text')}</mark></h1>
+                        <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
+                        
+                        <div class="form-container">
+                            <p class="violation-message">
+                                {@html $text('settings.your_account_got_deleted.text')}
+                            </p>
+                        </div>
                     </div>
                 {:else if currentView === 'login'}
                     <div class="content-area" in:fade={{ duration: 400 }}>

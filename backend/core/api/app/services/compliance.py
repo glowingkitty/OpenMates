@@ -163,8 +163,8 @@ class ComplianceService:
                               if k not in ['password', 'token', 'secret']}
             log_data["details"] = sanitized_details
             
-        # Log the event
-        compliance_logger.info(json.dumps(log_data))
+        # Log the event - pass log_data directly to preserve structured data
+        compliance_logger.info(log_data)
     
     @staticmethod
     def log_consent(
@@ -197,8 +197,8 @@ class ComplianceService:
             sanitized_details = {k: v for k, v in details.items()}
             log_data["details"] = sanitized_details
             
-        # Log the event
-        compliance_logger.info(json.dumps(log_data))
+        # Log the event - pass log_data directly to preserve structured data
+        compliance_logger.info(log_data)
 
     @staticmethod
     def log_auth_event_safe(
@@ -240,6 +240,61 @@ class ComplianceService:
             
         # Log the raw dictionary - let the JSON handler format it
         compliance_logger.info(log_data)
+
+    @staticmethod
+    def log_account_deletion(
+        user_id: str,
+        deletion_type: str,  # policy_violation, user_requested, admin_action
+        reason: str,
+        ip_address: Optional[str] = None,
+        device_fingerprint: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log account deletion events for compliance and audit purposes
+        
+        Args:
+            user_id: ID of the deleted user account
+            deletion_type: Type of deletion (policy_violation, user_requested, admin_action)
+            reason: Specific reason for deletion (repeated_inappropriate_images, harmful_content, etc.)
+            ip_address: IP address of the request that triggered the deletion (if available)
+            device_fingerprint: Device fingerprint of the request that triggered the deletion (if available)
+            details: Additional context about the deletion
+        """
+        # Validate IP address if provided
+        if ip_address:
+            try:
+                ipaddress.ip_address(ip_address)
+            except ValueError:
+                ip_address = "0.0.0.0"
+            
+        # Create log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "account_deletion",
+            "user_id": user_id,
+            "deletion_type": deletion_type,
+            "reason": reason
+        }
+        
+        # Add optional fields if provided
+        if ip_address:
+            log_data["ip_address"] = ip_address
+            
+        if device_fingerprint:
+            log_data["device_fingerprint"] = device_fingerprint
+        
+        if details:
+            log_data["details"] = details
+            
+        # Log to compliance logger with warning level for high visibility
+        # Pass log_data directly to preserve structured data for monitoring tools
+        compliance_logger.warning(log_data)
+        
+        # Also log to regular API logger
+        api_logger.warning(
+            f"ACCOUNT DELETION: User {user_id} deleted. Type: {deletion_type}, Reason: {reason}"
+        )
 
 # TODO: Implement S3 archive functionality for compliance logs
 # This will:

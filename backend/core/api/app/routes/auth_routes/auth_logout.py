@@ -5,7 +5,10 @@ from typing import Optional
 from app.schemas.auth import LogoutResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
+from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service
+from app.services.compliance import ComplianceService
+import time
+from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -175,3 +178,80 @@ async def logout_all(
             success=False,
             message="An error occurred during logout-all operation"
         )
+
+@router.post("/policy-violation-logout")
+async def policy_violation_logout(
+    request: Request,
+    response: Response,
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
+):
+    """
+    Special logout endpoint for policy violations - aggressively cleans up all user data
+    """
+    logger.info("Processing policy violation logout")
+    
+    # Get device information for compliance logging
+    device_fingerprint = get_device_fingerprint(request)
+    client_ip = get_client_ip(request)
+    
+    # Get deletion reason from request body
+    try:
+        body = await request.json()
+        reason = body.get("reason", "unknown")
+        details = body.get("details", {})
+    except:
+        reason = "unknown"
+        details = {}
+    
+    # Clear all authentication cookies
+    for cookie_name in ["auth_refresh_token", "auth_access_token"]:
+        response.delete_cookie(
+            key=cookie_name,
+            httponly=True,
+            secure=True,
+            samesite="strict"
+        )
+    
+    # If we have a refresh token, get user data and clean up thoroughly
+    if refresh_token:
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        session_key = f"session:{token_hash}"
+        
+        # Get user ID from session cache before deleting
+        session_data = await cache_service.get(session_key)
+        if session_data and "user_id" in session_data:
+            user_id = session_data["user_id"]
+            
+            # Log the policy violation logout
+            compliance_service.log_account_deletion(
+                user_id=user_id,
+                deletion_type="policy_violation",
+                reason=reason or "frontend_initiated_violation",
+                ip_address=client_ip,
+                device_fingerprint=device_fingerprint,
+                details={
+                    "timestamp": int(time.time()),
+                    **details
+                }
+            )
+            
+            # Clear all user-related cache entries
+            user_cache_keys = [
+                session_key,
+                f"user:{user_id}",
+                f"user_profile:{user_id}",
+                f"user_profile_image:{user_id}",
+                f"user_credits:{user_id}"
+            ]
+            
+            for key in user_cache_keys:
+                await cache_service.delete(key)
+                
+            logger.info(f"Cleared all cache entries for user {user_id}")
+        else:
+            # Still delete the session if it exists
+            await cache_service.delete(session_key)
+    
+    return {"success": True, "message": "Policy violation logout completed"}

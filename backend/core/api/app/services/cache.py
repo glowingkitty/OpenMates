@@ -102,6 +102,18 @@ class CacheService:
             logger.error(f"Cache delete error for key {key}: {str(e)}")
             return False
             
+    async def get_keys_by_pattern(self, pattern: str) -> list:
+        """Get all keys matching a pattern"""
+        try:
+            if not self.client:
+                return []
+                
+            keys = self.client.keys(pattern)
+            return [key.decode('utf-8') if isinstance(key, bytes) else key for key in keys]
+        except Exception as e:
+            logger.error(f"Cache get_keys_by_pattern error for pattern {pattern}: {str(e)}")
+            return []
+            
     async def clear(self, prefix: str = "") -> bool:
         """Clear all cached values with optional prefix"""
         try:

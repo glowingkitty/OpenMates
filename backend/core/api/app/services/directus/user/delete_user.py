@@ -1,13 +1,44 @@
 import logging
 import aiohttp
+import time
 
 logger = logging.getLogger(__name__)
 
-async def delete_user(self, user_id: str) -> bool:
-    """Delete a user from Directus"""
+async def delete_user(
+    self, 
+    user_id: str, 
+    deletion_type: str = "unknown", 
+    reason: str = "unknown", 
+    ip_address: str = None,
+    device_fingerprint: str = None,
+    details: dict = None
+) -> bool:
+    """
+    Delete a user from Directus
+    
+    Parameters:
+    - user_id: ID of the user to delete
+    - deletion_type: Type of deletion (policy_violation, user_requested, admin_action)
+    - reason: Specific reason for deletion
+    - ip_address: IP address of the request that triggered the deletion (if available)
+    - device_fingerprint: Device fingerprint of the request that triggered the deletion (if available)
+    - details: Additional context about the deletion
+    """
     try:
         # First invalidate any cached data
         await self.invalidate_user_profile_cache(user_id)
+        
+        # Log the deletion for compliance purposes
+        from app.services.compliance import ComplianceService
+        compliance_service = ComplianceService()
+        compliance_service.log_account_deletion(
+            user_id=user_id,
+            deletion_type=deletion_type,
+            reason=reason,
+            ip_address=ip_address,
+            device_fingerprint=device_fingerprint,
+            details=details or {"timestamp": int(time.time())}
+        )
         
         # Ensure we have admin token - check auth_methods.py to see that admin_required is the parameter name
         await self.ensure_auth_token(admin_required=True)  # Changed from admin=True

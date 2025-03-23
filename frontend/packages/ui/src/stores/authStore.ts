@@ -231,7 +231,8 @@ function createAuthStore() {
       afterServerLogout?: () => void | Promise<void>,
       onError?: (error: any) => void | Promise<void>,
       finalLogout?: () => void | Promise<void>,
-      skipServerLogout?: boolean  // Add new option to skip server logout
+      skipServerLogout?: boolean,
+      isPolicyViolation?: boolean  // Add flag for policy violation
     }) => {
       try {
         console.debug('Logging out...');
@@ -257,6 +258,21 @@ function createAuthStore() {
             }
           } catch (e) {
             console.error("Logout API error:", e);
+          }
+        } else if (callbacks?.isPolicyViolation) {
+          // Special case: Policy violation requires cookie cleanup
+          try {
+            // Call a special endpoint to clear cookies and cache for policy violations
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.policyViolationLogout), {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            console.debug('Policy violation logout response:', response.ok);
+          } catch (e) {
+            console.error("Policy violation logout error:", e);
           }
         }
         

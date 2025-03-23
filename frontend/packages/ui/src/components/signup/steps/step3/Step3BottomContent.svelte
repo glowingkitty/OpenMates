@@ -67,8 +67,14 @@
             // Set flag in sessionStorage to show deletion message on login page
             sessionStorage.setItem('account_deleted', 'true');
             
-            // Trigger logout with skipServerLogout flag
-            authStore.logout({ skipServerLogout: true });
+            // Create and dispatch a custom event before logout
+            window.dispatchEvent(new CustomEvent('account-deleted'));
+            
+            // Trigger logout with special flag for policy violation
+            authStore.logout({ 
+                skipServerLogout: true,
+                isPolicyViolation: true 
+            });
             throw new Error('account_deleted');
         }
 

@@ -17,6 +17,7 @@ export const apiEndpoints = {
         login:                      '/v1/auth/login',                          // Login with username/email and password
         logout:                     '/v1/auth/logout',                         // Logout and invalidate token
         logoutAll:                  '/v1/auth/logout/all',                     // Logout all sessions
+        policyViolationLogout:      '/v1/auth/policy-violation-logout',        // Logout due to policy violation
         session:                    '/v1/auth/session',                        // New session endpoint
         
         // Registration and verification

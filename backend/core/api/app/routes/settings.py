@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie, Request
 import logging
 import time
 import hashlib
@@ -7,12 +7,14 @@ from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
 from app.models.user import User
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
+from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service
 import os
 import random
 import string
 from app.services.image_safety import ImageSafetyService
 from app.services.s3 import S3UploadService
+from app.services.compliance import ComplianceService
+from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
 
 router = APIRouter(prefix="/v1/settings")
 logger = logging.getLogger(__name__)
@@ -91,8 +93,10 @@ async def get_current_user(
 
 @router.post("/user/update_profile_image")
 async def update_profile_image(
+    request: Request,  # Add request parameter to get IP and fingerprint
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
 ):
     bucket_config = s3_service.get_bucket_config('profile_images')
     
@@ -124,10 +128,45 @@ async def update_profile_image(
             await cache_service.set(reject_key, reject_count, ttl=86400)  # 24h TTL
 
             if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
-                # Delete user account
-                await directus_service.delete_user(current_user.id)
-                # Clear user from cache
-                await cache_service.delete(f"session:{current_user.id}")
+                # Get device information for compliance logging
+                device_fingerprint = get_device_fingerprint(request)
+                client_ip = get_client_ip(request)
+                
+                # Delete user account with proper reason
+                # Note: The deletion will be logged by the delete_user method
+                await directus_service.delete_user(
+                    current_user.id, 
+                    deletion_type="policy_violation",
+                    reason="repeated_inappropriate_profile_images",
+                    ip_address=client_ip,
+                    device_fingerprint=device_fingerprint,
+                    details={
+                        "reject_count": reject_count,
+                        "timestamp": int(time.time())
+                    }
+                )
+                
+                # Thoroughly clean user from cache
+                user_cache_keys = [
+                    f"user:{current_user.id}",
+                    f"user_profile:{current_user.id}",
+                    f"user_profile_image:{current_user.id}",
+                    f"user_credits:{current_user.id}",
+                    f"profile_image_rejects:{current_user.id}"
+                ]
+                
+                # Also clean any session references to this user
+                # This is a more expensive operation but necessary for complete cleanup
+                session_keys = await cache_service.get_keys_by_pattern(f"session:*")
+                for key in session_keys:
+                    session_data = await cache_service.get(key)
+                    if session_data and session_data.get("user_id") == current_user.id:
+                        await cache_service.delete(key)
+                
+                # Delete all user-specific cache entries
+                for key in user_cache_keys:
+                    await cache_service.delete(key)
+                    
                 return {
                     "status": "account_deleted",
                     "detail": "Account deleted due to policy violations"
