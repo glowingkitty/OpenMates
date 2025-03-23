@@ -29,9 +29,6 @@ class ImageSafetyService:
             response = requests.post(self.api_url, files=files, params=params)
             result = response.json()
             
-            # Log all values for tuning
-            logger.info(f"Image safety check results: {result}")
-            
             response_data = {
                 'nudity': result.get('nudity', {})
             }
