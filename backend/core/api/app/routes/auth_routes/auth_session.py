@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
-import hashlib
-import json
 from typing import Optional
 from app.schemas.auth import SessionResponse
 from app.services.directus import DirectusService
@@ -30,10 +28,8 @@ async def get_session(
             logger.info("No refresh token provided")
             return SessionResponse(success=False, message="Not logged in", token_refresh_needed=False)
 
-        # 1. Check if refresh token exists in cache
-        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-        cache_key = f"session:{token_hash}"
-        cached_data = await cache_service.get(cache_key)
+        # 1. Check if refresh token exists in cache using enhanced method
+        cached_data = await cache_service.get_user_by_token(refresh_token)
 
         if not cached_data:
             logger.info("No session data in cache for token")
@@ -50,8 +46,13 @@ async def get_session(
             success, auth_data, _ = await directus_service.refresh_token(refresh_token)
             
             if success and auth_data.get("cookies"):
-                # Update just the cookies and expiry, keep existing cached user data
+                # Get the new refresh token
+                new_refresh_token = None
                 for name, value in auth_data["cookies"].items():
+                    if name == "directus_refresh_token":
+                        new_refresh_token = value
+                        
+                    # Set cookies with our prefix
                     cookie_name = name.replace("directus_", "auth_") if name.startswith("directus_") else name
                     response.set_cookie(
                         key=cookie_name,
@@ -62,10 +63,13 @@ async def get_session(
                         max_age=86400
                     )
                 
-                # Update token expiry in cache
-                cached_data["token_expiry"] = current_time + 86400
-                await cache_service.set(cache_key, cached_data, ttl=86400)
-                logger.info("Token refreshed successfully")
+                # If we got a new refresh token, update the cache
+                if new_refresh_token:
+                    # Keep the existing user data but associate it with the new token
+                    await cache_service.set_user(cached_data, refresh_token=new_refresh_token)
+                    logger.info("Token refreshed successfully")
+                else:
+                    logger.warning("No new refresh token in response")
             else:
                 logger.error("Failed to refresh token")
                 return SessionResponse(success=False, message="Session expired", token_refresh_needed=True)

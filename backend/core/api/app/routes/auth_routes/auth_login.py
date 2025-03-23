@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Request, Response
 import logging
 import time
-import hashlib
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
@@ -99,8 +98,8 @@ async def login(
                         user["credits"] = 0
                     
                     # Check if this device is already known (in cache)
-                    cache_key = f"user_device:{user_id}:{device_fingerprint}"
-                    existing_device = await cache_service.get(cache_key)
+                    device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
+                    existing_device = await cache_service.get(device_cache_key)
                     is_new_device = existing_device is None
                     
                     logger.info(f"Device check - New device: {is_new_device}")
@@ -131,19 +130,19 @@ async def login(
                     if is_new_device:
                         # New device - store in cache
                         await cache_service.set(
-                            cache_key, 
+                            device_cache_key, 
                             {
                                 "loc": device_location, 
                                 "first": current_time,
                                 "recent": current_time
                             },
-                            ttl=86400  # 24 hour cache
+                            ttl=cache_service.USER_TTL  # Use standardized TTL
                         )
                     else:
                         # Just update the recent timestamp for existing device
                         if existing_device:
                             existing_device["recent"] = current_time
-                            await cache_service.set(cache_key, existing_device, ttl=86400)
+                            await cache_service.set(device_cache_key, existing_device, ttl=cache_service.USER_TTL)
                     
                     # Update device information in Directus
                     await directus_service.update_user_device(
@@ -152,23 +151,20 @@ async def login(
                         device_location=device_location
                     )
             
-            # Cache the user data with the refresh token
+            # Cache the user data with the refresh token using the enhanced method
             if refresh_token and user:
-                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                cache_key = f"session:{token_hash}"
-                
-                # Cache standardized user data
-                cached_data = {
+                # Prepare standardized user data
+                user_data = {
                     "user_id": user.get("id"),
                     "username": user.get("username"),
                     "is_admin": user.get("is_admin", False),
                     "credits": user.get("credits", 0),
                     "profile_image_url": user.get("profile_image_url"),
-                    "last_opened": user.get("last_opened"),
-                    "token_expiry": int(time.time()) + 86400
+                    "last_opened": user.get("last_opened")
                 }
                 
-                await cache_service.set(cache_key, cached_data, ttl=86400)
+                # Use the enhanced method to cache user data with token association
+                await cache_service.set_user(user_data, refresh_token=refresh_token)
             
             logger.info("Login completed successfully, returning user data")
             # Update to use UserResponse schema

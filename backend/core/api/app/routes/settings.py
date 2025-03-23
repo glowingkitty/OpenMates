@@ -1,7 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie, Request
 import logging
 import time
-import hashlib
 from typing import Optional
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
@@ -35,10 +34,8 @@ async def get_current_user(
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    # Check cache first using the same key format as auth_session
-    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-    cache_key = f"session:{token_hash}"
-    cached_data = await cache_service.get(cache_key)
+    # Check cache first using the enhanced cache service method
+    cached_data = await cache_service.get_user_by_token(refresh_token)
 
     if cached_data:
         return User(
@@ -78,16 +75,17 @@ async def get_current_user(
         last_opened=user_data.get("last_opened")
     )
     
-    # Cache the user data for future requests
-    await cache_service.set(cache_key, {
+    # Cache the user data for future requests using the enhanced cache service method
+    user_data_for_cache = {
         "user_id": user_id,
         "username": user.username,
         "is_admin": user.is_admin,
         "credits": user.credits,
         "profile_image_url": user.profile_image_url,
-        "last_opened": user.last_opened,
-        "token_expiry": int(time.time()) + 86400  # 24 hours
-    }, ttl=86400)
+        "last_opened": user.last_opened
+    }
+    
+    await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
     
     return user
 
@@ -116,7 +114,7 @@ async def update_profile_image(
         if len(image_content) > bucket_config['max_size']:
             raise HTTPException(status_code=400, detail="File too large")
 
-        # Check rejected uploads count from cache
+        # Check rejected uploads count from cache using a standardized key format
         reject_key = f"profile_image_rejects:{current_user.id}"
         reject_count = await cache_service.get(reject_key) or 0
 
@@ -146,26 +144,11 @@ async def update_profile_image(
                     }
                 )
                 
-                # Thoroughly clean user from cache
-                user_cache_keys = [
-                    f"user:{current_user.id}",
-                    f"user_profile:{current_user.id}",
-                    f"user_profile_image:{current_user.id}",
-                    f"user_credits:{current_user.id}",
-                    f"profile_image_rejects:{current_user.id}"
-                ]
+                # Clean all user data from cache using the enhanced method
+                await cache_service.delete_user_cache(current_user.id)
                 
-                # Also clean any session references to this user
-                # This is a more expensive operation but necessary for complete cleanup
-                session_keys = await cache_service.get_keys_by_pattern(f"session:*")
-                for key in session_keys:
-                    session_data = await cache_service.get(key)
-                    if session_data and session_data.get("user_id") == current_user.id:
-                        await cache_service.delete(key)
-                
-                # Delete all user-specific cache entries
-                for key in user_cache_keys:
-                    await cache_service.delete(key)
+                # Also delete the reject count key
+                await cache_service.delete(reject_key)
                     
                 return {
                     "status": "account_deleted",
@@ -186,8 +169,10 @@ async def update_profile_image(
         random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
         new_filename = f"{current_user.id}-{int(time.time())}-{random_suffix}{file_ext}"
 
-        # Delete old image if exists
-        old_url = await directus_service.get_user_profile_image_url(current_user.id)
+        # Get old image URL from cache first, then fallback to Directus
+        old_url = await cache_service.get_user_profile_image(current_user.id)
+        if not old_url:
+            old_url = await directus_service.get_user_profile_image_url(current_user.id)
         if old_url:
             old_key = old_url.split('/')[-1]
             await s3_service.delete_file(bucket_config['name'], old_key)
@@ -208,9 +193,8 @@ async def update_profile_image(
             "encrypted_profileimage_url": encrypted_url
         })
 
-        # Update cache
-        cache_key = f"user_profile_image:{current_user.id}"
-        await cache_service.set(cache_key, image_url)
+        # Update cache using the enhanced method
+        await cache_service.set_user_profile_image(current_user.id, image_url)
 
         return {"url": image_url}
 
