@@ -19,10 +19,10 @@ providers:
     privacy_policy: https://www.mailjet.com/privacy-policy
     used_for:
       - email sending
-  keycdn:
-    privacy_policy: https://www.keycdn.com/privacy
+  sightengine:
+    privacy_policy: https://sightengine.com/policies/privacy
     used_for:
-      - CDN for user uploaded images, videos and other files
+      - moderation for uploaded images & videos
   revolut_business:
     privacy_policy: https://www.revolut.com/privacy-policy
     used_for:
