@@ -10,6 +10,7 @@ providers:
       - web app backend hosting
       - all backend processing
       - database hosting
+      - S3 file hosting
   ip-api:
     privacy_policy: https://members.ip-api.com/privacy-policy
     used_for:
@@ -18,3 +19,11 @@ providers:
     privacy_policy: https://www.mailjet.com/privacy-policy
     used_for:
       - email sending
+  keycdn:
+    privacy_policy: https://www.keycdn.com/privacy
+    used_for:
+      - CDN for user uploaded images, videos and other files
+  revolut_business:
+    privacy_policy: https://www.revolut.com/privacy-policy
+    used_for:
+      - payment processing for purchases made in web app
