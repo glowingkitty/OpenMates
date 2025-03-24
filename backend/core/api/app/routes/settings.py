@@ -172,21 +172,18 @@ async def update_profile_image(
         # Get old image URL from cache first, then fallback to Directus
         old_url = await cache_service.get_user_profile_image(current_user.id)
         if not old_url:
-            old_url = await directus_service.get_user_profile_image_url(current_user.id)
-        if old_url:
-            old_key = old_url.split('/')[-1]
-            await s3_service.delete_file(bucket_config['name'], old_key)
+            old_url = await directus_service.get_user_profile_image(current_user.id)
 
         # Upload new image
         image_url = await s3_service.upload_file(
-            bucket_config['name'],
-            new_filename,
-            image_content,
-            file.content_type
+            bucket_name=bucket_config['name'],
+            file_key=new_filename,
+            content=image_content,
+            content_type=file.content_type
         )
 
-        # Encrypt URL for storage
-        encrypted_url = await encryption_service.encrypt(image_url)
+        # Encrypt URL for storage - extract only the ciphertext part
+        encrypted_url, _ = await encryption_service.encrypt(image_url)
 
         # Update Directus user entry
         await directus_service.update_user(current_user.id, {
@@ -195,6 +192,11 @@ async def update_profile_image(
 
         # Update cache using the enhanced method
         await cache_service.set_user_profile_image(current_user.id, image_url)
+
+        # Delete old image
+        if old_url:
+            old_key = old_url.split('/')[-1]
+            await s3_service.delete_file(bucket_config['name'], old_key)
 
         return {"url": image_url}
 

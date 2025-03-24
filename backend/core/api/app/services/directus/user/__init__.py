@@ -13,6 +13,7 @@ from app.services.directus.user.user_data import (
 )
 from app.services.directus.user.user_profile import get_user_profile
 from app.services.directus.user.delete_user import delete_user
+from app.services.directus.user.update_user import update_user
 
 __all__ = [
     'create_user',
@@ -29,8 +30,8 @@ __all__ = [
     'get_user_credits',
     'get_user_username',
     'get_user_profile_image',
-    'get_user_profile_image_url',
     'invalidate_user_profile_cache',
     'get_user_profile',
-    'delete_user'
+    'delete_user',
+    'update_user'
 ]

@@ -13,7 +13,7 @@ from app.services.directus.user import (
     create_user, update_user_device, update_user_devices, login_user, logout_user,
     logout_all_sessions, get_user_by_email, refresh_token, get_total_users_count,
     get_active_users_since, check_user_device, get_user_credits, get_user_username,
-    get_user_profile_image, invalidate_user_profile_cache, get_user_profile, delete_user  # Added delete_user
+    get_user_profile_image, invalidate_user_profile_cache, get_user_profile, delete_user, update_user
 )
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,8 @@ class DirectusService:
     get_total_users_count = get_total_users_count
     get_active_users_since = get_active_users_since
     check_user_device = check_user_device
-    delete_user = delete_user  # Add the new method
+    delete_user = delete_user
+    update_user = update_user
     
     # User profile methods
     get_user_profile = get_user_profile
