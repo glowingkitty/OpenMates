@@ -175,12 +175,15 @@ async def update_profile_image(
             old_url = await directus_service.get_user_profile_image(current_user.id)
 
         # Upload new image
-        image_url = await s3_service.upload_file(
-            bucket_name=bucket_config['name'],
+        upload_result = await s3_service.upload_file(
+            bucket_key='profile_images',
             file_key=new_filename,
             content=image_content,
             content_type=file.content_type
         )
+        
+        # Get the pre-signed URL for private content
+        image_url = upload_result.get('presigned_url', upload_result['url'])
 
         # Encrypt URL for storage - extract only the ciphertext part
         encrypted_url, _ = await encryption_service.encrypt(image_url)
@@ -210,7 +213,7 @@ async def update_profile_image(
         # Delete old image
         if old_url:
             old_key = old_url.split('/')[-1]
-            await s3_service.delete_file(bucket_config['name'], old_key)
+            await s3_service.delete_file('profile_images', old_key)
 
         return {"url": image_url}
 
