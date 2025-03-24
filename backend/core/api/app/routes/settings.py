@@ -185,12 +185,26 @@ async def update_profile_image(
         # Encrypt URL for storage - extract only the ciphertext part
         encrypted_url, _ = await encryption_service.encrypt(image_url)
 
-        # Update Directus user entry
+        # Update Directus user entry with profile image and last_opened field
         await directus_service.update_user(current_user.id, {
-            "encrypted_profileimage_url": encrypted_url
+            "encrypted_profileimage_url": encrypted_url,
+            "last_opened": "/signup/step-4"
         })
 
-        # Update cache using the enhanced method
+        # Create a complete user data object for cache
+        user_data_for_cache = {
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "is_admin": current_user.is_admin,
+            "credits": current_user.credits,
+            "profile_image_url": image_url,
+            "last_opened": "/signup/step-4"
+        }
+        
+        # Set the complete user data in cache
+        await cache_service.set_user(user_data_for_cache)
+        
+        # Also set the profile image URL separately for specific lookups
         await cache_service.set_user_profile_image(current_user.id, image_url)
 
         # Delete old image

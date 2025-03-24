@@ -3,16 +3,47 @@ import logging
 import os
 import time
 import re
+import yaml
 from io import BytesIO
 from fastapi import HTTPException
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from urllib.parse import urlparse
-from typing import Union, Dict
+from typing import Union, Dict, List
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Load URLs from shared config
+def load_urls_config():
+    try:
+        config_path = Path(__file__).parent.parent.parent.parent.parent.parent / "shared" / "config" / "urls.yml"
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+            return config['urls']
+    except Exception as e:
+        logger.error(f"Failed to load URLs config: {str(e)}")
+        # Fallback to default values
+        return {
+            'base': {
+                'webapp': {
+                    'development': 'http://localhost:5174',
+                    'production': 'https://app.openmates.org'
+                }
+            }
+        }
+
 class S3UploadService:
+    # Load URLs configuration
+    URLS_CONFIG = load_urls_config()
+    # Buckets that need CORS settings
+    CORS_ENABLED_BUCKETS = [
+        'openmates-profile-images', 
+        'openmates-chatfiles',
+        'openmates-invoices',
+        'openmates-testing-invoices'
+    ]
+    
     # S3 bucket configurations as class variable
     BUCKETS = {
         'profile_images': {
@@ -110,7 +141,119 @@ class S3UploadService:
         # Store the base domain for URL generation
         parsed_url = urlparse(endpoint_url)
         self.base_domain = parsed_url.netloc
+        
+        # Apply CORS settings to required buckets
+        self._apply_cors_settings()
+        
+        # Apply lifecycle policies to buckets
+        self._apply_lifecycle_policies()
 
+    def _apply_lifecycle_policies(self):
+        """Apply lifecycle policies to buckets that have them defined."""
+        try:
+            for bucket_key, bucket_config in self.BUCKETS.items():
+                bucket_name = bucket_config['name']
+                lifecycle_days = bucket_config.get('lifecycle_policy')
+                
+                # Skip if no lifecycle policy is defined
+                if not lifecycle_days:
+                    continue
+                
+                try:
+                    logger.info(f"Applying lifecycle policy to bucket: {bucket_name} (expire after {lifecycle_days} days)")
+                    
+                    # Create lifecycle configuration
+                    lifecycle_config = {
+                        'Rules': [
+                            {
+                                'ID': f'ExpireAfter{lifecycle_days}Days',
+                                'Status': 'Enabled',
+                                'Prefix': '',  # Apply to all objects
+                                'Expiration': {
+                                    'Days': lifecycle_days
+                                }
+                            }
+                        ]
+                    }
+                    
+                    # Apply lifecycle configuration
+                    self.client.put_bucket_lifecycle_configuration(
+                        Bucket=bucket_name,
+                        LifecycleConfiguration=lifecycle_config
+                    )
+                    
+                    logger.info(f"Successfully applied lifecycle policy to bucket: {bucket_name}")
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    logger.warning(f"Failed to apply lifecycle policy to bucket {bucket_name}: {error_code}")
+                    # Don't raise exception here, as this is not critical for the service to function
+                except Exception as e:
+                    logger.error(f"Error applying lifecycle policy to bucket {bucket_name}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error applying lifecycle policies: {str(e)}")
+    
+    def _apply_cors_settings(self):
+        """Apply CORS settings to buckets that need it."""
+        try:
+            # Get the current environment
+            server_env = os.getenv('SERVER_ENVIRONMENT', 'development')
+            
+            # Get allowed origins based on environment
+            allowed_origins = self._get_allowed_origins(server_env)
+            
+            # CORS configuration
+            cors_config = {
+                'CORSRules': [
+                    {
+                        'AllowedOrigins': allowed_origins,
+                        'AllowedMethods': ['GET', 'HEAD'],
+                        'AllowedHeaders': ['*'],
+                        'ExposeHeaders': ['ETag', 'Content-Length'],
+                        'MaxAgeSeconds': 3600
+                    }
+                ]
+            }
+            
+            # Apply CORS settings to each bucket that needs it
+            for bucket_name in self.CORS_ENABLED_BUCKETS:
+                try:
+                    logger.info(f"Applying CORS settings to bucket: {bucket_name}")
+                    self.client.put_bucket_cors(
+                        Bucket=bucket_name,
+                        CORSConfiguration=cors_config
+                    )
+                    logger.info(f"Successfully applied CORS settings to bucket: {bucket_name}")
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    logger.warning(f"Failed to apply CORS settings to bucket {bucket_name}: {error_code}")
+                    # Don't raise exception here, as this is not critical for the service to function
+        except Exception as e:
+            logger.error(f"Error applying CORS settings: {str(e)}")
+    
+    def _get_allowed_origins(self, environment: str) -> List[str]:
+        """Get allowed origins based on environment."""
+        origins = []
+        
+        # Add webapp URLs
+        webapp_url = self.URLS_CONFIG.get('base', {}).get('webapp', {}).get(environment)
+        if webapp_url:
+            origins.append(webapp_url)
+        
+        # Add production URL if in development (for testing)
+        if environment == 'development':
+            prod_url = self.URLS_CONFIG.get('base', {}).get('webapp', {}).get('production')
+            if prod_url:
+                origins.append(prod_url)
+        
+        # If no origins were found, add defaults
+        if not origins:
+            if environment == 'development':
+                origins = ['http://localhost:5174', 'https://app.openmates.org']
+            else:
+                origins = ['https://app.openmates.org']
+        
+        return origins
+    
     def get_bucket_config(self, bucket_key: str) -> dict:
         """Get bucket configuration by key."""
         if bucket_key not in self.BUCKETS:

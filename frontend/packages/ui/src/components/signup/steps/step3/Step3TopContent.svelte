@@ -9,8 +9,11 @@
     // Use username from userProfile store if available, otherwise use the provided username
     $: displayUsername = $userProfile?.username || username;
 
+    // Determine which image URL to use - prefer the one from userProfile store if available
+    $: imageUrl = $userProfile?.profileImageUrl || $processedImageUrl;
+
     // Add a computed property to determine if we should show the image
-    $: showImage = $processedImageUrl && !isProcessing;
+    $: showImage = (imageUrl && !isProcessing);
 </script>
 
 <div class="content">
@@ -21,7 +24,7 @@
                 <div 
                     class="preview-image" 
                     class:dimmed={isUploading}
-                    style="background-image: url({$processedImageUrl})"
+                    style="background-image: url({imageUrl})"
                 ></div>
             {:else}
                 <div class="clickable-icon icon_image"></div>
