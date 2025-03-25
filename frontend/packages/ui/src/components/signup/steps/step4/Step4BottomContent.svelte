@@ -87,15 +87,12 @@ step_4_bottom_content_svelte:
         twoFAVerificationStatus,
         setVerifying,
         setVerificationError,
-        clearVerificationError,
-        setTwoFAData
+        clearVerificationError
     } from '../../../../stores/twoFAState';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
-    let password = '';
     let isLoading = false;
-    let setupError = '';
     const dispatch = createEventDispatcher();
 
     // React to store changes
@@ -103,51 +100,12 @@ step_4_bottom_content_svelte:
     $: verifying = $twoFAVerificationStatus.verifying;
     $: error = $twoFAVerificationStatus.error;
     $: errorMessage = $twoFAVerificationStatus.errorMessage;
-    $: isFormValid = password.length > 0;
 
     // Focus input when the component becomes visible after setup complete
     $: if (setupComplete && otpInput) {
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         if (!isTouchDevice) {
             setTimeout(() => otpInput.focus(), 300);
-        }
-    }
-
-    async function handleSubmit() {
-        if (!isFormValid || isLoading) return;
-        
-        isLoading = true;
-        setupError = '';
-        
-        try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ password })
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                // Update the store with the 2FA setup data
-                setTwoFAData(
-                    data.secret,
-                    data.qr_code_url,
-                    data.otpauth_url
-                );
-                password = ''; // Clear password for security
-            } else {
-                setupError = data.message || 'Failed to set up 2FA';
-                console.error('Failed to set up 2FA:', data.message);
-            }
-        } catch (err) {
-            setupError = 'An error occurred while setting up 2FA';
-            console.error('Error setting up 2FA:', err);
-        } finally {
-            isLoading = false;
         }
     }
 
@@ -203,37 +161,16 @@ step_4_bottom_content_svelte:
 </script>
 
 <div class="bottom-content">
-    {#if !setupComplete}
-    <div class="input-group" transition:fade={{ duration: 300 }}>
-        <div class="input-wrapper">
-            <span class="clickable-icon icon_secret"></span>
-            <input
-                type="password"
-                bind:value={password}
-                placeholder={$text('login.password_placeholder.text')}
-                disabled={isLoading}
-            />
-            {#if isLoading}
-            <div class="loader"></div>
-            {/if}
-        </div>
-        {#if setupError}
-        <div class="error-message" transition:fade>
-            {setupError}
-        </div>
-        {/if}
-        
-        <button 
-            class="action-button signup-button" 
-            class:loading={isLoading}
-            disabled={!isFormValid || isLoading}
-            on:click={handleSubmit}
-            transition:fade
-        >
-            {isLoading ? $text('login.loading.text') : $text('signup.setup_2fa.text')}
-        </button>
+    <!-- Always show the 2FA apps information -->
+    <div class="resend-section">
+        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
+        <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
+            {$text('signup.click_here_to_show_free_2fa_apps.text')}
+        </a>
     </div>
-    {:else}
+    
+    <!-- Show the verification code input only after setup is complete -->
+    {#if setupComplete}
     <div class="input-group" transition:fade={{ duration: 300 }}>
         <div class="input-wrapper">
             <span class="clickable-icon icon_2fa"></span>
@@ -257,15 +194,6 @@ step_4_bottom_content_svelte:
             {errorMessage}
         </div>
         {/if}
-    </div>
-    {/if}
-    
-    {#if setupComplete}
-    <div class="resend-section" transition:fade={{ duration: 300 }}>
-        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
-        <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
-            {$text('signup.click_here_to_show_free_2fa_apps.text')}
-        </a>
     </div>
     {/if}
 </div>

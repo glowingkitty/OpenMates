@@ -89,8 +89,7 @@ step_5_top_content_svelte:
                     }
                 }, 1500);
                 
-                // Also notify the backend that the user has completed the 2FA setup process
-                confirmCodesStored();
+                // Note: confirmCodesStored is now called from Step5BottomContent when user confirms
             } else {
                 console.error('Failed to get backup codes:', data.message);
                 // Still set loading to false to show the UI (user can retry by clicking download)
@@ -102,21 +101,7 @@ step_5_top_content_svelte:
         }
     }
     
-    async function confirmCodesStored() {
-        try {
-            // This is async but we don't need to wait for it
-            fetch(getApiEndpoint(apiEndpoints.auth.confirm_codes_stored), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ confirmed: true })
-            });
-        } catch (err) {
-            console.error('Error confirming codes stored:', err);
-        }
-    }
+    // confirmCodesStored function removed - now handled in Step5BottomContent.svelte
 
     function downloadBackupCodes() {
         if (backupCodes.length === 0) {
@@ -153,7 +138,7 @@ step_5_top_content_svelte:
         {$text('signup.store_backup_codes_safely.text')}
     </mark>
 
-    {#if !loading}
+    {#if !loading && backupCodes.length > 0}
     <button
         class="clickable-icon icon_download download-button"
         on:click={downloadBackupCodes}

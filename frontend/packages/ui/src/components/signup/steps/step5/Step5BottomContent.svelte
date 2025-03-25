@@ -45,19 +45,57 @@ step_5_bottom_content_svelte:
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import Toggle from '../../../Toggle.svelte';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { backupCodesLoaded } from '../../../../stores/backupCodesState';
 
     const dispatch = createEventDispatcher();
     let hasConfirmedStorage = false;
+    let isSubmitting = false;
 
     // Watch for changes to hasConfirmedStorage
-    $: if (hasConfirmedStorage) {
-        dispatch('step', { step: 6 });
+    $: if (hasConfirmedStorage && !isSubmitting) {
+        confirmCodesStored();
     }
     
     // Handle click on the confirmation row
     function handleRowClick() {
-        hasConfirmedStorage = !hasConfirmedStorage;
+        if (!isSubmitting) {
+            hasConfirmedStorage = !hasConfirmedStorage;
+        }
+    }
+    
+    // Call API to confirm that backup codes have been stored
+    async function confirmCodesStored() {
+        if (!hasConfirmedStorage) return;
+        
+        isSubmitting = true;
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.confirm_codes_stored), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ confirmed: true })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Proceed to next step only after successful API response
+                dispatch('step', { step: 6 });
+            } else {
+                // If API call failed, reset the toggle
+                console.error('Failed to confirm backup codes stored:', data.message);
+                hasConfirmedStorage = false;
+            }
+        } catch (err) {
+            console.error('Error confirming backup codes stored:', err);
+            hasConfirmedStorage = false;
+        } finally {
+            isSubmitting = false;
+        }
     }
 </script>
 

@@ -54,3 +54,22 @@ directus_users:
       type: string
       length: 128
       note: "Hashed API key for developer access"
+
+    encrypted_tfa_secret:
+      type: string
+      length: 512
+      note: "Encrypted 2FA secret key"
+
+    tfa_backup_codes_hashes:
+      type: string
+      length: 4096
+      note: "Array of Argon2 hashed backup codes"
+
+    encrypted_tfa_app_name:
+      type: string
+      length: 256
+      note: "Encrypted name of the 2FA app used by the user"
+
+    tfa_last_used:
+      type: timestamp
+      note: "Timestamp of when 2FA was last successfully used"

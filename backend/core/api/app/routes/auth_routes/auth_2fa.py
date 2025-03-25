@@ -6,6 +6,10 @@ import base64
 import secrets
 import string
 import json
+import pyotp
+import time
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from typing import List, Optional, Dict, Any
 
 # Import schemas from dedicated schema file
@@ -19,6 +23,7 @@ from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
 from app.services.compliance import ComplianceService
+from app.utils.encryption import EncryptionService
 from app.routes.auth_routes.auth_dependencies import (
     get_directus_service, 
     get_cache_service, 
@@ -32,6 +37,40 @@ from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Initialize Argon2 hasher
+argon2_hasher = PasswordHasher()
+
+# Dependency to get encryption service
+def get_encryption_service():
+    return EncryptionService()
+
+# Generate a new 2FA secret
+def generate_2fa_secret(app_name="OpenMates", username=""):
+    """Generate a new TOTP secret for 2FA"""
+    secret = pyotp.random_base32()
+    display_name = username if username else "User"
+    otpauth_url = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=display_name,
+        issuer_name=app_name
+    )
+    return secret, otpauth_url, app_name
+
+# Helper function to hash a backup code with Argon2
+def hash_backup_code(code):
+    """Hash a backup code using Argon2"""
+    return argon2_hasher.hash(code)
+
+# Helper function to verify a backup code against hashed codes
+def verify_backup_code(code, hashed_codes):
+    """Verify a backup code against a list of hashed codes"""
+    for hashed_code in hashed_codes:
+        try:
+            argon2_hasher.verify(hashed_code, code)
+            return True, hashed_codes.index(hashed_code)
+        except VerifyMismatchError:
+            continue
+    return False, -1
 
 
 # Helper function to generate backup codes
@@ -53,10 +92,12 @@ async def setup_2fa(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
-    compliance_service: ComplianceService = Depends(get_compliance_service)
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """
     Setup 2FA for a user by generating a secret key and returning the QR code.
+    Uses custom encrypted fields instead of Directus built-in 2FA.
     """
     logger.info("Processing /setup_2fa request")
     
@@ -74,20 +115,16 @@ async def setup_2fa(
         if not user_id:
             return Setup2FAResponse(success=False, message="User ID not found")
             
-        # Use dedicated TFA method with user's token
-        success, response_data, message = await directus_service.generate_2fa_secret(
-            refresh_token, setup_request.password
-        )
+        # Get user profile data
+        success, user_profile, _ = await directus_service.get_user_profile(user_id)
+        if not success or not user_profile:
+            return Setup2FAResponse(success=False, message="Failed to get user profile")
+            
+        # Get email for the OTP name - user profile data may contain the decrypted email already
+        email = user_profile.get("email") or user_profile.get("username", "User")
         
-        if not success:
-            logger.error(f"Failed to generate 2FA secret: {message}")
-            return Setup2FAResponse(success=False, message="Failed to generate 2FA secret")
-        
-        secret = response_data.get("secret")
-        otpauth_url = response_data.get("otpauth_url")
-        
-        if not secret or not otpauth_url:
-            return Setup2FAResponse(success=False, message="Invalid response from Directus")
+        # Generate new 2FA secret
+        secret, otpauth_url, _ = generate_2fa_secret(app_name="OpenMates", username=email)
         
         # Generate QR code image
         qr = qrcode.QRCode(
@@ -148,7 +185,8 @@ async def verify_2fa_code(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
-    compliance_service: ComplianceService = Depends(get_compliance_service)
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """
     Verify a 2FA code during signup process or login.
@@ -173,12 +211,10 @@ async def verify_2fa_code(
         if not setup_data:
             return Verify2FACodeResponse(success=False, message="2FA setup not initiated")
         
-        # Use dedicated TFA method with user's token
-        success, response_data, message = await directus_service.enable_2fa(
-            refresh_token, setup_data["secret"], verify_request.code
-        )
-        
-        if not success:
+        # Verify the TOTP code using pyotp
+        secret = setup_data.get("secret")
+        totp = pyotp.TOTP(secret)
+        if not totp.verify(verify_request.code):
             client_ip = get_client_ip(request)
             compliance_service.log_auth_event(
                 event_type="2fa_verification",
@@ -201,24 +237,25 @@ async def verify_2fa_code(
         # Track successful 2FA verification attempt
         metrics_service.track_api_request("POST", "/v1/auth/verify_2fa_code", 200)
         
+        # Current timestamp for tfa_last_used
+        current_time = int(time.time())
+        
+        # Encrypt the 2FA secret for storage
+        encrypted_secret, _ = await encryption_service.encrypt(secret)
+        
         # Check if this is part of signup (not login)
         is_signup = user_data.get("last_opened", "").startswith("/signup")
         
         if is_signup:
-            # Generate backup codes for the user
-            backup_codes = generate_backup_codes()
-            
-            # Store backup codes in cache (will be saved to DB when confirmed stored)
-            await cache_service.set(f"2fa_backup_codes:{user_id}", backup_codes, ttl=3600)  # 1 hour expiry
-            
             # Update setup data in cache to mark as complete
             setup_data["setup_complete"] = True
             await cache_service.set(f"2fa_setup:{user_id}", setup_data, ttl=3600)
             
-            # 2FA is now enabled through the Directus endpoint above
-            # Just update last_opened to proceed to next step
+            # Store the encrypted 2FA secret and set current timestamp
             success, _, message = await directus_service.update_user(user_id, {
-                "last_opened": "/signup/step-5"  # Update last_opened to indicate step 5
+                "encrypted_tfa_secret": encrypted_secret,
+                "tfa_last_used": current_time,
+                "last_opened": "/signup/step-5"
             })
             
             if not success:
@@ -271,13 +308,20 @@ async def request_backup_codes(
         if not setup_data or not setup_data.get("setup_complete"):
             return BackupCodesResponse(success=False, message="2FA setup not complete")
         
-        # Get existing backup codes from cache
-        backup_codes = await cache_service.get(f"2fa_backup_codes:{user_id}")
+        # Always generate new backup codes
+        backup_codes = generate_backup_codes()
         
-        # If no backup codes exist in cache, generate new ones
-        if not backup_codes:
-            backup_codes = generate_backup_codes()
-            await cache_service.set(f"2fa_backup_codes:{user_id}", backup_codes, ttl=3600)  # 1 hour expiry
+        # Hash backup codes with Argon2 for secure storage
+        hashed_codes = [hash_backup_code(code) for code in backup_codes]
+        
+        # Save hashed backup codes directly to Directus
+        success, _, message = await directus_service.update_user(user_id, {
+            "tfa_backup_codes_hashes": hashed_codes
+        })
+        
+        if not success:
+            logger.error(f"Failed to store backup codes: {message}")
+            return BackupCodesResponse(success=False, message="Failed to save backup codes")
         
         # Log backup codes request for compliance
         client_ip = get_client_ip(request)
@@ -335,30 +379,17 @@ async def confirm_codes_stored(
         
         user_id = user_data.get("user_id")
         
-        # Get backup codes from cache
-        backup_codes = await cache_service.get(f"2fa_backup_codes:{user_id}")
-        if not backup_codes:
-            return ConfirmCodesStoredResponse(success=False, message="No backup codes found")
+        # Record the timestamp when user confirmed the backup codes were stored
+        current_time = int(time.time())
         
-        # Hash backup codes for secure storage
-        import hashlib
-        hashed_codes = [
-            hashlib.sha256(code.encode('utf-8')).hexdigest()
-            for code in backup_codes
-        ]
-        
-        # Update user in Directus to store hashed backup codes
+        # Update user in Directus to store the confirmation timestamp
         success, _, message = await directus_service.update_user(user_id, {
-            "tfa_backup_codes": hashed_codes,
-            "signup_complete": True  # Mark signup as complete
+            "consent_tfa_safely_stored_timestamp": current_time
         })
         
         if not success:
-            logger.error(f"Failed to update user with backup codes: {message}")
-            return ConfirmCodesStoredResponse(success=False, message="Failed to save backup codes")
-        
-        # Clear backup codes from cache for security
-        await cache_service.delete(f"2fa_backup_codes:{user_id}")
+            logger.error(f"Failed to record confirmation timestamp: {message}")
+            return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
         
         # Log confirmation for compliance
         client_ip = get_client_ip(request)
@@ -389,10 +420,11 @@ async def setup_2fa_provider(
     request: Request,
     provider_request: Setup2FAProviderRequest,
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """
-    Save which 2FA provider was used by the user.
+    Save which 2FA app was used by the user.
     """
     logger.info("Processing /setup_2fa_provider request")
     
@@ -407,35 +439,27 @@ async def setup_2fa_provider(
         
         user_id = user_data.get("user_id")
         
-        # Validate provider
-        valid_providers = [
-            "Google Authenticator",
-            "Microsoft Authenticator",
-            "Authy",
-            "1Password",
-            "LastPass",
-            "OTP Auth",
-            "Other"
-        ]
+        # No validation needed - app name can be any string
+        tfa_app_name = provider_request.provider
         
-        if provider_request.provider not in valid_providers:
-            return Setup2FAProviderResponse(
-                success=False, 
-                message=f"Invalid provider. Must be one of: {', '.join(valid_providers)}"
-            )
+        # Store decrypted app name in cache
+        await cache_service.set(f"tfa_app_name:{user_id}", tfa_app_name, ttl=3600*24*30)  # 30 days TTL
         
-        # Update user in Directus to store the 2FA provider
+        # Encrypt app name for Directus storage
+        encrypted_app_name, _ = await encryption_service.encrypt(tfa_app_name)
+        
+        # Update user in Directus to store the encrypted 2FA app name
         success, _, message = await directus_service.update_user(user_id, {
-            "tfa_provider": provider_request.provider
+            "encrypted_tfa_app_name": encrypted_app_name
         })
         
         if not success:
-            logger.error(f"Failed to update user 2FA provider: {message}")
-            return Setup2FAProviderResponse(success=False, message="Failed to save 2FA provider")
+            logger.error(f"Failed to update user 2FA app name: {message}")
+            return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name")
         
         return Setup2FAProviderResponse(
             success=True,
-            message="2FA provider saved successfully"
+            message="2FA app name saved successfully"
         )
         
     except Exception as e:

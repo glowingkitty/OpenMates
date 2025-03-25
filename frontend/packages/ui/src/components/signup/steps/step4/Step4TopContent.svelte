@@ -106,10 +106,50 @@ step_4_top_content_svelte:
     $: otpauthUrl = $twoFASetupData.otpauthUrl;
     $: setupComplete = $twoFASetupComplete;
 
-    // Reset the store when component mounts
-    onMount(() => {
-        resetTwoFAData();
+    // Fetch 2FA setup data when component mounts
+    onMount(async () => {
+        await fetchSetup2FA();
     });
+
+    // Fetch 2FA setup data from the API
+    async function fetchSetup2FA() {
+        loading = true;
+        error = false;
+        errorMessage = '';
+        
+        try {
+            // Make API call to setup_2fa endpoint - no request body needed
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({}) // Empty object as required by the API
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Update the store with the 2FA setup data
+                setTwoFAData(
+                    data.secret,
+                    data.qr_code_url,
+                    data.otpauth_url
+                );
+            } else {
+                error = true;
+                errorMessage = data.message || 'Failed to set up 2FA';
+                console.error('Failed to set up 2FA:', data.message);
+            }
+        } catch (err) {
+            error = true;
+            errorMessage = 'An error occurred while setting up 2FA';
+            console.error('Error setting up 2FA:', err);
+        } finally {
+            loading = false;
+        }
+    }
 
     function handleDeepLink() {
         if (otpauthUrl) {
