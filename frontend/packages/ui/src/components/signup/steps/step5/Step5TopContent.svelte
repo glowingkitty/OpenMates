@@ -46,20 +46,85 @@ step_5_top_content_svelte:
 <script lang="ts">
     import { text } from '@repo/ui';
     import { onMount } from 'svelte';
+    import { fade } from 'svelte/transition';
     import { tooltip } from '../../../../actions/tooltip';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { setBackupCodesLoaded } from '../../../../stores/backupCodesState';
 
+    let loading = true;
     let codesDownloaded = false;
+    let backupCodes: string[] = [];
 
-    // Dummy backup codes for development
-    const backupCodes = [
-        "ABCD-EFGH-IJKL",
-        "MNOP-QRST-UVWX",
-        "1234-5678-9012",
-        "WXYZ-3456-7890",
-        "LMNO-PQRS-TUVW"
-    ];
+    onMount(async () => {
+        await requestBackupCodes();
+    });
+    
+    async function requestBackupCodes() {
+        loading = true;
+        // Reset backup codes loaded state
+        setBackupCodesLoaded(false);
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_backup_codes), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                backupCodes = data.backup_codes;
+                loading = false;
+                
+                // Update backup codes loaded state
+                setBackupCodesLoaded(true);
+                
+                // Auto download after 1.5s if user hasn't downloaded manually
+                const timer = setTimeout(() => {
+                    if (!codesDownloaded && backupCodes.length > 0) {
+                        downloadBackupCodes();
+                    }
+                }, 1500);
+                
+                // Also notify the backend that the user has completed the 2FA setup process
+                confirmCodesStored();
+            } else {
+                console.error('Failed to get backup codes:', data.message);
+                // Still set loading to false to show the UI (user can retry by clicking download)
+                loading = false;
+            }
+        } catch (err) {
+            console.error('Error getting backup codes:', err);
+            loading = false;
+        }
+    }
+    
+    async function confirmCodesStored() {
+        try {
+            // This is async but we don't need to wait for it
+            fetch(getApiEndpoint(apiEndpoints.auth.confirm_codes_stored), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ confirmed: true })
+            });
+        } catch (err) {
+            console.error('Error confirming codes stored:', err);
+        }
+    }
 
     function downloadBackupCodes() {
+        if (backupCodes.length === 0) {
+            // If no codes available, try fetching them again
+            requestBackupCodes();
+            return;
+        }
+        
         codesDownloaded = true;
         const content = backupCodes.join('\n');
         const blob = new Blob([content], { type: 'text/plain' });
@@ -72,17 +137,6 @@ step_5_top_content_svelte:
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     }
-
-    onMount(() => {
-        // Auto download after 1.5s if user hasn't downloaded manually
-        const timer = setTimeout(() => {
-            if (!codesDownloaded) {
-                downloadBackupCodes();
-            }
-        }, 1500);
-
-        return () => clearTimeout(timer);
-    });
 </script>
 
 <div class="content">
@@ -99,12 +153,15 @@ step_5_top_content_svelte:
         {$text('signup.store_backup_codes_safely.text')}
     </mark>
 
+    {#if !loading}
     <button
         class="clickable-icon icon_download download-button"
         on:click={downloadBackupCodes}
         aria-label={$text('enter_message.press_and_hold_menu.download.text')}
         use:tooltip
+        transition:fade
     ></button>
+    {/if}
 </div>
 
 <style>

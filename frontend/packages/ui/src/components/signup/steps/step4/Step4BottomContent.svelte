@@ -7,6 +7,39 @@ changes to the documentation (to keep the documentation up to date).
 -->
 <!-- yaml
 step_4_bottom_content_svelte:
+    password_input_field:
+        type: 'input_field'
+        placeholder: $text('login.password_placeholder.text')
+        purpose:
+            - 'Collects user password required by Directus for 2FA setup'
+        processing:
+            - 'User enters their password'
+            - 'Password is sent to the backend when setup button is clicked'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+            - 'password'
+        connected_documentation:
+            - '/signup/2fa'
+    setup_2fa_button:
+        type: 'button'
+        text: $text('signup.setup_2fa.text')
+        purpose:
+            - 'Submits the password to initiate 2FA setup'
+        processing:
+            - 'User clicks the button'
+            - 'Password is sent to the backend'
+            - 'If successful, 2FA setup UI appears'
+            - 'If unsuccessful, error message is shown'
+        bigger_context:
+            - 'Signup'
+        tags:
+            - 'signup'
+            - '2fa'
+        connected_documentation:
+            - '/signup/2fa'
     enter_2fa_code_input_field:
         type: 'input_field'
         placeholder: $text('signup.enter_one_time_code.text')
@@ -46,31 +79,162 @@ step_4_bottom_content_svelte:
     import { text } from '@repo/ui';
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
+    import { fade } from 'svelte/transition';
     import { routes } from '../../../../config/links';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { 
+        twoFASetupComplete, 
+        twoFAVerificationStatus,
+        setVerifying,
+        setVerificationError,
+        clearVerificationError,
+        setTwoFAData
+    } from '../../../../stores/twoFAState';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
+    let password = '';
+    let isLoading = false;
+    let setupError = '';
     const dispatch = createEventDispatcher();
 
-    onMount(() => {
+    // React to store changes
+    $: setupComplete = $twoFASetupComplete;
+    $: verifying = $twoFAVerificationStatus.verifying;
+    $: error = $twoFAVerificationStatus.error;
+    $: errorMessage = $twoFAVerificationStatus.errorMessage;
+    $: isFormValid = password.length > 0;
+
+    // Focus input when the component becomes visible after setup complete
+    $: if (setupComplete && otpInput) {
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (otpInput && !isTouchDevice) {
-            otpInput.focus();
+        if (!isTouchDevice) {
+            setTimeout(() => otpInput.focus(), 300);
         }
-    });
+    }
+
+    async function handleSubmit() {
+        if (!isFormValid || isLoading) return;
+        
+        isLoading = true;
+        setupError = '';
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ password })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Update the store with the 2FA setup data
+                setTwoFAData(
+                    data.secret,
+                    data.qr_code_url,
+                    data.otpauth_url
+                );
+                password = ''; // Clear password for security
+            } else {
+                setupError = data.message || 'Failed to set up 2FA';
+                console.error('Failed to set up 2FA:', data.message);
+            }
+        } catch (err) {
+            setupError = 'An error occurred while setting up 2FA';
+            console.error('Error setting up 2FA:', err);
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    async function verifyCode() {
+        if (otpCode.length !== 6 || verifying) return;
+        
+        setVerifying(true);
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.verify_2fa_code), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ code: otpCode })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Verification successful, proceed to next step
+                dispatch('step', { step: 5 });
+            } else {
+                // Show error message
+                setVerificationError(data.message || 'Invalid verification code');
+                otpCode = '';
+                
+                // Clear error after 3 seconds
+                setTimeout(() => {
+                    clearVerificationError();
+                }, 3000);
+            }
+        } catch (err) {
+            console.error('Error verifying 2FA code:', err);
+            setVerificationError('An error occurred while verifying your code');
+            
+            // Clear error after 3 seconds
+            setTimeout(() => {
+                clearVerificationError();
+            }, 3000);
+        }
+    }
 
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
         otpCode = input.value.replace(/\D/g, '').slice(0, 6);
         
         if (otpCode.length === 6) {
-            dispatch('step', { step: 5 });
+            verifyCode();
         }
     }
 </script>
 
 <div class="bottom-content">
-    <div class="input-group">
+    {#if !setupComplete}
+    <div class="input-group" transition:fade={{ duration: 300 }}>
+        <div class="input-wrapper">
+            <span class="clickable-icon icon_secret"></span>
+            <input
+                type="password"
+                bind:value={password}
+                placeholder={$text('login.password_placeholder.text')}
+                disabled={isLoading}
+            />
+            {#if isLoading}
+            <div class="loader"></div>
+            {/if}
+        </div>
+        {#if setupError}
+        <div class="error-message" transition:fade>
+            {setupError}
+        </div>
+        {/if}
+        
+        <button 
+            class="action-button signup-button" 
+            class:loading={isLoading}
+            disabled={!isFormValid || isLoading}
+            on:click={handleSubmit}
+            transition:fade
+        >
+            {isLoading ? $text('login.loading.text') : $text('signup.setup_2fa.text')}
+        </button>
+    </div>
+    {:else}
+    <div class="input-group" transition:fade={{ duration: 300 }}>
         <div class="input-wrapper">
             <span class="clickable-icon icon_2fa"></span>
             <input
@@ -81,16 +245,29 @@ step_4_bottom_content_svelte:
                 placeholder={$text('signup.enter_one_time_code.text')}
                 inputmode="numeric"
                 maxlength="6"
+                disabled={verifying}
+                class:error={error}
             />
+            {#if verifying}
+            <div class="loader"></div>
+            {/if}
         </div>
+        {#if error}
+        <div class="error-message" transition:fade>
+            {errorMessage}
+        </div>
+        {/if}
     </div>
+    {/if}
     
-    <div class="resend-section">
+    {#if setupComplete}
+    <div class="resend-section" transition:fade={{ duration: 300 }}>
         <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
         <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
             {$text('signup.click_here_to_show_free_2fa_apps.text')}
         </a>
     </div>
+    {/if}
 </div>
 
 <style>

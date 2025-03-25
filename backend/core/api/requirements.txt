@@ -19,3 +19,4 @@ celery==5.4.0
 regex==2024.11.6
 boto3==1.37.18
 python-multipart==0.0.20
+qrcode==8.0

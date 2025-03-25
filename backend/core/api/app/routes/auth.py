@@ -5,6 +5,7 @@ from app.routes.auth_routes.auth_email import router as email_router
 from app.routes.auth_routes.auth_login import router as login_router
 from app.routes.auth_routes.auth_logout import router as logout_router
 from app.routes.auth_routes.auth_session import router as session_router
+from app.routes.auth_routes.auth_2fa import router as twofa_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -60,3 +61,4 @@ router.include_router(email_router)
 router.include_router(login_router)
 router.include_router(logout_router)
 router.include_router(session_router)
+router.include_router(twofa_router)

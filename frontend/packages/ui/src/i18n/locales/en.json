@@ -504,6 +504,10 @@
             "text": "Secure your account",
             "context": "Title for setting up 2FA for securing account"
         },
+        "setup_2fa": {
+            "text": "Setup extra protection",
+            "context": "Button text for setting up 2FA"
+        },
         "prevent_access": {
             "text": "Prevent hackers from accessing your account, even if they get access to your email and password.",
             "context": "Message explaining the benefits of setting up 2FA"

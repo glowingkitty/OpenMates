@@ -43,7 +43,9 @@ step_5_bottom_content_svelte:
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { fade } from 'svelte/transition';
     import Toggle from '../../../Toggle.svelte';
+    import { backupCodesLoaded } from '../../../../stores/backupCodesState';
 
     const dispatch = createEventDispatcher();
     let hasConfirmedStorage = false;
@@ -60,15 +62,19 @@ step_5_bottom_content_svelte:
 </script>
 
 <div class="bottom-content">
-    <div class="confirmation-row" on:click={handleRowClick} role="button" tabindex="0">
-        <Toggle bind:checked={hasConfirmedStorage} />
-        <span class="confirmation-text">
-            {$text('signup.i_stored_backup_codes.text')}
-        </span>
+    {#if $backupCodesLoaded}
+    <div transition:fade={{ duration: 300 }}>
+        <div class="confirmation-row" on:click={handleRowClick} role="button" tabindex="0">
+            <Toggle bind:checked={hasConfirmedStorage} />
+            <span class="confirmation-text">
+                {$text('signup.i_stored_backup_codes.text')}
+            </span>
+        </div>
+        <div class="click-toggle-text">
+            {$text('signup.click_toggle_to_continue.text')}
+        </div>
     </div>
-    <div class="click-toggle-text">
-        {$text('signup.click_toggle_to_continue.text')}
-    </div>
+    {/if}
 </div>
 
 <style>

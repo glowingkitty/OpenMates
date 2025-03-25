@@ -85,14 +85,36 @@ step_4_top_content_svelte:
 <script lang="ts">
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
+    import { onMount } from 'svelte';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { 
+        twoFASetupData, 
+        twoFASetupComplete, 
+        setTwoFAData,
+        resetTwoFAData
+    } from '../../../../stores/twoFAState';
 
     let showQrCode = false;
     let showCopiedText = false;
-    const dummySecret = 'JBSWY3DPEHPK3PXP';
-    const dummyUri = `otpauth://totp/OpenMates:user@example.com?secret=${dummySecret}&issuer=OpenMates`;
+    let loading = true;
+    let error = false;
+    let errorMessage = '';
+    
+    // Reactive variables bound to store values
+    $: secret = $twoFASetupData.secret;
+    $: qrCodeUrl = $twoFASetupData.qrCodeUrl;
+    $: otpauthUrl = $twoFASetupData.otpauthUrl;
+    $: setupComplete = $twoFASetupComplete;
+
+    // Reset the store when component mounts
+    onMount(() => {
+        resetTwoFAData();
+    });
 
     function handleDeepLink() {
-        window.location.href = dummyUri;
+        if (otpauthUrl) {
+            window.location.href = otpauthUrl;
+        }
     }
 
     function toggleQrCode() {
@@ -100,13 +122,19 @@ step_4_top_content_svelte:
     }
 
     async function copySecret() {
-        await navigator.clipboard.writeText(dummySecret);
+        if (!secret) return;
+        
+        await navigator.clipboard.writeText(secret);
         showCopiedText = true;
 
         // Reset copied text after 2 seconds
         setTimeout(() => {
             showCopiedText = false;
         }, 2000);
+    }
+
+    function retrySetup() {
+        resetTwoFAData();
     }
 </script>
 
@@ -116,6 +144,26 @@ step_4_top_content_svelte:
         <h2 class="signup-menu-title">{@html $text('signup.secure_your_account.text')}</h2>
     </div>
     
+    {#if !setupComplete}
+    <div class="prevent-access-text">
+        {$text('signup.prevent_access.text')}
+    </div>
+    
+    <div class="features">
+        <div class="feature">
+            <div class="check-icon"></div>
+            <span>{@html $text('signup.free.text')}</span>
+        </div>
+        <div class="feature">
+            <div class="check-icon"></div>
+            <span>{@html $text('signup.fast_to_setup.text')}</span>
+        </div>
+        <div class="feature">
+            <div class="check-icon"></div>
+            <span>{@html $text('signup.max_security.text')}</span>
+        </div>
+    </div>
+    {:else}
     <div class="prevent-access-text" class:fade-out={showQrCode}>
         {$text('signup.prevent_access.text')}
     </div>
@@ -135,14 +183,14 @@ step_4_top_content_svelte:
         </div>
     </div>
 
-    {#if showQrCode}
-    <div class="qr-code" transition:fade>
+    {#if showQrCode && qrCodeUrl}
+    <div class="qr-code" transition:fade style="background-image: url('{qrCodeUrl}')">
     </div>
     {/if}
 
     <div class="action-buttons">
         <div class="button-row" class:move-up={showQrCode}>
-            <button class="text-button with-icon" on:click={handleDeepLink}>
+            <button class="text-button with-icon" on:click={handleDeepLink} disabled={!otpauthUrl}>
                 <span class="button-icon open-icon"></span>
                 <span>{@html $text('signup.add_to_2fa_app.text')}</span>
             </button>
@@ -150,7 +198,7 @@ step_4_top_content_svelte:
         
         <div class="button-row" class:move-up={showQrCode}>
             <span class="or-text">{@html $text('signup.or.text')}</span>
-            <button class="text-button with-icon" on:click={toggleQrCode}>
+            <button class="text-button with-icon" on:click={toggleQrCode} disabled={!qrCodeUrl}>
                 <span class="button-icon camera-icon"></span>
                 <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
             </button>
@@ -158,7 +206,7 @@ step_4_top_content_svelte:
 
         <div class="button-row">
             <span class="or-text">{@html $text('signup.or.text')}</span>
-            <button class="text-button with-icon" on:click={copySecret}>
+            <button class="text-button with-icon" on:click={copySecret} disabled={!secret}>
                 <span class="button-icon copy-icon"></span>
                 <span>
                     {#if showCopiedText}
@@ -170,6 +218,7 @@ step_4_top_content_svelte:
             </button>
         </div>
     </div>
+    {/if}
 </div>
 
 <style>
@@ -293,7 +342,6 @@ step_4_top_content_svelte:
         top: 50%;
         transform: translateY(-20px);
         z-index: 1;
-        background-image: url('@openmates/ui/static/icons/dummyqr.svg');
     }
 
     @media (prefers-color-scheme: dark) {
@@ -327,5 +375,25 @@ step_4_top_content_svelte:
         .action-buttons {
             margin-top: 10px;
         }
+    }
+
+    .primary-button {
+        background-color: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .primary-button:hover {
+        background-color: var(--color-primary-dark, #0056b3);
+    }
+
+    .text-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 </style>
