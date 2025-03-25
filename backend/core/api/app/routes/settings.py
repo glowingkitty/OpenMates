@@ -182,8 +182,8 @@ async def update_profile_image(
             content_type=file.content_type
         )
         
-        # Get the pre-signed URL for private content
-        image_url = upload_result.get('presigned_url', upload_result['url'])
+        # Profile images bucket is public read - always use regular URL, not presigned URL
+        image_url = upload_result['url']
 
         # Encrypt URL for storage - extract only the ciphertext part
         encrypted_url, _ = await encryption_service.encrypt(image_url)
