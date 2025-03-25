@@ -71,5 +71,11 @@ directus_users:
       note: "Encrypted name of the 2FA app used by the user"
 
     tfa_last_used:
-      type: timestamp
+      type: string
+      length: 256
       note: "Timestamp of when 2FA was last successfully used"
+    
+    consent_tfa_safely_stored_timestamp:
+      type: string
+      length: 256
+      note: "Timestamp of when the user consented to store 2FA safely"

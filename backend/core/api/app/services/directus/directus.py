@@ -8,7 +8,6 @@ from app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
 from app.services.directus.api_methods import _make_api_request
-from app.services.directus.tfa_methods import generate_2fa_secret, enable_2fa, verify_2fa_code
 from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes
 from app.services.directus.user import (
     create_user, update_user_device, update_user_devices, login_user, logout_user,
@@ -54,12 +53,7 @@ class DirectusService:
     
     # API request method
     _make_api_request = _make_api_request
-    
-    # TFA methods
-    generate_2fa_secret = generate_2fa_secret
-    enable_2fa = enable_2fa
-    verify_2fa_code = verify_2fa_code
-    
+
     # Invite code methods
     get_invite_code = get_invite_code
     get_all_invite_codes = get_all_invite_codes

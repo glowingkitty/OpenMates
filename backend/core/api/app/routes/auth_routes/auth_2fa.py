@@ -247,11 +247,7 @@ async def verify_2fa_code(
         is_signup = user_data.get("last_opened", "").startswith("/signup")
         
         if is_signup:
-            # Update setup data in cache to mark as complete
-            setup_data["setup_complete"] = True
-            await cache_service.set(f"2fa_setup:{user_id}", setup_data, ttl=3600)
-            
-            # Store the encrypted 2FA secret and set current timestamp
+            # Update user in Directus to store the encrypted 2FA secret and set current timestamp
             success, _, message = await directus_service.update_user(user_id, {
                 "encrypted_tfa_secret": encrypted_secret,
                 "tfa_last_used": current_time,
@@ -269,6 +265,10 @@ async def verify_2fa_code(
             # This is a login flow
             # Just verify the code and continue (no need to update signup steps)
             logger.info("2FA verification successful during login")
+        
+        # Remove 2FA setup data from cache as it's no longer needed
+        await cache_service.delete(f"2fa_setup:{user_id}")
+        logger.info(f"Removed 2FA setup data from cache for user {user_id}")
         
         return Verify2FACodeResponse(success=True, message="Verification successful")
         
@@ -390,6 +390,10 @@ async def confirm_codes_stored(
         if not success:
             logger.error(f"Failed to record confirmation timestamp: {message}")
             return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
+        
+        # Clean up any remaining 2FA setup data from cache
+        await cache_service.delete(f"2fa_setup:{user_id}")
+        logger.info(f"Removed 2FA setup data from cache for user {user_id}")
         
         # Log confirmation for compliance
         client_ip = get_client_ip(request)
