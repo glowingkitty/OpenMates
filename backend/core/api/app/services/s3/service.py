@@ -27,36 +27,56 @@ class S3UploadService:
         """
         Initialize the S3 client with a configuration optimized for S3-compatible storage.
         """
-        # Use a simpler configuration for S3-compatible storage
-        s3_config = Config(
-            # Use older signature version for better compatibility
-            signature_version='s3',
-            # Use path-style addressing instead of virtual-hosted style
+        # Get region name from environment variables with fallback to 'fsn1'
+        self.region_name = os.getenv('HETZNER_S3_REGION', 'fsn1')
+        
+        # Build endpoint URL based on region name
+        self.endpoint_url = f'https://{self.region_name}.your-objectstorage.com'
+        
+        # Access keys
+        self.access_key = os.getenv('HETZNER_S3_ACCESS_KEY')
+        self.secret_key = os.getenv('HETZNER_S3_SECRET_KEY')
+        
+        # Configuration for CORS and general operations (uses s3v4 for compatibility)
+        s3v4_config = Config(
+            signature_version='s3v4',
             s3={'addressing_style': 'path'},
-            # Increase timeouts and retries
             connect_timeout=10,
             read_timeout=10,
             retries={'max_attempts': 3}
         )
         
-        # Get region name from environment variables with fallback to 'fsn1'
-        region_name = os.getenv('HETZNER_S3_REGION', 'fsn1')
-        
-        # Build endpoint URL based on region name
-        endpoint_url = f'https://{region_name}.your-objectstorage.com'
-        
-        # Initialize the S3 client with the config
+        # Initialize the main S3 client for CORS and general operations
         self.client = boto3.client(
             's3',
-            region_name=region_name,
-            endpoint_url=endpoint_url,
-            aws_access_key_id=os.getenv('HETZNER_S3_ACCESS_KEY'),
-            aws_secret_access_key=os.getenv('HETZNER_S3_SECRET_KEY'),
-            config=s3_config
+            region_name=self.region_name,
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+            config=s3v4_config
+        )
+        
+        # Separate client for uploads with older signature method
+        upload_config = Config(
+            signature_version='s3',  # Use older signature version which is more lenient
+            s3={'addressing_style': 'path'},
+            connect_timeout=15,
+            read_timeout=15,
+            retries={'max_attempts': 3}
+        )
+        
+        # Create a separate client for uploads
+        self.upload_client = boto3.client(
+            's3',
+            region_name=self.region_name,
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+            config=upload_config
         )
         
         # Store the base domain for URL generation
-        parsed_url = urlparse(endpoint_url)
+        parsed_url = urlparse(self.endpoint_url)
         self.base_domain = parsed_url.netloc
         
         # Get current environment
@@ -217,8 +237,8 @@ class S3UploadService:
                             'lifecycle-policy': f"expire-after-{bucket_config['lifecycle_policy']}-days"
                         }
                     
-                    # Upload the file
-                    self.client.put_object(**put_params)
+                    # Upload the file using the dedicated upload client
+                    self.upload_client.put_object(**put_params)
                     
                     # If successful, break out of the retry loop
                     logger.info(f"Upload successful on attempt {attempt + 1}")

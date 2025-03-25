@@ -49,7 +49,7 @@ BUCKETS = {
         'dev_name': 'dev-openmates-profile-images',
         'allowed_types': ['image/jpeg', 'image/png', 'image/webp'],
         'max_size': 300 * 1024,  # 300KB
-        'access': 'private',
+        'access': 'public-read',
         'lifecycle_policy': None,  # No auto-delete
     },
     'invoices': {
@@ -65,7 +65,7 @@ BUCKETS = {
         'dev_name': 'dev-openmates-chatfiles',
         'allowed_types': ['*/*'],  # Allow all file types
         'max_size': 500 * 1024 * 1024,  # 500MB
-        'access': 'private',
+        'access': 'public-read',
         'lifecycle_policy': None,  # No auto-delete
     },
     'userdata_backups': {
