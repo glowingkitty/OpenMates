@@ -1,11 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response, HTTPException, status
 import logging
-import qrcode
-import io
-import base64
 import secrets
 import string
-import json
 import pyotp
 import time
 from argon2 import PasswordHasher
@@ -14,7 +10,7 @@ from typing import List, Optional, Dict, Any
 
 # Import schemas from dedicated schema file
 from app.schemas.auth_2fa import (
-    Setup2FARequest, Setup2FAResponse, Verify2FACodeRequest, Verify2FACodeResponse,
+    Setup2FAResponse, Verify2FACodeRequest, Verify2FACodeResponse,
     BackupCodesResponse, ConfirmCodesStoredRequest, ConfirmCodesStoredResponse,
     Setup2FAProviderRequest, Setup2FAProviderResponse
 )
@@ -88,7 +84,6 @@ def generate_backup_codes(count=5, length=12):
 @router.post("/setup_2fa", response_model=Setup2FAResponse, dependencies=[Depends(verify_allowed_origin)])
 async def setup_2fa(
     request: Request,
-    setup_request: Setup2FARequest,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
@@ -96,8 +91,9 @@ async def setup_2fa(
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """
-    Setup 2FA for a user by generating a secret key and returning the QR code.
+    Setup 2FA for a user by generating a secret key.
     Uses custom encrypted fields instead of Directus built-in 2FA.
+    Email decryption is mandatory for security reasons.
     """
     logger.info("Processing /setup_2fa request")
     
@@ -120,29 +116,27 @@ async def setup_2fa(
         if not success or not user_profile:
             return Setup2FAResponse(success=False, message="Failed to get user profile")
             
-        # Get email for the OTP name - user profile data may contain the decrypted email already
-        email = user_profile.get("email") or user_profile.get("username", "User")
+        # Get email for the OTP name - decrypt it or fail
+        email = None
+        if "encrypted_email_address" in user_profile and user_profile.get("encrypted_email_address"):
+            try:
+                # Attempt to decrypt the email address
+                vault_key_id = user_profile.get("vault_key_id")
+                if vault_key_id:
+                    email = await encryption_service.decrypt_with_user_key(
+                        user_profile.get("encrypted_email_address"), 
+                        vault_key_id
+                    )
+            except Exception as e:
+                logger.error(f"Error decrypting email: {str(e)}")
+                return Setup2FAResponse(success=False, message="Failed to decrypt email for 2FA setup")
         
-        # Generate new 2FA secret
+        # If email was not found or decryption failed, abort the request
+        if not email:
+            return Setup2FAResponse(success=False, message="Email required for 2FA setup")
+        
+        # Generate new 2FA secret using the decrypted email
         secret, otpauth_url, _ = generate_2fa_secret(app_name="OpenMates", username=email)
-        
-        # Generate QR code image
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(otpauth_url)
-        qr.make(fit=True)
-        
-        img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Convert QR code to base64 string for embedding in frontend
-        buffered = io.BytesIO()
-        img.save(buffered)
-        qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
-        qr_code_url = f"data:image/png;base64,{qr_code_base64}"
         
         # Store the secret in cache temporarily (will be saved to the database when verified)
         await cache_service.set(f"2fa_setup:{user_id}", {
@@ -151,30 +145,18 @@ async def setup_2fa(
             "setup_complete": False
         }, ttl=3600)  # 1 hour expiry for setup completion
         
-        # Log 2FA setup attempt for compliance (IP address + User ID required)
-        client_ip = get_client_ip(request)
-        compliance_service.log_auth_event(
-            event_type="2fa_setup_initiated",
-            user_id=user_id,
-            ip_address=client_ip,
-            status="initiated"
-        )
-        
-        # Track successful 2FA setup attempt
-        metrics_service.track_api_request("POST", "/v1/auth/setup_2fa", 200)
+        # Log the successful 2FA setup initiation
+        logger.info(f"2FA setup initiated for user {user_id}")
         
         return Setup2FAResponse(
             success=True,
             message="2FA setup initiated successfully",
             secret=secret,
-            qr_code_url=qr_code_url,
             otpauth_url=otpauth_url
         )
         
     except Exception as e:
         logger.error(f"Error in setup_2fa: {str(e)}", exc_info=True)
-        # Track failed 2FA setup attempt
-        metrics_service.track_api_request("POST", "/v1/auth/setup_2fa", 500)
         return Setup2FAResponse(success=False, message="An error occurred during 2FA setup")
 
 
@@ -222,8 +204,7 @@ async def verify_2fa_code(
                 ip_address=client_ip,
                 status="failed"
             )
-            # Track failed 2FA verification attempt
-            metrics_service.track_api_request("POST", "/v1/auth/verify_2fa_code", 400)
+            logger.info(f"Failed 2FA verification attempt for user {user_id}")
             return Verify2FACodeResponse(success=False, message="Invalid verification code")
         
         # Log successful verification
@@ -234,8 +215,7 @@ async def verify_2fa_code(
             ip_address=client_ip,
             status="success"
         )
-        # Track successful 2FA verification attempt
-        metrics_service.track_api_request("POST", "/v1/auth/verify_2fa_code", 200)
+        logger.info(f"Successful 2FA verification for user {user_id}")
         
         # Current timestamp for tfa_last_used
         current_time = int(time.time())
@@ -274,8 +254,6 @@ async def verify_2fa_code(
         
     except Exception as e:
         logger.error(f"Error in verify_2fa_code: {str(e)}", exc_info=True)
-        # Track failed 2FA verification attempt
-        metrics_service.track_api_request("POST", "/v1/auth/verify_2fa_code", 500)
         return Verify2FACodeResponse(success=False, message="An error occurred during 2FA verification")
 
 
@@ -332,8 +310,7 @@ async def request_backup_codes(
             status="success"
         )
         
-        # Track successful backup codes request
-        metrics_service.track_api_request("GET", "/v1/auth/request_backup_codes", 200)
+        logger.info(f"Backup codes generated successfully for user {user_id}")
         
         return BackupCodesResponse(
             success=True,
@@ -343,8 +320,6 @@ async def request_backup_codes(
         
     except Exception as e:
         logger.error(f"Error in request_backup_codes: {str(e)}", exc_info=True)
-        # Track failed backup codes request
-        metrics_service.track_api_request("GET", "/v1/auth/request_backup_codes", 500)
         return BackupCodesResponse(success=False, message="An error occurred while generating backup codes")
 
 
@@ -404,8 +379,7 @@ async def confirm_codes_stored(
             status="success"
         )
         
-        # Track successful 2FA setup completion
-        metrics_service.track_api_request("POST", "/v1/auth/confirm_codes_stored", 200)
+        logger.info(f"2FA setup completed successfully for user {user_id}")
         
         return ConfirmCodesStoredResponse(
             success=True,
@@ -414,8 +388,6 @@ async def confirm_codes_stored(
         
     except Exception as e:
         logger.error(f"Error in confirm_codes_stored: {str(e)}", exc_info=True)
-        # Track failed 2FA setup completion
-        metrics_service.track_api_request("POST", "/v1/auth/confirm_codes_stored", 500)
         return ConfirmCodesStoredResponse(success=False, message="An error occurred while confirming backup codes")
 
 
@@ -434,7 +406,7 @@ async def setup_2fa_provider(
     
     try:
         # Verify user authentication using shared function
-        is_auth, user_data, _ = await verify_authenticated_user(
+        is_auth, user_data, refresh_token = await verify_authenticated_user(
             request, cache_service, directus_service
         )
         
@@ -445,9 +417,6 @@ async def setup_2fa_provider(
         
         # No validation needed - app name can be any string
         tfa_app_name = provider_request.provider
-        
-        # Store decrypted app name in cache
-        await cache_service.set(f"tfa_app_name:{user_id}", tfa_app_name, ttl=3600*24*30)  # 30 days TTL
         
         # Encrypt app name for Directus storage
         encrypted_app_name, _ = await encryption_service.encrypt(tfa_app_name)
@@ -460,6 +429,16 @@ async def setup_2fa_provider(
         if not success:
             logger.error(f"Failed to update user 2FA app name: {message}")
             return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name")
+        
+        # Update the user cache (using USER_KEY_PREFIX)
+        await cache_service.update_user(user_id, {"tfa_app_name": tfa_app_name})
+        
+        # Also update the user profile cache if it exists (using a different prefix)
+        profile_cache_key = f"user_profile:{user_id}"
+        cached_profile = await cache_service.get(profile_cache_key)
+        if cached_profile:
+            cached_profile["tfa_app_name"] = tfa_app_name
+            await cache_service.set(profile_cache_key, cached_profile)
         
         return Setup2FAProviderResponse(
             success=True,

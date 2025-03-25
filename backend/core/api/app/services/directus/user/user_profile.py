@@ -52,15 +52,12 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "last_access": user_data.get("last_access"),
             "vault_key_id": vault_key_id,
             "vault_key_version": user_data.get("vault_key_version"),
+            "tfa_last_used": user_data.get("tfa_last_used"),  # Include 2FA last used timestamp
             
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
             "encrypted_settings": user_data.get("encrypted_settings"),
         }
-        
-        # Log initial profile data
-        logger.info("[Debug] Initial profile data before decryption:")
-        logger.info(json.dumps(profile, indent=2))
 
         # Decrypt fields that are safe to cache and commonly needed
         try:
@@ -69,7 +66,8 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
                 ("profile_image_url", "encrypted_profileimage_url"),
-                ("devices", "encrypted_devices")
+                ("devices", "encrypted_devices"),
+                ("tfa_app_name", "encrypted_tfa_app_name")
             ]:
                 if encrypted_field in user_data and user_data[encrypted_field]:
                     try:

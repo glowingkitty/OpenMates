@@ -229,6 +229,9 @@ importers:
       prosemirror-view:
         specifier: ^1.32.7
         version: 1.37.2
+      qrcode-svg:
+        specifier: ^1.1.0
+        version: 1.1.0
       svelte-i18n:
         specifier: ^4.0.1
         version: 4.0.1(svelte@5.19.7)
@@ -3411,6 +3414,10 @@ packages:
   pupa@2.1.1:
     resolution: {integrity: sha512-l1jNAspIBSFqbT+y+5FosojNpVpF94nlI+wDUpqP9enwOTfHx9f0gh5nB96vl+6yTpsJsypeNrwfzPrKuHB41A==}
     engines: {node: '>=8'}
+
+  qrcode-svg@1.1.0:
+    resolution: {integrity: sha512-XyQCIXux1zEIA3NPb0AeR8UMYvXZzWEhgdBgBjH9gO7M48H9uoHzviNz8pXw3UzrAcxRRRn9gxHewAVK7bn9qw==}
+    hasBin: true
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -7673,6 +7680,8 @@ snapshots:
   pupa@2.1.1:
     dependencies:
       escape-goat: 2.1.1
+
+  qrcode-svg@1.1.0: {}
 
   queue-microtask@1.2.3: {}
 

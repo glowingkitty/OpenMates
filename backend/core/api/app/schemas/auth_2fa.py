@@ -1,14 +1,10 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
-# Models for 2FA related requests and responses
-class Setup2FARequest(BaseModel):
-    password: str
 class Setup2FAResponse(BaseModel):
     success: bool
     message: str
     secret: Optional[str] = None
-    qr_code_url: Optional[str] = None
     otpauth_url: Optional[str] = None
 
 class Verify2FACodeRequest(BaseModel):

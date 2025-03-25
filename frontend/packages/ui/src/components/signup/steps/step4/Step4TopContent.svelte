@@ -93,18 +93,45 @@ step_4_top_content_svelte:
         setTwoFAData,
         resetTwoFAData
     } from '../../../../stores/twoFAState';
+    import { theme } from '../../../../stores/theme';
+    import QRCode from 'qrcode-svg';
 
     let showQrCode = false;
     let showCopiedText = false;
     let loading = true;
     let error = false;
     let errorMessage = '';
+    let qrCodeSvg = '';
     
     // Reactive variables bound to store values
     $: secret = $twoFASetupData.secret;
-    $: qrCodeUrl = $twoFASetupData.qrCodeUrl;
     $: otpauthUrl = $twoFASetupData.otpauthUrl;
     $: setupComplete = $twoFASetupComplete;
+    $: updateQrCodeColor($theme, otpauthUrl);
+
+    // Function to regenerate QR code when theme changes
+    function updateQrCodeColor(currentTheme, url) {
+        if (!url) return;
+        
+        const color = currentTheme === 'dark' ? '#FFFFFF' : '#000000';
+        const bgColor = 'transparent';
+        
+        try {
+            const qr = new QRCode({
+                content: url,
+                padding: 0,
+                width: 150,
+                height: 150,
+                color: color,
+                background: bgColor,
+                ecl: 'M'  // Error correction level
+            });
+            
+            qrCodeSvg = qr.svg();
+        } catch (err) {
+            console.error('Error generating QR code:', err);
+        }
+    }
 
     // Fetch 2FA setup data when component mounts
     onMount(async () => {
@@ -118,14 +145,12 @@ step_4_top_content_svelte:
         errorMessage = '';
         
         try {
-            // Make API call to setup_2fa endpoint - no request body needed
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                credentials: 'include',
-                body: JSON.stringify({}) // Empty object as required by the API
+                credentials: 'include'
             });
             
             const data = await response.json();
@@ -134,9 +159,12 @@ step_4_top_content_svelte:
                 // Update the store with the 2FA setup data
                 setTwoFAData(
                     data.secret,
-                    data.qr_code_url,
+                    '',  // We don't need the QR code URL anymore as we generate SVG
                     data.otpauth_url
                 );
+                
+                // Generate SVG QR code
+                updateQrCodeColor($theme, data.otpauth_url);
             } else {
                 error = true;
                 errorMessage = data.message || 'Failed to set up 2FA';
@@ -223,8 +251,10 @@ step_4_top_content_svelte:
         </div>
     </div>
 
-    {#if showQrCode && qrCodeUrl}
-    <div class="qr-code" transition:fade style="background-image: url('{qrCodeUrl}')">
+    {#if showQrCode}
+    <div class="qr-code" transition:fade>
+        <!-- Use the SVG string directly -->
+        {@html qrCodeSvg}
     </div>
     {/if}
 
@@ -238,7 +268,7 @@ step_4_top_content_svelte:
         
         <div class="button-row" class:move-up={showQrCode}>
             <span class="or-text">{@html $text('signup.or.text')}</span>
-            <button class="text-button with-icon" on:click={toggleQrCode} disabled={!qrCodeUrl}>
+            <button class="text-button with-icon" on:click={toggleQrCode} disabled={!qrCodeSvg}>
                 <span class="button-icon camera-icon"></span>
                 <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
             </button>
@@ -375,26 +405,22 @@ step_4_top_content_svelte:
     .qr-code {
         width: var(--qr-code-size);
         height: var(--qr-code-size);
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
         position: absolute;
         top: 50%;
         transform: translateY(-20px);
         z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
+    /* Remove dark mode inversion as we handle color via JS */
     @media (prefers-color-scheme: dark) {
         .qr-code {
-            filter: invert(1);
+            filter: none;
         }
     }
 
-    .fade-out {
-        opacity: 0;
-        pointer-events: none;
-    }
-    
     /* Added media query for screens 600px and smaller */
     @media (max-width: 600px) {
         .features {
