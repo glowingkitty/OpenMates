@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
-    import { processedImageUrl } from '../../stores/profileImage';
+    import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { isResettingTFA } from '../../stores/signupState'; // Import the new store
     import { getWebsiteUrl, routes } from '../../config/links';
     
@@ -28,7 +28,8 @@
     }
 
     function handleSkipClick() {
-        if (currentStep === 3 && $processedImageUrl) { // Next from step 3 (profile pic)
+        // Use userProfile.profileImageUrl to check if image exists for step 3
+        if (currentStep === 3 && $userProfile.profileImageUrl) { // Next from step 3 (profile pic)
             dispatch('step', { step: 4 });
         } else if (currentStep === 4 && $isResettingTFA) { // Next from step 4 (resetting TFA)
             dispatch('step', { step: 6 });
@@ -67,7 +68,8 @@
 
     // Update the reactive skipButtonText for different steps and states
     $: skipButtonText = 
-        (currentStep === 3 && $processedImageUrl) ? $_('signup.next.text') : // Step 3 -> 4
+        // Use userProfile.profileImageUrl for step 3 logic
+        (currentStep === 3 && $userProfile.profileImageUrl) ? $_('signup.next.text') : // Step 3 -> 4
         (currentStep === 4 && $isResettingTFA) ? $_('signup.next.text') : // Step 4 (resetting) -> 6
         (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
         (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo
