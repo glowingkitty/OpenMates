@@ -145,6 +145,23 @@ async def setup_2fa(
         
         # Log the successful 2FA setup initiation
         logger.info(f"2FA setup initiated for user {user_id}")
+
+        # If in signup flow, update last_opened to step 4
+        is_signup = user_data.get("last_opened", "").startswith("/signup")
+        if is_signup:
+            logger.info(f"Updating last_opened to /signup/step-4 for user {user_id}")
+            success_update = await directus_service.update_user(user_id, {
+                "last_opened": "/signup/step-4"
+            })
+            if not success_update:
+                logger.error(f"Failed to update last_opened for user {user_id} during 2FA setup initiation")
+                # Logged the error, but continue as 2FA setup itself succeeded.
+                # Consider if this should be a hard failure in the future.
+            else:
+                # Update cache only if Directus update was successful
+                user_data["last_opened"] = "/signup/step-4"
+                await cache_service.set_user(user_data, refresh_token=refresh_token)
+                logger.info(f"Updated user cache for {user_id} with last_opened=/signup/step-4")
         
         return Setup2FAResponse(
             success=True,
