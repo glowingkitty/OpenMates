@@ -87,11 +87,12 @@ step_4_top_content_svelte:
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { isResettingTFA } from '../../../../stores/signupState'; // Import store
     import { 
         twoFASetupData, 
         twoFASetupComplete, 
         setTwoFAData,
-        resetTwoFAData
+        resetTwoFAData // Ensure reset function is imported
     } from '../../../../stores/twoFAState';
     import { theme } from '../../../../stores/theme';
     import QRCode from 'qrcode-svg';
@@ -133,9 +134,11 @@ step_4_top_content_svelte:
         }
     }
 
-    // Fetch 2FA setup data when component mounts
+    // Fetch 2FA setup data when component mounts, unless we are in reset mode
     onMount(async () => {
-        await fetchSetup2FA();
+        if (!$isResettingTFA) {
+            await fetchSetup2FA();
+        }
     });
 
     // Fetch 2FA setup data from the API
@@ -204,6 +207,13 @@ step_4_top_content_svelte:
     function retrySetup() {
         resetTwoFAData();
     }
+
+    // Handle the reset button click
+    async function handleResetTFA() {
+        resetTwoFAData(); // Clear old data
+        isResettingTFA.set(false); // Set flag to false immediately to show loading/content
+        await fetchSetup2FA(); // Fetch new data
+    }
 </script>
 
 <div class="content">
@@ -231,8 +241,9 @@ step_4_top_content_svelte:
             <span>{@html $text('signup.max_security.text')}</span>
         </div>
     </div>
-    {:else}
-    <div class="prevent-access-text" class:fade-out={showQrCode}>
+    {:else} 
+    <!-- This block executes when setup IS complete -->
+    <div class="prevent-access-text" class:fade-out={showQrCode && !$isResettingTFA}>
         {$text('signup.prevent_access.text')}
     </div>
     
@@ -251,44 +262,59 @@ step_4_top_content_svelte:
         </div>
     </div>
 
-    {#if showQrCode}
-    <div class="qr-code" transition:fade>
-        <!-- Use the SVG string directly -->
-        {@html qrCodeSvg}
-    </div>
-    {/if}
+    <!-- Conditionally show QR/Actions OR Reset Button -->
+    {#if !$isResettingTFA}
+        <!-- Standard View: QR Code and Action Buttons -->
+        {#if showQrCode}
+        <div class="qr-code" transition:fade>
+            <!-- Use the SVG string directly -->
+            {@html qrCodeSvg}
+        </div>
+        {/if}
 
-    <div class="action-buttons">
-        <div class="button-row" class:move-up={showQrCode}>
-            <button class="text-button with-icon" on:click={handleDeepLink} disabled={!otpauthUrl}>
-                <span class="button-icon open-icon"></span>
-                <span>{@html $text('signup.add_to_2fa_app.text')}</span>
-            </button>
-        </div>
-        
-        <div class="button-row" class:move-up={showQrCode}>
-            <span class="or-text">{@html $text('signup.or.text')}</span>
-            <button class="text-button with-icon" on:click={toggleQrCode} disabled={!qrCodeSvg}>
-                <span class="button-icon camera-icon"></span>
-                <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
-            </button>
-        </div>
+        <div class="action-buttons">
+            <div class="button-row" class:move-up={showQrCode}>
+                <button class="text-button with-icon" on:click={handleDeepLink} disabled={!otpauthUrl}>
+                    <span class="button-icon open-icon"></span>
+                    <span>{@html $text('signup.add_to_2fa_app.text')}</span>
+                </button>
+            </div>
+            
+            <div class="button-row" class:move-up={showQrCode}>
+                <span class="or-text">{@html $text('signup.or.text')}</span>
+                <button class="text-button with-icon" on:click={toggleQrCode} disabled={!qrCodeSvg}>
+                    <span class="button-icon camera-icon"></span>
+                    <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
+                </button>
+            </div>
 
-        <div class="button-row">
-            <span class="or-text">{@html $text('signup.or.text')}</span>
-            <button class="text-button with-icon" on:click={copySecret} disabled={!secret}>
-                <span class="button-icon copy-icon"></span>
-                <span>
-                    {#if showCopiedText}
-                        {$text('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
-                    {:else}
-                        {$text('signup.copy_secret.text')}
-                    {/if}
-                </span>
-            </button>
+            <div class="button-row">
+                <span class="or-text">{@html $text('signup.or.text')}</span>
+                <button class="text-button with-icon" on:click={copySecret} disabled={!secret}>
+                    <span class="button-icon copy-icon"></span>
+                    <span>
+                        {#if showCopiedText}
+                            {$text('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+                        {:else}
+                            {$text('signup.copy_secret.text')}
+                        {/if}
+                    </span>
+                </button>
+            </div>
         </div>
-    </div>
-    {/if}
+    {:else}
+        <!-- Reset View: Reset Button -->
+        <div class="action-buttons">
+             <div class="button-row">
+                 <button class="text-button with-icon" on:click={handleResetTFA}>
+                    <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
+                    <span>{@html $text('signup.reset_tfa.text', { default: 'Reset 2FA Setup' })}</span>
+                </button>
+             </div>
+        </div>
+    {/if} 
+    <!-- End Conditional Section for !$isResettingTFA -->
+    {/if} <!-- End of {#if !setupComplete}{:else} block -->
 </div>
 
 <style>
@@ -390,6 +416,12 @@ step_4_top_content_svelte:
         -webkit-mask-size: contain !important;
         mask-size: contain !important;
         background-image: var(--color-primary);
+    }
+
+     /* Added restore icon style */
+    .restore-icon {
+        -webkit-mask: url('@openmates/ui/static/icons/restore.svg') no-repeat center;
+        mask: url('@openmates/ui/static/icons/restore.svg') no-repeat center;
     }
 
     .open-icon {

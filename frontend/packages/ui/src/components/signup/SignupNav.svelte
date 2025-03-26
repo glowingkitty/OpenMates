@@ -2,6 +2,7 @@
     import { createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import { processedImageUrl } from '../../stores/profileImage';
+    import { isResettingTFA } from '../../stores/signupState'; // Import the new store
     import { getWebsiteUrl, routes } from '../../config/links';
     
     const dispatch = createEventDispatcher();
@@ -17,18 +18,31 @@
             dispatch('back');
         } else if (currentStep === 3) {
             dispatch('logout');
+        } else if (currentStep === 6) {
+            // Special case: Go back from Step 6 to Step 4 and set reset flag
+            isResettingTFA.set(true);
+            dispatch('step', { step: 4 });
         } else {
             dispatch('step', { step: currentStep - 1 });
         }
     }
 
     function handleSkipClick() {
-        if (currentStep === 3) {
+        if (currentStep === 3 && $processedImageUrl) { // Next from step 3 (profile pic)
             dispatch('step', { step: 4 });
-        } else if (currentStep === 9) {
+        } else if (currentStep === 4 && $isResettingTFA) { // Next from step 4 (resetting TFA)
+            dispatch('step', { step: 6 });
+        } else if (currentStep === 6 && selectedAppName) { // Next from step 6 (verify code)
+             // This case seems handled by Step4BottomContent dispatching step 5 on success
+             // Let's assume the 'skip' button here means proceeding after verification
+             // which is handled internally in Step 4 bottom. If verification fails, user stays.
+             // If successful, Step4Bottom dispatches step 5.
+             // Let's keep the original skip logic for now, might need adjustment based on testing.
+             dispatch('skip'); // Or should this go to step 5? Let's stick to original 'skip' for now.
+        } else if (currentStep === 9) { // Skip demo
             console.debug('Skip and show demo first');
             // Custom action for step 9 - will be replaced later with real action
-        } else {
+        } else { // Default skip action
             dispatch('skip');
         }
     }
@@ -51,13 +65,17 @@
         return $_('signup.sign_up.text');
     }
 
-    // Update the reactive skipButtonText to include the case for step 9
-    $: skipButtonText = (currentStep === 3 && $processedImageUrl) || 
-                         (currentStep === 6 && selectedAppName)
-        ? $_('signup.next.text')
-        : currentStep === 9
-            ? $_('signup.skip_and_show_demo_first.text')
-            : $_('signup.skip.text');
+    // Update the reactive skipButtonText for different steps and states
+    $: skipButtonText = 
+        (currentStep === 3 && $processedImageUrl) ? $_('signup.next.text') : // Step 3 -> 4
+        (currentStep === 4 && $isResettingTFA) ? $_('signup.next.text') : // Step 4 (resetting) -> 6
+        (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
+        (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo
+        $_('signup.skip.text'); // Default skip text
+
+    // Determine if the skip/next button should be shown
+    $: showActualSkipButton = showSkip && !(currentStep === 4 && !$isResettingTFA); // Hide on step 4 unless resetting
+
 </script>
 
 <div class="nav-area">
@@ -74,7 +92,7 @@
         </button>
     {/if}
     
-    {#if showSkip}
+    {#if showActualSkipButton}
         <button class="nav-button" on:click={handleSkipClick}>
             {skipButtonText}
             <div class="clickable-icon icon_back icon-mirrored"></div>

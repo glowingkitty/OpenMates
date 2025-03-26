@@ -7,6 +7,9 @@ export const isLoggingOut = writable(false);
 // Store to track current signup step
 export const currentSignupStep = writable(1);
 
+// Store to track if user is resetting 2FA from step 6
+export const isResettingTFA = writable<boolean>(false);
+
 // Helper to determine if we're in settings steps (7+)
 export function isSettingsStep(step: number): boolean {
     return step >= 7;
