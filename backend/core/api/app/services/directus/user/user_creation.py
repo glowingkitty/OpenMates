@@ -25,10 +25,10 @@ async def create_user(self, username: str, email: str, password: str,
         
         # Create a dedicated encryption key for this user
         vault_key_id = await self.encryption_service.create_user_key(str(uuid.uuid4()))
-        
+
         # Hash the email for authentication using the service method
-        hashed_email = self.encryption_service.hash_email(email)
-        
+        hashed_email = await self.encryption_service.hash_email(email)
+
         # Create a valid email format using the hash (max 64 chars for username part)
         directus_email = f"{hashed_email[:64]}@example.com"
         

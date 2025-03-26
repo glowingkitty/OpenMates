@@ -9,13 +9,13 @@ import glob
 import secrets  # Added
 import hmac     # Added
 import hashlib  # Added
+import asyncio  # Added for sleep
 from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-# Vault path and key name for the email hashing key
-EMAIL_HASH_KEY_PATH = "secret/data/keys/email_hash"
-EMAIL_HASH_KEY_NAME = "EMAIL_HASH_KEY"
+# Vault transit key name for email HMAC
+EMAIL_HMAC_KEY_NAME = "email-hmac-key"
 
 class EncryptionService:
     """
@@ -28,7 +28,7 @@ class EncryptionService:
         self.transit_mount = "transit"  # The Vault transit engine mount path
         self._client = None
         self.cache = cache_service  # Store the cache service
-        self.email_hash_key: Optional[str] = None # Added: Store the loaded email hash key
+        # self.email_hash_key: Optional[str] = None # Removed: Key material no longer stored in service
 
         # Add caching properties
         self._token_valid_until = 0  # Token validation expiry timestamp
@@ -279,42 +279,49 @@ class EncryptionService:
             logger.error(f"Failed to ensure transit engine is enabled: {str(e)}")
             raise Exception(f"Failed to initialize encryption service: {str(e)}")
 
-        # --- Add logic for EMAIL_HASH_KEY ---
+        # --- Ensure EMAIL_HMAC_KEY exists in transit engine ---
         try:
-            logger.info(f"Checking for email hash key in Vault at {EMAIL_HASH_KEY_PATH}")
-            # Try reading the key from Vault KV v2
-            response = await self._vault_request("get", EMAIL_HASH_KEY_PATH)
-            
-            if response and 'data' in response and 'data' in response['data'] and EMAIL_HASH_KEY_NAME in response['data']['data']:
-                self.email_hash_key = response['data']['data'][EMAIL_HASH_KEY_NAME]
-                logger.info("Successfully loaded email hash key from Vault.")
-            else:
-                logger.warning(f"Email hash key not found in Vault at {EMAIL_HASH_KEY_PATH}. Generating a new one.")
-                # Generate a new secure key
-                new_key = secrets.token_hex(32)
-                
-                # Write the new key to Vault KV v2
-                write_payload = {"data": {EMAIL_HASH_KEY_NAME: new_key}}
-                await self._vault_request("post", EMAIL_HASH_KEY_PATH, data=write_payload)
-                
-                self.email_hash_key = new_key
-                logger.info(f"Successfully generated and stored new email hash key in Vault.")
+            logger.info(f"Checking for email HMAC key '{EMAIL_HMAC_KEY_NAME}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{EMAIL_HMAC_KEY_NAME}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                # Check specifically for a field that indicates existence, like 'type' or 'name'.
+                if response and response.get("data") and response["data"].get("name") == EMAIL_HMAC_KEY_NAME:
+                    key_exists = True
+                    logger.info(f"Email HMAC key '{EMAIL_HMAC_KEY_NAME}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.info(f"Email HMAC key '{EMAIL_HMAC_KEY_NAME}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for email HMAC key '{EMAIL_HMAC_KEY_NAME}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.info(f"Attempting to create email HMAC key '{EMAIL_HMAC_KEY_NAME}'...")
+                 try:
+                     # Create the key
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{EMAIL_HMAC_KEY_NAME}", {
+                         "type": "aes256-gcm96", # Can use standard encryption key type for HMAC
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.info(f"Successfully created email HMAC key '{EMAIL_HMAC_KEY_NAME}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.info(f"Email HMAC key '{EMAIL_HMAC_KEY_NAME}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create email HMAC key '{EMAIL_HMAC_KEY_NAME}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize email HMAC key: {str(create_error)}")
 
         except Exception as e:
-            logger.error(f"Failed to ensure email hash key exists in Vault: {str(e)}")
-            # Depending on policy, we might want to raise an exception here to prevent startup
-            raise Exception(f"Failed to initialize email hash key: {str(e)}")
+            logger.error(f"Failed to ensure email HMAC key exists: {str(e)}")
+            raise Exception(f"Failed to initialize email HMAC key: {str(e)}")
 
-        if not self.email_hash_key:
-             logger.critical("Email hash key could not be loaded or generated. Hashing will fail.")
-             raise Exception("Email hash key initialization failed.")
-    
-    def get_email_hash_key(self) -> str:
-        """Returns the loaded email hash key. Raises error if not loaded."""
-        if not self.email_hash_key:
-            logger.error("Email hash key accessed before it was loaded!")
-            raise ValueError("Email hash key has not been loaded from Vault.")
-        return self.email_hash_key
+    # Removed get_email_hash_key method
 
     async def create_user_key(self, user_id: str) -> str:
         """
@@ -473,35 +480,53 @@ class EncryptionService:
         # Use the chat's specific key for decryption
         return await self.decrypt(ciphertext, key_name=key_id, context=context)
 
-    # --- Added Hashing Methods ---
+    # --- Updated Hashing Methods ---
 
-    def hash_email(self, email: str) -> str:
+    async def hash_email(self, email: str) -> str:
         """
-        Creates a consistent HMAC-SHA256 hash of an email address using the key from Vault.
+        Creates a consistent HMAC-SHA256 hash of an email address using Vault's transit engine.
         """
         if not email:
             return ""
-            
-        # Normalize email to lowercase
-        normalized_email = email.strip().lower()
-        
-        # Get the key (raises error if not loaded)
-        key = self.get_email_hash_key() 
-        
-        # Create the HMAC hash
-        hash_obj = hmac.new(
-            key=key.encode('utf-8'),
-            msg=normalized_email.encode('utf-8'),
-            digestmod=hashlib.sha256
-        )
-        
-        # Return hex digest
-        return hash_obj.hexdigest()
 
-    def verify_email_hash(self, email: str, stored_hash: str) -> bool:
+        # Normalize email to lowercase and encode for Vault
+        normalized_email = email.strip().lower()
+        encoded_input = base64.b64encode(normalized_email.encode('utf-8')).decode('utf-8')
+
+        # Call Vault's HMAC endpoint
+        path = f"{self.transit_mount}/hmac/{EMAIL_HMAC_KEY_NAME}"
+        # Simplify payload: Remove algorithm and context, let Vault use defaults/key type
+        payload = {
+            "input": encoded_input
+        }
+
+        try:
+            result = await self._vault_request("post", path, payload)
+            hmac_digest = result.get("data", {}).get("hmac")
+            if not hmac_digest:
+                 logger.error(f"Vault HMAC response missing 'hmac' field for email: {email[:5]}...")
+                 raise ValueError("Invalid response from Vault HMAC endpoint")
+            # Vault returns the HMAC digest directly (e.g., "hmac:v1:...")
+            # We only need the actual digest part after the last colon
+            digest = hmac_digest.split(':')[-1]
+            logger.debug(f"Vault HMAC generated digest starting with: {digest[:8]}...") # Log confirmation
+            return digest
+        except Exception as e:
+            logger.error(f"Vault HMAC generation failed for email {email[:5]}...: {str(e)}")
+            raise # Re-raise the exception to signal failure
+
+    async def verify_email_hash(self, email: str, stored_hash: str) -> bool:
         """
-        Verifies if a plaintext email matches a stored hash using the key from Vault.
+        Verifies if a plaintext email matches a stored hash using Vault's transit engine.
         """
         if not email or not stored_hash:
             return False
-        return hmac.compare_digest(self.hash_email(email), stored_hash)
+        try:
+            # Generate the expected hash using the new async method
+            expected_hash = await self.hash_email(email)
+            # Use hmac.compare_digest for secure comparison
+            return hmac.compare_digest(expected_hash, stored_hash)
+        except Exception as e:
+            # Log error during verification but return False
+            logger.error(f"Error during email hash verification for {email[:5]}...: {str(e)}")
+            return False

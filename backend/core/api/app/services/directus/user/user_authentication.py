@@ -16,9 +16,9 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
     """
     try:
         # Hash the email for login using the service method
-        hashed_email = self.encryption_service.hash_email(email)
+        hashed_email = await self.encryption_service.hash_email(email)
         directus_email = f"{hashed_email[:64]}@example.com"
-        
+
         # Step 1: Get access token via login
         async with httpx.AsyncClient() as client:
             login_response = await client.post(
