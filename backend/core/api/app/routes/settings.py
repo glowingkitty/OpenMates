@@ -44,7 +44,8 @@ async def get_current_user(
             is_admin=cached_data.get("is_admin", False),
             credits=cached_data.get("credits", 0),
             profile_image_url=cached_data.get("profile_image_url"),
-            last_opened=cached_data.get("last_opened")
+            last_opened=cached_data.get("last_opened"),
+            vault_key_id=cached_data.get("vault_key_id") # Populate from cache
         )
     
     # If no cache hit, validate token and get user data
@@ -72,7 +73,8 @@ async def get_current_user(
         is_admin=user_data.get("is_admin", False),  # Use direct is_admin field
         credits=credits,
         profile_image_url=user_data.get("profile_image_url"),
-        last_opened=user_data.get("last_opened")
+        last_opened=user_data.get("last_opened"),
+        vault_key_id=user_data.get("vault_key_id") # Populate from fresh fetch
     )
     
     # Cache the user data for future requests using the enhanced cache service method
@@ -82,7 +84,8 @@ async def get_current_user(
         "is_admin": user.is_admin,
         "credits": user.credits,
         "profile_image_url": user.profile_image_url,
-        "last_opened": user.last_opened
+        "last_opened": user.last_opened,
+        "vault_key_id": user.vault_key_id # Add vault_key_id to cache
     }
     
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
@@ -185,8 +188,15 @@ async def update_profile_image(
         # Profile images bucket is public read - always use regular URL, not presigned URL
         image_url = upload_result['url']
 
-        # Encrypt URL for storage - extract only the ciphertext part
-        encrypted_url, _ = await encryption_service.encrypt(image_url)
+        # --- Get vault_key_id from current_user (cached or fetched by dependency) ---
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+             logger.error(f"User {current_user.id} does not have a vault_key_id in current_user object")
+             raise HTTPException(status_code=500, detail="User encryption key not found")
+        # --- End get vault_key_id ---
+
+        # Encrypt URL using user-specific key and context
+        encrypted_url, _ = await encryption_service.encrypt_with_user_key(image_url, vault_key_id) # Use encrypt_with_user_key
 
         # Update Directus user entry with profile image and last_opened field
         await directus_service.update_user(current_user.id, {

@@ -70,11 +70,51 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                         )
                         if decrypted_username:
                             user_data["username"] = decrypted_username
-                            
-                    # Add more decryption here as needed
-                    
+                        else:
+                            # Log error, but don't set default. Let it propagate.
+                            logger.error("Username decryption failed!")
+                            # If username was present but failed decryption, remove it to avoid confusion?
+                            # Or leave it as is (encrypted)? Let's leave it for now.
+
+                    # Decrypt profile image URL if present
+                    encrypted_profile_url = user_data.get("encrypted_profileimage_url")
+                    if encrypted_profile_url:
+                        decrypted_profile_url = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_profile_url, vault_key_id
+                        )
+                        if decrypted_profile_url:
+                            user_data["profile_image_url"] = decrypted_profile_url
+                        else:
+                            logger.warning("Profile image URL decryption returned None. Setting to None.")
+                            user_data["profile_image_url"] = None # Explicitly set to None on failure/empty
+                    else:
+                         # If no encrypted URL, ensure profile_image_url is None
+                         user_data["profile_image_url"] = None
+
+                    # Decrypt credit balance if present
+                    encrypted_credits = user_data.get("encrypted_credit_balance")
+                    if encrypted_credits:
+                        decrypted_credits_str = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_credits, vault_key_id
+                        )
+                        if decrypted_credits_str:
+                            try:
+                                user_data["credits"] = int(float(decrypted_credits_str))
+                            except ValueError:
+                                # Log error, but don't set default. Let it propagate.
+                                logger.error(f"Failed to convert decrypted credits '{decrypted_credits_str}' to int!")
+                                # If credits were present but failed conversion, remove? Or leave encrypted? Leave for now.
+                        else:
+                            # Log error, but don't set default. Let it propagate.
+                            logger.error("Credit balance decryption failed!")
+                            # If credits were present but failed decryption, remove? Or leave encrypted? Leave for now.
+
                 except Exception as e:
-                    logger.error(f"Error decrypting user data: {str(e)}")
+                    # Log the overarching error, but avoid setting defaults here.
+                    logger.error(f"Error during user data decryption block: {str(e)}")
+                    # Ensure profile_image_url is None if the block failed before setting it
+                    if "profile_image_url" not in user_data:
+                         user_data["profile_image_url"] = None
             
             # Extract cookies for session management
             cookies_dict = {}

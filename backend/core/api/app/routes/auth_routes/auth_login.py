@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response
 import logging
 import time
+import hashlib # Added
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
@@ -157,15 +158,26 @@ async def login(
                 user_data = {
                     "user_id": user.get("id"),
                     "username": user.get("username"),
-                    "is_admin": user.get("is_admin", False),
-                    "credits": user.get("credits", 0),
+                    "is_admin": user.get("is_admin"),
+                    "credits": user.get("credits"),
                     "profile_image_url": user.get("profile_image_url"),
-                    "last_opened": user.get("last_opened")
+                    "last_opened": user.get("last_opened"),
+                    "vault_key_id": user.get("vault_key_id")
                 }
                 
                 # Use the enhanced method to cache user data with token association
                 await cache_service.set_user(user_data, refresh_token=refresh_token)
-            
+
+                # Also update the user's list of active tokens
+                if user_id:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    user_tokens_key = f"user_tokens:{user_id}"
+                    current_tokens = await cache_service.get(user_tokens_key) or {}
+                    current_tokens[token_hash] = int(time.time())
+                    # Use a longer TTL for the token list, e.g., 7 days
+                    await cache_service.set(user_tokens_key, current_tokens, ttl=cache_service.SESSION_TTL * 7)
+                    logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} active)")
+
             logger.info("Login completed successfully, returning user data")
             # Update to use UserResponse schema
             return LoginResponse(
@@ -173,8 +185,8 @@ async def login(
                 message="Login successful",
                 user=UserResponse(
                     username=user.get("username"),
-                    is_admin=user.get("is_admin", False),
-                    credits=user.get("credits", 0),
+                    is_admin=user.get("is_admin"),
+                    credits=user.get("credits"),
                     profile_image_url=user.get("profile_image_url"),
                     last_opened=user.get("last_opened")
                 )

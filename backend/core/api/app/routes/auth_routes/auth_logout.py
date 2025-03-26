@@ -37,21 +37,22 @@ async def logout(
             # Hash the token for cache operations
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             cache_key = f"session:{token_hash}"
-            user_key = f"user_token:{token_hash}"
-            
-            # Get user_id from cache
-            user_id = await cache_service.get(user_key)
-            
+            # user_key = f"user_token:{token_hash}" # No longer needed
+
+            # Get user_id from session cache before deleting it
+            session_data = await cache_service.get(cache_key)
+            user_id = session_data.get("user_id") if session_data else None
+
             # Attempt to logout from Directus
             success, message = await directus_service.logout_user(refresh_token)
             if not success:
                 logger.warning(f"Directus logout failed: {message}")
-            
-            # Remove this token from cache
+
+            # Remove this token's session cache
             await cache_service.delete(cache_key)
-            await cache_service.delete(user_key)
-            logger.info(f"Removed token {token_hash[:6]}...{token_hash[-6:]} from cache")
-            
+            # await cache_service.delete(user_key) # No longer needed
+            logger.info(f"Removed session cache for token {token_hash[:6]}...{token_hash[-6:]}")
+
             # If we have the user_id, check if this was the last active device
             if user_id:
                 user_tokens_key = f"user_tokens:{user_id}"
@@ -61,10 +62,21 @@ async def logout(
                 if token_hash in current_tokens:
                     del current_tokens[token_hash]
                     
-                    # If this was the last token, remove the entire user tokens cache
+                    # If this was the last token, remove user-specific caches and the token list
                     if not current_tokens:
                         await cache_service.delete(user_tokens_key)
-                        logger.info(f"Removed all token references for user {user_id[:6]}... (last device)")
+                        logger.info(f"Removed token list for user {user_id[:6]}... (last device)")
+
+                        # Also clear user-specific data caches as it's the last device
+                        user_main_cache_key = f"{cache_service.USER_KEY_PREFIX}{user_id}"
+                        user_profile_cache_key = f"user_profile:{user_id}"
+                        user_profile_image_cache_key = f"{cache_service.USER_PROFILE_IMAGE_KEY_PREFIX}{user_id}"
+
+                        await cache_service.delete(user_main_cache_key)
+                        await cache_service.delete(user_profile_cache_key)
+                        await cache_service.delete(user_profile_image_cache_key)
+                        logger.info(f"Cleared user-specific caches for user {user_id[:6]}... (last device logout)")
+
                     else:
                         # Update the user tokens cache with the token removed
                         await cache_service.set(user_tokens_key, current_tokens, ttl=604800)  # 7 days
