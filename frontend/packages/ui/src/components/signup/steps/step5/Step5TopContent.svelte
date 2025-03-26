@@ -82,12 +82,10 @@ step_5_top_content_svelte:
                 // Update backup codes loaded state
                 setBackupCodesLoaded(true);
                 
-                // Auto download after 1.5s if user hasn't downloaded manually
-                const timer = setTimeout(() => {
-                    if (!codesDownloaded && backupCodes.length > 0) {
-                        downloadBackupCodes();
-                    }
-                }, 1500);
+                // Auto download immediately if user hasn't downloaded manually
+                if (!codesDownloaded && backupCodes.length > 0) {
+                    downloadBackupCodes();
+                }
                 
                 // Note: confirmCodesStored is now called from Step5BottomContent when user confirms
             } else {

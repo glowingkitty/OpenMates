@@ -86,8 +86,6 @@ async def setup_2fa(
     request: Request,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    metrics_service: MetricsService = Depends(get_metrics_service),
-    compliance_service: ComplianceService = Depends(get_compliance_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """
@@ -166,7 +164,6 @@ async def verify_2fa_code(
     verify_request: Verify2FACodeRequest,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    metrics_service: MetricsService = Depends(get_metrics_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
@@ -207,16 +204,9 @@ async def verify_2fa_code(
             logger.info(f"Failed 2FA verification attempt for user {user_id}")
             return Verify2FACodeResponse(success=False, message="Invalid verification code")
         
-        # Log successful verification
-        client_ip = get_client_ip(request)
-        compliance_service.log_auth_event(
-            event_type="2fa_verification",
-            user_id=user_id,
-            ip_address=client_ip,
-            status="success"
-        )
+        # Successful verification, proceed without compliance log for this specific event
         logger.info(f"Successful 2FA verification for user {user_id}")
-        
+
         # Current timestamp for tfa_last_used
         current_time = int(time.time())
         
@@ -247,9 +237,11 @@ async def verify_2fa_code(
             # Just verify the code and continue (no need to update signup steps)
             logger.info("2FA verification successful during login")
         
-        # Remove 2FA setup data from cache as it's no longer needed
-        await cache_service.delete(f"2fa_setup:{user_id}")
-        logger.info(f"Removed 2FA setup data from cache for user {user_id}")
+        # Update cache entry to mark that TOTP verification was successful
+        # Keep the entry until backup codes are confirmed stored
+        setup_data['tfa_added_to_app'] = True
+        await cache_service.set(f"2fa_setup:{user_id}", setup_data, ttl=3600) # Keep original 1hr TTL
+        logger.info(f"Updated 2FA setup cache for user {user_id} to mark app addition.")
         
         return Verify2FACodeResponse(success=True, message="Verification successful")
         
@@ -263,7 +255,6 @@ async def request_backup_codes(
     request: Request,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    metrics_service: MetricsService = Depends(get_metrics_service),
     compliance_service: ComplianceService = Depends(get_compliance_service)
 ):
     """
@@ -282,9 +273,9 @@ async def request_backup_codes(
         
         user_id = user_data.get("user_id")
         
-        # Check if 2FA is set up and verified
+        # Check if 2FA TOTP code has been verified (app added)
         setup_data = await cache_service.get(f"2fa_setup:{user_id}")
-        if not setup_data or not setup_data.get("setup_complete"):
+        if not setup_data or not setup_data.get("tfa_added_to_app"):
             return BackupCodesResponse(success=False, message="2FA setup not complete")
         
         # Always generate new backup codes
@@ -302,15 +293,6 @@ async def request_backup_codes(
             # update_user logs details internally
             logger.error("Failed to store backup codes") 
             return BackupCodesResponse(success=False, message="Failed to save backup codes")
-        
-        # Log backup codes request for compliance
-        client_ip = get_client_ip(request)
-        compliance_service.log_auth_event(
-            event_type="2fa_backup_codes_requested",
-            user_id=user_id,
-            ip_address=client_ip,
-            status="success"
-        )
         
         logger.info(f"Backup codes generated successfully for user {user_id}")
         
