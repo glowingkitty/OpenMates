@@ -313,7 +313,6 @@ async def confirm_codes_stored(
     confirm_request: ConfirmCodesStoredRequest,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    metrics_service: MetricsService = Depends(get_metrics_service),
     compliance_service: ComplianceService = Depends(get_compliance_service)
 ):
     """
@@ -329,7 +328,7 @@ async def confirm_codes_stored(
             )
         
         # Verify user authentication using shared function
-        is_auth, user_data, _ = await verify_authenticated_user(
+        is_auth, user_data, refresh_token = await verify_authenticated_user( # Capture refresh token
             request, cache_service, directus_service
         )
         
@@ -341,15 +340,21 @@ async def confirm_codes_stored(
         # Record the timestamp when user confirmed the backup codes were stored
         current_time = int(time.time())
         
-        # Update user in Directus to store the confirmation timestamp
+        # Update user in Directus to store the confirmation timestamp and update last_opened
         success = await directus_service.update_user(user_id, {
-            "consent_tfa_safely_stored_timestamp": current_time
+            "consent_tfa_safely_stored_timestamp": current_time,
+            "last_opened": "/signup/step-6"  # Update last opened step
         })
         
         if not success:
             # update_user logs details internally
-            logger.error("Failed to record confirmation timestamp") 
+            logger.error("Failed to record confirmation timestamp or update last_opened") 
             return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
+
+        # Update user cache with the new last_opened step
+        user_data["last_opened"] = "/signup/step-6"
+        await cache_service.set_user(user_data, refresh_token=refresh_token)
+        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/step-6")
         
         # Clean up any remaining 2FA setup data from cache
         await cache_service.delete(f"2fa_setup:{user_id}")
