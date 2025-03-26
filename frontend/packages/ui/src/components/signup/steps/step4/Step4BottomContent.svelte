@@ -166,8 +166,7 @@ step_4_bottom_content_svelte:
     
     
     <!-- Show the verification code input only after setup is complete -->
-    {#if setupComplete}
-    <div class="input-group" transition:fade={{ duration: 300 }}>
+    <div class="input-group" class:hidden={!setupComplete} transition:fade={{ duration: 300 }}>
         <div class="input-wrapper">
             <span class="clickable-icon icon_2fa"></span>
             <input
@@ -191,7 +190,6 @@ step_4_bottom_content_svelte:
         </div>
         {/if}
     </div>
-    {/if}
 
     <!-- Always show the 2FA apps information -->
     <div class="resend-section">
@@ -216,5 +214,9 @@ step_4_bottom_content_svelte:
         flex-direction: column;
         align-items: center;
         gap: 8px;
+    }
+
+    .hidden {
+        display: none;
     }
 </style>

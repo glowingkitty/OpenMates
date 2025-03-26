@@ -57,7 +57,7 @@
         if (step === 3) return $_('settings.logout.text');
         if (step === 4) return $_('signup.profile_image.text');
         if (step === 5) return $_('signup.connect_2fa_app.text');
-        if (step === 6) return $_('signup.2fa_backup_codes.text');
+        if (step === 6) return $_('signup.connect_2fa_app.text'); // Changed text to match step 4
         if (step === 7) return $_('signup.2fa_app_reminder.text');
         if (step === 8) return $_('signup.settings.text');
         if (step === 9) return $_('signup.mates_settings.text');
@@ -74,7 +74,9 @@
         $_('signup.skip.text'); // Default skip text
 
     // Determine if the skip/next button should be shown
-    $: showActualSkipButton = showSkip && !(currentStep === 4 && !$isResettingTFA); // Hide on step 4 unless resetting
+    // Show if it's the special reset case (Step 4, isResettingTFA=true) OR
+    // if showSkip is true AND it's not Step 4 in normal flow.
+    $: showActualSkipButton = (currentStep === 4 && $isResettingTFA) || (showSkip && (currentStep !== 4 || $isResettingTFA));
 
 </script>
 

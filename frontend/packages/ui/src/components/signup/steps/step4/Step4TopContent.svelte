@@ -261,10 +261,21 @@ step_4_top_content_svelte:
             <span>{@html $text('signup.max_security.text')}</span>
         </div>
     </div>
+    {/if} <!-- End of {#if !setupComplete}{:else} block -->
 
-    <!-- Conditionally show QR/Actions OR Reset Button -->
-    {#if !$isResettingTFA}
-        <!-- Standard View: QR Code and Action Buttons -->
+    <!-- Separate block for action/reset buttons -->
+    {#if $isResettingTFA}
+        <!-- Reset View: Reset Button -->
+        <div class="action-buttons">
+             <div class="button-row">
+                 <button class="text-button with-icon" on:click={handleResetTFA}>
+                    <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
+                    <span>{@html $text('signup.reset_tfa.text')}</span>
+                </button>
+             </div>
+        </div>
+    {:else if setupComplete}
+        <!-- Standard Actions (only if NOT resetting AND setup is complete) -->
         {#if showQrCode}
         <div class="qr-code" transition:fade>
             <!-- Use the SVG string directly -->
@@ -302,19 +313,7 @@ step_4_top_content_svelte:
                 </button>
             </div>
         </div>
-    {:else}
-        <!-- Reset View: Reset Button -->
-        <div class="action-buttons">
-             <div class="button-row">
-                 <button class="text-button with-icon" on:click={handleResetTFA}>
-                    <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
-                    <span>{@html $text('signup.reset_tfa.text', { default: 'Reset 2FA Setup' })}</span>
-                </button>
-             </div>
-        </div>
-    {/if} 
-    <!-- End Conditional Section for !$isResettingTFA -->
-    {/if} <!-- End of {#if !setupComplete}{:else} block -->
+    {/if} <!-- End of outer {:else if setupComplete} -->
 </div>
 
 <style>
