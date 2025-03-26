@@ -317,6 +317,11 @@ step_4_top_content_svelte:
         transition: opacity 0.3s ease;
     }
 
+    .fade-out {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     .features {
         display: flex;
         gap: 32px;

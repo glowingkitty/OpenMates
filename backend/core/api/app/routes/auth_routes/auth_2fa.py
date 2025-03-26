@@ -228,14 +228,15 @@ async def verify_2fa_code(
         
         if is_signup:
             # Update user in Directus to store the encrypted 2FA secret and set current timestamp
-            success, _, message = await directus_service.update_user(user_id, {
+            success = await directus_service.update_user(user_id, {
                 "encrypted_tfa_secret": encrypted_secret,
                 "tfa_last_used": current_time,
                 "last_opened": "/signup/step-5"
             })
             
             if not success:
-                logger.error(f"Failed to update user 2FA settings: {message}")
+                # update_user logs details internally
+                logger.error("Failed to update user 2FA settings during signup") 
                 return Verify2FACodeResponse(success=False, message="Failed to save 2FA settings")
             
             # Update cache with new signup step and last_opened
@@ -293,12 +294,13 @@ async def request_backup_codes(
         hashed_codes = [hash_backup_code(code) for code in backup_codes]
         
         # Save hashed backup codes directly to Directus
-        success, _, message = await directus_service.update_user(user_id, {
+        success = await directus_service.update_user(user_id, {
             "tfa_backup_codes_hashes": hashed_codes
         })
         
         if not success:
-            logger.error(f"Failed to store backup codes: {message}")
+            # update_user logs details internally
+            logger.error("Failed to store backup codes") 
             return BackupCodesResponse(success=False, message="Failed to save backup codes")
         
         # Log backup codes request for compliance
@@ -358,12 +360,13 @@ async def confirm_codes_stored(
         current_time = int(time.time())
         
         # Update user in Directus to store the confirmation timestamp
-        success, _, message = await directus_service.update_user(user_id, {
+        success = await directus_service.update_user(user_id, {
             "consent_tfa_safely_stored_timestamp": current_time
         })
         
         if not success:
-            logger.error(f"Failed to record confirmation timestamp: {message}")
+            # update_user logs details internally
+            logger.error("Failed to record confirmation timestamp") 
             return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
         
         # Clean up any remaining 2FA setup data from cache
@@ -422,12 +425,13 @@ async def setup_2fa_provider(
         encrypted_app_name, _ = await encryption_service.encrypt(tfa_app_name)
         
         # Update user in Directus to store the encrypted 2FA app name
-        success, _, message = await directus_service.update_user(user_id, {
+        success = await directus_service.update_user(user_id, {
             "encrypted_tfa_app_name": encrypted_app_name
         })
         
         if not success:
-            logger.error(f"Failed to update user 2FA app name: {message}")
+            # update_user logs details internally
+            logger.error("Failed to update user 2FA app name") 
             return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name")
         
         # Update the user cache (using USER_KEY_PREFIX)

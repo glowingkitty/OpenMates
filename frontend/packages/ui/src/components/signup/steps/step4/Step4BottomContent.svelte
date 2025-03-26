@@ -161,13 +161,7 @@ step_4_bottom_content_svelte:
 </script>
 
 <div class="bottom-content">
-    <!-- Always show the 2FA apps information -->
-    <div class="resend-section">
-        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
-        <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
-            {$text('signup.click_here_to_show_free_2fa_apps.text')}
-        </a>
-    </div>
+    
     
     <!-- Show the verification code input only after setup is complete -->
     {#if setupComplete}
@@ -196,6 +190,14 @@ step_4_bottom_content_svelte:
         {/if}
     </div>
     {/if}
+
+    <!-- Always show the 2FA apps information -->
+    <div class="resend-section">
+        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
+        <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
+            {$text('signup.click_here_to_show_free_2fa_apps.text')}
+        </a>
+    </div>
 </div>
 
 <style>
