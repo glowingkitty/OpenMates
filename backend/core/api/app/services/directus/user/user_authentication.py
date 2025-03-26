@@ -1,9 +1,7 @@
 import httpx
 import logging
-import asyncio
-import hashlib
-import json
 from typing import Dict, Any, Optional, Tuple
+# Removed: from app.utils.email_hash import hash_email
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -17,9 +15,8 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
     - Returns (success, auth_data, message)
     """
     try:
-        # Hash the email for login
-        from app.utils.email_hash import hash_email
-        hashed_email = hash_email(email)
+        # Hash the email for login using the service method
+        hashed_email = self.encryption_service.hash_email(email)
         directus_email = f"{hashed_email[:64]}@example.com"
         
         # Step 1: Get access token via login

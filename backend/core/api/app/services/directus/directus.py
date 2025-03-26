@@ -23,7 +23,7 @@ class DirectusService:
     Service for interacting with Directus CMS API
     """
     
-    def __init__(self, cache_service: CacheService = None):
+    def __init__(self, cache_service: CacheService = None, encryption_service: EncryptionService = None): # Added encryption_service parameter
         self.base_url = os.getenv("CMS_URL", "http://cms:8055")
         self.token = os.getenv("CMS_TOKEN")
         self.admin_email = os.getenv("ADMIN_EMAIL")
@@ -36,7 +36,8 @@ class DirectusService:
         self.cache = cache_service or CacheService()
         self.cache_ttl = int(os.getenv("DIRECTUS_CACHE_TTL", "3600"))
         self.token_ttl = int(os.getenv("DIRECTUS_TOKEN_TTL", "43200"))
-        self.encryption_service = EncryptionService()
+        # Use injected encryption_service or create one if not provided (though it should be provided from main.py)
+        self.encryption_service = encryption_service or EncryptionService() 
         
         if self.token:
             masked_token = self.token[:4] + "..." + self.token[-4:] if len(self.token) > 8 else "****"

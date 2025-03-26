@@ -10,9 +10,8 @@ from app.services.metrics import MetricsService
 logger = logging.getLogger(__name__)
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: ASGIApp, metrics_service: MetricsService):
+    def __init__(self, app: ASGIApp): 
         super().__init__(app)
-        self.metrics_service = metrics_service
         # Paths that should not be tracked at all
         self.exclude_paths = [
             "/metrics",
@@ -48,8 +47,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
             # Track metrics for non-excluded paths
             if not is_excluded:
-                self.metrics_service.track_api_request(method, path, status_code)
-                self.metrics_service.track_request_duration(method, path, duration)
+                # Access metrics_service from request.app.state
+                metrics_service = request.app.state.metrics_service 
+                metrics_service.track_api_request(method, path, status_code)
+                metrics_service.track_request_duration(method, path, duration)
             
             # ONLY log errors (status code >= 400) at WARNING level
             if status_code >= 400:

@@ -11,10 +11,16 @@ from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger
 
 from app.routes import auth, email, invoice, credit_note, settings  # Update settings import
+# Service Imports
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
+from app.services.compliance import ComplianceService # Added
+from app.services.email_template import EmailTemplateService # Added
+from app.utils.encryption import EncryptionService # Added
 from app.services.limiter import limiter
+
+# Middleware & Utils
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.utils.log_filters import SensitiveDataFilter  # Import the new filter
 
@@ -123,10 +129,8 @@ cms_token = os.getenv("CMS_TOKEN")
 if not cms_token:
     logger.warning("CMS_TOKEN environment variable is not set. Authentication with Directus will fail.")
 
-# Initialize services
-cache_service = CacheService()
-directus_service = DirectusService(cache_service=cache_service)
-metrics_service = MetricsService()
+# Services will be initialized within the lifespan context manager
+# and stored in app.state
 
 # Create the application instance
 app = None
@@ -139,38 +143,61 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_event_loop()
     app.state.loop = loop
     
-    # Initialize encryption service at startup to prevent delays on first request
-    from app.utils.encryption import EncryptionService
-    encryption_service = EncryptionService(cache_service=cache_service)
-    app.state.encryption_service = encryption_service
+    # --- Initialize all services and store in app.state ---
+    logger.info("Initializing services...")
+    app.state.cache_service = CacheService()
+    app.state.metrics_service = MetricsService()
+    app.state.compliance_service = ComplianceService()
+    app.state.email_template_service = EmailTemplateService()
     
+    # Encryption service depends on cache
+    app.state.encryption_service = EncryptionService(cache_service=app.state.cache_service)
+    
+    # Directus service depends on cache and encryption
+    app.state.directus_service = DirectusService(
+        cache_service=app.state.cache_service, 
+        encryption_service=app.state.encryption_service
+    )
+    logger.info("Services instantiated.")
+    
+    # --- Perform async initializations ---
     try:
-        # Initialize encryption service first
+        # Initialize encryption service (validates token, ensures keys)
         logger.info("Initializing encryption service...")
-        await encryption_service.initialize()
-        
-        # Ensure transit engine is ready for encryption operations
+        await app.state.encryption_service.initialize()
         logger.info("Ensuring encryption keys exist...")
-        await encryption_service.ensure_keys_exist()
+        await app.state.encryption_service.ensure_keys_exist()
+        logger.info("Encryption service initialized successfully.")
+        
+        # Initialize metrics (depends on directus service)
+        logger.info("Initializing metrics...")
+        await app.state.metrics_service.initialize_metrics(app.state.directus_service)
+        logger.info("Metrics service initialized successfully.")
+        
     except Exception as e:
-        logger.error(f"Failed to initialize encryption service: {str(e)}", exc_info=True)
+        logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
+        # Depending on the severity, might want to raise exception to stop startup
+        # raise e 
     
-    # Startup logic
+    # --- Other startup logic ---
     logger.info("Preloading invite codes into cache...")
     try:
-        await preload_invite_codes()
+        # Pass app.state to preload_invite_codes
+        await preload_invite_codes(app.state) 
         logger.info("Successfully preloaded invite codes into cache")
         
-        # Initialize metrics with correct values
-        logger.info("Initializing metrics...")
-        await metrics_service.initialize_metrics(directus_service)
+        # Run initial metrics update, passing services from app.state
+        await update_active_users_metrics(
+            directus_service=app.state.directus_service, 
+            metrics_service=app.state.metrics_service
+        )
         
-        # Initialize metrics right away
-        await update_active_users_metrics()
-        
-        # Start the background task for periodic metrics updates
+        # Start the background task for periodic metrics updates, passing services from app.state
         # We use create_task to avoid blocking startup
-        app.state.metrics_task = asyncio.create_task(periodic_metrics_update())
+        app.state.metrics_task = asyncio.create_task(periodic_metrics_update(
+            directus_service=app.state.directus_service, 
+            metrics_service=app.state.metrics_service
+        ))
         logger.info("Started periodic metrics update task")
     except Exception as e:
         logger.error(f"Failed to initialize: {str(e)}", exc_info=True)
@@ -212,8 +239,10 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    # Add logging middleware
-    app.add_middleware(LoggingMiddleware, metrics_service=metrics_service)
+    # Add logging middleware (pass metrics service from app.state if needed, or remove if unused)
+    # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
+    app.add_middleware(LoggingMiddleware) 
+    # If it does need it, it should fetch it via request.app.state inside the middleware
 
     # Configure CORS with proper origin restrictions
     is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
@@ -251,8 +280,11 @@ def create_app() -> FastAPI:
 
     return app
 
-async def preload_invite_codes():
+async def preload_invite_codes(app_state): # Accepts app_state now
     """Load all invite codes into cache for faster lookup"""
+    directus_service = app_state.directus_service 
+    cache_service = app_state.cache_service # Also need cache service
+    
     all_codes = await directus_service.get_all_invite_codes()
     if not all_codes:
         logger.warning("No invite codes found to preload")

@@ -2,28 +2,30 @@
 Shared dependencies for authentication routes.
 This file contains functions that provide services to all auth-related endpoints.
 """
+from fastapi import Request
 
-def get_directus_service():
-    """Get the Directus service instance from main application."""
-    from main import directus_service
-    return directus_service
+# All functions now accept Request and fetch services from app.state
 
-def get_cache_service():
-    """Get the Cache service instance from main application."""
-    from main import cache_service
-    return cache_service
+def get_directus_service(request: Request):
+    """Get the Directus service instance from app state."""
+    return request.app.state.directus_service
 
-def get_metrics_service():
-    """Get the Metrics service instance from main application."""
-    from main import metrics_service
-    return metrics_service
+def get_cache_service(request: Request):
+    """Get the Cache service instance from app state."""
+    return request.app.state.cache_service
 
-def get_compliance_service():
-    """Get the Compliance service instance."""
-    from app.services.compliance import ComplianceService
-    return ComplianceService()
+def get_metrics_service(request: Request):
+    """Get the Metrics service instance from app state."""
+    return request.app.state.metrics_service
+    
+def get_encryption_service(request: Request):
+    """Get the Encryption service instance from app state."""
+    return request.app.state.encryption_service
 
-def get_email_template_service():
-    """Get the Email Template service instance."""
-    from app.services.email_template import EmailTemplateService
-    return EmailTemplateService()
+def get_compliance_service(request: Request):
+    """Get the Compliance service instance from app state."""
+    return request.app.state.compliance_service
+
+def get_email_template_service(request: Request):
+    """Get the Email Template service instance from app state."""
+    return request.app.state.email_template_service

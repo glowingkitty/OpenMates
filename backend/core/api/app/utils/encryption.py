@@ -6,9 +6,16 @@ import logging
 import uuid
 import time
 import glob
+import secrets  # Added
+import hmac     # Added
+import hashlib  # Added
 from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+# Vault path and key name for the email hashing key
+EMAIL_HASH_KEY_PATH = "secret/data/keys/email_hash"
+EMAIL_HASH_KEY_NAME = "EMAIL_HASH_KEY"
 
 class EncryptionService:
     """
@@ -21,7 +28,8 @@ class EncryptionService:
         self.transit_mount = "transit"  # The Vault transit engine mount path
         self._client = None
         self.cache = cache_service  # Store the cache service
-        
+        self.email_hash_key: Optional[str] = None # Added: Store the loaded email hash key
+
         # Add caching properties
         self._token_valid_until = 0  # Token validation expiry timestamp
         self._token_validation_ttl = 300  # Cache token validation for 5 minutes
@@ -270,7 +278,44 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to ensure transit engine is enabled: {str(e)}")
             raise Exception(f"Failed to initialize encryption service: {str(e)}")
+
+        # --- Add logic for EMAIL_HASH_KEY ---
+        try:
+            logger.info(f"Checking for email hash key in Vault at {EMAIL_HASH_KEY_PATH}")
+            # Try reading the key from Vault KV v2
+            response = await self._vault_request("get", EMAIL_HASH_KEY_PATH)
+            
+            if response and 'data' in response and 'data' in response['data'] and EMAIL_HASH_KEY_NAME in response['data']['data']:
+                self.email_hash_key = response['data']['data'][EMAIL_HASH_KEY_NAME]
+                logger.info("Successfully loaded email hash key from Vault.")
+            else:
+                logger.warning(f"Email hash key not found in Vault at {EMAIL_HASH_KEY_PATH}. Generating a new one.")
+                # Generate a new secure key
+                new_key = secrets.token_hex(32)
+                
+                # Write the new key to Vault KV v2
+                write_payload = {"data": {EMAIL_HASH_KEY_NAME: new_key}}
+                await self._vault_request("post", EMAIL_HASH_KEY_PATH, data=write_payload)
+                
+                self.email_hash_key = new_key
+                logger.info(f"Successfully generated and stored new email hash key in Vault.")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure email hash key exists in Vault: {str(e)}")
+            # Depending on policy, we might want to raise an exception here to prevent startup
+            raise Exception(f"Failed to initialize email hash key: {str(e)}")
+
+        if not self.email_hash_key:
+             logger.critical("Email hash key could not be loaded or generated. Hashing will fail.")
+             raise Exception("Email hash key initialization failed.")
     
+    def get_email_hash_key(self) -> str:
+        """Returns the loaded email hash key. Raises error if not loaded."""
+        if not self.email_hash_key:
+            logger.error("Email hash key accessed before it was loaded!")
+            raise ValueError("Email hash key has not been loaded from Vault.")
+        return self.email_hash_key
+
     async def create_user_key(self, user_id: str) -> str:
         """
         Create a user-specific encryption key in Vault
@@ -427,3 +472,36 @@ class EncryptionService:
         
         # Use the chat's specific key for decryption
         return await self.decrypt(ciphertext, key_name=key_id, context=context)
+
+    # --- Added Hashing Methods ---
+
+    def hash_email(self, email: str) -> str:
+        """
+        Creates a consistent HMAC-SHA256 hash of an email address using the key from Vault.
+        """
+        if not email:
+            return ""
+            
+        # Normalize email to lowercase
+        normalized_email = email.strip().lower()
+        
+        # Get the key (raises error if not loaded)
+        key = self.get_email_hash_key() 
+        
+        # Create the HMAC hash
+        hash_obj = hmac.new(
+            key=key.encode('utf-8'),
+            msg=normalized_email.encode('utf-8'),
+            digestmod=hashlib.sha256
+        )
+        
+        # Return hex digest
+        return hash_obj.hexdigest()
+
+    def verify_email_hash(self, email: str, stored_hash: str) -> bool:
+        """
+        Verifies if a plaintext email matches a stored hash using the key from Vault.
+        """
+        if not email or not stored_hash:
+            return False
+        return hmac.compare_digest(self.hash_email(email), stored_hash)

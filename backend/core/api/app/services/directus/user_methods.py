@@ -27,9 +27,8 @@ async def create_user(self, username: str, email: str, password: str,
         # Create a dedicated encryption key for this user
         vault_key_id = await self.encryption_service.create_user_key(str(uuid.uuid4()))
         
-        # Hash the email for authentication
-        from app.utils.email_hash import hash_email
-        hashed_email = hash_email(email)
+        # Hash the email for authentication using the service method
+        hashed_email = self.encryption_service.hash_email(email)
         
         # Create a valid email format using the hash (max 64 chars for username part)
         directus_email = f"{hashed_email[:64]}@example.com"
@@ -207,9 +206,8 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
     - Returns (success, auth_data, message)
     """
     try:
-        # Hash the email for login
-        from app.utils.email_hash import hash_email
-        hashed_email = hash_email(email)
+        # Hash the email for login using the service method
+        hashed_email = self.encryption_service.hash_email(email)
         
         # Create a valid email format using the hash (same format as in create_user)
         directus_email = f"{hashed_email[:64]}@example.com"
@@ -345,10 +343,9 @@ async def get_user_by_email(self, email: str) -> Tuple[bool, Optional[Dict[str, 
     - Returns (success, user_data, message)
     """
     try:
-        # Hash the email for lookup
-        from app.utils.email_hash import hash_email
+        # Hash the email for lookup using the service method
         logger.debug(f"Hashing email for lookup")
-        hashed_email = hash_email(email)
+        hashed_email = self.encryption_service.hash_email(email)
         
         # Create a valid email format using the hash (same format as in create_user)
         directus_email = f"{hashed_email[:64]}@example.com"

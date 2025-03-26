@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -13,10 +14,9 @@ async def get_user_by_email(self, email: str) -> Tuple[bool, Optional[Dict[str, 
     - Returns (success, user_data, message)
     """
     try:
-        # Hash the email for lookup
-        from app.utils.email_hash import hash_email
+        # Hash the email for lookup using the service method 
         logger.debug(f"Hashing email for lookup")
-        hashed_email = hash_email(email)
+        hashed_email = self.encryption_service.hash_email(email)
         
         # Create a valid email format using the hash
         directus_email = f"{hashed_email[:64]}@example.com"

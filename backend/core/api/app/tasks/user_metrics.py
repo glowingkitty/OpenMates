@@ -8,13 +8,14 @@ from app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
-async def update_active_users_metrics():
+# Updated to accept services as arguments
+async def update_active_users_metrics(directus_service: DirectusService, metrics_service: MetricsService):
     """
     Calculate and update active user metrics based on login data.
     This should be called periodically (e.g., every 5 minutes).
     """
     try:
-        from main import directus_service, metrics_service, cache_service
+        # Removed import: from main import directus_service, metrics_service, cache_service
         
         logger.info("Updating active users metrics")
         
@@ -71,9 +72,11 @@ async def get_monthly_active_users(directus_service: DirectusService) -> int:
         logger.error(f"Error getting monthly active users: {str(e)}", exc_info=True)
         return 0
 
-async def periodic_metrics_update():
+# Updated to accept services and pass them down
+async def periodic_metrics_update(directus_service: DirectusService, metrics_service: MetricsService):
     """Run a periodic task to update user metrics more frequently"""
     while True:
-        await update_active_users_metrics()
+        # Pass services to the update function
+        await update_active_users_metrics(directus_service, metrics_service) 
         # Wait 15 seconds before updating again (instead of 60)
         await asyncio.sleep(15)
