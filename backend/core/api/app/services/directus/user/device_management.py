@@ -87,26 +87,6 @@ async def update_user_device(self, user_id: str, device_fingerprint: str, device
         logger.error(error_msg, exc_info=True)
         return False, error_msg
 
-async def update_user_devices(self, user_id: str, encrypted_devices: str) -> Tuple[bool, str]:
-    """
-    Update a user's encrypted devices directly
-    """
-    try:
-        # Update the user record with new encrypted devices
-        url = f"{self.base_url}/users/{user_id}"
-        update_data = {"encrypted_devices": encrypted_devices}
-        
-        response = await self._make_api_request("PATCH", url, json=update_data)
-        
-        if response.status_code == 200:
-            return True, "Devices updated successfully"
-        else:
-            return False, f"Failed to update devices: {response.status_code}"
-            
-    except Exception as e:
-        error_msg = f"Error updating devices: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return False, error_msg
 
 async def check_user_device(self, user_id: str, device_fingerprint: str) -> bool:
     """

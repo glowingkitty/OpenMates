@@ -379,8 +379,10 @@ async def check_confirm_email_code(
                     "username": signup_username,
                     "is_admin": is_admin,
                     "credits": 0,
-                    "profile_image_url": None,
+                    "profile_image_url": None, # Assuming profile image is not set on creation
                     "last_opened": "/signup/step-3",
+                    # Use vault_key_id from the user_data returned by create_user
+                    "vault_key_id": user_data["vault_key_id"], 
                     "token_expiry": int(time.time()) + 86400
                 }
                 

@@ -41,11 +41,11 @@ async def get_current_user(
         return User(
             id=cached_data.get("user_id"),
             username=cached_data.get("username"),
-            is_admin=cached_data.get("is_admin", False),
-            credits=cached_data.get("credits", 0),
+            is_admin=cached_data.get("is_admin"),
+            credits=cached_data.get("credits"),
             profile_image_url=cached_data.get("profile_image_url"),
             last_opened=cached_data.get("last_opened"),
-            vault_key_id=cached_data.get("vault_key_id") # Populate from cache
+            vault_key_id=cached_data.get("vault_key_id")
         )
     
     # If no cache hit, validate token and get user data
@@ -96,8 +96,7 @@ async def get_current_user(
 async def update_profile_image(
     request: Request,  # Add request parameter to get IP and fingerprint
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    compliance_service: ComplianceService = Depends(get_compliance_service)
+    current_user: User = Depends(get_current_user)
 ):
     bucket_config = s3_service.get_bucket_config('profile_images')
     
@@ -204,20 +203,14 @@ async def update_profile_image(
             "last_opened": "/signup/step-4"
         })
 
-        # Create a complete user data object for cache
-        user_data_for_cache = {
-            "user_id": current_user.id,
-            "username": current_user.username,
-            "is_admin": current_user.is_admin,
-            "credits": current_user.credits,
+        # Update only changed fields in user cache
+        await cache_service.update_user(current_user.id, {
             "profile_image_url": image_url,
             "last_opened": "/signup/step-4"
-        }
-        
-        # Set the complete user data in cache
-        await cache_service.set_user(user_data_for_cache)
+        })
         
         # Also set the profile image URL separately for specific lookups
+        # Note: update_user should handle the main cache, but keeping this for potential specific lookups
         await cache_service.set_user_profile_image(current_user.id, image_url)
 
         # Delete old image

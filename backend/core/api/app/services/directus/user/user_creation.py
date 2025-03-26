@@ -24,7 +24,7 @@ async def create_user(self, username: str, email: str, password: str,
         await self.encryption_service.ensure_keys_exist()
         
         # Create a dedicated encryption key for this user
-        vault_key_id = await self.encryption_service.create_user_key(str(uuid.uuid4()))
+        vault_key_id = await self.encryption_service.create_user_key()
 
         # Hash the email for authentication using the service method
         hashed_email = await self.encryption_service.hash_email(email)

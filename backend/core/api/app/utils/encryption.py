@@ -323,7 +323,7 @@ class EncryptionService:
 
     # Removed get_email_hash_key method
 
-    async def create_user_key(self, user_id: str) -> str:
+    async def create_user_key(self) -> str:
         """
         Create a user-specific encryption key in Vault
         Returns the key ID used in Vault

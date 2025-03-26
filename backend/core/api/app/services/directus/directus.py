@@ -10,7 +10,7 @@ from app.services.directus.auth_methods import (
 from app.services.directus.api_methods import _make_api_request
 from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes
 from app.services.directus.user import (
-    create_user, update_user_device, update_user_devices, login_user, logout_user,
+    create_user, update_user_device, login_user, logout_user,
     logout_all_sessions, get_user_by_email, refresh_token, get_total_users_count,
     get_active_users_since, check_user_device, get_user_credits, get_user_username,
     get_user_profile_image, invalidate_user_profile_cache, get_user_profile, delete_user, update_user
@@ -62,7 +62,6 @@ class DirectusService:
     # User management methods
     create_user = create_user
     update_user_device = update_user_device
-    update_user_devices = update_user_devices
     login_user = login_user
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
