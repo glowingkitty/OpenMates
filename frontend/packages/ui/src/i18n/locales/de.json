@@ -2048,6 +2048,11 @@
             "en_original": "Reconnect attempts failed. Sorry for that. Please try again later.",
             "context": "message that shows up if the reconnect attempts failed over and over again."
         },
+        "reset_tfa": {
+            "text": "2FA-App erneut verbinden",
+            "en_original": "Reconnect 2FA app",
+            "context": "Button text to reset/reconnect the 2FA app setup"
+        },
         "attempt_to_reconnect": {
             "text": "Erneut verbinden",
             "en_original": "Attempt to reconnect",
