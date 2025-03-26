@@ -66,10 +66,13 @@ step_6_bottom_content_svelte:
 -->
 
 <script lang="ts">
-    import { text } from '@repo/ui';
+    import { text } from '@repo/ui'; // Assuming this path resolves correctly despite lint error
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { tfaApps, tfaAppIcons } from '../../../../config/tfa';
+    import { authStore } from '../../../../stores/authStore'; // Import authStore
+    import { userDB } from '../../../../services/userDB'; // Import userDB
+    import InputWarning from '../../../common/InputWarning.svelte'; // Import InputWarning
 
     // Accept selected app from parent
     export let selectedAppName: string | null = null;
@@ -80,18 +83,38 @@ step_6_bottom_content_svelte:
     let showSearchResults = false;
     let searchResults = tfaApps;
     let selectedApp = '';
+    let isLoading = true; // Track loading state
+    let errorMessage = ''; // To display errors
+    let continueButtonElement: HTMLButtonElement; // Add variable for button ref
 
-    // Initialize from selectedAppName prop when component mounts
-    onMount(() => {
-        if (selectedAppName) {
-            appName = selectedAppName;
-            selectedApp = selectedAppName;
-            // Dispatch event to ensure parent knows this app is selected
-            dispatch('selectedApp', { appName: selectedAppName });
+    // Load initial state from IndexedDB and initialize from selectedAppName prop
+    onMount(async () => {
+        isLoading = true;
+        errorMessage = '';
+        try {
+            await userDB.init(); // Ensure DB is initialized
+            const userData = await userDB.getUserData();
+            const initialAppName = userData?.tfa_app_name || selectedAppName; // Prioritize DB, fallback to prop
+
+            if (initialAppName) {
+                appName = initialAppName;
+                // Check if it's one of the predefined apps
+                if (tfaApps.includes(initialAppName)) {
+                    selectedApp = initialAppName;
+                }
+                // Dispatch event to ensure parent knows this app is selected/loaded
+                dispatch('selectedApp', { appName: initialAppName });
+            }
+        } catch (error) {
+            console.error("Error loading tfa_app_name from DB:", error);
+            errorMessage = "Failed to load saved app name."; // Inform user
+        } finally {
+            isLoading = false;
         }
     });
 
     function handleInput(event: Event) {
+        errorMessage = ''; // Clear error on input
         const input = event.target as HTMLInputElement;
         appName = input.value;
         showSearchResults = true;
@@ -120,9 +143,32 @@ step_6_bottom_content_svelte:
         dispatch('selectedApp', { appName: result });
     }
 
-    function handleContinue() {
-        if (appName || selectedApp) {
-            dispatch('step', { step: 7 });
+    async function handleContinue() {
+        errorMessage = ''; // Clear previous errors
+        const finalAppName = appName.trim(); // Use trimmed input value
+
+        // Basic validation (already partially handled by button visibility)
+        if (finalAppName.length < 3 || finalAppName.length > 40) {
+            errorMessage = "App name must be between 3 and 40 characters.";
+            return;
+        }
+
+        try {
+            isLoading = true; // Show loading indicator potentially
+            const result = await authStore.setup2FAProvider(finalAppName);
+            
+            if (result.success) {
+                // Only proceed if API call was successful
+                dispatch('step', { step: 7 });
+            } else {
+                // Show error message from API using InputWarning
+                errorMessage = result.message || "Failed to save app name. Please try again.";
+            }
+        } catch (error) {
+            console.error("Error in handleContinue calling setup2FAProvider:", error);
+            errorMessage = "An unexpected error occurred. Please try again.";
+        } finally {
+            isLoading = false; // Hide loading indicator
         }
     }
 
@@ -178,12 +224,20 @@ step_6_bottom_content_svelte:
                 on:focus={handleFocus}
                 on:blur={handleBlur}
                 placeholder={$text('signup.click_to_enter_app_name.text')}
+                maxlength="40"
             />
         </div>
     </div>
-    {#if appName.length >= 3 || selectedApp}
-        <button class="continue-button" on:click={handleContinue}>
+    {#if errorMessage}
+        <InputWarning message={errorMessage} target={continueButtonElement} />
+    {/if}
+    {#if (appName.length >= 3 || selectedApp) && !isLoading}
+        <button bind:this={continueButtonElement} class="continue-button" on:click={handleContinue} disabled={isLoading}>
             {@html $text('signup.continue.text')}
+        </button>
+    {:else if isLoading && !errorMessage}
+         <button bind:this={continueButtonElement} class="continue-button" disabled>
+            {@html $text('login.loading.text')}
         </button>
     {/if}
 </div>

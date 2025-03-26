@@ -82,7 +82,8 @@ async def get_session(
                 is_admin=user_data.get("is_admin", False),
                 credits=user_data.get("credits", 0),
                 profile_image_url=user_data.get("profile_image_url"),
-                last_opened=user_data.get("last_opened")
+                last_opened=user_data.get("last_opened"),
+                tfa_app_name=user_data.get("tfa_app_name") # Include the 2FA app name
             ),
             token_refresh_needed=False
         )

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
 class Setup2FAResponse(BaseModel):
@@ -27,7 +27,12 @@ class ConfirmCodesStoredResponse(BaseModel):
     message: str
 
 class Setup2FAProviderRequest(BaseModel):
-    provider: str  # e.g., "Google Authenticator", "Microsoft Authenticator", etc.
+    provider: str = Field(
+        ...,  # Ellipsis indicates the field is required
+        min_length=3, 
+        max_length=40, 
+        description="Name of the 2FA app used, e.g., 'Google Authenticator'"
+    )
 
 class Setup2FAProviderResponse(BaseModel):
     success: bool

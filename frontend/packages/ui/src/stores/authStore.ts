@@ -108,6 +108,49 @@ function createAuthStore() {
         isCheckingAuth.set(false);
       }
     },
+
+    // Setup 2FA Provider
+    setup2FAProvider: async (appName: string): Promise<{ success: boolean, message: string }> => {
+      console.debug(`Calling setup2FAProvider API with appName: ${appName}`);
+      try {
+        const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa_provider), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Origin': window.location.origin
+          },
+          body: JSON.stringify({ provider: appName }),
+          credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error('setup2FAProvider API call failed:', data.message || response.statusText);
+          return { success: false, message: data.message || 'Failed to save 2FA provider name' };
+        }
+
+        if (data.success) {
+          console.debug('setup2FAProvider API call successful. Updating IndexedDB.');
+          try {
+            await userDB.updateUserData({ tfa_app_name: appName });
+            console.debug('IndexedDB updated with tfa_app_name.');
+          } catch (dbError) {
+            console.error('Failed to update tfa_app_name in IndexedDB:', dbError);
+            // Proceed even if DB update fails, but log error. API call succeeded.
+          }
+          return { success: true, message: data.message };
+        } else {
+          console.error('setup2FAProvider API returned success=false:', data.message);
+          return { success: false, message: data.message || 'Failed to save 2FA provider name' };
+        }
+
+      } catch (error) {
+        console.error('Error calling setup2FAProvider API:', error);
+        return { success: false, message: 'An error occurred while saving the 2FA provider name' };
+      }
+    },
     
     // Login the user
     login: async (email: string, password: string) => {

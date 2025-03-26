@@ -21,9 +21,8 @@ from app.services.metrics import MetricsService
 from app.services.compliance import ComplianceService
 from app.utils.encryption import EncryptionService
 from app.routes.auth_routes.auth_dependencies import (
-    get_directus_service, 
-    get_cache_service, 
-    get_metrics_service, 
+    get_directus_service,
+    get_cache_service,
     get_compliance_service
 )
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
@@ -428,25 +427,33 @@ async def setup_2fa_provider(
         # Encrypt app name for Directus storage
         encrypted_app_name, _ = await encryption_service.encrypt(tfa_app_name)
         
-        # Update user in Directus to store the encrypted 2FA app name
-        success = await directus_service.update_user(user_id, {
-            "encrypted_tfa_app_name": encrypted_app_name
-        })
+        # Update user in Directus to store the encrypted 2FA app name and update last_opened
+        update_data = {
+            "encrypted_tfa_app_name": encrypted_app_name,
+            "last_opened": "/signup/step-7" # Update last opened step
+        }
+        success = await directus_service.update_user(user_id, update_data)
         
         if not success:
             # update_user logs details internally
             logger.error("Failed to update user 2FA app name") 
-            return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name")
+            return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name or update step")
         
-        # Update the user cache (using USER_KEY_PREFIX)
-        await cache_service.update_user(user_id, {"tfa_app_name": tfa_app_name})
+        # Update the user cache with both tfa_app_name and the new last_opened step
+        cache_update_data = {
+            "tfa_app_name": tfa_app_name,
+            "last_opened": "/signup/step-7"
+        }
+        await cache_service.update_user(user_id, cache_update_data)
+        logger.info(f"Updated user cache for {user_id} with tfa_app_name and last_opened=/signup/step-7")
         
-        # Also update the user profile cache if it exists (using a different prefix)
-        profile_cache_key = f"user_profile:{user_id}"
-        cached_profile = await cache_service.get(profile_cache_key)
-        if cached_profile:
-            cached_profile["tfa_app_name"] = tfa_app_name
-            await cache_service.set(profile_cache_key, cached_profile)
+        # Remove the separate profile cache update logic if update_user handles sessions
+        # profile_cache_key = f"user_profile:{user_id}"
+        # cached_profile = await cache_service.get(profile_cache_key)
+        # if cached_profile:
+        #     cached_profile["tfa_app_name"] = tfa_app_name
+        #     cached_profile["last_opened"] = "/signup/step-7" # Also update here if keeping separate cache
+        #     await cache_service.set(profile_cache_key, cached_profile)
         
         return Setup2FAProviderResponse(
             success=True,
