@@ -25,9 +25,6 @@ async def delete_user(
     - details: Additional context about the deletion
     """
     try:
-        # First invalidate any cached data
-        await self.invalidate_user_profile_cache(user_id)
-        
         # Log the deletion for compliance purposes
         from app.services.compliance import ComplianceService
         compliance_service = ComplianceService()

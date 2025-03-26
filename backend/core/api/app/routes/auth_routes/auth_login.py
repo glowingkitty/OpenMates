@@ -87,16 +87,7 @@ async def login(
                 user_id = user.get("id")
                 
                 if user_id:
-                    # Get credits information
-                    try:
-                        logger.info(f"Fetching credits for user")
-                        credits_info = await directus_service.get_user_credits(user_id)
-                        if credits_info:
-                            user["credits"] = credits_info
-                            logger.info(f"Credits fetched successfully: {credits_info}")
-                    except Exception as e:
-                        logger.error(f"Error getting credits for user: {str(e)}")
-                        user["credits"] = 0
+                    # Credits are already in the 'user' dict after user.update(user_profile)
                     
                     # Check if this device is already known (in cache)
                     device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"

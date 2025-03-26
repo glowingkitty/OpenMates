@@ -370,10 +370,8 @@ async def check_confirm_email_code(
 
             # Cache the session data if we have a refresh token
             if refresh_token:
-                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                cache_key = f"session:{token_hash}"
-                
                 # Cache standardized user data
+                # Note: token_hash and cache_key are handled internally by set_user
                 cached_data = {
                     "user_id": user_id,
                     "username": signup_username,
@@ -382,12 +380,13 @@ async def check_confirm_email_code(
                     "profile_image_url": None, # Assuming profile image is not set on creation
                     "last_opened": "/signup/step-3",
                     # Use vault_key_id from the user_data returned by create_user
-                    "vault_key_id": user_data["vault_key_id"], 
+                    "vault_key_id": user_data["vault_key_id"],
                     "token_expiry": int(time.time()) + 86400
                 }
-                
-                await cache_service.set(cache_key, cached_data, ttl=86400)
-                logger.info("Session data cached successfully")
+
+                # Use set_user to cache both session and user data
+                await cache_service.set_user(user_data=cached_data, user_id=user_id, refresh_token=refresh_token, ttl=86400)
+                logger.info("Session and user data cached successfully")
 
         # Log the successful login for compliance
         event_logger.info(f"User logged in - ID: {user_id}")

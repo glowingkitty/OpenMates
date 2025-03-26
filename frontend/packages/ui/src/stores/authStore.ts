@@ -2,7 +2,8 @@ import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
 import { userDB } from '../services/userDB';
-import { updateProfile } from './userProfile';
+import { userProfile, updateProfile, type UserProfile } from './userProfile'; // Import store and type
+import { resetTwoFAData } from './twoFAState'; // Import the reset function
 
 // Define the types for the auth store
 interface AuthState {
@@ -206,7 +207,7 @@ function createAuthStore() {
     },
     
     // Update user information
-    updateUser: (userData: Partial<User>) => {
+    updateUser: (userData: Partial<UserProfile>) => { // Use UserProfile type
       updateProfile(userData);
     },
     
@@ -287,6 +288,9 @@ function createAuthStore() {
         } catch (dbError) {
           console.error("Failed to clear user data from database:", dbError);
         }
+
+        // Reset 2FA state
+        resetTwoFAData();
         
         // Reset signup step
         currentSignupStep.set(1);
@@ -310,6 +314,9 @@ function createAuthStore() {
         if (callbacks?.onError) {
           await callbacks?.onError(error);
         }
+
+        // Reset 2FA state even on error
+        resetTwoFAData();
         
         // Reset signup step even on error
         currentSignupStep.set(1);
@@ -337,11 +344,13 @@ export const authStore = authStoreInstance;
 
 // Create a derived store for profile image URL with default fallback logic
 export const profileImage = derived(
-  authStore,
+  authStore, // Depends on authStore to know if user is authenticated
   $authStore => {
     if ($authStore.isAuthenticated) {
-      return get(updateProfile).profileImageUrl || '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
+      // Use get(userProfile) to access the store's value reactively
+      return get(userProfile).profileImageUrl || '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
     }
+    // Return default placeholder if not authenticated
     return '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
   }
 );

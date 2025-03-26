@@ -16,8 +16,7 @@ async def update_user(self, user_id: str, update_data: dict) -> bool:
     - bool: True if the update was successful, False otherwise
     """
     try:
-        # First invalidate any cached data
-        await self.invalidate_user_profile_cache(user_id)
+        logger.debug(f"Attempting to update user {user_id} in Directus.")
         
         # Ensure we have admin token
         await self.ensure_auth_token(admin_required=True)
@@ -39,20 +38,11 @@ async def update_user(self, user_id: str, update_data: dict) -> bool:
                 
                 if not success:
                     error_text = await response.text()
-                    logger.error(f"Failed to update user {user_id}. Status: {response.status}, Response: {error_text}")
+                    logger.error(f"Failed to update user {user_id} in Directus. Status: {response.status}, Response: {error_text}")
                     return False
-                    
-        # Also clear any related cache entries
-        cache_key = f"user:{user_id}"
-        await self.cache.delete(cache_key)
-        
-        # Delete profile image cache if updating profile image
-        if "encrypted_profileimage_url" in update_data:
-            profile_image_key = f"user_profile_image:{user_id}"
-            await self.cache.delete(profile_image_key)
-        
-        # Log the update
-        logger.info(f"User updated: {user_id}")
+
+        # Log the successful Directus update
+        logger.info(f"Successfully updated user {user_id} in Directus.")
         
         return True
         

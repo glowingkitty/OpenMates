@@ -63,15 +63,14 @@ async def get_current_user(
     if not success or not user_data:
         raise HTTPException(status_code=401, detail="Could not fetch user data")
 
-    # Get credits information
-    credits = await directus_service.get_user_credits(user_id) or 0
+    # Credits are already in user_data from get_user_profile
 
     # Create User object from profile data
     user = User(
         id=user_id,
         username=user_data.get("username"),
         is_admin=user_data.get("is_admin", False),  # Use direct is_admin field
-        credits=credits,
+        credits=user_data.get("credits", 0), # Use credits from user_data
         profile_image_url=user_data.get("profile_image_url"),
         last_opened=user_data.get("last_opened"),
         vault_key_id=user_data.get("vault_key_id") # Populate from fresh fetch
@@ -171,10 +170,8 @@ async def update_profile_image(
         random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
         new_filename = f"{current_user.id}-{int(time.time())}-{random_suffix}{file_ext}"
 
-        # Get old image URL from cache first, then fallback to Directus
-        old_url = await cache_service.get_user_profile_image(current_user.id)
-        if not old_url:
-            old_url = await directus_service.get_user_profile_image(current_user.id)
+        # Get old image URL from the current user object (already fetched/cached)
+        old_url = current_user.profile_image_url
 
         # Upload new image
         upload_result = await s3_service.upload_file(
@@ -203,17 +200,19 @@ async def update_profile_image(
             "last_opened": "/signup/step-4"
         })
 
-        # Update only changed fields in user cache
-        await cache_service.update_user(current_user.id, {
+        # Update cache with new image URL and last_opened step
+        logger.info(f"Attempting to update cache for user {current_user.id} after profile image upload.")
+        cache_update_success = await cache_service.update_user(current_user.id, {
             "profile_image_url": image_url,
             "last_opened": "/signup/step-4"
         })
-        
-        # Also set the profile image URL separately for specific lookups
-        # Note: update_user should handle the main cache, but keeping this for potential specific lookups
-        await cache_service.set_user_profile_image(current_user.id, image_url)
+        if cache_update_success:
+            logger.info(f"Successfully updated cache for user {current_user.id} with new profile image URL.")
+        else:
+            # Log warning, but don't fail the request as Directus was updated
+            logger.warning(f"Failed to update cache for user {current_user.id} after profile image upload, but Directus was updated.")
 
-        # Delete old image
+        # Delete old image from S3
         if old_url:
             old_key = old_url.split('/')[-1]
             await s3_service.delete_file('profile_images', old_key)

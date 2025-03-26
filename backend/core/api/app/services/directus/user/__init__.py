@@ -8,9 +8,7 @@ from app.services.directus.user.user_lookup import (
 from app.services.directus.user.device_management import (
     update_user_device, check_user_device
 )
-from app.services.directus.user.user_data import (
-    get_user_credits, get_user_username, get_user_profile_image, invalidate_user_profile_cache
-)
+# Removed import from user_data as functions are deleted
 from app.services.directus.user.user_profile import get_user_profile
 from app.services.directus.user.delete_user import delete_user
 from app.services.directus.user.update_user import update_user
@@ -26,10 +24,7 @@ __all__ = [
     'get_active_users_since',
     'update_user_device',
     'check_user_device',
-    'get_user_credits',
-    'get_user_username',
-    'get_user_profile_image',
-    'invalidate_user_profile_cache',
+    # Removed redundant function names
     'get_user_profile',
     'delete_user',
     'update_user'
