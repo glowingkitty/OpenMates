@@ -9,7 +9,6 @@
     export let showSkip = false;
     export let currentStep = 1;
     export let selectedAppName: string | null = null;
-    export let isAdmin = false;
     export let showAdminButton = false;
 
     function handleBackClick() {
