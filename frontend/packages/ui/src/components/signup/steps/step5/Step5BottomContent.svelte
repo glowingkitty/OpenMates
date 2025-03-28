@@ -13,7 +13,7 @@ step_5_bottom_content_svelte:
         purpose:
             - 'User needs to confirm that they have saved the backup codes safely before continuing to the next signup step'
         processing:
-            - 'User clicks the toggle'
+            - 'User clicks the toggle or the text next to it'
             - 'User confirms that they have saved the backup codes'
             - 'Request to server is sent to save in profile that user has saved the backup codes and when'
             - 'Next signup step is loaded automatically'
@@ -53,20 +53,23 @@ step_5_bottom_content_svelte:
     let isSubmitting = false;
 
     // Watch for changes to hasConfirmedStorage
-    $: if (hasConfirmedStorage && !isSubmitting) {
+    $: if (hasConfirmedStorage) { // Removed !isSubmitting check here, rely on check inside function
         confirmCodesStored();
     }
     
-    // Handle click on the confirmation row
-    function handleRowClick() {
-        if (!isSubmitting) {
-            hasConfirmedStorage = !hasConfirmedStorage;
+    // Handle click on the confirmation text
+    function handleTextClick() {
+        // Only turn the toggle ON, don't toggle it OFF if already on
+        if (!hasConfirmedStorage && !isSubmitting) {
+            hasConfirmedStorage = true;
         }
     }
     
     // Call API to confirm that backup codes have been stored
     async function confirmCodesStored() {
-        if (!hasConfirmedStorage) return;
+        // Immediate check to prevent concurrent executions
+        if (isSubmitting) return; 
+        if (!hasConfirmedStorage) return; // Keep this check for safety
         
         isSubmitting = true;
         
@@ -88,11 +91,11 @@ step_5_bottom_content_svelte:
             } else {
                 // If API call failed, reset the toggle
                 console.error('Failed to confirm backup codes stored:', data.message);
-                hasConfirmedStorage = false;
+                hasConfirmedStorage = false; // Reset state on failure
             }
         } catch (err) {
             console.error('Error confirming backup codes stored:', err);
-            hasConfirmedStorage = false;
+            hasConfirmedStorage = false; // Reset state on error
         } finally {
             isSubmitting = false;
         }
@@ -102,9 +105,9 @@ step_5_bottom_content_svelte:
 <div class="bottom-content">
     {#if $backupCodesLoaded}
     <div transition:fade={{ duration: 300 }}>
-        <div class="confirmation-row" on:click={handleRowClick} role="button" tabindex="0">
+        <div class="confirmation-row" role="button" tabindex="0">
             <Toggle bind:checked={hasConfirmedStorage} />
-            <span class="confirmation-text">
+            <span class="confirmation-text" on:click|stopPropagation={handleTextClick}>
                 {$text('signup.i_stored_backup_codes.text')}
             </span>
         </div>
@@ -125,13 +128,13 @@ step_5_bottom_content_svelte:
         align-items: center;
         gap: 12px;
         margin-top: 20px;
-        cursor: pointer;
     }
 
     .confirmation-text {
         color: var(--color-grey-60);
         font-size: 16px;
         text-align: left;
+        cursor: pointer;
     }
     
     .click-toggle-text {
