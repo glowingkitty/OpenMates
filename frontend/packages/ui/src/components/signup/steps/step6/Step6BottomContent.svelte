@@ -84,6 +84,7 @@ step_6_bottom_content_svelte:
     let searchResults = tfaApps;
     let selectedApp = '';
     let isLoading = true; // Track loading state
+    let initialTfaAppName: string | null = null; // Store the initial app name loaded
     let errorMessage = ''; // To display errors
     let continueButtonElement: HTMLButtonElement; // Add variable for button ref
 
@@ -94,16 +95,16 @@ step_6_bottom_content_svelte:
         try {
             await userDB.init(); // Ensure DB is initialized
             const userData = await userDB.getUserData();
-            const initialAppName = userData?.tfaAppName || selectedAppName; // Prioritize DB, fallback to prop
+            initialTfaAppName = userData?.tfaAppName || selectedAppName; // Store initial name
 
-            if (initialAppName) {
-                appName = initialAppName;
+            if (initialTfaAppName) {
+                appName = initialTfaAppName; // Set current input value
                 // Check if it's one of the predefined apps
-                if (tfaApps.includes(initialAppName)) {
-                    selectedApp = initialAppName;
+                if (tfaApps.includes(initialTfaAppName)) {
+                    selectedApp = initialTfaAppName;
                 }
-                // Dispatch event to ensure parent knows this app is selected/loaded
-                dispatch('selectedApp', { appName: initialAppName });
+                // Dispatch event to ensure parent knows this app is selected/loaded initially
+                dispatch('selectedApp', { appName: initialTfaAppName });
             }
         } catch (error) {
             console.error("Error loading tfaAppName from DB:", error);
@@ -112,6 +113,13 @@ step_6_bottom_content_svelte:
             isLoading = false;
         }
     });
+
+    // Reactive statement to determine button visibility
+    $: showContinueButton =
+        !isLoading &&
+        appName.trim().length >= 3 &&
+        appName.trim().length <= 40 &&
+        appName.trim() !== (initialTfaAppName || ''); // Show only if valid length AND different from initial
 
     function handleInput(event: Event) {
         errorMessage = ''; // Clear error on input
@@ -231,7 +239,7 @@ step_6_bottom_content_svelte:
     {#if errorMessage}
         <InputWarning message={errorMessage} target={continueButtonElement} />
     {/if}
-    {#if (appName.length >= 3 || selectedApp) && !isLoading}
+    {#if showContinueButton}
         <button bind:this={continueButtonElement} class="continue-button" on:click={handleContinue} disabled={isLoading}>
             {@html $text('signup.continue.text')}
         </button>
