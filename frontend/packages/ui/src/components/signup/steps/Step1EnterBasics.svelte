@@ -644,23 +644,23 @@
                 </div>
 
                 <div class="agreement-row">
-                    <Toggle bind:checked={termsAgreed} />
-                    <div class="agreement-text">
+                    <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
+                    <label for="terms-agreed-toggle" class="agreement-text">
                         {$text('signup.agree_to.text')} 
                         <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
                             <mark>{@html $text('signup.terms_of_service.text')}</mark>
                         </a>
-                    </div>
+                    </label>
                 </div>
 
                 <div class="agreement-row">
-                    <Toggle bind:checked={privacyAgreed} />
-                    <div class="agreement-text">
+                    <Toggle bind:checked={privacyAgreed} id="privacy-agreed-toggle" />
+                    <label for="privacy-agreed-toggle" class="agreement-text">
                         {$text('signup.agree_to.text')} 
                         <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
                             <mark>{@html $text('signup.privacy_policy.text')}</mark>
                         </a>
-                    </div>
+                    </label>
                 </div>
             </form>
         {/if}

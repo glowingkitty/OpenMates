@@ -10,16 +10,8 @@
     // Toggle state for consent
     export let hasConsentedToLimitedRefund: boolean = false;
     
-    // Function to handle toggle click
-    function handleRowClick() {
-        hasConsentedToLimitedRefund = !hasConsentedToLimitedRefund;
-        dispatch('consentChanged', { consented: hasConsentedToLimitedRefund });
-    }
-    
-    // Function to prevent toggle click from triggering row click
-    function handleToggleClick(event: Event) {
-        event.stopPropagation();
-    }
+    // Dispatch event when consent changes
+    $: dispatch('consentChanged', { consented: hasConsentedToLimitedRefund });
     
     function openRefundInfo() {
         // Open refund info in new tab
@@ -34,17 +26,11 @@
     </div>
 
     <div class="consent-container">
-        <div class="confirmation-row" 
-            on:click={handleRowClick}
-            on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleRowClick() : null}
-            role="button"
-            tabindex="0">
-            <div on:click={handleToggleClick} on:keydown|stopPropagation role="button" tabindex="0">
-                <Toggle bind:checked={hasConsentedToLimitedRefund} />
-            </div>
-            <span class="confirmation-text">
+        <div class="confirmation-row">
+            <Toggle bind:checked={hasConsentedToLimitedRefund} id="limited-refund-consent-toggle" />
+            <label for="limited-refund-consent-toggle" class="confirmation-text">
                 {@html $text('signup.i_agree_to_limited_refund.text')}
-            </span>
+            </label>
         </div>
         <button on:click={openRefundInfo} class="text-button learn-more-button">
             {@html $text('signup.click_here_learn_more.text')}

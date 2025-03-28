@@ -50,19 +50,14 @@ step_7_bottom_content_svelte:
     $: if (hasConfirmedSettings) {
         dispatch('step', { step: 8 });
     }
-    
-    // Handle click on the confirmation row
-    function handleRowClick() {
-        hasConfirmedSettings = !hasConfirmedSettings;
-    }
 </script>
 
 <div class="bottom-content">
-    <div class="confirmation-row" on:click={handleRowClick} role="button" tabindex="0">
-        <Toggle bind:checked={hasConfirmedSettings} />
-        <span class="confirmation-text">
+    <div class="confirmation-row">
+        <Toggle bind:checked={hasConfirmedSettings} id="confirm-settings-toggle-step7" />
+        <label for="confirm-settings-toggle-step7" class="confirmation-text">
             {$text('signup.accept_settings.text')}
-        </span>
+        </label>
     </div>
     <div class="click-toggle-text">
         {$text('signup.click_toggle_to_continue.text')}
@@ -82,13 +77,13 @@ step_7_bottom_content_svelte:
         align-items: center;
         gap: 12px;
         margin-top: 20px;
-        cursor: pointer;
     }
 
     .confirmation-text {
         color: var(--color-grey-60);
         font-size: 16px;
         text-align: left;
+        cursor: pointer;
     }
     
     .click-toggle-text {

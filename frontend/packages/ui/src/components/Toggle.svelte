@@ -4,6 +4,7 @@
     export let disabled = false; // Optional disabled state
     export let name = '';       // For form identification
     export let ariaLabel = '';  // For accessibility
+    export let id = '';         // Optional id for label association
 
     // Handle toggle change with proper event typing
     function handleChange(event: Event) {
@@ -14,6 +15,7 @@
 <label class="toggle" class:disabled>
     <input
         type="checkbox"
+        {id}
         {name}
         {disabled}
         bind:checked

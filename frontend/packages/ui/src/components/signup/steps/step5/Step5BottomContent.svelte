@@ -57,14 +57,6 @@ step_5_bottom_content_svelte:
         confirmCodesStored();
     }
     
-    // Handle click on the confirmation text
-    function handleTextClick() {
-        // Only turn the toggle ON, don't toggle it OFF if already on
-        if (!hasConfirmedStorage && !isSubmitting) {
-            hasConfirmedStorage = true;
-        }
-    }
-    
     // Call API to confirm that backup codes have been stored
     async function confirmCodesStored() {
         // Immediate check to prevent concurrent executions
@@ -105,11 +97,11 @@ step_5_bottom_content_svelte:
 <div class="bottom-content">
     {#if $backupCodesLoaded}
     <div transition:fade={{ duration: 300 }}>
-        <div class="confirmation-row" role="button" tabindex="0">
-            <Toggle bind:checked={hasConfirmedStorage} />
-            <span class="confirmation-text" on:click|stopPropagation={handleTextClick}>
+        <div class="confirmation-row">
+            <Toggle bind:checked={hasConfirmedStorage} id="confirm-storage-toggle-step5" />
+            <label for="confirm-storage-toggle-step5" class="confirmation-text">
                 {$text('signup.i_stored_backup_codes.text')}
-            </span>
+            </label>
         </div>
         <div class="click-toggle-text">
             {$text('signup.click_toggle_to_continue.text')}
