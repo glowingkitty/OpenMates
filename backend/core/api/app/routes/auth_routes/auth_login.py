@@ -176,11 +176,6 @@ async def login(
                 response, user, auth_data, cache_service, compliance_service, 
                 directus_service, device_fingerprint, device_location, client_ip
             )
-            # Log successful 2FA login
-            compliance_service.log_auth_event(
-                event_type="login_success", user_id=user_id, ip_address=client_ip, 
-                status="success", details={"method": "password_2fa"}
-            )
             # Determine boolean consent flags based on timestamp presence in user_profile
             has_consent_privacy = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
             has_consent_mates = bool(user_profile.get("consent_mates_default_settings"))
