@@ -18,6 +18,9 @@ export function isSettingsStep(step: number): boolean {
 // Store to track if we're in a settings step
 export const isSignupSettingsStep = writable(false);
 
+// Store to explicitly control footer visibility during signup
+export const showSignupFooter = writable(true);
+
 // Parse step number from last_opened path
 export function getStepFromPath(path: string): number {
     if (!path) return 1;

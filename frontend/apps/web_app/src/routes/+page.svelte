@@ -16,6 +16,7 @@
         isInSignupProcess,
         isLoggingOut,
         currentSignupStep,
+        showSignupFooter, // Import the new store
         // types
         type Chat,
     } from '@repo/ui';
@@ -122,8 +123,8 @@
 </div>
 
 <!-- Footer outside main content -->
-{#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep < 7)}
-<div class="footer-wrapper" transition:fade>
+{#if !$isInSignupProcess || ($isInSignupProcess && $showSignupFooter)}
+<div class="footer-wrapper">
     <Footer metaKey="webapp" context="webapp" />
 </div>
 {/if}

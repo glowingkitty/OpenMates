@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, tick } from 'svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { _ } from 'svelte-i18n';
     import { tooltip } from '../../actions/tooltip';
@@ -10,7 +10,7 @@
     import ExpandableHeader from './ExpandableHeader.svelte';
 
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
     import { settingsMenuVisible } from '../Settings.svelte';
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
@@ -44,7 +44,7 @@
     let direction: 'forward' | 'backward' = 'forward';
     let isInviteCodeValidated = false;
     let isAdmin = false; // Add this to track admin status
-    let previousStep = 1;
+    // let previousStep = 1; // Removed, will pass previous value directly
 
     // Lift form state up
     let username = '';
@@ -100,23 +100,25 @@
             currentStep = $currentSignupStep;
         }
         
-        updateSettingsStep();
+        updateSettingsStep(0); // Provide 0 as initial prevStepValue
+        showSignupFooter.set(currentStep < 7); // Set initial footer state
     });
     
     onDestroy(() => {
         isInSignupProcess.set(false);
         isSignupSettingsStep.set(false);
+        showSignupFooter.set(true); // Reset footer state on destroy
     });
 
     // Improved function to update settings step state based on current step
-    function updateSettingsStep() {
+    function updateSettingsStep(prevStepValue: number) {
         // Check if current step should show settings (step 7 and higher)
         const shouldShowSettings = isSettingsStep(currentStep);
         isSignupSettingsStep.set(shouldShowSettings);
-        
+
         // If transitioning between settings/non-settings steps
-        const wasShowingSettings = isSettingsStep(previousStep);
-        
+        const wasShowingSettings = isSettingsStep(prevStepValue);
+
         if (!wasShowingSettings && shouldShowSettings) {
             // First entry into a settings step - don't auto-open menu
             // Just update the state to indicate we're in settings mode
@@ -129,11 +131,7 @@
         }
     }
 
-    // Make sure to call updateSettingsStep when the step changes
-    $: if (currentStep !== previousStep) {
-        previousStep = currentStep;
-        updateSettingsStep();
-    }
+    // Removed reactive block for previousStep handling
 
     function handleSwitchToLogin() {
         dispatch('switchToLogin');
@@ -148,13 +146,16 @@
         }
     }
 
-    function handleStep(event: CustomEvent<{step: number, credits_amount?: number, price?: number, currency?: string}>) {
+    async function handleStep(event: CustomEvent<{step: number, credits_amount?: number, price?: number, currency?: string}>) {
         const newStep = event.detail.step;
-        direction = newStep > currentStep ? 'forward' : 'backward';
-        previousStep = currentStep;
+        const oldStep = currentStep; // Capture old step value
+        direction = newStep > oldStep ? 'forward' : 'backward';
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
-        
+        await tick(); // Wait for Svelte to process state changes before proceeding
+        updateSettingsStep(oldStep); // Call update function with old step value
+        showSignupFooter.set(newStep < 7); // Update footer state
+
         // If credits amount is provided (from step 9 to 10), store it
         if (event.detail.credits_amount !== undefined) {
             selectedCreditsAmount = event.detail.credits_amount;
@@ -176,11 +177,14 @@
         selectedAppName = event.detail.appName;
     }
 
-    function goToStep(step: number) {
-        direction = step > currentStep ? 'forward' : 'backward';
-        previousStep = currentStep;
+    async function goToStep(step: number) {
+        const oldStep = currentStep; // Capture old step value
+        direction = step > oldStep ? 'forward' : 'backward';
         currentStep = step;
-        // updateSettingsStep() is called via the reactive statement
+        currentSignupStep.set(step); // Also update the store here
+        await tick(); // Add tick here too for consistency
+        updateSettingsStep(oldStep); // Call update function with old step value
+        showSignupFooter.set(step < 7); // Update footer state
     }
 
     async function handleLogout() {
@@ -208,9 +212,11 @@
             }, 300);
             
             // Switch to login view after logout is complete
+            showSignupFooter.set(true); // Ensure footer is shown after logout
             dispatch('switchToLogin');
         } catch (error) {
             console.error('Error during logout:', error);
+            showSignupFooter.set(true); // Ensure footer is shown even on error
             // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
             
@@ -306,7 +312,6 @@
                 {showSkip}
                 {currentStep}
                 {selectedAppName}
-                {isAdmin}
                 showAdminButton={isAdmin && currentStep === 1 && isInviteCodeValidated}
             />
         </div>
@@ -400,7 +405,6 @@
                                     on:step={handleStep}
                                     on:uploading={handleImageUploading}
                                     on:selectedApp={handleSelectedApp}
-                                    {selectedAppName}
                                 />
                             </div>
                         {/key}

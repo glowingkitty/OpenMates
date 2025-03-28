@@ -106,7 +106,7 @@ step_8_bottom_content_svelte:
             disabled={isLoading || $userProfile.has_consent_mates} 
         />
         <label for="confirm-settings-toggle-step8" class="confirmation-text">
-            {$text('signup.accept_settings.text')} {isLoading ? $_('general.loading.text') : ''}
+            {$text('signup.accept_settings.text')}
         </label>
     </div>
     <div class="click-toggle-text">
