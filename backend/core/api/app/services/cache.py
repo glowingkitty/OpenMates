@@ -277,7 +277,6 @@ class CacheService:
             sessions_updated_count = 0
             for key in session_keys:
                 session_data = await self.get(key)
-                session_data = await self.get(key)
                 if session_data and (session_data.get("user_id") == user_id or session_data.get("id") == user_id):
                     logger.debug(f"Updating session cache for key '{key}' (User: {user_id})")
                     # Preserve token_expiry

@@ -421,39 +421,39 @@ async def setup_2fa_provider(
         
         user_id = user_data.get("user_id")
         
+        # Get the user's vault key ID for encryption
+        vault_key_id = user_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID not found for user {user_id} when saving 2FA provider.")
+            return Setup2FAProviderResponse(success=False, message="Encryption key not found for user")
+            
         # No validation needed - app name can be any string
         tfa_app_name = provider_request.provider
         
-        # Encrypt app name for Directus storage
-        encrypted_app_name, _ = await encryption_service.encrypt(tfa_app_name)
-        
+        # Encrypt app name for Directus storage using the user's key
+        encrypted_app_name, key_version = await encryption_service.encrypt_with_user_key(tfa_app_name, vault_key_id)
+
         # Update user in Directus to store the encrypted 2FA app name and update last_opened
-        update_data = {
+        success = await directus_service.update_user(user_id, {
             "encrypted_tfa_app_name": encrypted_app_name,
             "last_opened": "/signup/step-7" # Update last opened step
-        }
-        success = await directus_service.update_user(user_id, update_data)
+        })
         
         if not success:
             # update_user logs details internally
             logger.error("Failed to update user 2FA app name") 
             return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name or update step")
         
-        # Update the user cache with both tfa_app_name and the new last_opened step
-        cache_update_data = {
+        logger.info(f"Attempting to update cache for user {user_id} after setting 2FA provider.")
+        cache_update_success = await cache_service.update_user(user_id, {
             "tfa_app_name": tfa_app_name,
             "last_opened": "/signup/step-7"
-        }
-        await cache_service.update_user(user_id, cache_update_data)
-        logger.info(f"Updated user cache for {user_id} with tfa_app_name and last_opened=/signup/step-7")
-        
-        # Remove the separate profile cache update logic if update_user handles sessions
-        # profile_cache_key = f"user_profile:{user_id}"
-        # cached_profile = await cache_service.get(profile_cache_key)
-        # if cached_profile:
-        #     cached_profile["tfa_app_name"] = tfa_app_name
-        #     cached_profile["last_opened"] = "/signup/step-7" # Also update here if keeping separate cache
-        #     await cache_service.set(profile_cache_key, cached_profile)
+        })
+        if cache_update_success:
+            logger.info(f"Successfully updated cache for user {user_id} with new 2FA provider.")
+        else:
+            # Log warning, but don't fail the request as Directus was updated
+            logger.warning(f"Failed to update cache for user {user_id} after setting 2FA provider, but Directus was updated.")
         
         return Setup2FAProviderResponse(
             success=True,

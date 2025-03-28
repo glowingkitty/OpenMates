@@ -7,6 +7,7 @@ export interface UserProfile {
   credits: number;
   isAdmin: boolean;
   last_opened: string;
+  tfaAppName: string | null; // Add tfaAppName
 }
 
 const defaultProfile: UserProfile = {
@@ -14,7 +15,8 @@ const defaultProfile: UserProfile = {
   profileImageUrl: null,
   credits: 0,
   isAdmin: false,
-  last_opened: ''
+  last_opened: '',
+  tfaAppName: null // Add default value
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
@@ -42,13 +44,30 @@ export async function loadUserProfileFromDB(): Promise<void> {
     } catch (error) {
       console.warn('Could not load isAdmin status:', error);
     }
+
+    // Get tfaAppName status - using a try/catch
+    let tfaAppName: string | null = null;
+    try {
+      const transaction = userDB.db?.transaction([userDB.STORE_NAME], 'readonly');
+      if (transaction) {
+        const store = transaction.objectStore(userDB.STORE_NAME);
+        const request = store.get('tfaAppName');
+        tfaAppName = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(request.result || null); // Return null if not found
+          request.onerror = () => resolve(null); // Return null on error
+        });
+      }
+    } catch (error) {
+      console.warn('Could not load tfaAppName status:', error);
+    }
     
     if (profile) {
       userProfile.update(currentProfile => ({
         ...currentProfile,
         ...profile,
         credits,
-        isAdmin
+        isAdmin,
+        tfaAppName // Add tfaAppName to the update
       }));
     }
   } catch (error) {

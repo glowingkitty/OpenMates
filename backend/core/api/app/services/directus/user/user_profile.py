@@ -71,11 +71,9 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             ]:
                 if encrypted_field in user_data and user_data[encrypted_field]:
                     try:
-                        logger.info(f"[Debug] Attempting to decrypt {encrypted_field}")
                         decrypted_value = await self.encryption_service.decrypt_with_user_key(
                             user_data[encrypted_field], vault_key_id
                         )
-                        logger.info(f"[Debug] Decryption success for {field}: {bool(decrypted_value)}")
                         
                         if decrypted_value:
                             if field == "devices":

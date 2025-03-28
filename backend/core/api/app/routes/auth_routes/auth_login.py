@@ -152,6 +152,7 @@ async def login(
                     "is_admin": user.get("is_admin"),
                     "credits": user.get("credits"),
                     "profile_image_url": user.get("profile_image_url"),
+                    "tfa_app_name": user.get("tfa_app_name"),
                     "last_opened": user.get("last_opened"),
                     "vault_key_id": user.get("vault_key_id")
                 }
@@ -179,6 +180,7 @@ async def login(
                     is_admin=user.get("is_admin"),
                     credits=user.get("credits"),
                     profile_image_url=user.get("profile_image_url"),
+                    tfa_app_name=user.get("tfa_app_name"),
                     last_opened=user.get("last_opened")
                 )
             )

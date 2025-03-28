@@ -94,7 +94,7 @@ step_6_bottom_content_svelte:
         try {
             await userDB.init(); // Ensure DB is initialized
             const userData = await userDB.getUserData();
-            const initialAppName = userData?.tfa_app_name || selectedAppName; // Prioritize DB, fallback to prop
+            const initialAppName = userData?.tfaAppName || selectedAppName; // Prioritize DB, fallback to prop
 
             if (initialAppName) {
                 appName = initialAppName;
@@ -106,7 +106,7 @@ step_6_bottom_content_svelte:
                 dispatch('selectedApp', { appName: initialAppName });
             }
         } catch (error) {
-            console.error("Error loading tfa_app_name from DB:", error);
+            console.error("Error loading tfaAppName from DB:", error);
             errorMessage = "Failed to load saved app name."; // Inform user
         } finally {
             isLoading = false;

@@ -1,7 +1,7 @@
 import httpx
 import logging
 from typing import Dict, Any, Optional, Tuple
-# Removed: from app.utils.email_hash import hash_email
+import json
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -108,6 +108,35 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                             # Log error, but don't set default. Let it propagate.
                             logger.error("Credit balance decryption failed!")
                             # If credits were present but failed decryption, remove? Or leave encrypted? Leave for now.
+
+                    # Decrypt tfa app name
+                    encrypted_tfa_app_name = user_data.get("encrypted_tfa_app_name")
+                    if encrypted_tfa_app_name:
+                        decrypted_tfa_app_name = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_tfa_app_name, vault_key_id
+                        )
+                        if decrypted_tfa_app_name:
+                            user_data["tfa_app_name"] = decrypted_tfa_app_name
+                        else:
+                            # Log error, but don't set default. Let it propagate.
+                            logger.error("2FA app name decryption failed!")
+                            # If tfa_app_name was present but failed decryption, remove? Or leave encrypted? Leave for now.
+
+                    # Decrypt devices
+                    encrypted_devices = user_data.get("encrypted_devices")
+                    if encrypted_devices:
+                        decrypted_devices = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_devices, vault_key_id
+                        )
+                        if decrypted_devices:
+                            try:
+                                user_data["devices"] = json.loads(decrypted_devices)
+                            except json.JSONDecodeError:
+                                # Log error, but don't set default. Let it propagate.
+                                logger.error(f"Failed to decode decrypted devices JSON: {str(e)}")
+                                # If devices were present but failed decryption, remove? Or leave encrypted? Leave for now.
+                        else:
+                            logger.error("Devices decryption failed!")
 
                 except Exception as e:
                     # Log the overarching error, but avoid setting defaults here.

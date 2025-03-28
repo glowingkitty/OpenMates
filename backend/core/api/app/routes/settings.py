@@ -44,6 +44,7 @@ async def get_current_user(
             is_admin=cached_data.get("is_admin"),
             credits=cached_data.get("credits"),
             profile_image_url=cached_data.get("profile_image_url"),
+            tfa_app_name=cached_data.get("tfa_app_name"),
             last_opened=cached_data.get("last_opened"),
             vault_key_id=cached_data.get("vault_key_id")
         )

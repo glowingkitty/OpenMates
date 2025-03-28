@@ -56,7 +56,7 @@ class UserDatabaseService {
             store.put(!!userData.isAdmin, 'isAdmin');  // Convert to boolean
             store.put(userData.profileImageUrl || null, 'profileImageUrl');
             store.put(userData.credits || 0, 'credits');
-            store.put(userData.tfa_app_name || null, 'tfa_app_name'); // Store 2FA app name
+            store.put(userData.tfaAppName || null, 'tfaAppName'); // Store 2FA app name
 
             transaction.oncomplete = () => {
                 console.debug("[UserDatabase] User data saved successfully");
@@ -85,10 +85,16 @@ class UserDatabaseService {
             // Get username
             const usernameRequest = store.get('username');
             const profileImageRequest = store.get('profileImageUrl');
+            const creditsRequest = store.get('credits');
+            const isAdminRequest = store.get('isAdmin');
+            const tfaAppNameRequest = store.get('tfaAppName');
             
             let profile: UserProfile = {
                 username: '',
-                profileImageUrl: null
+                profileImageUrl: null,
+                credits: 0,
+                isAdmin: false,
+                tfaAppName: null
             };
 
             usernameRequest.onsuccess = () => {
@@ -97,6 +103,18 @@ class UserDatabaseService {
 
             profileImageRequest.onsuccess = () => {
                 profile.profileImageUrl = profileImageRequest.result || null;
+            };
+
+            creditsRequest.onsuccess = () => {
+                profile.credits = creditsRequest.result || 0;
+            };
+
+            isAdminRequest.onsuccess = () => {
+                profile.isAdmin = !!isAdminRequest.result;
+            };
+
+            tfaAppNameRequest.onsuccess = () => {
+                profile.tfaAppName = tfaAppNameRequest.result || null;
             };
 
             transaction.oncomplete = () => {
@@ -186,7 +204,7 @@ class UserDatabaseService {
                     (newUserData.profileImageUrl !== undefined && storedData.profileImageUrl !== newUserData.profileImageUrl) ||
                     (newUserData.credits !== undefined && storedData.credits !== newUserData.credits) ||
                     (newUserData.isAdmin !== undefined && storedData.isAdmin !== newUserData.isAdmin) ||
-                    (newUserData.tfa_app_name !== undefined && storedData.tfa_app_name !== newUserData.tfa_app_name); // Check tfa_app_name
+                    (newUserData.tfaAppName !== undefined && storedData.tfaAppName !== newUserData.tfaAppName); // Check tfaAppName
                 
                 resolve(hasChanges);
             };
@@ -214,21 +232,21 @@ class UserDatabaseService {
             const isAdmin = store.get('isAdmin');
             const profileImageUrl = store.get('profileImageUrl');
             const credits = store.get('credits');
-            const tfa_app_name = store.get('tfa_app_name'); // Get tfa_app_name
+            const tfaAppName = store.get('tfaAppName'); // Get tfaAppName
             
             let userData: User = {
                 username: '',
                 isAdmin: false,
                 profileImageUrl: null,
                 credits: 0,
-                tfa_app_name: null // Initialize tfa_app_name
+                tfaAppName: null // Initialize tfaAppName
             };
 
             username.onsuccess = () => userData.username = username.result || '';
             isAdmin.onsuccess = () => userData.isAdmin = !!isAdmin.result;
             profileImageUrl.onsuccess = () => userData.profileImageUrl = profileImageUrl.result;
             credits.onsuccess = () => userData.credits = credits.result || 0;
-            tfa_app_name.onsuccess = () => userData.tfa_app_name = tfa_app_name.result; // Assign tfa_app_name
+            tfaAppName.onsuccess = () => userData.tfaAppName = tfaAppName.result; // Assign tfaAppName
 
             transaction.oncomplete = () => {
                 console.debug("[UserDatabase] User data retrieved:", userData);
@@ -270,8 +288,8 @@ class UserDatabaseService {
                 store.put(partialData.isAdmin, 'isAdmin');
             }
 
-            if (partialData.tfa_app_name !== undefined) { // Handle tfa_app_name update
-                store.put(partialData.tfa_app_name, 'tfa_app_name');
+            if (partialData.tfaAppName !== undefined) {
+                store.put(partialData.tfaAppName, 'tfaAppName');
             }
             
             transaction.oncomplete = () => {

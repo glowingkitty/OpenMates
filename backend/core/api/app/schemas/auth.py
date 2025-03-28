@@ -64,6 +64,7 @@ class LoginResponse(BaseModel):
                     "is_admin": False,
                     "credits": 100,
                     "profile_image_url": None,
+                    "tfa_app_name": None,
                     "last_opened": "/signup/step-3"
                 }
             }

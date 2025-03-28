@@ -70,11 +70,9 @@ async def logout(
                         # Also clear user-specific data caches as it's the last device
                         user_main_cache_key = f"{cache_service.USER_KEY_PREFIX}{user_id}"
                         user_profile_cache_key = f"user_profile:{user_id}"
-                        user_profile_image_cache_key = f"{cache_service.USER_PROFILE_IMAGE_KEY_PREFIX}{user_id}"
 
                         await cache_service.delete(user_main_cache_key)
                         await cache_service.delete(user_profile_cache_key)
-                        await cache_service.delete(user_profile_image_cache_key)
                         logger.info(f"Cleared user-specific caches for user {user_id[:6]}... (last device logout)")
 
                     else:

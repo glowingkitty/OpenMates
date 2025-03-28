@@ -73,6 +73,7 @@ function createAuthStore() {
             updateProfile({
               username: data.user.username,
               profileImageUrl: data.user.profile_image_url,
+              tfaAppName: data.user.tfa_app_name,
               credits: data.user.credits,
               isAdmin: data.user.is_admin,
               last_opened: data.user.last_opened
@@ -134,10 +135,10 @@ function createAuthStore() {
         if (data.success) {
           console.debug('setup2FAProvider API call successful. Updating IndexedDB.');
           try {
-            await userDB.updateUserData({ tfa_app_name: appName });
-            console.debug('IndexedDB updated with tfa_app_name.');
+            await userDB.updateUserData({ tfaAppName: appName });
+            console.debug('IndexedDB updated with tfaAppName.');
           } catch (dbError) {
-            console.error('Failed to update tfa_app_name in IndexedDB:', dbError);
+            console.error('Failed to update tfaAppName in IndexedDB:', dbError);
             // Proceed even if DB update fails, but log error. API call succeeded.
           }
           return { success: true, message: data.message };
@@ -208,6 +209,7 @@ function createAuthStore() {
             updateProfile({
               username: data.user.username,
               profileImageUrl: data.user.profile_image_url,
+              tfaAppName: data.user.tfa_app_name,
               credits: data.user.credits,
               isAdmin: data.user.is_admin,
               last_opened: data.user.last_opened

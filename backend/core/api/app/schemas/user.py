@@ -7,7 +7,7 @@ class UserResponse(BaseModel):
     credits: int
     profile_image_url: Optional[str] = None
     last_opened: Optional[str] = None
-    tfa_app_name: Optional[str] = None  # Name of the 2FA app used
+    tfa_app_name: Optional[str] = None
     
     class Config:
         json_schema_extra = {

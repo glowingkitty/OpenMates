@@ -8,4 +8,5 @@ class User(BaseModel):
     is_admin: bool = False
     credits: int = 0
     profile_image_url: Optional[str] = None
+    tfa_app_name: Optional[str] = None
     last_opened: Optional[str] = None
