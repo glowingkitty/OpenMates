@@ -37,9 +37,9 @@ export const apiEndpoints = {
         setup_2fa_provider:         '/v1/auth/setup_2fa_provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/verify_2fa_code',                // Verify 2FA OTP code during login
         
-        // User setup and preferences
-        accept_settings:            '/v1/auth/accept_settings',                // Accept initial user settings
-        accept_mate_settings:       '/v1/auth/accept_mate_settings',           // Accept AI provider settings
+        // REMOVED old placeholder consent endpoints from /auth/
+        // accept_settings:            '/v1/auth/accept_settings',                
+        // accept_mate_settings:       '/v1/auth/accept_mate_settings',           
     },
     chat: {
         sendMessage:                '/v1/chat/message',                         // Send a message to a chat (or create a new chat if it doesn't exist)
@@ -50,6 +50,9 @@ export const apiEndpoints = {
     settings: {
         user: {
             update_profile_image:   '/v1/settings/user/update_profile_image',   // Update profile image of user
+            // Add new consent endpoints under settings/user
+            consent_privacy_apps:   '/v1/settings/user/consent/privacy-apps',   // Record consent for privacy/apps settings
+            consent_mates:          '/v1/settings/user/consent/mates',          // Record consent for mates settings
         },
         software_update: {
             check:                  '/v1/settings/software_update/check',       // Check for software updates

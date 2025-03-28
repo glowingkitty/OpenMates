@@ -10,8 +10,8 @@
     import { loadMetaTags, getMetaTags } from '../config/meta';
     import { authStore } from '../stores/authStore';
     import { isInSignupProcess } from '../stores/signupState';
-    import { isSignupSettingsStep } from '../stores/signupState';
-    import { currentSignupStep } from '../stores/signupState';
+    import { isSignupSettingsStep } from '../stores/signupState'; // This seems unused now
+    import { currentSignupStep } from '../stores/signupState'; // This seems unused now
 
     // Type definition for footer links
     type FooterLink = {
@@ -235,12 +235,8 @@
         }
     };
 
-    // Show footer when not authenticated OR in signup steps 1-6
-    $: showFooter = !$authStore.isAuthenticated || 
-                   ($isInSignupProcess && $currentSignupStep < 7);
 </script>
 
-{#if showFooter}
 <footer>
     <div class="footer-content">
         <!-- Logo and Tagline Section -->
@@ -307,7 +303,6 @@
         </div>
     </div>
 </footer>
-{/if}
 
 <style>
     footer {

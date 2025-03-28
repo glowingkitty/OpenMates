@@ -10,3 +10,6 @@ class User(BaseModel):
     profile_image_url: Optional[str] = None
     tfa_app_name: Optional[str] = None
     last_opened: Optional[str] = None
+    # Consent fields (store timestamp as string)
+    consent_privacy_and_apps_default_settings: Optional[str] = None
+    consent_mates_default_settings: Optional[str] = None

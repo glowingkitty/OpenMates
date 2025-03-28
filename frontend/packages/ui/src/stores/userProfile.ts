@@ -9,6 +9,9 @@ export interface UserProfile {
   last_opened: string;
   tfaAppName: string | null;
   tfa_enabled: boolean; // Added field for 2FA status
+  // Use boolean flags received from backend
+  has_consent_privacy?: boolean; 
+  has_consent_mates?: boolean;
 }
 
 const defaultProfile: UserProfile = {
@@ -18,7 +21,10 @@ const defaultProfile: UserProfile = {
   isAdmin: false,
   last_opened: '',
   tfaAppName: null,
-  tfa_enabled: false // Added default value
+  tfa_enabled: false, // Added default value
+  // Add default values for boolean flags
+  has_consent_privacy: false,
+  has_consent_mates: false
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
@@ -26,71 +32,25 @@ export const userProfile = writable<UserProfile>(defaultProfile);
 // Load user profile data from IndexedDB on startup
 export async function loadUserProfileFromDB(): Promise<void> {
   try {
-    const profile = await userDB.getUserProfile();
+    // userDB.getUserProfile() now returns all necessary fields including consents, credits, isAdmin, etc.
+    const profileFromDB = await userDB.getUserProfile(); 
     
-    // Get additional user data
-    const credits = await userDB.getUserCredits();
-    
-    // Get isAdmin status - using a try/catch in case this field doesn't exist yet
-    let isAdmin = false;
-    try {
-      const transaction = userDB.db?.transaction([userDB.STORE_NAME], 'readonly');
-      if (transaction) {
-        const store = transaction.objectStore(userDB.STORE_NAME);
-        const request = store.get('isAdmin');
-        isAdmin = await new Promise((resolve) => {
-          request.onsuccess = () => resolve(!!request.result);
-          request.onerror = () => resolve(false);
-        });
-      }
-    } catch (error) {
-      console.warn('Could not load isAdmin status:', error);
-    }
-
-    // Get tfaAppName status - using a try/catch
-    let tfaAppName: string | null = null;
-    try {
-      const transaction = userDB.db?.transaction([userDB.STORE_NAME], 'readonly');
-      if (transaction) {
-        const store = transaction.objectStore(userDB.STORE_NAME);
-        const request = store.get('tfaAppName');
-        tfaAppName = await new Promise((resolve) => {
-          request.onsuccess = () => resolve(request.result || null); // Return null if not found
-          request.onerror = () => resolve(null); // Return null on error
-        });
-      }
-    } catch (error) {
-      console.warn('Could not load tfaAppName status:', error);
-    }
-
-    // Get tfa_enabled status - using a try/catch
-    let tfa_enabled: boolean = false;
-    try {
-      const transaction = userDB.db?.transaction([userDB.STORE_NAME], 'readonly');
-      if (transaction) {
-        const store = transaction.objectStore(userDB.STORE_NAME);
-        const request = store.get('tfa_enabled');
-        tfa_enabled = await new Promise((resolve) => {
-          request.onsuccess = () => resolve(!!request.result); // Return boolean
-          request.onerror = () => resolve(false); // Return false on error
-        });
-      }
-    } catch (error) {
-      console.warn('Could not load tfa_enabled status:', error);
-    }
-    
-    if (profile) {
+    if (profileFromDB) {
+      // Update the store with the comprehensive profile data from DB
       userProfile.update(currentProfile => ({
-        ...currentProfile,
-        ...profile,
-        credits,
-        isAdmin,
-        tfaAppName,
-        tfa_enabled // Add tfa_enabled to the update
+        ...currentProfile, // Keep any existing non-persistent state if needed
+        ...profileFromDB // Overwrite with fresh data from DB (includes consents)
       }));
+      console.debug("[UserProfileStore] Profile loaded from DB:", profileFromDB);
+    } else {
+      console.debug("[UserProfileStore] No profile found in DB, using default.");
+      // Optionally reset to default if no profile found, or keep current state
+      // userProfile.set(defaultProfile); 
     }
   } catch (error) {
     console.error('Failed to load user profile from database:', error);
+    // Consider resetting to default or handling the error appropriately
+    // userProfile.set(defaultProfile);
   }
 }
 

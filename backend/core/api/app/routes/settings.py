@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie,
 import logging
 import time
 from typing import Optional
+from pydantic import BaseModel # Import BaseModel for response model
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
@@ -78,23 +79,36 @@ async def get_current_user(
     )
     
     # Cache the user data for future requests using the enhanced cache service method
+    # Prepare standardized user data for cache
     user_data_for_cache = {
-        "user_id": user_id,
+        "user_id": user.id, # Use user.id here
         "username": user.username,
         "is_admin": user.is_admin,
         "credits": user.credits,
         "profile_image_url": user.profile_image_url,
+        "tfa_app_name": user.tfa_app_name, # Include tfa_app_name from User model
         "last_opened": user.last_opened,
-        "vault_key_id": user.vault_key_id # Add vault_key_id to cache
+        "vault_key_id": user.vault_key_id, # Add vault_key_id to cache
+        # Include consent timestamps from the User model
+        "consent_privacy_and_apps_default_settings": user.consent_privacy_and_apps_default_settings,
+        "consent_mates_default_settings": user.consent_mates_default_settings,
+        # Determine tfa_enabled based on whether encrypted_tfa_secret exists in the raw user_data
+        "tfa_enabled": bool(user_data.get("encrypted_tfa_secret")) if user_data else False
     }
     
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
     
     return user
 
-@router.post("/user/update_profile_image")
+# --- Define a simple success response model ---
+class SimpleSuccessResponse(BaseModel):
+    success: bool
+    message: str
+
+# --- Endpoint for updating profile image ---
+@router.post("/user/update_profile_image", response_model=dict) # Keep original response model
 async def update_profile_image(
-    request: Request,  # Add request parameter to get IP and fingerprint
+    request: Request,  # Keep request parameter for IP/fingerprint
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
 ):
@@ -225,3 +239,115 @@ async def update_profile_image(
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         raise HTTPException(status_code=500, detail="Error processing image")
+
+# --- Endpoint for Privacy & Apps Consent ---
+@router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse)
+async def record_privacy_apps_consent(
+    request: Request, # Add request parameter for compliance logging
+    current_user: User = Depends(get_current_user), # Use get_current_user dependency
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service) # Inject compliance service
+):
+    """Records the timestamp for privacy and apps settings consent."""
+    logger.info(f"Recording privacy/apps consent for user {current_user.id}")
+    current_timestamp_str = str(int(time.time()))
+    user_id = current_user.id
+    client_ip = get_client_ip(request) # Get client IP
+    
+    # Data to update
+    update_data = {
+        "consent_privacy_and_apps_default_settings": current_timestamp_str,
+        "last_opened": "/signup/step-8"
+    }
+    
+    try:
+        # Update Directus
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            logger.error(f"Failed to update Directus for privacy/apps consent for user {user_id}")
+            # NO compliance log for failure
+            raise HTTPException(status_code=500, detail="Failed to save consent")
+            
+        # Update Cache using user_id and the specific fields changed
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+            # Log warning, but don't fail the request as Directus was updated
+            logger.warning(f"Failed to update cache for user {user_id} after privacy/apps consent, but Directus was updated.")
+        else:
+            logger.info(f"Successfully updated cache for user {user_id} after privacy/apps consent.")
+
+        # Log compliance event success with correct event type
+        compliance_service.log_auth_event(
+            event_type="consent_privacy_and_apps_default_settings", # Use field name as event type
+            user_id=user_id, 
+            ip_address=client_ip, 
+            status="success", 
+            details={"timestamp": current_timestamp_str}
+        )
+
+        return SimpleSuccessResponse(success=True, message="Privacy and apps consent recorded")
+
+    except HTTPException as e:
+        # NO compliance log for failure
+        raise e
+    except Exception as e:
+        logger.error(f"Error recording privacy/apps consent for user {user_id}: {str(e)}")
+        # NO compliance log for failure
+        raise HTTPException(status_code=500, detail="An error occurred while saving consent")
+
+# --- Endpoint for Mates Settings Consent ---
+@router.post("/user/consent/mates", response_model=SimpleSuccessResponse)
+async def record_mates_consent(
+    request: Request, # Add request parameter for compliance logging
+    current_user: User = Depends(get_current_user), # Use get_current_user dependency
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service) # Inject compliance service
+):
+    """Records the timestamp for mates settings consent."""
+    logger.info(f"Recording mates consent for user {current_user.id}")
+    current_timestamp_str = str(int(time.time()))
+    user_id = current_user.id
+    client_ip = get_client_ip(request) # Get client IP
+    
+    # Data to update
+    update_data = {
+        "consent_mates_default_settings": current_timestamp_str,
+        "last_opened": "/signup/step-9"
+    }
+    
+    try:
+        # Update Directus
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            logger.error(f"Failed to update Directus for mates consent for user {user_id}")
+            # NO compliance log for failure
+            raise HTTPException(status_code=500, detail="Failed to save consent")
+            
+        # Update Cache using user_id and the specific fields changed
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+             # Log warning, but don't fail the request as Directus was updated
+            logger.warning(f"Failed to update cache for user {user_id} after mates consent, but Directus was updated.")
+        else:
+            logger.info(f"Successfully updated cache for user {user_id} after mates consent.")
+
+        # Log compliance event success with correct event type
+        compliance_service.log_auth_event(
+            event_type="consent_mates_default_settings", # Use field name as event type
+            user_id=user_id, 
+            ip_address=client_ip, 
+            status="success", 
+            details={"timestamp": current_timestamp_str}
+        )
+
+        return SimpleSuccessResponse(success=True, message="Mates consent recorded")
+
+    except HTTPException as e:
+        # NO compliance log for failure
+        raise e
+    except Exception as e:
+        logger.error(f"Error recording mates consent for user {user_id}: {str(e)}")
+        # NO compliance log for failure
+        raise HTTPException(status_code=500, detail="An error occurred while saving consent")

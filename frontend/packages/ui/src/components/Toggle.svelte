@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { createEventDispatcher } from 'svelte';
+
     // Props for the toggle component
     export let checked = false;  // Initial state
     export let disabled = false; // Optional disabled state
@@ -6,9 +8,13 @@
     export let ariaLabel = '';  // For accessibility
     export let id = '';         // Optional id for label association
 
+    const dispatch = createEventDispatcher();
+
     // Handle toggle change with proper event typing
     function handleChange(event: Event) {
         checked = (event.target as HTMLInputElement).checked;
+        // Dispatch the change event to the parent component
+        dispatch('change', { checked }); 
     }
 </script>
 

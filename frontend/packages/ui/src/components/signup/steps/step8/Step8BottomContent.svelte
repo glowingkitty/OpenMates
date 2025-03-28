@@ -42,23 +42,71 @@ step_8_bottom_content_svelte:
 
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { text } from '@repo/ui';
+    import { text } from '@repo/ui'; // Keep text import for now
+    import { userProfile } from '../../../../stores/userProfile'; // Corrected userProfile import path
+    // Removed updateProfile import, import API config instead
+    import { apiEndpoints, getApiEndpoint } from '../../../../config/api'; 
     import Toggle from '../../../Toggle.svelte';
+    import { _ } from 'svelte-i18n'; // For potential error messages
 
     const dispatch = createEventDispatcher();
-    let hasConfirmedSettings = false;
+    let isLoading = false; // To prevent multiple API calls
 
-    // Watch for changes to hasConfirmedSettings
-    $: if (hasConfirmedSettings) {
-        dispatch('step', { step: 9 });
+    // Update event type hint to CustomEvent and access detail.checked
+    async function handleConsentToggleChange(event: CustomEvent<{ checked: boolean }>) {
+        const isChecked = event.detail.checked;
+        
+        // Use has_consent_mates flag
+        if (isChecked && !isLoading && !$userProfile.has_consent_mates) { 
+            isLoading = true;
+            try {
+                // Use consent_mates endpoint
+                const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.consent_mates), { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    console.debug("Mates consent recorded successfully.");
+                    // Update local store state AFTER successful API call (optional, might be handled by authStore)
+                    // updateProfile({ has_consent_mates: true }); 
+                    dispatch('step', { step: 9 }); // Dispatch step 9
+                } else {
+                    console.error("Failed to record mates consent:", data.message || response.statusText);
+                    // Optionally show an error message to the user
+                }
+            } catch (error) {
+                console.error("Error calling mates consent API:", error);
+                // Optionally show an error message
+            } finally {
+                isLoading = false;
+            }
+        } else if (isChecked && $userProfile.has_consent_mates) {
+             // If already consented, just dispatch to next step immediately
+             dispatch('step', { step: 9 }); // Dispatch step 9
+        }
+        // If unchecked, do nothing (consent cannot be revoked here)
     }
-</script>
 
+</script>
+<!-- Bind toggle directly to store value for display, handle logic in on:change -->
 <div class="bottom-content">
     <div class="confirmation-row">
-        <Toggle bind:checked={hasConfirmedSettings} id="confirm-settings-toggle-step8" />
+        <Toggle 
+            checked={$userProfile.has_consent_mates || false} 
+            id="confirm-settings-toggle-step8" 
+            on:change={handleConsentToggleChange} 
+            disabled={isLoading || $userProfile.has_consent_mates} 
+        />
         <label for="confirm-settings-toggle-step8" class="confirmation-text">
-            {$text('signup.accept_settings.text')}
+            {$text('signup.accept_settings.text')} {isLoading ? $_('general.loading.text') : ''}
         </label>
     </div>
     <div class="click-toggle-text">

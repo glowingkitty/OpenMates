@@ -78,8 +78,10 @@ function createAuthStore() {
           try {
             await userDB.saveUserData(data.user);
             
-            // Extract tfa_enabled status
+            // Extract tfa_enabled status and consent flags
             const tfa_enabled = !!data.user.tfa_enabled;
+            const has_consent_privacy = !!data.user.has_consent_privacy;
+            const has_consent_mates = !!data.user.has_consent_mates;
 
             // Update the user profile store
             updateProfile({
@@ -89,7 +91,10 @@ function createAuthStore() {
               tfa_enabled: tfa_enabled, // Pass status
               credits: data.user.credits,
               isAdmin: data.user.is_admin,
-              last_opened: data.user.last_opened
+              last_opened: data.user.last_opened,
+              // Pass consent flags
+              has_consent_privacy: has_consent_privacy,
+              has_consent_mates: has_consent_mates
             });
           } catch (dbError) {
             console.error("Failed to save user data to database:", dbError);
@@ -229,13 +234,22 @@ function createAuthStore() {
             try {
               if (data.user) {
                 await userDB.saveUserData(data.user);
+                // Extract flags before updating profile store
+                const tfa_enabled = !!data.user.tfa_enabled; 
+                const has_consent_privacy = !!data.user.has_consent_privacy;
+                const has_consent_mates = !!data.user.has_consent_mates;
+                
                 updateProfile({
                   username: data.user.username,
                   profileImageUrl: data.user.profile_image_url,
                   tfaAppName: data.user.tfa_app_name,
+                  tfa_enabled: tfa_enabled, // Pass status
                   credits: data.user.credits,
                   isAdmin: data.user.is_admin,
-                  last_opened: data.user.last_opened
+                  last_opened: data.user.last_opened,
+                  // Pass consent flags
+                  has_consent_privacy: has_consent_privacy,
+                  has_consent_mates: has_consent_mates
                 });
               } else {
                  console.warn("Login successful but no user data received in response.");

@@ -1,5 +1,6 @@
 import type { User } from '../types/user';
-import type { UserProfile } from '../stores/userProfile';
+// Import UserProfile type which will include the new consent fields
+import type { UserProfile } from '../stores/userProfile'; 
 
 class UserDatabaseService {
     public db: IDBDatabase | null = null;
@@ -58,6 +59,9 @@ class UserDatabaseService {
              store.put(userData.credits || 0, 'credits');
              store.put(userData.tfaAppName || null, 'tfaAppName');
              store.put(!!userData.tfa_enabled, 'tfa_enabled'); // Store 2FA enabled status
+             // Use boolean flags from backend
+             store.put(!!userData.has_consent_privacy, 'has_consent_privacy');
+             store.put(!!userData.has_consent_mates, 'has_consent_mates');
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -91,6 +95,9 @@ class UserDatabaseService {
               const tfaAppNameRequest = store.get('tfaAppName');
               const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
               const lastOpenedRequest = store.get('last_opened'); // Get last_opened
+              // Add requests for boolean consent flags
+              const consentPrivacyRequest = store.get('has_consent_privacy');
+              const consentMatesRequest = store.get('has_consent_mates');
               
               let profile: UserProfile = {
                   username: '',
@@ -99,7 +106,10 @@ class UserDatabaseService {
                   isAdmin: false,
                   last_opened: '', // Initialize last_opened
                   tfaAppName: null,
-                  tfa_enabled: false // Initialize tfa_enabled
+                  tfa_enabled: false, // Initialize tfa_enabled
+                  // Initialize boolean flags
+                  has_consent_privacy: false,
+                  has_consent_mates: false
               };
 
               usernameRequest.onsuccess = () => {
@@ -128,6 +138,14 @@ class UserDatabaseService {
 
               lastOpenedRequest.onsuccess = () => { // Handle last_opened retrieval
                   profile.last_opened = lastOpenedRequest.result || '';
+              };
+
+              // Handle boolean flag retrieval
+              consentPrivacyRequest.onsuccess = () => {
+                  profile.has_consent_privacy = !!consentPrivacyRequest.result;
+              };
+              consentMatesRequest.onsuccess = () => {
+                  profile.has_consent_mates = !!consentMatesRequest.result;
               };
 
               transaction.oncomplete = () => {
@@ -307,6 +325,14 @@ class UserDatabaseService {
 
              if (partialData.tfa_enabled !== undefined) { // Handle tfa_enabled update
                  store.put(!!partialData.tfa_enabled, 'tfa_enabled');
+             }
+
+             // Handle boolean flag updates
+             if (partialData.has_consent_privacy !== undefined) {
+                 store.put(!!partialData.has_consent_privacy, 'has_consent_privacy');
+             }
+             if (partialData.has_consent_mates !== undefined) {
+                 store.put(!!partialData.has_consent_mates, 'has_consent_mates');
              }
              
              transaction.oncomplete = () => {

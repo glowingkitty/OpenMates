@@ -152,7 +152,8 @@
         const newStep = event.detail.step;
         direction = newStep > currentStep ? 'forward' : 'backward';
         previousStep = currentStep;
-        currentStep = newStep;
+        currentStep = newStep; // Update local step
+        currentSignupStep.set(newStep); // Update the global store
         
         // If credits amount is provided (from step 9 to 10), store it
         if (event.detail.credits_amount !== undefined) {

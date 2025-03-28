@@ -79,3 +79,13 @@ directus_users:
       type: string
       length: 256
       note: "Timestamp of when the user consented to store 2FA safely"
+
+    consent_privacy_and_apps_default_settings:
+      type: string
+      length: 256
+      note: "Timestamp of when the user consented to default privacy and app settings"
+
+    consent_mates_default_settings:
+      type: string
+      length: 256
+      note: "Timestamp of when the user consented to default mates settings"
