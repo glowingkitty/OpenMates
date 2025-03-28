@@ -11,6 +11,15 @@ interface AuthState {
   isInitialized: boolean;
 }
 
+// Define return type for the login function
+interface LoginResult {
+  success: boolean;
+  tfa_required: boolean;
+  message?: string;
+  tfa_app_name?: string | null;
+  inSignupFlow?: boolean;
+}
+
 // Create the initial state
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -153,10 +162,20 @@ function createAuthStore() {
       }
     },
     
-    // Login the user
-    login: async (email: string, password: string) => {
+    // Login the user - updated for 2FA flow
+    login: async (email: string, password: string, tfaCode?: string): Promise<LoginResult> => { // Add tfaCode param and return type
       try {
-        console.debug("Attempting login...");
+        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode})`);
+        
+        // Construct request body
+        const requestBody: any = {
+          email: email.trim(),
+          password: password
+        };
+        if (tfaCode) {
+          requestBody.tfa_code = tfaCode;
+        }
+        
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
           method: 'POST',
           headers: {
@@ -164,67 +183,84 @@ function createAuthStore() {
             'Accept': 'application/json',
             'Origin': window.location.origin
           },
-          body: JSON.stringify({
-            email: email.trim(),
-            password: password
-          }),
+          body: JSON.stringify(requestBody), // Use constructed body
           credentials: 'include'
         });
 
         if (response.status === 429) {
-          return { success: false, message: "Too many login attempts. Please try again later." };
+           // Rate limited - Ensure return type matches LoginResult
+          return { success: false, tfa_required: !!tfaCode, message: "Too many login attempts. Please try again later." };
         }
 
-        const data = await response.json();
-        console.debug("Login response:", data);
+        const data = await response.json(); // Assuming backend returns fields matching LoginResponse schema
+        console.debug("Login response data:", data);
 
-        if (!response.ok) {
-          return { success: false, message: data.message || "Login failed" };
-        }
-
-        if (data.success && data.user) {
-          const inSignupFlow = data.user.last_opened?.startsWith('/signup/');
-          
-          // Check if user is in signup process
-          if (inSignupFlow) {
-            console.debug("User is in signup process:", data.user.last_opened);
-            const step = getStepFromPath(data.user.last_opened);
-            currentSignupStep.set(step);
-            isInSignupProcess.set(true);
+        // Handle different scenarios based on response
+        if (data.success) {
+          if (data.tfa_required) {
+            // Scenario: Password OK, but 2FA code needed (first step)
+            console.debug("Login step 1 successful, 2FA required.");
+             // Ensure return type matches LoginResult
+            return { 
+              success: true, 
+              tfa_required: true, 
+              tfa_app_name: data.user?.tfa_app_name // Pass app name if available
+            };
           } else {
-            isInSignupProcess.set(false);
-          }
-          
-          update(state => ({
-            ...state,
-            isAuthenticated: true,
-            isInitialized: true
-          }));
-          
-          // Save the user data to IndexedDB
-          try {
-            await userDB.saveUserData(data.user);
+            // Scenario: Full success (either no 2FA, or 2FA code was provided and valid)
+            console.debug("Login fully successful.");
+            const inSignupFlow = data.user?.last_opened?.startsWith('/signup/');
             
-            // Update the user profile store
-            updateProfile({
-              username: data.user.username,
-              profileImageUrl: data.user.profile_image_url,
-              tfaAppName: data.user.tfa_app_name,
-              credits: data.user.credits,
-              isAdmin: data.user.is_admin,
-              last_opened: data.user.last_opened
-            });
-          } catch (dbError) {
-            console.error("Failed to save user data to database:", dbError);
+            if (inSignupFlow) {
+              console.debug("User is in signup process:", data.user.last_opened);
+              const step = getStepFromPath(data.user.last_opened);
+              currentSignupStep.set(step);
+              isInSignupProcess.set(true);
+            } else {
+              isInSignupProcess.set(false);
+            }
+            
+            update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
+            
+            try {
+              if (data.user) {
+                await userDB.saveUserData(data.user);
+                updateProfile({
+                  username: data.user.username,
+                  profileImageUrl: data.user.profile_image_url,
+                  tfaAppName: data.user.tfa_app_name,
+                  credits: data.user.credits,
+                  isAdmin: data.user.is_admin,
+                  last_opened: data.user.last_opened
+                });
+              } else {
+                 console.warn("Login successful but no user data received in response.");
+              }
+            } catch (dbError) {
+              console.error("Failed to save user data to database:", dbError);
+            }
+            
+             // Ensure return type matches LoginResult
+            return { success: true, tfa_required: false, inSignupFlow };
           }
-          
-          return { success: true, inSignupFlow };
         } else {
-          return { success: false, message: data.message || "Login failed" };
+          // Scenario: Login failed
+          if (data.tfa_required) {
+            // Specific failure: Invalid 2FA code provided
+            console.warn("Login failed: Invalid 2FA code.");
+             // Ensure return type matches LoginResult
+            return { success: false, tfa_required: true, message: data.message || "Invalid 2FA code" };
+          } else {
+            // General failure (e.g., invalid password)
+            console.warn("Login failed:", data.message);
+             // Ensure return type matches LoginResult
+            return { success: false, tfa_required: false, message: data.message || "Login failed" };
+          }
         }
       } catch (error) {
-        console.error("Login error:", error);
-        return { success: false, message: "An error occurred during login" };
+        console.error("Login fetch/network error:", error);
+         // Ensure return type matches LoginResult
+        return { success: false, tfa_required: false, message: "An error occurred during login" };
       }
     },
     

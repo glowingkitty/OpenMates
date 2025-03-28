@@ -394,12 +394,7 @@ class EncryptionService:
         # Add context for derived keys
         if context:
             payload["context"] = context
-            
-        # Log details before making the Vault encryption request
-        logger.info(f"[Debug Vault Encrypt] Requesting encryption for key_name: {key_name}")
-        logger.info(f"[Debug Vault Encrypt] Using context: {context}")
-        logger.info(f"[Debug Vault Encrypt] Plaintext (encoded): {payload.get('plaintext')}") # Log encoded plaintext
-        
+
         try:
             result = await self._vault_request("post", path, payload)
             ciphertext = result["data"]["ciphertext"]

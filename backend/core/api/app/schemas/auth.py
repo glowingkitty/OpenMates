@@ -39,12 +39,18 @@ class LoginRequest(BaseModel):
     """Schema for login request"""
     email: EmailStr = Field(..., description="User's email address")
     password: str = Field(..., description="User's password")
+    tfa_code: Optional[str] = Field(None, description="Optional 2FA code for verification step")
     
     class Config:
         schema_extra = {
-            "example": {
+            "example_no_tfa": {
                 "email": "user@example.com",
                 "password": "securePassword123!"
+            },
+            "example_with_tfa": {
+                "email": "user@example.com",
+                "password": "securePassword123!",
+                "tfa_code": "123456"
             }
         }
 
@@ -52,7 +58,9 @@ class LoginResponse(BaseModel):
     """Schema for login response"""
     success: bool = Field(..., description="Whether the login was successful")
     message: str = Field(..., description="Response message")
-    user: Optional[UserResponse] = None
+    user: Optional[UserResponse] = None  # User data is returned only on full success (no 2FA needed or 2FA verified)
+    tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
+    # tfa_cache_key: Optional[str] = Field(None, description="Temporary key for linking 2FA verification step") # Removed as per revised plan
     
     class Config:
         json_schema_extra = {
@@ -64,8 +72,23 @@ class LoginResponse(BaseModel):
                     "is_admin": False,
                     "credits": 100,
                     "profile_image_url": None,
-                    "tfa_app_name": None,
-                    "last_opened": "/signup/step-3"
+                    "tfa_app_name": "Google Authenticator", # Example if 2FA is setup
+                    "last_opened": "/app/dashboard"
+                },
+                # Example when 2FA is required (first step)
+                "example_tfa_required": {
+                    "success": True,
+                    "message": "2FA required",
+                    "user": { # Only include minimal info needed for 2FA step, like app name
+                        "username": None, 
+                        "is_admin": None,
+                        "credits": None,
+                        "profile_image_url": None,
+                        "tfa_app_name": "Google Authenticator",
+                        "last_opened": None
+                    },
+                    "tfa_required": True
+                    # "tfa_cache_key": "login_tfa_pending:abc123xyz" # Removed as per revised plan
                 }
             }
         }

@@ -226,8 +226,17 @@ async def verify_2fa_code(
         # Current timestamp for tfa_last_used
         current_time = int(time.time())
         
-        # Encrypt the 2FA secret for storage
-        encrypted_secret, _ = await encryption_service.encrypt(secret)
+        # Get vault_key_id for user-specific encryption
+        vault_key_id = user_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID not found for user {user_id} during 2FA verification/setup.")
+            return Verify2FACodeResponse(success=False, message="Encryption key not found for user")
+
+        # Encrypt the 2FA secret for storage using the user's key
+        encrypted_secret, _ = await encryption_service.encrypt_with_user_key(secret, vault_key_id)
+        if not encrypted_secret:
+             logger.error(f"Failed to encrypt 2FA secret for user {user_id}.")
+             return Verify2FACodeResponse(success=False, message="Failed to secure 2FA secret")
         
         # Check if this is part of signup (not login)
         is_signup = user_data.get("last_opened", "").startswith("/signup")

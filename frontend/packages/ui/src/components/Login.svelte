@@ -10,6 +10,7 @@
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
+    import Login2FA from './Login2FA.svelte'; // Import Login2FA component
     import { userProfile } from '../stores/userProfile';
     
     const dispatch = createEventDispatcher();
@@ -18,6 +19,9 @@
     let email = '';
     let password = '';
     let isLoading = false;
+    let showTfaView = false; // State to control 2FA view visibility
+    let tfaAppName: string | null = null; // State to store 2FA app name
+    let tfaErrorMessage: string | null = null; // State for 2FA error messages
 
     // Add state for mobile view
     let isMobile = false;
@@ -317,46 +321,98 @@
         loginFailedWarning = false;
 
         try {
-            // Use the unified authStore for login
+            // Use the unified authStore for login (first step, no TFA code)
             const result = await authStore.login(email, password);
-
-            if (!result.success) {
-                loginFailedWarning = true;
-                return;
-            }
-
-            // Clear the form fields after successful login
-            email = '';
-            password = '';
-
-            console.debug('Login successful');
             
-            // Check if we need to switch to signup flow
-            if (result.inSignupFlow) {
-                console.debug('User is in signup process, switching to signup view');
-                currentView = 'signup';
-                // Wait for the next tick to ensure components are updated
-                await tick();
+            if (result.success && result.tfa_required) {
+                // Password OK, 2FA required - switch to 2FA view
+                console.debug("Switching to 2FA view");
+                tfaAppName = result.tfa_app_name || null;
+                tfaErrorMessage = null; // Clear previous errors
+                showTfaView = true;
+            } else if (result.success && !result.tfa_required) {
+                // Full login success (no 2FA or 2FA already handled - though shouldn't happen here)
+                console.debug('Login successful (no 2FA required or already handled)');
+                // Clear the form fields after successful login
+                email = '';
+                password = '';
+                showTfaView = false; // Ensure 2FA view is hidden
+                
+                dispatch('loginSuccess', { 
+                    user: $userProfile, 
+                    isMobile,
+                    inSignupFlow: result.inSignupFlow 
+                });
+            } else {
+                // Login failed (invalid email/password)
+                console.warn("Login failed:", result.message);
+                loginFailedWarning = true; // Show general login failed warning
+                showTfaView = false; // Ensure 2FA view is hidden
             }
-            
-            dispatch('loginSuccess', { 
-                user: $userProfile,  // Changed from $authStore.user to $userProfile
-                isMobile,
-                inSignupFlow: result.inSignupFlow
-            });
         } catch (error) {
-            console.error('Login error details:', error);
-            loginFailedWarning = true;
+            console.error('Login handleSubmit error:', error);
+            loginFailedWarning = true; // Show general login failed warning
+            showTfaView = false; // Ensure 2FA view is hidden
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    // Handler for 2FA code submission from Login2FA component
+    async function handleTfaSubmit(event: CustomEvent<{ otpCode: string }>) {
+        const otpCode = event.detail.otpCode;
+        isLoading = true;
+        tfaErrorMessage = null; // Clear previous error
+
+        try {
+            console.debug("Submitting login with TFA code...");
+            // Call login again, this time with the TFA code
+            const result = await authStore.login(email, password, otpCode);
+
+            if (result.success && !result.tfa_required) {
+                // Full login success after 2FA
+                console.debug('Login successful after 2FA verification');
+                email = ''; // Clear credentials
+                password = '';
+                showTfaView = false; // Hide 2FA view
+                
+                dispatch('loginSuccess', { 
+                    user: $userProfile, 
+                    isMobile,
+                    inSignupFlow: result.inSignupFlow 
+                });
+            } else if (!result.success && result.tfa_required) {
+                // Invalid 2FA code
+                console.warn("Invalid 2FA code submitted");
+                tfaErrorMessage = result.message || "Invalid 2FA code";
+            } else {
+                // Other unexpected error during 2FA step
+                console.error("Unexpected error during 2FA submission:", result.message);
+                tfaErrorMessage = result.message || "An unexpected error occurred.";
+            }
+        } catch (error) {
+            console.error('handleTfaSubmit error:', error);
+            tfaErrorMessage = "An error occurred during 2FA verification.";
         } finally {
             isLoading = false;
         }
     }
 
     // Strengthen the reactive statement to switch views when in signup process
+    // Also reset showTfaView if user logs out or switches to signup
+    // Reset 2FA view if switching away from login or logging out
+    $: {
+        if (currentView !== 'login' || !$authStore.isAuthenticated) {
+            showTfaView = false;
+            tfaErrorMessage = null;
+        }
+    }
+    
     $: {
         if ($authStore.isAuthenticated && $isInSignupProcess) {
-            console.debug("Detected signup process, switching to signup view");
+            console.debug("Detected authenticated user in signup process, switching to signup view");
             currentView = 'signup';
+            showTfaView = false; // Ensure 2FA view is hidden if switching
         }
     }
 
@@ -365,11 +421,15 @@
         if ($authStore.isAuthenticated && $isInSignupProcess) {
             console.debug("Detected signup process, switching to signup view");
             currentView = 'signup';
+            showTfaView = false; // Ensure 2FA view is hidden
         } else if (!$authStore.isAuthenticated) {
-            // Force view to login when logged out
-            currentView = 'login';
+            // Force view to login when logged out, ONLY IF NOT in signup process
+            if (currentView !== 'login' && !$isInSignupProcess) { // Only switch if not already login and not starting signup
+               currentView = 'login';
+            }
+            showTfaView = false; // Ensure 2FA view is hidden on logout
             
-            // Check for account deletion (either from storage or from event)
+             // Check for account deletion (either from storage or from event)
             if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
                 console.debug("Account deleted, showing deletion message");
                 isAccountDeleted = true;
@@ -414,7 +474,17 @@
                         <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
 
                         <div class="form-container">
-                            {#if isRateLimited}
+                            {#if showTfaView}
+                                <!-- Show 2FA Input Component -->
+                                <div in:fade={{ duration: 200 }}>
+                                    <Login2FA 
+                                        selectedAppName={tfaAppName} 
+                                        on:submitTfa={handleTfaSubmit}
+                                        bind:isLoading 
+                                        errorMessage={tfaErrorMessage} 
+                                    />
+                                </div>
+                            {:else if isRateLimited}
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
                                     {$text('signup.too_many_requests.text')}
                                 </div>
@@ -423,32 +493,33 @@
                                     <p>{@html $text('login.loading.text')}</p>
                                 </div>
                             {:else}
+                                <!-- Show Standard Login Form -->
                                 <form 
                                     on:submit|preventDefault={handleSubmit} 
                                     class:visible={showForm}
-                                    class:hidden={!showForm}
+                                    class:hidden={!showForm} 
                                 >
                                     <div class="input-group">
                                         <div class="input-wrapper">
                                             <span class="clickable-icon icon_mail"></span>
                                             <input 
-                                                type="email"
+                                                type="email" 
                                                 bind:value={email}
-                                                placeholder={$text('login.email_placeholder.text')}
-                                                required
-                                                autocomplete="email"
-                                                bind:this={emailInput}
-                                                class:error={!!emailError || loginFailedWarning}
+                                                placeholder={$text('login.email_placeholder.text')} 
+                                                required 
+                                                autocomplete="email" 
+                                                bind:this={emailInput} 
+                                                class:error={!!emailError || loginFailedWarning} 
                                             />
                                             {#if showEmailWarning && emailError}
                                                 <InputWarning 
-                                                    message={emailError}
-                                                    target={emailInput}
+                                                    message={emailError} 
+                                                    target={emailInput} 
                                                 />
                                             {:else if loginFailedWarning}
                                                 <InputWarning 
-                                                    message={$text('login.login_failed.text')}
-                                                    target={emailInput}
+                                                    message={$text('login.login_failed.text')} 
+                                                    target={emailInput} 
                                                 />
                                             {/if}
                                         </div>
@@ -458,11 +529,11 @@
                                         <div class="input-wrapper">
                                             <span class="clickable-icon icon_secret"></span>
                                             <input 
-                                                type="password"
-                                                bind:value={password}
-                                                placeholder={$text('login.password_placeholder.text')}
-                                                required
-                                                autocomplete="current-password"
+                                                type="password" 
+                                                bind:value={password} 
+                                                placeholder={$text('login.password_placeholder.text')} 
+                                                required 
+                                                autocomplete="current-password" 
                                             />
                                         </div>
                                     </div>
@@ -470,7 +541,7 @@
                                     <button 
                                         type="submit" 
                                         class="login-button" 
-                                        disabled={isLoading || !isFormValid}
+                                        disabled={isLoading || !isFormValid} 
                                     >
                                         {#if isLoading}
                                             <span class="loading-spinner"></span>
@@ -479,21 +550,25 @@
                                         {/if}
                                     </button>
                                 </form>
-                            {/if}
-                        </div>
-                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
-                            <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
-                            <button class="text-button" on:click={switchToSignup}>
-                                {$text('login.click_here_to_create_a_new_account.text')}
-                            </button>
-                        </div>
-                    </div>
-                {:else}
+                            {/if} <!-- End standard login form / rate limit / loading block -->
+                        </div> <!-- End form-container -->
+                        
+                        {#if !showTfaView} <!-- Only show signup link if not in 2FA view -->
+                            <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
+                                <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
+                                <button class="text-button" on:click={switchToSignup}>
+                                    {$text('login.click_here_to_create_a_new_account.text')}
+                                </button>
+                            </div>
+                        {/if}
+                    </div> <!-- End content-area for login view -->
+                {:else} <!-- Handles currentView !== 'login' -->
                     <div in:fade={{ duration: 200 }}>
                         <Signup on:switchToLogin={switchToLogin} />
+                        <!-- Removed stray </button> here -->
                     </div>
-                {/if}
-            </div>
+                {/if} <!-- This closes the main #if / :else if / :else block -->
+            </div> <!-- End login-box -->
         </div>
 
         {#if showDesktopGrids && gridsReady}

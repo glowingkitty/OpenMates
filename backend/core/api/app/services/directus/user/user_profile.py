@@ -56,10 +56,11 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
+            "encrypted_tfa_secret": user_data.get("encrypted_tfa_secret"), # Fetch the encrypted secret
             "encrypted_settings": user_data.get("encrypted_settings"),
         }
 
-        # Decrypt fields that are safe to cache and commonly needed
+        # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)
         try:
             # Add debug logs for each decryption attempt
             for field, encrypted_field in [

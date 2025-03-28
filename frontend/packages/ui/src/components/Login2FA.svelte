@@ -83,29 +83,35 @@ login_2fa_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte'; // Import createEventDispatcher
     import { tfaAppIcons } from '../config/tfa';
+    import InputWarning from './common/InputWarning.svelte'; // Import for error display
 
     export let previewMode = false;
     export let previewTfaAppName = 'Google Authenticator';
     export let highlight: (
-        'check-2fa'|
-        'app-name' |
-        'input-area' |
-        'login-btn' |
+        'check-2fa' |
+        'app-name' | 
+        'input-area' | 
+        'login-btn' | 
         'enter-backup-code'
     )[] = [];
 
     // Add a new prop to receive the selected app name
     export let selectedAppName: string | null = null;
+    // Add props for binding isLoading and displaying errors
+    export let isLoading = false; 
+    export let errorMessage: string | null = null;
 
-    const tfaAppName = previewMode ? previewTfaAppName : ''; // In real mode, this would be loaded from server
+    const dispatch = createEventDispatcher(); // Create dispatcher
+
+    const tfaAppName = previewMode ? previewTfaAppName : (selectedAppName || ''); // Use selectedAppName if provided
     let otpCode = '';
     let otpInput: HTMLInputElement;
-    let isLoading = false;
+    // let isLoading = false; // isLoading is now bound from parent
     let currentAppIndex = 0;
     let animationInterval: number | null = null;
-    let currentDisplayedApp = previewTfaAppName;
+    let currentDisplayedApp = previewMode ? previewTfaAppName : (selectedAppName || ''); // Initialize with selectedAppName
 
     // Get list of app names for animation
     const appNames = Object.keys(tfaAppIcons);
@@ -125,24 +131,22 @@ login_2fa_svelte:
                 currentDisplayedApp = appNames[currentAppIndex];
             }, 4000); // Change every 4 seconds
         } else {
-            currentDisplayedApp = tfaAppName;
+            // Use selectedAppName if available, otherwise default to empty or preview
+            currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
         }
     }
 
-    // Start animation in preview mode
+    // Start animation in preview mode if no app name is selected
     onMount(() => {
-        if (previewMode) {
+        // Only start animation in preview mode AND if no specific app is selected
+        if (previewMode && !selectedAppName) {
             animationInterval = setInterval(() => {
                 currentAppIndex = (currentAppIndex + 1) % appNames.length;
                 currentDisplayedApp = appNames[currentAppIndex];
             }, 4000); // Change every 4 seconds
         } else {
-            currentDisplayedApp = tfaAppName;
-        }
-
-        // Clear interval if selectedAppName is provided
-        if (selectedAppName && animationInterval) {
-            clearInterval(animationInterval);
+            // If not preview or an app is selected, display the correct app name
+            currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
         }
     });
 
@@ -155,32 +159,37 @@ login_2fa_svelte:
 
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
-        otpCode = input.value.replace(/\D/g, '').slice(0, 6);
+        // Allow only digits and limit length
+        otpCode = input.value.replace(/\D/g, '').slice(0, 6); 
+        input.value = otpCode; // Ensure input reflects sanitized value
 
-        if (otpCode.length === 6) {
-            // OTP code entered
-        }
-
-        // Check if the input matches any available app name
-        const exactMatch = appNames.find(app => app.toLowerCase() === otpCode.toLowerCase());
-        if (exactMatch) {
-            currentDisplayedApp = exactMatch;
-            if (animationInterval) clearInterval(animationInterval);
-        } else if (otpCode.length >= 3) {
-            currentDisplayedApp = otpCode; // Show the text content of the input if length is at least 3 characters
-            if (!animationInterval && previewMode) {
-                animationInterval = setInterval(() => {
-                    currentAppIndex = (currentAppIndex + 1) % appNames.length;
-                    currentDisplayedApp = appNames[currentAppIndex];
-                }, 4000); // Change every 4 seconds
-            }
-        } else if (!animationInterval && previewMode) {
-            animationInterval = setInterval(() => {
-                currentAppIndex = (currentAppIndex + 1) % appNames.length;
-                currentDisplayedApp = appNames[currentAppIndex];
-            }, 4000); // Change every 4 seconds
-        }
+        // Optionally auto-submit when 6 digits are entered
+        // if (otpCode.length === 6) {
+        //     handleSubmit();
+        // }
     }
+
+    function handleSubmit() {
+        if (isLoading || otpCode.length !== 6) return; // Prevent submit if loading or code incomplete
+        dispatch('submitTfa', { otpCode });
+    }
+
+    // Clear error message when user starts typing again
+    $: if (otpCode) {
+        errorMessage = null;
+    }
+
+    // Focus input on mount if not preview mode
+    onMount(() => {
+        if (!previewMode && otpInput) {
+            otpInput.focus();
+        }
+        // Animation logic moved to separate onMount above
+    });
+
+    // Reactive statement for currentDisplayedApp based on selectedAppName
+    $: currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
+
 </script>
 
 <div class="login-2fa {selectedAppName ? 'no-animation' : ''}" class:preview={previewMode}>
@@ -203,20 +212,30 @@ login_2fa_svelte:
             <input
                 bind:this={otpInput}
                 type="text"
+                pattern="[0-9]*"
                 bind:value={otpCode}
                 on:input={handleInput}
                 placeholder={$text('signup.enter_one_time_code.text')}
                 inputmode="numeric"
                 maxlength="6"
+                autocomplete="one-time-code"
+                class:error={!!errorMessage}
             />
+             {#if errorMessage}
+                <InputWarning 
+                    message={errorMessage} 
+                    target={otpInput} 
+                />
+            {/if}
         </div>
     </div>
     <button 
         type="submit" 
         id="login-btn"
         class="login-button"
-        disabled={isLoading}
+        disabled={isLoading || otpCode.length !== 6}
         style={getStyle('login-btn')}
+        on:click={handleSubmit}
     >
         {#if isLoading}
             <span class="loading-spinner"></span>
