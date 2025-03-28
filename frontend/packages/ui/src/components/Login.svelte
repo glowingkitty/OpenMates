@@ -180,6 +180,13 @@
     
     // Improve switchToSignup function to reset the signup step and ensure state changes are coordinated
     async function switchToSignup() {
+        // Clear login and 2FA state before switching view
+        email = '';
+        password = '';
+        showTfaView = false;
+        tfaErrorMessage = null;
+        loginFailedWarning = false; // Also clear general login errors
+
         // Reset the signup step to 1 when starting a new signup process
         currentSignupStep.set(1);
         
@@ -357,6 +364,21 @@
             isLoading = false;
         }
     }
+
+    // Handler to switch back from 2FA view to standard login
+    function handleSwitchBackToLogin() {
+        showTfaView = false;
+        email = ''; // Clear email
+        password = ''; // Clear password
+        tfaErrorMessage = null; // Clear 2FA errors
+        loginFailedWarning = false; // Clear general login errors
+        // Optionally focus email input after a tick if not touch
+        tick().then(() => {
+            if (emailInput && !isTouchDevice) {
+                emailInput.focus();
+            }
+        });
+    }
     
     // Handler for 2FA code submission from Login2FA component
     async function handleTfaSubmit(event: CustomEvent<{ otpCode: string }>) {
@@ -480,6 +502,7 @@
                                     <Login2FA 
                                         selectedAppName={tfaAppName} 
                                         on:submitTfa={handleTfaSubmit}
+                                        on:switchToLogin={handleSwitchBackToLogin}
                                         bind:isLoading 
                                         errorMessage={tfaErrorMessage} 
                                     />
@@ -552,15 +575,14 @@
                                 </form>
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
-                        
-                        {#if !showTfaView} <!-- Only show signup link if not in 2FA view -->
-                            <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
-                                <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
-                                <button class="text-button" on:click={switchToSignup}>
-                                    {$text('login.click_here_to_create_a_new_account.text')}
-                                </button>
-                            </div>
-                        {/if}
+
+                        <!-- Always show signup link when in login view -->
+                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
+                            <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
+                            <button class="text-button" on:click={switchToSignup}>
+                                {$text('login.click_here_to_create_a_new_account.text')}
+                            </button>
+                        </div>
                     </div> <!-- End content-area for login view -->
                 {:else} <!-- Handles currentView !== 'login' -->
                     <div in:fade={{ duration: 200 }}>

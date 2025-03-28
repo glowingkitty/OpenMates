@@ -157,6 +157,11 @@ login_2fa_svelte:
     // Helper function to generate opacity style
     $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
 
+    // Function to dispatch event to switch back to login
+    function handleSwitchToLogin() {
+        dispatch('switchToLogin');
+    }
+
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
         // Allow only digits and limit length
@@ -164,9 +169,9 @@ login_2fa_svelte:
         input.value = otpCode; // Ensure input reflects sanitized value
 
         // Optionally auto-submit when 6 digits are entered
-        // if (otpCode.length === 6) {
-        //     handleSubmit();
-        // }
+        if (otpCode.length === 6) {
+            handleSubmit();
+        }
     }
 
     function handleSubmit() {
@@ -229,23 +234,15 @@ login_2fa_svelte:
             {/if}
         </div>
     </div>
-    <button 
-        type="submit" 
-        id="login-btn"
-        class="login-button"
-        disabled={isLoading || otpCode.length !== 6}
-        style={getStyle('login-btn')}
-        on:click={handleSubmit}
-    >
-        {#if isLoading}
-            <span class="loading-spinner"></span>
-        {:else}
-            {$text('login.login_button.text')}
-        {/if}
-    </button>
+    
     <div id="enter-backup-code" class="enter-backup-code">
         <a href="" target="_blank" class="text-button">
             {$text('login.enter_backup_code.text')}
+        </a>
+    </div>
+    <div class="switch-account">
+        <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
+            {$text('login.login_with_another_account.text')}
         </a>
     </div>
 </div>
@@ -281,6 +278,10 @@ login_2fa_svelte:
 
     .enter-backup-code {
         margin-top: 20px;
+    }
+
+    .switch-account {
+        margin-top: 10px; /* Add some space above the new link */
     }
 
     .mini-icon {
