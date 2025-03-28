@@ -50,7 +50,6 @@ step_8_top_content_svelte:
     import { settingsMenuVisible } from '../../../Settings.svelte';
     import SettingsItem from '../../../SettingsItem.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
-    import { isMobileView } from '../../../Settings.svelte';
     
     // Track toggle states for the settings items
     let matesToggleOn = true;
@@ -108,8 +107,8 @@ step_8_top_content_svelte:
     
     // Provider data
     const providers = [
-        { name: "Google", region: "EU", serverProvider: "Google" },
-        { name: "Anthropic", region: "EU", serverProvider: "Google" }
+        { name: "Mistral", company_region: "EU", server_region: "EU" },
+        { name: "Google", company_region: "US", server_region: "EU" }
     ];
 </script>
 
@@ -159,10 +158,10 @@ step_8_top_content_svelte:
                     type="nested"
                     icon={`provider-${provider.name.toLowerCase()}`}
                     title={provider.name}
-                    subtitleBottom={$text('signup.via_server.text', { 
+                    subtitleBottom={$text('signup.location_company_server.text', { 
                         values: { 
-                            region: provider.region, 
-                            server_provider: provider.serverProvider 
+                            company_region: provider.company_region, 
+                            server_region: provider.server_region 
                         } 
                     })}
                 />

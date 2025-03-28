@@ -277,6 +277,7 @@
     --icon-url-dropdown: url('@openmates/ui/static/icons/dropdown.svg');
     --icon-url-dummyqr: url('@openmates/ui/static/icons/dummyqr.svg');
     --icon-url-eu: url('@openmates/ui/static/icons/eu.svg');
+    --icon-url-eu: url('@openmates/ui/static/icons/us.svg');
     --icon-url-event: url('@openmates/ui/static/icons/event.svg');
     --icon-url-fashion: url('@openmates/ui/static/icons/fashion.svg');
     --icon-url-files: url('@openmates/ui/static/icons/files.svg');

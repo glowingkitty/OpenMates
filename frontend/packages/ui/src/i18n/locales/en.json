@@ -648,9 +648,9 @@
             "text": "AI providers",
             "context": "for confirming the default AI provider"
         },
-        "via_server": {
-            "text": "via {region} server by {server_provider}",
-            "context": "Used in 'via EU server by Google'"
+        "location_company_server": {
+            "text": "{company_region} company, {server_region} server",
+            "context": "Used in 'US company, EU server'"
         },
         "all_ai_models_make_mistakes": {
             "text": "Keep in mind, all AI models make mistakes. So always fact check responses.",

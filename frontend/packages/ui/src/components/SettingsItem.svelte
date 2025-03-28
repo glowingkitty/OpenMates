@@ -232,7 +232,7 @@ A settingsitem can have any of these things:
                     
                     <!-- Bottom subtitle if present -->
                     {#if subtitleBottom}
-                        <div class="subtitle subtitle-bottom">{translatedSubtitleBottom}</div>
+                        <div class="subtitle subtitle-bottom">{@html translatedSubtitleBottom}</div>
                     {/if}
                     
                     <!-- Credits display if enabled -->

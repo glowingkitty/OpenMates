@@ -2138,10 +2138,10 @@
             "en_original": "AI providers",
             "context": "for confirming the default AI provider"
         },
-        "via_server": {
-            "text": "通过 {server_provider} 的 {region} 服务器",
-            "en_original": "via {region} server by {server_provider}",
-            "context": "Used in 'via EU server by Google'"
+        "location_company_server": {
+            "text": "{company_region}公司，{server_region}服务器",
+            "en_original": "{company_region} company, {server_region} server",
+            "context": "Used in 'US company, EU server'"
         },
         "all_ai_models_make_mistakes": {
             "text": "请记住，所有人工智能模型都会犯错。因此请始终核实回答",

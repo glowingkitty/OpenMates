@@ -2138,10 +2138,10 @@
             "en_original": "AI providers",
             "context": "for confirming the default AI provider"
         },
-        "via_server": {
-            "text": "via {region} Server von {server_provider}",
-            "en_original": "via {region} server by {server_provider}",
-            "context": "Used in 'via EU server by Google'"
+        "location_company_server": {
+            "text": "{company_region} Untern., {server_region} Server",
+            "en_original": "{company_region} company, {server_region} server",
+            "context": "Used in 'US company, EU server'"
         },
         "all_ai_models_make_mistakes": {
             "text": "Beachte, dass alle KI-Modelle Fehler machen. Überprüfe daher immer die Antworten.",

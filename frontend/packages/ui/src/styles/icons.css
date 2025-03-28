@@ -618,6 +618,10 @@ div.clickable-icon {
   background-image: url('@openmates/ui/static/icons/eu.svg');
 }
 
+.icon_us {
+  background-image: url('@openmates/ui/static/icons/us.svg');
+}
+
 .icon_lock {
   background-image: url('@openmates/ui/static/icons/lock.svg');
 }
@@ -1209,6 +1213,7 @@ div.clickable-icon {
   &::before {
       background-image: url('@openmates/ui/static/icons/mistral.svg');
       background-size: 50%;
+      filter: unset;
   }
 }
 
