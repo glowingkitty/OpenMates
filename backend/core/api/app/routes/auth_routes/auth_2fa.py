@@ -253,12 +253,26 @@ async def verify_2fa_code(
                 # update_user logs details internally
                 logger.error("Failed to update user 2FA settings during signup") 
                 return Verify2FACodeResponse(success=False, message="Failed to save 2FA settings")
-            
-            # Update cache with new signup step and last_opened
-            user_data["last_opened"] = "/signup/step-5"
-            await cache_service.set_user(user_data, refresh_token=refresh_token)
+
+            # Update cache: Set tfa_enabled to True and update last_opened if signup
+            cache_update_success = await cache_service.update_user(user_id, {
+                "tfa_enabled": True,
+                "last_opened": "/signup/step-5"
+                })
+            if not cache_update_success:
+                 logger.warning(f"Failed to update cache for user {user_id} after 2FA verification, but Directus was updated.")
+            else:
+                 logger.info(f"Successfully updated cache for user {user_id} after 2FA verification.")
+
         else:
-            # This is a login flow
+            # This is a login flow - still update tfa_enabled in cache
+            cache_update_success = await cache_service.update_user(user_id,{
+                "tfa_enabled": True
+                })
+            if not cache_update_success:
+                 logger.warning(f"Failed to update cache for user {user_id} after 2FA verification during login, but Directus was updated.")
+            else:
+                 logger.info(f"Successfully updated cache for user {user_id} after 2FA verification during login.")
             # Just verify the code and continue (no need to update signup steps)
             logger.info("2FA verification successful during login")
         

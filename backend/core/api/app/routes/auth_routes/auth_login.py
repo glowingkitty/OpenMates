@@ -104,7 +104,10 @@ async def login(
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=UserResponse(**user_profile) # Return full user profile
+                user=UserResponse(
+                    **user_profile, 
+                    tfa_enabled=tfa_enabled # Explicitly include status
+                ) 
             )
 
         # --- 2FA IS Enabled ---
@@ -119,10 +122,11 @@ async def login(
                 credits=0,      # Default 0
                 profile_image_url=None, # Optional field
                 tfa_app_name=user_profile.get("tfa_app_name"), # Send app name if available
-                last_opened=None # Optional field
+                last_opened=None, # Optional field
+                tfa_enabled=True # Explicitly set required field
             )
             return LoginResponse(
-                success=True, 
+                success=True,
                 message="2FA required", 
                 tfa_required=True,
                 user=minimal_user_info
@@ -171,7 +175,10 @@ async def login(
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=UserResponse(**user_profile) # Return full user profile
+                user=UserResponse(
+                    **user_profile, 
+                    tfa_enabled=tfa_enabled # Explicitly include status
+                )
             )
 
         except Exception as e:
@@ -282,6 +289,7 @@ async def finalize_login_session(
                 "credits": user.get("credits"),
                 "profile_image_url": user.get("profile_image_url"),
                 "tfa_app_name": user.get("tfa_app_name"),
+                "tfa_enabled": bool(user.get("encrypted_tfa_secret")), # Add tfa_enabled status
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id")
             }

@@ -478,6 +478,11 @@
             "en_original": "Enter backup code",
             "context": "Placeholder text for backup code input field"
         },
+        "login_with_another_account": {
+            "text": "使用其他帐户登录",
+            "en_original": "Login with another account",
+            "context": "Button text for logging in with another account"
+        },
         "login_button": {
             "text": "登录",
             "en_original": "Login",

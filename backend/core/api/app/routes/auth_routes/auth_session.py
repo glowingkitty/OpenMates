@@ -83,7 +83,8 @@ async def get_session(
                 credits=user_data.get("credits", 0),
                 profile_image_url=user_data.get("profile_image_url"),
                 last_opened=user_data.get("last_opened"),
-                tfa_app_name=user_data.get("tfa_app_name") # Include the 2FA app name
+                tfa_app_name=user_data.get("tfa_app_name"),
+                tfa_enabled=user_data.get("tfa_enabled", False) # Read from cache, default to False
             ),
             token_refresh_needed=False
         )

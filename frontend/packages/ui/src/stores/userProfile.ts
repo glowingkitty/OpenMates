@@ -7,7 +7,8 @@ export interface UserProfile {
   credits: number;
   isAdmin: boolean;
   last_opened: string;
-  tfaAppName: string | null; // Add tfaAppName
+  tfaAppName: string | null;
+  tfa_enabled: boolean; // Added field for 2FA status
 }
 
 const defaultProfile: UserProfile = {
@@ -16,7 +17,8 @@ const defaultProfile: UserProfile = {
   credits: 0,
   isAdmin: false,
   last_opened: '',
-  tfaAppName: null // Add default value
+  tfaAppName: null,
+  tfa_enabled: false // Added default value
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
@@ -60,6 +62,22 @@ export async function loadUserProfileFromDB(): Promise<void> {
     } catch (error) {
       console.warn('Could not load tfaAppName status:', error);
     }
+
+    // Get tfa_enabled status - using a try/catch
+    let tfa_enabled: boolean = false;
+    try {
+      const transaction = userDB.db?.transaction([userDB.STORE_NAME], 'readonly');
+      if (transaction) {
+        const store = transaction.objectStore(userDB.STORE_NAME);
+        const request = store.get('tfa_enabled');
+        tfa_enabled = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(!!request.result); // Return boolean
+          request.onerror = () => resolve(false); // Return false on error
+        });
+      }
+    } catch (error) {
+      console.warn('Could not load tfa_enabled status:', error);
+    }
     
     if (profile) {
       userProfile.update(currentProfile => ({
@@ -67,7 +85,8 @@ export async function loadUserProfileFromDB(): Promise<void> {
         ...profile,
         credits,
         isAdmin,
-        tfaAppName // Add tfaAppName to the update
+        tfaAppName,
+        tfa_enabled // Add tfa_enabled to the update
       }));
     }
   } catch (error) {

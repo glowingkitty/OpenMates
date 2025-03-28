@@ -478,6 +478,11 @@
             "en_original": "Enter backup code",
             "context": "Placeholder text for backup code input field"
         },
+        "login_with_another_account": {
+            "text": "Se connecter avec un autre compte",
+            "en_original": "Login with another account",
+            "context": "Button text for logging in with another account"
+        },
         "login_button": {
             "text": "Se connecter",
             "en_original": "Login",

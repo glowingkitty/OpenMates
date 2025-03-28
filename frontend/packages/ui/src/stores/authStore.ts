@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA } from './signupState'; // Import isResettingTFA
 import { userDB } from '../services/userDB';
 import { userProfile, updateProfile, type UserProfile } from './userProfile'; // Import store and type
 import { resetTwoFAData } from './twoFAState'; // Import the reset function
@@ -78,11 +78,15 @@ function createAuthStore() {
           try {
             await userDB.saveUserData(data.user);
             
+            // Extract tfa_enabled status
+            const tfa_enabled = !!data.user.tfa_enabled;
+
             // Update the user profile store
             updateProfile({
               username: data.user.username,
               profileImageUrl: data.user.profile_image_url,
               tfaAppName: data.user.tfa_app_name,
+              tfa_enabled: tfa_enabled, // Pass status
               credits: data.user.credits,
               isAdmin: data.user.is_admin,
               last_opened: data.user.last_opened
@@ -375,6 +379,9 @@ function createAuthStore() {
         
         // Reset signup step
         currentSignupStep.set(1);
+
+        // Reset the TFA resetting flag
+        isResettingTFA.set(false);
         
         // Reset the store state
         set({
@@ -401,6 +408,9 @@ function createAuthStore() {
         
         // Reset signup step even on error
         currentSignupStep.set(1);
+
+        // Reset the TFA resetting flag even on error
+        isResettingTFA.set(false);
         
         // Reset the store state even on error
         set({

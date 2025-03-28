@@ -86,11 +86,13 @@ step_4_top_content_svelte:
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
+    import { get } from 'svelte/store'; // Import get
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { isResettingTFA } from '../../../../stores/signupState'; // Import store
+    import { userProfile } from '../../../../stores/userProfile'; // Import userProfile store
     import { 
         twoFASetupData, 
-        twoFASetupComplete, 
+        twoFASetupComplete,
         setTwoFAData,
         resetTwoFAData // Ensure reset function is imported
     } from '../../../../stores/twoFAState';
@@ -134,9 +136,14 @@ step_4_top_content_svelte:
         }
     }
 
-    // Fetch 2FA setup data when component mounts, unless we are in reset mode
+    // Fetch 2FA setup data when component mounts, if TFA is not already enabled
     onMount(async () => {
-        if (!$isResettingTFA) {
+        // Get the current profile state once on mount
+        const profile = get(userProfile);
+
+        // Check if profile is loaded and tfa is not enabled
+        if (profile && !profile.tfa_enabled) {
+            // Fetch setup data only if TFA is not enabled
             await fetchSetup2FA();
         }
     });
