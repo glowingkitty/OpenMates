@@ -2,7 +2,6 @@
     import { createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
-    import { isResettingTFA } from '../../stores/signupState'; // Import the new store
     import { getWebsiteUrl, routes } from '../../config/links';
     
     const dispatch = createEventDispatcher();
@@ -19,8 +18,7 @@
         } else if (currentStep === 3) {
             dispatch('logout');
         } else if (currentStep === 6) {
-            // Special case: Go back from Step 6 to Step 4 and set reset flag
-            isResettingTFA.set(true);
+            // Special case: Go back from Step 6 to Step 4
             dispatch('step', { step: 4 });
         } else {
             dispatch('step', { step: currentStep - 1 });
@@ -31,7 +29,7 @@
         // Use userProfile.profileImageUrl to check if image exists for step 3
         if (currentStep === 3 && $userProfile.profileImageUrl) { // Next from step 3 (profile pic)
             dispatch('step', { step: 4 });
-        } else if (currentStep === 4 && $isResettingTFA) { // Next from step 4 (resetting TFA)
+        } else if (currentStep === 4 && $userProfile.tfa_enabled) { // Next from step 4 (if TFA already enabled)
             dispatch('step', { step: 6 });
         } else if (currentStep === 6 && selectedAppName) { // Next from step 6 (verify code)
              // This case seems handled by Step4BottomContent dispatching step 5 on success
@@ -70,15 +68,15 @@
     $: skipButtonText = 
         // Use userProfile.profileImageUrl for step 3 logic
         (currentStep === 3 && $userProfile.profileImageUrl) ? $_('signup.next.text') : // Step 3 -> 4
-        (currentStep === 4 && $isResettingTFA) ? $_('signup.next.text') : // Step 4 (resetting) -> 6
+        (currentStep === 4 && $userProfile.tfa_enabled) ? $_('signup.next.text') : // Step 4 (if TFA enabled) -> 6
         (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
         (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo
         $_('signup.skip.text'); // Default skip text
 
     // Determine if the skip/next button should be shown
-    // Show if it's the special reset case (Step 4, isResettingTFA=true) OR
-    // if showSkip is true AND it's not Step 4 in normal flow.
-    $: showActualSkipButton = (currentStep === 4 && $isResettingTFA) || (showSkip && (currentStep !== 4 || $isResettingTFA));
+    // Show if it's Step 4 AND TFA is already enabled OR
+    // if showSkip is true AND it's not Step 4.
+    $: showActualSkipButton = (currentStep === 4 && $userProfile.tfa_enabled) || (showSkip && currentStep !== 4);
 
 </script>
 

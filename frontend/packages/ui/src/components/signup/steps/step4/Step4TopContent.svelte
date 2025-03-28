@@ -88,10 +88,9 @@ step_4_top_content_svelte:
     import { onMount } from 'svelte';
     import { get } from 'svelte/store'; // Import get
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
-    import { isResettingTFA } from '../../../../stores/signupState'; // Import store
     import { userProfile } from '../../../../stores/userProfile'; // Import userProfile store
     import { 
-        twoFASetupData, 
+        twoFASetupData,
         twoFASetupComplete,
         setTwoFAData,
         resetTwoFAData // Ensure reset function is imported
@@ -218,7 +217,7 @@ step_4_top_content_svelte:
     // Handle the reset button click
     async function handleResetTFA() {
         resetTwoFAData(); // Clear old data
-        isResettingTFA.set(false); // Set flag to false immediately to show loading/content
+        // isResettingTFA.set(false); // No longer needed
         await fetchSetup2FA(); // Fetch new data
     }
 </script>
@@ -250,11 +249,11 @@ step_4_top_content_svelte:
     </div>
     {:else} 
     <!-- This block executes when setup IS complete -->
-    <div class="prevent-access-text" class:fade-out={showQrCode && !$isResettingTFA}>
+    <div class="prevent-access-text" class:fade-out={showQrCode && !$userProfile.tfa_enabled}>
         {$text('signup.prevent_access.text')}
     </div>
     
-    <div class="features" class:fade-out={showQrCode}>
+    <div class="features" class:fade-out={showQrCode && !$userProfile.tfa_enabled}>
         <div class="feature">
             <div class="check-icon"></div>
             <span>{@html $text('signup.free.text')}</span>
@@ -271,7 +270,7 @@ step_4_top_content_svelte:
     {/if} <!-- End of {#if !setupComplete}{:else} block -->
 
     <!-- Separate block for action/reset buttons -->
-    {#if $isResettingTFA}
+    {#if $userProfile.tfa_enabled}
         <!-- Reset View: Reset Button -->
         <div class="action-buttons">
              <div class="button-row">
@@ -281,7 +280,9 @@ step_4_top_content_svelte:
                 </button>
              </div>
         </div>
-    {:else if setupComplete}
+    {/if} 
+
+    {#if !$userProfile.tfa_enabled && setupComplete}
         <!-- Standard Actions (only if NOT resetting AND setup is complete) -->
         {#if showQrCode}
         <div class="qr-code" transition:fade>

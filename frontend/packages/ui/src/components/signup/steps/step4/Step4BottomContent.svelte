@@ -82,7 +82,7 @@ step_4_bottom_content_svelte:
     import { fade } from 'svelte/transition';
     import { routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
-    import { isResettingTFA } from '../../../../stores/signupState'; // Import store
+    import { userProfile } from '../../../../stores/userProfile'; // Import userProfile store
     import { 
         twoFASetupComplete,
         twoFAVerificationStatus,
@@ -161,7 +161,7 @@ step_4_bottom_content_svelte:
     }
 </script>
 
-{#if !$isResettingTFA}
+{#if !$userProfile.tfa_enabled}
 <div class="bottom-content">
     
     
