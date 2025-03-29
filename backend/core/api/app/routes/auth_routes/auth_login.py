@@ -289,11 +289,10 @@ async def finalize_login_session(
                 "credits": user.get("credits"),
                 "profile_image_url": user.get("profile_image_url"),
                 "tfa_app_name": user.get("tfa_app_name"),
-                "tfa_enabled": bool(user.get("encrypted_tfa_secret")), # Add tfa_enabled status
+                "tfa_enabled": bool(user.get("encrypted_tfa_secret")),
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id"),
-                "last_online_timestamp": current_time, # Add last online timestamp
-                # Add boolean consent flags to cache data, deriving safely from user dict
+                "last_online_timestamp": current_time,
                 "consent_privacy_and_apps_default_settings": bool(user.get("consent_privacy_and_apps_default_settings")),
                 "consent_mates_default_settings": bool(user.get("consent_mates_default_settings"))
             }
