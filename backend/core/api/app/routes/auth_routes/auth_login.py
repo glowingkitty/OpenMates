@@ -64,10 +64,14 @@ async def login(
             if exists_result and user_data_for_log:
                 compliance_service.log_auth_event(
                     event_type="login_failed", 
-                    user_id=user_data_for_log.get("id"), 
-                    ip_address=client_ip, 
-                    status="failed", 
-                    details={"reason": "invalid_credentials"}
+                    user_id=user_data_for_log.get("id"),
+                    ip_address=client_ip,
+                    status="failed",
+                    details={
+                        "reason": "invalid_credentials",
+                        "device_fingerprint": device_fingerprint,
+                        "location": device_location
+                    }
                 )
             return LoginResponse(success=False, message=message or "Invalid credentials")
 
@@ -157,8 +161,13 @@ async def login(
             if not totp.verify(login_data.tfa_code):
                 logger.warning(f"Invalid 2FA code provided for user {user_id}")
                 compliance_service.log_auth_event(
-                    event_type="login_failed", user_id=user_id, ip_address=client_ip, 
-                    status="failed", details={"reason": "invalid_2fa_code"}
+                    event_type="login_failed", user_id=user_id, ip_address=client_ip,
+                    status="failed",
+                    details={
+                        "reason": "invalid_2fa_code",
+                        "device_fingerprint": device_fingerprint,
+                        "location": device_location
+                    }
                 )
                 # Return error, but indicate 2FA is still required
                 return LoginResponse(
@@ -187,10 +196,6 @@ async def login(
 
         except Exception as e:
             logger.error(f"Error during 2FA verification for user {user_id}: {str(e)}", exc_info=True)
-            compliance_service.log_auth_event(
-                event_type="login_failed", user_id=user_id, ip_address=client_ip, 
-                status="failed", details={"reason": "2fa_verification_error"}
-            )
             return LoginResponse(
                 success=False, 
                 message="Error during 2FA verification", 
@@ -199,18 +204,6 @@ async def login(
 
     except Exception as e:
         logger.error(f"Generic login error: {str(e)}", exc_info=True)
-        metrics_service.track_login_attempt(False) # Track generic failure
-        # Attempt to log compliance event if possible
-        try:
-            exists_result, user_data_for_log, _ = await directus_service.get_user_by_email(login_data.email)
-            user_id_for_log = user_data_for_log.get("id") if exists_result and user_data_for_log else "unknown"
-            compliance_service.log_auth_event(
-                event_type="login_failed", user_id=user_id_for_log, ip_address=get_client_ip(request), 
-                status="failed", details={"reason": "internal_error"}
-            )
-        except Exception as log_e:
-            logger.error(f"Failed to log compliance event during generic error: {log_e}")
-            
         return LoginResponse(success=False, message="An error occurred during login")
 
 

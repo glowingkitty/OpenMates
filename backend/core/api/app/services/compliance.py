@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from typing import Optional, Dict, Any, Union
 import ipaddress
+from datetime import datetime # Ensure datetime is imported
 
 # Configure a special logger for compliance events
 compliance_logger = logging.getLogger("compliance")
@@ -64,29 +65,25 @@ class ComplianceService:
     @staticmethod
     def log_user_creation(
         user_id: str,
-        device_fingerprint: str,
-        location: str,
+        # device_fingerprint and location removed as per requirements
         status: str = "success",
         details: Optional[Dict[str, Any]] = None
     ):
         """
-        Log a user creation event for compliance purposes.
-        For privacy reasons, does NOT store IP address - only device fingerprint and location.
+        Log a user creation event and subsequent consents for compliance.
+        For privacy reasons, user creation and consent logs do NOT store
+        IP address, device fingerprint, or location information.
         
         Args:
             user_id: Newly created user ID
-            device_fingerprint: Hashed device fingerprint 
-            location: Estimated location (city) based on IP
             status: Outcome of the creation (success, failed)
             details: Additional details to log (will be sanitized)
         """
-        # Create log entry without IP address
+        # Create log entry for user creation (without IP, device, location)
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": "user_creation",
-            "user_id": user_id,  # Never redact user_id in compliance logs
-            "device_fingerprint": device_fingerprint,  # Already hashed in the device_fingerprint util
-            "location": location,
+            "user_id": user_id,
             "status": status
         }
         
@@ -97,7 +94,41 @@ class ComplianceService:
             
         # Log the raw dictionary - let the JSON handler format it
         compliance_logger.info(log_data)
-    
+
+        # Log consent events immediately after user creation log
+        # These logs intentionally omit IP, device fingerprint, and location
+        consent_timestamp = datetime.utcnow().isoformat()
+
+        # Log Privacy Policy consent
+        privacy_consent_log = {
+            "timestamp": consent_timestamp,
+            "event_type": "consent",
+            "user_id": user_id,
+            "consent_type": "privacy_policy",
+            "action": "granted",
+            "version": consent_timestamp, # Use timestamp as version identifier
+            "status": status
+        }
+        # Add sanitized details if they exist from the original call
+        if 'details' in log_data:
+             privacy_consent_log["details"] = log_data['details']
+        compliance_logger.info(privacy_consent_log)
+
+        # Log Terms of Service consent
+        terms_consent_log = {
+            "timestamp": consent_timestamp, # Use same timestamp
+            "event_type": "consent",
+            "user_id": user_id,
+            "consent_type": "terms_of_service",
+            "action": "granted",
+            "version": consent_timestamp,
+            "status": status
+        }
+        # Add sanitized details if they exist from the original call
+        if 'details' in log_data:
+             terms_consent_log["details"] = log_data['details']
+        compliance_logger.info(terms_consent_log)
+
     @staticmethod
     def log_api_event(
         event_type: str,
