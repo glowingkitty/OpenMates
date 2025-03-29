@@ -18,20 +18,6 @@ login_2fa_svelte:
             - '2fa'
         connected_documentation:
             - '/login/2fa'
-    tfa_app_name_text:
-        type: 'text'
-        text: {name of 2FA app which user used}
-        purpose: 'Reminder for user which 2FA app they used, if they saved the name during signup or in settings.'
-        processing:
-            - 'Name of 2FA app is loaded from server (if user saved it during signup or in settings)'
-            - 'Name of 2FA app is shown to user'
-        bigger_context:
-            - 'Login'
-        tags:
-            - 'login'
-            - '2fa'
-        connected_documentation:
-            - '/login/2fa'
     enter_2fa_code_input_field:
         type: 'input_field'
         placeholder: $text('signup.enter_one_time_code.text')
@@ -64,42 +50,25 @@ login_2fa_svelte:
             - '2fa'
         connected_documentation:
             - '/login/2fa'
-    enter_backup_code_button:
-        type: 'button'
-        text: $text('login.enter_backup_code.text')
-        purpose:
-            - 'Switches to interface where user can enter backup code instead of 2FA code.'
-        processing:
-            - 'User clicks the button'
-            - 'User is forwarded to the interface where they can enter backup code'
-        bigger_context:
-            - 'Login'
-        tags:
-            - 'login'
-            - '2fa'
-        connected_documentation:
-            - '/login/2fa'
 -->
 
 <script lang="ts">
     import { text } from '@repo/ui';
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-    import { tfaAppIcons } from '../config/tfa';
     import InputWarning from './common/InputWarning.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
 
     export let previewMode = false;
-    export let previewTfaAppName = 'Google Authenticator';
+    // export let previewTfaAppName = 'Google Authenticator'; // Removed
     export let highlight: (
         'check-2fa' |
-        'app-name' | 
         'input-area' | 
         'login-btn' | 
         'enter-backup-code'
     )[] = [];
 
-    // Add a new prop to receive the selected app name
-    export let selectedAppName: string | null = null;
+    // Add a new prop to receive the selected app name // Removed
+    // export let selectedAppName: string | null = null; // Removed
     // Add props for binding isLoading and displaying errors
     export let isLoading = false; 
     export let errorMessage: string | null = null;
@@ -108,53 +77,7 @@ login_2fa_svelte:
 
     let otpCode = '';
     let otpInput: HTMLInputElement;
-    let currentAppIndex = 0;
-    let animationInterval: number | null = null;
-    let currentDisplayedApp = previewMode ? previewTfaAppName : (selectedAppName || ''); // Initialize with selectedAppName
 
-    // Get list of app names for animation
-    const appNames = Object.keys(tfaAppIcons);
-
-    // Get the icon class for the app name, or undefined if not found
-    $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
-    
-    // Update the animation logic to stop when a selected app is provided
-    $: {
-        if (selectedAppName) {
-            currentDisplayedApp = selectedAppName;
-            if (animationInterval) clearInterval(animationInterval);
-        } else if (previewMode) {
-            if (animationInterval) clearInterval(animationInterval);
-            animationInterval = setInterval(() => {
-                currentAppIndex = (currentAppIndex + 1) % appNames.length;
-                currentDisplayedApp = appNames[currentAppIndex];
-            }, 4000); // Change every 4 seconds
-        } else {
-            // Use selectedAppName if available, otherwise default to empty or preview
-            currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
-        }
-    }
-
-    // Start animation in preview mode if no app name is selected
-    onMount(() => {
-        // Only start animation in preview mode AND if no specific app is selected
-        if (previewMode && !selectedAppName) {
-            animationInterval = setInterval(() => {
-                currentAppIndex = (currentAppIndex + 1) % appNames.length;
-                currentDisplayedApp = appNames[currentAppIndex];
-            }, 4000); // Change every 4 seconds
-        } else {
-            // If not preview or an app is selected, display the correct app name
-            currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
-        }
-    });
-
-    onDestroy(() => {
-        if (animationInterval) clearInterval(animationInterval);
-    });
-
-    // Helper function to generate opacity style
-    // Fix type error by casting id
     $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id as any) ? 1 : 0.5}`;
 
     // Function to dispatch event to switch back to login - RESTORED
@@ -179,8 +102,7 @@ login_2fa_svelte:
 
     // Modified handleSubmit for device verification
     async function handleSubmit() { // Added async
-        if (isLoading || otpCode.length !== 6) return; // Prevent submit if loading or code incomplete
-        // dispatch('submitTfa', { otpCode }); // Original dispatch removed
+        if (isLoading || otpCode.length !== 6) return;
 
         // Added API call logic
         isLoading = true;
@@ -227,28 +149,14 @@ login_2fa_svelte:
         if (!previewMode && otpInput) {
             otpInput.focus();
         }
-        // Animation logic moved to separate onMount above
     });
-
-    // Reactive statement for currentDisplayedApp based on selectedAppName
-    $: currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
-
 </script>
 
-<div class="login-2fa {selectedAppName ? 'no-animation' : ''}" class:preview={previewMode}>
+<div class="login-2fa" class:preview={previewMode}>
     <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
         {@html $text('login.check_your_2fa_app.text')}
     </p>
-    {#if currentDisplayedApp}
-        <p id="app-name" class="app-name" style={getStyle('app-name')}>
-            <span class="app-name-content">
-                {#if tfaAppIconClass}
-                    <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !selectedAppName ? 'fade-animation' : ''}"></span>
-                {/if}
-                <span class="{previewMode && !selectedAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
-            </span>
-        </p>
-    {/if}
+    
     <div id="input-area" style={getStyle('input-area')}>
         <div class="input-wrapper">
             <span class="clickable-icon icon_2fa"></span>
@@ -273,11 +181,6 @@ login_2fa_svelte:
         </div>
     </div>
     
-    <div id="enter-backup-code" class="enter-backup-code">
-        <a href="" target="_blank" class="text-button">
-            {$text('login.enter_backup_code.text')}
-        </a>
-    </div>
    <div class="switch-account">
         <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
             {$text('login.login_with_another_account.text')}
@@ -291,20 +194,6 @@ login_2fa_svelte:
         flex-direction: column;
     }
 
-   
-
-    .app-name {
-        margin: 10px 0 30px 0;
-        display: flex;
-        justify-content: center;
-        width: 100%;
-    }
-    
-    .app-name-content {
-        display: flex;
-        align-items: center;
-    }
-
     .check-2fa-text {
         margin: 0px;
         margin-bottom: 15px;
@@ -315,37 +204,8 @@ login_2fa_svelte:
         cursor: default !important;
     }
 
-    .enter-backup-code {
-        margin-top: 20px;
-    }
-
     .switch-account {
-        margin-top: 10px; /* Add some space above the new link */
-    }
-
-    .mini-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 8px;
-        margin-right: 10px;
-        opacity: 1;
-        animation: unset;
-        animation-delay: unset;
-    }
-
-    .fade-animation {
-        animation: fadeInOut 4s infinite;
-    }
-
-    .fade-text {
-        animation: fadeInOut 4s infinite;
-    }
-
-    @keyframes fadeInOut {
-        0% { opacity: 0; }
-        15% { opacity: 1; }
-        85% { opacity: 1; }
-        100% { opacity: 0; }
+        margin-top: 10px;
     }
 
     .preview * {
@@ -353,23 +213,9 @@ login_2fa_svelte:
         pointer-events: none !important;
     }
 
-    /* Add a class to stop the animation */
-    .no-animation .fade-animation,
-    .no-animation .fade-text {
-        animation: none;
-    }
-
     @media (max-width: 600px) {
         .login-2fa {
             align-items: center;
-        }
-
-        .app-name {
-            margin: 10px 0 10px 0;
-        }
-
-        .enter-backup-code {
-            margin-top: 10px;
         }
     }
 </style>
