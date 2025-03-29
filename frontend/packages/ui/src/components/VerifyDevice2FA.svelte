@@ -307,6 +307,7 @@ login_2fa_svelte:
 
     .check-2fa-text {
         margin: 0px;
+        margin-bottom: 15px;
         color: var(--color-grey-60);
     }
 

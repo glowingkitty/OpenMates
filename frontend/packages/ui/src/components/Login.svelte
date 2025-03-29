@@ -693,8 +693,8 @@
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
-                        <!-- Always show signup link when in login view -->
-                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth} hidden={!showForm || $isCheckingAuth}>
+                        <!-- Show signup link only when not verifying device -->
+                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth && !showVerifyDeviceView} hidden={!showForm || $isCheckingAuth || showVerifyDeviceView}>
                             <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
                             <button class="text-button" on:click={switchToSignup}>
                                 {$text('login.click_here_to_create_a_new_account.text')}
