@@ -24,7 +24,7 @@ from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, 
 
 # Define router for 2FA verification endpoints
 router = APIRouter(
-    prefix="/auth/2fa/verify", # Define a prefix for these routes
+    prefix="/2fa/verify", # Define a prefix for these routes
     tags=["Auth - 2FA Verify"],
     dependencies=[Depends(verify_allowed_origin)] # Apply origin check to all routes here
 )
@@ -71,32 +71,49 @@ async def verify_device_2fa(
             # Compliance log removed for this case as per user request
             return VerifyDevice2FAResponse(success=False, message="Authentication required")
 
-        user_id = user_data.get("user_id")
+        user_id = user_data.get("user_id") # We know user_id exists from the is_auth check
 
-        # Check if 2FA is actually enabled for this user
-        if not user_data.get("tfa_enabled"):
-            logger.error(f"Attempt to verify device 2FA for user {user_id} when 2FA is not enabled.")
+        # Fetch the full user profile directly from Directus to ensure we have the 2FA details
+        try:
+            profile_success, profile_data, profile_message = await directus_service.get_user_profile(user_id)
+            if not profile_success or not profile_data:
+                logger.error(f"Could not retrieve user profile for user {user_id} during device verification: {profile_message}")
+                # Use generic error message for frontend
+                return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
+        except Exception as profile_err:
+            logger.error(f"Exception retrieving user profile for {user_id}: {profile_err}", exc_info=True)
+            # Use generic error message for frontend
+            return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
+
+
+        # Check if 2FA is actually enabled for this user by checking for the secret in the fresh profile data
+        encrypted_secret = profile_data.get("encrypted_tfa_secret")
+        if not encrypted_secret:
+            logger.error(f"Attempt to verify device 2FA for user {user_id} but no encrypted_tfa_secret found in DB profile.")
             # Compliance log removed for this case as per user request
+            # Keep specific error message as this is user state, not internal error
             return VerifyDevice2FAResponse(success=False, message="2FA is not enabled for this account")
 
-        # Get stored encrypted secret and vault key
-        encrypted_secret = user_data.get("encrypted_tfa_secret")
-        vault_key_id = user_data.get("vault_key_id")
+        # Get stored vault key from the fetched profile (secret already retrieved above)
+        vault_key_id = profile_data.get("vault_key_id")
 
         if not encrypted_secret or not vault_key_id:
-            logger.error(f"Missing 2FA secret or vault key for user {user_id} during device verification.")
+            # This indicates a data integrity issue if 2FA is enabled but secrets are missing in DB
+            logger.error(f"Missing 2FA secret or vault key in DB for user {user_id} during device verification.")
             # Compliance log removed for this case as per user request
-            return VerifyDevice2FAResponse(success=False, message="Internal error: Cannot retrieve 2FA configuration")
+            # Use generic error message for frontend
+            return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
 
         # Decrypt the secret
         try:
             decrypted_secret = await encryption_service.decrypt_with_user_key(encrypted_secret, vault_key_id)
             if not decrypted_secret:
-                 raise ValueError("Decryption returned None")
+                 raise ValueError("Decryption returned None") # This will be caught by the outer exception handler
         except Exception as decrypt_err:
             logger.error(f"Failed to decrypt 2FA secret for user {user_id}: {decrypt_err}")
             # Compliance log removed for this case as per user request
-            return VerifyDevice2FAResponse(success=False, message="Internal error: Failed to decrypt secret")
+            # Use generic error message for frontend
+            return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
 
         # Verify the TOTP code
         totp = pyotp.TOTP(decrypted_secret)
@@ -153,8 +170,8 @@ async def verify_device_2fa(
     except Exception as e:
         logger.error(f"Error in verify_device_2fa: {str(e)}", exc_info=True)
         # Compliance log removed for generic exception case
-
-        return VerifyDevice2FAResponse(success=False, message="An error occurred during device verification")
+        # Use generic error message for frontend
+        return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
 
 # Potential future endpoint for verifying 2FA for sensitive actions
 # @router.post("/action", ...)

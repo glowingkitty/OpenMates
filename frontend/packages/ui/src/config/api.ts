@@ -36,9 +36,10 @@ export const apiEndpoints = {
         confirm_codes_stored:       '/v1/auth/confirm_codes_stored',           // Confirm backup codes are stored by user
         setup_2fa_provider:         '/v1/auth/setup_2fa_provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/verify_2fa_code',                // Verify 2FA OTP code during login
-        
+        verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device
+
         // REMOVED old placeholder consent endpoints from /auth/
-        // accept_settings:            '/v1/auth/accept_settings',                
+        // accept_settings:            '/v1/auth/accept_settings',
         // accept_mate_settings:       '/v1/auth/accept_mate_settings',           
     },
     chat: {

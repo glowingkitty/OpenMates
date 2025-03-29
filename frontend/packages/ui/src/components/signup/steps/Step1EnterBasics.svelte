@@ -23,7 +23,7 @@
     let isValidFormat = false;
     let isLoading = false;
     export let isValidated = false;
-    export let isAdmin = false;
+    export let is_admin = false;
     let showWarning = false;
 
     // Signup form fields
@@ -282,20 +282,20 @@
             if (data.valid) {
                 isValidated = true;
                 if (data.is_admin) {
-                    isAdmin = true;
+                    is_admin = true;
                 } else {
-                    isAdmin = false;
+                    is_admin = false;
                 }
             } else {
                 showWarning = true;
                 isValidated = false;
-                isAdmin = false;
+                is_admin = false;
             }
         } catch (error) {
             console.error('Error validating invite code:', error);
             showWarning = true;
             isValidated = false;
-            isAdmin = false;
+            is_admin = false;
         } finally {
             isLoading = false;
         }

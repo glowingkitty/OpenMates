@@ -64,16 +64,9 @@ async def logout(
                     
                     # If this was the last token, remove user-specific caches and the token list
                     if not current_tokens:
-                        await cache_service.delete(user_tokens_key)
-                        logger.info(f"Removed token list for user {user_id[:6]}... (last device)")
-
-                        # Also clear user-specific data caches as it's the last device
-                        user_main_cache_key = f"{cache_service.USER_KEY_PREFIX}{user_id}"
-                        user_profile_cache_key = f"user_profile:{user_id}"
-
-                        await cache_service.delete(user_main_cache_key)
-                        await cache_service.delete(user_profile_cache_key)
-                        logger.info(f"Cleared user-specific caches for user {user_id[:6]}... (last device logout)")
+                        # Call the comprehensive cache clearing function which includes devices
+                        await cache_service.delete_user_cache(user_id)
+                        logger.info(f"Cleared all user-related cache (including devices) for user {user_id[:6]}... (last device logout)")
 
                     else:
                         # Update the user tokens cache with the token removed

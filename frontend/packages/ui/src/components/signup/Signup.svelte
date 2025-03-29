@@ -43,7 +43,7 @@
     let currentStep = 1;
     let direction: 'forward' | 'backward' = 'forward';
     let isInviteCodeValidated = false;
-    let isAdmin = false; // Add this to track admin status
+    let is_admin = false; // Add this to track admin status
     // let previousStep = 1; // Removed, will pass previous value directly
 
     // Lift form state up
@@ -312,7 +312,7 @@
                 {showSkip}
                 {currentStep}
                 {selectedAppName}
-                showAdminButton={isAdmin && currentStep === 1 && isInviteCodeValidated}
+                showAdminButton={is_admin && currentStep === 1 && isInviteCodeValidated}
             />
         </div>
     {/if}
@@ -322,7 +322,7 @@
             <Step1EnterBasics 
                 on:switchToLogin={handleSwitchToLogin}
                 bind:isValidated={isInviteCodeValidated}
-                bind:isAdmin={isAdmin}
+                bind:is_admin={is_admin}
                 bind:username
                 bind:email
                 on:next={() => goToStep(2)}

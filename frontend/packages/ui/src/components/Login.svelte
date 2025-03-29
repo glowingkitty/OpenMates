@@ -4,13 +4,14 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore, isCheckingAuth } from '../stores/authStore';
+    import { authStore, isCheckingAuth, needsDeviceVerification } from '../stores/authStore'; // Import needsDeviceVerification
     import { currentSignupStep, isInSignupProcess } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
     import Login2FA from './Login2FA.svelte'; // Import Login2FA component
+    import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
     
     const dispatch = createEventDispatcher();
@@ -20,8 +21,9 @@
     let password = '';
     let isLoading = false;
     let showTfaView = false; // State to control 2FA view visibility
-    let tfaAppName: string | null = null; // State to store 2FA app name
+    let tfa_app_name: string | null = null; // State to store 2FA app name
     let tfaErrorMessage: string | null = null; // State for 2FA error messages
+    let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
 
     // Add state for mobile view
     let isMobile = false;
@@ -63,7 +65,10 @@
     // Add state for tracking account deletion during the current session
     let accountJustDeleted = false;
 
-    // --- Inactivity Timer (Login/2FA) ---
+    // Derive device verification view state
+    $: showVerifyDeviceView = $needsDeviceVerification;
+
+    // --- Inactivity Timer (Login/2FA/Device Verify) ---
     const LOGIN_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
     let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
     let isTimerActive = false;
@@ -346,22 +351,22 @@
         }
     });
 
-    // --- Inactivity Timer Functions (Login/2FA) ---
+    // --- Inactivity Timer Functions (Login/2FA/Device Verify) ---
     function handleInactivityTimeout() {
-        console.debug("Login/2FA inactivity timeout triggered.");
+        console.debug("Login/2FA/Device Verify inactivity timeout triggered.");
         email = '';
         password = '';
-        if (showTfaView) {
-            // Call the existing function which handles clearing fields, hiding 2FA view,
+        if (showTfaView || showVerifyDeviceView) {
+            // Call the function which handles clearing fields, hiding views,
             // and potentially focusing the email input.
-            handleSwitchBackToLogin();
+            handleSwitchBackToLogin(); // Re-use this function
         }
         stopInactivityTimer(); // Stop the timer state
     }
 
     function resetInactivityTimer() {
         if (inactivityTimer) clearTimeout(inactivityTimer);
-        console.debug("Resetting Login/2FA inactivity timer...");
+        console.debug("Resetting Login/2FA/Device Verify inactivity timer...");
         inactivityTimer = setTimeout(handleInactivityTimeout, LOGIN_INACTIVITY_TIMEOUT_MS);
         isTimerActive = true;
     }
@@ -369,22 +374,22 @@
     function stopInactivityTimer() {
         if (inactivityTimer) {
             clearTimeout(inactivityTimer);
-            console.debug("Stopping Login/2FA inactivity timer.");
+            console.debug("Stopping Login/2FA/Device Verify inactivity timer.");
             inactivityTimer = null;
         }
         isTimerActive = false;
     }
 
     function checkActivityAndManageTimer() {
-        // Check if email/password has content OR if 2FA view is active
-        if (email || password || showTfaView) {
+        // Check if email/password has content OR if 2FA/Device Verify view is active
+        if (email || password || showTfaView || showVerifyDeviceView) {
             if (!isTimerActive) {
-                console.debug("Login/2FA activity detected or 2FA view active, starting timer.");
+                console.debug("Login/2FA/Device Verify activity detected or view active, starting timer.");
             }
             resetInactivityTimer();
         } else {
             if (isTimerActive) {
-                console.debug("Login/2FA fields empty and not in 2FA view, stopping timer.");
+                console.debug("Login/2FA/Device Verify fields empty and not in active view, stopping timer.");
                 stopInactivityTimer();
             }
         }
@@ -403,7 +408,7 @@
             if (result.success && result.tfa_required) {
                 // Password OK, 2FA required - switch to 2FA view
                 console.debug("Switching to 2FA view");
-                tfaAppName = result.tfa_app_name || null;
+                tfa_app_name = result.tfa_app_name || null;
                 tfaErrorMessage = null; // Clear previous errors
                 showTfaView = true;
             } else if (result.success && !result.tfa_required) {
@@ -434,12 +439,14 @@
         }
     }
 
-    // Handler to switch back from 2FA view to standard login
+    // Handler to switch back from 2FA or Device Verify view to standard login
     function handleSwitchBackToLogin() {
         showTfaView = false;
+        needsDeviceVerification.set(false); // Explicitly turn off device verification flag
         email = ''; // Clear email
         password = ''; // Clear password
         tfaErrorMessage = null; // Clear 2FA errors
+        verifyDeviceErrorMessage = null; // Clear device verification errors
         loginFailedWarning = false; // Clear general login errors
         // Optionally focus email input after a tick if not touch
         tick().then(() => {
@@ -491,53 +498,57 @@
     }
 
     // Strengthen the reactive statement to switch views when in signup process
-    // Also reset showTfaView if user logs out or switches to signup
-    // Reset 2FA view if switching away from login or logging out
+    // Also reset showTfaView and showVerifyDeviceView if user logs out or switches to signup
+    // Reset views if switching away from login or logging out
     $: {
         if (currentView !== 'login' || !$authStore.isAuthenticated) {
             showTfaView = false;
             tfaErrorMessage = null;
+            // Don't directly set needsDeviceVerification here, let checkAuth handle it
+            // needsDeviceVerification.set(false); // Avoid direct manipulation if possible
+            verifyDeviceErrorMessage = null;
             // Check timer status when view changes or user logs out
-            // This will stop the timer if fields are empty and not in 2FA view
+            // This will stop the timer if fields are empty and not in an active view
             checkActivityAndManageTimer();
         }
     }
 
     $: {
-        // Manage timer based on showTfaView state changes
-        if (showTfaView) {
-            console.debug("2FA view shown, ensuring timer is active.");
-            checkActivityAndManageTimer(); // Start/reset timer when 2FA view appears
+        // Manage timer based on showTfaView or showVerifyDeviceView state changes
+        if (showTfaView || showVerifyDeviceView) {
+            console.debug("2FA or Device Verify view shown, ensuring timer is active.");
+            checkActivityAndManageTimer(); // Start/reset timer when view appears
         } else {
-             // When 2FA view is hidden (e.g., manual switch back, timeout, login success)
+             // When views are hidden (e.g., manual switch back, timeout, login success)
              // check if timer should stop (if email/password are also empty)
             checkActivityAndManageTimer();
         }
     }
 
-    $: {
-        if ($authStore.isAuthenticated && $isInSignupProcess) {
-            console.debug("Detected authenticated user in signup process, switching to signup view");
-            currentView = 'signup';
-            showTfaView = false; // Ensure 2FA view is hidden if switching
-            stopInactivityTimer(); // Stop timer when switching to signup
-        }
-    }
+    // No change needed here, already covered by the block below
 
-    // Strengthen the reactive statement to handle both signup process and logout
+    // Strengthen the reactive statement to handle signup process, logout, and device verification need
     $: {
         if ($authStore.isAuthenticated && $isInSignupProcess) {
             console.debug("Detected signup process, switching to signup view");
             currentView = 'signup';
             showTfaView = false; // Ensure 2FA view is hidden
+            // needsDeviceVerification should be false already if authenticated, but double-check
+            if ($needsDeviceVerification) needsDeviceVerification.set(false);
             stopInactivityTimer(); // Stop timer when switching to signup
         } else if (!$authStore.isAuthenticated) {
-            // Force view to login when logged out, ONLY IF NOT in signup process
-            if (currentView !== 'login' && !$isInSignupProcess) { // Only switch if not already login and not starting signup
+            // If device verification is needed, stay in login view but show VerifyDevice2FA
+            if ($needsDeviceVerification) {
+                console.debug("Device verification needed, ensuring login view is active.");
+                currentView = 'login';
+                showTfaView = false; // Ensure standard 2FA view is hidden
+            } else if (currentView !== 'login' && !$isInSignupProcess) {
+                // Force view to login when logged out, ONLY IF NOT needing device verification AND NOT in signup process
                currentView = 'login';
             }
-            showTfaView = false; // Ensure 2FA view is hidden on logout
-            stopInactivityTimer(); // Stop timer on logout
+            // Ensure views are hidden on logout or when verification is needed but not shown yet
+            if (!$needsDeviceVerification) showTfaView = false;
+            stopInactivityTimer(); // Stop timer on logout or when switching views
 
              // Check for account deletion (either from storage or from event)
             if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
@@ -588,11 +599,26 @@
                                 <!-- Show 2FA Input Component -->
                                 <div in:fade={{ duration: 200 }}>
                                     <Login2FA
-                                        selectedAppName={tfaAppName}
+                                        selectedAppName={tfa_app_name}
                                         on:submitTfa={handleTfaSubmit}
                                         on:switchToLogin={handleSwitchBackToLogin}
                                         bind:isLoading
                                         errorMessage={tfaErrorMessage}
+                                        on:tfaActivity={checkActivityAndManageTimer}
+                                    />
+                                </div>
+                            {:else if showVerifyDeviceView}
+                                <!-- Show Device Verification Component -->
+                                <div in:fade={{ duration: 200 }}>
+                                    <VerifyDevice2FA
+                                        bind:isLoading
+                                        bind:errorMessage={verifyDeviceErrorMessage}
+                                        on:deviceVerified={async () => {
+                                            console.debug("Device verified event received, re-checking auth...");
+                                            verifyDeviceErrorMessage = null; // Clear error on success signal
+                                            await authStore.checkAuth(); // Re-check auth status
+                                        }}
+                                        on:switchToLogin={handleSwitchBackToLogin}
                                         on:tfaActivity={checkActivityAndManageTimer}
                                     />
                                 </div>

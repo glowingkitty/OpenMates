@@ -58,8 +58,8 @@
                     const userData = {
                         id: data.user.id,
                         username: data.user.username || 'User',
-                        isAdmin: data.user.is_admin || false,
-                        profileImageUrl: data.user.profile_image_url || data.user.avatar_url || null,
+                        is_admin: data.user.is_admin || false,
+                        profile_image_url: data.user.profile_image_url || data.user.avatar_url || null,
                         last_opened: data.user.last_opened || null,
                         credits: data.user.credits || 0
                     };
@@ -74,9 +74,9 @@
                         // Update the user profile store
                         updateProfile({
                             username: userData.username,
-                            profileImageUrl: userData.profileImageUrl,
+                            profile_image_url: userData.profile_image_url,
                             credits: userData.credits,
-                            isAdmin: userData.isAdmin,
+                            is_admin: userData.is_admin,
                             last_opened: userData.last_opened
                         });
                     } catch (dbError) {

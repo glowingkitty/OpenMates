@@ -54,10 +54,10 @@ class UserDatabaseService {
 
             // Only store essential fields
             store.put(userData.username || '', 'username');
-            store.put(!!userData.isAdmin, 'isAdmin');  // Convert to boolean
-             store.put(userData.profileImageUrl || null, 'profileImageUrl');
+            store.put(!!userData.is_admin, 'is_admin');  // Convert to boolean
+             store.put(userData.profile_image_url || null, 'profile_image_url');
              store.put(userData.credits || 0, 'credits');
-             store.put(userData.tfaAppName || null, 'tfaAppName');
+             store.put(userData.tfa_app_name || null, 'tfa_app_name');
              store.put(!!userData.tfa_enabled, 'tfa_enabled'); // Store 2FA enabled status
              // Use boolean flags from backend
              store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
@@ -89,10 +89,10 @@ class UserDatabaseService {
             
             // Get username
             const usernameRequest = store.get('username');
-            const profileImageRequest = store.get('profileImageUrl');
+            const profileImageRequest = store.get('profile_image_url');
              const creditsRequest = store.get('credits');
-              const isAdminRequest = store.get('isAdmin');
-              const tfaAppNameRequest = store.get('tfaAppName');
+              const is_adminRequest = store.get('is_admin');
+              const tfa_app_nameRequest = store.get('tfa_app_name');
               const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
               const lastOpenedRequest = store.get('last_opened'); // Get last_opened
               // Add requests for boolean consent flags
@@ -101,11 +101,11 @@ class UserDatabaseService {
               
               let profile: UserProfile = {
                   username: '',
-                  profileImageUrl: null,
+                  profile_image_url: null,
                   credits: 0,
-                  isAdmin: false,
+                  is_admin: false,
                   last_opened: '', // Initialize last_opened
-                  tfaAppName: null,
+                  tfa_app_name: null,
                   tfa_enabled: false, // Initialize tfa_enabled
                   // Initialize boolean flags
                   consent_privacy_and_apps_default_settings: false,
@@ -117,19 +117,19 @@ class UserDatabaseService {
             };
 
             profileImageRequest.onsuccess = () => {
-                profile.profileImageUrl = profileImageRequest.result || null;
+                profile.profile_image_url = profileImageRequest.result || null;
             };
 
             creditsRequest.onsuccess = () => {
                 profile.credits = creditsRequest.result || 0;
             };
 
-            isAdminRequest.onsuccess = () => {
-                profile.isAdmin = !!isAdminRequest.result;
+            is_adminRequest.onsuccess = () => {
+                profile.is_admin = !!is_adminRequest.result;
             };
 
-             tfaAppNameRequest.onsuccess = () => {
-                 profile.tfaAppName = tfaAppNameRequest.result || null;
+             tfa_app_nameRequest.onsuccess = () => {
+                 profile.tfa_app_name = tfa_app_nameRequest.result || null;
              };
 
               tfaEnabledRequest.onsuccess = () => { // Handle tfa_enabled retrieval
@@ -232,10 +232,10 @@ class UserDatabaseService {
                 
                 const hasChanges = 
                     (newUserData.username !== undefined && storedData.username !== newUserData.username) ||
-                    (newUserData.profileImageUrl !== undefined && storedData.profileImageUrl !== newUserData.profileImageUrl) ||
+                    (newUserData.profile_image_url !== undefined && storedData.profile_image_url !== newUserData.profile_image_url) ||
                     (newUserData.credits !== undefined && storedData.credits !== newUserData.credits) ||
-                    (newUserData.isAdmin !== undefined && storedData.isAdmin !== newUserData.isAdmin) ||
-                    (newUserData.tfaAppName !== undefined && storedData.tfaAppName !== newUserData.tfaAppName); // Check tfaAppName
+                    (newUserData.is_admin !== undefined && storedData.is_admin !== newUserData.is_admin) ||
+                    (newUserData.tfa_app_name !== undefined && storedData.tfa_app_name !== newUserData.tfa_app_name); // Check tfa_app_name
                 
                 resolve(hasChanges);
             };
@@ -260,24 +260,24 @@ class UserDatabaseService {
             const store = transaction.objectStore(this.STORE_NAME);
             
             const username = store.get('username');
-            const isAdmin = store.get('isAdmin');
-            const profileImageUrl = store.get('profileImageUrl');
+            const is_admin = store.get('is_admin');
+            const profile_image_url = store.get('profile_image_url');
             const credits = store.get('credits');
-            const tfaAppName = store.get('tfaAppName'); // Get tfaAppName
+            const tfa_app_name = store.get('tfa_app_name'); // Get tfa_app_name
             
             let userData: User = {
                 username: '',
-                isAdmin: false,
-                profileImageUrl: null,
+                is_admin: false,
+                profile_image_url: null,
                 credits: 0,
-                tfaAppName: null // Initialize tfaAppName
+                tfa_app_name: null // Initialize tfa_app_name
             };
 
             username.onsuccess = () => userData.username = username.result || '';
-            isAdmin.onsuccess = () => userData.isAdmin = !!isAdmin.result;
-            profileImageUrl.onsuccess = () => userData.profileImageUrl = profileImageUrl.result;
+            is_admin.onsuccess = () => userData.is_admin = !!is_admin.result;
+            profile_image_url.onsuccess = () => userData.profile_image_url = profile_image_url.result;
             credits.onsuccess = () => userData.credits = credits.result || 0;
-            tfaAppName.onsuccess = () => userData.tfaAppName = tfaAppName.result; // Assign tfaAppName
+            tfa_app_name.onsuccess = () => userData.tfa_app_name = tfa_app_name.result; // Assign tfa_app_name
 
             transaction.oncomplete = () => {
                 console.debug("[UserDatabase] User data retrieved:", userData);
@@ -307,20 +307,20 @@ class UserDatabaseService {
                 store.put(partialData.username, 'username');
             }
             
-            if (partialData.profileImageUrl !== undefined) {
-                store.put(partialData.profileImageUrl, 'profileImageUrl');
+            if (partialData.profile_image_url !== undefined) {
+                store.put(partialData.profile_image_url, 'profile_image_url');
             }
             
             if (partialData.credits !== undefined) {
                 store.put(partialData.credits, 'credits');
             }
             
-            if (partialData.isAdmin !== undefined) {
-                store.put(partialData.isAdmin, 'isAdmin');
+            if (partialData.is_admin !== undefined) {
+                store.put(partialData.is_admin, 'is_admin');
             }
 
-             if (partialData.tfaAppName !== undefined) {
-                 store.put(partialData.tfaAppName, 'tfaAppName');
+             if (partialData.tfa_app_name !== undefined) {
+                 store.put(partialData.tfa_app_name, 'tfa_app_name');
              }
 
              if (partialData.tfa_enabled !== undefined) { // Handle tfa_enabled update

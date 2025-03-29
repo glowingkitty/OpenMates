@@ -26,8 +26,8 @@
     }
 
     function handleSkipClick() {
-        // Use userProfile.profileImageUrl to check if image exists for step 3
-        if (currentStep === 3 && $userProfile.profileImageUrl) { // Next from step 3 (profile pic)
+        // Use userProfile.profile_image_url to check if image exists for step 3
+        if (currentStep === 3 && $userProfile.profile_image_url) { // Next from step 3 (profile pic)
             dispatch('step', { step: 4 });
         } else if (currentStep === 4 && $userProfile.tfa_enabled) { // Next from step 4 (if TFA already enabled)
             dispatch('step', { step: 6 });
@@ -70,8 +70,8 @@
 
     // Update the reactive skipButtonText for different steps and states
     $: skipButtonText = 
-        // Use userProfile.profileImageUrl for step 3 logic
-        (currentStep === 3 && $userProfile.profileImageUrl) ? $_('signup.next.text') : // Step 3 -> 4
+        // Use userProfile.profile_image_url for step 3 logic
+        (currentStep === 3 && $userProfile.profile_image_url) ? $_('signup.next.text') : // Step 3 -> 4
         (currentStep === 4 && $userProfile.tfa_enabled) ? $_('signup.next.text') : // Step 4 (if TFA enabled) -> 6
         (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
         (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') : // Use consent_privacy_and_apps_default_settings

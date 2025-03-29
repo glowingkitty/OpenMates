@@ -36,10 +36,10 @@ async def get_session(
         # Handle device mismatch status first
         if auth_status == "device_mismatch":
             if user_data.get("tfa_enabled", False):
-                logger.warning(f"Device mismatch for user {user_data.get('user_id')}, 2FA enabled. Triggering re-auth.")
+                logger.warning(f"Device mismatch for user, 2FA enabled. Triggering re-auth.")
                 return SessionResponse(success=False, message="Device mismatch, 2FA required", re_auth_required="2fa")
             else:
-                logger.warning(f"Device mismatch for user {user_data.get('user_id')}, 2FA disabled. Invalidating session.")
+                logger.warning(f"Device mismatch for user, 2FA disabled. Invalidating session.")
                 # TODO: Consider explicitly clearing the cookie/cache here? For now, just return failure.
                 return SessionResponse(success=False, message="Session invalid due to device change", token_refresh_needed=False)
 

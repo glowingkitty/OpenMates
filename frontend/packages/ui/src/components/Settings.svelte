@@ -97,7 +97,7 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive settingsViews that filters out server options for non-admins
     $: settingsViews = Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
         // Include all non-server settings, or include server settings if user is admin
-        if (!key.startsWith('server') || $userProfile.isAdmin) {
+        if (!key.startsWith('server') || $userProfile.is_admin) {
             filtered[key] = component;
         }
         return filtered;
@@ -221,7 +221,7 @@ changes to the documentation (to keep the documentation up to date).
     
     $: isInSignup = $isInSignupProcess;
     $: username = $userProfile.username || 'Guest';
-    $: profileImageUrl = $userProfile.profileImageUrl;
+    $: profile_image_url = $userProfile.profile_image_url;
     $: isInSignupMode = $isInSignupProcess;
     $: credits = $userProfile.credits || 0;
 
@@ -587,9 +587,9 @@ changes to the documentation (to keep the documentation up to date).
         >
             <div 
                 class="profile-picture" 
-                style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+                style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
             >
-                {#if !profileImageUrl}
+                {#if !profile_image_url}
                     <div class="default-user-icon"></div>
                 {/if}
             </div>

@@ -83,9 +83,10 @@ login_2fa_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte'; // Import createEventDispatcher
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { tfaAppIcons } from '../config/tfa';
-    import InputWarning from './common/InputWarning.svelte'; // Import for error display
+    import InputWarning from './common/InputWarning.svelte';
+    import { getApiEndpoint, apiEndpoints } from '../config/api';
 
     export let previewMode = false;
     export let previewTfaAppName = 'Google Authenticator';
@@ -107,7 +108,6 @@ login_2fa_svelte:
 
     let otpCode = '';
     let otpInput: HTMLInputElement;
-    // let isLoading = false; // isLoading is now bound from parent
     let currentAppIndex = 0;
     let animationInterval: number | null = null;
     let currentDisplayedApp = previewMode ? previewTfaAppName : (selectedAppName || ''); // Initialize with selectedAppName
@@ -154,9 +154,10 @@ login_2fa_svelte:
     });
 
     // Helper function to generate opacity style
-    $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
+    // Fix type error by casting id
+    $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id as any) ? 1 : 0.5}`;
 
-    // Function to dispatch event to switch back to login
+    // Function to dispatch event to switch back to login - RESTORED
     function handleSwitchToLogin() {
         dispatch('switchToLogin');
     }
@@ -176,9 +177,44 @@ login_2fa_svelte:
         }
     }
 
-    function handleSubmit() {
+    // Modified handleSubmit for device verification
+    async function handleSubmit() { // Added async
         if (isLoading || otpCode.length !== 6) return; // Prevent submit if loading or code incomplete
-        dispatch('submitTfa', { otpCode });
+        // dispatch('submitTfa', { otpCode }); // Original dispatch removed
+
+        // Added API call logic
+        isLoading = true;
+        errorMessage = null;
+        console.debug("Submitting device verification code...");
+
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.verifyDevice2FA), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({ tfa_code: otpCode }),
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                console.debug("Device verification successful.");
+                dispatch('deviceVerified'); // Dispatch success event
+            } else {
+                console.warn("Device verification failed:", data.message);
+                errorMessage = data.message || 'Invalid verification code';
+            }
+
+        } catch (error) {
+            console.error("Device verification fetch/network error:", error);
+            errorMessage = 'An error occurred during verification.';
+        } finally {
+            isLoading = false;
+        }
     }
 
     // Clear error message when user starts typing again
@@ -242,7 +278,7 @@ login_2fa_svelte:
             {$text('login.enter_backup_code.text')}
         </a>
     </div>
-    <div class="switch-account">
+   <div class="switch-account">
         <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
             {$text('login.login_with_another_account.text')}
         </a>

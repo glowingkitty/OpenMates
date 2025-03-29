@@ -6,7 +6,7 @@
     import Avatar from '../common/Avatar.svelte';
     
     export let username = '';
-    export let isAdmin = false;
+    export let is_admin = false;
     export let avatarUrl = '';
     let isLoggingOut = false;
     let showUserMenu = false;
@@ -124,7 +124,7 @@
                         <Avatar username={username} imageUrl={avatarUrl} size="medium" />
                         <div class="user-info">
                             <div class="menu-username">{username}</div>
-                            {#if isAdmin}
+                            {#if is_admin}
                                 <div class="admin-badge">{$text('common.admin.text')}</div>
                             {/if}
                         </div>

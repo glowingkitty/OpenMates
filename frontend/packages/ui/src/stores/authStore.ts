@@ -7,8 +7,17 @@ import { resetTwoFAData } from './twoFAState'; // Import the reset function
 
 // Define the types for the auth store
 interface AuthState {
-  isAuthenticated: boolean;
+  isAuthenticated: boolean; // Represents full authentication (session valid AND device known)
   isInitialized: boolean;
+}
+
+// Define return type for session check
+interface SessionCheckResult {
+    success: boolean;
+    user?: UserProfile; // Use UserProfile type
+    message?: string;
+    re_auth_required?: '2fa' | null; // Add this field
+    token_refresh_needed?: boolean;
 }
 
 // Define return type for the login function
@@ -28,6 +37,8 @@ const initialState: AuthState = {
 
 // Export auth checking state - moved from authCheckState.ts
 export const isCheckingAuth = writable(false);
+// Export state for device verification requirement
+export const needsDeviceVerification = writable(false);
 
 // Create the writable store
 function createAuthStore() {
@@ -37,9 +48,10 @@ function createAuthStore() {
     subscribe,
     
     // Check authentication status using session endpoint
-    checkAuth: async (): Promise<boolean> => {
+    checkAuth: async (): Promise<boolean> => { // Returns true if fully authenticated, false otherwise
       isCheckingAuth.set(true);
-      
+      needsDeviceVerification.set(false); // Reset verification need at the start of check
+
       try {
         console.debug("Checking authentication with session endpoint...");
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
@@ -54,11 +66,38 @@ function createAuthStore() {
         });
 
         // Process the response
-        const data = await response.json();
-        
+        const data: SessionCheckResult = await response.json(); // Use defined type
+        console.debug("Session check response:", data);
+
+        // --- Handle Device Verification Required ---
+        if (!data.success && data.re_auth_required === '2fa') {
+            console.warn("Session check indicates device 2FA verification is required.");
+            needsDeviceVerification.set(true);
+            update(state => ({
+                ...state,
+                isAuthenticated: false, // Not fully authenticated yet
+                isInitialized: true
+            }));
+            // Clear potentially stale user data from profile store if re-auth is needed
+            updateProfile({
+                username: null,
+                profile_image_url: null,
+                tfa_app_name: null,
+                tfa_enabled: false, // Assume false until re-verified
+                credits: 0,
+                is_admin: false,
+                last_opened: null,
+                consent_privacy_and_apps_default_settings: false,
+                consent_mates_default_settings: false
+            });
+            return false; // Indicate not fully authenticated
+        }
+
+        // --- Handle Successful Authentication (Device Known) ---
         if (data.success && data.user) {
+          needsDeviceVerification.set(false); // Ensure flag is false on success
           const inSignupFlow = data.user.last_opened?.startsWith('/signup/');
-          
+
           if (inSignupFlow) {
             console.debug("User is in signup process:", data.user.last_opened);
             const step = getStepFromPath(data.user.last_opened);
@@ -67,13 +106,13 @@ function createAuthStore() {
           } else {
             isInSignupProcess.set(false);
           }
-          
+
           update(state => ({
             ...state,
-            isAuthenticated: true,
+            isAuthenticated: true, // Fully authenticated
             isInitialized: true
           }));
-          
+
           // Save the user data to IndexedDB
           try {
             await userDB.saveUserData(data.user);
@@ -86,11 +125,11 @@ function createAuthStore() {
             // Update the user profile store
             updateProfile({
               username: data.user.username,
-              profileImageUrl: data.user.profile_image_url,
-              tfaAppName: data.user.tfa_app_name,
+              profile_image_url: data.user.profile_image_url, // Corrected: camelCase
+              tfa_app_name: data.user.tfa_app_name,           // Corrected: camelCase
               tfa_enabled: tfa_enabled, // Pass status
               credits: data.user.credits,
-              isAdmin: data.user.is_admin,
+              is_admin: data.user.is_admin,                 // Corrected: camelCase
               last_opened: data.user.last_opened,
               // Pass consent flags
               consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
@@ -100,28 +139,53 @@ function createAuthStore() {
             console.error("Failed to save user data to database:", dbError);
           }
           
-          return true;
+          return true; // Indicate fully authenticated
         } else {
-          // Not logged in or failed auth
+          // --- Handle Other Failures (Not logged in, expired token etc.) ---
+          console.info("Session check failed or user not logged in:", data.message);
+          needsDeviceVerification.set(false); // Ensure flag is false on failure
           update(state => ({
             ...state,
-            isAuthenticated: false,
+            isAuthenticated: false, // Not authenticated
             isInitialized: true
           }));
-          
-          return false;
+          // Clear profile on any auth failure
+           updateProfile({
+                username: null,
+                profile_image_url: null,
+                tfa_app_name: null,
+                tfa_enabled: false,
+                credits: 0,
+                is_admin: false,
+                last_opened: null,
+                consent_privacy_and_apps_default_settings: false,
+                consent_mates_default_settings: false
+            });
+          return false; // Indicate not authenticated
         }
       } catch (error) {
         console.error("Auth check error:", error);
         
-        // On error, assume not authenticated
+        // On network/fetch error, assume not authenticated
+        needsDeviceVerification.set(false); // Reset flag on error
         update(state => ({
             ...state,
-            isAuthenticated: false,
+            isAuthenticated: false, // Not authenticated
             isInitialized: true
         }));
-        
-        return false;
+         // Clear profile on error
+        updateProfile({
+            username: null,
+            profile_image_url: null,
+            tfa_app_name: null,
+            tfa_enabled: false,
+            credits: 0,
+            is_admin: false,
+            last_opened: null,
+            consent_privacy_and_apps_default_settings: false,
+            consent_mates_default_settings: false
+        });
+        return false; // Indicate not authenticated
       } finally {
         // Always set isCheckingAuth to false when done
         isCheckingAuth.set(false);
@@ -153,10 +217,10 @@ function createAuthStore() {
         if (data.success) {
           console.debug('setup2FAProvider API call successful. Updating IndexedDB.');
           try {
-            await userDB.updateUserData({ tfaAppName: appName });
-            console.debug('IndexedDB updated with tfaAppName.');
+            await userDB.updateUserData({ tfa_app_name: appName });
+            console.debug('IndexedDB updated with tfa_app_name.');
           } catch (dbError) {
-            console.error('Failed to update tfaAppName in IndexedDB:', dbError);
+            console.error('Failed to update tfa_app_name in IndexedDB:', dbError);
             // Proceed even if DB update fails, but log error. API call succeeded.
           }
           return { success: true, message: data.message };
@@ -241,11 +305,11 @@ function createAuthStore() {
                 
                 updateProfile({
                   username: data.user.username,
-                  profileImageUrl: data.user.profile_image_url,
-                  tfaAppName: data.user.tfa_app_name,
-                  tfa_enabled: tfa_enabled, // Pass status
+                  profile_image_url: data.user.profile_image_url,
+                  tfa_app_name: data.user.tfa_app_name,
+                  tfa_enabled: tfa_enabled,
                   credits: data.user.credits,
-                  isAdmin: data.user.is_admin,
+                  is_admin: data.user.is_admin,
                   last_opened: data.user.last_opened,
                   // Pass consent flags
                   consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
@@ -396,6 +460,9 @@ function createAuthStore() {
 
         // Reset the TFA resetting flag
         isResettingTFA.set(false);
+
+        // Reset device verification flag
+        needsDeviceVerification.set(false);
         
         // Reset the store state
         set({
@@ -416,7 +483,7 @@ function createAuthStore() {
         if (callbacks?.onError) {
           await callbacks?.onError(error);
         }
-
+        
         // Reset 2FA state even on error
         resetTwoFAData();
         
@@ -425,6 +492,9 @@ function createAuthStore() {
 
         // Reset the TFA resetting flag even on error
         isResettingTFA.set(false);
+
+        // Reset device verification flag even on error
+        needsDeviceVerification.set(false);
         
         // Reset the store state even on error
         set({
@@ -453,7 +523,7 @@ export const profileImage = derived(
   $authStore => {
     if ($authStore.isAuthenticated) {
       // Use get(userProfile) to access the store's value reactively
-      return get(userProfile).profileImageUrl || '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
+      return get(userProfile).profile_image_url || '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';
     }
     // Return default placeholder if not authenticated
     return '@openmates/ui/static/images/placeholders/userprofileimage.jpeg';

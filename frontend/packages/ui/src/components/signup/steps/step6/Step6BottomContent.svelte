@@ -84,7 +84,7 @@ step_6_bottom_content_svelte:
     let searchResults = tfaApps;
     let selectedApp = '';
     let isLoading = true; // Track loading state
-    let initialTfaAppName: string | null = null; // Store the initial app name loaded
+    let initialtfa_app_name: string | null = null; // Store the initial app name loaded
     let errorMessage = ''; // To display errors
     let continueButtonElement: HTMLButtonElement; // Add variable for button ref
 
@@ -95,19 +95,19 @@ step_6_bottom_content_svelte:
         try {
             await userDB.init(); // Ensure DB is initialized
             const userData = await userDB.getUserData();
-            initialTfaAppName = userData?.tfaAppName || selectedAppName; // Store initial name
+            initialtfa_app_name = userData?.tfa_app_name || selectedAppName; // Store initial name
 
-            if (initialTfaAppName) {
-                appName = initialTfaAppName; // Set current input value
+            if (initialtfa_app_name) {
+                appName = initialtfa_app_name; // Set current input value
                 // Check if it's one of the predefined apps
-                if (tfaApps.includes(initialTfaAppName)) {
-                    selectedApp = initialTfaAppName;
+                if (tfaApps.includes(initialtfa_app_name)) {
+                    selectedApp = initialtfa_app_name;
                 }
                 // Dispatch event to ensure parent knows this app is selected/loaded initially
-                dispatch('selectedApp', { appName: initialTfaAppName });
+                dispatch('selectedApp', { appName: initialtfa_app_name });
             }
         } catch (error) {
-            console.error("Error loading tfaAppName from DB:", error);
+            console.error("Error loading tfa_app_name from DB:", error);
             errorMessage = "Failed to load saved app name."; // Inform user
         } finally {
             isLoading = false;
@@ -119,7 +119,7 @@ step_6_bottom_content_svelte:
         !isLoading &&
         appName.trim().length >= 3 &&
         appName.trim().length <= 40 &&
-        appName.trim() !== (initialTfaAppName || ''); // Show only if valid length AND different from initial
+        appName.trim() !== (initialtfa_app_name || ''); // Show only if valid length AND different from initial
 
     function handleInput(event: Event) {
         errorMessage = ''; // Clear error on input

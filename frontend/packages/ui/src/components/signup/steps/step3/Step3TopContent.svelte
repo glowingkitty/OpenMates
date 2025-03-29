@@ -10,7 +10,7 @@
     $: displayUsername = $userProfile?.username || username;
 
     // Determine which image URL to use - prefer the one from userProfile store if available
-    $: imageUrl = $userProfile?.profileImageUrl || $processedImageUrl;
+    $: imageUrl = $userProfile?.profile_image_url || $processedImageUrl;
 
     // Add a computed property to determine if we should show the image
     $: showImage = (imageUrl && !isProcessing);

@@ -3,11 +3,11 @@ import { userDB } from '../services/userDB';
 
 export interface UserProfile {
   username: string;
-  profileImageUrl: string | null;
+  profile_image_url: string | null;
   credits: number;
-  isAdmin: boolean;
+  is_admin: boolean;
   last_opened: string;
-  tfaAppName: string | null;
+  tfa_app_name: string | null;
   tfa_enabled: boolean; // Added field for 2FA status
   // Use boolean flags received from backend
   consent_privacy_and_apps_default_settings?: boolean; 
@@ -16,11 +16,11 @@ export interface UserProfile {
 
 const defaultProfile: UserProfile = {
   username: '',
-  profileImageUrl: null,
+  profile_image_url: null,
   credits: 0,
-  isAdmin: false,
+  is_admin: false,
   last_opened: '',
-  tfaAppName: null,
+  tfa_app_name: null,
   tfa_enabled: false, // Added default value
   // Add default values for boolean flags
   consent_privacy_and_apps_default_settings: false,
@@ -32,7 +32,7 @@ export const userProfile = writable<UserProfile>(defaultProfile);
 // Load user profile data from IndexedDB on startup
 export async function loadUserProfileFromDB(): Promise<void> {
   try {
-    // userDB.getUserProfile() now returns all necessary fields including consents, credits, isAdmin, etc.
+    // userDB.getUserProfile() now returns all necessary fields including consents, credits, is_admin, etc.
     const profileFromDB = await userDB.getUserProfile(); 
     
     if (profileFromDB) {
@@ -69,11 +69,11 @@ export function updateUsername(username: string): void {
 export function updateProfileImage(imageUrl: string | null): void {
   userProfile.update(profile => ({
     ...profile,
-    profileImageUrl: imageUrl
+    profile_image_url: imageUrl
   }));
   
   // Also persist to database
-  userDB.updateUserData({ profileImageUrl: imageUrl });
+  userDB.updateUserData({ profile_image_url: imageUrl });
 }
 
 // Helper function to update just the credits

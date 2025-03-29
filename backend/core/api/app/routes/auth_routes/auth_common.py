@@ -64,7 +64,7 @@ async def verify_authenticated_user(
                 # Not in cache, check database as fallback
                 device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
                 if not device_in_db:
-                    logger.warning(f"Device mismatch for user {user_id}: {device_fingerprint}")
+                    logger.warning(f"Device mismatch for user")
                     # Return False for is_auth, but include user_data and specific status
                     return False, user_data, refresh_token, "device_mismatch"
 
