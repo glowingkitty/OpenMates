@@ -5,7 +5,9 @@ from app.routes.auth_routes.auth_email import router as email_router
 from app.routes.auth_routes.auth_login import router as login_router
 from app.routes.auth_routes.auth_logout import router as logout_router
 from app.routes.auth_routes.auth_session import router as session_router
-from app.routes.auth_routes.auth_2fa import router as twofa_router
+# Import new refactored 2FA routers
+from app.routes.auth_routes.auth_2fa_setup import router as twofa_setup_router
+from app.routes.auth_routes.auth_2fa_verify import router as twofa_verify_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -61,4 +63,6 @@ router.include_router(email_router)
 router.include_router(login_router)
 router.include_router(logout_router)
 router.include_router(session_router)
-router.include_router(twofa_router)
+# Include new refactored 2FA routers
+router.include_router(twofa_setup_router)
+router.include_router(twofa_verify_router)

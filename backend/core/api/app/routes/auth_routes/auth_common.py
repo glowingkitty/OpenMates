@@ -14,10 +14,10 @@ async def verify_authenticated_user(
     cache_service: CacheService,
     directus_service: DirectusService,
     require_known_device: bool = True
-) -> Tuple[bool, Dict[str, Any], Optional[str]]:
+) -> Tuple[bool, Dict[str, Any], Optional[str], Optional[str]]:
     """
     Verify that a user is authenticated and their session is valid.
-    Also verifies that the device is known if required.
+    Optionally verifies that the device is known.
     
     Args:
         request: The FastAPI request object
@@ -27,28 +27,31 @@ async def verify_authenticated_user(
         
     Returns:
         Tuple containing:
-            - Success (bool): True if authentication is valid
-            - User data (dict): User data from cache
+            - Success (bool): True if authentication is valid (ignoring device mismatch status)
+            - User data (dict): User data from cache (returned even on device mismatch)
             - Refresh token (str): The refresh token used
+            - Auth Status (Optional[str]): "device_mismatch", "authentication_failed", or None
     """
     try:
         # Get refresh token from cookies
         refresh_token = request.cookies.get("auth_refresh_token")
         if not refresh_token:
             logger.info("No refresh token provided")
-            return False, {}, None
+            return False, {}, None, "authentication_failed"
 
         # Get user data from cache using refresh token
         user_data = await cache_service.get_user_by_token(refresh_token)
         if not user_data:
             logger.info("No session data in cache for token")
-            return False, {}, refresh_token
-        
+            # Return token here so caller might attempt Directus refresh if applicable
+            return False, {}, refresh_token, "authentication_failed"
+
         user_id = user_data.get("user_id")
         if not user_id:
-            logger.info("Invalid user data - missing user_id")
-            return False, {}, refresh_token
-            
+            logger.warning("Invalid user data in cache - missing user_id")
+            # Return token here as well
+            return False, {}, refresh_token, "authentication_failed"
+
         # If device verification is required
         if require_known_device:
             device_fingerprint = get_device_fingerprint(request)
@@ -61,11 +64,12 @@ async def verify_authenticated_user(
                 # Not in cache, check database as fallback
                 device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
                 if not device_in_db:
-                    logger.warning(f"Unknown device attempting to access authenticated endpoint: {device_fingerprint}")
-                    return False, {}, refresh_token
-                
+                    logger.warning(f"Device mismatch for user {user_id}: {device_fingerprint}")
+                    # Return False for is_auth, but include user_data and specific status
+                    return False, user_data, refresh_token, "device_mismatch"
+
                 # Device is in DB but not cache - update cache
-                client_ip = get_client_ip(request)
+                # client_ip = get_client_ip(request) # IP not needed here, just for logging/cache update
                 import time
                 current_time = int(time.time())
                 await cache_service.set(
@@ -77,13 +81,15 @@ async def verify_authenticated_user(
                     },
                     ttl=cache_service.USER_TTL
                 )
-        
-        # If we reached here, authentication is valid
-        return True, user_data, refresh_token
-        
+
+        # If we reached here, authentication token is valid, and device (if checked) is known
+        return True, user_data, refresh_token, None
+
     except Exception as e:
         logger.error(f"Authentication verification error: {str(e)}", exc_info=True)
-        return False, {}, None
+        # Return token if available from cookie, even on error
+        refresh_token = request.cookies.get("auth_refresh_token")
+        return False, {}, refresh_token, "authentication_failed"
 
 def require_auth(
     request: Request, 

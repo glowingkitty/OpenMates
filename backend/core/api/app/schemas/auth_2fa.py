@@ -7,12 +7,22 @@ class Setup2FAResponse(BaseModel):
     secret: Optional[str] = None
     otpauth_url: Optional[str] = None
 
-class Verify2FACodeRequest(BaseModel):
+# Renamed for clarity: Used during initial 2FA setup/signup
+class VerifySignup2FARequest(BaseModel):
     code: str
 
-class Verify2FACodeResponse(BaseModel):
+# Renamed for clarity: Used during initial 2FA setup/signup
+class VerifySignup2FAResponse(BaseModel):
     success: bool
     message: str
+
+# New models for verifying 2FA due to device mismatch
+class VerifyDevice2FARequest(BaseModel):
+    tfa_code: str = Field(..., description="The 6-digit code from the user's authenticator app")
+
+class VerifyDevice2FAResponse(BaseModel):
+    success: bool = Field(..., description="Whether the device verification was successful")
+    message: str = Field(..., description="Response message")
 
 class BackupCodesResponse(BaseModel):
     success: bool

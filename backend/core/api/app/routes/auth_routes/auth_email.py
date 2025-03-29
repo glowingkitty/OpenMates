@@ -314,11 +314,10 @@ async def check_confirm_email_code(
         # Also update active users count immediately - fix the call to use positional arguments
         metrics_service.update_active_users(1, 1)  # Daily active, Monthly active
         
-        # Log compliance event for account creation - only store fingerprint hash, not IP
+        # Log compliance event for account creation and consents
+        # IP, device fingerprint, and location are intentionally NOT logged here
         compliance_service.log_user_creation(
-            user_id=user_id, 
-            device_fingerprint=device_fingerprint,
-            location=device_location,
+            user_id=user_id,
             status="success"
         )
         

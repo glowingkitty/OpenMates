@@ -112,3 +112,4 @@ class SessionResponse(BaseModel):
     message: str
     user: Optional[UserResponse] = None
     token_refresh_needed: bool = False
+    re_auth_required: Optional[str] = None # e.g., "2fa"

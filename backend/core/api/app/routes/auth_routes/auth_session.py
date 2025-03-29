@@ -23,19 +23,36 @@ async def get_session(
     cache_service: CacheService = Depends(get_cache_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
 ):
-    """Simple session validation using cache"""
+    """
+    Validate session using cache and check device fingerprint.
+    Triggers 2FA re-auth if device mismatches and 2FA is enabled.
+    """
     try:
-        # Use the shared authentication function to verify user
-        is_auth, user_data, refresh_token = await verify_authenticated_user(
-            request, cache_service, directus_service, require_known_device=False
+        # Use the shared authentication function to verify user AND device
+        is_auth, user_data, refresh_token, auth_status = await verify_authenticated_user(
+            request, cache_service, directus_service, require_known_device=True
         )
-        
+
+        # Handle device mismatch status first
+        if auth_status == "device_mismatch":
+            if user_data.get("tfa_enabled", False):
+                logger.warning(f"Device mismatch for user {user_data.get('user_id')}, 2FA enabled. Triggering re-auth.")
+                return SessionResponse(success=False, message="Device mismatch, 2FA required", re_auth_required="2fa")
+            else:
+                logger.warning(f"Device mismatch for user {user_data.get('user_id')}, 2FA disabled. Invalidating session.")
+                # TODO: Consider explicitly clearing the cookie/cache here? For now, just return failure.
+                return SessionResponse(success=False, message="Session invalid due to device change", token_refresh_needed=False)
+
+        # Handle other authentication failures
         if not is_auth or not user_data:
+            logger.info(f"Session validation failed: {auth_status or 'Unknown reason'}")
             return SessionResponse(success=False, message="Not logged in", token_refresh_needed=False)
 
-        # User is authenticated, update last online timestamp
+        # --- Authentication successful, device known ---
+
+        # Update last online timestamp
         current_time = int(time.time())
-        user_id = user_data.get("user_id") or user_data.get("id") # Get user ID safely
+        user_id = user_data.get("user_id") # Should exist if is_auth is True
 
         if user_id:
             # Update Directus (fire and forget, log errors)
