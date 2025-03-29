@@ -10,6 +10,11 @@ directus_users:
       length: 512
       note: "Last opened chat or signup step. Example: /chats/1234, /signup/step-3"
 
+    last_online_timestamp:
+      type: string
+      length: 256
+      note: "Timestamp of the last time the user was online"
+
     encrypted_email_address:
       type: string
       length: 512

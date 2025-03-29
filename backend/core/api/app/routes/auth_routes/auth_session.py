@@ -33,8 +33,26 @@ async def get_session(
         if not is_auth or not user_data:
             return SessionResponse(success=False, message="Not logged in", token_refresh_needed=False)
 
-        # 2. Check token expiry
+        # User is authenticated, update last online timestamp
         current_time = int(time.time())
+        user_id = user_data.get("user_id") or user_data.get("id") # Get user ID safely
+
+        if user_id:
+            # Update Directus (fire and forget, log errors)
+            try:
+                await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
+            except Exception as e:
+                logger.error(f"Failed to update last_online_timestamp in Directus for user {user_id}: {e}")
+            
+            # Update cache
+            update_success = await cache_service.update_user(user_id, {"last_online_timestamp": current_time})
+            if update_success:
+                # Update local user_data dict as well for the response
+                user_data['last_online_timestamp'] = current_time
+            else:
+                 logger.warning(f"Failed to update last_online_timestamp in cache for user {user_id}")
+
+        # 2. Check token expiry
         token_expiry = user_data.get("token_expiry", 0)
         expires_soon = token_expiry - current_time < 300  # 5 minutes
 
@@ -84,10 +102,9 @@ async def get_session(
                 profile_image_url=user_data.get("profile_image_url"),
                 last_opened=user_data.get("last_opened"),
                 tfa_app_name=user_data.get("tfa_app_name"),
-                tfa_enabled=user_data.get("tfa_enabled", False), # Read from cache, default to False
-                # Use boolean flags directly from cache
-                consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings", False), # Get boolean directly, default False
-                consent_mates_default_settings=user_data.get("consent_mates_default_settings", False)   # Get boolean directly, default False
+                tfa_enabled=user_data.get("tfa_enabled", False),
+                consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings", False),
+                consent_mates_default_settings=user_data.get("consent_mates_default_settings", False)
             ),
             token_refresh_needed=False
         )

@@ -283,6 +283,9 @@ async def finalize_login_session(
             user_id=user_id, device_fingerprint=device_fingerprint, device_location=device_location
         )
 
+        # Update last online timestamp in Directus
+        await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
+
         # Cache user data and update token list
         if refresh_token:
             # Prepare standardized user data (using the already merged 'user' dict)
@@ -296,6 +299,7 @@ async def finalize_login_session(
                 "tfa_enabled": bool(user.get("encrypted_tfa_secret")), # Add tfa_enabled status
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id"),
+                "last_online_timestamp": current_time, # Add last online timestamp
                 # Add boolean consent flags to cache data, deriving safely from user dict
                 "consent_privacy_and_apps_default_settings": bool(user.get("consent_privacy_and_apps_default_settings")),
                 "consent_mates_default_settings": bool(user.get("consent_mates_default_settings"))
