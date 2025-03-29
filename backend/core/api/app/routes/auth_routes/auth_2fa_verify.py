@@ -153,17 +153,14 @@ async def verify_device_2fa(
         except Exception as db_err:
             logger.error(f"Failed to update device DB for user {user_id}, device {device_fingerprint}: {db_err}")
             # Continue even if DB update fails, cache was updated.
-        
-        # TODO: Send 'New device logged in' email notification
 
         # Log successful verification for compliance
         compliance_service.log_auth_event(
-            event_type="2fa_device_verification",
-            user_id=user_id,
-            ip_address=client_ip,
-            status="success",
-            details={"device_fingerprint": device_fingerprint, "location": device_location}
+            event_type="login_new_device", user_id=user_id, ip_address=client_ip, 
+            status="success", details={"device_fingerprint": device_fingerprint, "location": device_location}
         )
+
+        # TODO: Send 'New device logged in' email notification
 
         return VerifyDevice2FAResponse(success=True, message="Device verified successfully")
 
