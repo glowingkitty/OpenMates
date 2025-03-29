@@ -47,7 +47,9 @@ async def get_current_user(
             profile_image_url=cached_data.get("profile_image_url"),
             tfa_app_name=cached_data.get("tfa_app_name"),
             last_opened=cached_data.get("last_opened"),
-            vault_key_id=cached_data.get("vault_key_id")
+            vault_key_id=cached_data.get("vault_key_id"),
+            consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
+            consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
         )
     
     # If no cache hit, validate token and get user data
@@ -75,7 +77,10 @@ async def get_current_user(
         credits=user_data.get("credits", 0), # Use credits from user_data
         profile_image_url=user_data.get("profile_image_url"),
         last_opened=user_data.get("last_opened"),
-        vault_key_id=user_data.get("vault_key_id") # Populate from fresh fetch
+        vault_key_id=user_data.get("vault_key_id"), # Populate from fresh fetch
+        tfa_app_name=user_data.get("tfa_app_name"), # Include tfa_app_name from User model
+        consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
+        consent_mates_default_settings=user_data.get("consent_mates_default_settings"), # Include consent timestamps from the User model
     )
     
     # Cache the user data for future requests using the enhanced cache service method

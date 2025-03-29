@@ -85,9 +85,9 @@ async def get_session(
                 last_opened=user_data.get("last_opened"),
                 tfa_app_name=user_data.get("tfa_app_name"),
                 tfa_enabled=user_data.get("tfa_enabled", False), # Read from cache, default to False
-                # Add boolean flags directly here
-                has_consent_privacy=bool(user_data.get("consent_privacy_and_apps_default_settings")),
-                has_consent_mates=bool(user_data.get("consent_mates_default_settings"))
+                # Use boolean flags directly from cache
+                consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings", False), # Get boolean directly, default False
+                consent_mates_default_settings=user_data.get("consent_mates_default_settings", False)   # Get boolean directly, default False
             ),
             token_refresh_needed=False
         )

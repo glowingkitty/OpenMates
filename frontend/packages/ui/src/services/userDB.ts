@@ -60,8 +60,8 @@ class UserDatabaseService {
              store.put(userData.tfaAppName || null, 'tfaAppName');
              store.put(!!userData.tfa_enabled, 'tfa_enabled'); // Store 2FA enabled status
              // Use boolean flags from backend
-             store.put(!!userData.has_consent_privacy, 'has_consent_privacy');
-             store.put(!!userData.has_consent_mates, 'has_consent_mates');
+             store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
+             store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -96,8 +96,8 @@ class UserDatabaseService {
               const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
               const lastOpenedRequest = store.get('last_opened'); // Get last_opened
               // Add requests for boolean consent flags
-              const consentPrivacyRequest = store.get('has_consent_privacy');
-              const consentMatesRequest = store.get('has_consent_mates');
+              const consentPrivacyRequest = store.get('consent_privacy_and_apps_default_settings');
+              const consentMatesRequest = store.get('consent_mates_default_settings');
               
               let profile: UserProfile = {
                   username: '',
@@ -108,8 +108,8 @@ class UserDatabaseService {
                   tfaAppName: null,
                   tfa_enabled: false, // Initialize tfa_enabled
                   // Initialize boolean flags
-                  has_consent_privacy: false,
-                  has_consent_mates: false
+                  consent_privacy_and_apps_default_settings: false,
+                  consent_mates_default_settings: false
               };
 
               usernameRequest.onsuccess = () => {
@@ -142,10 +142,10 @@ class UserDatabaseService {
 
               // Handle boolean flag retrieval
               consentPrivacyRequest.onsuccess = () => {
-                  profile.has_consent_privacy = !!consentPrivacyRequest.result;
+                  profile.consent_privacy_and_apps_default_settings = !!consentPrivacyRequest.result;
               };
               consentMatesRequest.onsuccess = () => {
-                  profile.has_consent_mates = !!consentMatesRequest.result;
+                  profile.consent_mates_default_settings = !!consentMatesRequest.result;
               };
 
               transaction.oncomplete = () => {
@@ -328,11 +328,11 @@ class UserDatabaseService {
              }
 
              // Handle boolean flag updates
-             if (partialData.has_consent_privacy !== undefined) {
-                 store.put(!!partialData.has_consent_privacy, 'has_consent_privacy');
+             if (partialData.consent_privacy_and_apps_default_settings !== undefined) {
+                 store.put(!!partialData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
              }
-             if (partialData.has_consent_mates !== undefined) {
-                 store.put(!!partialData.has_consent_mates, 'has_consent_mates');
+             if (partialData.consent_mates_default_settings !== undefined) {
+                 store.put(!!partialData.consent_mates_default_settings, 'consent_mates_default_settings');
              }
              
              transaction.oncomplete = () => {

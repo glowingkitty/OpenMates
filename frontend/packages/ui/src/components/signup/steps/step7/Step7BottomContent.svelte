@@ -49,7 +49,7 @@ step_7_bottom_content_svelte:
 
     const dispatch = createEventDispatcher();
     // Use the store value directly for binding, no need for separate local state if not modifying locally first
-    // let hasConfirmedSettings = $userProfile.has_consent_privacy || false; // Initialize from store
+    // let hasConfirmedSettings = $userProfile.consent_privacy_and_apps_default_settings || false; // Initialize from store
 
     // Reactive statement to call API when toggle is activated
     // We bind the toggle directly to the store value for display, 
@@ -61,7 +61,7 @@ step_7_bottom_content_svelte:
     async function handleConsentToggleChange(event: CustomEvent<{ checked: boolean }>) { 
         const isChecked = event.detail.checked;
         
-        if (isChecked && !isLoading && !$userProfile.has_consent_privacy) {
+        if (isChecked && !isLoading && !$userProfile.consent_privacy_and_apps_default_settings) {
             isLoading = true;
             try {
                 const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.consent_privacy_apps), {
@@ -81,7 +81,7 @@ step_7_bottom_content_svelte:
                     // Update local store state AFTER successful API call
                     // This might be handled automatically if authStore.checkAuth is called after navigation
                     // Or manually update if needed:
-                    // updateProfile({ has_consent_privacy: true }); 
+                    // updateProfile({ consent_privacy_and_apps_default_settings: true }); 
                     dispatch('step', { step: 8 });
                 } else {
                     console.error("Failed to record privacy/apps consent:", data.message || response.statusText);
@@ -94,7 +94,7 @@ step_7_bottom_content_svelte:
             } finally {
                 isLoading = false;
             }
-        } else if (isChecked && $userProfile.has_consent_privacy) {
+        } else if (isChecked && $userProfile.consent_privacy_and_apps_default_settings) {
              // If already consented, just dispatch to next step immediately
              dispatch('step', { step: 8 });
         }
@@ -106,10 +106,10 @@ step_7_bottom_content_svelte:
 <div class="bottom-content">
     <div class="confirmation-row">
         <Toggle 
-            checked={$userProfile.has_consent_privacy || false} 
+            checked={$userProfile.consent_privacy_and_apps_default_settings || false} 
             id="confirm-settings-toggle-step7" 
             on:change={handleConsentToggleChange} 
-            disabled={isLoading || $userProfile.has_consent_privacy} 
+            disabled={isLoading || $userProfile.consent_privacy_and_apps_default_settings} 
         />
         <label for="confirm-settings-toggle-step7" class="confirmation-text">
             {$text('signup.accept_settings.text')}

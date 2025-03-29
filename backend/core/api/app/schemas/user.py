@@ -10,8 +10,8 @@ class UserResponse(BaseModel):
     tfa_app_name: Optional[str] = None
     tfa_enabled: bool # Added field for 2FA status
     # Add boolean consent flags
-    has_consent_privacy: bool = False
-    has_consent_mates: bool = False
+    consent_privacy_and_apps_default_settings: bool = False
+    consent_mates_default_settings: bool = False
     
     class Config:
         json_schema_extra = {
@@ -24,7 +24,7 @@ class UserResponse(BaseModel):
                 "tfa_app_name": "Google Authenticator",
                 "tfa_enabled": True, # Added example value
                 # Add examples for consent flags
-                "has_consent_privacy": True,
-                "has_consent_mates": False
+                "consent_privacy_and_apps_default_settings": True,
+                "consent_mates_default_settings": False
             }
         }

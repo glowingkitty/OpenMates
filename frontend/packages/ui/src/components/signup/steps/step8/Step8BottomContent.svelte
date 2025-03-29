@@ -56,8 +56,8 @@ step_8_bottom_content_svelte:
     async function handleConsentToggleChange(event: CustomEvent<{ checked: boolean }>) {
         const isChecked = event.detail.checked;
         
-        // Use has_consent_mates flag
-        if (isChecked && !isLoading && !$userProfile.has_consent_mates) { 
+        // Use consent_mates_default_settings flag
+        if (isChecked && !isLoading && !$userProfile.consent_mates_default_settings) { 
             isLoading = true;
             try {
                 // Use consent_mates endpoint
@@ -76,7 +76,7 @@ step_8_bottom_content_svelte:
                 if (response.ok && data.success) {
                     console.debug("Mates consent recorded successfully.");
                     // Update local store state AFTER successful API call (optional, might be handled by authStore)
-                    // updateProfile({ has_consent_mates: true }); 
+                    // updateProfile({ consent_mates_default_settings: true }); 
                     dispatch('step', { step: 9 }); // Dispatch step 9
                 } else {
                     console.error("Failed to record mates consent:", data.message || response.statusText);
@@ -88,7 +88,7 @@ step_8_bottom_content_svelte:
             } finally {
                 isLoading = false;
             }
-        } else if (isChecked && $userProfile.has_consent_mates) {
+        } else if (isChecked && $userProfile.consent_mates_default_settings) {
              // If already consented, just dispatch to next step immediately
              dispatch('step', { step: 9 }); // Dispatch step 9
         }
@@ -100,10 +100,10 @@ step_8_bottom_content_svelte:
 <div class="bottom-content">
     <div class="confirmation-row">
         <Toggle 
-            checked={$userProfile.has_consent_mates || false} 
+            checked={$userProfile.consent_mates_default_settings || false} 
             id="confirm-settings-toggle-step8" 
             on:change={handleConsentToggleChange} 
-            disabled={isLoading || $userProfile.has_consent_mates} 
+            disabled={isLoading || $userProfile.consent_mates_default_settings} 
         />
         <label for="confirm-settings-toggle-step8" class="confirmation-text">
             {$text('signup.accept_settings.text')}

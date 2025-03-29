@@ -93,6 +93,9 @@ async def login(
         
         logger.info(f"User {user_id[:6]}... 2FA enabled: {tfa_enabled}")
 
+        user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
+        user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
+
         # --- Scenario 1: 2FA Not Enabled ---
         if not tfa_enabled:
             logger.info("2FA not enabled, proceeding with standard login finalization.")
@@ -101,20 +104,14 @@ async def login(
                 response, user, auth_data, cache_service, compliance_service, 
                 directus_service, device_fingerprint, device_location, client_ip
             )
-            # Determine boolean consent flags based on timestamp presence in user_profile
-            has_consent_privacy = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
-            has_consent_mates = bool(user_profile.get("consent_mates_default_settings"))
-            
+
             # Corrected return statement
             return LoginResponse(
                 success=True,
                 message="Login successful",
                 user=UserResponse(
                     **user_profile, 
-                    tfa_enabled=tfa_enabled, # Explicitly include status
-                    # Add boolean flags to response
-                    has_consent_privacy=has_consent_privacy,
-                    has_consent_mates=has_consent_mates
+                    tfa_enabled=tfa_enabled
                 ) 
             )
             # Removed nested return
@@ -176,9 +173,6 @@ async def login(
                 response, user, auth_data, cache_service, compliance_service, 
                 directus_service, device_fingerprint, device_location, client_ip
             )
-            # Determine boolean consent flags based on timestamp presence in user_profile
-            has_consent_privacy = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
-            has_consent_mates = bool(user_profile.get("consent_mates_default_settings"))
 
             # Corrected return statement
             return LoginResponse(
@@ -186,10 +180,7 @@ async def login(
                 message="Login successful",
                 user=UserResponse(
                     **user_profile, 
-                    tfa_enabled=tfa_enabled, # Explicitly include status
-                    # Add boolean flags to response
-                    has_consent_privacy=has_consent_privacy,
-                    has_consent_mates=has_consent_mates
+                    tfa_enabled=tfa_enabled
                 )
             )
             # Removed nested return
@@ -306,8 +297,8 @@ async def finalize_login_session(
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id"),
                 # Add boolean consent flags to cache data, deriving safely from user dict
-                "has_consent_privacy": bool(user.get("consent_privacy_and_apps_default_settings")),
-                "has_consent_mates": bool(user.get("consent_mates_default_settings"))
+                "consent_privacy_and_apps_default_settings": bool(user.get("consent_privacy_and_apps_default_settings")),
+                "consent_mates_default_settings": bool(user.get("consent_mates_default_settings"))
             }
             await cache_service.set_user(user_data_to_cache, refresh_token=refresh_token)
 

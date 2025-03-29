@@ -80,8 +80,8 @@ function createAuthStore() {
             
             // Extract tfa_enabled status and consent flags
             const tfa_enabled = !!data.user.tfa_enabled;
-            const has_consent_privacy = !!data.user.has_consent_privacy;
-            const has_consent_mates = !!data.user.has_consent_mates;
+            const consent_privacy_and_apps_default_settings = !!data.user.consent_privacy_and_apps_default_settings;
+            const consent_mates_default_settings = !!data.user.consent_mates_default_settings;
 
             // Update the user profile store
             updateProfile({
@@ -93,8 +93,8 @@ function createAuthStore() {
               isAdmin: data.user.is_admin,
               last_opened: data.user.last_opened,
               // Pass consent flags
-              has_consent_privacy: has_consent_privacy,
-              has_consent_mates: has_consent_mates
+              consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
+              consent_mates_default_settings: consent_mates_default_settings
             });
           } catch (dbError) {
             console.error("Failed to save user data to database:", dbError);
@@ -236,8 +236,8 @@ function createAuthStore() {
                 await userDB.saveUserData(data.user);
                 // Extract flags before updating profile store
                 const tfa_enabled = !!data.user.tfa_enabled; 
-                const has_consent_privacy = !!data.user.has_consent_privacy;
-                const has_consent_mates = !!data.user.has_consent_mates;
+                const consent_privacy_and_apps_default_settings = !!data.user.consent_privacy_and_apps_default_settings;
+                const consent_mates_default_settings = !!data.user.consent_mates_default_settings;
                 
                 updateProfile({
                   username: data.user.username,
@@ -248,8 +248,8 @@ function createAuthStore() {
                   isAdmin: data.user.is_admin,
                   last_opened: data.user.last_opened,
                   // Pass consent flags
-                  has_consent_privacy: has_consent_privacy,
-                  has_consent_mates: has_consent_mates
+                  consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
+                  consent_mates_default_settings: consent_mates_default_settings
                 });
               } else {
                  console.warn("Login successful but no user data received in response.");

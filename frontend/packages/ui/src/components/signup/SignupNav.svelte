@@ -38,9 +38,9 @@
              // If successful, Step4Bottom dispatches step 5.
              // Let's keep the original skip logic for now, might need adjustment based on testing.
              dispatch('skip'); // Or should this go to step 5? Let's stick to original 'skip' for now.
-        } else if (currentStep === 7 && $userProfile.has_consent_privacy) { // Use has_consent_privacy
+        } else if (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) { // Use consent_privacy_and_apps_default_settings
             dispatch('step', { step: 8 });
-        } else if (currentStep === 8 && $userProfile.has_consent_mates) { // Use has_consent_mates
+        } else if (currentStep === 8 && $userProfile.consent_mates_default_settings) { // Use consent_mates_default_settings
             dispatch('step', { step: 9 });
         } else if (currentStep === 9) { // Skip demo
             console.debug('Skip and show demo first');
@@ -74,21 +74,21 @@
         (currentStep === 3 && $userProfile.profileImageUrl) ? $_('signup.next.text') : // Step 3 -> 4
         (currentStep === 4 && $userProfile.tfa_enabled) ? $_('signup.next.text') : // Step 4 (if TFA enabled) -> 6
         (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
-        (currentStep === 7 && $userProfile.has_consent_privacy) ? $_('signup.next.text') : // Use has_consent_privacy
-        (currentStep === 8 && $userProfile.has_consent_mates) ? $_('signup.next.text') : // Use has_consent_mates
+        (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') : // Use consent_privacy_and_apps_default_settings
+        (currentStep === 8 && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') : // Use consent_mates_default_settings
         (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo
         $_('signup.skip.text'); // Default skip text (or steps 7/8 if not consented)
 
     // Determine if the skip/next button should be shown
     // Show if:
     // - Step 4 AND TFA is already enabled OR
-    // - Step 7 AND has_consent_privacy is true OR
-    // - Step 8 AND has_consent_mates is true OR
+    // - Step 7 AND consent_privacy_and_apps_default_settings is true OR
+    // - Step 8 AND consent_mates_default_settings is true OR
     // - showSkip prop is true AND it's not Step 4, 7, or 8 (original skip logic)
     $: showActualSkipButton = 
         (currentStep === 4 && $userProfile.tfa_enabled) ||
-        (currentStep === 7 && $userProfile.has_consent_privacy) || // Use has_consent_privacy
-        (currentStep === 8 && $userProfile.has_consent_mates) || // Use has_consent_mates
+        (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) || // Use consent_privacy_and_apps_default_settings
+        (currentStep === 8 && $userProfile.consent_mates_default_settings) || // Use consent_mates_default_settings
         (showSkip && currentStep !== 4 && currentStep !== 7 && currentStep !== 8); // Prevent showing skip if consent-next is shown
 
 </script>
