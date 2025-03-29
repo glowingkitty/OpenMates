@@ -10,8 +10,14 @@
     import { onMount, onDestroy } from 'svelte';
     import InputWarning from '../../common/InputWarning.svelte';
     import { updateUsername } from '../../../stores/userProfile';
-    
+
     const dispatch = createEventDispatcher();
+
+    // --- Inactivity Timer ---
+    const SIGNUP_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
+    let signupTimer: ReturnType<typeof setTimeout> | null = null;
+    let isSignupTimerActive = false;
+    // --- End Inactivity Timer ---
 
     let inviteCode = '';
     let isValidFormat = false;
@@ -82,13 +88,92 @@
         if (inviteCodeInput && !isRateLimited && !isTouchDevice) {
             inviteCodeInput.focus();
         }
+
+        // --- Inactivity Timer Cleanup ---
+        return () => {
+            if (rateLimitTimer) {
+                clearTimeout(rateLimitTimer);
+            }
+            // Clear signup timer on component destruction
+            if (signupTimer) {
+                clearTimeout(signupTimer);
+                console.debug("Signup Step 1 inactivity timer cleared on destroy");
+            }
+        };
+        // --- End Inactivity Timer Cleanup ---
     });
 
     onDestroy(() => {
         if (rateLimitTimer) {
             clearTimeout(rateLimitTimer);
         }
+        // Ensure signup timer is cleared if onMount cleanup didn't run or failed
+        if (signupTimer) {
+            clearTimeout(signupTimer);
+        }
     });
+
+    // --- Inactivity Timer Functions ---
+    function handleSignupTimeout() {
+        console.debug("Signup Step 1 inactivity timeout triggered.");
+        // Clear local state
+        username = '';
+        email = '';
+        password = '';
+        passwordRepeat = '';
+        termsAgreed = false;
+        privacyAgreed = false;
+        // Clear errors/warnings related to these fields
+        passwordError = '';
+        passwordStrengthError = '';
+        showPasswordStrengthWarning = false;
+        showPasswordMatchWarning = false;
+        showEmailWarning = false;
+        emailError = '';
+        emailAlreadyInUse = false;
+        showUsernameWarning = false;
+        usernameError = '';
+
+        stopSignupTimer(); // Stop the timer state
+
+        // Dispatch event to request switch back to login
+        dispatch('requestSwitchToLogin');
+    }
+
+    function resetSignupTimer() {
+        if (signupTimer) clearTimeout(signupTimer);
+        console.debug("Resetting Signup Step 1 inactivity timer...");
+        signupTimer = setTimeout(handleSignupTimeout, SIGNUP_INACTIVITY_TIMEOUT_MS);
+        isSignupTimerActive = true;
+    }
+
+    function stopSignupTimer() {
+        if (signupTimer) {
+            clearTimeout(signupTimer);
+            console.debug("Stopping Signup Step 1 inactivity timer.");
+            signupTimer = null;
+        }
+        isSignupTimerActive = false;
+    }
+
+    function checkSignupActivityAndManageTimer() {
+        // Check if any relevant field has content (only when signup form is shown)
+        if (isValidated && (username || email || password || passwordRepeat)) {
+             if (!isSignupTimerActive) {
+                console.debug("Signup Step 1 activity detected, starting timer.");
+            }
+            resetSignupTimer();
+        } else if (isValidated) {
+            // If validated but all fields are empty, stop the timer
+             if (isSignupTimerActive) {
+                console.debug("Signup Step 1 fields empty, stopping timer.");
+                stopSignupTimer();
+            }
+        }
+        // If not validated (invite code screen), timer remains stopped.
+    }
+    // --- End Inactivity Timer Functions ---
+
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -563,9 +648,9 @@
                             required
                             autocomplete="username"
                             class:error={!!usernameError}
-                        />
+                            on:input={checkSignupActivityAndManageTimer} />
                         {#if showUsernameWarning && usernameError}
-                            <InputWarning 
+                            <InputWarning
                                 message={usernameError}
                                 target={usernameInput}
                             />
@@ -584,9 +669,9 @@
                             required
                             autocomplete="email"
                             class:error={!!emailError || emailAlreadyInUse}
-                        />
+                            on:input={checkSignupActivityAndManageTimer} />
                         {#if showEmailWarning && emailError}
-                            <InputWarning 
+                            <InputWarning
                                 message={emailError}
                                 target={emailInput}
                             />
@@ -611,9 +696,9 @@
                             required
                             autocomplete="new-password"
                             class:error={!!passwordStrengthError}
-                        />
+                            on:input={checkSignupActivityAndManageTimer} />
                         {#if showPasswordStrengthWarning && passwordStrengthError}
-                            <InputWarning 
+                            <InputWarning
                                 message={passwordStrengthError}
                                 target={passwordInput}
                             />
@@ -633,9 +718,9 @@
                             maxlength="60"
                             autocomplete="new-password"
                             class:error={!passwordsMatch && passwordRepeat}
-                        />
+                            on:input={checkSignupActivityAndManageTimer} />
                         {#if showPasswordMatchWarning && passwordError && passwordRepeat}
-                            <InputWarning 
+                            <InputWarning
                                 message={passwordError}
                                 target={passwordRepeatInput}
                             />

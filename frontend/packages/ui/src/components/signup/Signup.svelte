@@ -326,6 +326,7 @@
                 bind:username
                 bind:email
                 on:next={() => goToStep(2)}
+                on:requestSwitchToLogin={handleSwitchToLogin}
             />
         {:else}
             <div class="step-layout">

@@ -165,8 +165,11 @@ login_2fa_svelte:
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
         // Allow only digits and limit length
-        otpCode = input.value.replace(/\D/g, '').slice(0, 6); 
+        otpCode = input.value.replace(/\D/g, '').slice(0, 6);
         input.value = otpCode; // Ensure input reflects sanitized value
+
+        // Dispatch activity event whenever input changes
+        dispatch('tfaActivity');
 
         // Optionally auto-submit when 6 digits are entered
         if (otpCode.length === 6) {

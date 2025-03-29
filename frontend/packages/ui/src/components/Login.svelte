@@ -63,6 +63,12 @@
     // Add state for tracking account deletion during the current session
     let accountJustDeleted = false;
 
+    // --- Inactivity Timer (Login/2FA) ---
+    const LOGIN_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
+    let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+    let isTimerActive = false;
+    // --- End Inactivity Timer ---
+
     const leftIconGrid = [
         ['videos', 'health', 'web'],
         ['calendar', 'nutrition', 'language'],
@@ -314,14 +320,77 @@
             unsubscribe();
             window.removeEventListener('resize', handleResize);
             window.removeEventListener('account-deleted', handleAccountDeleted);
-        }; 
+        };
+
+        // --- Inactivity Timer Cleanup ---
+        return () => {
+            unsubscribe();
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('account-deleted', handleAccountDeleted);
+            // Clear timer on component destruction
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+                console.debug("Login inactivity timer cleared on destroy");
+            }
+        };
+        // --- End Inactivity Timer Cleanup ---
     });
 
     onDestroy(() => {
         if (rateLimitTimer) {
             clearTimeout(rateLimitTimer);
         }
+        // Ensure timer is cleared if onMount cleanup didn't run or failed
+        if (inactivityTimer) {
+            clearTimeout(inactivityTimer);
+        }
     });
+
+    // --- Inactivity Timer Functions (Login/2FA) ---
+    function handleInactivityTimeout() {
+        console.debug("Login/2FA inactivity timeout triggered.");
+        email = '';
+        password = '';
+        if (showTfaView) {
+            // Call the existing function which handles clearing fields, hiding 2FA view,
+            // and potentially focusing the email input.
+            handleSwitchBackToLogin();
+        }
+        stopInactivityTimer(); // Stop the timer state
+    }
+
+    function resetInactivityTimer() {
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        console.debug("Resetting Login/2FA inactivity timer...");
+        inactivityTimer = setTimeout(handleInactivityTimeout, LOGIN_INACTIVITY_TIMEOUT_MS);
+        isTimerActive = true;
+    }
+
+    function stopInactivityTimer() {
+        if (inactivityTimer) {
+            clearTimeout(inactivityTimer);
+            console.debug("Stopping Login/2FA inactivity timer.");
+            inactivityTimer = null;
+        }
+        isTimerActive = false;
+    }
+
+    function checkActivityAndManageTimer() {
+        // Check if email/password has content OR if 2FA view is active
+        if (email || password || showTfaView) {
+            if (!isTimerActive) {
+                console.debug("Login/2FA activity detected or 2FA view active, starting timer.");
+            }
+            resetInactivityTimer();
+        } else {
+            if (isTimerActive) {
+                console.debug("Login/2FA fields empty and not in 2FA view, stopping timer.");
+                stopInactivityTimer();
+            }
+        }
+    }
+    // --- End Inactivity Timer Functions ---
+
 
     async function handleSubmit() {
         isLoading = true;
@@ -394,13 +463,14 @@
             if (result.success && !result.tfa_required) {
                 // Full login success after 2FA
                 console.debug('Login successful after 2FA verification');
-                email = ''; // Clear credentials
-                password = '';
-                showTfaView = false; // Hide 2FA view
-                
-                dispatch('loginSuccess', { 
-                    user: $userProfile, 
-                    isMobile,
+        email = ''; // Clear credentials
+        password = '';
+        showTfaView = false; // Hide 2FA view
+        stopInactivityTimer(); // Stop timer on successful login
+
+        dispatch('loginSuccess', {
+            user: $userProfile,
+            isMobile,
                     inSignupFlow: result.inSignupFlow 
                 });
             } else if (!result.success && result.tfa_required) {
@@ -427,14 +497,30 @@
         if (currentView !== 'login' || !$authStore.isAuthenticated) {
             showTfaView = false;
             tfaErrorMessage = null;
+            // Check timer status when view changes or user logs out
+            // This will stop the timer if fields are empty and not in 2FA view
+            checkActivityAndManageTimer();
         }
     }
-    
+
+    $: {
+        // Manage timer based on showTfaView state changes
+        if (showTfaView) {
+            console.debug("2FA view shown, ensuring timer is active.");
+            checkActivityAndManageTimer(); // Start/reset timer when 2FA view appears
+        } else {
+             // When 2FA view is hidden (e.g., manual switch back, timeout, login success)
+             // check if timer should stop (if email/password are also empty)
+            checkActivityAndManageTimer();
+        }
+    }
+
     $: {
         if ($authStore.isAuthenticated && $isInSignupProcess) {
             console.debug("Detected authenticated user in signup process, switching to signup view");
             currentView = 'signup';
             showTfaView = false; // Ensure 2FA view is hidden if switching
+            stopInactivityTimer(); // Stop timer when switching to signup
         }
     }
 
@@ -444,13 +530,15 @@
             console.debug("Detected signup process, switching to signup view");
             currentView = 'signup';
             showTfaView = false; // Ensure 2FA view is hidden
+            stopInactivityTimer(); // Stop timer when switching to signup
         } else if (!$authStore.isAuthenticated) {
             // Force view to login when logged out, ONLY IF NOT in signup process
             if (currentView !== 'login' && !$isInSignupProcess) { // Only switch if not already login and not starting signup
                currentView = 'login';
             }
             showTfaView = false; // Ensure 2FA view is hidden on logout
-            
+            stopInactivityTimer(); // Stop timer on logout
+
              // Check for account deletion (either from storage or from event)
             if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
                 console.debug("Account deleted, showing deletion message");
@@ -499,12 +587,13 @@
                             {#if showTfaView}
                                 <!-- Show 2FA Input Component -->
                                 <div in:fade={{ duration: 200 }}>
-                                    <Login2FA 
-                                        selectedAppName={tfaAppName} 
+                                    <Login2FA
+                                        selectedAppName={tfaAppName}
                                         on:submitTfa={handleTfaSubmit}
                                         on:switchToLogin={handleSwitchBackToLogin}
-                                        bind:isLoading 
-                                        errorMessage={tfaErrorMessage} 
+                                        bind:isLoading
+                                        errorMessage={tfaErrorMessage}
+                                        on:tfaActivity={checkActivityAndManageTimer}
                                     />
                                 </div>
                             {:else if isRateLimited}
@@ -526,16 +615,17 @@
                                         <div class="input-wrapper">
                                             <span class="clickable-icon icon_mail"></span>
                                             <input 
-                                                type="email" 
+                                                type="email"
                                                 bind:value={email}
-                                                placeholder={$text('login.email_placeholder.text')} 
-                                                required 
-                                                autocomplete="email" 
-                                                bind:this={emailInput} 
-                                                class:error={!!emailError || loginFailedWarning} 
+                                                placeholder={$text('login.email_placeholder.text')}
+                                                required
+                                                autocomplete="email"
+                                                bind:this={emailInput}
+                                                class:error={!!emailError || loginFailedWarning}
+                                                on:input={checkActivityAndManageTimer}
                                             />
                                             {#if showEmailWarning && emailError}
-                                                <InputWarning 
+                                                <InputWarning
                                                     message={emailError} 
                                                     target={emailInput} 
                                                 />
@@ -552,11 +642,12 @@
                                         <div class="input-wrapper">
                                             <span class="clickable-icon icon_secret"></span>
                                             <input 
-                                                type="password" 
-                                                bind:value={password} 
-                                                placeholder={$text('login.password_placeholder.text')} 
-                                                required 
-                                                autocomplete="current-password" 
+                                                type="password"
+                                                bind:value={password}
+                                                placeholder={$text('login.password_placeholder.text')}
+                                                required
+                                                autocomplete="current-password"
+                                                on:input={checkActivityAndManageTimer}
                                             />
                                         </div>
                                     </div>
