@@ -9,11 +9,13 @@ from app.services.directus.auth_methods import (
 )
 from app.services.directus.api_methods import _make_api_request
 from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes
+# Updated user imports to include new TFA methods
 from app.services.directus.user import (
     create_user, update_user_device, login_user, logout_user,
     logout_all_sessions, get_user_by_email, refresh_token, get_total_users_count,
-    get_active_users_since, check_user_device, # Removed get_user_credits, get_user_username, get_user_profile_image
-    get_user_profile, delete_user, update_user
+    get_active_users_since, check_user_device,
+    get_user_profile, delete_user, update_user,
+    get_decrypted_tfa_secret, get_tfa_backup_code_hashes # Added new imports
 )
 
 logger = logging.getLogger(__name__)
@@ -76,3 +78,7 @@ class DirectusService:
     # User profile methods - get_user_profile is the main one now
     get_user_profile = get_user_profile
     # Removed assignments for get_user_credits, get_user_username, get_user_profile_image
+    
+    # New TFA methods for direct fetching (no cache)
+    get_decrypted_tfa_secret = get_decrypted_tfa_secret
+    get_tfa_backup_code_hashes = get_tfa_backup_code_hashes

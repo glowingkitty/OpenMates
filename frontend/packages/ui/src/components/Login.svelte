@@ -24,6 +24,8 @@
     let tfa_app_name: string | null = null; // State to store 2FA app name
     let tfaErrorMessage: string | null = null; // State for 2FA error messages
     let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
+    let backupCodeSuccess = false; // State for backup code success view
+    let remainingBackupCodes = 0; // State for remaining backup codes count
 
     // Add state for mobile view
     let isMobile = false;
@@ -457,53 +459,87 @@
     }
     
     // Handler for 2FA code submission from Login2FA component
-    async function handleTfaSubmit(event: CustomEvent<{ otpCode: string }>) {
-        const otpCode = event.detail.otpCode;
+    async function handleTfaSubmit(event: CustomEvent<{ authCode: string; codeType: 'otp' | 'backup' }>) { // Updated event detail type
+        const { authCode, codeType } = event.detail; // Destructure code and type
         isLoading = true;
         tfaErrorMessage = null; // Clear previous error
+        backupCodeSuccess = false; // Reset backup success state
 
         try {
-            console.debug("Submitting login with TFA code...");
-            // Call login again, this time with the TFA code
-            const result = await authStore.login(email, password, otpCode);
+            console.debug(`Submitting login with ${codeType} code...`);
+            // Call login again, this time with the TFA code and type
+            const result = await authStore.login(email, password, authCode, codeType);
 
             if (result.success && !result.tfa_required) {
-                // Full login success after 2FA
-                console.debug('Login successful after 2FA verification');
-        email = ''; // Clear credentials
-        password = '';
-        showTfaView = false; // Hide 2FA view
-        stopInactivityTimer(); // Stop timer on successful login
+                // Full login success after 2FA (OTP or Backup)
+                console.debug(`Login successful after ${codeType} verification`);
+                
+                if (result.backup_code_used) {
+                    // Backup code was used, show success message
+                    console.debug(`Backup code used. Remaining: ${result.remaining_backup_codes}`);
+                    remainingBackupCodes = result.remaining_backup_codes ?? 0;
+                    backupCodeSuccess = true;
+                    // Keep showTfaView = true to display the success message within Login2FA
+                    // Do NOT dispatch loginSuccess yet, wait for "Continue" button
+                } else {
+                    // OTP code was used, complete login immediately
+                    email = ''; // Clear credentials
+                    password = '';
+                    showTfaView = false; // Hide 2FA view
+                    stopInactivityTimer(); // Stop timer on successful login
 
-        dispatch('loginSuccess', {
-            user: $userProfile,
-            isMobile,
-                    inSignupFlow: result.inSignupFlow 
-                });
+                    dispatch('loginSuccess', {
+                        user: $userProfile,
+                        isMobile,
+                        inSignupFlow: result.inSignupFlow 
+                    });
+                }
             } else if (!result.success && result.tfa_required) {
-                // Invalid 2FA code
-                console.warn("Invalid 2FA code submitted");
-                tfaErrorMessage = result.message || "Invalid 2FA code";
+                // Invalid 2FA code (OTP or Backup)
+                console.warn(`Invalid ${codeType} code submitted`);
+                tfaErrorMessage = result.message || `Invalid ${codeType === 'backup' ? 'backup' : 'verification'} code`;
+                backupCodeSuccess = false; // Ensure success view is hidden
             } else {
                 // Other unexpected error during 2FA step
-                console.error("Unexpected error during 2FA submission:", result.message);
+                console.error(`Unexpected error during ${codeType} submission:`, result.message);
                 tfaErrorMessage = result.message || "An unexpected error occurred.";
+                backupCodeSuccess = false; // Ensure success view is hidden
             }
         } catch (error) {
             console.error('handleTfaSubmit error:', error);
-            tfaErrorMessage = "An error occurred during 2FA verification.";
+            tfaErrorMessage = `An error occurred during ${codeType} verification.`;
+            backupCodeSuccess = false; // Ensure success view is hidden
         } finally {
             isLoading = false;
         }
     }
 
+    // Handler for the "Continue" button after successful backup code login
+    function handleBackupLoginContinue() {
+        console.debug("Continue button clicked after backup code login.");
+        email = ''; // Clear credentials
+        password = '';
+        showTfaView = false; // Hide 2FA view
+        backupCodeSuccess = false; // Reset success state
+        stopInactivityTimer(); // Stop timer on successful login
+
+        dispatch('loginSuccess', {
+            user: $userProfile,
+            isMobile,
+            inSignupFlow: false // Assume not in signup flow if backup code was used
+        });
+    }
+
+
     // Strengthen the reactive statement to switch views when in signup process
     // Also reset showTfaView and showVerifyDeviceView if user logs out or switches to signup
     // Reset views if switching away from login or logging out
     $: {
-        if (currentView !== 'login' || !$authStore.isAuthenticated) {
-            showTfaView = false;
+        // Only reset if view changes OR user is fully logged out (not just intermediate state)
+        if (currentView !== 'login' || (!$authStore.isAuthenticated && !$authStore.isInitialized)) { 
+            // showTfaView = false; // REMOVED: Don't reset based on intermediate auth state
             tfaErrorMessage = null;
+            backupCodeSuccess = false; 
             // Don't directly set needsDeviceVerification here, let checkAuth handle it
             // needsDeviceVerification.set(false); // Avoid direct manipulation if possible
             verifyDeviceErrorMessage = null;
@@ -532,23 +568,23 @@
         if ($authStore.isAuthenticated && $isInSignupProcess) {
             console.debug("Detected signup process, switching to signup view");
             currentView = 'signup';
-            showTfaView = false; // Ensure 2FA view is hidden
+            // showTfaView = false; // Let the block above handle reset if needed on view change
             // needsDeviceVerification should be false already if authenticated, but double-check
-            if ($needsDeviceVerification) needsDeviceVerification.set(false);
+            if ($needsDeviceVerification) needsDeviceVerification.set(false); // Keep this reset
             stopInactivityTimer(); // Stop timer when switching to signup
         } else if (!$authStore.isAuthenticated) {
             // If device verification is needed, stay in login view but show VerifyDevice2FA
             if ($needsDeviceVerification) {
                 console.debug("Device verification needed, ensuring login view is active.");
                 currentView = 'login';
-                showTfaView = false; // Ensure standard 2FA view is hidden
+                // showTfaView = false; // REMOVED: Don't reset based on device verification need alone
             } else if (currentView !== 'login' && !$isInSignupProcess) {
                 // Force view to login when logged out, ONLY IF NOT needing device verification AND NOT in signup process
-               currentView = 'login';
+               currentView = 'login'; // This will trigger the reset in the first reactive block
             }
             // Ensure views are hidden on logout or when verification is needed but not shown yet
-            if (!$needsDeviceVerification) showTfaView = false;
-            stopInactivityTimer(); // Stop timer on logout or when switching views
+            // if (!$needsDeviceVerification) showTfaView = false; // REMOVED
+            stopInactivityTimer(); 
 
              // Check for account deletion (either from storage or from event)
             if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
@@ -603,6 +639,9 @@
                                         on:submitTfa={handleTfaSubmit}
                                         on:switchToLogin={handleSwitchBackToLogin}
                                         bind:isLoading
+                                        bind:backupCodeSuccess={backupCodeSuccess}
+                                        bind:remainingBackupCodes={remainingBackupCodes}
+                                        on:backupLoginContinue={handleBackupLoginContinue}
                                         errorMessage={tfaErrorMessage}
                                         on:tfaActivity={checkActivityAndManageTimer}
                                     />

@@ -8,8 +8,7 @@ class UserResponse(BaseModel):
     profile_image_url: Optional[str] = None
     last_opened: Optional[str] = None
     tfa_app_name: Optional[str] = None
-    tfa_enabled: bool # Added field for 2FA status
-    # Add boolean consent flags
+    tfa_enabled: bool
     consent_privacy_and_apps_default_settings: bool = False
     consent_mates_default_settings: bool = False
     

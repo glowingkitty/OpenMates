@@ -27,6 +27,8 @@ interface LoginResult {
   message?: string;
   tfa_app_name?: string | null;
   inSignupFlow?: boolean;
+  backup_code_used?: boolean; // Added
+  remaining_backup_codes?: number; // Added
 }
 
 // Create the initial state
@@ -235,10 +237,10 @@ function createAuthStore() {
       }
     },
     
-    // Login the user - updated for 2FA flow
-    login: async (email: string, password: string, tfaCode?: string): Promise<LoginResult> => { // Add tfaCode param and return type
+    // Login the user - updated for 2FA flow including backup codes
+    login: async (email: string, password: string, tfaCode?: string, codeType?: 'otp' | 'backup'): Promise<LoginResult> => { // Add codeType param
       try {
-        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode})`);
+        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'})`);
         
         // Construct request body
         const requestBody: any = {
@@ -247,6 +249,7 @@ function createAuthStore() {
         };
         if (tfaCode) {
           requestBody.tfa_code = tfaCode;
+          requestBody.code_type = codeType || 'otp'; // Send code type if code is present
         }
         
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
@@ -280,7 +283,7 @@ function createAuthStore() {
               tfa_app_name: data.user?.tfa_app_name // Pass app name if available
             };
           } else {
-            // Scenario: Full success (either no 2FA, or 2FA code was provided and valid)
+            // Scenario: Full success (either no 2FA, or 2FA code was provided and valid, or backup code used)
             console.debug("Login fully successful.");
             const inSignupFlow = data.user?.last_opened?.startsWith('/signup/');
             
@@ -322,8 +325,14 @@ function createAuthStore() {
               console.error("Failed to save user data to database:", dbError);
             }
             
-             // Ensure return type matches LoginResult
-            return { success: true, tfa_required: false, inSignupFlow };
+             // Ensure return type matches LoginResult, include backup code info if present
+            return { 
+              success: true, 
+              tfa_required: false, 
+              inSignupFlow,
+              backup_code_used: data.backup_code_used || false,
+              remaining_backup_codes: data.remaining_backup_codes 
+            };
           }
         } else {
           // Scenario: Login failed

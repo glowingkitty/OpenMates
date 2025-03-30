@@ -83,9 +83,10 @@ login_2fa_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte'; // Import createEventDispatcher
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+    import { fade } from 'svelte/transition'; // Import fade transition
     import { tfaAppIcons } from '../config/tfa';
-    import InputWarning from './common/InputWarning.svelte'; // Import for error display
+    import InputWarning from './common/InputWarning.svelte';
 
     export let previewMode = false;
     export let previewTfaAppName = 'Google Authenticator';
@@ -100,24 +101,36 @@ login_2fa_svelte:
     // Add a new prop to receive the selected app name
     export let selectedAppName: string | null = null;
     // Add props for binding isLoading and displaying errors
-    export let isLoading = false; 
+    export let isLoading = false;
     export let errorMessage: string | null = null;
+    // Add new props for backup code flow
+    export let backupCodeSuccess = false;
+    export let remainingBackupCodes = 0;
 
-    const dispatch = createEventDispatcher(); // Create dispatcher
+    const dispatch = createEventDispatcher();
 
-    let otpCode = '';
-    let otpInput: HTMLInputElement;
-    // let isLoading = false; // isLoading is now bound from parent
+    let authCode = ''; // Renamed from otpCode
+    let authInput: HTMLInputElement; // Renamed from otpInput
+    let isBackupMode = false; // State for backup code mode
+    // Declare inputMode with the correct type
+    let inputMode: 'text' | 'numeric' = 'numeric'; 
     let currentAppIndex = 0;
     let animationInterval: number | null = null;
     let currentDisplayedApp = previewMode ? previewTfaAppName : (selectedAppName || ''); // Initialize with selectedAppName
 
-    // Get list of app names for animation
     const appNames = Object.keys(tfaAppIcons);
 
     // Get the icon class for the app name, or undefined if not found
     $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
-    
+
+    // Reactive statement for placeholder text
+    $: inputPlaceholder = isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text');
+    // Reactive statement for button text
+    $: toggleButtonText = isBackupMode ? $text('login.enter_2fa_app_code.text') : $text('login.enter_backup_code.text');
+    // Reactive statement for input type (numeric for OTP, text for backup)
+    $: inputMode = isBackupMode ? 'text' : 'numeric'; // Reactive assignment updates the typed variable
+    $: inputMaxLength = isBackupMode ? 14 : 6; // Backup codes are longer (e.g., XXXX-XXXX-XXXX)
+
     // Update the animation logic to stop when a selected app is provided
     $: {
         if (selectedAppName) {
@@ -147,118 +160,209 @@ login_2fa_svelte:
             // If not preview or an app is selected, display the correct app name
             currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
         }
+        // Focus input on mount if not preview mode and not showing success message
+        if (!previewMode && authInput && !backupCodeSuccess) {
+            authInput.focus();
+        }
     });
 
     onDestroy(() => {
         if (animationInterval) clearInterval(animationInterval);
     });
 
-    // Helper function to generate opacity style
-    $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
+    // Helper function to generate opacity style - Define allowed IDs type
+    type HighlightableId = typeof highlight[number];
+    $: getStyle = (id: HighlightableId) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
 
     // Function to dispatch event to switch back to login
     function handleSwitchToLogin() {
         dispatch('switchToLogin');
     }
 
+    // Function to toggle between OTP and Backup Code mode
+    function toggleBackupMode() {
+        isBackupMode = !isBackupMode;
+        authCode = ''; // Clear input when switching modes
+        errorMessage = null; // Clear error message
+        if (authInput) {
+            authInput.focus(); // Re-focus input
+        }
+    }
+
     function handleInput(event: Event) {
         const input = event.target as HTMLInputElement;
-        // Allow only digits and limit length
-        otpCode = input.value.replace(/\D/g, '').slice(0, 6);
-        input.value = otpCode; // Ensure input reflects sanitized value
+        let value = input.value;
+
+        if (isBackupMode) {
+            // Allow letters, digits, hyphens. Convert to uppercase. Limit length.
+            // Basic format XXXX-XXXX-XXXX
+            value = value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            // Auto-add hyphens (simple approach)
+            if (value.length === 4 || value.length === 9) {
+                if (!value.endsWith('-')) {
+                    value += '-';
+                }
+            }
+            // Remove trailing hyphen if user deletes back
+             if (value.endsWith('-') && (value.length === 5 || value.length === 10)) {
+                 // This logic might need refinement for better UX
+             }
+            authCode = value.slice(0, 14); // Limit to XXXX-XXXX-XXXX format length
+        } else {
+            // Allow only digits and limit length for OTP
+            authCode = value.replace(/\D/g, '').slice(0, 6);
+        }
+        
+        input.value = authCode; // Ensure input reflects sanitized value
 
         // Dispatch activity event whenever input changes
         dispatch('tfaActivity');
 
-        // Optionally auto-submit when 6 digits are entered
-        if (otpCode.length === 6) {
+        // Optionally auto-submit when code reaches required length
+        const requiredLength = isBackupMode ? 14 : 6;
+        if (authCode.length === requiredLength) {
             handleSubmit();
         }
     }
 
     function handleSubmit() {
-        if (isLoading || otpCode.length !== 6) return; // Prevent submit if loading or code incomplete
-        dispatch('submitTfa', { otpCode });
+        const requiredLength = isBackupMode ? 14 : 6; // Check length based on mode
+        if (isLoading || authCode.length !== requiredLength) return; // Prevent submit if loading or code incomplete
+        
+        // Send backup code WITH hyphens, OTP code as is
+        const codeToSend = authCode; // No modification needed here
+
+        dispatch('submitTfa', { authCode: codeToSend, codeType: isBackupMode ? 'backup' : 'otp' });
     }
 
     // Clear error message when user starts typing again
-    $: if (otpCode) {
+    $: if (authCode) {
         errorMessage = null;
     }
-
-    // Focus input on mount if not preview mode
-    onMount(() => {
-        if (!previewMode && otpInput) {
-            otpInput.focus();
-        }
-        // Animation logic moved to separate onMount above
-    });
 
     // Reactive statement for currentDisplayedApp based on selectedAppName
     $: currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
 
+    // Function to handle the "Continue" button click after backup code success
+    function handleContinue() {
+        dispatch('backupLoginContinue');
+    }
+
 </script>
 
 <div class="login-2fa {selectedAppName ? 'no-animation' : ''}" class:preview={previewMode}>
-    <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
-        {@html $text('login.check_your_2fa_app.text')}
-    </p>
-    {#if currentDisplayedApp}
-        <p id="app-name" class="app-name" style={getStyle('app-name')}>
-            <span class="app-name-content">
-                {#if tfaAppIconClass}
-                    <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !selectedAppName ? 'fade-animation' : ''}"></span>
+    {#if backupCodeSuccess}
+        <!-- Backup Code Success View -->
+        <div class="success-view" transition:fade={{ duration: 300 }}>
+            <p class="success-message">
+                {@html $text('login.backup_code_used_successfully.text', { 
+                    values: { remaining_count: remainingBackupCodes } 
+                })}
+            </p>
+            <button class="continue-button" on:click={handleContinue} disabled={isLoading}>
+                {#if isLoading}
+                    <span class="loading-spinner"></span>
+                {:else}
+                    {$text('signup.continue.text')}
                 {/if}
-                <span class="{previewMode && !selectedAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
-            </span>
-        </p>
-    {/if}
-    <div id="input-area" style={getStyle('input-area')}>
-        <div class="input-wrapper">
-            <span class="clickable-icon icon_2fa"></span>
-            <input
-                bind:this={otpInput}
-                type="text"
-                pattern="[0-9]*"
-                bind:value={otpCode}
-                on:input={handleInput}
-                placeholder={$text('signup.enter_one_time_code.text')}
-                inputmode="numeric"
-                maxlength="6"
-                autocomplete="one-time-code"
-                class:error={!!errorMessage}
-            />
-             {#if errorMessage}
-                <InputWarning 
-                    message={errorMessage} 
-                    target={otpInput} 
-                />
-            {/if}
+            </button>
         </div>
-    </div>
-    
-    <div id="enter-backup-code" class="enter-backup-code">
-        <a href="" target="_blank" class="text-button">
-            {$text('login.enter_backup_code.text')}
-        </a>
-    </div>
-    <div class="switch-account">
-        <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
-            {$text('login.login_with_another_account.text')}
-        </a>
-    </div>
+    {:else}
+        <!-- Standard 2FA / Backup Code Input View -->
+        <div class="input-view" transition:fade={{ duration: 300 }}>
+            <!-- Wrap check-2fa text for conditional hiding -->
+            <div class="check-2fa-container" class:hidden={isBackupMode}>
+                <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
+                    {@html $text('login.check_your_2fa_app.text')}
+                </p>
+            </div>
+            
+            <!-- App Name Section (conditionally hidden in backup mode) -->
+            <div class="app-name-container" class:hidden={isBackupMode}>
+                {#if currentDisplayedApp}
+                    <p id="app-name" class="app-name" style={getStyle('app-name')}>
+                        <span class="app-name-content">
+                            {#if tfaAppIconClass}
+                                <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !selectedAppName ? 'fade-animation' : ''}"></span>
+                            {/if}
+                            <span class="{previewMode && !selectedAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+                        </span>
+                    </p>
+                {/if}
+            </div>
+
+            <!-- Input Area -->
+            <div id="input-area" style={getStyle('input-area')}>
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_2fa"></span>
+                    <input
+                        bind:this={authInput}
+                        type="text"
+                        bind:value={authCode}
+                        on:input={handleInput}
+                        placeholder={inputPlaceholder}
+                        inputmode={inputMode}
+                        maxlength={inputMaxLength}
+                        autocomplete="one-time-code"
+                        class:error={!!errorMessage}
+                        on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                    />
+                     {#if errorMessage}
+                        <InputWarning 
+                            message={errorMessage} 
+                            target={authInput} 
+                        />
+                    {/if}
+                </div>
+            </div>
+            
+            <!-- Toggle Button -->
+            <div id="enter-backup-code" class="enter-backup-code">
+                <button on:click={toggleBackupMode} class="text-button" disabled={isLoading}>
+                    {toggleButtonText}
+                </button>
+            </div>
+
+            <!-- Switch Account Link -->
+            <div class="switch-account">
+                <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
+                    {$text('login.login_with_another_account.text')}
+                </a>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
     .login-2fa {
         display: flex;
         flex-direction: column;
+        min-height: 200px; /* Ensure minimum height for transitions */
     }
 
-   
+    .input-view, .success-view {
+        display: flex;
+        flex-direction: column;
+        width: 100%; /* Ensure views take full width */
+    }
+
+    .check-2fa-container, /* Apply transitions to this container */
+    .app-name-container {
+        height: auto; /* Default height */
+        opacity: 1;
+        overflow: hidden;
+        transition: height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out; /* Added margin/padding transition */
+    }
+
+    .check-2fa-container.hidden, /* Apply hidden styles */
+    .app-name-container.hidden {
+        height: 0;
+        opacity: 0;
+        margin: 0; /* Remove margin when hidden */
+        padding: 0; /* Remove padding when hidden */
+    }
 
     .app-name {
-        margin: 10px 0 30px 0;
         display: flex;
         justify-content: center;
         width: 100%;
@@ -322,13 +426,71 @@ login_2fa_svelte:
         animation: none;
     }
 
+    /* Styles for success view */
+    .success-message {
+        color: var(--color-success);
+        text-align: center;
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+
+    .continue-button {
+        /* Inherit button styles or define specific ones */
+        /* Example using existing button styles */
+        padding: 10px 20px;
+        background-color: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.2s;
+        display: flex; /* For loading spinner alignment */
+        justify-content: center;
+        align-items: center;
+        min-height: 40px; /* Ensure consistent height with loading spinner */
+    }
+
+    .continue-button:hover:not(:disabled) {
+        background-color: var(--color-primary-dark);
+    }
+
+    .continue-button:disabled {
+        background-color: var(--color-grey-light);
+        cursor: not-allowed;
+    }
+
+    /* Loading spinner (reuse from login button if available) */
+    .loading-spinner {
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 3px solid white;
+        width: 18px;
+        height: 18px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+
     @media (max-width: 600px) {
         .login-2fa {
             align-items: center;
         }
 
+        .check-2fa-container, /* Adjust mobile margins */
+        .app-name-container {
+             margin: 10px 0 10px 0; 
+        }
+        .check-2fa-container.hidden,
+        .app-name-container.hidden {
+             margin: 0;
+        }
         .app-name {
-            margin: 10px 0 10px 0;
+            margin-bottom: 10px; /* Reduce bottom margin on mobile */
         }
 
         .enter-backup-code {

@@ -18,6 +18,8 @@ from app.routes.auth_routes.auth_dependencies import (
     get_compliance_service, get_encryption_service # Added encryption service dependency
 )
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
+# Import backup code verification utility
+from app.routes.auth_routes.auth_2fa_utils import verify_backup_code
 import json
 from typing import Optional
 # from app.models.user import User # No longer directly used here
@@ -82,20 +84,21 @@ async def login(
             logger.error("User ID missing after successful password validation.")
             return LoginResponse(success=False, message="Internal server error: User ID missing.")
 
-        # Fetch complete user profile to check for 2FA secret
+        # Fetch standard user profile (will not contain sensitive TFA data)
         profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
         if not profile_success or not user_profile:
-            logger.error(f"Failed to fetch profile for user {user_id}: {profile_message}")
+            # This profile is still needed for non-sensitive data like tfa_app_name etc.
+            logger.error(f"Failed to fetch standard profile for user {user_id}: {profile_message}")
             return LoginResponse(success=False, message="Failed to retrieve user profile.")
         
         # Merge profile into user object for consistency
         user.update(user_profile)
         auth_data["user"] = user # Ensure auth_data has the full profile
 
-        encrypted_tfa_secret = user_profile.get("encrypted_tfa_secret")
-        tfa_enabled = bool(encrypted_tfa_secret)
+        # tfa_enabled is now included directly in the profile from get_user_profile
+        tfa_enabled = user_profile.get("tfa_enabled", False)
         
-        logger.info(f"User {user_id[:6]}... 2FA enabled: {tfa_enabled}")
+        logger.info(f"User {user_id[:6]}... Correctly read 2FA enabled status: {tfa_enabled}")
 
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
@@ -113,10 +116,7 @@ async def login(
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=UserResponse(
-                    **user_profile, 
-                    tfa_enabled=tfa_enabled
-                ) 
+                user=UserResponse(**user_profile) 
             )
             # Removed nested return
 
@@ -143,59 +143,143 @@ async def login(
             )
             
         # --- Scenario 3: 2FA Enabled, Code IS Provided (Second Step) ---
-        logger.info("2FA enabled, code provided. Verifying code...")
-        try:
-            vault_key_id = user_profile.get("vault_key_id")
-            if not vault_key_id:
-                raise ValueError("Vault key ID missing for 2FA decryption.")
-                
-            # Decrypt using the user's key, as it's now encrypted with user key during setup
-            decrypted_secret = await encryption_service.decrypt_with_user_key(
-                encrypted_tfa_secret, vault_key_id
-            )
-            
-            if not decrypted_secret:
-                 raise ValueError("Failed to decrypt 2FA secret.")
+        logger.info(f"2FA enabled, code provided. Verifying code type: {login_data.code_type}...")
+        
+        # Ensure tfa_code is provided if we reach this stage
+        if not login_data.tfa_code:
+             logger.warning(f"2FA code missing in request for user {user_id} despite tfa_required being implied.")
+             return LoginResponse(success=False, message="2FA code is required.", tfa_required=True)
 
-            totp = pyotp.TOTP(decrypted_secret)
-            if not totp.verify(login_data.tfa_code):
-                logger.warning(f"Invalid 2FA code provided for user {user_id}")
+        try:
+            # --- Sub-Scenario 3a: Verify using OTP Code ---
+            if login_data.code_type == "otp":
+                logger.info(f"Verifying OTP code for user {user_id}...")
+                
+                # Fetch decrypted secret directly (bypasses cache)
+                decrypted_secret = await directus_service.get_decrypted_tfa_secret(user_id)
+                
+                if not decrypted_secret:
+                    # Handle cases where secret isn't found or decryption failed
+                    logger.error(f"Could not retrieve or decrypt TFA secret for user {user_id} during OTP verification.")
+                    # Don't reveal specific error, keep user on 2FA screen
+                    return LoginResponse(success=False, message="Error verifying 2FA code.", tfa_required=True)
+
+                # Verify the code using the directly fetched secret
+                totp = pyotp.TOTP(decrypted_secret)
+                if not totp.verify(login_data.tfa_code):
+                    logger.warning(f"Invalid OTP code provided for user {user_id}")
+                    compliance_service.log_auth_event(
+                        event_type="login_failed", user_id=user_id, ip_address=client_ip,
+                        status="failed",
+                        details={
+                            "reason": "invalid_2fa_otp_code",
+                            "device_fingerprint": device_fingerprint,
+                            "location": device_location
+                        }
+                    )
+                    return LoginResponse(success=False, message="Invalid verification code", tfa_required=True)
+                
+                # OTP Code is valid! Finalize the login.
+                logger.info("OTP code verified successfully. Finalizing login.")
+                await finalize_login_session(
+                    response, user, auth_data, cache_service, compliance_service, 
+                    directus_service, device_fingerprint, device_location, client_ip
+                )
+                return LoginResponse(
+                    success=True, message="Login successful",
+                     # UserResponse now correctly gets tfa_enabled via **user_profile
+                    user=UserResponse(**user_profile)
+                )
+
+            # --- Sub-Scenario 3b: Verify using Backup Code ---
+            elif login_data.code_type == "backup":
+                logger.info(f"Verifying backup code for user {user_id}...")
+                
+                # Fetch backup code hashes directly (bypasses cache)
+                hashed_codes = await directus_service.get_tfa_backup_code_hashes(user_id)
+
+                # Handle cases where hashes couldn't be fetched or parsed
+                if hashed_codes is None:
+                     logger.error(f"Could not retrieve or parse backup code hashes for user {user_id}.")
+                     return LoginResponse(success=False, message="Error verifying backup code.", tfa_required=True)
+                
+                # Check if list is empty (no codes configured or all used)
+                if not hashed_codes:
+                    logger.warning(f"Backup code submitted for user {user_id}, but no backup codes found/remaining.")
+                    return LoginResponse(success=False, message="No backup codes configured or remaining for this account.", tfa_required=True)
+
+                # Debugging: Log the data being passed to verification
+                logger.debug(f"Attempting to verify backup code. Provided code: '{login_data.tfa_code}', Type: {type(login_data.tfa_code)}")
+                logger.debug(f"Hashed codes from profile (type: {type(hashed_codes)}): {hashed_codes}")
+
+                is_valid, matched_index = verify_backup_code(login_data.tfa_code, hashed_codes)
+
+                if not is_valid:
+                    logger.warning(f"Invalid backup code provided for user {user_id}")
+                    compliance_service.log_auth_event(
+                        event_type="login_failed", user_id=user_id, ip_address=client_ip,
+                        status="failed",
+                        details={
+                            "reason": "invalid_2fa_backup_code",
+                            "device_fingerprint": device_fingerprint,
+                            "location": device_location
+                        }
+                    )
+                    return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
+
+                # Backup Code is valid! Remove it and finalize login.
+                logger.info(f"Backup code verified successfully for user {user_id}. Removing used code.")
+                
+                # Remove the used hash
+                remaining_hashes = [h for i, h in enumerate(hashed_codes) if i != matched_index]
+                remaining_count = len(remaining_hashes)
+
+                # Update Directus (fire and forget, log errors)
+                try:
+                    update_success = await directus_service.update_user(user_id, {
+                        "tfa_backup_codes_hashes": remaining_hashes
+                    })
+                    if not update_success:
+                         logger.error(f"Failed to update backup codes in Directus for user {user_id} after use.")
+                         # Continue login, but log the error. User might need to regenerate codes later.
+                    else:
+                         logger.info(f"Successfully removed used backup code from Directus for user {user_id}. {remaining_count} remaining.")
+                except Exception as db_update_err:
+                    logger.error(f"Exception updating backup codes in Directus for user {user_id}: {db_update_err}", exc_info=True)
+                    # Continue login despite DB update failure.
+
+                # Log successful backup code use
                 compliance_service.log_auth_event(
-                    event_type="login_failed", user_id=user_id, ip_address=client_ip,
-                    status="failed",
+                    event_type="login_success_backup_code", user_id=user_id, ip_address=client_ip,
+                    status="success",
                     details={
-                        "reason": "invalid_2fa_code",
                         "device_fingerprint": device_fingerprint,
-                        "location": device_location
+                        "location": device_location,
+                        "remaining_backup_codes": remaining_count
                     }
                 )
-                # Return error, but indicate 2FA is still required
+
+                # Finalize the login session
+                await finalize_login_session(
+                    response, user, auth_data, cache_service, compliance_service, 
+                    directus_service, device_fingerprint, device_location, client_ip
+                )
+                
+                # Return success with backup code info
                 return LoginResponse(
-                    success=False, 
-                    message="Invalid 2FA code", 
-                    tfa_required=True # Keep user on 2FA screen
+                    success=True, message="Login successful using backup code",
+                    user=UserResponse(**user_profile),
+                    backup_code_used=True,
+                    remaining_backup_codes=remaining_count
                 )
             
-            # 2FA Code is valid! Finalize the login.
-            logger.info("2FA code verified successfully. Finalizing login.")
-            await finalize_login_session(
-                response, user, auth_data, cache_service, compliance_service, 
-                directus_service, device_fingerprint, device_location, client_ip
-            )
-
-            # Corrected return statement
-            return LoginResponse(
-                success=True,
-                message="Login successful",
-                user=UserResponse(
-                    **user_profile, 
-                    tfa_enabled=tfa_enabled
-                )
-            )
-            # Removed nested return
+            # --- Sub-Scenario 3c: Invalid Code Type ---
+            else:
+                logger.warning(f"Invalid code_type '{login_data.code_type}' received for user {user_id}")
+                return LoginResponse(success=False, message="Invalid request type.", tfa_required=True)
 
         except Exception as e:
-            logger.error(f"Error during 2FA verification for user {user_id}: {str(e)}", exc_info=True)
+            logger.error(f"Error during 2FA verification (type: {login_data.code_type}) for user {user_id}: {str(e)}", exc_info=True)
             return LoginResponse(
                 success=False, 
                 message="Error during 2FA verification", 
@@ -289,7 +373,7 @@ async def finalize_login_session(
                 "credits": user.get("credits"),
                 "profile_image_url": user.get("profile_image_url"),
                 "tfa_app_name": user.get("tfa_app_name"),
-                "tfa_enabled": bool(user.get("encrypted_tfa_secret")),
+                "tfa_enabled": user.get("tfa_enabled", False), 
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id"),
                 "last_online_timestamp": current_time,

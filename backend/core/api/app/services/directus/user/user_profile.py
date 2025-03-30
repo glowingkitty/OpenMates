@@ -1,6 +1,6 @@
 import logging
 import json
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List # Added List import
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -41,10 +41,16 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         if not vault_key_id:
             logger.error("No vault_key_id found in user data")
             return False, None, "User has no encryption key"
+            
+        # Determine TFA status based on raw data BEFORE creating cached profile
+        # Check if the secret field exists and is not null/empty
+        tfa_enabled_status = bool(user_data.get("encrypted_tfa_secret"))
+        logger.info(f"Determined tfa_enabled status for user {user_id}: {tfa_enabled_status}")
         
         # Create a profile object with both encrypted and decrypted data
         profile = {
             "id": user_id,
+            "tfa_enabled": tfa_enabled_status, # Add the determined status here
             "is_admin": user_data.get("is_admin", False),
             "last_opened": user_data.get("last_opened"),
             "status": user_data.get("status"),
@@ -57,8 +63,9 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "consent_mates_default_settings": user_data.get("consent_mates_default_settings"),
             
             # Keep sensitive data encrypted (don't decrypt these)
+            # REMOVED: encrypted_tfa_secret and tfa_backup_codes_hashes are no longer fetched here
             "encrypted_email_address": user_data.get("encrypted_email_address"),
-            "encrypted_tfa_secret": user_data.get("encrypted_tfa_secret"), # Fetch the encrypted secret
+            # "encrypted_tfa_secret": user_data.get("encrypted_tfa_secret"), # No longer fetched here
             "encrypted_settings": user_data.get("encrypted_settings"),
         }
 
@@ -101,6 +108,106 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         error_msg = f"Error getting user profile: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return False, None, error_msg
+
+# --- New functions to fetch sensitive TFA data directly ---
+
+async def get_decrypted_tfa_secret(self, user_id: str) -> Optional[str]:
+    """
+    Fetches ONLY the encrypted TFA secret for a user directly from Directus,
+    decrypts it, and returns the plain secret. Bypasses cache entirely.
+    Returns None if secret not found, not enabled, or decryption fails.
+    """
+    try:
+        logger.info(f"Fetching encrypted TFA secret directly for user {user_id}")
+        # Explicitly import httpx here if not already available globally in the file context
+        # import httpx # Assuming httpx is available or imported elsewhere
+        url = f"{self.base_url}/users/{user_id}?fields=encrypted_tfa_secret,vault_key_id"
+        # Use the service's internal method for making requests
+        response = await self._make_api_request("GET", url) 
+
+        if response.status_code != 200:
+            logger.warning(f"Failed to retrieve user TFA data: {response.status_code} for user {user_id}")
+            return None
+
+        user_data = response.json().get("data", {})
+        encrypted_secret = user_data.get("encrypted_tfa_secret")
+        vault_key_id = user_data.get("vault_key_id")
+
+        if not encrypted_secret:
+            logger.info(f"No encrypted_tfa_secret found for user {user_id} (likely not enabled).")
+            return None
+        if not vault_key_id:
+            logger.error(f"No vault_key_id found for user {user_id} when fetching TFA secret.")
+            return None
+
+        # Decrypt the secret using the service's encryption instance
+        decrypted_secret = await self.encryption_service.decrypt_with_user_key(
+            encrypted_secret, vault_key_id
+        )
+
+        if not decrypted_secret:
+            logger.error(f"Failed to decrypt TFA secret for user {user_id}.")
+            return None
+
+        logger.info(f"Successfully fetched and decrypted TFA secret for user {user_id}")
+        return decrypted_secret
+
+    except Exception as e:
+        logger.error(f"Error getting/decrypting TFA secret for user {user_id}: {str(e)}", exc_info=True)
+        return None
+
+async def get_tfa_backup_code_hashes(self, user_id: str) -> Optional[List[str]]:
+    """
+    Fetches ONLY the TFA backup code hashes for a user directly from Directus.
+    Bypasses cache entirely. Parses the JSON string into a list.
+    Returns None if field not found or error occurs. Returns empty list if field is empty/null.
+    """
+    try:
+        logger.info(f"Fetching TFA backup code hashes directly for user {user_id}")
+        # Explicitly import json here if not already available globally
+        # import json # Assuming json is available or imported elsewhere
+        url = f"{self.base_url}/users/{user_id}?fields=tfa_backup_codes_hashes"
+        # Use the service's internal method for making requests
+        response = await self._make_api_request("GET", url)
+
+        if response.status_code != 200:
+            logger.warning(f"Failed to retrieve user backup code hashes: {response.status_code} for user {user_id}")
+            return None
+
+        user_data = response.json().get("data", {})
+        hashed_codes_raw = user_data.get("tfa_backup_codes_hashes")
+
+        if hashed_codes_raw is None:
+            logger.info(f"No tfa_backup_codes_hashes field found or field is null for user {user_id}.")
+            return [] # Return empty list if field is null/missing
+
+        hashed_codes = []
+        if isinstance(hashed_codes_raw, str):
+            if not hashed_codes_raw.strip(): # Handle empty string case
+                 logger.info(f"tfa_backup_codes_hashes field is an empty string for user {user_id}.")
+                 return []
+            try:
+                hashed_codes = json.loads(hashed_codes_raw)
+                if not isinstance(hashed_codes, list):
+                    logger.warning(f"Parsed tfa_backup_codes_hashes for user {user_id} is not a list, treating as empty.")
+                    hashed_codes = []
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse tfa_backup_codes_hashes JSON string for user {user_id}: '{hashed_codes_raw}'")
+                return None # Indicate parsing error
+        elif isinstance(hashed_codes_raw, list):
+             # Should not happen based on schema, but handle defensively
+            hashed_codes = hashed_codes_raw
+        else:
+            logger.warning(f"Unexpected type for tfa_backup_codes_hashes for user {user_id}: {type(hashed_codes_raw)}")
+            return None # Indicate unexpected data type
+
+        logger.info(f"Successfully fetched {len(hashed_codes)} TFA backup code hashes for user {user_id}")
+        return hashed_codes
+
+    except Exception as e:
+        logger.error(f"Error getting TFA backup code hashes for user {user_id}: {str(e)}", exc_info=True)
+        return None
+
 
 async def get_user_profile_by_token(self, access_token: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """

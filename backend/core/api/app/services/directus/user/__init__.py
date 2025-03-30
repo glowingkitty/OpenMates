@@ -8,8 +8,10 @@ from app.services.directus.user.user_lookup import (
 from app.services.directus.user.device_management import (
     update_user_device, check_user_device
 )
-# Removed import from user_data as functions are deleted
-from app.services.directus.user.user_profile import get_user_profile
+# Import new TFA functions from user_profile
+from app.services.directus.user.user_profile import (
+    get_user_profile, get_decrypted_tfa_secret, get_tfa_backup_code_hashes
+)
 from app.services.directus.user.delete_user import delete_user
 from app.services.directus.user.update_user import update_user
 
@@ -27,5 +29,8 @@ __all__ = [
     # Removed redundant function names
     'get_user_profile',
     'delete_user',
-    'update_user'
+    'update_user',
+    # Add new TFA functions to export list
+    'get_decrypted_tfa_secret',
+    'get_tfa_backup_code_hashes'
 ]

@@ -73,49 +73,19 @@ async def verify_device_2fa(
 
         user_id = user_data.get("user_id") # We know user_id exists from the is_auth check
 
-        # Fetch the full user profile directly from Directus to ensure we have the 2FA details
-        try:
-            profile_success, profile_data, profile_message = await directus_service.get_user_profile(user_id)
-            if not profile_success or not profile_data:
-                logger.error(f"Could not retrieve user profile for user {user_id} during device verification: {profile_message}")
-                # Use generic error message for frontend
-                return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
-        except Exception as profile_err:
-            logger.error(f"Exception retrieving user profile for {user_id}: {profile_err}", exc_info=True)
+        # Fetch the decrypted TFA secret directly (bypasses cache)
+        # No need to fetch the full profile anymore
+        decrypted_secret = await directus_service.get_decrypted_tfa_secret(user_id)
+
+        # Check if secret was retrieved and decrypted successfully
+        if not decrypted_secret:
+            # This covers cases where 2FA is not enabled, secret is missing, or decryption failed.
+            # The get_decrypted_tfa_secret function logs the specific reason.
+            logger.error(f"Could not get decrypted TFA secret for user {user_id} during device verification.")
             # Use generic error message for frontend
-            return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
+            return VerifyDevice2FAResponse(success=False, message="Could not verify 2FA status or code. Please try again.")
 
-
-        # Check if 2FA is actually enabled for this user by checking for the secret in the fresh profile data
-        encrypted_secret = profile_data.get("encrypted_tfa_secret")
-        if not encrypted_secret:
-            logger.error(f"Attempt to verify device 2FA for user {user_id} but no encrypted_tfa_secret found in DB profile.")
-            # Compliance log removed for this case as per user request
-            # Keep specific error message as this is user state, not internal error
-            return VerifyDevice2FAResponse(success=False, message="2FA is not enabled for this account")
-
-        # Get stored vault key from the fetched profile (secret already retrieved above)
-        vault_key_id = profile_data.get("vault_key_id")
-
-        if not encrypted_secret or not vault_key_id:
-            # This indicates a data integrity issue if 2FA is enabled but secrets are missing in DB
-            logger.error(f"Missing 2FA secret or vault key in DB for user {user_id} during device verification.")
-            # Compliance log removed for this case as per user request
-            # Use generic error message for frontend
-            return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
-
-        # Decrypt the secret
-        try:
-            decrypted_secret = await encryption_service.decrypt_with_user_key(encrypted_secret, vault_key_id)
-            if not decrypted_secret:
-                 raise ValueError("Decryption returned None") # This will be caught by the outer exception handler
-        except Exception as decrypt_err:
-            logger.error(f"Failed to decrypt 2FA secret for user {user_id}: {decrypt_err}")
-            # Compliance log removed for this case as per user request
-            # Use generic error message for frontend
-            return VerifyDevice2FAResponse(success=False, message="An error occurred. Please try again another time.")
-
-        # Verify the TOTP code
+        # Verify the TOTP code using the directly fetched secret
         totp = pyotp.TOTP(decrypted_secret)
         if not totp.verify(verify_request.tfa_code):
             logger.warning(f"Invalid device verification 2FA code for user {user_id}")
