@@ -14,7 +14,7 @@ export interface UserProfile {
   consent_mates_default_settings?: boolean;
 }
 
-const defaultProfile: UserProfile = {
+export const defaultProfile: UserProfile = {
   username: '',
   profile_image_url: null,
   credits: 0,

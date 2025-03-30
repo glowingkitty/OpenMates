@@ -33,6 +33,12 @@ async def get_session(
             request, cache_service, directus_service, require_known_device=True
         )
 
+        # Always clear potentially leftover signup cookies as a safety measure
+        response.delete_cookie(key="signup_invite_code")
+        response.delete_cookie(key="signup_email")
+        response.delete_cookie(key="signup_username")
+        response.delete_cookie(key="signup_password")
+
         # Handle device mismatch status first
         if auth_status == "device_mismatch":
             if user_data.get("tfa_enabled", False):

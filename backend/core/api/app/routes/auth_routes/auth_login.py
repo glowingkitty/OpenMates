@@ -209,10 +209,12 @@ async def login(
                     return LoginResponse(success=False, message="No backup codes configured or remaining for this account.", tfa_required=True)
 
                 # Debugging: Log the data being passed to verification
-                logger.debug(f"Attempting to verify backup code. Provided code: '{login_data.tfa_code}', Type: {type(login_data.tfa_code)}")
-                logger.debug(f"Hashed codes from profile (type: {type(hashed_codes)}): {hashed_codes}")
+                logger.info(f"Attempting to verify backup code. Provided code: '{login_data.tfa_code}', Type: {type(login_data.tfa_code)}")
+                logger.info(f"Hashed codes from profile (type: {type(hashed_codes)}): {hashed_codes}")
 
                 is_valid, matched_index = verify_backup_code(login_data.tfa_code, hashed_codes)
+
+                logger.info(f"Backup code verification result: {is_valid}, Matched index: {matched_index}")
 
                 if not is_valid:
                     logger.warning(f"Invalid backup code provided for user {user_id}")
@@ -234,20 +236,27 @@ async def login(
                 remaining_hashes = [h for i, h in enumerate(hashed_codes) if i != matched_index]
                 remaining_count = len(remaining_hashes)
 
-                # Update Directus (fire and forget, log errors)
-                try:
-                    update_success = await directus_service.update_user(user_id, {
-                        "tfa_backup_codes_hashes": remaining_hashes
-                    })
-                    if not update_success:
-                         logger.error(f"Failed to update backup codes in Directus for user {user_id} after use.")
-                         # Continue login, but log the error. User might need to regenerate codes later.
-                    else:
-                         logger.info(f"Successfully removed used backup code from Directus for user {user_id}. {remaining_count} remaining.")
-                except Exception as db_update_err:
-                    logger.error(f"Exception updating backup codes in Directus for user {user_id}: {db_update_err}", exc_info=True)
-                    # Continue login despite DB update failure.
+                logger.info(f"Remaining backup codes after removal: {remaining_count}")
+                logger.info(remaining_hashes)
 
+                # Update Directus and WAIT for confirmation
+                update_success = await directus_service.update_user(user_id, {
+                    "tfa_backup_codes_hashes": remaining_hashes
+                })
+
+                # --- Handle update failure ---
+                if not update_success:
+                    logger.error(f"Failed to update backup codes in Directus for user {user_id}.")
+                    # Return an error and keep the user on the 2FA screen
+                    return LoginResponse(
+                        success=False, 
+                        message="Failed to process backup code. Please try again.", 
+                        tfa_required=True
+                    )
+
+                # --- Update successful, proceed ---
+                logger.info(f"Successfully updated backup codes in Directus for user {user_id}.")
+                
                 # Log successful backup code use
                 compliance_service.log_auth_event(
                     event_type="login_success_backup_code", user_id=user_id, ip_address=client_ip,
