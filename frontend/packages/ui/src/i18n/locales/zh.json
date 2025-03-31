@@ -478,6 +478,11 @@
             "en_original": "Enter backup code",
             "context": "Placeholder text for backup code input field"
         },
+        "enter_2fa_app_code": {
+            "text": "输入 2FA 应用代码",
+            "en_original": "Enter 2FA app code",
+            "context": "Placeholder text for 2FA app code input field"
+        },
         "login_with_another_account": {
             "text": "使用其他帐户登录",
             "en_original": "Login with another account",

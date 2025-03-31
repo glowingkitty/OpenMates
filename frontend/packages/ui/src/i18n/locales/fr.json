@@ -478,6 +478,11 @@
             "en_original": "Enter backup code",
             "context": "Placeholder text for backup code input field"
         },
+        "enter_2fa_app_code": {
+            "text": "Entrez le code de l'application 2FA",
+            "en_original": "Enter 2FA app code",
+            "context": "Placeholder text for 2FA app code input field"
+        },
         "login_with_another_account": {
             "text": "Se connecter avec un autre compte",
             "en_original": "Login with another account",
