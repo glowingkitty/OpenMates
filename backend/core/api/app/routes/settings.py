@@ -274,9 +274,9 @@ async def record_privacy_apps_consent(
             # NO compliance log for failure
             raise HTTPException(status_code=500, detail="Failed to save consent")
             
-        # Update Cache using user_id with boolean value for consent
+        # Update Cache using user_id with string timestamp value for consent
         cache_update_data = {
-            "consent_privacy_and_apps_default_settings": True,
+            "consent_privacy_and_apps_default_settings": current_timestamp_str, # Store string timestamp
             "last_opened": update_data["last_opened"] # Keep last_opened update
         }
         cache_update_success = await cache_service.update_user(user_id, cache_update_data)
@@ -334,9 +334,9 @@ async def record_mates_consent(
             # NO compliance log for failure
             raise HTTPException(status_code=500, detail="Failed to save consent")
             
-        # Update Cache using user_id with boolean value for consent
+        # Update Cache using user_id with string timestamp value for consent
         cache_update_data = {
-            "consent_mates_default_settings": True,
+            "consent_mates_default_settings": current_timestamp_str, # Store string timestamp
             "last_opened": update_data["last_opened"] # Keep last_opened update
         }
         cache_update_success = await cache_service.update_user(user_id, cache_update_data)

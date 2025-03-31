@@ -103,9 +103,7 @@ login_2fa_svelte:
     // Add props for binding isLoading and displaying errors
     export let isLoading = false;
     export let errorMessage: string | null = null;
-    // Add new props for backup code flow
-    export let backupCodeSuccess = false;
-    export let remainingBackupCodes = 0;
+    // Removed backupCodeSuccess and remainingBackupCodes props
 
     const dispatch = createEventDispatcher();
 
@@ -160,8 +158,8 @@ login_2fa_svelte:
             // If not preview or an app is selected, display the correct app name
             currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
         }
-        // Focus input on mount if not preview mode and not showing success message
-        if (!previewMode && authInput && !backupCodeSuccess) {
+        // Focus input on mount if not preview mode
+        if (!previewMode && authInput) {
             authInput.focus();
         }
     });
@@ -243,94 +241,73 @@ login_2fa_svelte:
     // Reactive statement for currentDisplayedApp based on selectedAppName
     $: currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
 
-    // Function to handle the "Continue" button click after backup code success
-    function handleContinue() {
-        dispatch('backupLoginContinue');
-    }
+    // Removed handleContinue function
 
 </script>
 
 <div class="login-2fa {selectedAppName ? 'no-animation' : ''}" class:preview={previewMode}>
-    {#if backupCodeSuccess}
-        <!-- Backup Code Success View -->
-        <div class="success-view" transition:fade={{ duration: 300 }}>
-            <p class="success-message">
-                {@html $text('login.backup_code_used_successfully.text', { 
-                    values: { remaining_count: remainingBackupCodes } 
-                })}
+    <!-- Standard 2FA / Backup Code Input View -->
+    <div class="input-view" transition:fade={{ duration: 300 }}>
+        <!-- Wrap check-2fa text for conditional hiding -->
+        <div class="check-2fa-container" class:hidden={isBackupMode}>
+            <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
+                    {@html $text('login.check_your_2fa_app.text')}
             </p>
-            <button class="continue-button" on:click={handleContinue} disabled={isLoading}>
-                {#if isLoading}
-                    <span class="loading-spinner"></span>
-                {:else}
-                    {$text('signup.continue.text')}
+        </div>
+        
+        <!-- App Name Section (conditionally hidden in backup mode) -->
+        <div class="app-name-container" class:hidden={isBackupMode}>
+            {#if currentDisplayedApp}
+                <p id="app-name" class="app-name" style={getStyle('app-name')}>
+                    <span class="app-name-content">
+                        {#if tfaAppIconClass}
+                            <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !selectedAppName ? 'fade-animation' : ''}"></span>
+                        {/if}
+                        <span class="{previewMode && !selectedAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+                    </span>
+                </p>
+            {/if}
+        </div>
+
+        <!-- Input Area -->
+        <div id="input-area" style={getStyle('input-area')}>
+            <div class="input-wrapper">
+                <span class="clickable-icon icon_2fa"></span>
+                <input
+                    bind:this={authInput}
+                    type="text"
+                    bind:value={authCode}
+                    on:input={handleInput}
+                    placeholder={inputPlaceholder}
+                    inputmode={inputMode}
+                    maxlength={inputMaxLength}
+                    autocomplete="one-time-code"
+                    class:error={!!errorMessage}
+                    on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                />
+                    {#if errorMessage}
+                    <InputWarning 
+                        message={errorMessage} 
+                        target={authInput} 
+                    />
                 {/if}
+            </div>
+        </div>
+        
+        <!-- Toggle Button -->
+        <div id="enter-backup-code" class="enter-backup-code">
+            <button on:click={toggleBackupMode} class="text-button" disabled={isLoading}>
+                {toggleButtonText}
             </button>
         </div>
-    {:else}
-        <!-- Standard 2FA / Backup Code Input View -->
-        <div class="input-view" transition:fade={{ duration: 300 }}>
-            <!-- Wrap check-2fa text for conditional hiding -->
-            <div class="check-2fa-container" class:hidden={isBackupMode}>
-                <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
-                    {@html $text('login.check_your_2fa_app.text')}
-                </p>
-            </div>
-            
-            <!-- App Name Section (conditionally hidden in backup mode) -->
-            <div class="app-name-container" class:hidden={isBackupMode}>
-                {#if currentDisplayedApp}
-                    <p id="app-name" class="app-name" style={getStyle('app-name')}>
-                        <span class="app-name-content">
-                            {#if tfaAppIconClass}
-                                <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !selectedAppName ? 'fade-animation' : ''}"></span>
-                            {/if}
-                            <span class="{previewMode && !selectedAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
-                        </span>
-                    </p>
-                {/if}
-            </div>
 
-            <!-- Input Area -->
-            <div id="input-area" style={getStyle('input-area')}>
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_2fa"></span>
-                    <input
-                        bind:this={authInput}
-                        type="text"
-                        bind:value={authCode}
-                        on:input={handleInput}
-                        placeholder={inputPlaceholder}
-                        inputmode={inputMode}
-                        maxlength={inputMaxLength}
-                        autocomplete="one-time-code"
-                        class:error={!!errorMessage}
-                        on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-                    />
-                     {#if errorMessage}
-                        <InputWarning 
-                            message={errorMessage} 
-                            target={authInput} 
-                        />
-                    {/if}
-                </div>
-            </div>
-            
-            <!-- Toggle Button -->
-            <div id="enter-backup-code" class="enter-backup-code">
-                <button on:click={toggleBackupMode} class="text-button" disabled={isLoading}>
-                    {toggleButtonText}
-                </button>
-            </div>
-
-            <!-- Switch Account Link -->
-            <div class="switch-account">
-                <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
-                    {$text('login.login_with_another_account.text')}
-                </a>
-            </div>
+        <!-- Switch Account Link -->
+        <div class="switch-account">
+            <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
+                {$text('login.login_with_another_account.text')}
+            </a>
         </div>
-    {/if}
+    </div>
 </div>
 
 <style>

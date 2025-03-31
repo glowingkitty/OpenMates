@@ -40,7 +40,7 @@ class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="User's email address")
     password: str = Field(..., description="User's password")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
-    code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')") # Default to 'otp'
+    code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     
     class Config:
         schema_extra = {
@@ -59,10 +59,8 @@ class LoginResponse(BaseModel):
     """Schema for login response"""
     success: bool = Field(..., description="Whether the login was successful")
     message: str = Field(..., description="Response message")
-    user: Optional[UserResponse] = None  # User data is returned only on full success (no 2FA needed or 2FA verified)
+    user: Optional[UserResponse] = None
     tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
-    backup_code_used: bool = Field(False, description="Indicates if a backup code was successfully used for login")
-    remaining_backup_codes: Optional[int] = Field(None, description="Number of backup codes remaining after successful use")
     
     class Config:
         json_schema_extra = {
@@ -81,7 +79,7 @@ class LoginResponse(BaseModel):
                 "example_tfa_required": {
                     "success": True,
                     "message": "2FA required",
-                    "user": { # Only include minimal info needed for 2FA step, like app name
+                    "user": {
                         "username": None, 
                         "is_admin": None,
                         "credits": None,
@@ -90,7 +88,6 @@ class LoginResponse(BaseModel):
                         "last_opened": None
                     },
                     "tfa_required": True
-                    # "tfa_cache_key": "login_tfa_pending:abc123xyz" # Removed as per revised plan
                 }
             }
         }

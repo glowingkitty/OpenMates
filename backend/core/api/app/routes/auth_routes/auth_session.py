@@ -126,8 +126,8 @@ async def get_session(
                 last_opened=user_data.get("last_opened"),
                 tfa_app_name=user_data.get("tfa_app_name"),
                 tfa_enabled=user_data.get("tfa_enabled", False),
-                consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings", False),
-                consent_mates_default_settings=user_data.get("consent_mates_default_settings", False)
+                consent_privacy_and_apps_default_settings=bool(user_data.get("consent_privacy_and_apps_default_settings")),
+                consent_mates_default_settings=bool(user_data.get("consent_mates_default_settings"))
             ),
             token_refresh_needed=False
         )

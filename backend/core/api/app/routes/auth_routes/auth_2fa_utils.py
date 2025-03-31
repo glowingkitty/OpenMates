@@ -1,6 +1,7 @@
 import secrets
 import string
 import pyotp
+import hashlib # Added for SHA256 hashing
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -18,12 +19,19 @@ def generate_2fa_secret(app_name="OpenMates", username=""):
     )
     return secret, otpauth_url, app_name
 
-# Helper function to hash a backup code with Argon2
+# Helper function to hash a backup code with SHA256 (for cache checks)
+def sha_hash_backup_code(code: str) -> str:
+    """Hash a backup code using SHA256 and return hex digest. No normalization."""
+    if not isinstance(code, str):
+        raise TypeError("Input code must be a string")
+    return hashlib.sha256(code.encode('utf-8')).hexdigest()
+
+# Helper function to hash a backup code with Argon2 (for storage)
 def hash_backup_code(code):
-    """Hash a backup code using Argon2"""
+    """Hash a backup code using Argon2. No normalization."""
     return argon2_hasher.hash(code)
 
-# Helper function to verify a backup code against hashed codes
+# Helper function to verify a backup code against hashed codes (Argon2)
 def verify_backup_code(code, hashed_codes):
     """Verify a backup code against a list of hashed codes"""
     for hashed_code in hashed_codes:

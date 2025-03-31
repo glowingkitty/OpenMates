@@ -18,8 +18,9 @@ from app.routes.auth_routes.auth_dependencies import (
     get_compliance_service, get_encryption_service # Added encryption service dependency
 )
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
-# Import backup code verification utility
-from app.routes.auth_routes.auth_2fa_utils import verify_backup_code
+# Import backup code verification and hashing utilities
+# Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
+from app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code 
 import json
 from typing import Optional
 # from app.models.user import User # No longer directly used here
@@ -187,7 +188,6 @@ async def login(
                 )
                 return LoginResponse(
                     success=True, message="Login successful",
-                     # UserResponse now correctly gets tfa_enabled via **user_profile
                     user=UserResponse(**user_profile)
                 )
 
@@ -195,29 +195,63 @@ async def login(
             elif login_data.code_type == "backup":
                 logger.info(f"Verifying backup code for user {user_id}...")
                 
-                # Fetch backup code hashes directly (bypasses cache)
-                hashed_codes = await directus_service.get_tfa_backup_code_hashes(user_id)
+                # Step 1: Calculate SHA256 hash of the provided code for cache operations
+                try:
+                    provided_code_sha_hash = sha_hash_backup_code(login_data.tfa_code)
+                except Exception as e:
+                    logger.error(f"Error SHA hashing provided backup code for user {user_id}: {e}", exc_info=True)
+                    # Treat as invalid code if hashing fails
+                    return LoginResponse(success=False, message="Error processing backup code.", tfa_required=True)
+
+                # Step 2: Check cache for recently used backup code SHA hash (user-specific)
+                used_code_cache_key = f"used_backup_code:{user_id}:{provided_code_sha_hash}"
+                logger.info(f"Checking recently used backup code SHA hash...")
+                recently_used = await cache_service.get(used_code_cache_key)
+
+                if recently_used is not None:
+                    logger.info(f"Backup code provided by user {user_id} matches a recently used code's SHA hash found in cache key.")
+                    compliance_service.log_auth_event(
+                        event_type="login_failed", user_id=user_id, ip_address=client_ip,
+                        status="failed",
+                        details={
+                            "reason": "invalid_2fa_backup_code_used",
+                            "device_fingerprint": device_fingerprint,
+                            "location": device_location
+                        }
+                    )
+                    return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
+                
+                logger.info(f"Provided backup code's SHA hash not found in recently used cache for user {user_id}.")
+
+                # Step 3: Fetch valid backup code Argon2 hashes from Directus
+                hashed_codes_from_directus = await directus_service.get_tfa_backup_code_hashes(user_id)
 
                 # Handle cases where hashes couldn't be fetched or parsed
-                if hashed_codes is None:
-                     logger.error(f"Could not retrieve or parse backup code hashes for user {user_id}.")
+                if hashed_codes_from_directus is None:
+                     logger.error(f"Could not retrieve or parse backup code hashes from Directus for user {user_id}.")
                      return LoginResponse(success=False, message="Error verifying backup code.", tfa_required=True)
                 
                 # Check if list is empty (no codes configured or all used)
-                if not hashed_codes:
-                    logger.warning(f"Backup code submitted for user {user_id}, but no backup codes found/remaining.")
+                if not hashed_codes_from_directus:
+                    logger.warning(f"Backup code submitted for user {user_id}, but no backup codes found/remaining in Directus.")
+                    compliance_service.log_auth_event(
+                        event_type="login_failed", user_id=user_id, ip_address=client_ip,
+                        status="failed",
+                        details={
+                            "reason": "invalid_2fa_backup_code_none_remaining",
+                            "device_fingerprint": device_fingerprint,
+                            "location": device_location
+                        }
+                    )
                     return LoginResponse(success=False, message="No backup codes configured or remaining for this account.", tfa_required=True)
 
-                # Debugging: Log the data being passed to verification
-                logger.info(f"Attempting to verify backup code. Provided code: '{login_data.tfa_code}', Type: {type(login_data.tfa_code)}")
-                logger.info(f"Hashed codes from profile (type: {type(hashed_codes)}): {hashed_codes}")
-
-                is_valid, matched_index = verify_backup_code(login_data.tfa_code, hashed_codes)
-
-                logger.info(f"Backup code verification result: {is_valid}, Matched index: {matched_index}")
+                # Step 4: Verify the plain text code against Directus Argon2 hashes
+                logger.info(f"Attempting to verify plain text backup code against Directus Argon2 hashes. Provided code: '{login_data.tfa_code[:1]}***'") # Log only first char
+                is_valid, matched_index = verify_backup_code(login_data.tfa_code, hashed_codes_from_directus)
+                logger.info(f"Backup code verification result against Directus Argon2 hashes: {is_valid}, Matched index: {matched_index}")
 
                 if not is_valid:
-                    logger.warning(f"Invalid backup code provided for user {user_id}")
+                    logger.warning(f"Invalid backup code provided for user {user_id} (did not match Directus hashes).")
                     compliance_service.log_auth_event(
                         event_type="login_failed", user_id=user_id, ip_address=client_ip,
                         status="failed",
@@ -229,57 +263,78 @@ async def login(
                     )
                     return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
 
-                # Backup Code is valid! Remove it and finalize login.
-                logger.info(f"Backup code verified successfully for user {user_id}. Removing used code.")
+                # Step 5: Backup Code is valid! Add its SHA hash to Cache, Remove Argon2 hash from Directus, Finalize login.
+                logger.info(f"Backup code verified successfully against Directus Argon2 hashes for user {user_id}. Processing...")
                 
-                # Remove the used hash
-                remaining_hashes = [h for i, h in enumerate(hashed_codes) if i != matched_index]
-                remaining_count = len(remaining_hashes)
+                # Step 5a: Add the SHA hash of the used code to the cache with a 30-minute TTL FIRST
+                # Use the SHA hash calculated before the cache check (provided_code_sha_hash)
+                # Use the same cache key format as the check (used_code_cache_key)
+                logger.info(f"Adding used backup code's SHA hash to cache key '{used_code_cache_key}' with 30min TTL for user {user_id}.")
+                
+                # Set the user-specific used code key - CRITICAL: If this fails, stop processing.
+                # TTL = 30 minutes = 1800 seconds
+                cache_set_success = await cache_service.set(
+                    used_code_cache_key, 
+                    "used",  # Value doesn't matter, just needs to exist
+                    ttl=1800 
+                )
+                if not cache_set_success:
+                     logger.error(f"CRITICAL: Failed to set cache key '{used_code_cache_key}' for recently used backup code SHA hash for user {user_id}. Aborting login.")
+                     # Return an error, preventing the code from being removed from Directus
+                     return LoginResponse(
+                         success=False, 
+                         message="Failed to update security state. Please try again.", 
+                         tfa_required=True
+                     )
+                else:
+                     logger.info(f"Successfully added used backup code's SHA hash to cache key '{used_code_cache_key}' for user {user_id}.")
 
-                logger.info(f"Remaining backup codes after removal: {remaining_count}")
-                logger.info(remaining_hashes)
+                # Step 5b: Remove the used Argon2 hash from the list for Directus update
+                # Use the matched_index from the Argon2 verification
+                remaining_hashes_for_directus = [h for i, h in enumerate(hashed_codes_from_directus) if i != matched_index]
+                remaining_count = len(remaining_hashes_for_directus) # Still useful for logging
+                logger.info(f"Remaining backup codes count after removal: {remaining_count}")
 
-                # Update Directus and WAIT for confirmation
-                update_success = await directus_service.update_user(user_id, {
-                    "tfa_backup_codes_hashes": remaining_hashes
+                # Step 5c: Update Directus and WAIT for confirmation
+                logger.info(f"Updating Directus for user {user_id} to remove used backup code hash.")
+                update_directus_success = await directus_service.update_user(user_id, {
+                    "tfa_backup_codes_hashes": remaining_hashes_for_directus
                 })
 
-                # --- Handle update failure ---
-                if not update_success:
-                    logger.error(f"Failed to update backup codes in Directus for user {user_id}.")
+                # Handle Directus update failure (Cache was already updated, but log this)
+                if not update_directus_success:
+                    logger.error(f"Failed to update backup codes in Directus for user {user_id} (Cache was updated).")
                     # Return an error and keep the user on the 2FA screen
                     return LoginResponse(
                         success=False, 
-                        message="Failed to process backup code. Please try again.", 
+                        message="Failed to process backup code fully. Please try again.", 
                         tfa_required=True
                     )
-
-                # --- Update successful, proceed ---
-                logger.info(f"Successfully updated backup codes in Directus for user {user_id}.")
                 
-                # Log successful backup code use
+                logger.info(f"Successfully updated backup codes in Directus for user {user_id}.")
+
+                # --- Verification Complete ---
+
+                # Step 5e: Log successful backup code use (Removed remaining count from details)
                 compliance_service.log_auth_event(
                     event_type="login_success_backup_code", user_id=user_id, ip_address=client_ip,
                     status="success",
                     details={
                         "device_fingerprint": device_fingerprint,
-                        "location": device_location,
-                        "remaining_backup_codes": remaining_count
+                        "location": device_location
                     }
                 )
 
-                # Finalize the login session
+                # Step 5f: Finalize the login session
                 await finalize_login_session(
                     response, user, auth_data, cache_service, compliance_service, 
                     directus_service, device_fingerprint, device_location, client_ip
                 )
                 
-                # Return success with backup code info
+                # Step 5g: Return success response (Removed backup_code_used and remaining_backup_codes)
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
-                    user=UserResponse(**user_profile),
-                    backup_code_used=True,
-                    remaining_backup_codes=remaining_count
+                    user=UserResponse(**user_profile)
                 )
             
             # --- Sub-Scenario 3c: Invalid Code Type ---
@@ -386,8 +441,9 @@ async def finalize_login_session(
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id"),
                 "last_online_timestamp": current_time,
-                "consent_privacy_and_apps_default_settings": bool(user.get("consent_privacy_and_apps_default_settings")),
-                "consent_mates_default_settings": bool(user.get("consent_mates_default_settings"))
+                # Store the string timestamp (or None) directly from the user profile
+                "consent_privacy_and_apps_default_settings": user.get("consent_privacy_and_apps_default_settings"),
+                "consent_mates_default_settings": user.get("consent_mates_default_settings")
             }
             await cache_service.set_user(user_data_to_cache, refresh_token=refresh_token)
 
