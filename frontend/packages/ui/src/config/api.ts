@@ -31,16 +31,12 @@ export const apiEndpoints = {
         verify_email_code:          '/v1/auth/verify_email_code',              // Verify email code for older signup flow
         
         // 2FA management
-        setup_2fa:                  '/v1/auth/setup_2fa',                      // Setup 2FA, returns QR code to scan
-        request_backup_codes:       '/v1/auth/request_backup_codes',           // Get backup codes after verifying 2FA
-        confirm_codes_stored:       '/v1/auth/confirm_codes_stored',           // Confirm backup codes are stored by user
-        setup_2fa_provider:         '/v1/auth/setup_2fa_provider',             // Save which 2FA provider was used
-        verify_2fa_code:            '/v1/auth/verify_2fa_code',                // Verify 2FA OTP code during login
+        setup_2fa:                  '/v1/auth/2fa/setup/initiate',             // Setup 2FA, returns QR code to scan
+        request_backup_codes:       '/v1/auth/2fa/setup/request-backup-codes', // Get backup codes after verifying 2FA
+        confirm_codes_stored:       '/v1/auth/2fa/setup/confirm-codes-stored', // Confirm backup codes are stored by user
+        setup_2fa_provider:         '/v1/auth/2fa/setup/provider',             // Save which 2FA provider was used
+        verify_2fa_code:            '/v1/auth/2fa/setup/verify-signup',        // Verify 2FA OTP code during login
         verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device
-
-        // REMOVED old placeholder consent endpoints from /auth/
-        // accept_settings:            '/v1/auth/accept_settings',
-        // accept_mate_settings:       '/v1/auth/accept_mate_settings',           
     },
     chat: {
         sendMessage:                '/v1/chat/message',                         // Send a message to a chat (or create a new chat if it doesn't exist)
@@ -51,7 +47,6 @@ export const apiEndpoints = {
     settings: {
         user: {
             update_profile_image:   '/v1/settings/user/update_profile_image',   // Update profile image of user
-            // Add new consent endpoints under settings/user
             consent_privacy_apps:   '/v1/settings/user/consent/privacy-apps',   // Record consent for privacy/apps settings
             consent_mates:          '/v1/settings/user/consent/mates',          // Record consent for mates settings
         },

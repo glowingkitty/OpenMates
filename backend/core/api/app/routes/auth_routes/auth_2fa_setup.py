@@ -34,7 +34,7 @@ from .auth_2fa_utils import (
 
 # Define router for 2FA setup endpoints
 router = APIRouter(
-    prefix="/auth/2fa/setup", # Define a prefix for these routes
+    prefix="/2fa/setup", # Corrected prefix for these routes
     tags=["Auth - 2FA Setup"],
     dependencies=[Depends(verify_allowed_origin)] # Apply origin check to all routes here
 )
@@ -62,7 +62,7 @@ async def setup_2fa(
 
     try:
         # Verify user authentication using shared function
-        is_auth, user_data, refresh_token = await verify_authenticated_user(
+        is_auth, user_data, refresh_token, _ = await verify_authenticated_user(
             request, cache_service, directus_service
         )
 
@@ -154,7 +154,7 @@ async def verify_signup_2fa(
 
     try:
         # Verify user authentication using shared function
-        is_auth, user_data, refresh_token = await verify_authenticated_user(
+        is_auth, user_data, refresh_token, _ = await verify_authenticated_user(
             request, cache_service, directus_service
         )
 
@@ -241,7 +241,8 @@ async def request_backup_codes(
     logger.info("Processing /setup/request-backup-codes request")
 
     try:
-        is_auth, user_data, _ = await verify_authenticated_user(
+        # Corrected unpacking to include the fourth return value
+        is_auth, user_data, _, _ = await verify_authenticated_user(
             request, cache_service, directus_service
         )
 
@@ -298,7 +299,8 @@ async def confirm_codes_stored(
                 message="You must confirm that you have stored your backup codes"
             )
 
-        is_auth, user_data, refresh_token = await verify_authenticated_user(
+        # Corrected unpacking to include the fourth return value
+        is_auth, user_data, refresh_token, _ = await verify_authenticated_user(
             request, cache_service, directus_service
         )
 
@@ -358,7 +360,8 @@ async def setup_2fa_provider(
     logger.info("Processing /setup/provider request")
 
     try:
-        is_auth, user_data, refresh_token = await verify_authenticated_user(
+        # Corrected unpacking to include the fourth return value
+        is_auth, user_data, refresh_token, _ = await verify_authenticated_user(
             request, cache_service, directus_service
         )
 
