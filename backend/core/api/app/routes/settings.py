@@ -274,8 +274,12 @@ async def record_privacy_apps_consent(
             # NO compliance log for failure
             raise HTTPException(status_code=500, detail="Failed to save consent")
             
-        # Update Cache using user_id and the specific fields changed
-        cache_update_success = await cache_service.update_user(user_id, update_data)
+        # Update Cache using user_id with boolean value for consent
+        cache_update_data = {
+            "consent_privacy_and_apps_default_settings": True,
+            "last_opened": update_data["last_opened"] # Keep last_opened update
+        }
+        cache_update_success = await cache_service.update_user(user_id, cache_update_data)
         if not cache_update_success:
             # Log warning, but don't fail the request as Directus was updated
             logger.warning(f"Failed to update cache for user {user_id} after privacy/apps consent, but Directus was updated.")
@@ -330,8 +334,12 @@ async def record_mates_consent(
             # NO compliance log for failure
             raise HTTPException(status_code=500, detail="Failed to save consent")
             
-        # Update Cache using user_id and the specific fields changed
-        cache_update_success = await cache_service.update_user(user_id, update_data)
+        # Update Cache using user_id with boolean value for consent
+        cache_update_data = {
+            "consent_mates_default_settings": True,
+            "last_opened": update_data["last_opened"] # Keep last_opened update
+        }
+        cache_update_success = await cache_service.update_user(user_id, cache_update_data)
         if not cache_update_success:
              # Log warning, but don't fail the request as Directus was updated
             logger.warning(f"Failed to update cache for user {user_id} after mates consent, but Directus was updated.")
