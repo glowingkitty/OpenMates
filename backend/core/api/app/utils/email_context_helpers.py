@@ -11,10 +11,10 @@ try:
 except ImportError:
     user_agents = None
 
-# Removed StaticMap, CircleMarker imports
+# Removed StaticMap, CircleMarker, get_location_from_ip imports
 
 from app.services.translations import TranslationService
-from app.utils.device_fingerprint import get_location_from_ip
+# from app.utils.device_fingerprint import get_location_from_ip # No longer needed here
 from app.utils.log_filters import SensitiveDataFilter
 from .image_generation import generate_combined_map_preview # Import the new utility function
 
@@ -28,63 +28,47 @@ async def prepare_new_device_login_context(
     language: str,
     darkmode: bool,
     translation_service: TranslationService,
-    latitude: Optional[float] = None,
-    longitude: Optional[float] = None,
+    latitude: Optional[float], # Now required (can be None)
+    longitude: Optional[float], # Now required (can be None)
+    location_name: str, # Now required
+    is_localhost: bool, # Now required
     user_id_for_log: str = "unknown" # Optional user ID for logging context
 ) -> Dict[str, Any]:
     """
     Prepares the context dictionary for the 'new-device-login' email template.
-    Consolidates logic for location, device/OS parsing, map generation, and mailto link.
+    Consolidates logic for device/OS parsing, map generation, and mailto link using provided location data.
     """
     log_prefix = f"User {user_id_for_log[:6]}... - " if user_id_for_log != "unknown" else ""
-    logger.info(f"{log_prefix}Preparing new device login context...")
+    logger.info(f"{log_prefix}Preparing new device login context with provided location data...")
 
-    # --- Determine Location & Coordinates ---
-    location_data = {"location_string": "unknown", "latitude": None, "longitude": None}
-    # Use provided coords if available, otherwise lookup by IP
-    if latitude is not None and longitude is not None:
-         # Basic validation
-        if -90 <= latitude <= 90 and -180 <= longitude <= 180:
-            location_data["latitude"] = latitude
-            location_data["longitude"] = longitude
-            # Attempt to get location string anyway for city/country, but prioritize provided coords for map
-            try:
-                ip_loc_data = get_location_from_ip(ip_address)
-                location_data["location_string"] = ip_loc_data.get("location_string", "unknown")
-            except Exception as loc_exc:
-                logger.warning(f"{log_prefix}Failed to get location string for IP {ip_address} even with coords provided: {loc_exc}")
-        else:
-             logger.warning(f"{log_prefix}Invalid coordinates provided: lat={latitude}, lon={longitude}. Attempting IP lookup.")
-             # Fallback to IP lookup if provided coords are invalid
-             try:
-                 location_data = get_location_from_ip(ip_address)
-             except Exception as loc_exc:
-                 logger.warning(f"{log_prefix}Failed to get location for IP {ip_address} after invalid coords: {loc_exc}")
+    # --- Use Provided Location Data ---
+    # Location lookup and localhost handling is now done before calling this helper
+    final_latitude = latitude
+    final_longitude = longitude
+    final_location_name = location_name if location_name else "unknown" # Ensure we have a string
 
-    elif ip_address: # If no coords provided, lookup by IP
-        try:
-            location_data = get_location_from_ip(ip_address)
-        except Exception as loc_exc:
-            logger.warning(f"{log_prefix}Failed to get location for IP {ip_address}: {loc_exc}")
+    # Determine if location is known (either localhost or valid coords provided)
+    location_known = is_localhost or (final_latitude is not None and final_longitude is not None)
+    logger.info(f"{log_prefix}Location known: {location_known} (is_localhost={is_localhost}, lat={final_latitude}, lon={final_longitude})")
 
-    location_str = location_data.get("location_string", "unknown")
-    final_latitude = location_data.get("latitude")
-    final_longitude = location_data.get("longitude")
-
-    # --- Parse City/Country from location_string ---
+    # --- Parse City/Country from final_location_name ---
     city = "Unknown"
     country = "Unknown"
-    if location_str and location_str != "unknown":
-        parts = location_str.split(',')
+    if final_location_name and final_location_name != "unknown" and final_location_name != "localhost":
+        parts = final_location_name.split(',')
         if len(parts) >= 2:
             city = parts[0].strip()
             country = parts[1].strip()
         elif len(parts) == 1:
             part = parts[0].strip()
-            if len(part) == 2 and part.isalpha() and part.isupper(): # Check for likely country code
+            # Basic check if it looks like a country code vs a city name
+            if len(part) == 2 and part.isalpha() and part.isupper():
                  country = part
             else:
                  city = part # Assume city otherwise
+    elif final_location_name == "localhost":
+        city = "Localhost" # Use specific city/country for localhost if desired, or keep Unknown
+        country = ""
 
     # --- Device & OS Parsing ---
     device_type_key = "email.unknown_device.text"
@@ -133,8 +117,8 @@ async def prepare_new_device_login_context(
         login_time=login_time,
         device_type=device_type_translated,
         operating_system=os_name_translated,
-        city=city,
-        country=country,
+        city=city, # Use parsed city
+        country=country, # Use parsed country
         account_email=account_email
     )
 
@@ -145,17 +129,25 @@ async def prepare_new_device_login_context(
 
     # --- Combined Map Preview Image Generation ---
     combined_map_preview_uri = None
-    # Generate alt text using the translation key, replacing <br>
-    map_alt_text = translation_service.get_nested_translation("email.area_around.text", language, {}).format(city=city, country=country).replace("<br>", " ")
+    unknown_location_text = None
+    map_alt_text = ""
 
-    if final_latitude is not None and final_longitude is not None:
-        # Check coords are still valid
-        if -90 <= final_latitude <= 90 and -180 <= final_longitude <= 180:
-            # Call the image generation utility function
+    if location_known:
+        # Generate alt text using the translation key, replacing <br>
+        # Use final_location_name if city/country parsing failed but location is known (e.g., localhost)
+        display_city = city if city != "Unknown" else final_location_name
+        display_country = country if country != "Unknown" else ""
+        map_alt_text = translation_service.get_nested_translation("email.area_around.text", language, {}).format(city=display_city, country=display_country).replace("<br>", " ").strip()
+        
+        # Ensure coordinates are valid floats before generating image
+        if isinstance(final_latitude, (int, float)) and isinstance(final_longitude, (int, float)) and \
+           -90 <= final_latitude <= 90 and -180 <= final_longitude <= 180:
+            
+            logger.info(f"{log_prefix}Generating combined map preview for known location: {final_location_name}")
             combined_map_preview_uri = generate_combined_map_preview(
                 latitude=final_latitude,
                 longitude=final_longitude,
-                city=city,
+                city=city, # Pass parsed city/country to image generator
                 country=country,
                 darkmode=darkmode,
                 lang=language
@@ -163,23 +155,29 @@ async def prepare_new_device_login_context(
             if not combined_map_preview_uri:
                  logger.error(f"{log_prefix}Failed to generate combined map preview image.")
         else:
-             logger.warning(f"{log_prefix}Final coordinates invalid after lookup/validation: lat={final_latitude}, lon={final_longitude}. Skipping image generation.")
+             logger.warning(f"{log_prefix}Coordinates are invalid or not numbers (lat={final_latitude}, lon={final_longitude}). Skipping map image generation.")
+             location_known = False # Treat as unknown if coords invalid
+             unknown_location_text = translation_service.get_nested_translation("email.from_unknown_location.text", language, {})
+
     else:
-        logger.info(f"{log_prefix}No valid coordinates available, skipping combined map preview image generation.")
+        logger.info(f"{log_prefix}Location is unknown. Getting 'unknown location' text.")
+        unknown_location_text = translation_service.get_nested_translation("email.from_unknown_location.text", language, {})
 
 
     # --- Prepare Final Context ---
     context = {
         "device_type_translated": device_type_translated,
         "os_name_translated": os_name_translated,
-        "city": city, # Keep for mailto link and potentially other uses
-        "country": country, # Keep for mailto link and potentially other uses
+        "location_name": final_location_name, # Pass the determined location name
         "logout_link": logout_link,
-        "combined_map_preview_uri": combined_map_preview_uri, # Use the new combined image URI
-        "map_alt_text": map_alt_text, # Add alt text
+        "location_known": location_known, # Pass the flag
+        "final_latitude": final_latitude, # Pass coordinates for link
+        "final_longitude": final_longitude, # Pass coordinates for link
+        "combined_map_preview_uri": combined_map_preview_uri, # Pass image URI (or None)
+        "map_alt_text": map_alt_text, # Pass alt text (or empty string)
+        "unknown_location_text": unknown_location_text, # Pass unknown text (or None)
         "darkmode": darkmode
-        # Removed "map_image_data_uri"
     }
 
-    logger.info(f"{log_prefix}Finished preparing new device login context.")
+    logger.info(f"{log_prefix}Finished preparing new device login context. Location known: {location_known}")
     return context

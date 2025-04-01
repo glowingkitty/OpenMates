@@ -369,7 +369,7 @@ async def finalize_login_session(
     compliance_service: ComplianceService,
     directus_service: DirectusService,
     device_fingerprint: str,
-    device_location: Optional[str],
+    # device_location: Optional[str], # Removed: location data now derived from client_ip via get_location_from_ip
     client_ip: str
 ):
     """
@@ -407,10 +407,21 @@ async def finalize_login_session(
             device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
             is_new_device = not device_in_db
 
+        # --- Get Location Data (handles localhost internally now) ---
+        # Note: This call happens regardless of whether it's a new device, 
+        # as location might be needed for logging even on known devices (though currently not used there).
+        # It's cached by get_location_from_ip, so performance impact is minimal.
+        location_data = get_location_from_ip(client_ip)
+        latitude = location_data.get("latitude")
+        longitude = location_data.get("longitude")
+        location_name = location_data.get("location_string", "unknown")
+        is_localhost = location_name == "localhost" # Determine if it was the localhost case
+
         if is_new_device:
+            # Log the event using the determined location name
             compliance_service.log_auth_event(
                 event_type="login_new_device", user_id=user_id, ip_address=client_ip, 
-                status="success", details={"device_fingerprint": device_fingerprint, "location": device_location}
+                status="success", details={"device_fingerprint": device_fingerprint, "location": location_name}
             )
             # Send notification email about new device login via Celery
             try:
@@ -420,14 +431,17 @@ async def finalize_login_session(
                 user_language = user.get("language", "en") 
                 user_darkmode = user.get("darkmode", False) 
 
-                logger.info(f"Dispatching new device email task for user {user_id[:6]}...")
+                logger.info(f"Dispatching new device email task for user {user_id[:6]}... with location data.")
                 app.send_task(
                     name='app.tasks.email_tasks.send_new_device_email',
                     kwargs={
                         'user_id': user_id,
                         'user_agent_string': user_agent_string,
-                        'location': device_location,
                         'ip_address': client_ip,
+                        'latitude': latitude,         # Pass explicit latitude (could be None)
+                        'longitude': longitude,       # Pass explicit longitude (could be None)
+                        'location_name': location_name, # Pass location name string
+                        'is_localhost': is_localhost, # Pass localhost flag
                         'language': user_language,
                         'darkmode': user_darkmode
                     },
@@ -436,12 +450,13 @@ async def finalize_login_session(
             except Exception as task_exc:
                 logger.error(f"Failed to dispatch new device email task for user {user_id[:6]}: {task_exc}", exc_info=True)
         
-        # Update device in cache and Directus
+        
+        # Update device in cache and Directus (using location_name)
         current_time = int(time.time())
         if is_new_device:
             await cache_service.set(
                 device_cache_key, 
-                {"loc": device_location, "first": current_time, "recent": current_time},
+                {"loc": location_name, "first": current_time, "recent": current_time}, # Store location_name
                 ttl=cache_service.USER_TTL
             )
         elif existing_device:
@@ -449,7 +464,7 @@ async def finalize_login_session(
             await cache_service.set(device_cache_key, existing_device, ttl=cache_service.USER_TTL)
         
         await directus_service.update_user_device(
-            user_id=user_id, device_fingerprint=device_fingerprint, device_location=device_location
+            user_id=user_id, device_fingerprint=device_fingerprint, device_location=location_name # Update DB with location_name
         )
 
         # Update last online timestamp in Directus

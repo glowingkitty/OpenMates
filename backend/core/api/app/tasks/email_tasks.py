@@ -133,10 +133,12 @@ def send_new_device_email(
     self,
     user_id: str,
     user_agent_string: str,
-    location: Optional[str], # e.g., "Berlin, Germany" or "unknown"
+    # location: Optional[str], # Removed old location string
     ip_address: str, # For logging/context
-    latitude: Optional[float] = None, # Added
-    longitude: Optional[float] = None, # Added
+    latitude: Optional[float], # Keep explicit coords
+    longitude: Optional[float], # Keep explicit coords
+    location_name: str, # Add location name string
+    is_localhost: bool, # Add localhost flag
     language: str = "en",
     darkmode: bool = False
 ) -> bool:
@@ -148,9 +150,17 @@ def send_new_device_email(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        # Pass latitude and longitude to the async function
+        # Pass new location arguments to the async function
         result = loop.run_until_complete(_async_send_new_device_email(
-            user_id, user_agent_string, ip_address, latitude, longitude, language, darkmode # Removed location, added coords
+            user_id=user_id, 
+            user_agent_string=user_agent_string, 
+            ip_address=ip_address, 
+            latitude=latitude, 
+            longitude=longitude, 
+            location_name=location_name, # Pass location name
+            is_localhost=is_localhost, # Pass localhost flag
+            language=language, 
+            darkmode=darkmode
         ))
         logger.info(f"New device login email task completed for user_id: {user_id[:6]}...")
         return result
@@ -163,10 +173,11 @@ def send_new_device_email(
 async def _async_send_new_device_email(
     user_id: str,
     user_agent_string: str,
-    # location: Optional[str], # Removed - location derived from IP or coords now via helper
     ip_address: str,
-    latitude: Optional[float] = None,
-    longitude: Optional[float] = None,
+    latitude: Optional[float], # Keep explicit coords
+    longitude: Optional[float], # Keep explicit coords
+    location_name: str, # Add location name string
+    is_localhost: bool, # Add localhost flag
     language: str = "en",
     darkmode: bool = False
 ) -> bool:
@@ -190,13 +201,15 @@ async def _async_send_new_device_email(
         try:
             context = await prepare_new_device_login_context(
                 user_agent_string=user_agent_string,
-                ip_address=ip_address,
+                ip_address=ip_address, # Still useful for context/debugging
                 account_email=account_email,
                 language=language,
                 darkmode=darkmode,
                 translation_service=email_template_service.translation_service, # Pass the service instance
-                latitude=latitude,
-                longitude=longitude,
+                latitude=latitude, # Pass coord
+                longitude=longitude, # Pass coord
+                location_name=location_name, # Pass location name
+                is_localhost=is_localhost, # Pass localhost flag
                 user_id_for_log=user_id # Pass user ID for logging context
             )
         except Exception as context_exc:

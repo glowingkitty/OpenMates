@@ -59,22 +59,30 @@
           </mj-text>
         </mj-column>
       </mj-section>
-      
-      <!-- Combined Map Preview Section -->
-      {% if combined_map_preview_uri %}
+
+      <!-- Location Section (Conditional) -->
       <mj-section padding="0" padding-bottom="10px">
         <mj-column>
-           <mj-image
-             width="300px" 
-             src="{{ combined_map_preview_uri }}"
-             alt="{{ map_alt_text }}"
-             border-radius="15px" 
-             padding="0" 
-           />
+          {% if location_known %}
+            <!-- Linked Map Image -->
+            <mj-image
+              width="300px" 
+              src="{{ combined_map_preview_uri }}"
+              alt="{{ map_alt_text }}"
+              href="https://www.openstreetmap.org/?mlat={{ final_latitude }}&mlon={{ final_longitude }}#map=14/{{ final_latitude }}/{{ final_longitude }}"
+              target="_blank" 
+              border-radius="15px" 
+              padding="0" 
+            />
+          {% else %}
+            <!-- Display Unknown Location Text -->
+            <mj-text font-size="16px" padding-bottom="10px">
+              {{ unknown_location_text }}
+            </mj-text>
+          {% endif %}
         </mj-column>
       </mj-section>
-      {% endif %}
-
+      
       <mj-section padding-top="0px"> {# Adjusted padding #}
         <mj-column>
           <!-- Location Disclaimer -->

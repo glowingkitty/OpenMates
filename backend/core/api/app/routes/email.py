@@ -128,18 +128,29 @@ async def preview_new_device_login(
     Location is derived from ip_address if provided.
     """
     try:
+        # --- Get Location Data for Preview ---
+        # Call the updated get_location_from_ip (handles localhost internally)
+        location_data = get_location_from_ip(ip_address) 
+        latitude = location_data.get("latitude")
+        longitude = location_data.get("longitude")
+        location_name = location_data.get("location_string", "unknown")
+        is_localhost = location_name == "localhost" # Determine if it was the localhost case
+        logger.info(f"Preview location data: lat={latitude}, lon={longitude}, name={location_name}, is_localhost={is_localhost}")
+
         # --- Prepare Context using Helper Function ---
-        # Note: latitude/longitude are derived inside the helper from IP
-        # We pass 'preview' as user_id_for_log for clarity in logs
+        # Pass the determined location data explicitly
         context = await prepare_new_device_login_context(
             user_agent_string=user_agent_string,
-            ip_address=ip_address,
+            ip_address=ip_address, # Still pass IP for potential logging inside helper
             account_email=account_email,
             language=lang,
             darkmode=darkmode, # Pass darkmode from query param
             translation_service=translation_service, # Use global service instance
-            user_id_for_log="preview" # Indicate this is for preview logging
-            # latitude/longitude are derived from ip_address inside the helper
+            latitude=latitude,         # Pass explicit latitude
+            longitude=longitude,       # Pass explicit longitude
+            location_name=location_name, # Pass location name string
+            is_localhost=is_localhost, # Pass localhost flag
+            user_id_for_log="preview"  # Indicate this is for preview logging
         )
 
         # --- Call Rendering Helper ---

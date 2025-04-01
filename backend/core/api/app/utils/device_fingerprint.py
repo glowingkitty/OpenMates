@@ -42,11 +42,19 @@ def get_location_from_ip(ip_address: str) -> Dict[str, Any]:
     Get location details (string, lat, lon) from IP address using ip-api.com.
     Returns a dictionary with 'location_string', 'latitude', 'longitude'.
     Uses caching to avoid unnecessary API calls.
+    Handles localhost ('127.0.0.1', 'localhost') as a special case returning Berlin coords.
     """
     default_result = {"location_string": "unknown", "latitude": None, "longitude": None}
-    if ip_address == "unknown" or ip_address == "127.0.0.1" or ip_address == "localhost":
-        return default_result
+    
+    # --- Handle Special Cases ---
+    if ip_address == "127.0.0.1" or ip_address == "localhost":
+        logger.debug("Localhost IP detected, returning fixed Berlin coordinates and 'localhost' name.")
+        return {"location_string": "localhost", "latitude": 52.5200, "longitude": 13.4050} # Berlin coords
+    if ip_address == "unknown":
+         logger.debug("Unknown IP address provided, returning default unknown location.")
+         return default_result
 
+    # --- Proceed with API Lookup for other IPs ---
     try:
         # Use synchronous request instead of async
         response = httpx.get(
