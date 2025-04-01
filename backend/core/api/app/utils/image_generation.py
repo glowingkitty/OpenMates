@@ -83,10 +83,11 @@ def find_font(font_name: str) -> Optional[str]:
 # --- Main Image Generation Function ---
 def generate_combined_map_preview(
     latitude: float, 
-    longitude: float, 
-    city: str, 
-    country: str, 
-    darkmode: bool = False
+    longitude: float,
+    city: str,
+    country: str,
+    darkmode: bool = False,
+    lang: str = "en"  # Add language parameter with default
 ) -> Optional[str]:
     """
     Generates the combined map preview image with map, icon, text box, and text.
@@ -113,7 +114,7 @@ def generate_combined_map_preview(
 
         # Shadow properties
         shadow_offset = 4 * scale_factor # Slightly larger offset for visibility
-        shadow_blur_radius = 6 * scale_factor # Slightly larger blur
+        shadow_blur_radius = 4 * scale_factor # Reduced blur radius
         shadow_color = (0, 0, 0, 70) # Darker, less transparent shadow
 
         # Colors
@@ -138,12 +139,24 @@ def generate_combined_map_preview(
 
         # --- Load i18n Text ---
         translation_service = TranslationService()
-        text_line1 = translation_service.get_nested_translation('email.area_around.text', lang='en').split("<br>")[0]
+        # Use the lang parameter here
+        text_line1 = translation_service.get_nested_translation('email.area_around.text', lang=lang).split("<br>")[0]
         text_line2 = f"{city}, {country}"
 
         # --- 1. Generate Base Map ---
         logger.info(f"Rendering map at {map_w}x{map_h} with zoom=6")
-        m = StaticMap(map_w, map_h, url_template='https://tile.openstreetmap.org/{z}/{x}/{y}.png')
+        # Choose tile URL based on darkmode
+        if darkmode:
+            # CartoDB Dark Matter tiles (supports {s} for subdomains and {r} for retina)
+            map_url_template = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            logger.info("Using CartoDB Dark Matter map tiles.")
+        else:
+            # Default OpenStreetMap tiles
+            map_url_template = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+            logger.info("Using OpenStreetMap map tiles.")
+
+        m = StaticMap(map_w, map_h, url_template=map_url_template)
+        # Add attribution if needed, e.g., m.add_attribution(...)
         base_map_image = m.render(zoom=6, center=(longitude, latitude)).convert("RGBA")
 
         # --- 2. Add Center Dot to Map ---
