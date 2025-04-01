@@ -157,7 +157,8 @@ async def prepare_new_device_login_context(
                 longitude=final_longitude,
                 city=city,
                 country=country,
-                darkmode=darkmode
+                darkmode=darkmode,
+                lang=language
             )
             if not combined_map_preview_uri:
                  logger.error(f"{log_prefix}Failed to generate combined map preview image.")

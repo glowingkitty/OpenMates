@@ -118,7 +118,7 @@ def generate_combined_map_preview(
         shadow_color = (0, 0, 0, 70) # Darker, less transparent shadow
 
         # Colors
-        text_bg_color = (40, 40, 40, 255) if darkmode else (255, 255, 255, 255) # Opaque background
+        text_bg_color = "#171717" if darkmode else (255, 255, 255, 255) # Opaque background
         text_color_main = (230, 230, 230) if darkmode else (20, 20, 20)
         text_color_secondary = (160, 160, 160) if darkmode else (100, 100, 100)
         gradient_start = "#11672D" # Green circle gradient
@@ -148,7 +148,7 @@ def generate_combined_map_preview(
         # Choose tile URL based on darkmode
         if darkmode:
             # CartoDB Dark Matter tiles (supports {s} for subdomains and {r} for retina)
-            map_url_template = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            map_url_template = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
             logger.info("Using CartoDB Dark Matter map tiles.")
         else:
             # Default OpenStreetMap tiles
@@ -157,7 +157,7 @@ def generate_combined_map_preview(
 
         m = StaticMap(map_w, map_h, url_template=map_url_template)
         # Add attribution if needed, e.g., m.add_attribution(...)
-        base_map_image = m.render(zoom=6, center=(longitude, latitude)).convert("RGBA")
+        base_map_image = m.render(zoom=5, center=(longitude, latitude)).convert("RGBA")
 
         # --- 2. Add Center Dot to Map ---
         map_draw = ImageDraw.Draw(base_map_image)
