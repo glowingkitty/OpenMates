@@ -121,13 +121,23 @@ def generate_combined_map_preview(
         shadow_color = (0, 0, 0, 70) # Darker, less transparent shadow
 
         # Colors
-        # box_bg_color = (40, 40, 40) if darkmode else (255, 255, 255) # No separate box needed
-        text_color_main = (230, 230, 230) if darkmode else (20, 20, 20) # Keep text colors
+        text_bg_color = (40, 40, 40, 230) if darkmode else (255, 255, 255, 230) # Semi-transparent background
+        text_color_main = (230, 230, 230) if darkmode else (20, 20, 20)
         text_color_secondary = (160, 160, 160) if darkmode else (100, 100, 100)
         gradient_start = "#11672D" # Green circle gradient
         gradient_end = "#3EAB61" # Green circle gradient
-        center_dot_color = (255, 0, 0, 200) # Red, slightly transparent dot
+        center_dot_color_hex = "#4867CD" # User requested color
+        # Convert hex to RGBA tuple for Pillow
+        try:
+            center_dot_color = tuple(int(center_dot_color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (255,) # Add alpha
+        except ValueError:
+            logger.error(f"Invalid hex color for center dot: {center_dot_color_hex}. Using default red.")
+            center_dot_color = (255, 0, 0, 255) # Fallback solid red
         center_dot_radius = 5 * scale_factor
+
+        # --- Text Background Config ---
+        text_bg_padding = 10 * scale_factor # Padding inside the text background box
+        text_bg_radius = 10 * scale_factor # Smaller radius for the text background
 
         # --- Fonts ---
         font_path_regular = find_font("LexendDeca-Regular.ttf")
@@ -151,10 +161,11 @@ def generate_combined_map_preview(
         center_x, center_y = map_w // 2, map_h // 2
         dot_bbox = (center_x - center_dot_radius, center_y - center_dot_radius,
                     center_x + center_dot_radius, center_y + center_dot_radius)
-        map_draw.ellipse(dot_bbox, fill=center_dot_color, outline=(0,0,0,150), width=1*scale_factor) # Optional outline
-        logger.info(f"Added center dot at ({center_x}, {center_y})")
+        # Use the correct color, no outline
+        map_draw.ellipse(dot_bbox, fill=center_dot_color)
+        logger.info(f"Added center dot at ({center_x}, {center_y}) with color {center_dot_color}")
 
-        # --- 3. Create and Composite Overlay (Icon + Text) onto Map ---
+        # --- 3. Create and Composite Overlay (Icon + Text Background + Text) onto Map ---
         # Create gradient circle
         gradient_circle = create_gradient_circle(icon_diameter, gradient_start, gradient_end)
 
@@ -167,27 +178,49 @@ def generate_combined_map_preview(
             map_pin_icon = Image.open(icon_path).convert("RGBA")
             map_pin_icon = map_pin_icon.resize((icon_pin_size, icon_pin_size), Image.Resampling.LANCZOS)
         else:
-            logger.warning(f"Map icon not found at {icon_path}")
+            logger.warning(f"Map icon not found at {icon_path}. Skipping icon paste.")
 
-        # Calculate positions relative to map bottom-left
-        circle_paste_x = int(icon_center_x - icon_diameter / 2)
-        circle_paste_y = int(icon_center_y - icon_diameter / 2)
-        pin_paste_x = int(icon_center_x - icon_pin_size / 2)
-        pin_paste_y = int(icon_center_y - icon_pin_size / 2)
+        # Calculate positions relative to map bottom-left for the CIRCLE's bounding box top-left corner
+        circle_paste_x = overlay_padding
+        circle_paste_y = map_h - overlay_padding - icon_diameter
+
+        # Calculate pin paste position to center it within the circle
+        pin_paste_x = circle_paste_x + (icon_diameter - icon_pin_size) // 2
+        pin_paste_y = circle_paste_y + (icon_diameter - icon_pin_size) // 2
 
         # Paste circle onto map
         base_map_image.paste(gradient_circle, (circle_paste_x, circle_paste_y), gradient_circle)
+        logger.info(f"Pasted green circle at ({circle_paste_x}, {circle_paste_y})")
         # Paste pin onto map (over circle)
         if map_pin_icon:
             base_map_image.paste(map_pin_icon, (pin_paste_x, pin_paste_y), map_pin_icon)
+            logger.info(f"Pasted map pin icon at ({pin_paste_x}, {pin_paste_y})")
 
-        # Draw text onto map
+        # --- 3b. Draw Text Background ---
+        # Calculate text background dimensions and position
+        text_bg_h = icon_diameter # Match height of the icon circle
+        text_bg_y = circle_paste_y # Align top with circle top
+        text_bg_x = circle_paste_x + icon_diameter + overlay_padding # Start after circle + padding
+        text_bg_w = map_w - text_bg_x - overlay_padding # Extend to right padding
+
+        # Draw the rounded text background rectangle onto the map image
+        map_draw.rounded_rectangle(
+            (text_bg_x, text_bg_y, text_bg_x + text_bg_w, text_bg_y + text_bg_h),
+            radius=text_bg_radius,
+            fill=text_bg_color
+        )
+        logger.info(f"Drew text background at ({text_bg_x}, {text_bg_y}) size {text_bg_w}x{text_bg_h}")
+
+        # --- 3c. Draw Text ---
+        # Calculate text starting position inside the background box
+        text_actual_x_start = text_bg_x + text_bg_padding
         total_text_h = font_size * 2 + line_spacing
-        # Calculate text Y start to center vertically around icon's vertical center
-        text_y_start = icon_center_y - total_text_h // 2
-        map_draw.text((text_x_start, text_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls")
-        map_draw.text((text_x_start, text_y_start + font_size + line_spacing), text_line2, font=font_regular, fill=text_color_secondary, anchor="ls")
-        logger.info("Composited overlay elements onto map")
+        # Calculate text Y start to center vertically within the text background height
+        text_actual_y_start = text_bg_y + (text_bg_h - total_text_h) // 2
+
+        map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls")
+        map_draw.text((text_actual_x_start, text_actual_y_start + font_size + line_spacing), text_line2, font=font_regular, fill=text_color_secondary, anchor="ls")
+        logger.info(f"Drew text starting at ({text_actual_x_start}, {text_actual_y_start})")
 
         # --- 4. Create Final Canvas (Larger for Shadow) ---
         canvas_w = content_w + shadow_offset + shadow_blur_radius * 2
