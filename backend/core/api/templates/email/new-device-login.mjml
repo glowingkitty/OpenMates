@@ -33,21 +33,23 @@
     <!-- Main Content -->
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <!-- Security Alert Section -->
-      <mj-section padding-bottom="15px"> <!-- Adjusted padding -->
-        <mj-column> <!-- Added column wrapper for table -->
-          <mj-table padding="0" width="100%">
+      <mj-section padding-top="5px" padding-bottom="15px"> <!-- Reduced top padding -->
+        <mj-column></mj-column> <!-- Left Spacer Column -->
+        <mj-column> <!-- Content column (auto width) -->
+          <mj-table padding="0"> <!-- Removed align="center" -->
             <tr>
               <td style="width: 23px; padding-right: 8px; vertical-align: middle;"> <!-- Icon cell -->
                 <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" />
              </td>
              <td style="vertical-align: middle;"> <!-- Text cell -->
-               <mj-text align="left" color="#8D8D8D" font-size="16px" padding="0">
+               <mj-text align="left" color="#8D8D8D" font-size="16px" padding="0"> <!-- Changed align="center" back to align="left" -->
                  {{ t.email.security_alert.text }}
                </mj-text>
               </td>
             </tr>
           </mj-table>
-        </mj-column> <!-- End column wrapper -->
+        </mj-column>
+        <mj-column></mj-column> <!-- Right Spacer Column -->
       </mj-section>
       <!-- Original Content Section -->
       <mj-section padding-bottom="10px">
