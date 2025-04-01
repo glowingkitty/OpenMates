@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException, Request
 from fastapi.responses import HTMLResponse
 import logging
+import os # Added import
 
 from app.services.email_template import EmailTemplateService
 
@@ -97,4 +98,31 @@ async def preview_purchase_confirmation(
         amount=amount,
         currency=currency,
         invoice_number=invoice_number
+    )
+
+@router.get("/new-device-login", response_class=HTMLResponse)
+async def preview_new_device_login(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    device_type: str = Query("Computer", description="Type of device (e.g., Computer, Mobile/Tablet)"),
+    os_name: str = Query("macOS", description="Operating system name (e.g., macOS, Windows, Android)"),
+    location: str = Query("Berlin, Germany", description="Estimated location (e.g., City, Country)"),
+):
+    """
+    Preview the new device login email template
+    """
+    # Construct security link URL (replace with actual logic if needed)
+    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173") 
+    security_link_url = f"{base_url}/settings/security" 
+
+    return await _process_email_template(
+        request=request,
+        template_name="new-device-login",
+        lang=lang,
+        # darkmode is handled by _process_email_template from request query params
+        device_type=device_type,
+        os_name=os_name,
+        location=location,
+        security_link_url=security_link_url
     )

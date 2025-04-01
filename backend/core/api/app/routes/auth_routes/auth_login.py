@@ -24,6 +24,8 @@ from app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_b
 import json
 from typing import Optional
 # from app.models.user import User # No longer directly used here
+# Import Celery app instance
+from app.tasks.celery_config import app 
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -109,6 +111,7 @@ async def login(
             logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
             await finalize_login_session(
+                request, # Pass request object
                 response, user, auth_data, cache_service, compliance_service, 
                 directus_service, device_fingerprint, device_location, client_ip
             )
@@ -183,6 +186,7 @@ async def login(
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
                 await finalize_login_session(
+                    request, # Pass request object
                     response, user, auth_data, cache_service, compliance_service, 
                     directus_service, device_fingerprint, device_location, client_ip
                 )
@@ -327,6 +331,7 @@ async def login(
 
                 # Step 5f: Finalize the login session
                 await finalize_login_session(
+                    request, # Pass request object
                     response, user, auth_data, cache_service, compliance_service, 
                     directus_service, device_fingerprint, device_location, client_ip
                 )
@@ -356,6 +361,7 @@ async def login(
 
 
 async def finalize_login_session(
+    request: Request, # Added request parameter
     response: Response, 
     user: dict, 
     auth_data: dict, 
@@ -406,7 +412,29 @@ async def finalize_login_session(
                 event_type="login_new_device", user_id=user_id, ip_address=client_ip, 
                 status="success", details={"device_fingerprint": device_fingerprint, "location": device_location}
             )
-            # TODO: Send notification email about new device login
+            # Send notification email about new device login via Celery
+            try:
+                user_agent_string = request.headers.get("User-Agent", "unknown")
+                # Get language and darkmode preferences from user profile, provide defaults
+                # Ensure these keys exist in the 'user' dict (merged from profile)
+                user_language = user.get("language", "en") 
+                user_darkmode = user.get("darkmode", False) 
+
+                logger.info(f"Dispatching new device email task for user {user_id[:6]}...")
+                app.send_task(
+                    name='app.tasks.email_tasks.send_new_device_email',
+                    kwargs={
+                        'user_id': user_id,
+                        'user_agent_string': user_agent_string,
+                        'location': device_location,
+                        'ip_address': client_ip,
+                        'language': user_language,
+                        'darkmode': user_darkmode
+                    },
+                    queue='email' # Ensure it goes to the correct queue
+                )
+            except Exception as task_exc:
+                logger.error(f"Failed to dispatch new device email task for user {user_id[:6]}: {task_exc}", exc_info=True)
         
         # Update device in cache and Directus
         current_time = int(time.time())
@@ -443,7 +471,9 @@ async def finalize_login_session(
                 "last_online_timestamp": current_time,
                 # Store the string timestamp (or None) directly from the user profile
                 "consent_privacy_and_apps_default_settings": user.get("consent_privacy_and_apps_default_settings"),
-                "consent_mates_default_settings": user.get("consent_mates_default_settings")
+                "consent_mates_default_settings": user.get("consent_mates_default_settings"),
+                "language": user.get("language", "en"), # Cache language preference
+                "darkmode": user.get("darkmode", False) # Cache darkmode preference
             }
             await cache_service.set_user(user_data_to_cache, refresh_token=refresh_token)
 
