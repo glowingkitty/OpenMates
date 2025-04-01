@@ -165,59 +165,75 @@ def generate_combined_map_preview(
         map_draw.ellipse(dot_bbox, fill=center_dot_color)
         logger.info(f"Added center dot at ({center_x}, {center_y}) with color {center_dot_color}")
 
-        # --- 3. Create and Composite Overlay (Icon + Text Background + Text) onto Map ---
-        # Create gradient circle
+        # --- 3. Draw Overlay Elements (Order: Text BG -> Circle -> Pin -> Text) ---
+
+        # --- 3a. Draw Full-Width Text Background (on separate layer) ---
+        text_bg_h = 60 * scale_factor # Fixed height
+        text_bg_w = map_w # Full width
+        text_bg_layer = Image.new('RGBA', (text_bg_w, text_bg_h), (0,0,0,0))
+        text_bg_draw = ImageDraw.Draw(text_bg_layer)
+        # Draw rounded rect at (0,0) relative to this layer
+        text_bg_draw.rounded_rectangle(
+            (0, 0, text_bg_w, text_bg_h),
+            radius=corner_radius, # Match outer rounding
+            fill=text_bg_color
+        )
+        # Composite the background layer onto the base map at the bottom position
+        text_bg_paste_y = map_h - text_bg_h
+        base_map_image.alpha_composite(text_bg_layer, (0, text_bg_paste_y))
+        logger.info(f"Composited full-width text background at (0, {text_bg_paste_y}) size {text_bg_w}x{text_bg_h}")
+
+        # --- 3b. Create and Paste Icon Circle ---
         gradient_circle = create_gradient_circle(icon_diameter, gradient_start, gradient_end)
 
-        # Load map pin icon
+        # Calculate circle paste position (bottom-left edge)
+        circle_paste_x = 0 # Align to very left edge
+        circle_paste_y = map_h - icon_diameter # Align to very bottom edge
+
+        # Paste circle onto map (on top of text background layer)
+        base_map_image.paste(gradient_circle, (circle_paste_x, circle_paste_y), gradient_circle)
+        logger.info(f"Pasted green circle at ({circle_paste_x}, {circle_paste_y})")
+
+        # --- 3c. Load and Paste Map Pin Icon ---
         script_dir = os.path.dirname(__file__)
-        # Adjusted path assuming structure: backend/core/api/app/utils -> frontend/packages/ui/static/icons
         icon_path = os.path.abspath(os.path.join(script_dir, '../../../../../frontend/packages/ui/static/icons/maps.png'))
+        logger.info(f"Attempting to load map icon from: {icon_path}") # Log path before try
         map_pin_icon = None
         if os.path.exists(icon_path):
-            map_pin_icon = Image.open(icon_path).convert("RGBA")
-            map_pin_icon = map_pin_icon.resize((icon_pin_size, icon_pin_size), Image.Resampling.LANCZOS)
+             logger.info(f"Icon file exists at: {icon_path}")
+             try:
+                 map_pin_icon = Image.open(icon_path).convert("RGBA")
+                 logger.info(f"Icon loaded successfully. Original size: {map_pin_icon.size}")
+                 map_pin_icon = map_pin_icon.resize((icon_pin_size, icon_pin_size), Image.Resampling.LANCZOS)
+                 logger.info(f"Icon resized to: {map_pin_icon.size}")
+             except Exception as e:
+                  logger.error(f"Error loading or resizing map icon from {icon_path}: {e}", exc_info=True)
+                  map_pin_icon = None # Ensure it's None on error
         else:
-            logger.warning(f"Map icon not found at {icon_path}. Skipping icon paste.")
+             logger.warning(f"Map icon file NOT FOUND at {icon_path}. Skipping icon paste.")
 
-        # Calculate positions relative to map bottom-left for the CIRCLE's bounding box top-left corner
-        circle_paste_x = overlay_padding
-        circle_paste_y = map_h - overlay_padding - icon_diameter
 
-        # Calculate pin paste position to center it within the circle
+        # Calculate pin paste position to center it within the circle's position
         pin_paste_x = circle_paste_x + (icon_diameter - icon_pin_size) // 2
         pin_paste_y = circle_paste_y + (icon_diameter - icon_pin_size) // 2
 
-        # Paste circle onto map
-        base_map_image.paste(gradient_circle, (circle_paste_x, circle_paste_y), gradient_circle)
-        logger.info(f"Pasted green circle at ({circle_paste_x}, {circle_paste_y})")
-        # Paste pin onto map (over circle)
+        # Paste pin onto map (on top of circle)
         if map_pin_icon:
-            base_map_image.paste(map_pin_icon, (pin_paste_x, pin_paste_y), map_pin_icon)
-            logger.info(f"Pasted map pin icon at ({pin_paste_x}, {pin_paste_y})")
+             # Use the icon's own alpha channel for transparency when pasting
+             base_map_image.paste(map_pin_icon, (pin_paste_x, pin_paste_y), map_pin_icon)
+             logger.info(f"Pasted map pin icon at ({pin_paste_x}, {pin_paste_y})")
+        else:
+             logger.warning("map_pin_icon is None, skipping paste.")
 
-        # --- 3b. Draw Text Background ---
-        # Calculate text background dimensions and position
-        text_bg_h = icon_diameter # Match height of the icon circle
-        text_bg_y = circle_paste_y # Align top with circle top
-        text_bg_x = circle_paste_x + icon_diameter + overlay_padding # Start after circle + padding
-        text_bg_w = map_w - text_bg_x - overlay_padding # Extend to right padding
-
-        # Draw the rounded text background rectangle onto the map image
-        map_draw.rounded_rectangle(
-            (text_bg_x, text_bg_y, text_bg_x + text_bg_w, text_bg_y + text_bg_h),
-            radius=text_bg_radius,
-            fill=text_bg_color
-        )
-        logger.info(f"Drew text background at ({text_bg_x}, {text_bg_y}) size {text_bg_w}x{text_bg_h}")
-
-        # --- 3c. Draw Text ---
-        # Calculate text starting position inside the background box
-        text_actual_x_start = text_bg_x + text_bg_padding
+        # --- 3d. Draw Text ---
+        # Calculate text starting position based on circle diameter and padding
+        text_actual_x_start = icon_diameter + text_padding_left # Start after circle + padding
         total_text_h = font_size * 2 + line_spacing
-        # Calculate text Y start to center vertically within the text background height
-        text_actual_y_start = text_bg_y + (text_bg_h - total_text_h) // 2
+        # Calculate text Y start to center vertically within the text background height (text_bg_h)
+        # Use text_bg_paste_y which is the top Y coordinate of the background bar
+        text_actual_y_start = text_bg_paste_y + (text_bg_h - total_text_h) // 2
 
+        # Draw text onto map (on top of text background and circle)
         map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls")
         map_draw.text((text_actual_x_start, text_actual_y_start + font_size + line_spacing), text_line2, font=font_regular, fill=text_color_secondary, anchor="ls")
         logger.info(f"Drew text starting at ({text_actual_x_start}, {text_actual_y_start})")
