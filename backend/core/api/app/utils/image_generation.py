@@ -105,15 +105,11 @@ def generate_combined_map_preview(
         # Icon & Overlay Elements
         icon_diameter = 60 * scale_factor
         icon_pin_size = 26 * scale_factor # User requested 26px (scaled)
-        overlay_padding = 15 * scale_factor # Padding from bottom-left corner for overlay elements
-        icon_center_x = overlay_padding + icon_diameter // 2
-        icon_center_y = map_h - overlay_padding - icon_diameter // 2 # Relative to map bottom-left
 
         # Text positioning relative to icon
         text_padding_left = 15 * scale_factor # Space between icon and text start
-        text_x_start = icon_center_x + icon_diameter // 2 + text_padding_left
         line_spacing = 5 * scale_factor
-        font_size = 14 * scale_factor
+        font_size = 16 * scale_factor
 
         # Shadow properties
         shadow_offset = 4 * scale_factor # Slightly larger offset for visibility
@@ -135,15 +131,9 @@ def generate_combined_map_preview(
             center_dot_color = (255, 0, 0, 255) # Fallback solid red
         center_dot_radius = 5 * scale_factor
 
-        # --- Text Background Config ---
-        text_bg_padding = 10 * scale_factor # Padding inside the text background box
-        text_bg_radius = 10 * scale_factor # Smaller radius for the text background
-
         # --- Fonts ---
-        font_path_regular = find_font("LexendDeca-Regular.ttf")
         font_path_bold = find_font("LexendDeca-Bold.ttf")
         # Use default font size if specific font not found
-        font_regular = ImageFont.truetype(font_path_regular, font_size) if font_path_regular else ImageFont.load_default(size=font_size)
         font_bold = ImageFont.truetype(font_path_bold, font_size) if font_path_bold else ImageFont.load_default(size=font_size)
 
         # --- Load i18n Text ---
@@ -232,14 +222,19 @@ def generate_combined_map_preview(
 
         # Calculate total text height for vertical centering
         total_text_h = font_size * 2 + line_spacing
-        # Calculate text Y start to center vertically within the text background height (text_bg_h)
-        # Use text_bg_paste_y which is the top Y coordinate of the background bar
-        text_actual_y_start = text_bg_paste_y + (text_bg_h - total_text_h) // 2
+        # Calculate the top Y coordinate where the text block should start for mathematical centering
+        block_top_y = text_bg_paste_y + (text_bg_h - total_text_h) // 2
+        # Add a larger manual offset downwards as requested (30px = 15 * scale_factor)
+        vertical_offset = 12 * scale_factor
+        text_actual_y_start = block_top_y + vertical_offset # Baseline for the first line
 
-        # Draw text onto map (on top of text background and circle), left-aligned
-        map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls") # Use left anchor
-        map_draw.text((text_actual_x_start, text_actual_y_start + font_size + line_spacing), text_line2, font=font_regular, fill=text_color_secondary, anchor="ls") # Use left anchor
-        logger.info(f"Drew text left-aligned starting at x={text_actual_x_start}, starting vertically at y={text_actual_y_start}")
+        # Calculate baseline for the second line
+        line2_y_start = text_actual_y_start + font_size + line_spacing
+
+        # Draw text onto map (on top of text background and circle), using left-baseline anchor with adjusted Y
+        map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls") # Use left-baseline anchor
+        map_draw.text((text_actual_x_start, line2_y_start), text_line2, font=font_bold, fill=text_color_secondary, anchor="ls") # Use left-baseline anchor
+        logger.info(f"Drew text left-aligned starting at x={text_actual_x_start}, baseline adjusted vertically starting at y={text_actual_y_start}")
 
         # --- 4. Create Final Canvas (Larger for Shadow) ---
         canvas_w = content_w + shadow_offset + shadow_blur_radius * 2
