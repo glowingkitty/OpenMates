@@ -104,7 +104,7 @@ def generate_combined_map_preview(
 
         # Icon & Overlay Elements
         icon_diameter = 60 * scale_factor
-        icon_pin_size = 36 * scale_factor # Proportionally scale pin size
+        icon_pin_size = 26 * scale_factor # User requested 26px (scaled)
         overlay_padding = 15 * scale_factor # Padding from bottom-left corner for overlay elements
         icon_center_x = overlay_padding + icon_diameter // 2
         icon_center_y = map_h - overlay_padding - icon_diameter // 2 # Relative to map bottom-left
@@ -121,7 +121,7 @@ def generate_combined_map_preview(
         shadow_color = (0, 0, 0, 70) # Darker, less transparent shadow
 
         # Colors
-        text_bg_color = (40, 40, 40, 230) if darkmode else (255, 255, 255, 230) # Semi-transparent background
+        text_bg_color = (40, 40, 40, 255) if darkmode else (255, 255, 255, 255) # Opaque background
         text_color_main = (230, 230, 230) if darkmode else (20, 20, 20)
         text_color_secondary = (160, 160, 160) if darkmode else (100, 100, 100)
         gradient_start = "#11672D" # Green circle gradient
@@ -196,7 +196,8 @@ def generate_combined_map_preview(
 
         # --- 3c. Load and Paste Map Pin Icon ---
         script_dir = os.path.dirname(__file__)
-        icon_path = os.path.abspath(os.path.join(script_dir, '../../../../../frontend/packages/ui/static/icons/maps.png'))
+        # Corrected path relative to this script's location
+        icon_path = os.path.abspath(os.path.join(script_dir, '../../templates/email/components/icons/maps.png'))
         logger.info(f"Attempting to load map icon from: {icon_path}") # Log path before try
         map_pin_icon = None
         if os.path.exists(icon_path):
@@ -228,15 +229,17 @@ def generate_combined_map_preview(
         # --- 3d. Draw Text ---
         # Calculate text starting position based on circle diameter and padding
         text_actual_x_start = icon_diameter + text_padding_left # Start after circle + padding
+
+        # Calculate total text height for vertical centering
         total_text_h = font_size * 2 + line_spacing
         # Calculate text Y start to center vertically within the text background height (text_bg_h)
         # Use text_bg_paste_y which is the top Y coordinate of the background bar
         text_actual_y_start = text_bg_paste_y + (text_bg_h - total_text_h) // 2
 
-        # Draw text onto map (on top of text background and circle)
-        map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls")
-        map_draw.text((text_actual_x_start, text_actual_y_start + font_size + line_spacing), text_line2, font=font_regular, fill=text_color_secondary, anchor="ls")
-        logger.info(f"Drew text starting at ({text_actual_x_start}, {text_actual_y_start})")
+        # Draw text onto map (on top of text background and circle), left-aligned
+        map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls") # Use left anchor
+        map_draw.text((text_actual_x_start, text_actual_y_start + font_size + line_spacing), text_line2, font=font_regular, fill=text_color_secondary, anchor="ls") # Use left anchor
+        logger.info(f"Drew text left-aligned starting at x={text_actual_x_start}, starting vertically at y={text_actual_y_start}")
 
         # --- 4. Create Final Canvas (Larger for Shadow) ---
         canvas_w = content_w + shadow_offset + shadow_blur_radius * 2
