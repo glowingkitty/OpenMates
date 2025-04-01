@@ -250,15 +250,18 @@ def generate_combined_map_preview(
         logger.info(f"Drew text left-aligned starting at x={text_actual_x_start}, baseline adjusted vertically starting at y={text_actual_y_start}")
 
         # --- 4. Create Final Canvas (Larger for Shadow) ---
-        canvas_w = content_w + shadow_offset + shadow_blur_radius * 2
-        canvas_h = content_h + shadow_offset + shadow_blur_radius * 2
+        # Define padding based on blur radius to ensure enough space for the blur effect
+        canvas_padding = shadow_blur_radius * 2 # Double the blur radius for padding on each side
+        canvas_w = content_w + shadow_offset + canvas_padding * 2
+        canvas_h = content_h + shadow_offset + canvas_padding * 2
         canvas = Image.new('RGBA', (canvas_w, canvas_h), (0, 0, 0, 0))
-        # Offset for drawing the content onto the larger canvas
-        draw_offset_x = shadow_blur_radius
-        draw_offset_y = shadow_blur_radius
+        # Offset for drawing the content onto the larger canvas, centered within the padding
+        draw_offset_x = canvas_padding
+        draw_offset_y = canvas_padding
 
         # --- 5. Draw Drop Shadow ---
-        shadow_layer = Image.new('RGBA', canvas.size, (0,0,0,0))
+        # Shadow layer needs to be the same size as the new larger canvas
+        shadow_layer = Image.new('RGBA', (canvas_w, canvas_h), (0,0,0,0))
         shadow_draw = ImageDraw.Draw(shadow_layer)
         # Shadow for the rounded content rectangle
         shadow_draw.rounded_rectangle(
