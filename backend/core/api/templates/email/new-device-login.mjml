@@ -32,9 +32,27 @@
     
     <!-- Main Content -->
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <!-- Security Alert Section -->
+      <mj-section padding-bottom="15px"> <!-- Adjusted padding -->
+        <mj-column> <!-- Added column wrapper for table -->
+          <mj-table padding="0" width="100%">
+            <tr>
+              <td style="width: 23px; padding-right: 8px; vertical-align: middle;"> <!-- Icon cell -->
+                <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" />
+             </td>
+             <td style="vertical-align: middle;"> <!-- Text cell -->
+               <mj-text align="left" color="#8D8D8D" font-size="16px" padding="0">
+                 {{ t.email.security_alert.text }}
+               </mj-text>
+              </td>
+            </tr>
+          </mj-table>
+        </mj-column> <!-- End column wrapper -->
+      </mj-section>
+      <!-- Original Content Section -->
       <mj-section padding-bottom="10px">
         <mj-column>
-          <!-- Security Alert Icon -->
+          <!-- Laptop Icon -->
           <mj-image width="50px" height="50px" src="icons/laptop.png" align="center" /> 
           <!-- Heading -->
           <mj-text font-size="30px" color="#3b82f6"> <!-- Blue color like image -->
