@@ -22,3 +22,5 @@ python-multipart==0.0.20
 argon2-cffi==23.1.0
 pyotp==2.9.0
 user-agents==2.2.0
+staticmap==0.5.7
+Pillow==11.1.0

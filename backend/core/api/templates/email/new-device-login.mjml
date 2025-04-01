@@ -64,19 +64,20 @@
         </mj-column>
       </mj-section>
 
-      <!-- Map Preview Section -->
+      <!-- Map Preview Section - Conditional based on map_image_data_uri -->
+      {% if map_image_data_uri %}
       <mj-section padding="0">
         <mj-column>
-           <!-- Map Background Image -->
-           <mj-image 
-             src="images/static_map_placeholder.png"
-             alt="Map showing approximate login location" 
-             border-radius="15px" 
-             padding-bottom="0" 
+           <!-- Map Background Image - Embedded using data URI -->
+           <mj-image
+             src="{{ map_image_data_uri }}"
+             alt="Map showing approximate login location"
+             border-radius="15px"
+             padding-bottom="0"
            />
         </mj-column>
       </mj-section>
-      
+      {% endif %}
       <!-- Location Text Overlay - Using mj-section now -->
       <mj-section css-class="location-text-section {% if darkmode %}dark-bg{% else %}light-bg{% endif %}" padding="0">
         <mj-column width="30px" vertical-align="middle" padding-right="5px">

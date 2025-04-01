@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Query, HTTPException, Request
 from fastapi.responses import HTMLResponse
 import logging
-import os 
+import os
+import base64
+import io # Added
+# httpx no longer needed here for map image
 from datetime import datetime
 from urllib.parse import quote_plus
 import user_agents
 from typing import Optional
+from staticmap import StaticMap, CircleMarker # Added
 
 from app.services.email_template import EmailTemplateService
 from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
@@ -122,28 +126,37 @@ async def preview_new_device_login(
     Preview the new device login email template. 
     Location is derived from ip_address if provided.
     """
-    
-    # --- Determine Location ---
-    location_str = "Berlin, Germany" # Default location
+
+    # --- Determine Location & Coordinates ---
+    location_data = {"location_string": "unknown", "latitude": None, "longitude": None}
     if ip_address:
         try:
-            # Note: get_location_from_ip is synchronous, might block if slow
-            location_str = get_location_from_ip(ip_address) 
+            # get_location_from_ip now returns a dict
+            location_data = get_location_from_ip(ip_address)
         except Exception as loc_exc:
             logger.warning(f"Preview: Failed to get location for IP {ip_address}: {loc_exc}")
-            location_str = "Location Unavailable"
+            # Keep default location_data
 
-    # --- Parse Location ---
+    location_str = location_data.get("location_string", "unknown")
+    latitude = location_data.get("latitude")
+    longitude = location_data.get("longitude")
+
+    # --- Parse City/Country from location_string ---
     city = "Unknown"
     country = "Unknown"
-    if location_str and location_str != "unknown" and location_str != "Location Unavailable":
+    if location_str and location_str != "unknown":
         parts = location_str.split(',')
         if len(parts) >= 2:
             city = parts[0].strip()
             country = parts[1].strip()
         elif len(parts) == 1:
-            city = parts[0].strip()
-            country = "Unknown"
+            # If only one part, assume it's city or country code
+            # Check if it looks like a country code (e.g., 2 letters)
+            part = parts[0].strip()
+            if len(part) == 2 and part.isalpha():
+                 country = part
+            else:
+                 city = part
 
     # --- Device & OS Parsing (using provided User-Agent) ---
     device_type_key = "email.unknown_device.text" 
@@ -190,13 +203,35 @@ async def preview_new_device_login(
     )
     mailto_subject_encoded = quote_plus(mailto_subject_template)
     mailto_body_encoded = quote_plus(mailto_body_formatted)
-    support_email = os.getenv("SUPPORT_EMAIL", "support@example.com") 
+    support_email = os.getenv("SUPPORT_EMAIL", "support@openmates.org") # Updated fallback
     logout_link = f"mailto:{support_email}?subject={mailto_subject_encoded}&body={mailto_body_encoded}"
 
-    # --- Generate Placeholder Map URL for Preview Context ---
-    # This URL is just for context display, not actual embedding in preview
-    map_center = quote_plus(f"{city},{country}") if city != "Unknown" else "world"
-    map_image_url_placeholder = f"https://static-maps.openmates.org/api/staticmap?center={map_center}&zoom=10&size=500x200" # Example URL
+    # --- Generate Map Image Data URI using staticmap library ---
+    map_image_data_uri = None
+    if latitude is not None and longitude is not None:
+        if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+            try:
+                logger.info(f"Preview: Generating static map image for ({latitude}, {longitude})")
+                m = StaticMap(600, 250)
+                marker = CircleMarker((longitude, latitude), '#0036FF', 12)
+                m.add_marker(marker)
+                # Render synchronously in the route handler
+                image = m.render(zoom=11, center=(longitude, latitude))
+                
+                buffer = io.BytesIO()
+                image.save(buffer, format='PNG')
+                image_bytes = buffer.getvalue()
+                
+                encoded_string = base64.b64encode(image_bytes).decode('utf-8')
+                map_image_data_uri = f"data:image/png;base64,{encoded_string}"
+                logger.info(f"Preview: Successfully generated and encoded map image.")
+                
+            except Exception as exc:
+                 logger.error(f"Preview: Error generating map image: {exc}", exc_info=True)
+        else:
+            logger.warning(f"Preview: Invalid coordinates provided: lat={latitude}, lon={longitude}")
+    else:
+        logger.info(f"Preview: No coordinates provided, skipping map image generation.")
 
     # --- Call Helper ---
     return await _process_email_template(
@@ -209,6 +244,6 @@ async def preview_new_device_login(
         city=city,
         country=country,
         logout_link=logout_link,
-        map_image_url=map_image_url_placeholder # Pass for info, won't be embedded here
+        map_image_data_uri=map_image_data_uri # Pass data URI
         # darkmode is handled by _process_email_template
     )

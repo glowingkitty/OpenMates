@@ -37,45 +37,55 @@ def get_client_ip(request: Request) -> str:
     return client_ip
 
 @lru_cache(maxsize=1024)
-def get_location_from_ip(ip_address: str) -> str:
+def get_location_from_ip(ip_address: str) -> Dict[str, Any]:
     """
-    Get city location from IP address using ip-api.com
-    Returns city name or "unknown" if not found
-    Uses caching to avoid unnecessary API calls
+    Get location details (string, lat, lon) from IP address using ip-api.com.
+    Returns a dictionary with 'location_string', 'latitude', 'longitude'.
+    Uses caching to avoid unnecessary API calls.
     """
+    default_result = {"location_string": "unknown", "latitude": None, "longitude": None}
     if ip_address == "unknown" or ip_address == "127.0.0.1" or ip_address == "localhost":
-        return "unknown"
-        
+        return default_result
+
     try:
         # Use synchronous request instead of async
         response = httpx.get(
             f"{IP_API_URL}/{ip_address}",
-            params={"fields": "status,message,city,countryCode"},
+            params={"fields": "status,message,city,countryCode,lat,lon"}, # Added lat, lon
             timeout=5.0
         )
-        
+
         if response.status_code == 200:
             data = response.json()
-            
+
             # Check if the request was successful
             if data.get("status") == "success":
                 city = data.get("city")
                 country_code = data.get("countryCode")
-                
+                latitude = data.get("lat")
+                longitude = data.get("lon")
+
+                location_string = "unknown"
                 if city:
-                    return f"{city}, {country_code}" if country_code else city
+                    location_string = f"{city}, {country_code}" if country_code else city
                 elif country_code:
-                    return country_code
+                    location_string = country_code # Fallback to country code if no city
+
+                return {
+                    "location_string": location_string,
+                    "latitude": latitude,
+                    "longitude": longitude
+                }
             else:
-                logger.warning(f"IP location lookup failed: {data.get('message', 'Unknown error')}")
-                
+                logger.warning(f"IP location lookup failed for {ip_address}: {data.get('message', 'Unknown error')}")
+
         else:
-            logger.warning(f"Failed to get location for IP {ip_address}: {response.status_code}")
-            
+            logger.warning(f"Failed to get location for IP {ip_address}: Status {response.status_code}")
+
     except Exception as e:
         logger.error(f"Error looking up location for IP {ip_address}: {str(e)}")
-        
-    return "unknown"
+
+    return default_result
 
 def update_device_record(
     existing_devices: Optional[Dict[str, Any]], 

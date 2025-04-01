@@ -1,10 +1,14 @@
 import logging
 import random
 import os
+import base64
+import io # Added for image saving
 from typing import Dict, Any, Optional
 import asyncio
+# httpx no longer needed here for map image
 from datetime import datetime
 from urllib.parse import quote_plus
+from staticmap import StaticMap, CircleMarker # Added staticmap imports
 
 # Assuming user-agents is installed (add to requirements.txt later)
 try:
@@ -130,6 +134,8 @@ def send_new_device_email(
     user_agent_string: str,
     location: Optional[str], # e.g., "Berlin, Germany" or "unknown"
     ip_address: str, # For logging/context
+    latitude: Optional[float] = None, # Added
+    longitude: Optional[float] = None, # Added
     language: str = "en",
     darkmode: bool = False
 ) -> bool:
@@ -156,6 +162,9 @@ async def _async_send_new_device_email(
     user_id: str,
     user_agent_string: str,
     location: Optional[str],
+    ip_address: str, # Added ip_address here as it was missing but passed from wrapper
+    latitude: Optional[float] = None, # Added
+    longitude: Optional[float] = None, # Added
     language: str = "en",
     darkmode: bool = False
 ) -> bool:
@@ -278,8 +287,43 @@ async def _async_send_new_device_email(
 
         # Construct the mailto link
         # Assuming the recipient is a support email address from config/env
-        support_email = os.getenv("SUPPORT_EMAIL", "support@example.com") 
+        support_email = os.getenv("SUPPORT_EMAIL", "support@openmates.org") # Updated fallback
         logout_link = f"mailto:{support_email}?subject={mailto_subject_encoded}&body={mailto_body_encoded}"
+
+        # --- Static Map Image Data URI Generation using staticmap library ---
+        map_image_data_uri = None
+        if latitude is not None and longitude is not None:
+            # Basic validation for coordinates
+            if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+                try:
+                    logger.info(f"Generating static map image for user {user_id[:6]}... at ({latitude}, {longitude})")
+                    # Create StaticMap object (width, height)
+                    m = StaticMap(600, 250)
+                    # Add marker (coordinates, color, size)
+                    marker = CircleMarker((longitude, latitude), '#0036FF', 12) # Blue marker
+                    m.add_marker(marker)
+                    # Render the map (center coordinates, zoom level)
+                    # Note: Rendering might block the async event loop if it's CPU-intensive or performs sync I/O (like tile fetching)
+                    # Consider running this in a thread pool executor if it causes performance issues
+                    image = m.render(zoom=11, center=(longitude, latitude))
+                    
+                    # Save image to bytes buffer
+                    buffer = io.BytesIO()
+                    image.save(buffer, format='PNG')
+                    image_bytes = buffer.getvalue()
+                    
+                    # Encode as base64 data URI
+                    encoded_string = base64.b64encode(image_bytes).decode('utf-8')
+                    map_image_data_uri = f"data:image/png;base64,{encoded_string}"
+                    logger.info(f"Successfully generated and encoded map image for user {user_id[:6]}...")
+                    
+                except Exception as exc:
+                     # Catch potential errors during map generation/rendering (e.g., tile fetching)
+                     logger.error(f"Error generating map image for user {user_id[:6]}...: {exc}", exc_info=True)
+            else:
+                logger.warning(f"Invalid coordinates provided for user {user_id[:6]}...: lat={latitude}, lon={longitude}")
+        else:
+            logger.info(f"No coordinates provided for user {user_id[:6]}..., skipping map image generation.")
 
         # --- Prepare Context for MJML Template ---
         context = {
@@ -288,9 +332,10 @@ async def _async_send_new_device_email(
             "city": city,
             "country": country,
             "logout_link": logout_link, # Pass the generated mailto link
-            "darkmode": darkmode 
+            "map_image_data_uri": map_image_data_uri, # Pass the generated map data URI (or None)
+            "darkmode": darkmode
         }
-        
+
         logger.info(f"Sending new device login email to {account_email[:2]}*** - lang: {language}")
         
         success = await email_template_service.send_email(
