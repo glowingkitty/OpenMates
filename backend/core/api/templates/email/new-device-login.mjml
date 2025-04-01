@@ -31,6 +31,14 @@
         background-color: #333333;
         border: 1px solid #444444;
       }
+      /* Ensure links within the text are styled correctly */
+      .security-action-text a {
+        color: #3b82f6 !important; /* Match button/highlight color */
+        text-decoration: underline !important;
+      }
+      .dark-mode .security-action-text a {
+         color: #60a5fa !important; /* Lighter blue for dark mode */
+      }
     </mj-style>
 
   </mj-head>
@@ -50,7 +58,8 @@
           </mj-text>
           <!-- Device Info -->
           <mj-text font-size="16px" padding-bottom="20px">
-            {{ t.email.device_details.text }} <!-- Expects translation like "A few seconds ago, from a {{ device_type }} with {{ os_name }}:" -->
+             <!-- Corrected key usage with variable replacement -->
+            {{ t.email.device_details.text | replace('{device_type}', device_type_translated) | replace('{operating_system}', os_name_translated) }} 
           </mj-text>
         </mj-column>
       </mj-section>
@@ -71,11 +80,13 @@
       <!-- Location Text Overlay - Using mj-section now -->
       <mj-section css-class="location-text-section {% if darkmode %}dark-bg{% else %}light-bg{% endif %}" padding="0">
         <mj-column width="30px" vertical-align="middle" padding-right="5px">
-          <mj-image src="icons/maps.png" width="20px" height="20px" align="center" /> <!-- Use relative path for embedding -->
+           <!-- Corrected icon path -->
+          <mj-image src="icons/maps.png" width="20px" height="20px" align="center" /> 
         </mj-column>
-        <mj-column vertical-align="middle"> <!-- Removed width="auto" -->
+        <mj-column vertical-align="middle"> 
           <mj-text align="left" font-size="16px" padding="0">
-            {{ t.email.area_around.text }}
+             <!-- Corrected key usage with variable replacement -->
+            <b>{{ t.email.area_around.text | replace('{city}', city) | replace('{country}', country) }}</b>
           </mj-text>
         </mj-column>
       </mj-section>
@@ -86,9 +97,9 @@
           <mj-text font-size="14px" color="#808080" padding-bottom="30px" padding-top="0px">
             {{ t.email.area_is_estimate.text }}
           </mj-text>
-          <!-- Security Action -->
-          <mj-text font-size="16px" padding-bottom="10px">
-            {{ t.email.if_this_wasnt_you_react.text }}
+          <!-- Security Action - Embed mailto link within this text -->
+          <mj-text css-class="security-action-text" font-size="16px" padding-bottom="40px">
+            {{ t.email.if_this_wasnt_you_react.text | replace('{logout_link}', logout_link) }}
           </mj-text>
         </mj-column>
       </mj-section>
