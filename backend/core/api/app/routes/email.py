@@ -13,6 +13,7 @@ from staticmap import StaticMap, CircleMarker # Added
 
 from app.services.email_template import EmailTemplateService
 from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
+from app.utils.email_context_helpers import prepare_new_device_login_context # Import the new helper
 
 router = APIRouter(prefix="/v1/email", tags=["email"])
 logger = logging.getLogger(__name__)
@@ -126,124 +127,31 @@ async def preview_new_device_login(
     Preview the new device login email template. 
     Location is derived from ip_address if provided.
     """
+    try:
+        # --- Prepare Context using Helper Function ---
+        # Note: latitude/longitude are derived inside the helper from IP
+        # We pass 'preview' as user_id_for_log for clarity in logs
+        context = await prepare_new_device_login_context(
+            user_agent_string=user_agent_string,
+            ip_address=ip_address,
+            account_email=account_email,
+            language=lang,
+            darkmode=darkmode, # Pass darkmode from query param
+            translation_service=translation_service, # Use global service instance
+            user_id_for_log="preview" # Indicate this is for preview logging
+            # latitude/longitude are derived from ip_address inside the helper
+        )
 
-    # --- Determine Location & Coordinates ---
-    location_data = {"location_string": "unknown", "latitude": None, "longitude": None}
-    if ip_address:
-        try:
-            # get_location_from_ip now returns a dict
-            location_data = get_location_from_ip(ip_address)
-        except Exception as loc_exc:
-            logger.warning(f"Preview: Failed to get location for IP {ip_address}: {loc_exc}")
-            # Keep default location_data
-
-    location_str = location_data.get("location_string", "unknown")
-    latitude = location_data.get("latitude")
-    longitude = location_data.get("longitude")
-
-    # --- Parse City/Country from location_string ---
-    city = "Unknown"
-    country = "Unknown"
-    if location_str and location_str != "unknown":
-        parts = location_str.split(',')
-        if len(parts) >= 2:
-            city = parts[0].strip()
-            country = parts[1].strip()
-        elif len(parts) == 1:
-            # If only one part, assume it's city or country code
-            # Check if it looks like a country code (e.g., 2 letters)
-            part = parts[0].strip()
-            if len(part) == 2 and part.isalpha():
-                 country = part
-            else:
-                 city = part
-
-    # --- Device & OS Parsing (using provided User-Agent) ---
-    device_type_key = "email.unknown_device.text" 
-    os_name_key = "email.unknown_os.text" 
-    os_name_raw = "Unknown OS"
-
-    if user_agents:
-        try:
-            ua = user_agents.parse(user_agent_string)
-            os_name_raw = ua.os.family or os_name_raw
-            if ua.is_pc: device_type_key = "email.computer.text"
-            elif ua.is_tablet: device_type_key = "email.tablet.text"
-            elif ua.is_mobile: device_type_key = "email.phone.text"
-            # Add VR check if needed
-
-            os_family = ua.os.family
-            if os_family == "Mac OS X": os_name_key, os_name_raw = "macOS", "macOS"
-            elif os_family == "Windows": os_name_key, os_name_raw = "Windows", "Windows"
-            elif os_family == "Linux": os_name_key, os_name_raw = "Linux", "Linux"
-            elif os_family == "Android": os_name_key, os_name_raw = "Android", "Android"
-            elif os_family == "iOS": os_name_key, os_name_raw = "iOS", "iOS"
-            elif os_family == "iPadOS": os_name_key, os_name_raw = "iPadOS", "iPadOS"
-            # Add VisionOS check if needed
-            else: os_name_key = "email.unknown_os.text"
-        except Exception as ua_exc:
-            logger.warning(f"Preview: Failed to parse User-Agent string '{user_agent_string}': {ua_exc}")
-    else:
-         logger.warning("Preview: user-agents library not available.")
-
-    device_type_translated = translation_service.get_nested_translation(device_type_key, lang, {})
-    if os_name_key == "email.unknown_os.text":
-         os_name_translated = translation_service.get_nested_translation(os_name_key, lang, {})
-    else:
-         os_name_translated = os_name_raw
-
-    # --- Mailto Link Generation ---
-    login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC") 
-    mailto_subject_template = translation_service.get_nested_translation("email.email_subject_someone_accessed_my_account.text", lang, {})
-    mailto_body_template = translation_service.get_nested_translation("email.email_body_someone_accessed_my_account.text", lang, {})
-    mailto_body_formatted = mailto_body_template.format(
-        login_time=login_time, device_type=device_type_translated, 
-        operating_system=os_name_translated, city=city, country=country, 
-        account_email=account_email
-    )
-    mailto_subject_encoded = quote_plus(mailto_subject_template)
-    mailto_body_encoded = quote_plus(mailto_body_formatted)
-    support_email = os.getenv("SUPPORT_EMAIL", "support@openmates.org") # Updated fallback
-    logout_link = f"mailto:{support_email}?subject={mailto_subject_encoded}&body={mailto_body_encoded}"
-
-    # --- Generate Map Image Data URI using staticmap library ---
-    map_image_data_uri = None
-    if latitude is not None and longitude is not None:
-        if -90 <= latitude <= 90 and -180 <= longitude <= 180:
-            try:
-                logger.info(f"Preview: Generating static map image for ({latitude}, {longitude})")
-                m = StaticMap(600, 250)
-                marker = CircleMarker((longitude, latitude), '#0036FF', 12)
-                m.add_marker(marker)
-                # Render synchronously in the route handler
-                image = m.render(zoom=11, center=(longitude, latitude))
-                
-                buffer = io.BytesIO()
-                image.save(buffer, format='PNG')
-                image_bytes = buffer.getvalue()
-                
-                encoded_string = base64.b64encode(image_bytes).decode('utf-8')
-                map_image_data_uri = f"data:image/png;base64,{encoded_string}"
-                logger.info(f"Preview: Successfully generated and encoded map image.")
-                
-            except Exception as exc:
-                 logger.error(f"Preview: Error generating map image: {exc}", exc_info=True)
-        else:
-            logger.warning(f"Preview: Invalid coordinates provided: lat={latitude}, lon={longitude}")
-    else:
-        logger.info(f"Preview: No coordinates provided, skipping map image generation.")
-
-    # --- Call Helper ---
-    return await _process_email_template(
-        request=request,
-        template_name="new-device-login",
-        lang=lang,
-        # Pass all required context variables for the template
-        device_type_translated=device_type_translated,
-        os_name_translated=os_name_translated,
-        city=city,
-        country=country,
-        logout_link=logout_link,
-        map_image_data_uri=map_image_data_uri # Pass data URI
-        # darkmode is handled by _process_email_template
-    )
+        # --- Call Rendering Helper ---
+        # Pass the generated context dictionary using **kwargs
+        return await _process_email_template(
+            request=request,
+            template_name="new-device-login",
+            lang=lang,
+            **context # Unpack the generated context here
+            # darkmode is already included in the context dict by the helper
+        )
+    except Exception as e:
+        # Catch potential errors during context preparation or rendering
+        logger.error(f"Preview Error: Failed to prepare/render new-device-login: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
