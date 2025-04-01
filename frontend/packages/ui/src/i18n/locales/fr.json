@@ -2486,24 +2486,64 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"Il y a quelques secondes,<br>depuis un {device} avec {os_with_version} :",
-            "en_original": "A few seconds ago,<br>from a {device} with {os_with_version}:",
+            "text":"Il y a quelques secondes,<br>depuis un {device_type}<br>avec {operating_system}:",
+            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
+        "computer": {
+            "text":"ordinateur",
+            "en_original": "computer",
+            "context": "Device type - computer"
+        },
+        "phone": {
+            "text":"téléphone",
+            "en_original": "phone",
+            "context": "Device type - phone"
+        },
+        "tablet": {
+            "text":"tablette",
+            "en_original": "tablet",
+            "context": "Device type - tablet"
+        },
+        "vr_headset": {
+            "text":"casque VR",
+            "en_original": "VR headset",
+            "context": "Device type - VR headset"
+        },
+        "unknown_os": {
+            "text":"système d'exploitation inconnu",
+            "en_original": "unknown OS",
+            "context": "Device type - unknown operating system"
+        },
+        "from_unknown_location": {
+            "text":"depuis un lieu inconnu",
+            "en_original": "from an unknown location",
+            "context": "fallback text if location cannot be determined based on IP address"
+        },
         "area_around": {
-            "text":"Zone autour de",
-            "en_original": "Area around",
+            "text":"Région autour de<br>{city}, {country}",
+            "en_original": "Area around<br>{city}, {country}",
             "context": "Used in 'Area around Berlin, Germany'"
         },
         "area_is_estimate": {
-            "text":"La zone est une estimation basée sur l'adresse IP.<br>Gardez à l'esprit : Si vous utilisez un VPN, vous apparaîtrez probablement dans un endroit différent de celui où vous êtes réellement.",
-            "en_original": "The area is an estimate based on the IP address.<br>Keep in mind: If you use a VPN, you likely will be shown in a different location than you actually are.",
+            "text":"La localisation est une estimation basée sur l'adresse IP.<br>Utilisez-vous un VPN ? Si oui, vous apparaîtrez probablement<br>à un endroit différent de votre emplacement réel.",
+            "en_original": "The area is an estimate based on the IP address.<br>Do you use a VPN? Then you will likely be shown<br>in a different location than you actually are.",
             "context": "Explainer text for location estimate"
         },
         "if_this_wasnt_you_react": {
-            "text":"Si ce n'était pas vous, réagissez immédiatement !<br><a href='{logout_link}'>Cliquez ici pour déconnecter tous les appareils connectés et réinitialiser vos données de connexion.</a>",
-            "en_original": "If this wasn't you, react immediately!<br><a href='{logout_link}'>Click here to logout all connected devices & reset your login data.</a>",
+            "text":"Si c'était vous, vous pouvez ignorer cet e-mail.<br>Si ce n'était pas vous, réagissez immédiatement :<br><a href='{logout_link}'>Cliquez ici pour signaler cet incident urgent.</a>",
+            "en_original": "If this was you, you can ignore this e-mail.<br>If this wasn't you, react immediately:<br><a href='{logout_link}'>Click here to report this urgent incident.</a>",
             "context": "Security advice in email body"
+        },
+        "email_subject_someone_accessed_my_account": {
+            "text":"Urgent : Accès non autorisé à mon compte",
+            "en_original": "Urgent: Unauthorized access to my account",
+            "context": "Email subject for account access report"
+        },
+        "email_body_someone_accessed_my_account": {
+            "text": "Bonjour.<br>Quelqu'un a accédé à mon compte sans ma permission !<br>Voici les détails :<br><br>Heure de connexion : {login_time}<br>Appareil : {device_type}<br>Système d'exploitation : {operating_system}<br>Localisation : {city}, {country}<br>E-mail du compte : {account_email}<br><br>Merci de m'aider à sécuriser mon compte.<br><br>Merci.",
+            "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Device: {device_type}<br>Operating system: {operating_system}<br>Location: {city}, {country}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
+            "context": "Email body for account access report"
         },
         "your_email_address_was_changed": {
             "text":"Votre adresse e-mail a été modifiée",
