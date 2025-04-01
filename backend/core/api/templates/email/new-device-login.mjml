@@ -15,22 +15,6 @@
     <mj-include path="./components/email-styles.mjml" />
     
     <mj-style>
-      .location-text-section {
-         border-radius: 20px;
-         padding: 5px 15px; /* Adjusted padding */
-         margin: -35px auto 10px auto; /* Pull up over map, center horizontally */
-         position: relative; /* Needed for z-index */
-         z-index: 5; /* Above map */
-         max-width: 80%; /* Prevent it from being too wide */
-      }
-      .location-text-section.light-bg {
-        background-color: #ffffff;
-        border: 1px solid #eeeeee;
-      }
-      .location-text-section.dark-bg {
-        background-color: #333333;
-        border: 1px solid #444444;
-      }
       /* Ensure links within the text are styled correctly */
       .security-action-text a {
         color: #3b82f6 !important; /* Match button/highlight color */
@@ -63,36 +47,23 @@
           </mj-text>
         </mj-column>
       </mj-section>
-
-      <!-- Map Preview Section - Conditional based on map_image_data_uri -->
-      {% if map_image_data_uri %}
-      <mj-section padding="0">
+      
+      <!-- Combined Map Preview Section -->
+      {% if combined_map_preview_uri %}
+      <mj-section padding="0" padding-bottom="10px">
         <mj-column>
-           <!-- Map Background Image - Embedded using data URI -->
            <mj-image
-             src="{{ map_image_data_uri }}"
-             alt="Map showing approximate login location"
-             border-radius="15px"
-             padding-bottom="0"
+             width="300px" 
+             src="{{ combined_map_preview_uri }}"
+             alt="{{ map_alt_text }}"
+             border-radius="15px" 
+             padding="0" 
            />
         </mj-column>
       </mj-section>
       {% endif %}
-      <!-- Location Text Overlay - Using mj-section now -->
-      <mj-section css-class="location-text-section {% if darkmode %}dark-bg{% else %}light-bg{% endif %}" padding="0">
-        <mj-column width="30px" vertical-align="middle" padding-right="5px">
-           <!-- Corrected icon path -->
-          <mj-image src="icons/maps.png" width="20px" height="20px" align="center" /> 
-        </mj-column>
-        <mj-column vertical-align="middle"> 
-          <mj-text align="left" font-size="16px" padding="0">
-             <!-- Corrected key usage with variable replacement -->
-            <b>{{ t.email.area_around.text | replace('{city}', city) | replace('{country}', country) }}</b>
-          </mj-text>
-        </mj-column>
-      </mj-section>
 
-      <mj-section padding-top="10px">
+      <mj-section padding-top="0px"> {# Adjusted padding #}
         <mj-column>
           <!-- Location Disclaimer -->
           <mj-text font-size="14px" color="#808080" padding-bottom="30px" padding-top="0px">

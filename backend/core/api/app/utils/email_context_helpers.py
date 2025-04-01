@@ -1,7 +1,6 @@
 import logging
 import os
-import base64
-import io
+# Removed base64, io imports
 from datetime import datetime
 from urllib.parse import quote_plus
 from typing import Dict, Any, Optional
@@ -12,11 +11,12 @@ try:
 except ImportError:
     user_agents = None
 
-from staticmap import StaticMap, CircleMarker
+# Removed StaticMap, CircleMarker imports
 
 from app.services.translations import TranslationService
 from app.utils.device_fingerprint import get_location_from_ip
 from app.utils.log_filters import SensitiveDataFilter
+from .image_generation import generate_combined_map_preview # Import the new utility function
 
 logger = logging.getLogger(__name__)
 logger.addFilter(SensitiveDataFilter()) # Apply filter
@@ -143,45 +143,41 @@ async def prepare_new_device_login_context(
     support_email = os.getenv("SUPPORT_EMAIL", "support@openmates.org")
     logout_link = f"mailto:{support_email}?subject={mailto_subject_encoded}&body={mailto_body_encoded}"
 
-    # --- Static Map Image Data URI Generation ---
-    map_image_data_uri = None
+    # --- Combined Map Preview Image Generation ---
+    combined_map_preview_uri = None
+    # Generate alt text using the translation key, replacing <br>
+    map_alt_text = translation_service.get_nested_translation("email.area_around.text", language, {}).format(city=city, country=country).replace("<br>", " ")
+
     if final_latitude is not None and final_longitude is not None:
-        # Check coords are still valid after potential IP lookup fallback
+        # Check coords are still valid
         if -90 <= final_latitude <= 90 and -180 <= final_longitude <= 180:
-            try:
-                logger.info(f"{log_prefix}Generating static map image at ({final_latitude}, {final_longitude})")
-                m = StaticMap(600, 250)
-                marker = CircleMarker((final_longitude, final_latitude), '#0036FF', 12)
-                m.add_marker(marker)
-                
-                # *** ADJUSTED ZOOM LEVEL HERE ***
-                image = m.render(zoom=5, center=(final_longitude, final_latitude))
-
-                buffer = io.BytesIO()
-                image.save(buffer, format='PNG')
-                image_bytes = buffer.getvalue()
-
-                encoded_string = base64.b64encode(image_bytes).decode('utf-8')
-                map_image_data_uri = f"data:image/png;base64,{encoded_string}"
-                logger.info(f"{log_prefix}Successfully generated and encoded map image.")
-
-            except Exception as exc:
-                 logger.error(f"{log_prefix}Error generating map image: {exc}", exc_info=True)
+            # Call the image generation utility function
+            combined_map_preview_uri = generate_combined_map_preview(
+                latitude=final_latitude,
+                longitude=final_longitude,
+                city=city,
+                country=country,
+                darkmode=darkmode
+            )
+            if not combined_map_preview_uri:
+                 logger.error(f"{log_prefix}Failed to generate combined map preview image.")
         else:
-             logger.warning(f"{log_prefix}Final coordinates invalid after lookup/validation: lat={final_latitude}, lon={final_longitude}")
+             logger.warning(f"{log_prefix}Final coordinates invalid after lookup/validation: lat={final_latitude}, lon={final_longitude}. Skipping image generation.")
     else:
-        logger.info(f"{log_prefix}No valid coordinates available, skipping map image generation.")
+        logger.info(f"{log_prefix}No valid coordinates available, skipping combined map preview image generation.")
+
 
     # --- Prepare Final Context ---
     context = {
         "device_type_translated": device_type_translated,
         "os_name_translated": os_name_translated,
-        "city": city,
-        "country": country,
+        "city": city, # Keep for mailto link and potentially other uses
+        "country": country, # Keep for mailto link and potentially other uses
         "logout_link": logout_link,
-        "map_image_data_uri": map_image_data_uri,
+        "combined_map_preview_uri": combined_map_preview_uri, # Use the new combined image URI
+        "map_alt_text": map_alt_text, # Add alt text
         "darkmode": darkmode
-        # Add any other necessary variables for the template here
+        # Removed "map_image_data_uri"
     }
 
     logger.info(f"{log_prefix}Finished preparing new device login context.")
