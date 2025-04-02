@@ -111,12 +111,19 @@ async def login(
             logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
             await finalize_login_session(
-                request, # Pass request object
-                response, user, auth_data, cache_service, compliance_service, 
-                directus_service, device_fingerprint, device_location, client_ip
-            )
+                    request=request,
+                    response=response,
+                    user=user,
+                    auth_data=auth_data,
+                    cache_service=cache_service,
+                    compliance_service=compliance_service,
+                    directus_service=directus_service,
+                    device_fingerprint=device_fingerprint,
+                    client_ip=client_ip,
+                    encryption_service=encryption_service
+                )
 
-            # Corrected return statement
+                # Corrected return statement
             return LoginResponse(
                 success=True,
                 message="Login successful",
@@ -186,9 +193,16 @@ async def login(
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
                 await finalize_login_session(
-                    request, # Pass request object
-                    response, user, auth_data, cache_service, compliance_service, 
-                    directus_service, device_fingerprint, device_location, client_ip
+                    request=request,
+                    response=response,
+                    user=user,
+                    auth_data=auth_data,
+                    cache_service=cache_service,
+                    compliance_service=compliance_service,
+                    directus_service=directus_service,
+                    device_fingerprint=device_fingerprint,
+                    client_ip=client_ip,
+                    encryption_service=encryption_service
                 )
                 return LoginResponse(
                     success=True, message="Login successful",
@@ -331,9 +345,16 @@ async def login(
 
                 # Step 5f: Finalize the login session
                 await finalize_login_session(
-                    request, # Pass request object
-                    response, user, auth_data, cache_service, compliance_service, 
-                    directus_service, device_fingerprint, device_location, client_ip
+                    request=request,
+                    response=response,
+                    user=user,
+                    auth_data=auth_data,
+                    cache_service=cache_service,
+                    compliance_service=compliance_service,
+                    directus_service=directus_service,
+                    device_fingerprint=device_fingerprint,
+                    client_ip=client_ip,
+                    encryption_service=encryption_service
                 )
                 
                 # Step 5g: Return success response (Removed backup_code_used and remaining_backup_codes)
@@ -369,8 +390,8 @@ async def finalize_login_session(
     compliance_service: ComplianceService,
     directus_service: DirectusService,
     device_fingerprint: str,
-    # device_location: Optional[str], # Removed: location data now derived from client_ip via get_location_from_ip
-    client_ip: str
+    client_ip: str,
+    encryption_service: EncryptionService # Added encryption service
 ):
     """
     Helper function to perform common session finalization tasks:
@@ -428,25 +449,46 @@ async def finalize_login_session(
                 user_agent_string = request.headers.get("User-Agent", "unknown")
                 # Get language and darkmode preferences from user profile, provide defaults
                 # Ensure these keys exist in the 'user' dict (merged from profile)
-                user_language = user.get("language", "en") 
-                user_darkmode = user.get("darkmode", False) 
+                user_language = user.get("language", "en")
+                user_darkmode = user.get("darkmode", False)
 
-                logger.info(f"Dispatching new device email task for user {user_id[:6]}... with location data.")
-                app.send_task(
-                    name='app.tasks.email_tasks.send_new_device_email',
-                    kwargs={
-                        'user_id': user_id,
-                        'user_agent_string': user_agent_string,
-                        'ip_address': client_ip,
-                        'latitude': latitude,         # Pass explicit latitude (could be None)
-                        'longitude': longitude,       # Pass explicit longitude (could be None)
-                        'location_name': location_name, # Pass location name string
-                        'is_localhost': is_localhost, # Pass localhost flag
-                        'language': user_language,
-                        'darkmode': user_darkmode
-                    },
-                    queue='email' # Ensure it goes to the correct queue
-                )
+                # --- Decrypt email before sending task ---
+                encrypted_email = user.get("encrypted_email_address")
+                vault_key_id = user.get("vault_key_id")
+                decrypted_email = None
+
+                if encrypted_email and vault_key_id:
+                    logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for new device notification.")
+                    try:
+                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                        if not decrypted_email:
+                            logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
+                        else:
+                             logger.info(f"Successfully decrypted email for user {user_id[:6]}...")
+                    except Exception as decrypt_exc:
+                        logger.error(f"Error decrypting email for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                else:
+                    logger.error(f"Cannot send new device email for user {user_id[:6]}...: Missing encrypted_email_address or vault_key_id in user data.")
+
+                # Only send task if email was successfully decrypted
+                if decrypted_email:
+                    logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) with location data.")
+                    app.send_task(
+                        name='app.tasks.email_tasks.send_new_device_email',
+                        kwargs={
+                            # 'user_id': user_id, # Removed user_id
+                            'email_address': decrypted_email, # Pass decrypted email
+                            'user_agent_string': user_agent_string,
+                            'ip_address': client_ip,
+                            'latitude': latitude,         # Pass explicit latitude (could be None)
+                            'longitude': longitude,       # Pass explicit longitude (could be None)
+                            'location_name': location_name, # Pass location name string
+                            'is_localhost': is_localhost, # Pass localhost flag
+                            'language': user_language,
+                            'darkmode': user_darkmode
+                        },
+                        queue='email' # Ensure it goes to the correct queue
+                    )
             except Exception as task_exc:
                 logger.error(f"Failed to dispatch new device email task for user {user_id[:6]}: {task_exc}", exc_info=True)
         

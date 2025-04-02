@@ -131,7 +131,7 @@ async def _async_generate_and_send_verification_email(
 @app.task(name='app.tasks.email_tasks.send_new_device_email', bind=True)
 def send_new_device_email(
     self,
-    user_id: str,
+    email_address: str, # Changed from user_id
     user_agent_string: str,
     # location: Optional[str], # Removed old location string
     ip_address: str, # For logging/context
@@ -145,33 +145,36 @@ def send_new_device_email(
     """
     Celery task wrapper to send a 'new device login' notification email.
     """
-    logger.info(f"Starting new device login email task for user_id: {user_id[:6]}...")
+    # Updated log message to use email address
+    logger.info(f"Starting new device login email task for email: {email_address[:2]}***") 
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        # Pass new location arguments to the async function
+        # Pass new location arguments and email_address to the async function
         result = loop.run_until_complete(_async_send_new_device_email(
-            user_id=user_id, 
-            user_agent_string=user_agent_string, 
-            ip_address=ip_address, 
-            latitude=latitude, 
+            email_address=email_address, # Pass email_address instead of user_id
+            user_agent_string=user_agent_string,
+            ip_address=ip_address,
+            latitude=latitude,
             longitude=longitude, 
             location_name=location_name, # Pass location name
             is_localhost=is_localhost, # Pass localhost flag
-            language=language, 
+            language=language,
             darkmode=darkmode
         ))
-        logger.info(f"New device login email task completed for user_id: {user_id[:6]}...")
+        # Updated log message
+        logger.info(f"New device login email task completed for email: {email_address[:2]}***")
         return result
     except Exception as e:
-        logger.error(f"Failed to run new device login email task for user_id {user_id[:6]}...: {str(e)}", exc_info=True)
+        # Updated log message
+        logger.error(f"Failed to run new device login email task for email {email_address[:2]}...: {str(e)}", exc_info=True)
         return False
     finally:
         loop.close()
 
 async def _async_send_new_device_email(
-    user_id: str,
+    email_address: str, # Changed from user_id
     user_agent_string: str,
     ip_address: str,
     latitude: Optional[float], # Keep explicit coords
@@ -186,54 +189,49 @@ async def _async_send_new_device_email(
     """
     try:
         email_template_service = EmailTemplateService()
-        directus_service = DirectusService() # Need to fetch user email
-
-        # Fetch user email
-        success, user_data, msg = await directus_service.get_user_profile(user_id, fields=['email'])
-        if not success or not user_data or not user_data.get('email'):
-            logger.error(f"Failed to fetch email for user {user_id} for new device notification: {msg}")
-            return False
-
-        account_email = user_data['email']
-        logger.info(f"Fetched email for user {user_id[:6]}...: {account_email[:2]}***")
 
         # --- Prepare Context using Helper Function ---
         try:
+            # Use email_address directly instead of account_email
+            # Remove user_id_for_log as it's no longer available here
             context = await prepare_new_device_login_context(
                 user_agent_string=user_agent_string,
                 ip_address=ip_address, # Still useful for context/debugging
-                account_email=account_email,
+                account_email=email_address, # Use passed email_address
                 language=language,
                 darkmode=darkmode,
                 translation_service=email_template_service.translation_service, # Pass the service instance
                 latitude=latitude, # Pass coord
                 longitude=longitude, # Pass coord
                 location_name=location_name, # Pass location name
-                is_localhost=is_localhost, # Pass localhost flag
-                user_id_for_log=user_id # Pass user ID for logging context
+                is_localhost=is_localhost
             )
         except Exception as context_exc:
-             logger.error(f"Error preparing email context for user {user_id[:6]}...: {context_exc}", exc_info=True)
+             # Updated log message
+             logger.error(f"Error preparing email context for email {email_address[:2]}...: {context_exc}", exc_info=True)
              return False # Fail the task if context preparation fails
 
         # --- Send Email ---
-        logger.info(f"Sending new device login email to {account_email[:2]}*** - lang: {language}")
+        # Updated log message
+        logger.info(f"Sending new device login email to {email_address[:2]}*** - lang: {language}")
 
         success = await email_template_service.send_email(
             template="new-device-login",
-            recipient_email=account_email,
+            recipient_email=email_address,
             context=context,
             lang=language
-            # Subject is derived automatically by EmailTemplateService based on template name + lang
         )
-        
+
         if not success:
-            logger.error(f"Failed to send new device login email for user {user_id[:6]}...")
+            # Updated log message
+            logger.error(f"Failed to send new device login email for email {email_address[:2]}...")
             return False
-            
-        logger.info(f"New device login email sent successfully for user {user_id[:6]}...")
+
+        # Updated log message
+        logger.info(f"New device login email sent successfully for email {email_address[:2]}...")
         return True
-        
+
     except Exception as e:
-        logger.error(f"Error in _async_send_new_device_email task for user {user_id[:6]}...: {str(e)}", exc_info=True)
+        # Updated log message
+        logger.error(f"Error in _async_send_new_device_email task for email {email_address[:2]}...: {str(e)}", exc_info=True)
         return False
