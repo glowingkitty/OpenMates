@@ -2540,9 +2540,34 @@
             "en_original": "Urgent: Unauthorized access to my account",
             "context": "Email subject for account access report"
         },
-        "email_body_someone_accessed_my_account": {
+        "email_body_someone_accessed_my_account_from_new_device": {
             "text": "こんにちは。<br>誰かが私の許可なくアカウントにアクセスしました！<br>詳細は以下の通りです：<br><br>ログイン時刻: {login_time}<br>デバイス: {device_type}<br>オペレーティングシステム: {operating_system}<br>場所: {country}、{city}<br>アカウントメール: {account_email}<br><br>アカウントの保護にご協力ください。<br><br>よろしくお願いいたします。",
             "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Device: {device_type}<br>Operating system: {operating_system}<br>Location: {city}, {country}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
+            "context": "Email body for account access report"
+        },
+        "security_alert_backup_code_was_used": {
+            "text":"セキュリティアラート: バックアップコードが使用されました",
+            "en_original": "Security Alert: Backup code was used",
+            "context": "Email subject for backup code usage for login"
+        },
+        "backup_code_was_used": {
+            "text":"バックアップコード<br>が使用されました",
+            "en_original": "Backup code<br>was used",
+            "context": "Email header for backup code usage for login"
+        },
+        "a_backup_code_was_used": {
+            "text": "バックアップコードが、あなたのメールアドレスとパスワードと共に、アカウントへのログインに正常に使用されました。<br>このコードは現在無効です:",
+            "en_original": "A backup code was used successfully together with your email address and password to login to your account.<br>This code is invalid now:",
+            "context": "Email body for backup code usage for login"
+        },
+        "reset_2fa_info": {
+            "text": "2FAアプリへのアクセスを失いましたか？<br>OpenMatesの設定で2FAをリセットしてください。",
+            "en_original": "Lost access to your 2FA app?<br>Reset 2FA in your OpenMates settings.",
+            "context": "Email body for backup code usage for login"
+        },
+        "email_body_someone_accessed_my_account_backup_code": {
+            "text": "こんにちは。<br>誰かが私の許可なくアカウントにアクセスしました！<br>詳細は以下の通りです：<br><br>ログイン時刻: {login_time}<br>使用されたバックアップコード: {backup_code}<br>アカウントメール: {account_email}<br><br>アカウントの保護にご協力ください。<br><br>よろしくお願いいたします。",
+            "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Backup code used: {backup_code}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
             "context": "Email body for account access report"
         },
         "your_email_address_was_changed": {

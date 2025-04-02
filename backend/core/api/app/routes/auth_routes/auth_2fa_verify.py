@@ -21,6 +21,8 @@ from app.routes.auth_routes.auth_dependencies import (
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
 from app.routes.auth_routes.auth_common import verify_authenticated_user
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
+# Import Celery app instance
+from app.tasks.celery_config import app
 
 # Define router for 2FA verification endpoints
 router = APIRouter(
@@ -130,7 +132,65 @@ async def verify_device_2fa(
             status="success", details={"device_fingerprint": device_fingerprint, "location": device_location}
         )
 
-        # TODO: Send 'New device logged in' email notification
+        # --- Send 'New device logged in' email notification ---
+        try:
+            logger.info(f"Attempting to send new device notification for user {user_id[:6]}...")
+            # Fetch full profile for email and preferences
+            profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+
+            if not profile_success or not user_profile:
+                logger.error(f"Failed to fetch profile for user {user_id[:6]}... to send new device email: {profile_message}")
+                # Don't fail the whole request, just log the error
+            else:
+                encrypted_email = user_profile.get("encrypted_email_address")
+                vault_key_id = user_profile.get("vault_key_id")
+                decrypted_email = None
+
+                if encrypted_email and vault_key_id:
+                    logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for new device notification.")
+                    try:
+                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                        if not decrypted_email:
+                            logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
+                        else:
+                             logger.info(f"Successfully decrypted email for user {user_id[:6]}...")
+                    except Exception as decrypt_exc:
+                        logger.error(f"Error decrypting email for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                else:
+                    logger.error(f"Cannot send new device email for user {user_id[:6]}...: Missing encrypted_email_address or vault_key_id in profile data.")
+
+                # Only send task if email was successfully decrypted
+                if decrypted_email:
+                    user_agent_string = request.headers.get("User-Agent", "unknown")
+                    user_language = user_profile.get("language", "en")
+                    user_darkmode = user_profile.get("darkmode", False)
+                    
+                    # Re-use location data from earlier
+                    location_data = get_location_from_ip(client_ip) # Cached call
+                    latitude = location_data.get("latitude")
+                    longitude = location_data.get("longitude")
+                    location_name = location_data.get("location_string", "unknown")
+                    is_localhost = location_name == "localhost"
+
+                    logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) via device verification flow.")
+                    app.send_task(
+                        name='app.tasks.email_tasks.send_new_device_email',
+                        kwargs={
+                            'email_address': decrypted_email,
+                            'user_agent_string': user_agent_string,
+                            'ip_address': client_ip,
+                            'latitude': latitude,
+                            'longitude': longitude,
+                            'location_name': location_name,
+                            'is_localhost': is_localhost,
+                            'language': user_language,
+                            'darkmode': user_darkmode
+                        },
+                        queue='email'
+                    )
+        except Exception as email_task_exc:
+            logger.error(f"Failed to dispatch new device email task during device verification for user {user_id[:6]}: {email_task_exc}", exc_info=True)
+            # Do not fail the request if email sending fails
 
         return VerifyDevice2FAResponse(success=True, message="Device verified successfully")
 

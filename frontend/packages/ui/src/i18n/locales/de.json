@@ -2540,9 +2540,34 @@
             "en_original": "Urgent: Unauthorized access to my account",
             "context": "Email subject for account access report"
         },
-        "email_body_someone_accessed_my_account": {
+        "email_body_someone_accessed_my_account_from_new_device": {
             "text": "Hallo.<br>Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis!<br>Hier sind die Details:<br><br>Zeitpunkt der Anmeldung: {login_time}<br>Gerät: {device_type}<br>Betriebssystem: {operating_system}<br>Standort: {city}, {country}<br>Konto-E-Mail: {account_email}<br><br>Bitte helfe mir, mein Konto zu sichern.<br><br>Danke.",
             "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Device: {device_type}<br>Operating system: {operating_system}<br>Location: {city}, {country}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
+            "context": "Email body for account access report"
+        },
+        "security_alert_backup_code_was_used": {
+            "text":"Sicherheitswarnung: Backup-Code wurde verwendet",
+            "en_original": "Security Alert: Backup code was used",
+            "context": "Email subject for backup code usage for login"
+        },
+        "backup_code_was_used": {
+            "text":"Backup-Code<br>wurde verwendet",
+            "en_original": "Backup code<br>was used",
+            "context": "Email header for backup code usage for login"
+        },
+        "a_backup_code_was_used": {
+            "text": "Ein Backup-Code wurde zusammen mit deiner E-Mail-Adresse und deinem Passwort erfolgreich verwendet, zum Einloggen in dein Konto.<br>Dieser Code ist jetzt ungültig:",
+            "en_original": "A backup code was used successfully together with your email address and password to login to your account.<br>This code is invalid now:",
+            "context": "Email body for backup code usage for login"
+        },
+        "reset_2fa_info": {
+            "text": "Zugang zu deiner 2FA-App verloren?<br>Setze 2FA in deinen OpenMates Einstellungen zurück.",
+            "en_original": "Lost access to your 2FA app?<br>Reset 2FA in your OpenMates settings.",
+            "context": "Email body for backup code usage for login"
+        },
+        "email_body_someone_accessed_my_account_backup_code": {
+            "text": "Hallo.<br>Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis!<br>Hier sind die Details:<br><br>Zeitpunkt der Anmeldung: {login_time}<br>Verwendeter Backup-Code: {backup_code}<br>Konto-E-Mail: {account_email}<br><br>Bitte helfe mir, mein Konto zu sichern.<br><br>Danke.",
+            "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Backup code used: {backup_code}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
             "context": "Email body for account access report"
         },
         "your_email_address_was_changed": {

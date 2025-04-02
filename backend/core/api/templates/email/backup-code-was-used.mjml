@@ -1,0 +1,114 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.security_alert_backup_code_was_used.text }}</mj-title>
+    <mj-font name="Lexend Deca" href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;700&display=swap" />
+    <mj-attributes>
+      <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+    
+    <mj-style>
+      /* Ensure links within the text are styled correctly */
+      .security-action-text a {
+        color: #3b82f6 !important; /* Match button/highlight color */
+        text-decoration: underline !important;
+      }
+      .dark-mode .security-action-text a {
+         color: #60a5fa !important; /* Lighter blue for dark mode */
+      }
+    </mj-style>
+
+  </mj-head>
+  <mj-body css-class="{% if darkmode == False %}light-mode{% else %}dark-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+    
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <!-- Security Alert Section -->
+      <mj-section padding-top="5px" padding-bottom="15px"> <!-- Reduced top padding -->
+        <mj-column>
+          <!-- Warning Icon -->
+          <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" padding-bottom="5px" align="center" />
+          <!-- Security Alert Text -->
+          <mj-text align="center" color="#8D8D8D" font-size="16px" padding="0">
+            {{ t.email.security_alert.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      <!-- Original Content Section -->
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <!-- Laptop Icon -->
+          <mj-image width="50px" height="50px" src="icons/2fa.png" align="center" /> 
+          <!-- Heading -->
+          <mj-text font-size="30px" color="#3b82f6"> <!-- Blue color like image -->
+            <mark>{{ t.email.backup_code_was_used.text }}</mark>
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="20px">
+            {{ t.email.a_backup_code_was_used.text }} 
+          </mj-text>
+          <!-- REMOVED the code container group from here -->
+        </mj-column>
+      </mj-section>
+
+      <!-- Code Container Section -->
+      {% if darkmode %}
+      <mj-section css-class="code-container" padding="0 20px 10px 20px" background-color="#171717" border-radius="24px">
+          <mj-group css-class="code-container-inner" width="100%">
+              <mj-column width="30%" vertical-align="middle" css-class="code-icon">
+                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+              </mj-column>
+              <mj-column width="70%" vertical-align="middle" css-class="code-text">
+                <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
+                  {{ code }}
+                </mj-text>
+              </mj-column>
+          </mj-group>
+      </mj-section>
+      {% else %}
+      <mj-section css-class="code-container" padding="0 20px 10px 20px" background-color="#ffffff" border-radius="24px">
+          <mj-group css-class="code-container-inner" width="100%">
+              <mj-column width="30%" vertical-align="middle" css-class="code-icon">
+                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+              </mj-column>
+              <mj-column width="70%" vertical-align="middle" css-class="code-text">
+                <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
+                  {{ code }}
+                </mj-text>
+              </mj-column>
+          </mj-group>
+      </mj-section>
+      {% endif %}
+
+      <!-- Reset 2FA Info Section -->
+      <mj-section padding="10px 20px 10px 20px">
+        <mj-column>
+          <mj-text font-size="16px" padding-bottom="20px">
+            {{ t.email.reset_2fa_info.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      
+      <!-- Security Action Section -->
+      <mj-section padding="0px 20px 0px 20px">
+        <mj-column>
+          <!-- Security Action - Embed mailto link within this text -->
+          <mj-text css-class="security-action-text" font-size="16px" padding-bottom="40px">
+            {{ t.email.if_this_wasnt_you_react.text | replace('{logout_link}', logout_link) }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

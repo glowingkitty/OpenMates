@@ -21,6 +21,61 @@ from .image_generation import generate_combined_map_preview # Import the new uti
 logger = logging.getLogger(__name__)
 logger.addFilter(SensitiveDataFilter()) # Apply filter
 
+
+async def generate_report_access_mailto_link(
+    translation_service: TranslationService,
+    language: str,
+    account_email: str,
+    report_type: str, # e.g., 'new_device', 'backup_code'
+    details: Dict[str, Any] # Contains specific info like login_time, device_type, anonymized_code etc.
+) -> str:
+    """
+    Generates a mailto link for reporting unauthorized account access.
+    """
+    logger.debug(f"Generating report access mailto link for type: {report_type}")
+    try:
+        # Common subject
+        subject_key = "email.email_subject_someone_accessed_my_account.text"
+        mailto_subject_template = translation_service.get_nested_translation(subject_key, language, {})
+
+        # Select body template based on report type
+        if report_type == 'new_device':
+            body_key = "email.email_body_someone_accessed_my_account_from_new_device.text"
+        elif report_type == 'backup_code':
+            body_key = "email.email_body_someone_accessed_my_account_backup_code.text"
+        else:
+            logger.error(f"Unsupported report_type '{report_type}' for mailto link generation.")
+            return "" # Return empty string or raise error
+
+        mailto_body_template = translation_service.get_nested_translation(body_key, language, {})
+
+        # Ensure all required details for the specific template are present
+        # (Add checks here if necessary based on template placeholders)
+        details['account_email'] = account_email # Ensure account email is always in details
+
+        # Format the body using the provided details
+        # Use .get() for optional placeholders to avoid KeyError if details are missing
+        mailto_body_formatted = mailto_body_template.format(**details)
+
+        # URL-encode subject and body
+        mailto_subject_encoded = quote_plus(mailto_subject_template)
+        mailto_body_encoded = quote_plus(mailto_body_formatted)
+        
+        # Get support email and construct the link
+        support_email = os.getenv("SUPPORT_EMAIL", "support@openmates.org")
+        mailto_link = f"mailto:{support_email}?subject={mailto_subject_encoded}&body={mailto_body_encoded}"
+        
+        logger.debug(f"Successfully generated mailto link for type: {report_type}")
+        return mailto_link
+        
+    except KeyError as e:
+         logger.error(f"Missing key '{e}' in details for mailto body template (type: {report_type}). Details: {details}", exc_info=True)
+         return "" # Return empty string on formatting error
+    except Exception as e:
+        logger.error(f"Error generating mailto link (type: {report_type}): {e}", exc_info=True)
+        return "" # Return empty string on other errors
+
+
 async def prepare_new_device_login_context(
     user_agent_string: str,
     ip_address: str,
@@ -111,7 +166,7 @@ async def prepare_new_device_login_context(
     # --- Mailto Link Generation ---
     login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
     mailto_subject_template = translation_service.get_nested_translation("email.email_subject_someone_accessed_my_account.text", language, {})
-    mailto_body_template = translation_service.get_nested_translation("email.email_body_someone_accessed_my_account.text", language, {})
+    mailto_body_template = translation_service.get_nested_translation("email.email_body_someone_accessed_my_account_from_new_device.text", language, {})
 
     mailto_body_formatted = mailto_body_template.format(
         login_time=login_time,
@@ -122,10 +177,25 @@ async def prepare_new_device_login_context(
         account_email=account_email
     )
 
-    mailto_subject_encoded = quote_plus(mailto_subject_template)
-    mailto_body_encoded = quote_plus(mailto_body_formatted)
-    support_email = os.getenv("SUPPORT_EMAIL", "support@openmates.org")
-    logout_link = f"mailto:{support_email}?subject={mailto_subject_encoded}&body={mailto_body_encoded}"
+    # --- Mailto Link Generation (using new helper) ---
+    login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC") # Keep time generation here
+    
+    report_details = {
+        "login_time": login_time,
+        "device_type": device_type_translated,
+        "operating_system": os_name_translated,
+        "city": city,
+        "country": country
+        # account_email will be added by the helper
+    }
+    
+    logout_link = await generate_report_access_mailto_link(
+        translation_service=translation_service,
+        language=language,
+        account_email=account_email,
+        report_type='new_device',
+        details=report_details
+    )
 
     # --- Combined Map Preview Image Generation ---
     combined_map_preview_uri = None

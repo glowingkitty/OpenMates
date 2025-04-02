@@ -5,7 +5,7 @@ import os
 import base64
 import io # Added
 # httpx no longer needed here for map image
-from datetime import datetime
+from datetime import datetime, timezone # Added timezone
 from urllib.parse import quote_plus
 import user_agents
 from typing import Optional
@@ -13,7 +13,8 @@ from staticmap import StaticMap, CircleMarker # Added
 
 from app.services.email_template import EmailTemplateService
 from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
-from app.utils.email_context_helpers import prepare_new_device_login_context # Import the new helper
+# Import both helpers now
+from app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
 
 router = APIRouter(prefix="/v1/email", tags=["email"])
 logger = logging.getLogger(__name__)
@@ -165,4 +166,55 @@ async def preview_new_device_login(
     except Exception as e:
         # Catch potential errors during context preparation or rendering
         logger.error(f"Preview Error: Failed to prepare/render new-device-login: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/backup-code-used", response_class=HTMLResponse)
+async def preview_backup_code_used(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    code: str = Query("ABCD-0123-****", description="Anonymized backup code used"),
+    account_email: str = Query("preview@example.com", description="Account email address for mailto link") # Added account_email query param
+):
+    """
+    Preview the backup code used email template.
+    Generates the mailto link dynamically for the preview.
+    """
+    try:
+        # Instantiate service locally for this preview endpoint
+        local_email_template_service = EmailTemplateService()
+        local_translation_service = local_email_template_service.translation_service
+
+        # Prepare details for the mailto link helper
+        login_time_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
+        report_details = {
+            "login_time": login_time_str,
+            "backup_code": code # Use the code from query param
+        }
+
+        # Generate the mailto link using the helper
+        logout_link = await generate_report_access_mailto_link(
+            translation_service=local_translation_service,
+            language=lang,
+            account_email=account_email, # Use email from query param
+            report_type='backup_code',
+            details=report_details
+        )
+
+        if not logout_link:
+             logger.error("Failed to generate mailto link for backup code used")
+             raise HTTPException(status_code=500, detail="Failed to generate mailto link")
+
+        # Call the main rendering helper
+        return await _process_email_template(
+            request=request,
+            template_name="backup-code-was-used",
+            lang=lang,
+            code=code, # Pass the code for display in the template
+            logout_link=logout_link # Pass the generated mailto link
+            # darkmode is handled by _process_email_template
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render backup-code-used: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")

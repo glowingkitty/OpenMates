@@ -2550,9 +2550,34 @@
             "en_original": "Urgent: Unauthorized access to my account",
             "context": "Email subject for account access report"
         },
-        "email_body_someone_accessed_my_account": {
+        "email_body_someone_accessed_my_account_from_new_device": {
             "text": "您好。<br>有人在未经我许可的情况下访问了我的账户！<br>以下是详细信息：<br><br>登录时间：{login_time}<br>设备：{device_type}<br>操作系统：{operating_system}<br>位置：{city}，{country}<br>账户邮箱：{account_email}<br><br>请帮助我保护我的账户。<br><br>谢谢。",
             "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Device: {device_type}<br>Operating system: {operating_system}<br>Location: {city}, {country}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
+            "context": "Email body for account access report"
+        },
+        "security_alert_backup_code_was_used": {
+            "text":"安全警报：已使用备用码",
+            "en_original": "Security Alert: Backup code was used",
+            "context": "Email subject for backup code usage for login"
+        },
+        "backup_code_was_used": {
+            "text":"已使用<br>备用码",
+            "en_original": "Backup code<br>was used",
+            "context": "Email header for backup code usage for login"
+        },
+        "a_backup_code_was_used": {
+            "text": "一个备用码已与您的电子邮件地址和密码一起成功用于登录您的账户。<br>此码现已失效：",
+            "en_original": "A backup code was used successfully together with your email address and password to login to your account.<br>This code is invalid now:",
+            "context": "Email body for backup code usage for login"
+        },
+        "reset_2fa_info": {
+            "text": "失去对您双重认证应用的访问权限？<br>在您的OpenMates设置中重置双重认证。",
+            "en_original": "Lost access to your 2FA app?<br>Reset 2FA in your OpenMates settings.",
+            "context": "Email body for backup code usage for login"
+        },
+        "email_body_someone_accessed_my_account_backup_code": {
+            "text": "您好。<br>有人在未经我许可的情况下访问了我的账户！<br>以下是详细信息：<br><br>登录时间：{login_time}<br>使用的备用码：{backup_code}<br>账户邮箱：{account_email}<br><br>请帮助我保护我的账户。<br><br>谢谢。",
+            "en_original": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Backup code used: {backup_code}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
             "context": "Email body for account access report"
         },
         "your_email_address_was_changed": {

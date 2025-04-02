@@ -332,6 +332,55 @@ async def login(
                 logger.info(f"Successfully updated backup codes in Directus for user {user_id}.")
 
                 # --- Verification Complete ---
+                
+                # Step 5d: Send Backup Code Used Email Notification
+                try:
+                    # Anonymize the code (assuming format XXXX-XXXX-XXXX)
+                    original_code = login_data.tfa_code
+                    if len(original_code) == 14 and original_code[4] == '-' and original_code[9] == '-':
+                         anonymized_code = f"{original_code[:10]}****"
+                    else:
+                         # Fallback if format is unexpected (log warning)
+                         logger.warning(f"Backup code format unexpected for anonymization: '{original_code[:1]}***'. Using full code for anonymization fallback.")
+                         anonymized_code = f"{original_code[:-4]}****" if len(original_code) > 4 else "****"
+
+                    # Decrypt email address
+                    encrypted_email = user.get("encrypted_email_address")
+                    vault_key_id = user.get("vault_key_id")
+                    decrypted_email = None
+                    if encrypted_email and vault_key_id:
+                        logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for backup code used notification.")
+                        try:
+                            decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                            if not decrypted_email:
+                                logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
+                            else:
+                                logger.info(f"Successfully decrypted email for user {user_id[:6]}...")
+                        except Exception as decrypt_exc:
+                            logger.error(f"Error decrypting email for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                    else:
+                        logger.error(f"Cannot send backup code used email for user {user_id[:6]}...: Missing encrypted_email_address or vault_key_id.")
+
+                    # Get preferences
+                    user_language = user.get("language", "en")
+                    user_darkmode = user.get("darkmode", False)
+
+                    # Dispatch task if email was decrypted
+                    if decrypted_email:
+                        logger.info(f"Dispatching backup code used email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***)")
+                        app.send_task(
+                            name='app.tasks.email_tasks.send_backup_code_used_email',
+                            kwargs={
+                                'email_address': decrypted_email,
+                                'anonymized_code': anonymized_code,
+                                'language': user_language,
+                                'darkmode': user_darkmode
+                            },
+                            queue='email'
+                        )
+                except Exception as email_task_exc:
+                     logger.error(f"Failed to dispatch backup code used email task for user {user_id[:6]}: {email_task_exc}", exc_info=True)
+                     # Log error but continue with login finalization
 
                 # Step 5e: Log successful backup code use (Removed remaining count from details)
                 compliance_service.log_auth_event(
