@@ -61,26 +61,26 @@
 
       <!-- Code Container Section -->
       {% if darkmode %}
-      <mj-section css-class="code-container" padding="0 20px 10px 20px" background-color="#171717" border-radius="24px">
+      <mj-section css-class="code-container-large" padding="0 20px 10px 20px" background-color="#171717" border-radius="24px">
           <mj-group css-class="code-container-inner" width="100%">
-              <mj-column width="30%" vertical-align="middle" css-class="code-icon">
-                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+              <mj-column width="25%" vertical-align="middle" css-class="code-icon">
+                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="0px" />
               </mj-column>
-              <mj-column width="70%" vertical-align="middle" css-class="code-text">
-                <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
+              <mj-column width="75%" vertical-align="middle" css-class="code-text">
+                <mj-text font-size="22px" font-weight="regular" align="center" padding-right="40px">
                   {{ code }}
                 </mj-text>
               </mj-column>
           </mj-group>
       </mj-section>
       {% else %}
-      <mj-section css-class="code-container" padding="0 20px 10px 20px" background-color="#ffffff" border-radius="24px">
+      <mj-section css-class="code-container-large" padding="0 20px 10px 20px" background-color="#ffffff" border-radius="24px">
           <mj-group css-class="code-container-inner" width="100%">
-              <mj-column width="30%" vertical-align="middle" css-class="code-icon">
-                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+              <mj-column width="25%" vertical-align="middle" css-class="code-icon">
+                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="0px" />
               </mj-column>
-              <mj-column width="70%" vertical-align="middle" css-class="code-text">
-                <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
+              <mj-column width="75%" vertical-align="middle" css-class="code-text">
+                <mj-text font-size="22px" font-weight="regular" align="center" padding-right="40px">
                   {{ code }}
                 </mj-text>
               </mj-column>

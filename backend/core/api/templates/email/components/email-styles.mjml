@@ -41,7 +41,20 @@
       background-color: #f3f3f3 !important;
   }
 
+  .code-container-large {
+      width: 370px !important;
+      max-width: 370px;
+      margin: 0 auto;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.25) !important;
+      border-radius: 24px !important;
+      background-color: #f3f3f3 !important;
+  }
+
   .dark-mode .code-container {
+      background-color: #212121 !important;
+  }
+
+  .dark-mode .code-container-large {
       background-color: #212121 !important;
   }
 
@@ -51,6 +64,15 @@
     .code-container tbody,
     .code-container tr,
     .code-container td {
+      width: 100% !important;
+      display: block !important;
+      box-sizing: border-box !important;
+    }
+
+    .code-container-large table,
+    .code-container-large tbody,
+    .code-container-large tr,
+    .code-container-large td {
       width: 100% !important;
       display: block !important;
       box-sizing: border-box !important;
