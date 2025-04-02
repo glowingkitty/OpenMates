@@ -36,21 +36,7 @@
 
         initializeTheme();
 
-        // Initialize i18n
-        if (browser) {
-            const savedLocale = localStorage.getItem('preferredLanguage');
-            if (savedLocale && isValidLocale(savedLocale)) {
-                locale.set(savedLocale);
-            } else {
-                const browserLang = navigator.language.split('-')[0];
-                locale.set(isValidLocale(browserLang) ? browserLang : 'en');
-            }
-        }
-
-        // Wait for translations to be ready
-        await waitLocale();
-
-        // Load meta tags after translations are ready
+        // Load meta tags after translations are ready (i18n setup happens elsewhere)
         await loadMetaTags();
     });
 
@@ -76,15 +62,7 @@
         document.documentElement.setAttribute('data-theme', $theme);
     }
 
-    // Set initial language based on browser preference or stored setting
-    $: if (browser) {
-        const browserLang = navigator.language.split('-')[0].toLowerCase();
-        if (isValidLocale(browserLang)) {
-            $locale = browserLang;
-        } else {
-            $locale = 'en'; // fallback to English
-        }
-    }
+    // Removed reactive block setting $locale
 </script>
 
 {#if loaded}

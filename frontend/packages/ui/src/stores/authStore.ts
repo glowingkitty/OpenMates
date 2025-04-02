@@ -94,7 +94,6 @@ function createAuthStore() {
                 last_opened: null,
                 consent_privacy_and_apps_default_settings: false,
                 consent_mates_default_settings: false,
-                language: defaultProfile.language, // Reset language
                 darkmode: defaultProfile.darkmode // Reset darkmode
             });
             return false; // Indicate not fully authenticated
@@ -148,7 +147,6 @@ function createAuthStore() {
               credits: data.user.credits,
               is_admin: data.user.is_admin,                 // Corrected: camelCase
               last_opened: data.user.last_opened,
-              // Pass consent flags
               consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
               consent_mates_default_settings: consent_mates_default_settings,
               language: userLanguage, // Add language
@@ -178,9 +176,7 @@ function createAuthStore() {
                 is_admin: false,
                 last_opened: null,
                 consent_privacy_and_apps_default_settings: false,
-                consent_mates_default_settings: false,
-                language: defaultProfile.language, // Reset language
-                darkmode: defaultProfile.darkmode // Reset darkmode
+                consent_mates_default_settings: false
             });
           return false; // Indicate not authenticated
         }
@@ -204,10 +200,8 @@ function createAuthStore() {
             is_admin: false,
             last_opened: null,
             consent_privacy_and_apps_default_settings: false,
-            consent_mates_default_settings: false,
-            language: defaultProfile.language, // Reset language
-            darkmode: defaultProfile.darkmode // Reset darkmode
-        });
+            consent_mates_default_settings: false
+            });
         return false; // Indicate not authenticated
       } finally {
         // Always set isCheckingAuth to false when done
@@ -493,8 +487,18 @@ function createAuthStore() {
           console.error("Failed to clear user data from database:", dbError);
         }
 
-        // Reset user profile store IN MEMORY to defaults
-        userProfile.set(defaultProfile); 
+        // Reset user profile store IN MEMORY to defaults, EXCEPT language
+        updateProfile({
+            username: defaultProfile.username,
+            profile_image_url: defaultProfile.profile_image_url,
+            credits: defaultProfile.credits,
+            is_admin: defaultProfile.is_admin,
+            last_opened: defaultProfile.last_opened,
+            tfa_app_name: defaultProfile.tfa_app_name,
+            tfa_enabled: defaultProfile.tfa_enabled,
+            consent_privacy_and_apps_default_settings: defaultProfile.consent_privacy_and_apps_default_settings,
+            consent_mates_default_settings: defaultProfile.consent_mates_default_settings
+        });
         
         // Reset temporary processed image URL
         processedImageUrl.set(null);
@@ -531,8 +535,18 @@ function createAuthStore() {
           await callbacks?.onError(error);
         }
 
-        // Reset user profile store IN MEMORY to defaults even on error
-        userProfile.set(defaultProfile);
+        // Reset user profile store IN MEMORY to defaults even on error, EXCEPT language
+        updateProfile({
+            username: defaultProfile.username,
+            profile_image_url: defaultProfile.profile_image_url,
+            credits: defaultProfile.credits,
+            is_admin: defaultProfile.is_admin,
+            last_opened: defaultProfile.last_opened,
+            tfa_app_name: defaultProfile.tfa_app_name,
+            tfa_enabled: defaultProfile.tfa_enabled,
+            consent_privacy_and_apps_default_settings: defaultProfile.consent_privacy_and_apps_default_settings,
+            consent_mates_default_settings: defaultProfile.consent_mates_default_settings
+        });
 
         // Reset temporary processed image URL even on error
         processedImageUrl.set(null);
