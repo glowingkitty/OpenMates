@@ -15,6 +15,10 @@ directus_users:
       length: 256
       note: "Timestamp of the last time the user was online"
 
+    darkmode:
+      type: boolean
+      note: "Is dark mode enabled?"
+
     encrypted_email_address:
       type: string
       length: 512

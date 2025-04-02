@@ -28,11 +28,12 @@ async def request_confirm_email_code(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    signup_invite_code: Optional[str] = Cookie(None)
+    signup_invite_code: Optional[str] = Cookie(None),
+    # Add language and darkmode cookies here if needed, though they are set below
 ):
     """
     Generate and send a 6-digit confirmation code to the provided email.
-    Store signup information in secure HTTP-only cookies.
+    Store signup information, including language and darkmode, in secure HTTP-only cookies.
     """
     try:
         # Use invite code from cookie if available, otherwise from request
@@ -123,9 +124,29 @@ async def request_confirm_email_code(
                 httponly=True,
                 secure=True,
                 samesite="strict",
-                max_age=3600
-            )
-        
+            max_age=3600
+        )
+
+        # Set language cookie
+        response.set_cookie(
+            key="signup_language",
+            value=email_request.language or "en", # Default to 'en' if not provided
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=3600
+        )
+
+        # Set darkmode cookie (ensure it's a string 'true' or 'false')
+        response.set_cookie(
+            key="signup_darkmode",
+            value=str(email_request.darkmode).lower(), # Store as 'true' or 'false'
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=3600
+        )
+
         # Send the task with explicit task name
         task = celery_app.send_task(
             name='app.tasks.email_tasks.generate_and_send_verification_email',
@@ -167,7 +188,9 @@ async def check_confirm_email_code(
     signup_invite_code: Optional[str] = Cookie(None),
     signup_email: Optional[str] = Cookie(None),
     signup_username: Optional[str] = Cookie(None),
-    signup_password: Optional[str] = Cookie(None)
+    signup_password: Optional[str] = Cookie(None),
+    signup_language: Optional[str] = Cookie(None), # Read language cookie
+    signup_darkmode: Optional[str] = Cookie(None)  # Read darkmode cookie (as string)
 ):
     """
     Verify the 6-digit confirmation code for the provided email.
@@ -204,9 +227,11 @@ async def check_confirm_email_code(
             response.delete_cookie(key="signup_email")
             response.delete_cookie(key="signup_username")
             response.delete_cookie(key="signup_password")
-            
+            response.delete_cookie(key="signup_language") # Clear language cookie
+            response.delete_cookie(key="signup_darkmode") # Clear darkmode cookie
+
             return CheckEmailCodeResponse(
-                success=False, 
+                success=False,
                 message="Invalid invite code. Please go back and start again."
             )
 
@@ -268,7 +293,9 @@ async def check_confirm_email_code(
             response.delete_cookie(key="signup_email")
             response.delete_cookie(key="signup_username")
             response.delete_cookie(key="signup_password")
-            
+            response.delete_cookie(key="signup_language") # Clear language cookie
+            response.delete_cookie(key="signup_darkmode") # Clear darkmode cookie
+
             return CheckEmailCodeResponse(
                 success=False,
                 message="This email is already registered. Please log in instead."
@@ -278,11 +305,18 @@ async def check_confirm_email_code(
         device_fingerprint = get_device_fingerprint(request)
         client_ip = get_client_ip(request)
         device_location = get_location_from_ip(client_ip)
-        
-        # Create the user account with device information
+
+        # Get language and darkmode from cookies, providing defaults
+        language = signup_language or "en"
+        # Convert stored string ('true'/'false') back to boolean, default to False
+        darkmode = signup_darkmode == 'true'
+
+        # Create the user account with device information, language, and darkmode
         success, user_data, create_message = await directus_service.create_user(
             username=signup_username,
             email=email,
+            language=language, # Pass language
+            darkmode=darkmode, # Pass darkmode
             password=signup_password,
             is_admin=is_admin,
             role=role,
@@ -378,12 +412,14 @@ async def check_confirm_email_code(
                     "credits": 0,
                     "profile_image_url": None, # Assuming profile image is not set on creation
                     "last_opened": "/signup/step-3",
+                    "language": language, # Add language to cache
+                    "darkmode": darkmode, # Add darkmode to cache
                     # Use vault_key_id from the user_data returned by create_user
                     "vault_key_id": user_data["vault_key_id"],
-                    "token_expiry": int(time.time()) + 86400
+                    "token_expiry": int(time.time()) + 86400 # Use default TTL from CacheService
                 }
 
-                # Use set_user to cache both session and user data
+                # Use set_user to cache both session and user data (using default TTL)
                 await cache_service.set_user(user_data=cached_data, user_id=user_id, refresh_token=refresh_token, ttl=86400)
                 logger.info("Session and user data cached successfully")
 
@@ -391,11 +427,14 @@ async def check_confirm_email_code(
         event_logger.info(f"User logged in - ID: {user_id}")
         
         # Clear signup cookies now that we've created & logged in the user
+        # Clear signup cookies now that we've created & logged in the user
         response.delete_cookie(key="signup_invite_code")
         response.delete_cookie(key="signup_email")
         response.delete_cookie(key="signup_username")
         response.delete_cookie(key="signup_password")
-        
+        response.delete_cookie(key="signup_language") # Clear language cookie
+        response.delete_cookie(key="signup_darkmode") # Clear darkmode cookie
+
         # Return success with user information
         return CheckEmailCodeResponse(
             success=True,
