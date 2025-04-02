@@ -14,3 +14,5 @@ class User(BaseModel):
     # Consent fields (store timestamp as string)
     consent_privacy_and_apps_default_settings: Optional[str] = None
     consent_mates_default_settings: Optional[str] = None
+    language: Optional[str] = 'en' # User's preferred language, default 'en'
+    darkmode: bool = False # User's dark mode preference, default false

@@ -11,7 +11,9 @@ class UserResponse(BaseModel):
     tfa_enabled: bool
     consent_privacy_and_apps_default_settings: bool = False
     consent_mates_default_settings: bool = False
-    
+    language: Optional[str] = 'en' # User's preferred language
+    darkmode: bool = False # User's dark mode preference
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -24,6 +26,8 @@ class UserResponse(BaseModel):
                 "tfa_enabled": True, # Added example value
                 # Add examples for consent flags
                 "consent_privacy_and_apps_default_settings": True,
-                "consent_mates_default_settings": False
+                "consent_mates_default_settings": False,
+                "language": "de", # Added example value
+                "darkmode": True # Added example value
             }
         }

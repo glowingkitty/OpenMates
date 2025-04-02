@@ -49,6 +49,8 @@ export const apiEndpoints = {
             update_profile_image:   '/v1/settings/user/update_profile_image',   // Update profile image of user
             consent_privacy_apps:   '/v1/settings/user/consent/privacy-apps',   // Record consent for privacy/apps settings
             consent_mates:          '/v1/settings/user/consent/mates',          // Record consent for mates settings
+            language:               '/v1/settings/user/language',               // Update user language
+            darkmode:               '/v1/settings/user/darkmode',               // Update user dark mode preference
         },
         software_update: {
             check:                  '/v1/settings/software_update/check',       // Check for software updates

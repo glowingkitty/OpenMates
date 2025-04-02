@@ -15,6 +15,7 @@ from app.services.image_safety import ImageSafetyService
 from app.services.s3 import S3UploadService
 from app.services.compliance import ComplianceService
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
+from app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest # Import request models
 
 router = APIRouter(prefix="/v1/settings")
 logger = logging.getLogger(__name__)
@@ -50,6 +51,8 @@ async def get_current_user(
             vault_key_id=cached_data.get("vault_key_id"),
             consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
             consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
+            language=cached_data.get("language", 'en'), # Add language from cache
+            darkmode=cached_data.get("darkmode", False) # Add darkmode from cache
         )
     
     # If no cache hit, validate token and get user data
@@ -81,6 +84,8 @@ async def get_current_user(
         tfa_app_name=user_data.get("tfa_app_name"), # Include tfa_app_name from User model
         consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
         consent_mates_default_settings=user_data.get("consent_mates_default_settings"), # Include consent timestamps from the User model
+        language=user_data.get("language", 'en'), # Add language from fetched data
+        darkmode=user_data.get("darkmode", False) # Add darkmode from fetched data
     )
     
     # Cache the user data for future requests using the enhanced cache service method
@@ -98,7 +103,9 @@ async def get_current_user(
         "consent_privacy_and_apps_default_settings": user.consent_privacy_and_apps_default_settings,
         "consent_mates_default_settings": user.consent_mates_default_settings,
         # Determine tfa_enabled based on whether encrypted_tfa_secret exists in the raw user_data
-        "tfa_enabled": bool(user_data.get("encrypted_tfa_secret")) if user_data else False
+        "tfa_enabled": bool(user_data.get("encrypted_tfa_secret")) if user_data else False,
+        "language": user.language, # Add language to cache
+        "darkmode": user.darkmode # Add darkmode to cache
     }
     
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
@@ -304,6 +311,82 @@ async def record_privacy_apps_consent(
         logger.error(f"Error recording privacy/apps consent for user {user_id}: {str(e)}")
         # NO compliance log for failure
         raise HTTPException(status_code=500, detail="An error occurred while saving consent")
+
+# --- Endpoint for updating user language ---
+@router.post("/user/language", response_model=SimpleSuccessResponse)
+async def update_user_language(
+    request_data: LanguageUpdateRequest, # Use Pydantic model for request body validation
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """Updates the user's preferred language setting."""
+    user_id = current_user.id
+    new_language = request_data.language
+    logger.info(f"Updating language for user {user_id} to {new_language}")
+
+    # Basic validation (could add check against allowed languages if needed)
+    if not new_language or len(new_language) > 10: # Simple length check
+        raise HTTPException(status_code=400, detail="Invalid language code provided")
+
+    update_data = {"language": new_language}
+
+    try:
+        # Update Directus
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            logger.error(f"Failed to update Directus for language setting for user {user_id}")
+            raise HTTPException(status_code=500, detail="Failed to save language setting")
+
+        # Update Cache
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+            logger.warning(f"Failed to update cache for user {user_id} after language update, but Directus was updated.")
+        else:
+            logger.info(f"Successfully updated cache for user {user_id} after language update.")
+
+        return SimpleSuccessResponse(success=True, message="Language setting updated successfully")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating language for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while updating language setting")
+
+# --- Endpoint for updating user dark mode preference ---
+@router.post("/user/darkmode", response_model=SimpleSuccessResponse)
+async def update_user_darkmode(
+    request_data: DarkModeUpdateRequest, # Use Pydantic model for request body validation
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """Updates the user's dark mode preference."""
+    user_id = current_user.id
+    new_darkmode_status = request_data.darkmode
+    logger.info(f"Updating dark mode for user {user_id} to {new_darkmode_status}")
+
+    update_data = {"darkmode": new_darkmode_status}
+
+    try:
+        # Update Directus and Cache (similar pattern to language update)
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            raise HTTPException(status_code=500, detail="Failed to save dark mode setting")
+
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+            logger.warning(f"Failed to update cache for user {user_id} after dark mode update, but Directus was updated.")
+        else:
+            logger.info(f"Successfully updated cache for user {user_id} after dark mode update.")
+
+        return SimpleSuccessResponse(success=True, message="Dark mode setting updated successfully")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating dark mode for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while updating dark mode setting")
 
 # --- Endpoint for Mates Settings Consent ---
 @router.post("/user/consent/mates", response_model=SimpleSuccessResponse)

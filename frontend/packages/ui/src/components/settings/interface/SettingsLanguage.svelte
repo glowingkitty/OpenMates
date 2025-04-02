@@ -18,6 +18,7 @@ changes to the documentation (to keep the documentation up to date).
     import { loadMetaTags, getMetaTags } from '../../../config/meta';
     import { createEventDispatcher, onMount } from 'svelte';
     import { settingsNavigationStore, updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
+    import { getApiUrl, apiEndpoints } from '../../../config/api'; // Import API config
 
     const dispatch = createEventDispatcher();
 
@@ -162,6 +163,30 @@ changes to the documentation (to keep the documentation up to date).
                     window.dispatchEvent(new CustomEvent('language-changed-complete'));
                 }, 50);
             }, 0);
+
+            // --- Call API to save preference (Moved to the end of the try block) ---
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.settings.user.language, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ language: newLocale }),
+                    credentials: 'include' // Important for sending auth cookies
+                });
+                if (!response.ok) {
+                    console.error('Failed to update language setting on server:', response.statusText);
+                    // Optional: Add user feedback about the failure
+                } else {
+                    console.debug('Language preference saved to server successfully.');
+                }
+            } catch (apiError) {
+                console.error('Error sending language setting to server:', apiError);
+                // Optional: Add user feedback about the failure
+            }
+            // --- End API Call ---
+
         } catch (error) {
             console.error('Error changing language:', error);
             // Revert to previous language on error

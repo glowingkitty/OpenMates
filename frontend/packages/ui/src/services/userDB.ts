@@ -62,6 +62,9 @@ class UserDatabaseService {
              // Use boolean flags from backend
              store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
              store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
+             // Add language and darkmode
+             store.put(userData.language || 'en', 'language');
+             store.put(!!userData.darkmode, 'darkmode');
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -98,6 +101,9 @@ class UserDatabaseService {
               // Add requests for boolean consent flags
               const consentPrivacyRequest = store.get('consent_privacy_and_apps_default_settings');
               const consentMatesRequest = store.get('consent_mates_default_settings');
+              // Add requests for language and darkmode
+              const languageRequest = store.get('language');
+              const darkmodeRequest = store.get('darkmode');
               
               let profile: UserProfile = {
                   username: '',
@@ -109,7 +115,9 @@ class UserDatabaseService {
                   tfa_enabled: false, // Initialize tfa_enabled
                   // Initialize boolean flags
                   consent_privacy_and_apps_default_settings: false,
-                  consent_mates_default_settings: false
+                  consent_mates_default_settings: false,
+                  language: 'en', // Initialize language
+                  darkmode: false // Initialize darkmode
               };
 
               usernameRequest.onsuccess = () => {
@@ -146,6 +154,14 @@ class UserDatabaseService {
               };
               consentMatesRequest.onsuccess = () => {
                   profile.consent_mates_default_settings = !!consentMatesRequest.result;
+              };
+
+              // Handle language and darkmode retrieval
+              languageRequest.onsuccess = () => {
+                  profile.language = languageRequest.result || 'en';
+              };
+              darkmodeRequest.onsuccess = () => {
+                  profile.darkmode = !!darkmodeRequest.result;
               };
 
               transaction.oncomplete = () => {
@@ -333,6 +349,13 @@ class UserDatabaseService {
              }
              if (partialData.consent_mates_default_settings !== undefined) {
                  store.put(!!partialData.consent_mates_default_settings, 'consent_mates_default_settings');
+             }
+             // Add explicit handling for language and darkmode
+             if (partialData.language !== undefined) {
+                 store.put(partialData.language, 'language');
+             }
+             if (partialData.darkmode !== undefined) {
+                 store.put(!!partialData.darkmode, 'darkmode');
              }
              
              transaction.oncomplete = () => {

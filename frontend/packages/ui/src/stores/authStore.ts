@@ -5,6 +5,8 @@ import { userDB } from '../services/userDB';
 import { userProfile, defaultProfile, updateProfile, type UserProfile } from './userProfile'; // Import store, defaultProfile and type
 import { resetTwoFAData } from './twoFAState'; // Import the reset function
 import { processedImageUrl } from './profileImage'; // Import processedImageUrl store
+import { locale, waitLocale } from 'svelte-i18n'; // Import i18n functions
+// Removed duplicate: import { get } from 'svelte/store'; // Import get to read locale store value
 
 // Define the types for the auth store
 interface AuthState {
@@ -91,7 +93,9 @@ function createAuthStore() {
                 is_admin: false,
                 last_opened: null,
                 consent_privacy_and_apps_default_settings: false,
-                consent_mates_default_settings: false
+                consent_mates_default_settings: false,
+                language: defaultProfile.language, // Reset language
+                darkmode: defaultProfile.darkmode // Reset darkmode
             });
             return false; // Indicate not fully authenticated
         }
@@ -124,6 +128,16 @@ function createAuthStore() {
             const tfa_enabled = !!data.user.tfa_enabled;
             const consent_privacy_and_apps_default_settings = !!data.user.consent_privacy_and_apps_default_settings;
             const consent_mates_default_settings = !!data.user.consent_mates_default_settings;
+            const userLanguage = data.user.language || defaultProfile.language; // Use default if null/undefined
+            const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode; // Use default if null/undefined
+
+            // --- Apply Language Setting ---
+            if (userLanguage && userLanguage !== get(locale)) {
+              console.debug(`Applying user language from session: ${userLanguage}`);
+              locale.set(userLanguage);
+              // No need to await waitLocale here, UI updates should handle it
+            }
+            // --- End Apply Language Setting ---
 
             // Update the user profile store
             updateProfile({
@@ -136,7 +150,9 @@ function createAuthStore() {
               last_opened: data.user.last_opened,
               // Pass consent flags
               consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
-              consent_mates_default_settings: consent_mates_default_settings
+              consent_mates_default_settings: consent_mates_default_settings,
+              language: userLanguage, // Add language
+              darkmode: userDarkMode // Add darkmode
             });
           } catch (dbError) {
             console.error("Failed to save user data to database:", dbError);
@@ -162,7 +178,9 @@ function createAuthStore() {
                 is_admin: false,
                 last_opened: null,
                 consent_privacy_and_apps_default_settings: false,
-                consent_mates_default_settings: false
+                consent_mates_default_settings: false,
+                language: defaultProfile.language, // Reset language
+                darkmode: defaultProfile.darkmode // Reset darkmode
             });
           return false; // Indicate not authenticated
         }
@@ -186,7 +204,9 @@ function createAuthStore() {
             is_admin: false,
             last_opened: null,
             consent_privacy_and_apps_default_settings: false,
-            consent_mates_default_settings: false
+            consent_mates_default_settings: false,
+            language: defaultProfile.language, // Reset language
+            darkmode: defaultProfile.darkmode // Reset darkmode
         });
         return false; // Indicate not authenticated
       } finally {
@@ -306,6 +326,15 @@ function createAuthStore() {
                 const tfa_enabled = !!data.user.tfa_enabled; 
                 const consent_privacy_and_apps_default_settings = !!data.user.consent_privacy_and_apps_default_settings;
                 const consent_mates_default_settings = !!data.user.consent_mates_default_settings;
+                const userLanguage = data.user.language || defaultProfile.language;
+                const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
+
+                // --- Apply Language Setting on Login ---
+                if (userLanguage && userLanguage !== get(locale)) {
+                  console.debug(`Applying user language from login: ${userLanguage}`);
+                  locale.set(userLanguage);
+                }
+                // --- End Apply Language Setting ---
                 
                 updateProfile({
                   username: data.user.username,
@@ -317,7 +346,9 @@ function createAuthStore() {
                   last_opened: data.user.last_opened,
                   // Pass consent flags
                   consent_privacy_and_apps_default_settings: consent_privacy_and_apps_default_settings,
-                  consent_mates_default_settings: consent_mates_default_settings
+                  consent_mates_default_settings: consent_mates_default_settings,
+                  language: userLanguage, // Add language
+                  darkmode: userDarkMode // Add darkmode
                 });
               } else {
                  console.warn("Login successful but no user data received in response.");

@@ -10,8 +10,10 @@ export interface UserProfile {
   tfa_app_name: string | null;
   tfa_enabled: boolean; // Added field for 2FA status
   // Use boolean flags received from backend
-  consent_privacy_and_apps_default_settings?: boolean; 
+  consent_privacy_and_apps_default_settings?: boolean;
   consent_mates_default_settings?: boolean;
+  language: string | null; // User's preferred language
+  darkmode: boolean; // User's dark mode preference
 }
 
 export const defaultProfile: UserProfile = {
@@ -24,7 +26,9 @@ export const defaultProfile: UserProfile = {
   tfa_enabled: false, // Added default value
   // Add default values for boolean flags
   consent_privacy_and_apps_default_settings: false,
-  consent_mates_default_settings: false
+  consent_mates_default_settings: false,
+  language: 'en', // Default language
+  darkmode: false // Default dark mode
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
