@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import httpx
+import ipaddress # Added import
 from typing import Dict, Any, Optional
 from fastapi import Request
 from functools import lru_cache
@@ -36,27 +37,41 @@ def get_client_ip(request: Request) -> str:
         client_ip = request.client.host if request.client else "unknown"
     return client_ip
 
+def is_private_ip(ip_address_str: str) -> bool:
+    """Checks if an IP address string belongs to a private or loopback range."""
+    if not ip_address_str or ip_address_str.lower() == "unknown":
+        return False # Treat unknown as not private for safety
+    try:
+        ip = ipaddress.ip_address(ip_address_str)
+        # is_private covers RFC1918. is_loopback covers 127.0.0.0/8 and ::1.
+        return ip.is_private or ip.is_loopback
+    except ValueError:
+        logger.warning(f"Invalid IP address format for check: {ip_address_str}")
+        return False # Treat invalid format as not private
+
 @lru_cache(maxsize=1024)
 def get_location_from_ip(ip_address: str) -> Dict[str, Any]:
     """
     Get location details (string, lat, lon) from IP address using ip-api.com.
     Returns a dictionary with 'location_string', 'latitude', 'longitude'.
     Uses caching to avoid unnecessary API calls.
-    Handles localhost ('127.0.0.1', 'localhost') as a special case returning Berlin coords.
     """
     default_result = {"location_string": "unknown", "latitude": None, "longitude": None}
-    
+
     # --- Handle Special Cases ---
-    if ip_address == "127.0.0.1" or ip_address == "localhost":
-        logger.debug("Localhost IP detected, returning fixed Berlin coordinates and 'localhost' name.")
-        return {"location_string": "localhost", "latitude": 52.5200, "longitude": 13.4050} # Berlin coords
+    # Handle unknown first
     if ip_address == "unknown":
          logger.debug("Unknown IP address provided, returning default unknown location.")
          return default_result
 
-    # --- Proceed with API Lookup for other IPs ---
+    # Check if the IP is private or loopback before external lookup
+    if is_private_ip(ip_address):
+        logger.debug(f"Private/Loopback IP detected: {ip_address}. Returning 'Local Network'.")
+        return {"location_string": "Local Network", "latitude": 52.5200, "longitude": 13.4050} # Berlin coords as placeholder
+
+    # --- Proceed with API Lookup for public IPs ---
     try:
-        # Use synchronous request instead of async
+        # Use synchronous request
         response = httpx.get(
             f"{IP_API_URL}/{ip_address}",
             params={"fields": "status,message,city,countryCode,lat,lon"}, # Added lat, lon

@@ -177,6 +177,8 @@ class EmailTemplateService:
                     subject_key = "email.confirm_your_email_address.text"
                 elif template == "purchase-confirmation":
                     subject_key = "email.purchase_confirmation.text"
+                elif template == "new-device-login":
+                    subject_key = "email.security_alert_login_from_new_device.text"
                 else:
                     subject_key = f"email.{template}.subject"
                 
