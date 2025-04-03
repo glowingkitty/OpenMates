@@ -7,14 +7,19 @@ import os
 import time
 from io import BytesIO
 from fastapi import HTTPException
+# Ensure os is imported if needed for getenv (it's used later)
+import os 
 from botocore.config import Config
-from botocore.exceptions import ClientError
+# Import ClientError for exception handling
+from botocore.exceptions import ClientError 
 from urllib.parse import urlparse
 from typing import Optional, Dict
 
-from .config import BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name
+# Import necessary config functions and the single-bucket lifecycle function
+from .config import BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name 
 from .cors import apply_cors_settings
-from .lifecycle import apply_lifecycle_policies
+# Import the single-bucket function instead of the multi-bucket one
+from .lifecycle import apply_lifecycle_policy_to_bucket 
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +32,8 @@ class S3UploadService:
         """
         Initialize the S3 client with a configuration optimized for S3-compatible storage.
         """
-        # Get region name from environment variables with fallback to 'fsn1'
-        self.region_name = os.getenv('HETZNER_S3_REGION', 'fsn1')
+        # Get region name from environment variables with fallback to 'nbg1'
+        self.region_name = os.getenv('HETZNER_S3_REGION', 'nbg1')
         
         # Build endpoint URL based on region name
         self.endpoint_url = f'https://{self.region_name}.your-objectstorage.com'
@@ -81,12 +86,73 @@ class S3UploadService:
         
         # Get current environment
         self.environment = os.getenv('SERVER_ENVIRONMENT', 'development')
+
+        # Initialize buckets (check existence, create if needed, apply lifecycle)
+        self._initialize_buckets()
         
-        # Apply CORS settings to required buckets
+        # Apply CORS settings to required buckets (should happen after buckets exist)
         apply_cors_settings(self.client)
         
-        # Apply lifecycle policies to buckets
-        apply_lifecycle_policies(self.client, BUCKETS)
+        # Old lifecycle application removed, handled by _initialize_buckets
+        # apply_lifecycle_policies(self.client, BUCKETS)
+
+    def _initialize_buckets(self):
+        """
+        Check if configured buckets exist, create them if they don't,
+        and apply lifecycle policies.
+        """
+        logger.info("Initializing S3 buckets...")
+        for bucket_key, bucket_config in BUCKETS.items():
+            bucket_name = get_bucket_name(bucket_key, self.environment)
+            lifecycle_days = bucket_config.get('lifecycle_policy')
+            access_type = bucket_config.get('access', 'private') # Default to private
+
+            try:
+                # Check if bucket exists
+                self.client.head_bucket(Bucket=bucket_name)
+                logger.info(f"Bucket '{bucket_name}' already exists.")
+                bucket_exists = True
+            except ClientError as e:
+                error_code = e.response.get('Error', {}).get('Code')
+                # Common error codes for non-existent buckets
+                if error_code == '404' or error_code == 'NoSuchBucket': 
+                    logger.info(f"Bucket '{bucket_name}' not found. Creating...")
+                    try:
+                        # Attempt to create the bucket (Hetzner implies region from endpoint)
+                        self.client.create_bucket(Bucket=bucket_name)
+                        logger.info(f"Successfully created bucket '{bucket_name}'.")
+                        bucket_exists = True
+
+                        # Apply ACL if public-read is required, after creation
+                        if access_type == 'public-read':
+                            try:
+                                self.client.put_bucket_acl(Bucket=bucket_name, ACL='public-read')
+                                logger.info(f"Set ACL for bucket '{bucket_name}' to public-read.")
+                            except ClientError as acl_e:
+                                logger.warning(f"Failed to set public-read ACL for bucket '{bucket_name}': {acl_e}. Manual check might be needed.")
+                                # Continue even if ACL fails, bucket exists
+
+                    except ClientError as create_e:
+                        logger.error(f"Failed to create bucket '{bucket_name}': {create_e}")
+                        bucket_exists = False # Creation failed
+                        continue # Skip lifecycle for this bucket
+                else:
+                    # Handle other errors during head_bucket (e.g., permissions)
+                    logger.error(f"Error checking bucket '{bucket_name}': {e}. Skipping lifecycle policy application.")
+                    bucket_exists = False # Unsure about state, assume no for safety
+                    continue # Skip lifecycle for this bucket
+
+            # Apply lifecycle policy if the bucket exists (or was just created) and has a policy defined
+            if bucket_exists and isinstance(lifecycle_days, int) and lifecycle_days > 0:
+                logger.info(f"Applying lifecycle policy to bucket '{bucket_name}' ({lifecycle_days} days)...")
+                success = apply_lifecycle_policy_to_bucket(self.client, bucket_name, lifecycle_days)
+                if success:
+                    logger.info(f"Successfully applied lifecycle policy to '{bucket_name}'.")
+                else:
+                    logger.warning(f"Failed to apply lifecycle policy to '{bucket_name}'.")
+            elif bucket_exists:
+                 logger.info(f"No lifecycle policy defined or needed for bucket '{bucket_name}'.")
+
 
     def get_s3_url(self, bucket_name: str, file_key: str) -> str:
         """
