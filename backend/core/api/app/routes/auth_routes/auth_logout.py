@@ -144,21 +144,9 @@ async def logout_all(
             if not success:
                 logger.warning(f"Directus logout-all failed: {message}")
             
-            # Get all tokens for this user and remove from cache
-            user_tokens_key = f"user_tokens:{user_id}"
-            current_tokens = await cache_service.get(user_tokens_key) or {}
-            
-            # Remove all tokens from cache
-            for t_hash in current_tokens:
-                t_cache_key = f"session:{t_hash}"
-                t_user_key = f"user_token:{t_hash}"
-                await cache_service.delete(t_cache_key)
-                await cache_service.delete(t_user_key)
-            
-            # Remove the user tokens index
-            await cache_service.delete(user_tokens_key)
-            
-            logger.info(f"Removed all {len(current_tokens)} tokens for user {user_id[:6]}...")
+            # Clear all user-related cache entries (sessions, profile, devices)
+            await cache_service.delete_user_cache(user_id)
+            logger.info(f"Cleared all user-related cache for user {user_id[:6]}... (logout all)")
         
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:
@@ -240,21 +228,16 @@ async def policy_violation_logout(
                 }
             )
             
-            # Clear all user-related cache entries
-            user_cache_keys = [
-                session_key,
-                f"user:{user_id}",
-                f"user_profile:{user_id}",
-                f"user_profile_image:{user_id}",
-                f"user_credits:{user_id}"
-            ]
+            # Clear all user-related cache entries (sessions, profile, devices)
+            await cache_service.delete_user_cache(user_id)
+            logger.info(f"Cleared all user-related cache for user {user_id} (policy violation)")
             
-            for key in user_cache_keys:
-                await cache_service.delete(key)
-                
-            logger.info(f"Cleared all cache entries for user {user_id}")
-        else:
-            # Still delete the session if it exists
+        elif session_data: # If session_data exists but no user_id (shouldn't happen, but safety)
+             # Still delete the session if it exists
             await cache_service.delete(session_key)
+            logger.warning(f"Cleared session cache {session_key} but user_id was missing (policy violation)")
+        else:
+             # If no session data was found for the token
+             logger.warning(f"No session data found for token hash {token_hash} during policy violation logout.")
     
     return {"success": True, "message": "Policy violation logout completed"}

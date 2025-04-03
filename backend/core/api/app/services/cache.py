@@ -17,7 +17,7 @@ class CacheService:
     SESSION_TTL = 86400 # 24 hours
     
     # Cache key prefixes
-    USER_KEY_PREFIX = "user:"
+    USER_KEY_PREFIX = "user_profile:"
     SESSION_KEY_PREFIX = "session:"
     USER_DEVICE_KEY_PREFIX = "user_device:"
     

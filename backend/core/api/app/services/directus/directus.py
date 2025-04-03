@@ -79,7 +79,6 @@ class DirectusService:
     
     # User profile methods - get_user_profile is the main one now
     get_user_profile = get_user_profile
-    # Removed assignments for get_user_credits, get_user_username, get_user_profile_image
     
     # New TFA methods for direct fetching (no cache)
     get_decrypted_tfa_secret = get_decrypted_tfa_secret

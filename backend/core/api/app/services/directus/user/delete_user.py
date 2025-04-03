@@ -59,14 +59,6 @@ async def delete_user(
                     error_text = await response.text()
                     logger.error(f"Failed to delete user {user_id}. Status: {response.status}, Response: {error_text}")
                     return False
-                    
-        # Also clear any related cache entries
-        cache_key = f"user:{user_id}"
-        await self.cache.delete(cache_key)
-        
-        # Delete profile image cache
-        profile_image_key = f"user_profile_image:{user_id}"
-        await self.cache.delete(profile_image_key)
         
         # Log the deletion
         logger.info(f"User deleted: {user_id}")
