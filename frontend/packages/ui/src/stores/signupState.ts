@@ -21,6 +21,10 @@ export const isSignupSettingsStep = writable(false);
 // Store to explicitly control footer visibility during signup
 export const showSignupFooter = writable(true);
 
+// Stores related to gifted credits check in Step 9
+export const isLoadingGiftCheck = writable<boolean>(true); // Track loading state for gift check API call
+export const hasGiftForSignup = writable<boolean>(false); // Track if user has a gift
+
 // Parse step number from last_opened path
 export function getStepFromPath(path: string): number {
     if (!path) return 1;

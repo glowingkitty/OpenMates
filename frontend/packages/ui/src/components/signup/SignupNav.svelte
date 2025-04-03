@@ -3,7 +3,8 @@
     import { _ } from 'svelte-i18n';
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { getWebsiteUrl, routes } from '../../config/links';
-    import { currentSignupStep } from '../../stores/signupState'; // Import current step store
+    // Import current step store and gift check stores
+    import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState'; 
     
     const dispatch = createEventDispatcher();
 
@@ -84,12 +85,14 @@
     // - Step 4 AND TFA is already enabled OR
     // - Step 7 AND consent_privacy_and_apps_default_settings is true OR
     // - Step 8 AND consent_mates_default_settings is true OR
-    // - showSkip prop is true AND it's not Step 4, 7, or 8 (original skip logic)
+    // - Step 9 AND gift check is done AND NO gift is available OR
+    // - showSkip prop is true AND it's not Step 4, 7, 8, or 9 (original skip logic)
     $: showActualSkipButton = 
         (currentStep === 4 && $userProfile.tfa_enabled) ||
         (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) || // Use consent_privacy_and_apps_default_settings
         (currentStep === 8 && $userProfile.consent_mates_default_settings) || // Use consent_mates_default_settings
-        (showSkip && currentStep !== 4 && currentStep !== 7 && currentStep !== 8); // Prevent showing skip if consent-next is shown
+        (currentStep === 9 && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available
+        (showSkip && ![4, 7, 8, 9].includes(currentStep)); // Prevent showing default skip if other conditions met
 
 </script>
 

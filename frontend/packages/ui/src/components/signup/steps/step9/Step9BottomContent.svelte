@@ -14,16 +14,16 @@ changes to the documentation (to keep the documentation up to date).
     import { fly } from 'svelte/transition';
     import { createEventDispatcher, onMount } from 'svelte';
     import { getApiUrl, apiEndpoints } from '../../../../config/api'; // Import API config
+    import { isLoadingGiftCheck, hasGiftForSignup } from '../../../../stores/signupState'; // Import stores
 
     const dispatch = createEventDispatcher();
 
-    // State for gifted credits
-    let isLoadingGift = true;
-    let giftInfo = { has_gift: false, amount: null };
+    // Local state to store the actual gift amount if present
+    let giftAmount: number | null = null; 
 
-    // Fetch gift status on component mount
+    // Fetch gift status on component mount and update stores
     onMount(async () => {
-        isLoadingGift = true;
+        $isLoadingGiftCheck = true; // Use store
         try {
             const response = await fetch(getApiUrl() + apiEndpoints.auth.checkGift, {
                 method: 'GET',
@@ -35,17 +35,21 @@ changes to the documentation (to keep the documentation up to date).
             });
 
             if (response.ok) {
-                giftInfo = await response.json();
-                console.debug("Gift check response:", giftInfo);
+                const giftData = await response.json();
+                console.debug("Gift check response:", giftData);
+                $hasGiftForSignup = giftData.has_gift; // Update store
+                giftAmount = giftData.amount; // Store amount locally
             } else {
                 console.error("Failed to check for gifted credits:", response.status, await response.text());
-                giftInfo = { has_gift: false, amount: null }; // Assume no gift on error
+                $hasGiftForSignup = false; // Assume no gift on error
+                giftAmount = null;
             }
         } catch (error) {
             console.error("Error checking for gifted credits:", error);
-            giftInfo = { has_gift: false, amount: null }; // Assume no gift on error
+            $hasGiftForSignup = false; // Assume no gift on error
+            giftAmount = null;
         } finally {
-            isLoadingGift = false;
+            $isLoadingGiftCheck = false; // Use store
         }
     });
 
@@ -93,36 +97,36 @@ changes to the documentation (to keep the documentation up to date).
         dispatch('step', { 
             step: 10,
             isGift: true, // Add flag to indicate gift
-            credits_amount: giftInfo.amount // Pass gift amount
+            credits_amount: giftAmount // Pass locally stored gift amount
             // No price/currency needed for gifts
         });
     }
 
     $: currentPackage = creditPackages[currentPackageIndex];
     // Disable standard navigation if a gift is present or loading
-    $: canShowLess = currentPackageIndex > 0 && !giftInfo.has_gift && !isLoadingGift;
-    $: canShowMore = currentPackageIndex < creditPackages.length - 1 && !giftInfo.has_gift && !isLoadingGift;
+    $: canShowLess = currentPackageIndex > 0 && !$hasGiftForSignup && !$isLoadingGiftCheck; // Use stores
+    $: canShowMore = currentPackageIndex < creditPackages.length - 1 && !$hasGiftForSignup && !$isLoadingGiftCheck; // Use stores
 </script>
 
 <div class="bottom-content">
-    {#if isLoadingGift}
-        <div class="loading-indicator">{@html $text('general.loading.text')}</div>
-    {:else if giftInfo.has_gift}
+    {#if $isLoadingGiftCheck} <!-- Use store -->
+        <div></div> <!-- Keep empty div for loading state as per current file -->
+    {:else if $hasGiftForSignup} <!-- Use store -->
         <!-- Gift Flow: Show only the gifted package -->
         <div class="credits-package-container gift-flow">
              <div class="package-wrapper">
                 <CreditsPackage 
                     isGift={true}
-                    giftAmount={giftInfo.amount}
+                    giftAmount={giftAmount}
                     on:giftAccepted={handleGiftAccepted}
                 />
             </div>
         </div>
-         <div class="color-grey-60">{@html $text('signup.accept_your_gift.text')}</div> <!-- Optional: Add specific text for gift -->
+         <!-- Removed optional text below gift package -->
     {:else}
         <!-- Standard Purchase Flow -->
         <div class="credits-package-container">
-            {#if canShowLess}
+            {#if canShowLess} <!-- Reactive variable already uses stores -->
                 <button class="nav-button" on:click={showLessCredits}>
                     <div class="clickable-icon icon_back"></div>
                 {@html $text('signup.less.text')}
