@@ -74,6 +74,12 @@
         height: 130px
     }
 
+    @media (max-width: 600px) {
+        .expandable-header.visible {
+            height: 60px;
+        }
+    }
+
     .icon-grid-wrapper {
         margin-top:-29px;
     }

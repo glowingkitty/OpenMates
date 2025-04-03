@@ -2,14 +2,24 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    
+    import { getApiUrl, apiEndpoints } from '../config/api'; // Import API config
+
     const dispatch = createEventDispatcher();
     
     // Props
-    export let credits_amount: number = 0;
-    export let recommended: boolean = false;
-    export let price: number = 0;
-    export let currency: string = 'EUR';
+    export let credits_amount: number = 0; // Used for standard purchase
+    export let recommended: boolean = false; // Used for standard purchase
+    export let price: number = 0; // Used for standard purchase
+    export let currency: string = 'EUR'; // Used for standard purchase
+    export let isGift: boolean = false; // Is this a gifted credit package?
+    export let giftAmount: number = 0; // Amount if it's a gift
+
+    // State for accepting gift
+    let isAcceptingGift = false;
+    let acceptError: string | null = null;
+
+    // Determine the amount to display
+    $: displayAmount = isGift ? giftAmount : credits_amount;
     
     // Format number with thousand separators
     function formatNumber(num: number): string {
@@ -46,14 +56,58 @@
         return [];
     }
     
-    // Handle buy button click
-    function handleBuy() {
-        dispatch('buy', { credits_amount, price, currency });
+    // Handle button click (either buy or accept gift)
+    async function handleButtonClick() {
+        if (isGift) {
+            // Accept Gift Flow
+            isAcceptingGift = true;
+            acceptError = null;
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.auth.acceptGift, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    credentials: 'include' // Important for sending auth cookies
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        console.info("Gift accepted successfully:", result);
+                        dispatch('giftAccepted'); // Notify parent
+                    } else {
+                        console.error("Failed to accept gift:", result.message);
+                        acceptError = result.message || 'Failed to accept gift.';
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error("Failed to accept gift API call:", response.status, errorText);
+                    acceptError = `Error: ${response.status}. Please try again.`;
+                }
+            } catch (error) {
+                console.error("Error accepting gift:", error);
+                acceptError = 'An unexpected error occurred. Please try again.';
+            } finally {
+                isAcceptingGift = false;
+            }
+        } else {
+            // Standard Buy Flow
+            dispatch('buy', { credits_amount, price, currency });
+        }
     }
 </script>
 
 <div class="credits-package-container">
-    {#if recommended}
+    {#if isGift}
+        <!-- Gift Badge -->
+        <div class="recommended-badge gift-badge">
+            <div class="gift-icon"></div> <!-- Use gift icon -->
+            <span>{@html $text('signup.your_gift.text')}</span> <!-- Use gift text -->
+        </div>
+    {:else if recommended}
+        <!-- Standard Recommended Badge -->
         <div class="recommended-badge">
             <div class="thumbs-up-icon"></div>
             <span>{@html $text('signup.recommended.text')}</span>
@@ -63,25 +117,33 @@
     <div class="credits-package">
         <div class="app-icon-grid-container">
             <AppIconGrid 
-                iconGrid={selectIconGrid(credits_amount)} 
-                size="30px" 
-                gridGap="2px" 
+                iconGrid={selectIconGrid(displayAmount)}
+                size="30px"
+                gridGap="2px"
                 shifted="columns"
-                borderColor={null}
+                borderColor={null} 
             />
         </div>
         
         <div class="credits-amount">
             {@html $text('signup.amount_currency.text')
                 .replace('{currency}', '<span class="coin-icon-inline"></span>')
-                .replace('{amount}', formatNumber(credits_amount))}
+                .replace('{amount}', formatNumber(displayAmount))}
         </div>
     </div>
     
-    <button class="buy-button" on:click={handleBuy}>
-        {@html $text('signup.buy_for.text')
-            .replace('{currency}', currency)
-            .replace('{amount}', price.toString())}
+    {#if acceptError}
+        <div class="error-message">{acceptError}</div>
+    {/if}
+
+    <button class="buy-button" on:click={handleButtonClick} disabled={isAcceptingGift}>
+        {#if isGift}
+            {@html $text(isAcceptingGift ? 'general.loading.text' : 'signup.accept.text')}
+        {:else}
+            {@html $text('signup.buy_for.text')
+                .replace('{currency}', currency)
+                .replace('{amount}', price.toString())}
+        {/if}
     </button>
 </div>
 

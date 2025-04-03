@@ -42,9 +42,9 @@
 }
 
 @media (max-width: 730px), (max-height: 820px) {
-    .login-box {
+    /* .login-box {
         min-height: calc(var(--chat-container-min-height-mobile) - 50px);
-    }
+    } */
 }
 
 @media (max-width: 600px){

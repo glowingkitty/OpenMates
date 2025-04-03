@@ -8,6 +8,8 @@ from app.routes.auth_routes.auth_session import router as session_router
 # Import new refactored 2FA routers
 from app.routes.auth_routes.auth_2fa_setup import router as twofa_setup_router
 from app.routes.auth_routes.auth_2fa_verify import router as twofa_verify_router
+# Import gift router
+from app.routes.auth_routes.auth_gift import router as gift_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -66,3 +68,5 @@ router.include_router(session_router)
 # Include new refactored 2FA routers
 router.include_router(twofa_setup_router)
 router.include_router(twofa_verify_router)
+# Include gift router
+router.include_router(gift_router)

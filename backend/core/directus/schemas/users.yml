@@ -39,14 +39,17 @@ directus_users:
       length: 512
       note: "Encrypted credit balance"
 
-    encrypted_settings:
+    encrypted_gifted_credits_for_signup:
       type: string
-      length: 2048
+      length: 512
+      note: "Encrypted gifted credits for signup"
+
+    encrypted_settings:
+      type: textfield
       note: "Encrypted user preferences"
 
     encrypted_devices:
-      type: string
-      length: 4096
+      type: textfield
       note: "Encrypted JSON containing device fingerprints and associated data"
 
     vault_key_id:
@@ -70,8 +73,7 @@ directus_users:
       note: "Encrypted 2FA secret key"
 
     tfa_backup_codes_hashes:
-      type: string
-      length: 4096
+      type: textfield
       note: "Array of Argon2 hashed backup codes"
 
     encrypted_tfa_app_name:

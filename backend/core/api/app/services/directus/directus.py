@@ -8,7 +8,8 @@ from app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
 from app.services.directus.api_methods import _make_api_request
-from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes
+# Import consume_invite_code as well
+from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code 
 # Updated user imports to include new TFA methods
 from app.services.directus.user import (
     create_user, update_user_device, login_user, logout_user,
@@ -60,6 +61,7 @@ class DirectusService:
     # Invite code methods
     get_invite_code = get_invite_code
     get_all_invite_codes = get_all_invite_codes
+    consume_invite_code = consume_invite_code # Assign the imported method
     
     # User management methods
     create_user = create_user

@@ -7,7 +7,7 @@ from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
 from app.models.user import User
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service
+from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user 
 import os
 import random
 import string
@@ -27,90 +27,6 @@ encryption_service = EncryptionService(cache_service=cache_service)
 s3_service = S3UploadService()
 image_safety_service = ImageSafetyService()
 
-
-async def get_current_user(
-    directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
-) -> User:
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    # Check cache first using the enhanced cache service method
-    cached_data = await cache_service.get_user_by_token(refresh_token)
-
-    if cached_data:
-        return User(
-            id=cached_data.get("user_id"),
-            username=cached_data.get("username"),
-            is_admin=cached_data.get("is_admin"),
-            credits=cached_data.get("credits"),
-            profile_image_url=cached_data.get("profile_image_url"),
-            tfa_app_name=cached_data.get("tfa_app_name"),
-            last_opened=cached_data.get("last_opened"),
-            vault_key_id=cached_data.get("vault_key_id"),
-            consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
-            consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
-            language=cached_data.get("language", 'en'), # Add language from cache
-            darkmode=cached_data.get("darkmode", False) # Add darkmode from cache
-        )
-    
-    # If no cache hit, validate token and get user data
-    success, token_data = await directus_service.validate_token(refresh_token)
-    if not success or not token_data:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
-    # Get user ID from token data
-    user_id = token_data.get("id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token data")
-
-    # Fetch complete user profile
-    success, user_data, _ = await directus_service.get_user_profile(user_id)
-    if not success or not user_data:
-        raise HTTPException(status_code=401, detail="Could not fetch user data")
-
-    # Credits are already in user_data from get_user_profile
-
-    # Create User object from profile data
-    user = User(
-        id=user_id,
-        username=user_data.get("username"),
-        is_admin=user_data.get("is_admin", False),  # Use direct is_admin field
-        credits=user_data.get("credits", 0), # Use credits from user_data
-        profile_image_url=user_data.get("profile_image_url"),
-        last_opened=user_data.get("last_opened"),
-        vault_key_id=user_data.get("vault_key_id"), # Populate from fresh fetch
-        tfa_app_name=user_data.get("tfa_app_name"), # Include tfa_app_name from User model
-        consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
-        consent_mates_default_settings=user_data.get("consent_mates_default_settings"), # Include consent timestamps from the User model
-        language=user_data.get("language", 'en'), # Add language from fetched data
-        darkmode=user_data.get("darkmode", False) # Add darkmode from fetched data
-    )
-    
-    # Cache the user data for future requests using the enhanced cache service method
-    # Prepare standardized user data for cache
-    user_data_for_cache = {
-        "user_id": user.id, # Use user.id here
-        "username": user.username,
-        "is_admin": user.is_admin,
-        "credits": user.credits,
-        "profile_image_url": user.profile_image_url,
-        "tfa_app_name": user.tfa_app_name, # Include tfa_app_name from User model
-        "last_opened": user.last_opened,
-        "vault_key_id": user.vault_key_id, # Add vault_key_id to cache
-        # Include consent timestamps from the User model
-        "consent_privacy_and_apps_default_settings": user.consent_privacy_and_apps_default_settings,
-        "consent_mates_default_settings": user.consent_mates_default_settings,
-        # Determine tfa_enabled based on whether encrypted_tfa_secret exists in the raw user_data
-        "tfa_enabled": bool(user_data.get("encrypted_tfa_secret")) if user_data else False,
-        "language": user.language, # Add language to cache
-        "darkmode": user.darkmode # Add darkmode to cache
-    }
-    
-    await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
-    
-    return user
 
 # --- Define a simple success response model ---
 class SimpleSuccessResponse(BaseModel):

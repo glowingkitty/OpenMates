@@ -579,8 +579,14 @@ async def finalize_login_session(
                 "consent_privacy_and_apps_default_settings": user.get("consent_privacy_and_apps_default_settings"),
                 "consent_mates_default_settings": user.get("consent_mates_default_settings"),
                 "language": user.get("language", "en"), # Cache language preference
-                "darkmode": user.get("darkmode", False) # Cache darkmode preference
+                "darkmode": user.get("darkmode", False), # Cache darkmode preference
+                # Add gifted credits if present in the user profile (already decrypted by get_user_profile)
+                "gifted_credits_for_signup": user.get("gifted_credits_for_signup") 
             }
+            # Remove gifted_credits_for_signup if it's None or 0 before caching
+            if not user_data_to_cache.get("gifted_credits_for_signup"):
+                user_data_to_cache.pop("gifted_credits_for_signup", None)
+                
             await cache_service.set_user(user_data_to_cache, refresh_token=refresh_token)
 
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()

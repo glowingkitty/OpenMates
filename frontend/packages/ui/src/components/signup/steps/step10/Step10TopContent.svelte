@@ -44,6 +44,7 @@ step_10_top_content_svelte:
     export let credits_amount: number = 21000;
     export let price: number = 20;
     export let currency: string = 'EUR';
+    export let isGift: boolean = false; // New prop to indicate if it's a gift confirmation
     
     // Track if payment form is visible
     let isPaymentFormVisible = false;
@@ -103,6 +104,8 @@ step_10_top_content_svelte:
                     {credits_amount} 
                     purchasePrice={price} 
                     {currency}
+                    initialState={isGift ? 'success' : 'idle'}
+                    {isGift}
                     on:consentGiven={handleConsent}
                     on:payment={handlePayment}
                     on:openRefundInfo={handleOpenRefundInfo}

@@ -25,7 +25,8 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         
         # Not in cache, fetch from Directus
         logger.info(f"Fetching user profile for user {user_id} from Directus")
-        url = f"{self.base_url}/users/{user_id}"
+        # Fetch encrypted_gifted_credits_for_signup as well
+        url = f"{self.base_url}/users/{user_id}?fields=*,encrypted_gifted_credits_for_signup" 
         response = await self._make_api_request("GET", url)
         
         if response.status_code != 200:
@@ -65,37 +66,46 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "consent_mates_default_settings": user_data.get("consent_mates_default_settings"),
             
             # Keep sensitive data encrypted (don't decrypt these)
-            # REMOVED: encrypted_tfa_secret and tfa_backup_codes_hashes are no longer fetched here
             "encrypted_email_address": user_data.get("encrypted_email_address"),
-            # "encrypted_tfa_secret": user_data.get("encrypted_tfa_secret"), # No longer fetched here
             "encrypted_settings": user_data.get("encrypted_settings"),
         }
 
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)
         try:
             # Add debug logs for each decryption attempt
+            # Add gifted_credits_for_signup to the list of fields to decrypt
             for field, encrypted_field in [
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
                 ("profile_image_url", "encrypted_profileimage_url"),
                 ("devices", "encrypted_devices"),
-                ("tfa_app_name", "encrypted_tfa_app_name")
+                ("tfa_app_name", "encrypted_tfa_app_name"),
+                ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup") # Added gift decryption
             ]:
+                # Check if the encrypted field exists in the raw data fetched from Directus
                 if encrypted_field in user_data and user_data[encrypted_field]:
                     try:
                         decrypted_value = await self.encryption_service.decrypt_with_user_key(
                             user_data[encrypted_field], vault_key_id
                         )
                         
+                        # Correctly indented block starts here
                         if decrypted_value:
                             if field == "devices":
                                 profile[field] = json.loads(decrypted_value)
-                            elif field == "credits":
-                                profile[field] = int(float(decrypted_value))
+                            # Handle credits and gifted credits as integers
+                            elif field == "credits" or field == "gifted_credits_for_signup": 
+                                try:
+                                    profile[field] = int(float(decrypted_value))
+                                except (ValueError, TypeError):
+                                    logger.error(f"Could not convert decrypted {field} '{decrypted_value}' to int for user {user_id}")
+                                    profile[field] = 0 # Default to 0 if conversion fails
                             else:
                                 profile[field] = decrypted_value
+                            # No need to remove encrypted field here, as it wasn't added to profile dict initially
                     except Exception as e:
                         logger.error(f"[Debug] Error decrypting {field}: {str(e)}", exc_info=True)
+                        # No need to remove encrypted field here
                 
         except Exception as e:
             logger.error(f"Error decrypting user data: {str(e)}")

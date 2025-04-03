@@ -8,6 +8,7 @@
     
     // Processing states
     export let state: 'processing' | 'success' = 'processing';
+    export let isGift: boolean = false; // New prop
     
     function handleSecurePaymentInfoClick() {
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
@@ -32,8 +33,14 @@
     <div class="payment-success" in:fade={{ duration: 300 }}>
         <div class="center-container">
             <span class="check-icon"></span>
-            <p class="success-text color-grey-60">{@html $text('signup.purchase_successful.text')}</p>
-            <p class="confirmation-text color-grey-60">{@html $text('signup.you_will_receive_confirmation_soon.text')}</p>
+            <!-- Conditional success text -->
+            <p class="success-text color-grey-60">
+                {@html $text(isGift ? 'signup.enjoy_your_gift.text' : 'signup.purchase_successful.text')}
+            </p>
+            <!-- Only show confirmation email text for actual purchases -->
+            {#if !isGift}
+                <p class="confirmation-text color-grey-60">{@html $text('signup.you_will_receive_confirmation_soon.text')}</p>
+            {/if}
         </div>
         
         <div class="bottom-container">

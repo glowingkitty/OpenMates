@@ -37,6 +37,10 @@ export const apiEndpoints = {
         setup_2fa_provider:         '/v1/auth/2fa/setup/provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/2fa/setup/verify-signup',        // Verify 2FA OTP code during login
         verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device
+        
+        // Gifted credits endpoints
+        checkGift:                  '/v1/auth/check-gift',                     // Check if user has gifted signup credits
+        acceptGift:                 '/v1/auth/accept-gift',                    // Accept gifted signup credits
     },
     chat: {
         sendMessage:                '/v1/chat/message',                         // Send a message to a chat (or create a new chat if it doesn't exist)

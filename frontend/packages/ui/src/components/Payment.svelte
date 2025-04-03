@@ -17,6 +17,8 @@
     export let credits_amount: number = 21000;
     export let requireConsent: boolean = true;
     export let compact: boolean = false;
+    export let initialState: 'idle' | 'processing' | 'success' | 'failure' = 'idle'; // New prop
+    export let isGift: boolean = false; // New prop
 
     // Toggle state for consent
     let hasConsentedToLimitedRefund = false;
@@ -24,8 +26,8 @@
     // Add state to track if sensitive data should be visible
     let showSensitiveData = false;
     
-    // Payment processing states
-    let paymentState: 'idle' | 'processing' | 'success' | 'failure' = 'idle';
+    // Payment processing states - Initialize with prop
+    let paymentState: 'idle' | 'processing' | 'success' | 'failure' = initialState;
     
     // Payment form state
     export let showPaymentForm = !requireConsent;
@@ -132,6 +134,7 @@
     {:else if paymentState === 'processing' || paymentState === 'success'}
         <ProcessingPayment
             state={paymentState}
+            {isGift}
         />
     {:else}
         <PaymentForm

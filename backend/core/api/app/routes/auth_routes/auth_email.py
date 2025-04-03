@@ -11,7 +11,9 @@ from app.services.compliance import ComplianceService
 from app.services.limiter import limiter
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
 from app.utils.invite_code import validate_invite_code
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service
+# Import EncryptionService and its getter
+from app.utils.encryption import EncryptionService 
+from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, validate_password
 from app.tasks.celery_config import app as celery_app
 
@@ -185,6 +187,7 @@ async def check_confirm_email_code(
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service), # Inject EncryptionService
     signup_invite_code: Optional[str] = Cookie(None),
     signup_email: Optional[str] = Cookie(None),
     signup_username: Optional[str] = Cookie(None),
@@ -336,12 +339,58 @@ async def check_confirm_email_code(
             logger.error(f"Failed to create user: {create_message}")
             return CheckEmailCodeResponse(
                 success=False,
-                message="Failed to create your account. Please try again later."
+            message="Failed to create your account. Please try again later."
             )
         
         # User created successfully - log the compliance event and metrics
         user_id = user_data.get("id")
-        
+        vault_key_id = user_data.get("vault_key_id") # Get vault key for encryption
+
+        # --- Handle Gifted Credits ---
+        gifted_credits = code_data.get('gifted_credits')
+        encrypted_gift_value = None # Initialize
+        plain_gift_value = 0 # Initialize
+
+        if gifted_credits and isinstance(gifted_credits, (int, float)) and gifted_credits > 0:
+            plain_gift_value = int(gifted_credits)
+            logger.info(f"Invite code included {plain_gift_value} gifted credits for user {user_id}.")
+            if vault_key_id:
+                try:
+                    # Encrypt the gifted credits amount (as string)
+                    encrypted_gift_tuple = await encryption_service.encrypt_with_user_key(str(plain_gift_value), vault_key_id)
+                    encrypted_gift_value = encrypted_gift_tuple[0] # Get the ciphertext
+                    
+                    # Update the user record in Directus with the encrypted value
+                    update_success = await directus_service.update_user(
+                        user_id, 
+                        {"encrypted_gifted_credits_for_signup": encrypted_gift_value}
+                    )
+                    if update_success:
+                        logger.info(f"Successfully stored encrypted gifted credits for user {user_id} in Directus.")
+                    else:
+                        logger.error(f"Failed to store encrypted gifted credits for user {user_id} in Directus.")
+                        # Continue signup, but gift might not be properly stored
+                        
+                except Exception as encrypt_err:
+                    logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
+                    # Continue signup without storing encrypted gift if encryption fails
+            else:
+                 logger.error(f"Cannot encrypt gifted credits for user {user_id}: Missing vault_key_id.")
+        else:
+            logger.info(f"No valid gifted credits found in invite code for user {user_id}.")
+            
+        # --- Consume Invite Code ---
+        try:
+            consume_success = await directus_service.consume_invite_code(invite_code, code_data)
+            if consume_success:
+                logger.info(f"Successfully consumed invite code {invite_code} for user {user_id}.")
+                # Also clear the specific invite code from cache
+                await cache_service.delete(f"invite_code:{invite_code}")
+            else:
+                 logger.error(f"Failed to consume invite code {invite_code} for user {user_id}.")
+        except Exception as consume_err:
+             logger.error(f"Error consuming invite code {invite_code} for user {user_id}: {consume_err}", exc_info=True)
+
         # Track user creation in metrics
         metrics_service.track_user_creation()
         
@@ -415,8 +464,10 @@ async def check_confirm_email_code(
                     "language": language, # Add language to cache
                     "darkmode": darkmode, # Add darkmode to cache
                     # Use vault_key_id from the user_data returned by create_user
-                    "vault_key_id": user_data["vault_key_id"],
-                    "token_expiry": int(time.time()) + 86400 # Use default TTL from CacheService
+                    "vault_key_id": vault_key_id, # Use variable defined above
+                    "token_expiry": int(time.time()) + 86400, # Use default TTL from CacheService
+                    # Add plain gifted credits amount to cache if applicable
+                    "gifted_credits_for_signup": plain_gift_value if plain_gift_value > 0 else None 
                 }
 
                 # Use set_user to cache both session and user data (using default TTL)

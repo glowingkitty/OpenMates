@@ -12,9 +12,42 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import CreditsPackage from '../../../../components/CreditsPackage.svelte';
     import { fly } from 'svelte/transition';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
+    import { getApiUrl, apiEndpoints } from '../../../../config/api'; // Import API config
 
     const dispatch = createEventDispatcher();
+
+    // State for gifted credits
+    let isLoadingGift = true;
+    let giftInfo = { has_gift: false, amount: null };
+
+    // Fetch gift status on component mount
+    onMount(async () => {
+        isLoadingGift = true;
+        try {
+            const response = await fetch(getApiUrl() + apiEndpoints.auth.checkGift, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                credentials: 'include' // Important for sending auth cookies
+            });
+
+            if (response.ok) {
+                giftInfo = await response.json();
+                console.debug("Gift check response:", giftInfo);
+            } else {
+                console.error("Failed to check for gifted credits:", response.status, await response.text());
+                giftInfo = { has_gift: false, amount: null }; // Assume no gift on error
+            }
+        } catch (error) {
+            console.error("Error checking for gifted credits:", error);
+            giftInfo = { has_gift: false, amount: null }; // Assume no gift on error
+        } finally {
+            isLoadingGift = false;
+        }
+    });
 
     // Define the available credit packages
     const creditPackages = [
@@ -54,53 +87,93 @@ changes to the documentation (to keep the documentation up to date).
         });
     }
 
+    // Handle gift acceptance event from CreditsPackage
+    function handleGiftAccepted() {
+        // Move to step 10, indicating it's a gift confirmation
+        dispatch('step', { 
+            step: 10,
+            isGift: true, // Add flag to indicate gift
+            credits_amount: giftInfo.amount // Pass gift amount
+            // No price/currency needed for gifts
+        });
+    }
+
     $: currentPackage = creditPackages[currentPackageIndex];
-    $: canShowLess = currentPackageIndex > 0;
-    $: canShowMore = currentPackageIndex < creditPackages.length - 1;
+    // Disable standard navigation if a gift is present or loading
+    $: canShowLess = currentPackageIndex > 0 && !giftInfo.has_gift && !isLoadingGift;
+    $: canShowMore = currentPackageIndex < creditPackages.length - 1 && !giftInfo.has_gift && !isLoadingGift;
 </script>
 
 <div class="bottom-content">
-    <div class="credits-package-container">
-        {#if canShowLess}
-            <button class="nav-button" on:click={showLessCredits}>
-                <div class="clickable-icon icon_back"></div>
-                {@html $text('signup.less.text')}
-            </button>
-        {/if}
-
-        <div class="package-wrapper">
-            {#key currentPackage.credits_amount}
-                <div in:fly={{ x: 100, duration: 300 }} out:fly={{ x: -100, duration: 300 }}>
-                    <CreditsPackage 
-                        credits_amount={currentPackage.credits_amount}
-                        recommended={currentPackage.recommended}
-                        price={currentPackage.price}
-                        currency={currentPackage.currency}
-                        on:buy={handleBuy}
-                    />
-                </div>
-            {/key}
+    {#if isLoadingGift}
+        <div class="loading-indicator">{@html $text('general.loading.text')}</div>
+    {:else if giftInfo.has_gift}
+        <!-- Gift Flow: Show only the gifted package -->
+        <div class="credits-package-container gift-flow">
+             <div class="package-wrapper">
+                <CreditsPackage 
+                    isGift={true}
+                    giftAmount={giftInfo.amount}
+                    on:giftAccepted={handleGiftAccepted}
+                />
+            </div>
         </div>
+         <div class="color-grey-60">{@html $text('signup.accept_your_gift.text')}</div> <!-- Optional: Add specific text for gift -->
+    {:else}
+        <!-- Standard Purchase Flow -->
+        <div class="credits-package-container">
+            {#if canShowLess}
+                <button class="nav-button" on:click={showLessCredits}>
+                    <div class="clickable-icon icon_back"></div>
+                {@html $text('signup.less.text')}
+                </button>
+            {/if}
 
-        {#if canShowMore}
-            <button class="nav-button" on:click={showMoreCredits}>
-                {@html $text('signup.more.text')}
-                <div class="clickable-icon icon_back icon-mirrored"></div>
-            </button>
-        {/if}
-    </div>
-    <div class="color-grey-60">{@html $text('signup.select_amount.text')}</div>
+            <div class="package-wrapper">
+                {#key currentPackage.credits_amount}
+                    <div in:fly={{ x: 100, duration: 300 }} out:fly={{ x: -100, duration: 300 }}>
+                        <CreditsPackage 
+                            credits_amount={currentPackage.credits_amount}
+                            recommended={currentPackage.recommended}
+                            price={currentPackage.price}
+                            currency={currentPackage.currency}
+                            on:buy={handleBuy}
+                            isGift={false}
+                        />
+                    </div>
+                {/key}
+            </div>
+
+            {#if canShowMore}
+                <button class="nav-button" on:click={showMoreCredits}>
+                    {@html $text('signup.more.text')}
+                    <div class="clickable-icon icon_back icon-mirrored"></div>
+                </button>
+            {/if}
+        </div>
+        <div class="color-grey-60">{@html $text('signup.select_amount.text')}</div>
+    {/if}
 </div>
 
 <style>
+    .loading-indicator {
+        text-align: center;
+        padding: 20px;
+        color: var(--color-grey-60);
+    }
     .bottom-content {
         padding-top: 10px;
     }
     
+    /* Adjust container height/alignment for gift flow if needed */
+    .credits-package-container.gift-flow {
+        margin-bottom: 0; /* Remove negative margin if nav buttons aren't present */
+        /* Add any other specific styles for the gift layout */
+    }
     .credits-package-container {
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: center; /* Keep vertical alignment */
         position: relative;
         margin-bottom: -20px;
     }

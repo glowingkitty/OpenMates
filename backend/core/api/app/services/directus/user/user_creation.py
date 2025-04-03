@@ -8,10 +8,12 @@ from typing import Dict, Any, Optional, Tuple
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-async def create_user(self, username: str, email: str, password: str, 
+async def create_user(self, username: str, email: str, password: str,
                       is_admin: bool = False, role: str = None,
                       device_fingerprint: str = None,
-                      device_location: str = None) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+                      device_location: str = None,
+                      language: str = "en",  # Added language
+                      darkmode: bool = False) -> Tuple[bool, Optional[Dict[str, Any]], str]: # Added darkmode
     """
     Create a new user in Directus
     - Creates a unique encryption key for the user in Vault
@@ -65,9 +67,11 @@ async def create_user(self, username: str, email: str, password: str,
             "encrypted_credit_balance": encrypted_credit_balance,
             "encrypted_devices": encrypted_devices,
             "is_admin": is_admin,
-            "last_opened": "/signup/step-3"
+            "last_opened": "/signup/step-3",
+            "language": language,
+            "darkmode": darkmode
         }
-        
+
         # Make request to Directus
         url = f"{self.base_url}/users"
         response = await self._make_api_request("POST", url, json=user_data)
