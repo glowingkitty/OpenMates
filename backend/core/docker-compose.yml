@@ -36,12 +36,12 @@ services:
     networks:
       - openmates
     depends_on:
-      cms:
-        condition: service_healthy
       cache:
         condition: service_healthy
       vault-setup:
         condition: service_started # Corrected: Added condition
+      cms-setup:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${REST_API_PORT}/health"]
       interval: 30s
@@ -87,12 +87,6 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8055/server/health || exit 1"] # Use dedicated health endpoint
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
 
   cms-database:
     container_name: cms-database
@@ -164,10 +158,10 @@ services:
     networks:
       - openmates
     depends_on:
-      cms:
-        condition: service_healthy
       cache:
         condition: service_healthy
+      cms-setup:
+        condition: service_completed_successfully
 
   task-scheduler:
     container_name: task-scheduler
@@ -194,12 +188,12 @@ services:
     networks:
       - openmates
     depends_on:
-      cms:
-        condition: service_healthy
       cache:
         condition: service_healthy
       task-worker:
         condition: service_started # Corrected: Added condition
+      cms-setup:
+        condition: service_completed_successfully
 
   #########################################################################
   ##### In-Memory Cache (Dragonfly)

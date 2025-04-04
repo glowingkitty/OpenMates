@@ -18,8 +18,8 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 CMS_TOKEN = os.getenv('CMS_TOKEN')
 
 # Print environment variables for debugging
-print(f"Environment variables loaded:")
-print(f"ADMIN_EMAIL: {ADMIN_EMAIL}")
+print(f"Environment variables loaded.")
+print(f"ADMIN_EMAIL: {'*****' if ADMIN_EMAIL else 'Not set'}")
 print(f"ADMIN_PASSWORD: {'*****' if ADMIN_PASSWORD else 'Not set'}")
 print(f"CMS_TOKEN: {'*****' if CMS_TOKEN else 'Not set'}")
 
