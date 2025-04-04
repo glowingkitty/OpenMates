@@ -1,0 +1,11 @@
+# Development overrides for docker-compose.yml
+# Exposes ports for CMS (Directus) and Grafana
+
+services:
+  cms:
+    ports:
+      - "${CMS_PORT:-8055}:8055" # Use default if CMS_PORT env var is not set
+
+  grafana:
+    ports:
+      - "3001:3000"
