@@ -225,7 +225,9 @@ def create_app() -> FastAPI:
         title="OpenMates API",
         description="API for OpenMates platform",
         version="0.1.0",
-        lifespan=lifespan
+        lifespan=lifespan,
+        docs_url=None,  # Disable default docs
+        redoc_url=None  # Disable ReDoc
     )
 
     # Set up compliance logging

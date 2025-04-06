@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi import APIRouter, Query, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 import logging
 import os
@@ -15,8 +15,13 @@ from app.services.email_template import EmailTemplateService
 from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
 # Import both helpers now
 from app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
+from app.security.dependencies import verify_admin_access_key # Import the dependency
 
-router = APIRouter(prefix="/v1/email", tags=["email"])
+router = APIRouter(
+    prefix="/v1/email",
+    tags=["email"],
+    dependencies=[Depends(verify_admin_access_key)] # Apply dependency to all routes
+)
 logger = logging.getLogger(__name__)
 email_template_service = EmailTemplateService()
 translation_service = email_template_service.translation_service # Get instance

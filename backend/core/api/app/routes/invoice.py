@@ -1,9 +1,14 @@
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.services.pdf.invoice import InvoiceTemplateService
+from app.security.dependencies import verify_admin_access_key # Import the dependency
 import io
 
-router = APIRouter(prefix="/v1/invoice", tags=["invoice"])
+router = APIRouter(
+    prefix="/v1/invoice",
+    tags=["invoice"],
+    dependencies=[Depends(verify_admin_access_key)] # Apply dependency to all routes
+)
 invoice_template_service = InvoiceTemplateService()
 
 @router.post("/generate")
