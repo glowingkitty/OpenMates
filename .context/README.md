@@ -2,14 +2,17 @@
 
 The .context folder includes files that describe important context about the project. Relevant for both humans and AI to better understand the project and to make sure all guidelines are followed when making changes to the project. You can add your own .md files to better structure the context of your project better. But keep in mind that you want to be concise, since both humans and AI could make increasingly mistakes, if the project context is getting very long and it also increases costs and response time from AI models. Also keep in mind that not all recommended chapters are required for every project and you may choose to add custom chapters.
 
+IMPORTANT: Remember to always keep the Markdown files in /.context up to date!
+
 # Recommended default files:
 - todo.md
 - project-overview.md
-- architecture.md
+- architecture-guidelines.md
 - coding-guidelines.md
 - design-guidelines.md
-- compliance.md
-- security.md
+- compliance-guidelines.md
+- security-guidelines.md
+- privacy-guidelines.md
 
 # Rules for files inside .context folder
 
@@ -65,7 +68,7 @@ Recommended chapters:
 3. **Highlights**
     *   Bulletpoints of what makes this project unique and different from others
 
-### architecture.md
+### architecture-guidelines.md
 
 #### Structure
 - use embedded mermaid charts + concise bulletpoint based descriptions
@@ -135,7 +138,7 @@ Recommended chapters:
 6.  **Accessibility (a11y):** Requirements for ensuring usability for all users.
 7.  **Tone of Voice:** Guidelines for language and style in UI text.
 
-### security.md
+### security-guidelines.md
 
 #### Structure
 Recommended chapters:
@@ -164,7 +167,7 @@ Recommended chapters:
     *   Security Monitoring & Alerting (e.g., Logging, SIEM/alerting tools)
 4.  **Incident Response Plan** (Outline)
 
-### compliance.md
+### compliance-guidelines.md
 
 #### Structure
 Recommended chapters:
@@ -182,3 +185,22 @@ Recommended chapters:
     *   Data Retention & Deletion Policies
     *   Third-Party Data Sharing Policies
 4.  **Compliance Audits & Certifications** (Internal/external audits)
+
+### privacy-guidelines.md
+
+#### Structure
+Recommended chapters:
+1.  **Introduction:**
+    *   Project's commitment to privacy.
+2.  **Guiding Privacy Principles:**
+    *   High-level standards (e.g., data minimization, privacy by design).
+3.  **Data Collection Policy:**
+    *   What data IS collected (and why), what data IS NOT collected.
+4.  **Sensitive Data Handling:**
+    *   Procedures for processing, storing, protecting sensitive data.
+5.  **Third-Party Providers & Data Sharing:**
+    *   List of services (hosting, email, etc.) and data shared.
+6.  **User Rights & Control:**
+    *   How users can exercise their rights (access, deletion).
+7.  **End-User Contact Methods:**
+    *   Describe the intended methods for end-users to contact the project team regarding privacy (e.g., "Specify that a contact form should be available", "Define a standard privacy email like privacy@projectdomain.com").
