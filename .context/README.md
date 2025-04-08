@@ -1,6 +1,6 @@
 # Purpose
 
-The .context folder includes files that describe important context about the project. Relevant for both humans and AI to better understand the project and to make sure all guidelines are followed when making changes to the project. You can add your own .md files to better structure the context of your project better. But keep in mind that you want to be concise, since both humans and AI could make increasingly mistakes, if the project context is getting very long and it also increases costs and response time from AI models.
+The .context folder includes files that describe important context about the project. Relevant for both humans and AI to better understand the project and to make sure all guidelines are followed when making changes to the project. You can add your own .md files to better structure the context of your project better. But keep in mind that you want to be concise, since both humans and AI could make increasingly mistakes, if the project context is getting very long and it also increases costs and response time from AI models. Also keep in mind that not all recommended chapters are required for every project and you may choose to add custom chapters.
 
 # Recommended default files:
 - todo.md
@@ -29,18 +29,18 @@ Always make sure to follow these rules when writing / updating the files inside 
 
 #### Structure
 Required chapters:
-1. chapter 'Milestones' with table
+1. **Milestones**
    1. table has these fields:
       1. ID (M1, M2, etc.)
       2. Title (required)
       3. Target Date (YYYY-MM-DD)
       4. Tasks (T1, T2, etc.)
       5. Status (todo, in-progress, done)
-2. chapter 'Milestone Descriptions' with sub chapters for each milestone
+2. **Milestone Descriptions**
    1. content:
       1. headline: {ID} - {Title}
       2. text: {description}
-3. chapter 'Tasks' with table
+3. **Tasks**
    1. table has these fields:
       1. ID (T1, T2, etc.)
       2. Title
@@ -49,7 +49,7 @@ Required chapters:
       5. Depends on (- or T1, T2, etc.)
       6. Milestone (-, or M1, M2, etc.)
       7. Tags
-4. chapter 'Task Descriptions' with sub chapters for each task
+4. **Task Descriptions**
    1. content:
       1. headline: {ID} - {Title}
       2. text: {description}
@@ -58,9 +58,12 @@ Required chapters:
 
 #### Structure
 Recommended chapters:
-1. chapter 'Project overview' -> Project name and short description 
-2. chapter 'Target groups' -> Target groups & communication style
-3. chapter 'Highlights' -> Bulletpoints of what makes this project unique and different from others
+1. **Project overview**
+    *   Project name and short description
+2. **Target groups**
+    *   Target groups & communication style
+3. **Highlights**
+    *   Bulletpoints of what makes this project unique and different from others
 
 ### architecture.md
 
@@ -119,3 +122,63 @@ Recommended chapters:
     *   Required development tools and versions.
     *   Environment setup instructions or references.
     *   IDE configuration recommendations (e.g., editorconfig, recommended extensions).
+
+### design-guidelines.md
+
+#### Structure
+Recommended chapters:
+1.  **Core Design Principles:** Overview of the fundamental design philosophy.
+2.  **Branding & Visual Identity:** Guidelines for logo, color palette, and typography.
+3.  **Layout & Spacing:** Rules for structuring pages and elements.
+4.  **UI Components & Patterns:** Description and usage of standard UI elements (buttons, forms, etc.).
+5.  **Iconography & Imagery:** Standards for using icons and images.
+6.  **Accessibility (a11y):** Requirements for ensuring usability for all users.
+7.  **Tone of Voice:** Guidelines for language and style in UI text.
+
+### security.md
+
+#### Structure
+Recommended chapters:
+1.  **Threat Modeling & Attack Vectors**
+    *   Authentication & Session Management (e.g., Brute force, session hijacking)
+    *   Authorization & Access Control (e.g., Privilege escalation)
+    *   Input Validation & Injection (e.g., SQLi, XSS)
+    *   API Security (e.g., Rate limiting abuse)
+    *   Denial of Service (DoS/DDoS)
+    *   Data Security (e.g., Sensitive data exposure)
+    *   Third-Party Dependencies
+2.  **Security Measures & Countermeasures**
+    *   Authentication (e.g., Hashing, MFA)
+    *   Session Management (e.g., Secure cookies, timeouts)
+    *   Authorization (e.g., RBAC)
+    *   Input Sanitization & Validation
+    *   API Security (e.g., Rate limiting, API keys)
+    *   Infrastructure Security (e.g., Firewalls, WAF)
+    *   Data Encryption (At rest, in transit)
+    *   Secrets Management (e.g., Vault)
+    *   Dependency Management (e.g., Scanning)
+3.  **Security Testing & Monitoring**
+    *   Static Analysis (SAST)
+    *   Dynamic Analysis (DAST)
+    *   Penetration Testing
+    *   Security Monitoring & Alerting (e.g., Logging, SIEM/alerting tools)
+4.  **Incident Response Plan** (Outline)
+
+### compliance.md
+
+#### Structure
+Recommended chapters:
+1.  **Regulatory Landscape**
+    *   GDPR (Data Subject Rights, Lawful Basis, DPIAs, Breach Notifications)
+    *   Other relevant regulations (e.g., CCPA, HIPAA)
+2.  **Compliance Logging Requirements**
+    *   Purpose of logging
+    *   Events Logged (Authentication, Authorization, Data Access/Modification, Admin Actions, Key API Calls)
+    *   Log Format & Content (Timestamp, User ID, IP, Action, Outcome, etc.)
+    *   Log Storage & Retention (Location, period, access controls)
+    *   Log Monitoring & Review Procedures
+3.  **Data Handling Procedures**
+    *   Data Inventory & Mapping
+    *   Data Retention & Deletion Policies
+    *   Third-Party Data Sharing Policies
+4.  **Compliance Audits & Certifications** (Internal/external audits)
