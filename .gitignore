@@ -190,3 +190,5 @@ _backup
 # Vercel
 .vercel
 .env*.local
+
+.deployment
