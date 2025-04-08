@@ -1,0 +1,9 @@
+
+gitignore:
+  - .gitignore
+also_ignore:
+  - .vscode
+read_without_values:
+  - .env
+  - secrets.yml
+  - secrets.json
