@@ -192,3 +192,6 @@ _backup
 .env*.local
 
 .deployment
+
+# Private context files (anywhere within .context)
+.context/**/private__*
