@@ -236,8 +236,6 @@ services:
     environment:
       VAULT_LOG_LEVEL: "debug"
     command: "vault server -log-level=debug -config=/vault/config/vault.hcl"
-    ports:
-      - "8200:8200"
     volumes:
       - ./vault/config:/vault/config:ro
       - vault-data:/vault/file
