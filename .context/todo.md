@@ -113,7 +113,6 @@ Captures potential future additions like calendar integration and privacy option
 | T55| Implement clear labeling for AI model copyright clarity                            | -        | todo   | -          | M8        | ai, ux, legal, copyright, documentation  |
 | T56| Implement calendar integration workflow (holiday info)                             | -        | todo   | -          | M9        | feature, integration, calendar, backend  |
 | T57| Evaluate making offline data storage opt-in                                        | -        | todo   | T14        | M9        | privacy, security, offline, ux, feature  |
-| T58| Set up Vercel Preview Deployment for 'dev' branch                            | High     | doing  | -          | M3        | deployment, vercel, preview, frontend, ci|
 
 
 ## Task Descriptions
@@ -293,6 +292,3 @@ Explore integrating with calendar APIs or services. Implement a simple workflow 
 
 ### T57 - Evaluate making offline data storage opt-in
 Consider the privacy and security implications of storing chat data offline by default (T14). Evaluate changing this to an opt-in feature, where users must explicitly enable offline storage in settings, potentially with clearer warnings about local data security.
-
-### T58 - Set up Vercel Preview Deployment for 'dev' branch
-Configure Vercel Preview Deployments for the 'dev' branch. Ensure commits pushed to 'dev' automatically build and deploy to a unique preview URL for testing. Remove any conflicting self-hosted frontend development deployment setup from the Hetzner server configuration if applicable.
