@@ -13,7 +13,7 @@ When you start working on a task, always change the status from todo to 'in-prog
 
 | ID | Title                             | Target Date | Tasks                                                              | Status      |
 |----|-----------------------------------|-------------|--------------------------------------------------------------------|-------------|
-| M1 | Secure Dev Server                 | 2025-04-10  | T1, T2, T3                                                         | todo        |
+| M1 | Secure Dev Server                 | 2025-04-10  | T1, T2, T3, T58                                                    | todo        |
 | M2 | Launch First Version              | 2025-04-21  | T4, T5, T6, T7                                                         | todo        |
 | M3 | Infrastructure & Deployment       | -           | T8, T9, T10, T11                                                   | todo        |
 | M4 | Core App Functionality            | -           | T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25 | todo        |
@@ -292,3 +292,6 @@ Explore integrating with calendar APIs or services. Implement a simple workflow 
 
 ### T57 - Evaluate making offline data storage opt-in
 Consider the privacy and security implications of storing chat data offline by default (T14). Evaluate changing this to an opt-in feature, where users must explicitly enable offline storage in settings, potentially with clearer warnings about local data security.
+
+### T58 - Set up VPN using ZeroTier for secure access
+Investigate and implement ZeroTier as an alternative VPN solution to provide secure, restricted access to internal management interfaces and services (like Directus UI, Grafana, Vault UI, code-server) on the development server, replacing the need for potentially insecure workarounds. This addresses the difficulties encountered with other VPN solutions and aligns with M1 goals.
