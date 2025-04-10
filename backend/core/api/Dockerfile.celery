@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -35,7 +35,7 @@ RUN mkdir -p /app/logs && chmod 777 /app/logs
 
 # Set up a non-root user
 RUN adduser --disabled-password --gecos '' celeryuser
-RUN chown -R celeryuser:celeryuser /app
+RUN mkdir -p /celerybeat-data && chown -R celeryuser:celeryuser /app /celerybeat-data
 
 # Switch to non-root user
 USER celeryuser

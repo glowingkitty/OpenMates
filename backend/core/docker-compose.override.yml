@@ -1,11 +1,13 @@
-# Development overrides for docker-compose.yml
-# Exposes ports for CMS (Directus) and Grafana
+# backend/core/docker-compose.override.yml
+# Overrides for development/local access via SSH port forwarding
 
 services:
   cms:
     ports:
-      - "${CMS_PORT:-8055}:8055" # Use default if CMS_PORT env var is not set
+      # Expose Directus only on localhost for SSH forwarding
+      - "127.0.0.1:${CMS_PORT}:${CMS_PORT}"
 
   grafana:
     ports:
-      - "3001:3000"
+      # Expose Grafana only on localhost for SSH forwarding
+      - "127.0.0.1:3000:3000"

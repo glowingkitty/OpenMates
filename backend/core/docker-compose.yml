@@ -180,10 +180,11 @@ services:
       TRANSLATIONS_DIR: "/translations"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
     command: >
-      python -m celery -A app.tasks.celery_config beat --loglevel=info
+      python -m celery -A app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
     volumes:
       - ./api:/app
       - ./api/logs:/app/logs
+      - celerybeat-schedule-data:/celerybeat-data # Mount named volume for schedule
       - ../../frontend/packages/ui/src/i18n/locales:/translations
     networks:
       - openmates
@@ -204,7 +205,6 @@ services:
     restart: unless-stopped
     ulimits:
       memlock: -1
-    # Ports removed for base config
     volumes:
       - cache-data:/data
     command:
@@ -316,7 +316,6 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-    # Ports removed for base config
     networks:
       - openmates
     healthcheck:
@@ -337,7 +336,6 @@ services:
     command:
       - "-config.file=/etc/loki/loki-config.yaml"
       - "-validation.allow-structured-metadata=false" # Disable structured metadata check
-    # Ports removed for base config
     networks:
       - openmates
     healthcheck:
@@ -368,7 +366,6 @@ services:
     container_name: grafana
     image: grafana/grafana:11.5.2
     restart: unless-stopped
-    # Ports removed for base config, will be added in override
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
@@ -468,3 +465,5 @@ volumes:
     name: openmates-vault-data
   vault-setup-data:
     name: openmates-vault-setup-data
+  celerybeat-schedule-data: # Define the named volume
+    name: openmates-celerybeat-schedule-data
