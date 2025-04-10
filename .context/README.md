@@ -31,6 +31,8 @@ Always make sure to follow these rules when writing / updating the files inside 
 ### todo.md
 
 #### Structure
+Required notes:
+'When you start working on a task, always change the status from todo to 'in-progress'.
 Required chapters:
 1. **Milestones**
    1. table has these fields:

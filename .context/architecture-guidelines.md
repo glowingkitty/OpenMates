@@ -15,7 +15,7 @@
 
 ## Development Environment
 
-This environment runs the full stack locally using Docker Compose (`docker-compose.yml` + `docker-compose.override.yml`) on a single machine (e.g., the Hetzner ARM server or a developer's machine). Several services are exposed directly on the host, allowing for easier local access during development and potential internet access if a reverse proxy (like Caddy) is configured on the host.
+This environment runs the **backend stack** locally using Docker Compose (`docker-compose.yml` + `docker-compose.override.yml`) on a single machine (e.g., the Hetzner ARM server or a developer's machine). Several backend services are exposed directly on the host, allowing for easier local access during development and direct API testing. **Frontend development primarily utilizes Vercel Preview Deployments.**
 
 ### Service Exposure (Development)
 
@@ -40,7 +40,7 @@ This environment runs the full stack locally using Docker Compose (`docker-compo
 
 *   **Setup:** Runs using `docker-compose.yml` and `docker-compose.override.yml`. All services communicate over the `openmates` Docker network.
 *   **Server:** Typically a single machine (Hetzner ARM server or local dev machine).
-*   **Frontend:** Svelte Website/Web App run using their own development servers (e.g., `vite`), communicating with the exposed `api` service.
+*   **Frontend:** Svelte Website/Web App development primarily uses **Vercel Preview Deployments**, automatically built and deployed from the `dev` branch. Developers may still run local dev servers (e.g., `vite`) for immediate feedback, communicating with the exposed `api` service on the dev machine.
 *   **Core Services:**
     *   `api`: Main entry point, connects to `cache`, `vault`, `cms`.
     *   `cms`: Content management, connects to `cms-database`, `cache`, `vault`. Exposed for direct access.
@@ -52,11 +52,11 @@ This environment runs the full stack locally using Docker Compose (`docker-compo
 *   **Monitoring:**
     *   `prometheus`, `loki`, `promtail`, `cadvisor`: Internal services for metrics and logging.
     *   `grafana`: Exposed for viewing dashboards. Connects internally to `prometheus` and `loki`.
-*   **Exposure:** `api`, `cms`, and `grafana` ports are mapped to the host machine. This allows direct local access and can provide internet access if a reverse proxy (like Caddy) is configured on the host to route external traffic to these ports.
+*   **Exposure:** `api`, `cms`, and `grafana` ports are mapped to the host machine. This allows direct local access for development and testing (e.g., connecting a local `vite` instance or using API tools). Internet access for these services in dev depends on the host's reverse proxy configuration.
 
 ## Production Environment
 
-This environment hosts the backend on a dedicated server (Hetzner ARM) using Docker Compose (`docker-compose.yml` only) and the frontend on Vercel. Only the main API is exposed to the internet via a reverse proxy.
+This environment clearly separates concerns: the **backend stack runs exclusively on a dedicated server** (Hetzner ARM) using Docker Compose (`docker-compose.yml` only), while the **frontend (Website and Web App) runs exclusively on Vercel**. Only the main backend API is exposed to the internet via a reverse proxy on the Hetzner server.
 
 ### Service Exposure (Production)
 
@@ -81,8 +81,8 @@ This environment hosts the backend on a dedicated server (Hetzner ARM) using Doc
 
 *   **Setup:** Runs using only `docker-compose.yml` on the Hetzner ARM server. A reverse proxy (e.g., Caddy, Traefik) runs on the host, managing public access.
 *   **Backend Server:** Dedicated Hetzner ARM server (8GB RAM).
-*   **Frontend Hosting:** Svelte Website and Web App hosted on Vercel.
-    *   **Deployment:** Manual triggers required for Vercel deployments.
+*   **Frontend Hosting:** Vercel exclusively hosts the Svelte Website and Web App for both production (`main` branch) and preview (`dev` branch) environments.
+    *   **Deployment:** Vercel automatically deploys the `main` branch to Production and the `dev` branch to Preview upon pushes to the respective branches.
 *   **Exposure:**
     *   The reverse proxy on the host directs external traffic **only** to the `api` service's container port (`${REST_API_PORT}`).
     *   All other services (`cms`, `cms-database`, `cache`, `vault`, Celery, Monitoring stack) are **not** publicly accessible and run only within the internal Docker network.
