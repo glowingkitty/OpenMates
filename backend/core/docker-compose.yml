@@ -20,7 +20,7 @@ services:
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
       VAULT_URL: "http://vault:8200"
-      VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}  # Use the VAULT_ROOT_TOKEN directly
+      VAULT_TOKEN_FILE: "/vault-data/api.token"
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
@@ -32,14 +32,14 @@ services:
       - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
       - ../../frontend/packages/ui/src/i18n/locales:/translations  # Mount frontend translations
       - ../../shared:/shared  # Mount shared directory for configuration
-      - vault-setup-data:/vault-data  # Mount vault setup data to access the root token
+      - vault-setup-data:/vault-data  # Mount vault setup data to access the API token
     networks:
       - openmates
     depends_on:
       cache:
         condition: service_healthy
       vault-setup:
-        condition: service_started # Corrected: Added condition
+        condition: service_started 
       cms-setup:
         condition: service_completed_successfully
     healthcheck:
@@ -256,12 +256,11 @@ services:
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
       VAULT_LOG_LEVEL: "debug"
       VAULT_AUTO_UNSEAL: "true"  # Set to "false" to disable auto-unsealing
     volumes:
       - ./vault/setup:/app
-      - vault-setup-data:/app/data  # Persistent storage for unseal key
+      - vault-setup-data:/app/data  # Persistent storage for tokens and keys
     networks:
       - openmates
     depends_on:
@@ -406,7 +405,6 @@ services:
   #     S3_SECRET_KEY: ${S3_SECRET_KEY}
   #     S3_BUCKET_NAME: ${S3_BUCKET_NAME}
   #     VAULT_URL: "http://vault:8200"
-  #     VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}
   #   volumes:
   #     - ./backup:/app
   #     - ./directus/uploads:/data/uploads:ro

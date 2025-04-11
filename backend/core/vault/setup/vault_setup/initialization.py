@@ -55,7 +55,30 @@ class VaultInitializer:
             logger.error(f"Failed to save unseal key: {str(e)}")
             return False
     
-    # Removed save_root_token - root token should only be displayed, not saved to file.
+    def save_root_token(self, root_token: str) -> bool:
+        """Save root token to a restricted access file.
+        
+        This is used ONLY by the setup script to maintain its ability to configure
+        Vault across container restarts. The root token is still displayed for manual
+        backup during initialization.
+        
+        Args:
+            root_token: The token to save
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            os.makedirs(os.path.dirname(self.token_file), exist_ok=True)
+            with open(self.token_file, 'w') as f:
+                f.write(root_token)
+            # Use very restrictive permissions (600 - owner read/write only)
+            os.chmod(self.token_file, stat.S_IRUSR | stat.S_IWUSR)
+            logger.info(f"Saved root token to {self.token_file} for setup script use")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save root token: {str(e)}")
+            return False
 
     def save_api_token_only(self, api_token: str) -> bool:
         """Save API token specifically to the API token file."""
@@ -88,7 +111,23 @@ class VaultInitializer:
             logger.error(f"Failed to read unseal key: {str(e)}")
             return None
     
-    # Removed get_saved_root_token - root token is passed explicitly now.
+    def load_root_token(self) -> Optional[str]:
+        """Get saved root token if available.
+        
+        Returns:
+            The root token or None if not available
+        """
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'r') as f:
+                    root_token = f.read().strip()
+                logger.info("Retrieved saved root token")
+                return root_token
+            logger.warning("No saved root token file found")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to read root token: {str(e)}")
+            return None
     
     async def initialize_vault(self) -> Tuple[bool, Optional[str]]:
         """Initialize Vault if not already initialized.
@@ -110,8 +149,7 @@ class VaultInitializer:
                 logger.warning("Vault already initialized. Cannot retrieve original root token.")
                 logger.warning("Setup will proceed, checking existing configuration.")
                 # Try to get *a* token from the API file if it exists, maybe it's usable?
-                # This is a fallback for subsequent runs if the root wasn't backed up.
-                api_token = self.get_api_token_from_file() # Need to add this helper
+                api_token = self.get_api_token_from_file()
                 if api_token:
                      self.client.update_token(api_token)
                      logger.info("Using token found in api.token file for subsequent operations.")
@@ -142,7 +180,8 @@ class VaultInitializer:
             
             # Save keys only if they don't already exist
             self.save_unseal_key(unseal_key)
-            # DO NOT save root token to file. Only save unseal key.
+            # Save root token for setup script use (not for API)
+            self.save_root_token(root_token)
             
             # Display the keys clearly ONCE for manual backup
             print("\n" + "="*80, flush=True)
@@ -219,23 +258,27 @@ class VaultInitializer:
             if not result.get("sealed", True):
                 logger.info("Vault unsealed successfully")
                 
-                # After unsealing, we need a token. If we just initialized,
-                # the client token was updated. If Vault was already initialized,
-                # we need to find *a* token. Try the api.token file.
-                if not status.get("initialized"): # Should not happen if we got here, but safety check
-                     logger.warning("Vault status indicates not initialized after unseal attempt?")
+                # After unsealing, we need to make sure we're using the root token for setup tasks
+                # Check if we already have a saved root token (from previous initialization)
+                root_token = self.load_root_token()
+                
+                if root_token:
+                    logger.info("Using saved root token after unsealing for administrative tasks")
+                    self.client.update_token(root_token)
+                    return True
                 else:
-                     api_token = self.get_api_token_from_file()
-                     if api_token:
-                          logger.info("Using token from api.token file after unsealing.")
-                          self.client.update_token(api_token)
-                     else:
-                          # This is problematic - initialized, unsealed, but no token found.
-                          # The original root token should have been backed up.
-                          logger.error("Vault unsealed, but no token found in api.token file.")
-                          logger.error("Manual intervention likely required using the backed-up root token.")
-                          # Cannot proceed reliably.
-                          return False
+                    # If no root token is available, try the API token as a fallback
+                    # This is not ideal but better than having no token at all
+                    api_token = self.get_api_token_from_file()
+                    if api_token:
+                        logger.warning("No root token found, falling back to API token after unsealing (limited functionality)")
+                        self.client.update_token(api_token)
+                        return True
+                    else:
+                        # This is problematic - initialized, unsealed, but no token found.
+                        logger.error("Vault unsealed, but no token found in api.token or root.token files.")
+                        logger.error("Manual intervention required using the backed-up root token.")
+                        return False
                 
                 return True
             else:
