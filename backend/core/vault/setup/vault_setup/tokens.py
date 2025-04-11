@@ -33,22 +33,24 @@ class TokenManager:
             # Temporarily use the token to check
             self.client.update_token(token)
             
-            # Try a simple operation that requires the api-encryption policy
-            # For example, checking if the transit key exists
-            result = await self.client.vault_request("get", "transit/keys/api-encryption", {}, ignore_errors=True)
-            
-            # If we got here without errors and have a valid response, token is valid
-            if result is not None:
-                logger.info("Existing API token is valid")
-                return True
-                
-            # Try to check the token's own information
+            # First and most reliable way: check the token's own information
             lookup_result = await self.client.vault_request("get", "auth/token/lookup-self", {}, ignore_errors=True)
             
             # If the token has the right policy, it's valid
             if lookup_result and "data" in lookup_result and "policies" in lookup_result["data"]:
                 if "api-encryption" in lookup_result["data"]["policies"]:
                     logger.info("Existing API token has the required policies")
+                    return True
+            
+            # If we get here, the token lookup didn't work or didn't have the right policy
+            # As a fallback, we could try a simple operation, but that might fail due to missing resources
+            # rather than invalid token. For example, on first run there won't be api-encryption transit key yet.
+            
+            # Check if token is not expired
+            if lookup_result and "data" in lookup_result and "ttl" in lookup_result["data"]:
+                if lookup_result["data"]["ttl"] > 0:
+                    logger.info("Existing token is valid but may not have all required permissions")
+                    # Even if it doesn't have right permissions now, we'll update policies later
                     return True
                     
             logger.warning("Existing API token failed validation")
