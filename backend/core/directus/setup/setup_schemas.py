@@ -132,6 +132,7 @@ def normalize_directus_type(type_name):
         'date': 'date',
         'time': 'time',
         'string': 'string',
+        'textfield': 'text',  # Map textfield to text for longer content
         'text': 'text',
         'integer': 'integer',
         'boolean': 'boolean',
@@ -140,8 +141,14 @@ def normalize_directus_type(type_name):
         'json': 'json',
         'uuid': 'uuid',
         'hash': 'hash',
+        'array': 'json',  # Array fields should be stored as JSON
     }
-    return type_map.get(type_name, type_name)
+    
+    # Handle array notation (e.g. "string[]")
+    if isinstance(type_name, str) and type_name.endswith('[]'):
+        return 'json'
+        
+    return type_map.get(type_name, 'string')  # Default to string if type not found
 
 def check_field_type(token, collection_name, field_name):
     """Check the type of a field in a collection."""
