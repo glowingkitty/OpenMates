@@ -6,7 +6,8 @@ export const apiUrls = {
 
 // Helper to get API URL
 export function getApiUrl(): string {
-    const isDev = import.meta.env.DEV;
+    // Use import.meta.env.MODE to check the environment
+    const isDev = import.meta.env.MODE === 'development';
     return isDev ? apiUrls.development : apiUrls.production;
 }
 
@@ -66,7 +67,7 @@ export const apiEndpoints = {
 
 // Helper to get full API endpoint URL
 export function getApiEndpoint(path: string): string {
-    // Get the base API URL from environment or use default
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    // Get the base API URL using the helper function
+    const apiBase = getApiUrl();
     return `${apiBase}${path}`;
 }
