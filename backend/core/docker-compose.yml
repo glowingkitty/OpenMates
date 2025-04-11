@@ -59,8 +59,8 @@ services:
     environment:
       KEY: "${DIRECTUS_SECRET}"
       SECRET: "${DIRECTUS_SECRET}"
-      DIRECTUS_ADMIN_EMAIL: "${DIRECTUS_ADMIN_EMAIL}"
-      DIRECTUS_ADMIN_PASSWORD: "${DIRECTUS_ADMIN_PASSWORD}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
       DB_CLIENT: "pg"
       DB_HOST: "cms-database"
       DB_PORT: "5432"
@@ -74,7 +74,7 @@ services:
       CACHE_STORE: "redis"
       REDIS_HOST: "cache"
       REDIS_PORT: "6379"
-      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      REDIS_PASSWORD: "${DRAGONFLY_PASSWORD}"
       REDIS_USERNAME: "default"
     # Ports removed for base config, will be added in override
     volumes:
@@ -114,8 +114,8 @@ services:
       dockerfile: Dockerfile
     env_file: ../../.env
     environment:
-      DIRECTUS_ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
-      DIRECTUS_ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       SCHEMAS_DIR: "/usr/src/app/schemas"
     volumes:
@@ -370,7 +370,7 @@ services:
       - grafana-data:/var/lib/grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_DIRECTUS_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
       GF_SERVER_DOMAIN: "localhost"

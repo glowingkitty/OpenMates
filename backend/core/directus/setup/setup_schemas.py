@@ -13,14 +13,14 @@ load_dotenv()
 
 # Configuration from environment variables
 CMS_URL = 'http://cms:8055'
-DIRECTUS_ADMIN_EMAIL = os.getenv('DIRECTUS_ADMIN_EMAIL')
-DIRECTUS_ADMIN_PASSWORD = os.getenv('DIRECTUS_ADMIN_PASSWORD')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
 
 # Print environment variables for debugging
 print(f"Environment variables loaded.")
-print(f"DIRECTUS_ADMIN_EMAIL: {'*****' if DIRECTUS_ADMIN_EMAIL else 'Not set'}")
-print(f"DIRECTUS_ADMIN_PASSWORD: {'*****' if DIRECTUS_ADMIN_PASSWORD else 'Not set'}")
+print(f"ADMIN_EMAIL: {'*****' if ADMIN_EMAIL else 'Not set'}")
+print(f"ADMIN_PASSWORD: {'*****' if ADMIN_PASSWORD else 'Not set'}")
 print(f"DIRECTUS_TOKEN: {'*****' if DIRECTUS_TOKEN else 'Not set'}")
 
 # Schema directories - use environment variable or default
@@ -82,8 +82,8 @@ def login():
     """Login to Directus and get access token."""
     try:
         response = requests.post(f"{CMS_URL}/auth/login", json={
-            "email": DIRECTUS_ADMIN_EMAIL,
-            "password": DIRECTUS_ADMIN_PASSWORD
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         response.raise_for_status()
         return response.json()['data']['access_token']

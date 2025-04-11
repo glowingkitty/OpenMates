@@ -137,15 +137,15 @@ check_env_file() {
   fi
 
   # Check and set Directus admin credentials if they don't exist
-  if ! grep -q "DIRECTUS_ADMIN_EMAIL" .env; then
-    echo "DIRECTUS_ADMIN_EMAIL=admin@example.com" >> .env
-    echo "Added default DIRECTUS_ADMIN_EMAIL to .env"
+  if ! grep -q "ADMIN_EMAIL" .env; then
+    echo "ADMIN_EMAIL=admin@example.com" >> .env
+    echo "Added default ADMIN_EMAIL to .env"
   fi
 
-  if ! grep -q "DIRECTUS_ADMIN_PASSWORD" .env; then
+  if ! grep -q "ADMIN_PASSWORD" .env; then
     random_password=$(openssl rand -base64 12)
-    echo "DIRECTUS_ADMIN_PASSWORD=${random_password}" >> .env
-    echo "Added random DIRECTUS_ADMIN_PASSWORD to .env"
+    echo "ADMIN_PASSWORD=${random_password}" >> .env
+    echo "Added random ADMIN_PASSWORD to .env"
   fi
 
   if ! grep -q "DIRECTUS_TOKEN" .env; then

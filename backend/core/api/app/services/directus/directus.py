@@ -29,8 +29,8 @@ class DirectusService:
     def __init__(self, cache_service: CacheService = None, encryption_service: EncryptionService = None): # Added encryption_service parameter
         self.base_url = os.getenv("CMS_URL", "http://cms:8055")
         self.token = os.getenv("DIRECTUS_TOKEN")
-        self.admin_email = os.getenv("DIRECTUS_ADMIN_EMAIL")
-        self.admin_password = os.getenv("DIRECTUS_ADMIN_PASSWORD")
+        self.admin_email = os.getenv("ADMIN_EMAIL")
+        self.admin_password = os.getenv("ADMIN_PASSWORD")
         self.auth_token = None
         self.admin_token = None
         self._auth_lock = None
