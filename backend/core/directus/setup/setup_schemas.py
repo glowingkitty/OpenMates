@@ -276,7 +276,10 @@ def create_relation(token, collection_name, field_name, relation_config):
         return False
 
 def create_collection(token, schema_file):
-    """Create collection from schema file."""
+    """
+    Create collection from schema file.
+    Returns a tuple: (success: bool, newly_created: bool)
+    """
     try:
         with open(schema_file, 'r') as f:
             schema = yaml.safe_load(f)
@@ -294,7 +297,7 @@ def create_collection(token, schema_file):
                 print(f"System collection {collection_name} exists, will add/update fields")
             else:
                 print(f"System collection {collection_name} doesn't exist, skipping")
-                return False
+                return False, False # Not successful, not newly created
         else:
             # For non-system collections, create if they don't exist
             if exists:
@@ -463,15 +466,16 @@ def create_collection(token, schema_file):
             time.sleep(0.5)
             create_relation(token, collection_name, field_name, relation_config)
         
-        print(f"Collection {collection_name} created successfully")
-        return True
+        print(f"Collection {collection_name} processed successfully (newly created: {create_new})")
+        # Return success status and whether the collection was newly created
+        return True, create_new
         
     except Exception as e:
         print(f'Error creating collection: {str(e)}')
         if hasattr(e, 'response') and e.response is not None:
             print(f'Response status code: {e.response.status_code}')
             print(f'Response body: {e.response.text}')
-        return False
+        return False, False # Not successful, not newly created
 
 def check_if_database_initialized(token):
     """Check if database is already initialized by checking if key collections exist."""
@@ -550,12 +554,11 @@ def setup_schemas():
     try:
         token = login()
         print('Successfully logged in to Directus')
+        # We will now always process schemas to ensure fields are up-to-date,
+        # but only create the initial admin invite code if the 'invite_codes'
+        # collection itself is newly created.
         
-        # Check if database is already initialized
-        if check_if_database_initialized(token):
-            print("Database already appears to be initialized, skipping schema setup")
-            return
-        
+        invite_codes_newly_created = False # Track if invite_codes was specifically created now
         # Check if schema files directory exists and list content
         if not os.path.exists(SCHEMAS_DIR):
             print(f"Schemas directory not found: {SCHEMAS_DIR}")
@@ -575,7 +578,6 @@ def setup_schemas():
                 print("Continuing without importing schemas.")
             else:
                 print(f"Found {len(schema_files)} schema file(s): {[os.path.basename(f) for f in schema_files]}")
-                collections_created = False
                 
                 # Sort schema files to ensure dependencies are created first
                 # Put users and chats first since they're referenced by other collections
@@ -591,34 +593,17 @@ def setup_schemas():
                 print(f"Processing schema files in order: {[os.path.basename(f) for f in schema_files]}")
                 
                 for schema_file in schema_files:
-                    if create_collection(token, schema_file):
-                        collections_created = True
+                    collection_name_from_file = os.path.basename(schema_file).split('.')[0] # e.g., 'invite_codes' from 'invite_codes.yml'
+                    success, newly_created = create_collection(token, schema_file)
+                    if success and newly_created and collection_name_from_file == 'invite_codes':
+                        invite_codes_newly_created = True
 
-        # Generate and store invite code if new collections were created
-        # or if the invite_codes collection exists but has no active codes
-        invite_code_needed = collections_created
-        
-        if collection_exists(token, 'invite_codes'):
-            # Check if there are any active invite codes
-            try:
-                response = requests.get(
-                    f"{CMS_URL}/items/invite_codes?filter[remaining_uses][_gt]=0",
-                    headers={"Authorization": f"Bearer {token}"}
-                )
-                
-                if response.status_code == 200:
-                    active_codes = response.json().get('data', [])
-                    if not active_codes:
-                        invite_code_needed = True
-                else:
-                    invite_code_needed = True
-            except Exception as e:
-                print(f"Error checking active invite codes: {str(e)}")
-                invite_code_needed = True
-        
-        if invite_code_needed:
-            print("Generating invite code for first user...")
+        # Only create an admin invite code if the 'invite_codes' collection
+        # was newly created during this run (i.e., first setup).
+        if invite_codes_newly_created:
+            print("First startup detected - generating invite code for admin user...")
             invite_code = generate_invite_code()
+            
             # Store as admin invite code
             if store_invite_code(token, invite_code, is_admin=True):
                 print(f"\n==================================")
@@ -626,8 +611,8 @@ def setup_schemas():
                 print(f"Admin Invite Code: {invite_code}")
                 print(f"This user will be granted full server admin privileges.")
                 print(f"==================================\n")
-        else:
-            print("No new collections created and active invite codes exist")
+            else:
+                print("Failed to store admin invite code")
         
         print('Schema setup complete')
         
