@@ -37,4 +37,4 @@ fi
 
 # Start the API server
 echo "Starting API server..."
-exec uvicorn main:app --host ${SERVER_HOST:-0.0.0.0} --port ${REST_API_PORT:-8000}
+exec uvicorn main:app --host 0.0.0.0 --port ${REST_API_PORT:-8000}

@@ -137,38 +137,27 @@ check_env_file() {
   fi
 
   # Check and set Directus admin credentials if they don't exist
-  if ! grep -q "ADMIN_EMAIL" .env; then
-    echo "ADMIN_EMAIL=admin@example.com" >> .env
-    echo "Added default ADMIN_EMAIL to .env"
+  if ! grep -q "DIRECTUS_ADMIN_EMAIL" .env; then
+    echo "DIRECTUS_ADMIN_EMAIL=admin@example.com" >> .env
+    echo "Added default DIRECTUS_ADMIN_EMAIL to .env"
   fi
 
-  if ! grep -q "ADMIN_PASSWORD" .env; then
+  if ! grep -q "DIRECTUS_ADMIN_PASSWORD" .env; then
     random_password=$(openssl rand -base64 12)
-    echo "ADMIN_PASSWORD=${random_password}" >> .env
-    echo "Added random ADMIN_PASSWORD to .env"
+    echo "DIRECTUS_ADMIN_PASSWORD=${random_password}" >> .env
+    echo "Added random DIRECTUS_ADMIN_PASSWORD to .env"
   fi
 
-  if ! grep -q "CMS_TOKEN" .env; then
-    cms_token=$(openssl rand -hex 32)
-    echo "CMS_TOKEN=${cms_token}" >> .env
-    echo "Added random CMS_TOKEN to .env"
-  fi
-  
-  if ! grep -q "ADMIN_JWT_SECRET" .env; then
-    jwt_secret=$(openssl rand -hex 32)
-    echo "ADMIN_JWT_SECRET=${jwt_secret}" >> .env
-    echo "Added random ADMIN_JWT_SECRET to .env"
+  if ! grep -q "DIRECTUS_TOKEN" .env; then
+    DIRECTUS_TOKEN=$(openssl rand -hex 32)
+    echo "DIRECTUS_TOKEN=${DIRECTUS_TOKEN}" >> .env
+    echo "Added random DIRECTUS_TOKEN to .env"
   fi
 
-  if ! grep -q "JWT_SECRET" .env; then
-    jwt_secret=$(openssl rand -hex 32)
-    echo "JWT_SECRET=${jwt_secret}" >> .env
-    echo "Added random JWT_SECRET to .env"
-  fi
-
-  # Set database connection parameters
-  if ! grep -q "DATABASE_PORT" .env; then
-    echo "DATABASE_PORT=5432" >> .env
+  if ! grep -q "DIRECTUS_SECRET" .env; then
+    DIRECTUS_SECRET=$(openssl rand -hex 32)
+    echo "DIRECTUS_SECRET=${DIRECTUS_SECRET}" >> .env
+    echo "Added random DIRECTUS_SECRET to .env"
   fi
 
   if ! grep -q "DATABASE_NAME" .env; then
@@ -183,26 +172,6 @@ check_env_file() {
     db_password=$(openssl rand -base64 12)
     echo "DATABASE_PASSWORD=${db_password}" >> .env
     echo "Added random DATABASE_PASSWORD to .env"
-  fi
-
-  if ! grep -q "CMS_PORT" .env; then
-    echo "CMS_PORT=8055" >> .env
-  fi
-
-  if ! grep -q "SERVER_HOST" .env; then
-    echo "SERVER_HOST=0.0.0.0" >> .env
-  fi
-  
-  # Add API port if it doesn't exist
-  if ! grep -q "REST_API_PORT" .env; then
-    echo "REST_API_PORT=8000" >> .env
-    echo "Added default REST_API_PORT to .env"
-  fi
-  
-  # Add in-memory database port if it doesn't exist
-  if ! grep -q "IN_MEMORY_DATABASE_PORT" .env; then
-    echo "IN_MEMORY_DATABASE_PORT=6379" >> .env
-    echo "Added default IN_MEMORY_DATABASE_PORT to .env"
   fi
   
   # Add server environment setting
@@ -368,7 +337,7 @@ start_services() {
     echo "Directus is reachable. Running schema setup..."
     
     # Check if schemas already exist by checking if invite_codes collection exists
-    CHECK_SCHEMA=$(curl -s -H "Authorization: Bearer $(grep CMS_TOKEN .env | cut -d '=' -f2)" \
+    CHECK_SCHEMA=$(curl -s -H "Authorization: Bearer $(grep DIRECTUS_TOKEN .env | cut -d '=' -f2)" \
                   http://localhost:8055/items/invite_codes 2>/dev/null)
     
     if echo "$CHECK_SCHEMA" | grep -q "data"; then
@@ -426,10 +395,6 @@ handle_db_volume
 start_services
 
 echo "===== Server initialization completed! ====="
-echo "Directus admin interface is available at: http://localhost:$(grep CMS_PORT .env | cut -d '=' -f2)"
-echo "API is available at: http://localhost:$(grep REST_API_PORT .env | cut -d '=' -f2)"
-echo "Admin email: $(grep ADMIN_EMAIL .env | cut -d '=' -f2)"
-echo "Admin password: $(grep ADMIN_PASSWORD .env | cut -d '=' -f2)"
 echo ""
 echo "Check the setup logs for your invite code for the first user!"
 echo ""

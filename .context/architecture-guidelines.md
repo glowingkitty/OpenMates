@@ -21,8 +21,8 @@ This environment runs the **backend stack** locally using Docker Compose (`docke
 
 | Service Name      | Purpose                                      | Exposed to Internet? | Default Port (Host) | Notes                                       |
 | :---------------- | :------------------------------------------- | :--------------- | :------------------ | :------------------------------------------ |
-| `api`             | FastAPI Backend                              | Yes              | `${REST_API_PORT}`  | Main API endpoint                           |
-| `cms`             | Directus CMS                                 | Yes              | `${CMS_PORT:-8055}` | Exposed via override file                   |
+| `api`             | FastAPI Backend                              | Yes              | `8000`              | Main API endpoint                           |
+| `cms`             | Directus CMS                                 | Yes              | `8055`              | Exposed via override file                   |
 | `grafana`         | Visualization Dashboard                      | Yes              | `3001`              | Exposed via override file (maps to 3000)    |
 | `cms-database`    | Postgres DB for Directus                     | No               | -                   | Internal network only                       |
 | `cache`           | Dragonfly Cache (Redis compatible)           | No               | -                   | Internal network only                       |
@@ -84,7 +84,7 @@ This environment clearly separates concerns: the **backend stack runs exclusivel
 *   **Frontend Hosting:** Vercel exclusively hosts the Svelte Website and Web App for both production (`main` branch) and preview (`dev` branch) environments.
     *   **Deployment:** Vercel automatically deploys the `main` branch to Production and the `dev` branch to Preview upon pushes to the respective branches.
 *   **Exposure:**
-    *   The reverse proxy on the host directs external traffic **only** to the `api` service's container port (`${REST_API_PORT}`).
+    *   The reverse proxy on the host directs external traffic **only** to the `api` service's container port (`8000`).
     *   All other services (`cms`, `cms-database`, `cache`, `vault`, Celery, Monitoring stack) are **not** publicly accessible and run only within the internal Docker network.
     *   Access to internal tools like `grafana` or `vault` requires secure methods (SSH tunnel, bastion host).
 *   **Communication:**

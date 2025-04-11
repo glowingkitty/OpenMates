@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 class ImageSafetyService:
     def __init__(self):
-        self.api_user = os.getenv('SIGHTENGINE_API_USER')
-        self.api_secret = os.getenv('SIGHTENGINE_API_SECRET')
+        self.api_user = os.getenv('API_SECRET__SIGHTENGINE_API_USER')
+        self.api_secret = os.getenv('API_SECRET__SIGHTENGINE_API_SECRET')
         self.api_url = 'https://api.sightengine.com/1.0/check.json'
 
     async def _check_image(self, image_content: bytes, include_offensive: bool = False):

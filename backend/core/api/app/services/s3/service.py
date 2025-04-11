@@ -39,8 +39,8 @@ class S3UploadService:
         self.endpoint_url = f'https://{self.region_name}.your-objectstorage.com'
         
         # Access keys
-        self.access_key = os.getenv('HETZNER_S3_ACCESS_KEY')
-        self.secret_key = os.getenv('HETZNER_S3_SECRET_KEY')
+        self.access_key = os.getenv('API_SECRET__HETZNER_S3_ACCESS_KEY')
+        self.secret_key = os.getenv('API_SECRET__HETZNER_S3_SECRET_KEY')
         
         # Configuration for CORS and general operations (uses s3v4 for compatibility)
         s3v4_config = Config(

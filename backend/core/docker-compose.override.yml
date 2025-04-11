@@ -5,7 +5,7 @@ services:
   cms:
     ports:
       # Expose Directus only on localhost for SSH forwarding
-      - "127.0.0.1:${CMS_PORT}:${CMS_PORT}"
+      - "127.0.0.1:8055:8055"
 
   grafana:
     ports:

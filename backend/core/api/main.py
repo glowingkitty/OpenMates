@@ -15,9 +15,10 @@ from app.routes import auth, email, invoice, credit_note, settings  # Update set
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
-from app.services.compliance import ComplianceService # Added
-from app.services.email_template import EmailTemplateService # Added
-from app.utils.encryption import EncryptionService # Added
+from app.services.compliance import ComplianceService
+from app.services.email_template import EmailTemplateService
+from app.utils.encryption import EncryptionService
+from app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from app.services.limiter import limiter
 
 # Middleware & Utils
@@ -125,9 +126,9 @@ logging.getLogger("app.routes.auth").setLevel(logging.INFO)
 load_dotenv()
 
 # Check crucial environment variables
-cms_token = os.getenv("CMS_TOKEN")
-if not cms_token:
-    logger.warning("CMS_TOKEN environment variable is not set. Authentication with Directus will fail.")
+DIRECTUS_TOKEN = os.getenv("DIRECTUS_TOKEN")
+if not DIRECTUS_TOKEN:
+    logger.warning("DIRECTUS_TOKEN environment variable is not set. Authentication with Directus will fail.")
 
 # Services will be initialized within the lifespan context manager
 # and stored in app.state
@@ -149,6 +150,11 @@ async def lifespan(app: FastAPI):
     app.state.metrics_service = MetricsService()
     app.state.compliance_service = ComplianceService()
     app.state.email_template_service = EmailTemplateService()
+    
+    # Initialize secrets manager with cache
+    app.state.secrets_manager = SecretsManager(cache_service=app.state.cache_service)
+    logger.info("Initializing secrets manager...")
+    await app.state.secrets_manager.initialize()
     
     # Encryption service depends on cache
     app.state.encryption_service = EncryptionService(cache_service=app.state.cache_service)

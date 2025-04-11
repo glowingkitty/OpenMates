@@ -64,10 +64,10 @@ class EmailTemplateService:
         self.shared_urls = load_shared_urls()
         
         # Get Mailjet API keys from environment
-        self.mailjet_api_key = os.getenv("MAILJET_API_KEY")
-        self.mailjet_api_secret = os.getenv("MAILJET_API_SECRET")
-        if not self.mailjet_api_key or not self.mailjet_api_secret:
-            logger.warning("MAILJET_API_KEY or MAILJET_API_SECRET not set. Email sending will not work.")
+        self.API_SECRET__MAILJET_API_KEY = os.getenv("API_SECRET__MAILJET_API_KEY")
+        self.API_SECRET__MAILJET_API_SECRET = os.getenv("API_SECRET__MAILJET_API_SECRET")
+        if not self.API_SECRET__MAILJET_API_KEY or not self.API_SECRET__MAILJET_API_SECRET:
+            logger.warning("API_SECRET__MAILJET_API_KEY or API_SECRET__MAILJET_API_SECRET not set. Email sending will not work.")
             
         # Mailjet API endpoint
         self.mailjet_api_url = "https://api.mailjet.com/v3.1/send"
@@ -155,8 +155,8 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        if not self.mailjet_api_key or not self.mailjet_api_secret:
-            logger.error("Cannot send email: MAILJET_API_KEY or MAILJET_API_SECRET not set")
+        if not self.API_SECRET__MAILJET_API_KEY or not self.API_SECRET__MAILJET_API_SECRET:
+            logger.error("Cannot send email: API_SECRET__MAILJET_API_KEY or API_SECRET__MAILJET_API_SECRET not set")
             return False
             
         try:
@@ -221,7 +221,7 @@ class EmailTemplateService:
             
             # Send the email via Mailjet API
             async with aiohttp.ClientSession() as session:
-                auth = aiohttp.BasicAuth(self.mailjet_api_key, self.mailjet_api_secret)
+                auth = aiohttp.BasicAuth(self.API_SECRET__MAILJET_API_KEY, self.API_SECRET__MAILJET_API_SECRET)
                 headers = {
                     "Content-Type": "application/json"
                 }

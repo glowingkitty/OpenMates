@@ -15,18 +15,18 @@ services:
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
-      REST_API_PORT: ${REST_API_PORT}
-      CMS_URL: "http://cms:${CMS_PORT}"
-      CMS_TOKEN: ${CMS_TOKEN}
-      DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
+      REST_API_PORT: 8000
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
       VAULT_URL: "http://vault:8200"
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-root}  # Use the VAULT_ROOT_TOKEN directly
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
     command: sh /app/wait-for-vault.sh
     ports:
-      - "${REST_API_PORT}:${REST_API_PORT}"
+      - "8000:8000"
     volumes:
       - ./api:/app
       - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
@@ -43,7 +43,7 @@ services:
       cms-setup:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${REST_API_PORT}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -57,24 +57,24 @@ services:
     restart: unless-stopped
     env_file: ../../.env
     environment:
-      KEY: "${ADMIN_JWT_SECRET}"
-      SECRET: "${JWT_SECRET}"
-      ADMIN_EMAIL: "${ADMIN_EMAIL}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      KEY: "${DIRECTUS_SECRET}"
+      SECRET: "${DIRECTUS_SECRET}"
+      DIRECTUS_ADMIN_EMAIL: "${DIRECTUS_ADMIN_EMAIL}"
+      DIRECTUS_ADMIN_PASSWORD: "${DIRECTUS_ADMIN_PASSWORD}"
       DB_CLIENT: "pg"
       DB_HOST: "cms-database"
-      DB_PORT: "${DATABASE_PORT}"
+      DB_PORT: "5432"
       DB_DATABASE: "${DATABASE_NAME}"
       DB_USER: "${DATABASE_USERNAME}"
       DB_PASSWORD: "${DATABASE_PASSWORD}"
-      PUBLIC_URL: "http://localhost:${CMS_PORT}"
+      PUBLIC_URL: "http://localhost:8055"
       LOG_LEVEL: "info"
       # Add Redis configuration for Directus
       CACHE_ENABLED: "true"
       CACHE_STORE: "redis"
       REDIS_HOST: "cache"
       REDIS_PORT: "6379"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       REDIS_USERNAME: "default"
     # Ports removed for base config, will be added in override
     volumes:
@@ -114,10 +114,9 @@ services:
       dockerfile: Dockerfile
     env_file: ../../.env
     environment:
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      CMS_TOKEN: ${CMS_TOKEN}
-      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      DIRECTUS_ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
+      DIRECTUS_ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       SCHEMAS_DIR: "/usr/src/app/schemas"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
@@ -142,13 +141,13 @@ services:
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
-      CMS_URL: "http://cms:${CMS_PORT}"
-      CMS_TOKEN: ${CMS_TOKEN}
-      DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
-      CELERY_BROKER_URL: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
-      CELERY_RESULT_BACKEND: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      CELERY_BROKER_URL: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
+      CELERY_RESULT_BACKEND: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
       TRANSLATIONS_DIR: "/translations"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
     command: >
       python -m celery -A app.tasks.celery_config worker --loglevel=info -Q email
     volumes:
@@ -172,13 +171,13 @@ services:
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
-      CMS_URL: "http://cms:${CMS_PORT}"
-      CMS_TOKEN: ${CMS_TOKEN}
-      DRAGONFLY_URL: "cache:${IN_MEMORY_DATABASE_PORT}"
-      CELERY_BROKER_URL: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
-      CELERY_RESULT_BACKEND: "redis://default:${REDIS_PASSWORD:-openmates_cache}@cache:6379/0"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      CELERY_BROKER_URL: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
+      CELERY_RESULT_BACKEND: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
       TRANSLATIONS_DIR: "/translations"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-openmates_cache}"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
     command: >
       python -m celery -A app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
     volumes:
@@ -211,7 +210,7 @@ services:
       - "--maxmemory"
       - "3000mb"
       - "--requirepass"
-      - "${REDIS_PASSWORD:-openmates_cache}"  # Use environment variable or default password
+      - "${DRAGONFLY_PASSWORD}"  # Use environment variable or default password
     deploy:
       resources:
         limits:
@@ -219,7 +218,7 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-openmates_cache}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${DRAGONFLY_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -372,7 +371,7 @@ services:
       - grafana-data:/var/lib/grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_DIRECTUS_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
       GF_SERVER_DOMAIN: "localhost"
@@ -400,8 +399,8 @@ services:
   #   env_file: ../../.env
   #   environment:
   #     PYTHONPATH: "/app"
-  #     CMS_URL: "http://cms:${CMS_PORT}"
-  #     CMS_TOKEN: ${CMS_TOKEN}
+  #     CMS_URL: "http://cms:8055"
+  #     DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
   #     S3_ENDPOINT: ${S3_ENDPOINT}
   #     S3_ACCESS_KEY: ${S3_ACCESS_KEY}
   #     S3_SECRET_KEY: ${S3_SECRET_KEY}

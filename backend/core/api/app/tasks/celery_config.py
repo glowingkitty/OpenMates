@@ -45,11 +45,11 @@ def setup_celery_logging():
 setup_celery_logging()
 
 # Get Redis password from environment variable
-redis_password = os.getenv('REDIS_PASSWORD', 'openmates_cache')
+DRAGONFLY_PASSWORD = os.getenv('DRAGONFLY_PASSWORD')
 
 # Build proper authenticated connection URLs
-broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{redis_password}@cache:6379/0')
-result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{redis_password}@cache:6379/0')
+broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{DRAGONFLY_PASSWORD}@cache:6379/0')
+result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{DRAGONFLY_PASSWORD}@cache:6379/0')
 
 # Log the connection information
 logger.info(f"Celery broker URL: {broker_url}")

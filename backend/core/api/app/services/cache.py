@@ -24,7 +24,7 @@ class CacheService:
     def __init__(self):
         """Initialize the cache service with configuration from environment variables"""
         self.redis_url = os.getenv("DRAGONFLY_URL", "cache:6379")
-        self.redis_password = os.getenv("REDIS_PASSWORD", "openmates_cache")
+        self.DRAGONFLY_PASSWORD = os.getenv("DRAGONFLY_PASSWORD", "openmates_cache")
         self._client = None
         self._connection_error = False
         
@@ -47,7 +47,7 @@ class CacheService:
                 self._client = redis.Redis(
                     host=self.host,
                     port=self.port,
-                    password=self.redis_password,
+                    password=self.DRAGONFLY_PASSWORD,
                     socket_timeout=5,
                     socket_connect_timeout=5,
                     retry_on_timeout=True,

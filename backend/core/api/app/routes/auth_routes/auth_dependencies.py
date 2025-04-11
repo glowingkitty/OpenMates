@@ -38,6 +38,10 @@ def get_email_template_service(request: Request):
     """Get the Email Template service instance from app state."""
     return request.app.state.email_template_service
 
+def get_secrets_manager(request: Request):
+    """Get the Secrets Manager instance from app state."""
+    return request.app.state.secrets_manager
+
 
 # --- Moved from settings.py ---
 async def get_current_user(
