@@ -51,10 +51,8 @@
 
     onMount(async () => {
         // Initialize authentication state on app load
-        $isCheckingAuth = true;
         await authStore.initialize();
         isAuthInitialized = true;
-        $isCheckingAuth = false;
         
         if (window.innerWidth < MOBILE_BREAKPOINT) {
             isMenuOpen.set(false);
