@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, Request, Query
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from app.services.pdf.credit_note import CreditNoteTemplateService
 import io
 
-router = APIRouter(prefix="/v1/credit-note", tags=["credit-note"])
+router = APIRouter(
+    prefix="/v1/credit-note",
+    tags=["credit-note"]
+)
 credit_note_template_service = CreditNoteTemplateService()
 
 @router.post("/generate")

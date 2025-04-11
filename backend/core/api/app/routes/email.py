@@ -1,26 +1,17 @@
-from fastapi import APIRouter, Query, HTTPException, Request, Depends
+from fastapi import APIRouter, Query, HTTPException, Request
 from fastapi.responses import HTMLResponse
 import logging
-import os
-import base64
-import io # Added
 # httpx no longer needed here for map image
-from datetime import datetime, timezone # Added timezone
-from urllib.parse import quote_plus
-import user_agents
-from typing import Optional
-from staticmap import StaticMap, CircleMarker # Added
+from datetime import datetime, timezone
 
 from app.services.email_template import EmailTemplateService
 from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
 # Import both helpers now
 from app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
-from app.security.dependencies import verify_admin_access_key # Import the dependency
 
 router = APIRouter(
     prefix="/v1/email",
-    tags=["email"],
-    dependencies=[Depends(verify_admin_access_key)] # Apply dependency to all routes
+    tags=["email"] # Removed admin access key dependency
 )
 logger = logging.getLogger(__name__)
 email_template_service = EmailTemplateService()
