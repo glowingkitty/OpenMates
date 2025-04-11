@@ -3,6 +3,7 @@ Functions for managing Vault tokens.
 """
 
 import logging
+import os
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger("vault-setup.tokens")
@@ -18,20 +19,79 @@ class TokenManager:
         """
         self.client = vault_client
         
-    # Removed create_api_token method - root token is handled during initialization
-
+    async def validate_existing_token(self, token: str) -> bool:
+        """Validate if a token is still valid and has the required permissions.
+        
+        Args:
+            token: The token to validate
+            
+        Returns:
+            True if token is valid, False otherwise
+        """
+        original_token = self.client.vault_token
+        try:
+            # Temporarily use the token to check
+            self.client.update_token(token)
+            
+            # Try a simple operation that requires the api-encryption policy
+            # For example, checking if the transit key exists
+            result = await self.client.vault_request("get", "transit/keys/api-encryption", {}, ignore_errors=True)
+            
+            # If we got here without errors and have a valid response, token is valid
+            if result is not None:
+                logger.info("Existing API token is valid")
+                return True
+                
+            # Try to check the token's own information
+            lookup_result = await self.client.vault_request("get", "auth/token/lookup-self", {}, ignore_errors=True)
+            
+            # If the token has the right policy, it's valid
+            if lookup_result and "data" in lookup_result and "policies" in lookup_result["data"]:
+                if "api-encryption" in lookup_result["data"]["policies"]:
+                    logger.info("Existing API token has the required policies")
+                    return True
+                    
+            logger.warning("Existing API token failed validation")
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error validating existing token: {str(e)}")
+            return False
+        finally:
+            # Restore original token
+            self.client.update_token(original_token)
 
     async def create_api_encryption_token(self, root_token: str, initializer) -> Optional[str]:
         """Create a token specifically for the API service's encryption needs, using the root token.
+        If a valid token already exists, will use that instead of creating a new one.
 
         Args:
             root_token: The root token obtained during initialization.
             initializer: The VaultInitializer instance (needed for saving the token).
 
         Returns:
-            The created encryption token or None on failure
+            The created or existing encryption token or None on failure
         """
-        logger.info("Creating API encryption token")
+        # First check if a valid token already exists
+        if os.path.exists(initializer.api_token_file):
+            try:
+                with open(initializer.api_token_file, 'r') as f:
+                    existing_token = f.read().strip()
+                if existing_token:
+                    logger.info("Found existing API token, validating...")
+                    if await self.validate_existing_token(existing_token):
+                        logger.info("Using existing API encryption token")
+                        return existing_token
+                    else:
+                        logger.info("Existing API token is invalid, creating a new one")
+            except Exception as e:
+                logger.warning(f"Could not read or validate existing token: {str(e)}")
+                logger.info("Will create a new API encryption token")
+        else:
+            logger.info("No existing API token found, creating a new one")
+        
+        # If we get here, we need to create a new token
+        logger.info("Creating new API encryption token")
 
         if not root_token:
             logger.error("Cannot create encryption token: No root token provided.")
@@ -42,9 +102,6 @@ class TokenManager:
         self.client.update_token(root_token)
 
         try:
-            # Check if a token already exists and is valid (optional, can simplify by always creating)
-            # For simplicity, let's always create/replace the encryption token on setup run
-
             # Create a token with the api-encryption policy
             result = await self.client.vault_request("post", "auth/token/create", {
                 "policies": ["api-encryption"],
@@ -77,4 +134,4 @@ class TokenManager:
             # Restore the client's original token if it was different from the root token used
             if original_token and original_token != root_token:
                  self.client.update_token(original_token)
-            # Otherwise, leave the client token as it is (likely the API token from initialization if Vault was already set up)
+            # Otherwise, leave the client token as it is

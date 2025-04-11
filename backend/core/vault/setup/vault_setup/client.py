@@ -63,19 +63,20 @@ class VaultClient:
         
         raise Exception("Vault did not become available within the timeout period")
     
-    async def vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
+    async def vault_request(self, method: str, path: str, data: Dict[str, Any] = None, ignore_errors: bool = False) -> Optional[Dict[str, Any]]:
         """Make a request to the Vault API.
         
         Args:
             method: HTTP method (get, post, etc.)
             path: API path relative to /v1/
             data: JSON data for POST/PUT requests
+            ignore_errors: If True, will return None instead of raising exceptions
             
         Returns:
-            Response JSON or None for 404 responses
+            Response JSON or None for 404 responses or when ignore_errors=True
             
         Raises:
-            Exception: For request errors
+            Exception: For request errors (unless ignore_errors=True)
         """
         url = f"{self.vault_addr}/v1/{path}"
         headers = {"X-Vault-Token": self.vault_token}
@@ -104,9 +105,13 @@ class VaultClient:
                 logger.debug(f"Resource not found: {path}")
                 return None
             logger.error(f"HTTP error: {e.response.status_code} - {e.response.text}")
+            if ignore_errors:
+                return None
             raise
         except Exception as e:
             logger.error(f"Error in Vault request to {path}: {str(e)}")
+            if ignore_errors:
+                return None
             raise
     
     async def check_vault_status(self) -> Optional[Dict[str, Any]]:
