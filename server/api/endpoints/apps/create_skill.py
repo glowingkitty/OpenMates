@@ -1,1 +1,0 @@
-# TODO create a skill in strapi

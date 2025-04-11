@@ -1,1 +1,0 @@
-See website folder to generate icons via css + svgs, if needed.

@@ -1,7 +1,0 @@
-- for all tests, also validate model examples and if possible reuse input examples, instead of writing custom ones
-- when multiple test examples are given, add them to the docs as additional examples (if I already define them, might as well be helpful for devs)
-- for all models:
-  - make sure all fields are clearly defined with all their possible types and add explainations. try to prevent the use of Dict[str, str] for example, but instead define what exact fields are there and what their purpose is
-  - make sure all fields are Field(...) type, including a title and description
-- for all endpoints:
-  - make sure to return model class, not json (so validation from fastapi works)

@@ -1,1 +1,0 @@
-# TODO create an app in strapi

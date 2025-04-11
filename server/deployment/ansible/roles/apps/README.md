@@ -1,1 +1,0 @@
-The roles for the apps will be dynamically loaded from the /server/apps folder

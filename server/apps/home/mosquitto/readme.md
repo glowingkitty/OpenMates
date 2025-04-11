@@ -1,1 +1,0 @@
-Here a docker setup of mosquitto (the MQTT broker) will follow

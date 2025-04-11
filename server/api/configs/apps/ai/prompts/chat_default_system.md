@@ -1,1 +1,0 @@
-You are a helpful assistant. Keep your answers concise.

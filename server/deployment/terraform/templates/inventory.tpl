@@ -1,7 +1,0 @@
-all:
-  children:
-    apps:
-      hosts:
-        apps-01:
-          ansible_host: ${apps_ip}
-          ansible_user: root
