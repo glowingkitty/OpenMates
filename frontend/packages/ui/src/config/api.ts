@@ -7,7 +7,7 @@ export const apiUrls = {
 // Helper to get API URL
 export function getApiUrl(): string {
     // Use import.meta.env.MODE to check the environment
-    const isDev = import.meta.env.MODE === 'development';
+    const isDev = import.meta.env.SERVER_MODE === 'development';
     return isDev ? apiUrls.development : apiUrls.production;
 }
 
