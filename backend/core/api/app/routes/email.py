@@ -5,8 +5,8 @@ import logging
 from datetime import datetime, timezone
 
 from app.services.email_template import EmailTemplateService
+from app.services.translations import TranslationService # Import TranslationService
 from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
-# Import both helpers now
 from app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
 
 router = APIRouter(
@@ -14,8 +14,6 @@ router = APIRouter(
     tags=["email"] # Removed admin access key dependency
 )
 logger = logging.getLogger(__name__)
-email_template_service = EmailTemplateService()
-translation_service = email_template_service.translation_service # Get instance
 
 # Remove the generic template endpoint and replace with specific template handlers
 
@@ -25,8 +23,11 @@ async def _process_email_template(
     template_name: str,
     lang: str = "en",
     **kwargs
-):
+) -> HTMLResponse: # Add return type hint
     """Internal helper to process email templates with consistent logic"""
+    # Access services from request.app.state
+    email_template_service: EmailTemplateService = request.app.state.email_template_service
+    
     try:
         # Start with empty context
         context = {}
@@ -51,7 +52,7 @@ async def _process_email_template(
         # Log the final context for debugging
         logger.debug(f"Template context: {context}")
         
-        # Render the email template
+        # Render the email template using the service from app.state
         html_content = email_template_service.render_template(
             template_name=template_name,
             context=context,
@@ -142,7 +143,7 @@ async def preview_new_device_login(
             account_email=account_email,
             language=lang,
             darkmode=darkmode, # Pass darkmode from query param
-            translation_service=translation_service, # Use global service instance
+            translation_service=request.app.state.email_template_service.translation_service, # Use service from app.state
             latitude=latitude,         # Pass explicit latitude
             longitude=longitude,       # Pass explicit longitude
             location_name=location_name, # Pass location name string
@@ -177,10 +178,15 @@ async def preview_backup_code_used(
     Preview the backup code used email template.
     Generates the mailto link dynamically for the preview.
     """
+    # Access services from request.app.state for consistency, even though mailto link needs its own
+    # email_template_service: EmailTemplateService = request.app.state.email_template_service
+    translation_service: TranslationService = request.app.state.email_template_service.translation_service
+
     try:
-        # Instantiate service locally for this preview endpoint
-        local_email_template_service = EmailTemplateService()
-        local_translation_service = local_email_template_service.translation_service
+        # NOTE: Mailto link generation might still need its own translation instance
+        # if it relies on specific context not available globally.
+        # For preview, using the global one should be fine.
+        local_translation_service = translation_service # Use the one from app.state for preview
 
         # Prepare details for the mailto link helper
         login_time_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
@@ -202,9 +208,9 @@ async def preview_backup_code_used(
              logger.error("Failed to generate mailto link for backup code used")
              raise HTTPException(status_code=500, detail="Failed to generate mailto link")
 
-        # Call the main rendering helper
+        # Call the main rendering helper, accessing services via request
         return await _process_email_template(
-            request=request,
+            request=request, # Pass request to access app.state inside helper
             template_name="backup-code-was-used",
             lang=lang,
             code=code, # Pass the code for display in the template

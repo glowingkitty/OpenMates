@@ -22,6 +22,7 @@ from app.services.email.variable_processor import process_template_variables
 from app.services.email.renderer import render_mjml_template
 from app.services.email.mjml_processor import image_cache
 from app.utils.log_filters import SensitiveDataFilter  # Import the filter
+from app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 # Configure cssutils logger to suppress email-specific CSS property warnings
 cssutils.log.setLevel(logging.ERROR)  # Only show ERROR level messages from cssutils
@@ -46,8 +47,9 @@ if not logger.handlers:
 class EmailTemplateService:
     """Service for rendering and sending email templates using Mailjet API."""
     
-    def __init__(self):
-        """Initialize the email template service with template directory and Mailjet API keys."""
+    def __init__(self, secrets_manager: SecretsManager):
+        """Initialize the email template service with template directory and SecretsManager."""
+        self.secrets_manager = secrets_manager
         # Path to email templates directory
         self.templates_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -63,12 +65,7 @@ class EmailTemplateService:
         # Load shared URL configuration
         self.shared_urls = load_shared_urls()
         
-        # Get Mailjet API keys from environment
-        self.API_SECRET__MAILJET_API_KEY = os.getenv("API_SECRET__MAILJET_API_KEY")
-        self.API_SECRET__MAILJET_API_SECRET = os.getenv("API_SECRET__MAILJET_API_SECRET")
-        if not self.API_SECRET__MAILJET_API_KEY or not self.API_SECRET__MAILJET_API_SECRET:
-            logger.warning("API_SECRET__MAILJET_API_KEY or API_SECRET__MAILJET_API_SECRET not set. Email sending will not work.")
-            
+        # Mailjet API keys will be fetched from SecretsManager in send_email method
         # Mailjet API endpoint
         self.mailjet_api_url = "https://api.mailjet.com/v3.1/send"
         
@@ -155,10 +152,13 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        if not self.API_SECRET__MAILJET_API_KEY or not self.API_SECRET__MAILJET_API_SECRET:
-            logger.error("Cannot send email: API_SECRET__MAILJET_API_KEY or API_SECRET__MAILJET_API_SECRET not set")
+        # Fetch Mailjet API keys from Secrets Manager
+        api_key = await self.secrets_manager.get_secret("API_SECRET__MAILJET_API_KEY")
+        api_secret = await self.secrets_manager.get_secret("API_SECRET__MAILJET_API_SECRET")
+
+        if not api_key or not api_secret:
+            logger.error("Cannot send email: Mailjet API key or secret not found in Secrets Manager")
             return False
-            
         try:
             # Initialize default context if needed
             if context is None:
@@ -221,7 +221,7 @@ class EmailTemplateService:
             
             # Send the email via Mailjet API
             async with aiohttp.ClientSession() as session:
-                auth = aiohttp.BasicAuth(self.API_SECRET__MAILJET_API_KEY, self.API_SECRET__MAILJET_API_SECRET)
+                auth = aiohttp.BasicAuth(api_key, api_secret)
                 headers = {
                     "Content-Type": "application/json"
                 }

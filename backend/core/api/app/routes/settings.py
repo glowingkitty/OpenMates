@@ -20,14 +20,6 @@ from app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest # 
 router = APIRouter(prefix="/v1/settings")
 logger = logging.getLogger(__name__)
 
-# Initialize services
-cache_service = CacheService()
-directus_service = DirectusService(cache_service=cache_service)
-encryption_service = EncryptionService(cache_service=cache_service)
-s3_service = S3UploadService()
-image_safety_service = ImageSafetyService()
-
-
 # --- Define a simple success response model ---
 class SimpleSuccessResponse(BaseModel):
     success: bool
@@ -40,6 +32,17 @@ async def update_profile_image(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
 ):
+    # Access services from app state
+    s3_service: S3UploadService = request.app.state.s3_service
+    image_safety_service: ImageSafetyService = request.app.state.image_safety_service
+    cache_service: CacheService = request.app.state.cache_service # Explicitly get cache service
+    directus_service: DirectusService = request.app.state.directus_service # Explicitly get directus service
+    encryption_service: EncryptionService = request.app.state.encryption_service # Explicitly get encryption service
+
+    if not s3_service or not image_safety_service or not cache_service or not directus_service or not encryption_service:
+         logger.error("Required services not available in app state for settings route.")
+         raise HTTPException(status_code=503, detail="Service unavailable")
+
     bucket_config = s3_service.get_bucket_config('profile_images')
     
     try:
@@ -58,11 +61,11 @@ async def update_profile_image(
         if len(image_content) > bucket_config['max_size']:
             raise HTTPException(status_code=400, detail="File too large")
 
-        # Check rejected uploads count from cache using a standardized key format
+        # Check rejected uploads count from cache (using service from app.state)
         reject_key = f"profile_image_rejects:{current_user.id}"
         reject_count = await cache_service.get(reject_key) or 0
 
-        # Check image safety with stricter profile image rules
+        # Check image safety (using service from app.state)
         is_safe = await image_safety_service.check_profile_image(image_content)
         if not is_safe:
             # Increment and store reject count
@@ -75,9 +78,9 @@ async def update_profile_image(
                 client_ip = get_client_ip(request)
                 
                 # Delete user account with proper reason
-                # Note: The deletion will be logged by the delete_user method
+                # Note: The deletion will be logged by the delete_user method (using service from app.state)
                 await directus_service.delete_user(
-                    current_user.id, 
+                    current_user.id,
                     deletion_type="policy_violation",
                     reason="repeated_inappropriate_profile_images",
                     ip_address=client_ip,
@@ -116,7 +119,7 @@ async def update_profile_image(
         # Get old image URL from the current user object (already fetched/cached)
         old_url = current_user.profile_image_url
 
-        # Upload new image
+        # Upload new image (using service from app.state)
         upload_result = await s3_service.upload_file(
             bucket_key='profile_images',
             file_key=new_filename,
@@ -134,10 +137,10 @@ async def update_profile_image(
              raise HTTPException(status_code=500, detail="User encryption key not found")
         # --- End get vault_key_id ---
 
-        # Encrypt URL using user-specific key and context
+        # Encrypt URL (using service from app.state)
         encrypted_url, _ = await encryption_service.encrypt_with_user_key(image_url, vault_key_id) # Use encrypt_with_user_key
 
-        # Update Directus user entry with profile image and last_opened field
+        # Update Directus (using service from app.state)
         await directus_service.update_user(current_user.id, {
             "encrypted_profileimage_url": encrypted_url,
             "last_opened": "/signup/step-4"
@@ -158,7 +161,7 @@ async def update_profile_image(
         # Delete old image from S3
         if old_url:
             old_key = old_url.split('/')[-1]
-            await s3_service.delete_file('profile_images', old_key)
+            await s3_service.delete_file('profile_images', old_key) # Use service from app.state
 
         return {"url": image_url}
 

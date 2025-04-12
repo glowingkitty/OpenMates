@@ -19,6 +19,7 @@ except ImportError:
 from celery import shared_task
 from app.services.email_template import EmailTemplateService
 from app.services.cache import CacheService # Needed for verification email task
+from app.utils.secrets_manager import SecretsManager # Import SecretsManager
 from app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from app.services.directus import DirectusService # Needed to get user details like email
 # Import the new mailto link helper and the existing context helper
@@ -80,7 +81,9 @@ async def _async_generate_and_send_verification_email(
     try:
         # Create a standalone cache service for this task
         cache_service = CacheService()
-        email_template_service = EmailTemplateService()
+        secrets_manager = SecretsManager() # Instantiate SecretsManager
+        await secrets_manager.initialize() # Initialize SecretsManager
+        email_template_service = EmailTemplateService(secrets_manager=secrets_manager) # Pass SecretsManager
         
         # Generate a 6-digit code
         verification_code = ''.join(random.choices('0123456789', k=6))
@@ -189,7 +192,9 @@ async def _async_send_new_device_email(
     Async implementation for sending the new device login email.
     """
     try:
-        email_template_service = EmailTemplateService()
+        secrets_manager = SecretsManager() # Instantiate SecretsManager
+        await secrets_manager.initialize() # Initialize SecretsManager
+        email_template_service = EmailTemplateService(secrets_manager=secrets_manager) # Pass SecretsManager
 
         # --- Prepare Context using Helper Function ---
         try:
@@ -280,7 +285,9 @@ async def _async_send_backup_code_used_email(
     Async implementation for sending the backup code used email.
     """
     try:
-        email_template_service = EmailTemplateService()
+        secrets_manager = SecretsManager() # Instantiate SecretsManager
+        await secrets_manager.initialize() # Initialize SecretsManager
+        email_template_service = EmailTemplateService(secrets_manager=secrets_manager) # Pass SecretsManager
         translation_service = email_template_service.translation_service # Get translation service instance
 
         # --- Prepare Mailto Link using Helper ---

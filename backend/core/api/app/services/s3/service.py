@@ -7,8 +7,9 @@ import os
 import time
 from io import BytesIO
 from fastapi import HTTPException
-# Ensure os is imported if needed for getenv (it's used later)
-import os 
+# os import might still be needed for SERVER_ENVIRONMENT
+import os
+from app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
 # Import ClientError for exception handling
 from botocore.exceptions import ClientError 
@@ -28,20 +29,47 @@ class S3UploadService:
     Service for handling file uploads to S3-compatible storage.
     """
     
-    def __init__(self):
+    def __init__(self, secrets_manager: SecretsManager):
         """
-        Initialize the S3 client with a configuration optimized for S3-compatible storage.
+        Initialize the S3 service with SecretsManager. Clients are initialized asynchronously.
         """
-        # Get region name from environment variables with fallback to 'nbg1'
-        self.region_name = os.getenv('HETZNER_S3_REGION', 'nbg1')
+        self.secrets_manager = secrets_manager
+        self.client = None
+        self.upload_client = None
+        self.base_domain = None
+        self.region_name = None
+        self.endpoint_url = None
+        
+        # Get current environment - needed before initialization
+        self.environment = os.getenv('SERVER_ENVIRONMENT', 'development')
+
+    async def initialize(self):
+        """
+        Asynchronously fetch secrets and initialize S3 clients, buckets, CORS, and lifecycle policies.
+        """
+        logger.info("Initializing S3 service asynchronously...")
+        
+        # Fetch secrets
+        access_key = await self.secrets_manager.get_secret('API_SECRET__HETZNER_S3_ACCESS_KEY')
+        secret_key = await self.secrets_manager.get_secret('API_SECRET__HETZNER_S3_SECRET_KEY')
+
+        if not access_key or not secret_key:
+            logger.critical("S3 credentials not found in Secrets Manager. S3 service will be unavailable.")
+            # Keep clients as None
+            return # Stop initialization
+
+        # Fetch region name from Secrets Manager with fallback to 'nbg1'
+        region_secret = await self.secrets_manager.get_secret('API_SECRET__HETZNER_S3_REGION')
+        self.region_name = region_secret if region_secret else 'nbg1'
+        logger.info(f"Using S3 region: {self.region_name}")
         
         # Build endpoint URL based on region name
         self.endpoint_url = f'https://{self.region_name}.your-objectstorage.com'
         
-        # Access keys
-        self.access_key = os.getenv('API_SECRET__HETZNER_S3_ACCESS_KEY')
-        self.secret_key = os.getenv('API_SECRET__HETZNER_S3_SECRET_KEY')
-        
+        # Store the base domain for URL generation
+        parsed_url = urlparse(self.endpoint_url)
+        self.base_domain = parsed_url.netloc
+
         # Configuration for CORS and general operations (uses s3v4 for compatibility)
         s3v4_config = Config(
             signature_version='s3v4',
@@ -50,14 +78,13 @@ class S3UploadService:
             read_timeout=10,
             retries={'max_attempts': 3}
         )
-        
         # Initialize the main S3 client for CORS and general operations
         self.client = boto3.client(
             's3',
             region_name=self.region_name,
             endpoint_url=self.endpoint_url,
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_key,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
             config=s3v4_config
         )
         
@@ -69,38 +96,34 @@ class S3UploadService:
             read_timeout=15,
             retries={'max_attempts': 3}
         )
-        
         # Create a separate client for uploads
         self.upload_client = boto3.client(
             's3',
             region_name=self.region_name,
             endpoint_url=self.endpoint_url,
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_key,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
             config=upload_config
         )
         
-        # Store the base domain for URL generation
-        parsed_url = urlparse(self.endpoint_url)
-        self.base_domain = parsed_url.netloc
-        
-        # Get current environment
-        self.environment = os.getenv('SERVER_ENVIRONMENT', 'development')
+        logger.info("S3 clients created.")
 
         # Initialize buckets (check existence, create if needed, apply lifecycle)
-        self._initialize_buckets()
+        await self._initialize_buckets() # Make this async
         
         # Apply CORS settings to required buckets (should happen after buckets exist)
         apply_cors_settings(self.client)
         
-        # Old lifecycle application removed, handled by _initialize_buckets
-        # apply_lifecycle_policies(self.client, BUCKETS)
+        logger.info("S3 service initialization complete.")
 
-    def _initialize_buckets(self):
+    async def _initialize_buckets(self): # Make this method async
         """
         Check if configured buckets exist, create them if they don't,
-        and apply lifecycle policies.
+        and apply lifecycle policies. Requires self.client to be initialized.
         """
+        if not self.client:
+             logger.error("S3 client not initialized. Cannot initialize buckets.")
+             return
         logger.info("Initializing S3 buckets...")
         for bucket_key, bucket_config in BUCKETS.items():
             bucket_name = get_bucket_name(bucket_key, self.environment)
@@ -247,6 +270,11 @@ class S3UploadService:
         Raises:
             HTTPException: If the upload fails
         """
+        # Ensure client is initialized before proceeding
+        if not self.client or not self.upload_client:
+            logger.error("S3 service not initialized. Cannot upload file.")
+            raise HTTPException(status_code=503, detail="S3 service unavailable")
+
         # Get bucket configuration
         try:
             bucket_config = self.get_bucket_config(bucket_key)
@@ -353,6 +381,11 @@ class S3UploadService:
         Raises:
             HTTPException: If the deletion fails
         """
+        # Ensure client is initialized before proceeding
+        if not self.client:
+            logger.error("S3 service not initialized. Cannot delete file.")
+            raise HTTPException(status_code=503, detail="S3 service unavailable")
+            
         try:
             # Get bucket configuration
             try:

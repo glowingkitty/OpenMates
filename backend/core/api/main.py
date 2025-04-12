@@ -17,6 +17,8 @@ from app.services.cache import CacheService
 from app.services.metrics import MetricsService
 from app.services.compliance import ComplianceService
 from app.services.email_template import EmailTemplateService
+from app.services.image_safety import ImageSafetyService # Import ImageSafetyService
+from app.services.s3.service import S3UploadService # Import S3UploadService
 from app.utils.encryption import EncryptionService
 from app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from app.services.limiter import limiter
@@ -149,7 +151,6 @@ async def lifespan(app: FastAPI):
     app.state.cache_service = CacheService()
     app.state.metrics_service = MetricsService()
     app.state.compliance_service = ComplianceService()
-    app.state.email_template_service = EmailTemplateService()
     
     # Initialize secrets manager with cache
     app.state.secrets_manager = SecretsManager(cache_service=app.state.cache_service)
@@ -164,9 +165,24 @@ async def lifespan(app: FastAPI):
         cache_service=app.state.cache_service, 
         encryption_service=app.state.encryption_service
     )
-    logger.info("Services instantiated.")
+    
+    # Initialize EmailTemplateService (depends on SecretsManager)
+    app.state.email_template_service = EmailTemplateService(secrets_manager=app.state.secrets_manager)
+    
+    # Initialize S3UploadService (depends on SecretsManager)
+    app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
+    logger.info("S3 service instance created.")
+    
+    # Initialize ImageSafetyService (depends on SecretsManager)
+    app.state.image_safety_service = ImageSafetyService(secrets_manager=app.state.secrets_manager)
+    logger.info("Image safety service instance created.")
+
+    logger.info("All core service instances created.")
     
     # --- Perform async initializations ---
+    # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
+    logger.info("Initializing S3 service...")
+    await app.state.s3_service.initialize()
     try:
         # Initialize encryption service (validates token, ensures keys)
         logger.info("Initializing encryption service...")

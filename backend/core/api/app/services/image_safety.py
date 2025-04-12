@@ -1,32 +1,44 @@
-import requests
+import httpx # Use httpx for async requests
 import logging
 from fastapi import HTTPException
 import os
+from app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 logger = logging.getLogger(__name__)
 
 class ImageSafetyService:
-    def __init__(self):
-        self.api_user = os.getenv('API_SECRET__SIGHTENGINE_API_USER')
-        self.api_secret = os.getenv('API_SECRET__SIGHTENGINE_API_SECRET')
+    def __init__(self, secrets_manager: SecretsManager):
+        self.secrets_manager = secrets_manager
+        # Secrets will be fetched asynchronously in _check_image
         self.api_url = 'https://api.sightengine.com/1.0/check.json'
 
     async def _check_image(self, image_content: bytes, include_offensive: bool = False):
+        # Fetch secrets asynchronously
+        api_user = await self.secrets_manager.get_secret('API_SECRET__SIGHTENGINE_API_USER')
+        api_secret = await self.secrets_manager.get_secret('API_SECRET__SIGHTENGINE_API_SECRET')
+
+        if not api_user or not api_secret:
+            logger.error("Sightengine API user or secret not found in Secrets Manager.")
+            raise HTTPException(status_code=500, detail="Image safety service configuration error.")
+
         try:
-            files = {'media': image_content}
+            files = {'media': ('image', image_content)} # Correct format for httpx files
             
             # Use basic nudity model for chat images, add offensive/gore for profile images
             models = 'nudity-2.0'
             if include_offensive:
                 models += ',offensive,gore'
                 
-            params = {
-                'api_user': self.api_user,
-                'api_secret': self.api_secret,
+            data = { # Use data instead of params for POST with files
+                'api_user': api_user,
+                'api_secret': api_secret,
                 'models': models
             }
             
-            response = requests.post(self.api_url, files=files, params=params)
+            # Use httpx for async request
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.api_url, files=files, data=data)
+                response.raise_for_status() # Raise exception for bad status codes
             result = response.json()
             
             response_data = {
