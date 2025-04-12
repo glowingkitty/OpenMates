@@ -79,14 +79,18 @@ class SecretsManager:
             if response.status_code == 200:
                 logger.info("Successfully connected to Vault")
                 # Fetch and log all secrets during initialization
-                await self.get_all_secrets()
+                secrets = await self.get_all_secrets()
+                if secrets:
+                    logger.info(f"Successfully loaded {len(secrets)} secrets from Vault")
+                else:
+                    logger.error("No secrets found in Vault during initialization")
                 return True
             else:
                 logger.warning(f"Connection to Vault returned status code: {response.status_code}")
                 return False
                 
         except Exception as e:
-            logger.error(f"Failed to connect to Vault: {str(e)}")
+            logger.error(f"Failed to connect to Vault: {str(e)}", exc_info=True)
             return False
     
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
