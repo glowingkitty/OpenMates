@@ -34,12 +34,21 @@ def setup_celery_logging():
     sensitive_filter = SensitiveDataFilter()
     root_logger.addFilter(sensitive_filter)
     
-    # Also add filter to key loggers
-    for logger_name in ['celery', 'app', 'app.services', 'app.tasks']:
+    # Configure key application loggers directly
+    for logger_name in ['celery', 'app', 'app.services', 'app.tasks', 'app.tasks.email_tasks']:
         module_logger = logging.getLogger(logger_name)
-        module_logger.addFilter(sensitive_filter)
+        # Ensure handler is attached
+        if handler not in module_logger.handlers: # Avoid adding multiple times
+             module_logger.addHandler(handler)
+        # Ensure filter is attached
+        if sensitive_filter not in module_logger.filters:
+             module_logger.addFilter(sensitive_filter)
+        # Set level (inherit from root or set explicitly)
+        module_logger.setLevel(log_level) # Match root logger level
+        # Prevent duplicate logs by stopping propagation to root
+        module_logger.propagate = False
     
-    logger.info("Celery logging configured with sensitive data filtering")
+    logger.info("Celery logging configured with sensitive data filtering and direct handler attachment")
 
 # Run the setup immediately
 setup_celery_logging()
