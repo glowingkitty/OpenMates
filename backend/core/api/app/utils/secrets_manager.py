@@ -78,6 +78,8 @@ class SecretsManager:
             
             if response.status_code == 200:
                 logger.info("Successfully connected to Vault")
+                # Fetch and log all secrets during initialization
+                await self.get_all_secrets()
                 return True
             else:
                 logger.warning(f"Connection to Vault returned status code: {response.status_code}")
@@ -134,13 +136,20 @@ class SecretsManager:
             if response and "data" in response and "data" in response["data"]:
                 secrets = response["data"]["data"]
                 if key in secrets:
+                    secret_value = secrets[key]
+                    # Log masked secret for debugging
+                    if secret_value:
+                        masked_secret = f"{secret_value[0]}****" if len(secret_value) < 6 else f"{secret_value[:4]}****"
+                        logger.info(f"Loaded secret '{key}': {masked_secret}")
+                    else:
+                        logger.info(f"Loaded secret '{key}': (empty value)")
+                        
                     # Cache the secret
                     self._secrets_cache[key] = {
-                        "value": secrets[key],
+                        "value": secret_value,
                         "expires": asyncio.get_event_loop().time() + self._cache_ttl
                     }
-                    logger.debug(f"Retrieved secret from Vault: {key}")
-                    return secrets[key]
+                    return secret_value
             
             # If we get here, the secret was not found in Vault
             logger.warning(f"Secret not found in Vault: {key}")
@@ -174,6 +183,13 @@ class SecretsManager:
                 # Cache all secrets
                 now = asyncio.get_event_loop().time()
                 for key, value in secrets.items():
+                    # Log masked secret for debugging
+                    if value:
+                        masked_secret = f"{value[0]}****" if len(value) < 6 else f"{value[:4]}****"
+                        logger.info(f"Loaded secret '{key}': {masked_secret}")
+                    else:
+                         logger.info(f"Loaded secret '{key}': (empty value)")
+
                     self._secrets_cache[key] = {
                         "value": value,
                         "expires": now + self._cache_ttl

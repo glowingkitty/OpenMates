@@ -467,7 +467,8 @@ async def check_confirm_email_code(
                     "vault_key_id": vault_key_id, # Use variable defined above
                     "token_expiry": int(time.time()) + 86400, # Use default TTL from CacheService
                     # Add plain gifted credits amount to cache if applicable
-                    "gifted_credits_for_signup": plain_gift_value if plain_gift_value > 0 else None 
+                    "gifted_credits_for_signup": plain_gift_value if plain_gift_value > 0 else None,
+                    "tfa_enabled": False # Add default TFA status for new users
                 }
 
                 # Use set_user to cache both session and user data (using default TTL)

@@ -376,95 +376,102 @@ def create_collection(token, schema_file):
             # Wait to ensure collection is created properly
             time.sleep(1)
         
-        # Store relations to create after all fields are created
-        relations_to_create = []
-        
-        # Then create or update fields
-        if collection.get('fields'):
-            for field_name, field_config in collection['fields'].items():
-                # Skip primary key fields as they are created automatically
-                if field_config.get('primary'):
-                    continue
-                
-                # Check if field already exists
-                field_exists_flag = field_exists(token, collection_name, field_name)
-                
-                # Skip field if it already exists
-                if field_exists_flag:
-                    print(f"Field {collection_name}.{field_name} already exists, skipping")
-                    # For relation fields, still collect them for later relation setup
+        # If the collection is newly created, proceed to create fields and relations
+        if create_new:
+            # Store relations to create after all fields are created
+            relations_to_create = []
+            
+            # Then create or update fields
+            if collection.get('fields'):
+                for field_name, field_config in collection['fields'].items():
+                    # Skip primary key fields as they are created automatically
+                    if field_config.get('primary'):
+                        continue
+                    
+                    # Check if field already exists (This check is technically redundant now
+                    # if we skip the whole block, but kept for safety/clarity)
+                    field_exists_flag = field_exists(token, collection_name, field_name)
+                    
+                    # Skip field if it already exists
+                    if field_exists_flag:
+                        print(f"Field {collection_name}.{field_name} already exists, skipping creation")
+                        # For relation fields, still collect them for later relation setup if needed
+                        # (though relation creation itself is also skipped if create_new is False)
+                        if field_config.get('relation'):
+                            relations_to_create.append((field_name, field_config.get('relation')))
+                        continue
+                    
+                    print(f"Creating field: {collection_name}.{field_name}")
+                    
+                    # Normalize the field type for Directus
+                    field_type = normalize_directus_type(field_config.get('type'))
+                    
+                    # For relation fields, ensure correct format
+                    special = field_config.get('special', [])
+                    if not isinstance(special, list):
+                        special = [special] if special else []
+                        
                     if field_config.get('relation'):
+                        field_type = "uuid"  # Relation fields should be uuid type
+                        if "uuid" not in special:
+                            special.append("uuid")
+                        # Store relation for later creation
                         relations_to_create.append((field_name, field_config.get('relation')))
-                    continue
-                
-                print(f"Creating field: {collection_name}.{field_name}")
-                
-                # Normalize the field type for Directus
-                field_type = normalize_directus_type(field_config.get('type'))
-                
-                # For relation fields, ensure correct format
-                special = field_config.get('special', [])
-                if not isinstance(special, list):
-                    special = [special] if special else []
                     
-                if field_config.get('relation'):
-                    field_type = "uuid"  # Relation fields should be uuid type
-                    if "uuid" not in special:
-                        special.append("uuid")
-                    # Store relation for later creation
-                    relations_to_create.append((field_name, field_config.get('relation')))
-                
-                # Prepare field data
-                field_data = {
-                    "field": field_name,
-                    "type": field_type,
-                    "schema": {
-                        "name": field_name,
-                        "table": collection_name,
-                        "data_type": map_type(field_config.get('type'), field_config.get('length')),
-                        "default_value": field_config.get('default'),
-                        "is_nullable": field_config.get('nullable', True) is not False,
-                        "is_unique": bool(field_config.get('unique'))
-                    },
-                    "meta": {
-                        "note": field_config.get('note'),
-                        "interface": field_config.get('interface'),
-                        "options": field_config.get('options'),
-                        "special": special,
-                        "required": bool(field_config.get('required'))
+                    # Prepare field data
+                    field_data = {
+                        "field": field_name,
+                        "type": field_type,
+                        "schema": {
+                            "name": field_name,
+                            "table": collection_name,
+                            "data_type": map_type(field_config.get('type'), field_config.get('length')),
+                            "default_value": field_config.get('default'),
+                            "is_nullable": field_config.get('nullable', True) is not False,
+                            "is_unique": bool(field_config.get('unique'))
+                        },
+                        "meta": {
+                            "note": field_config.get('note'),
+                            "interface": field_config.get('interface'),
+                            "options": field_config.get('options'),
+                            "special": special,
+                            "required": bool(field_config.get('required'))
+                        }
                     }
-                }
-                
-                # Try the correct endpoint based on restore_models.py
-                try:
-                    field_response = requests.post(
-                        f"{CMS_URL}/fields/{collection_name}",
-                        json=field_data,
-                        headers={"Authorization": f"Bearer {token}"}
-                    )
                     
-                    if field_response.status_code >= 400:
-                        # Check if error is due to field already existing
-                        error_text = field_response.text
-                        if "already exists" in error_text:
-                            print(f"Field {field_name} already exists in collection. This is OK, continuing...")
-                        else:
-                            print(f"Failed to create field: {field_response.status_code}")
-                            print(f"Response body: {field_response.text}")
-                            # Don't raise exception, just log and continue
-                    
-                except Exception as e:
-                    print(f"Exception while creating field {field_name}: {str(e)}")
-                    # Continue with next field
-        
-        # Wait before creating relations to ensure all fields are ready
-        time.sleep(1)
-        
-        # Create relations after all fields are created
-        for field_name, relation_config in relations_to_create:
-            # Add a small delay between relation creations
-            time.sleep(0.5)
-            create_relation(token, collection_name, field_name, relation_config)
+                    # Try the correct endpoint based on restore_models.py
+                    try:
+                        field_response = requests.post(
+                            f"{CMS_URL}/fields/{collection_name}",
+                            json=field_data,
+                            headers={"Authorization": f"Bearer {token}"}
+                        )
+                        
+                        if field_response.status_code >= 400:
+                            # Check if error is due to field already existing
+                            error_text = field_response.text
+                            if "already exists" in error_text:
+                                print(f"Field {field_name} already exists in collection. This is OK, continuing...")
+                            else:
+                                print(f"Failed to create field: {field_response.status_code}")
+                                print(f"Response body: {field_response.text}")
+                                # Don't raise exception, just log and continue
+                        
+                    except Exception as e:
+                        print(f"Exception while creating field {field_name}: {str(e)}")
+                        # Continue with next field
+            
+            # Wait before creating relations to ensure all fields are ready
+            time.sleep(1)
+            
+            # Create relations after all fields are created
+            for field_name, relation_config in relations_to_create:
+                # Add a small delay between relation creations
+                time.sleep(0.5)
+                create_relation(token, collection_name, field_name, relation_config)
+        else:
+            # If collection already exists, just print a message
+            print(f"Collection {collection_name} already exists. Skipping field and relation setup.")
         
         print(f"Collection {collection_name} processed successfully (newly created: {create_new})")
         # Return success status and whether the collection was newly created

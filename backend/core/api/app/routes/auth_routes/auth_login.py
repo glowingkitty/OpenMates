@@ -127,7 +127,20 @@ async def login(
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                user=UserResponse(**user_profile) 
+                # Explicitly map fields to UserResponse to avoid potential redaction issues with **kwargs
+                user=UserResponse(
+                    username=user_profile.get("username"),
+                    is_admin=user_profile.get("is_admin", False),
+                    credits=user_profile.get("credits", 0),
+                    profile_image_url=user_profile.get("profile_image_url"),
+                    last_opened=user_profile.get("last_opened"),
+                    tfa_app_name=user_profile.get("tfa_app_name"),
+                    tfa_enabled=user_profile.get("tfa_enabled", False),
+                    consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
+                    consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
+                    language=user_profile.get("language", 'en'),
+                    darkmode=user_profile.get("darkmode", False)
+                )
             )
             # Removed nested return
 
@@ -206,7 +219,20 @@ async def login(
                 )
                 return LoginResponse(
                     success=True, message="Login successful",
-                    user=UserResponse(**user_profile)
+                    # Explicitly map fields to UserResponse to avoid potential redaction issues with **kwargs
+                    user=UserResponse(
+                        username=user_profile.get("username"),
+                        is_admin=user_profile.get("is_admin", False),
+                        credits=user_profile.get("credits", 0),
+                        profile_image_url=user_profile.get("profile_image_url"),
+                        last_opened=user_profile.get("last_opened"),
+                        tfa_app_name=user_profile.get("tfa_app_name"),
+                        tfa_enabled=user_profile.get("tfa_enabled", False),
+                        consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
+                        consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
+                        language=user_profile.get("language", 'en'),
+                        darkmode=user_profile.get("darkmode", False)
+                    )
                 )
 
             # --- Sub-Scenario 3b: Verify using Backup Code ---
@@ -409,7 +435,20 @@ async def login(
                 # Step 5g: Return success response (Removed backup_code_used and remaining_backup_codes)
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
-                    user=UserResponse(**user_profile)
+                    # Explicitly map fields to UserResponse to avoid potential redaction issues with **kwargs
+                    user=UserResponse(
+                        username=user_profile.get("username"),
+                        is_admin=user_profile.get("is_admin", False),
+                        credits=user_profile.get("credits", 0),
+                        profile_image_url=user_profile.get("profile_image_url"),
+                        last_opened=user_profile.get("last_opened"),
+                        tfa_app_name=user_profile.get("tfa_app_name"),
+                        tfa_enabled=user_profile.get("tfa_enabled", False),
+                        consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
+                        consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
+                        language=user_profile.get("language", 'en'),
+                        darkmode=user_profile.get("darkmode", False)
+                    )
                 )
             
             # --- Sub-Scenario 3c: Invalid Code Type ---

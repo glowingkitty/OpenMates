@@ -148,11 +148,14 @@ services:
       CELERY_RESULT_BACKEND: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      VAULT_TOKEN_FILE: "/vault-data/api.token"
     command: >
       python -m celery -A app.tasks.celery_config worker --loglevel=info -Q email
     volumes:
       - ./api:/app
       - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
     networks:
       - openmates
