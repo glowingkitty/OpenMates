@@ -20,7 +20,6 @@ services:
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
       VAULT_URL: "http://vault:8200"
-      VAULT_TOKEN_FILE: "/vault-data/api.token"
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
@@ -149,7 +148,6 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
-      VAULT_TOKEN_FILE: "/vault-data/api.token"
     command: >
       python -m celery -A app.tasks.celery_config worker --loglevel=info -Q email
     volumes:

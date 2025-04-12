@@ -48,4 +48,5 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Use improved command with explicit queue and debug settings
-CMD ["python", "-m", "celery", "-A", "app.tasks.celery_config", "worker", "--loglevel=info", "-Q", "email"]
+# Ensure celeryuser owns the vault token file/dir at runtime before starting worker
+CMD ["sh", "-c", "chown celeryuser:celeryuser /vault-data /vault-data/api.token 2>/dev/null || true; python -m celery -A app.tasks.celery_config worker --loglevel=info -Q email"]

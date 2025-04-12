@@ -1,15 +1,10 @@
 import base64
 import os
 import httpx
-import json
 import logging
 import uuid
 import time
-import glob
-import secrets  # Added
-import hmac     # Added
-import hashlib  # Added
-import asyncio  # Added for sleep
+import hmac
 from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -23,33 +18,20 @@ class EncryptionService:
     """
     
     def __init__(self, cache_service=None):
-        self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-        self.vault_token = os.environ.get("VAULT_TOKEN", "root") 
+        self.vault_url = os.environ.get("VAULT_URL")
         self.transit_mount = "transit"  # The Vault transit engine mount path
         self._client = None
-        self.cache = cache_service  # Store the cache service
-        # self.email_hash_key: Optional[str] = None # Removed: Key material no longer stored in service
+        self.cache = cache_service
 
         # Add caching properties
         self._token_valid_until = 0  # Token validation expiry timestamp
         self._token_validation_ttl = 300  # Cache token validation for 5 minutes
         
         # Path where vault-setup saves the root token - try multiple possible locations
-        self.token_file_paths = [
-            "/vault-data/root.token",       # Current mount point
-            "/vault-data/api.token",        # Alternative file name
-            "/app/data/root.token",         # Original path
-        ]
+        self.token_path = "/vault-data/api.token"
         
         logger.info("EncryptionService initialized")
         logger.info(f"Vault URL: {self.vault_url}")
-        
-        # Log a masked version of the token for debugging
-        if self.vault_token:
-            masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
-            logger.info(f"Using Vault token from environment: {masked_token}")
-        else:
-            logger.warning("No Vault token provided in environment")
             
         # Try to get token from file immediately on initialization
         file_token = self._get_token_from_file()
@@ -70,26 +52,25 @@ class EncryptionService:
         if hasattr(self, '_cached_file_token') and self._cached_file_token:
             return self._cached_file_token
             
-        for token_path in self.token_file_paths:
-            try:
-                logger.debug(f"Looking for token file at {token_path}")
-                if os.path.exists(token_path):
-                    logger.debug(f"Token file found at {token_path}")
+        try:
+            logger.debug(f"Looking for token file at {self.token_path}")
+            if os.path.exists(self.token_path):
+                logger.debug(f"Token file found at {self.token_path}")
+                
+                with open(self.token_path, 'r') as f:
+                    token = f.read().strip()
                     
-                    with open(token_path, 'r') as f:
-                        token = f.read().strip()
-                        
-                    if token:
-                        masked_token = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
-                        logger.debug(f"Retrieved token from file: {masked_token}")
-                        # Cache the token in memory
-                        self._cached_file_token = token
-                        return token
-                    else:
-                        logger.warning(f"Token file at {token_path} is empty")
-                        
-            except Exception as e:
-                logger.error(f"Failed to read token from {token_path}: {str(e)}")
+                if token:
+                    masked_token = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
+                    logger.debug(f"Retrieved token from file: {masked_token}")
+                    # Cache the token in memory
+                    self._cached_file_token = token
+                    return token
+                else:
+                    logger.warning(f"Token file at {self.token_path} is empty")
+                    
+        except Exception as e:
+            logger.error(f"Failed to read token from {self.token_path}: {str(e)}")
         
         # If we get here, check if the directory exists and list contents for debugging
         for directory in set(os.path.dirname(p) for p in self.token_file_paths):

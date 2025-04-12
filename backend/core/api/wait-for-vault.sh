@@ -7,7 +7,7 @@ MAX_ATTEMPTS=30
 ATTEMPT=0
 
 # Look only for the API token file - the API service should never use the root token
-TOKEN_FILE="${VAULT_TOKEN_FILE:-/vault-data/api.token}"
+TOKEN_FILE="/vault-data/api.token"
 
 # Check for token file
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do

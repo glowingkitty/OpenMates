@@ -9,7 +9,7 @@ that was previously stored in .env files.
 import os
 import logging
 import httpx
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -24,18 +24,11 @@ class SecretsManager:
     
     def __init__(self, cache_service=None):
         """Initialize the SecretsManager with Vault connection details."""
-        self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-        self.vault_token = os.environ.get("VAULT_TOKEN", "root")
+        self.vault_url = os.environ.get("VAULT_URL")
         self._client = None
         self.cache = cache_service
-        
-        # Path where vault-setup saves the token
-        self.token_file_paths = [
-            "/vault-data/root.token",
-            "/vault-data/api.token",
-            "/app/data/root.token",
-        ]
-        
+        self.token_path = "/vault-data/api.token"
+
         # Cache settings
         self._cache_ttl = 300  # 5 minutes
         self._secrets_cache = {}
@@ -48,16 +41,14 @@ class SecretsManager:
             
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup."""
-        for path in self.token_file_paths:
-            try:
-                if os.path.exists(path):
-                    with open(path, 'r') as f:
-                        token = f.read().strip()
-                        logger.debug(f"Token loaded from file: {path}")
-                        return token
-            except Exception as e:
-                logger.error(f"Error reading token from {path}: {str(e)}")
-        return None
+        try:
+            if os.path.exists(self.token_path):
+                with open(self.token_path, 'r') as f:
+                    token = f.read().strip()
+                    logger.debug(f"Token loaded from file: {self.token_path}")
+                    return token
+        except Exception as e:
+            logger.error(f"Error reading token from {self.token_path}: {str(e)}")
     
     async def initialize(self):
         """Initialize the secrets manager and validate Vault connection."""
