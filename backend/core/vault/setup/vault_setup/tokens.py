@@ -63,8 +63,8 @@ class TokenManager:
             # Restore original token
             self.client.update_token(original_token)
 
-    async def create_api_encryption_token(self, root_token: str, initializer) -> Optional[str]:
-        """Create a token specifically for the API service's encryption needs, using the root token.
+    async def create_api_service_token(self, root_token: str, initializer) -> Optional[str]:
+        """Create a token for the API service, using the root token.
         If a valid token already exists, will use that instead of creating a new one.
 
         Args:
@@ -72,7 +72,7 @@ class TokenManager:
             initializer: The VaultInitializer instance (needed for saving the token).
 
         Returns:
-            The created or existing encryption token or None on failure
+            The created or existing service token or None on failure
         """
         # First check if a valid token already exists
         if os.path.exists(initializer.api_token_file):
@@ -81,22 +81,31 @@ class TokenManager:
                     existing_token = f.read().strip()
                 if existing_token:
                     logger.info("Found existing API token, validating...")
+                    # We still validate against the 'api-encryption' policy here
+                    # because the 'api-service' policy *includes* all 'api-encryption' permissions.
+                    # If the existing token has 'api-service', it will pass this check.
+                    # If it only has 'api-encryption', we'll create a new one with 'api-service'.
                     if await self.validate_existing_token(existing_token):
-                        logger.info("Using existing API encryption token")
-                        return existing_token
+                        # Check if the valid existing token *already* has the broader 'api-service' policy
+                        lookup_result = await self.client.vault_request("get", "auth/token/lookup-self", {"token": existing_token}, ignore_errors=True)
+                        if lookup_result and "data" in lookup_result and "policies" in lookup_result["data"] and "api-service" in lookup_result["data"]["policies"]:
+                             logger.info("Using existing API service token (already has correct policy)")
+                             return existing_token
+                        else:
+                             logger.info("Existing API token is valid but lacks 'api-service' policy, creating a new one")
                     else:
                         logger.info("Existing API token is invalid, creating a new one")
             except Exception as e:
                 logger.warning(f"Could not read or validate existing token: {str(e)}")
-                logger.info("Will create a new API encryption token")
+                logger.info("Will create a new API service token")
         else:
-            logger.info("No existing API token found, creating a new one")
-        
+            logger.info("No existing API service token found, creating a new one")
+
         # If we get here, we need to create a new token
-        logger.info("Creating new API encryption token")
+        logger.info("Creating new API service token")
 
         if not root_token:
-            logger.error("Cannot create encryption token: No root token provided.")
+            logger.error("Cannot create service token: No root token provided.")
             return None
 
         # Ensure the client is using the provided root token for this operation
@@ -104,33 +113,33 @@ class TokenManager:
         self.client.update_token(root_token)
 
         try:
-            # Create a token with the api-encryption policy
+            # Create a token with the api-service policy
             result = await self.client.vault_request("post", "auth/token/create", {
-                "policies": ["api-encryption"],
-                "display_name": "api-encryption-token",
+                "policies": ["api-service"], # Use the broader policy
+                "display_name": "api-service-token",
                 "ttl": "768h",  # 32 days, adjust as needed
                 "renewable": True
             })
 
             if not result or "auth" not in result or "client_token" not in result["auth"]:
-                 logger.error("Failed to create API encryption token: Invalid response from Vault.")
+                 logger.error("Failed to create API service token: Invalid response from Vault.")
                  return None
 
-            encryption_token = result["auth"]["client_token"]
-            masked_token = f"{encryption_token[:4]}...{encryption_token[-4:]}" if len(encryption_token) >= 8 else "****"
-            logger.info(f"API encryption token created successfully: {masked_token}")
+            service_token = result["auth"]["client_token"]
+            masked_token = f"{service_token[:4]}...{service_token[-4:]}" if len(service_token) >= 8 else "****"
+            logger.info(f"API service token created successfully: {masked_token}")
 
-            # Save *this specific token* to the api.token file for the EncryptionService
-            if not initializer.save_api_token_only(encryption_token):
-                 logger.error("Failed to save API encryption token to file!")
+            # Save *this specific token* to the api.token file for the API service
+            if not initializer.save_api_token_only(service_token):
+                 logger.error("Failed to save API service token to file!")
                  # Continue, but the API might not work correctly
             else:
-                 logger.info(f"API encryption token saved to {initializer.api_token_file}")
+                 logger.info(f"API service token saved to {initializer.api_token_file}")
 
-            return encryption_token # Return the new token
+            return service_token # Return the new token
 
         except Exception as e:
-            logger.error(f"Failed to create API encryption token: {str(e)}")
+            logger.error(f"Failed to create API service token: {str(e)}")
             return None
         finally:
             # Restore the client's original token if it was different from the root token used

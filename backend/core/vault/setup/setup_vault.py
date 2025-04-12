@@ -116,20 +116,20 @@ async def setup_vault():
              logger.error("Failed to create/ensure API encryption policy")
              sys.exit(1)
         
-        # Create the API encryption token - always try to use the root token if available
+        # Create the API service token - always try to use the root token if available
         if root_token:
              client.update_token(root_token)  # Ensure we're using root token for this operation
-             api_enc_token = await token_manager.create_api_encryption_token(root_token=root_token, initializer=initializer)
-             if not api_enc_token:
-                 logger.error("Failed to create API encryption token.")
+             api_service_token = await token_manager.create_api_service_token(root_token=root_token, initializer=initializer)
+             if not api_service_token:
+                 logger.error("Failed to create API service token.")
                  sys.exit(1)
              else:
-                 logger.info("API encryption token created/saved.")
+                 logger.info("API service token created/saved.")
         else:
              # If we got this far without a root token, we might be using an API token
              # that doesn't have permissions to create new tokens
-             logger.warning("No root token available; cannot automatically create API encryption token.")
-             logger.warning("Ensure an API encryption token exists and is saved in /app/data/api.token for the API service.")
+             logger.warning("No root token available; cannot automatically create API service token.")
+             logger.warning("Ensure an API service token exists and is saved in /app/data/api.token (or the configured path) for the API service.")
         
         # Migrate secrets to Vault and add any new ones
         await secrets_manager.migrate_secrets_to_vault()
