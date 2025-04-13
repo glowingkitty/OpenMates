@@ -1,7 +1,7 @@
 import hashlib
 import logging
 import httpx
-import ipaddress # Added import
+import ipaddress
 from typing import Dict, Any, Optional
 from fastapi import Request
 from functools import lru_cache
@@ -16,10 +16,8 @@ def get_device_fingerprint(request: Request) -> str:
     Create a unique device fingerprint based on client IP and user agent
     Returns a SHA-256 hash of the combined string
     """
-    # Get client IP - use X-Forwarded-For if behind proxy, otherwise use client host
-    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    if not client_ip:
-        client_ip = request.client.host if request.client else "unknown"
+    # Get client IP using our helper function
+    client_ip = get_client_ip(request)
     
     # Get user agent string
     user_agent = request.headers.get("User-Agent", "unknown")
@@ -32,10 +30,43 @@ def get_device_fingerprint(request: Request) -> str:
 
 def get_client_ip(request: Request) -> str:
     """Extract client IP address from request"""
-    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    if not client_ip:
-        client_ip = request.client.host if request.client else "unknown"
+    # Log headers for debug but at DEBUG level to avoid cluttering
+    logger.debug(f"get_client_ip: Headers: {dict(request.headers)}")
+    logger.debug(f"get_client_ip: Client host: {request.client.host if request.client else 'No client object'}")
+    
+    # Try X-Real-IP first (often more reliable)
+    client_ip = request.headers.get("X-Real-IP", "")
+    if client_ip and _is_valid_ip_format(client_ip):
+        logger.debug(f"get_client_ip: Using X-Real-IP: {client_ip}")
+        return client_ip
+    
+    # Try X-Forwarded-For next
+    x_forwarded_for = request.headers.get("X-Forwarded-For", "")
+    client_ip = x_forwarded_for.split(",")[0].strip()
+    
+    # Validate the IP format to prevent template placeholders
+    if client_ip and _is_valid_ip_format(client_ip):
+        logger.debug(f"get_client_ip: Using X-Forwarded-For: {client_ip}")
+        return client_ip
+    
+    # Fall back to client.host as last resort
+    client_ip = request.client.host if request.client else "unknown"
+    logger.debug(f"get_client_ip: Using client.host fallback: {client_ip}")
     return client_ip
+
+def _is_valid_ip_format(ip: str) -> bool:
+    """Check if the IP string is a valid format and not a template placeholder"""
+    # Check for template placeholders like {http.request.remote.ip}
+    if '{' in ip or '}' in ip:
+        logger.debug(f"Rejected template placeholder in IP: {ip}")
+        return False
+    
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        logger.debug(f"Invalid IP format: {ip}")
+        return False
 
 def is_private_ip(ip_address_str: str) -> bool:
     """Checks if an IP address string belongs to a private or loopback range."""
