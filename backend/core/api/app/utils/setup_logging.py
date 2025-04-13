@@ -16,15 +16,6 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 # Create sensitive data filter instance
 sensitive_filter = SensitiveDataFilter() # Keep the filter instance
 
-# We don't need a custom formatter class anymore if we apply filters to handlers
-# class JsonFormatterWithFilter(jsonlogger.JsonFormatter):
-#     def __init__(self, *args, **kwargs):
-#         # Pass format string correctly if needed, or rely on default
-#         fmt = kwargs.pop('format', None)
-#         super().__init__(fmt=fmt, *args, **kwargs)
-#         # Filters are added to handlers, not formatters
-#         # self.addFilter(sensitive_filter)
-
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False, # Keep this False initially to avoid disabling logs unexpectedly
