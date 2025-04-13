@@ -29,7 +29,6 @@ from app.tasks.celery_config import app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
