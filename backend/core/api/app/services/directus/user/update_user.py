@@ -42,7 +42,7 @@ async def update_user(self, user_id: str, update_data: dict) -> bool:
                     return False
 
         # Log the successful Directus update
-        logger.info(f"Successfully updated user {user_id} in Directus.")
+        logger.info(f"Successfully updated user in Directus.")
         
         return True
         
