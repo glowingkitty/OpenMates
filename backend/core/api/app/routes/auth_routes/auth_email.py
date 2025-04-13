@@ -460,12 +460,11 @@ async def check_confirm_email_code(
                     "credits": 0,
                     "profile_image_url": None, # Assuming profile image is not set on creation
                     "last_opened": "/signup/step-3",
-                    "language": language, # Add language to cache
-                    "darkmode": darkmode, # Add darkmode to cache
-                    # Use vault_key_id from the user_data returned by create_user
-                    "vault_key_id": vault_key_id, # Use variable defined above
+                    "language": language,
+                    "darkmode": darkmode,
+                    "vault_key_id": vault_key_id,
+                    "encrypted_email_address": user_data.get("encrypted_email_address"),
                     "token_expiry": int(time.time()) + 86400, # Use default TTL from CacheService
-                    # Add plain gifted credits amount to cache if applicable
                     "gifted_credits_for_signup": plain_gift_value if plain_gift_value > 0 else None,
                     "tfa_enabled": False # Add default TFA status for new users
                 }
@@ -477,7 +476,6 @@ async def check_confirm_email_code(
         # Log the successful login for compliance
         event_logger.info(f"User logged in - ID: {user_id}")
         
-        # Clear signup cookies now that we've created & logged in the user
         # Clear signup cookies now that we've created & logged in the user
         response.delete_cookie(key="signup_invite_code")
         response.delete_cookie(key="signup_email")
