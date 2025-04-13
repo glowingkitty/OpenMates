@@ -13,7 +13,6 @@ from app.schemas.user import UserResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 @router.post("/session", response_model=SessionResponse)
 async def get_session(

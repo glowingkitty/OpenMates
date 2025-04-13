@@ -3,8 +3,9 @@ import os
 import logging
 import sys
 from app.utils.log_filters import SensitiveDataFilter
-from app.utils.setup_logging import setup_worker_logging
-
+# Remove the unused import below, as this file defines its own setup_celery_logging
+# from app.utils.setup_logging import setup_worker_logging
+from pythonjsonlogger import jsonlogger # Import the JSON formatter
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,14 @@ def setup_celery_logging():
     """Configure logging for Celery workers directly."""
     # Create a handler that writes to stdout
     handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+    # Use JSON formatter to match API logs
+    formatter = jsonlogger.JsonFormatter(
+        '%(asctime)s %(name)s %(levelname)s %(message)s',
+        rename_fields={
+            'asctime': 'timestamp',
+            'levelname': 'level'
+        }
+    )
     handler.setFormatter(formatter)
     
     # Set log level from environment or default to INFO
@@ -39,16 +47,16 @@ def setup_celery_logging():
         module_logger = logging.getLogger(logger_name)
         # Ensure handler is attached
         if handler not in module_logger.handlers: # Avoid adding multiple times
-             module_logger.addHandler(handler)
+            module_logger.addHandler(handler)
         # Ensure filter is attached
         if sensitive_filter not in module_logger.filters:
-             module_logger.addFilter(sensitive_filter)
+            module_logger.addFilter(sensitive_filter)
         # Set level (inherit from root or set explicitly)
         module_logger.setLevel(log_level) # Match root logger level
         # Prevent duplicate logs by stopping propagation to root
         module_logger.propagate = False
     
-    logger.info("Celery logging configured with sensitive data filtering and direct handler attachment")
+    logger.info("Celery logging configured with JSON formatter, sensitive data filtering, and direct handler attachment")
 
 # Run the setup immediately
 setup_celery_logging()
@@ -106,7 +114,7 @@ def init_worker_process(*args, **kwargs):
     Set up consistent logging across Celery worker processes.
     """
     setup_celery_logging()
-    logger.info("Worker process initialized with sensitive data filtering")
+    logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 
 # Set task routes for organizing tasks
 app.conf.task_routes = {

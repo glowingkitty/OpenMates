@@ -1,9 +1,18 @@
 import os
 import uvicorn
-import logging
+import logging # Keep logging import for potential direct use if needed
+from dotenv import load_dotenv
+
+# --- Setup Logging FIRST ---
+# Load environment variables early for logging config if needed
+load_dotenv()
+from app.utils.setup_logging import setup_logging
+setup_logging()
+# --- End Logging Setup ---
+
+# Now import other modules that might log
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -31,101 +40,14 @@ from app.utils.log_filters import SensitiveDataFilter  # Import the new filter
 from app.tasks.celery_config import app as celery_app
 
 # Import our new compliance logging setup
-from app.utils.setup_compliance_logging import setup_compliance_logging
-
 # Import the metrics update task
 from app.tasks.user_metrics import periodic_metrics_update, update_active_users_metrics
 
-# Set up structured logging - INFO for console output, WARNING for files
-log_level = os.getenv("LOG_LEVEL", "INFO")  # Keep INFO as default for console
-logging.basicConfig(level=log_level)
+# Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
 
-# Create sensitive data filter instance
-sensitive_filter = SensitiveDataFilter()
-
-# Configure JSON logging for the root logger for console output
-log_handler = logging.StreamHandler()
-log_formatter = jsonlogger.JsonFormatter(
-    '%(asctime)s %(name)s %(levelname)s %(message)s',
-    rename_fields={
-        'asctime': 'timestamp',
-        'levelname': 'level'
-    }
-)
-log_handler.setFormatter(log_formatter)
-log_handler.addFilter(sensitive_filter)  # Add filter to console handler
-
-# Replace the default handler
-root_logger = logging.getLogger()
-if root_logger.handlers:
-    for handler in root_logger.handlers:
-        root_logger.removeHandler(handler)
-root_logger.addHandler(log_handler)
-
-# Create logs directory if it doesn't exist
-logs_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(logs_dir, exist_ok=True)
-
-# Add file handler for API logs - ONLY log WARNING and above
-api_log_path = os.path.join(logs_dir, "api.log")
-api_handler = logging.FileHandler(api_log_path)
-api_handler.setFormatter(log_formatter)
-api_handler.addFilter(sensitive_filter)  # Add filter to file handler
-# More aggressively filter logs for the file handler
-api_handler.setLevel(logging.WARNING)  # Only WARNING and above in files
-root_logger.addHandler(api_handler)
-
-# Create a special event logger for business events (like invite code checks)
-event_logger = logging.getLogger("app.events")
-event_logger.propagate = False  # Don't send to root logger
-event_handler = logging.FileHandler(api_log_path)
-event_handler.setFormatter(log_formatter)
-event_handler.addFilter(sensitive_filter)  # Add filter to event file handler
-event_handler.setLevel(logging.INFO)  # Allow INFO level for specific events
-event_logger.addHandler(event_handler)
-# Add console output for events as well
-event_console = logging.StreamHandler()
-event_console.setFormatter(log_formatter)
-event_console.addFilter(sensitive_filter)  # Add filter to event console handler
-event_console.setLevel(logging.INFO)
-event_logger.addHandler(event_console)
-
-# Set higher log levels only for noisy modules, but leave others at INFO for console
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)  # This one is very noisy
-logging.getLogger("httpx").setLevel(logging.WARNING)  # Also quite noisy
-logging.getLogger("app.middleware.logging_middleware").setLevel(logging.WARNING)  # Only important middleware logs
-
-# Explicitly set higher log levels for noisy modules, but leave others at INFO for console
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
-# Force the middleware logger to never use INFO level
-logging.getLogger("app.middleware.logging_middleware").setLevel(logging.WARNING)
-
-# Disable the INFO logs for this specific module so they never get written
-log_filter = logging.Filter()
-log_filter.filter = lambda record: record.levelno >= logging.WARNING
-logging.getLogger("app.middleware.logging_middleware").addFilter(log_filter)
-
-# Configure the compliance logger to use a separate file handler
-compliance_logger = logging.getLogger("compliance")
-compliance_logger.setLevel(logging.INFO)
-compliance_logger.propagate = False  # Don't send to root logger
-
-# Create file handler for compliance logs
-compliance_log_path = os.path.join(logs_dir, "compliance.log")
-compliance_handler = logging.FileHandler(compliance_log_path)
-compliance_formatter = jsonlogger.JsonFormatter('%(message)s')
-compliance_handler.setFormatter(compliance_formatter)
-compliance_handler.addFilter(sensitive_filter)  # Add filter to compliance handler as well
-compliance_logger.addHandler(compliance_handler)
-
-logging.getLogger("app.utils.encryption").setLevel(logging.INFO)
-logging.getLogger("app.routes.auth").setLevel(logging.INFO)
-
 # Load environment variables
-load_dotenv()
+# load_dotenv() # Moved to the top before logging setup
 
 # Check crucial environment variables
 DIRECTUS_TOKEN = os.getenv("DIRECTUS_TOKEN")
@@ -252,8 +174,7 @@ def create_app() -> FastAPI:
         redoc_url=None  # Disable ReDoc
     )
 
-    # Set up compliance logging
-    setup_compliance_logging()
+    # Compliance logging is handled by setup_logging now
 
     # Create metrics endpoint
     metrics_app = make_asgi_app()
@@ -344,12 +265,12 @@ __all__ = ['app', 'celery_app']
 if __name__ == "__main__":
     port = int(os.getenv("REST_API_PORT", "8000"))
     # Configure uvicorn with aggressive log filtering
+    # Uvicorn logging is now configured via logging.dictConfig in setup_logging
+    # Use log_config=None to prevent uvicorn from overriding our config
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=port,
-        reload=True,
-        log_level="error",  # Only log errors for uvicorn
-        access_log=False,   # Disable access logs completely
-        use_colors=False    # Disable colors for cleaner logs
+        reload=True, # Keep reload for development
+        log_config=None # Let our setup_logging handle configuration
     )

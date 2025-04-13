@@ -9,7 +9,7 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # API application logs - minimal config with no filtering
+  # API application logs (from file)
   - job_name: api-logs
     static_configs:
       - targets:
@@ -18,21 +18,39 @@ scrape_configs:
           job: api-logs
           __path__: /var/log/api/api.log
     pipeline_stages:
+      # 1. Access environment variable
+      - template:
+          source: server_env
+          template: '{{ env "SERVER_ENVIRONMENT" | default "development" }}'
+
+      # 2. Parse JSON log lines
       - json:
           expressions:
             timestamp: timestamp
-            level: level
+            level: level # Extract level from JSON
             message: message
             name: name
             event_type: event_type
             status: status
+          # Don't fail if a line isn't JSON, but we expect this file to be JSON
+          # ignore_parse_errors: true
+
+      # 3. Set labels from extracted JSON fields
       - labels:
           level:
           name:
           event_type:
           status:
 
-  # Compliance logs config
+      # 4. Conditional drop stage for production (using extracted JSON level)
+      - match:
+          # Only apply this stage if server_env is 'production'
+          selector: '{server_env="production", level=~"(?i)info|debug"}' # Combine selector with level check
+          # Action is 'drop' if the condition is met
+          action: drop
+          # No separate pipeline_name or logfmt stage needed here
+
+  # Compliance logs config (from file)
   - job_name: compliance-logs
     static_configs:
       - targets:
@@ -41,6 +59,8 @@ scrape_configs:
           job: compliance-logs
           __path__: /var/log/api/compliance.log
     pipeline_stages:
+      # Compliance logs are always INFO level by design, no filtering needed here.
+      # Keep original pipeline for compliance logs.
       - json:
           expressions:
             timestamp: timestamp
@@ -51,3 +71,60 @@ scrape_configs:
           event_type:
           user_id:
           status:
+
+  # Docker container logs (stdout/stderr)
+  - job_name: container-logs
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        # Optional: Filter containers if needed
+        # filters:
+        #   - name: label
+        #     values: ["com.docker.compose.project=openmates-core"]
+    relabel_configs:
+      # Relabel container labels to Promtail labels
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'compose_project'
+
+    pipeline_stages:
+      # 1. Access environment variable
+      - template:
+          source: server_env
+          template: '{{ env "SERVER_ENVIRONMENT" | default "development" }}'
+
+      # 2. Try parsing as JSON
+      - json:
+          expressions:
+            json_level: level # Extract level if JSON
+            # Extract other fields if needed, e.g., message: message
+          ignore_parse_errors: true # Don't fail if it's not JSON
+
+      # 3. Try parsing plain text format (if not JSON or JSON had no level)
+      - regex:
+          # Regex for the plain text format like: 2025-04-13 15:50:46,115 [INFO] app.tasks.celery_config: Message
+          expression: '^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s+\[(?P<plain_level>\w+)\]'
+
+      # 4. Determine the actual log level (prefer JSON if available)
+      - template:
+          source: log_level # Create a new temporary field
+          template: '{{ if .json_level }}{{ .json_level }}{{ else if .plain_level }}{{ .plain_level }}{{ else }}unknown{{ end }}'
+
+      # 5. Set the final 'level' label
+      - labels:
+          level: log_level # Use the determined log_level
+
+      # 6. Conditional drop stage for production (using determined log_level)
+      - match:
+          # Only apply this stage if server_env is 'production' AND log_level is INFO or DEBUG
+          # Note: We use the 'log_level' field created by the template stage above
+          selector: '{server_env="production", log_level=~"(?i)info|debug"}'
+          # Action is 'drop' if the condition is met
+          action: drop
+          # No separate pipeline_name or logfmt stage needed here

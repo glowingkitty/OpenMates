@@ -349,10 +349,10 @@ services:
     container_name: promtail
     image: grafana/promtail:3.4.2
     restart: unless-stopped
+    env_file: ../../.env # Add env_file to access SERVER_ENVIRONMENT
     volumes:
       - ./monitoring/promtail:/etc/promtail
-      # Disable Docker socket mounting as it's causing issues
-      # - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for service discovery
       - ./api/logs:/var/log/api:ro  # Make sure this path exists
     command:
       - "-config.file=/etc/promtail/promtail-config.yaml"
