@@ -47,7 +47,7 @@ async def login(
     Authenticate a user, handle 2FA if enabled, and create a session.
     Accepts optional tfa_code for the second step of 2FA login.
     """
-    logger.info(f"Processing /login request for email: {login_data.email[:2]}***")
+    logger.info(f"Processing POST /login")
     
     try:
         # Get device fingerprint and location for tracking

@@ -112,8 +112,6 @@ class MetricsService:
         daily = int(daily)
         monthly = int(monthly)
         
-        logger.info(f"Setting daily_active_users to {daily} and monthly_active_users to {monthly}")
-        
         # Set the gauges to the exact values - don't increment/decrement
         self.daily_active_users.labels(instance=self.instance).set(daily)
         self.monthly_active_users.labels(instance=self.instance).set(monthly)

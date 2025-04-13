@@ -15,10 +15,6 @@ async def update_active_users_metrics(directus_service: DirectusService, metrics
     This should be called periodically (e.g., every 5 minutes).
     """
     try:
-        # Removed import: from main import directus_service, metrics_service, cache_service
-        
-        logger.info("Updating active users metrics")
-        
         # 1. Get count of all users (total registered)
         total_users = await get_total_users(directus_service)
         
@@ -30,8 +26,6 @@ async def update_active_users_metrics(directus_service: DirectusService, metrics
         
         # 4. Update metrics - don't subtract admin here, we'll do it in Grafana
         metrics_service.update_active_users(daily_active, monthly_active)
-        
-        logger.info(f"Updated metrics: total_users={total_users}, daily_active={daily_active}, monthly_active={monthly_active}")
         
     except Exception as e:
         logger.error(f"Error updating active users metrics: {str(e)}", exc_info=True)

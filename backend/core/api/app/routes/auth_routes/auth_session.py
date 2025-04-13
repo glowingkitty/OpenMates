@@ -28,6 +28,7 @@ async def get_session(
     Triggers 2FA re-auth if device mismatches and 2FA is enabled.
     """
     try:
+        logger.info("Processing POST /session")
         # Use the shared authentication function to verify user AND device
         is_auth, user_data, refresh_token, auth_status = await verify_authenticated_user(
             request, cache_service, directus_service, require_known_device=True
