@@ -11,7 +11,6 @@ from app.routes.auth_routes.auth_utils import verify_allowed_origin
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")

@@ -7,7 +7,6 @@ from app.services.cache import CacheService
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 async def verify_authenticated_user(
     request: Request,

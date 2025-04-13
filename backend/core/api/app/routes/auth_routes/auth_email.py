@@ -20,7 +20,6 @@ from app.tasks.celery_config import app as celery_app
 router = APIRouter()
 logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
-logger.setLevel(logging.INFO)
 
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("3/minute")

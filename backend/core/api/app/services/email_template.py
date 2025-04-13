@@ -31,7 +31,6 @@ cssutils.log.setLevel(logging.ERROR)  # Only show ERROR level messages from cssu
 logger = logging.getLogger(__name__)
 
 # Make sure this module's logger passes all messages through
-logger.setLevel(logging.INFO)
 
 # Apply sensitive data filter to this logger
 logger.addFilter(SensitiveDataFilter())

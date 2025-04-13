@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional, Tuple
 import json
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """

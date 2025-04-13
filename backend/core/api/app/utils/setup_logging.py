@@ -28,143 +28,148 @@ sensitive_filter = SensitiveDataFilter() # Keep the filter instance
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False, # Keep this False initially to avoid disabling logs unexpectedly
-   "formatters": {
-       "json": {
-           # Use the standard jsonlogger formatter directly
-           "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-           "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
-           "rename_fields": {
-               "asctime": "timestamp",
-               "levelname": "level"
-            },
-       },
-       "compliance_json": {
+    "formatters": {
+        "json": {
             # Use the standard jsonlogger formatter directly
-           "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-           "format": "%(message)s", # Only the message for compliance
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+            "rename_fields": {
+                "asctime": "timestamp",
+                "levelname": "level"
+                },
         },
-        "simple": { # Keep a simple formatter for potential debugging if needed
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "compliance_json": {
+                # Use the standard jsonlogger formatter directly
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(message)s", # Only the message for compliance
+            },
+            "simple": { # Keep a simple formatter for potential debugging if needed
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
         },
-    },
-    "filters": {
-        "sensitive_data": {
-            "()": SensitiveDataFilter, # Define the filter here
+        "filters": {
+            "sensitive_data": {
+                "()": SensitiveDataFilter, # Define the filter here
+            },
+            # Filter to apply only to specific handlers if needed
+        "warning_and_above": {
+            # This filter is intended to be used on handlers/loggers set to WARNING or higher
+            # The level check happens at the handler/logger, not in the filter itself.
+            "()": "logging.Filter",
+            "name": "", # Match events attached to the root logger or specified logger name
+            # Remove the 'level' key here
         },
-        # Filter to apply only to specific handlers if needed
-       "warning_and_above": {
-           # This filter is intended to be used on handlers/loggers set to WARNING or higher
-           # The level check happens at the handler/logger, not in the filter itself.
-           "()": "logging.Filter",
-           "name": "", # Match events attached to the root logger or specified logger name
-           # Remove the 'level' key here
-       },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": LOG_LEVEL,
-            "formatter": "json",
-            "filters": ["sensitive_data"], # Apply filter to handler
-            "stream": sys.stdout, # Explicitly use stdout
         },
-        "api_file": {
-            "class": "logging.FileHandler",
-            "level": "INFO", # Log INFO and above to file as per original main.py
-            "formatter": "json",
-            "filters": ["sensitive_data"], # Apply filter to handler
-            "filename": API_LOG_PATH,
-            "mode": "a",
-            "encoding": "utf-8",
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": LOG_LEVEL,
+                "formatter": "json",
+                "filters": ["sensitive_data"], # Apply filter to handler
+                "stream": sys.stdout, # Explicitly use stdout
+            },
+            "api_file": {
+                "class": "logging.FileHandler",
+                "level": "INFO", # Log INFO and above to file as per original main.py
+                "formatter": "json",
+                "filters": ["sensitive_data"], # Apply filter to handler
+                "filename": API_LOG_PATH,
+                "mode": "a",
+                "encoding": "utf-8",
+            },
+            "compliance_file": {
+                "class": "logging.FileHandler",
+                "level": "INFO",
+                "formatter": "compliance_json",
+                "filters": ["sensitive_data"], # Apply filter to handler
+                "filename": COMPLIANCE_LOG_PATH,
+                "mode": "a",
+                "encoding": "utf-8",
+            },
         },
-        "compliance_file": {
-            "class": "logging.FileHandler",
-            "level": "INFO",
-            "formatter": "compliance_json",
-            "filters": ["sensitive_data"], # Apply filter to handler
-            "filename": COMPLIANCE_LOG_PATH,
-            "mode": "a",
-            "encoding": "utf-8",
+        "loggers": {
+            "app": { # Configure the base 'app' logger
+                "handlers": ["console", "api_file"],
+                "level": LOG_LEVEL,
+                "propagate": False, # Prevent passing to root logger if handled here
+            },
+            "app.events": { # Specific logger for events
+                "handlers": ["console", "api_file"], # Use same handlers as 'app'
+                "level": "INFO", # Allow INFO for events
+                "propagate": False,
+            },
+            "compliance": { # Specific logger for compliance
+                "handlers": ["compliance_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            # Configure noisy loggers
+            "uvicorn": {
+                "handlers": ["console", "api_file"], # Route uvicorn logs through our handlers
+                "level": "INFO", # Let uvicorn log info by default, adjust if needed
+                "propagate": False,
+            },
+            "uvicorn.error": {
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "uvicorn.access": {
+                "handlers": ["console", "api_file"], # Route access logs too
+                "level": "WARNING", # Keep access logs at WARNING
+                "propagate": False,
+            },
+            "httpx": {
+                "handlers": ["console", "api_file"],
+                "level": "WARNING",
+                "propagate": False,
+            },
+            "app.middleware.logging_middleware": { # Keep this specific setting
+                "handlers": ["console", "api_file"],
+                "level": "WARNING",
+                "propagate": False,
+            },
+            # Allow specific modules to be INFO even if root is WARNING
+            "app.utils.encryption": {
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "app.routes.auth": { # Assuming this was intended for all auth routes
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "app.services.s3": { # Example: Ensure S3 logs are captured
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "app.services.cache": { # Example: Ensure Cache logs are captured
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "app.services.metrics": { # Example: Ensure Metrics logs are captured
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "app.services.directus": { # Example: Ensure Directus logs are captured
+                "handlers": ["console", "api_file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            # Add other specific 'app.*' loggers here if they need levels other than the base 'app' logger
         },
-    },
-    "loggers": {
-        "app": { # Configure the base 'app' logger
-            "handlers": ["console", "api_file"],
-            "level": LOG_LEVEL,
-            "propagate": False, # Prevent passing to root logger if handled here
-        },
-        "app.events": { # Specific logger for events
-            "handlers": ["console", "api_file"], # Use same handlers as 'app'
-            "level": "INFO", # Allow INFO for events
-            "propagate": False,
-        },
-        "compliance": { # Specific logger for compliance
-            "handlers": ["compliance_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        # Configure noisy loggers
-        "uvicorn": {
-            "handlers": ["console", "api_file"], # Route uvicorn logs through our handlers
-            "level": "INFO", # Let uvicorn log info by default, adjust if needed
-            "propagate": False,
-        },
-        "uvicorn.error": {
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "uvicorn.access": {
-            "handlers": ["console", "api_file"], # Route access logs too
-            "level": "WARNING", # Keep access logs at WARNING
-            "propagate": False,
-        },
-        "httpx": {
-            "handlers": ["console", "api_file"],
-            "level": "WARNING",
-            "propagate": False,
-        },
-        "app.middleware.logging_middleware": { # Keep this specific setting
-             "handlers": ["console", "api_file"],
-             "level": "WARNING",
-             "propagate": False,
-        },
-        # Allow specific modules to be INFO even if root is WARNING
-        "app.utils.encryption": {
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-         "app.routes.auth": { # Assuming this was intended for all auth routes
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-         "app.services.s3": { # Example: Ensure S3 logs are captured
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-         "app.services.cache": { # Example: Ensure Cache logs are captured
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-         "app.services.metrics": { # Example: Ensure Metrics logs are captured
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-         "app.services.directus": { # Example: Ensure Directus logs are captured
-            "handlers": ["console", "api_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-         # Add other specific 'app.*' loggers here if they need levels other than the base 'app' logger
-    },
-    "root": { # Configure the root logger as a fallback
-        "handlers": ["console", "api_file"],
-        "level": LOG_LEVEL, # Set root level
+    "root": {
+        # Remove handlers from the root logger.
+        # If specific loggers are configured correctly with propagate=False,
+        # the root logger shouldn't need to handle their messages directly.
+        # It will still act as a fallback for unconfigured loggers if needed,
+        # but won't output anything itself unless handlers are added elsewhere.
+        "handlers": [],
+        "level": LOG_LEVEL,
     },
 }
 

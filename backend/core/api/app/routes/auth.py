@@ -56,9 +56,6 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
-# Ensure the logger is configured to show INFO logs
-logger.setLevel(logging.INFO)
-
 # Include all auth-related routers
 router.include_router(invite_router)
 router.include_router(email_router)

@@ -40,7 +40,6 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 # Dependency to get encryption service (can be defined here or imported if moved)
 def get_encryption_service():

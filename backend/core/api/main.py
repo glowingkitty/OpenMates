@@ -271,6 +271,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=port,
-        reload=True, # Keep reload for development
+        reload=False,
         log_config=None # Let our setup_logging handle configuration
     )

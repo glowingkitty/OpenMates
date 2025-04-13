@@ -3,7 +3,6 @@ import json
 from typing import Dict, Any, Optional, Tuple, List # Added List import
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
