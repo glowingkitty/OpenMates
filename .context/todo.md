@@ -113,6 +113,7 @@ Captures potential future additions like calendar integration and privacy option
 | T55| Implement clear labeling for AI model copyright clarity                            | -        | todo   | -          | M8        | ai, ux, legal, copyright, documentation  |
 | T56| Implement calendar integration workflow (holiday info)                             | -        | todo   | -          | M9        | feature, integration, calendar, backend  |
 | T57| Evaluate making offline data storage opt-in                                        | -        | todo   | T14        | M9        | privacy, security, offline, ux, feature  |
+| T58| Add skill to auto start a new chat                                                 | -        | todo   | -          | -         | ux, feature, cost saving for user        |  
 
 
 ## Task Descriptions
@@ -295,3 +296,6 @@ Consider the privacy and security implications of storing chat data offline by d
 
 ### T58 - Set up VPN using ZeroTier for secure access
 Investigate and implement ZeroTier as an alternative VPN solution to provide secure, restricted access to internal management interfaces and services (like Directus UI, Grafana, Vault UI, code-server) on the development server, replacing the need for potentially insecure workarounds. This addresses the difficulties encountered with other VPN solutions and aligns with M1 goals.
+
+### T58 - Add skill to auto start a new chat
+Example usecase: user asks chatbot to implement complex feature in code or ask about a topic that is connected to a bigger more complex task, but its overkill to submit thousands of tokens of previous context just to install and setup a missing package or pnpm for example. In that case chatbot could start a new chat and explain there how to install it (or do it by itself, if user confirms) in a clean new chat. Same feature can also be used for when the chat is getting too long or a task should be split into separate sub tasks.
