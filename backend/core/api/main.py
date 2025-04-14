@@ -18,6 +18,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware # Import the middleware
 
 from app.routes import auth, email, invoice, credit_note, settings  # Update settings import
 # Service Imports
@@ -209,6 +210,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Add ProxyHeadersMiddleware to handle X-Forwarded-* headers
+    # TRUSTED_PROXY_IPS should be a comma-separated string of trusted proxy IPs/CIDRs
+    # Defaulting to "*" trusts all proxies (use with caution in production)
+    trusted_hosts = os.getenv("TRUSTED_PROXY_IPS", "*").split(",")
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 
     # Include routers
     app.include_router(auth.router)

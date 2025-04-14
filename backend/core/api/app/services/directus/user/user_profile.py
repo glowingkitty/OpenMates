@@ -24,8 +24,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         
         # Not in cache, fetch from Directus
         logger.info(f"Fetching user profile for user {user_id} from Directus")
-        # Fetch encrypted_gifted_credits_for_signup as well
-        url = f"{self.base_url}/users/{user_id}?fields=*,encrypted_gifted_credits_for_signup" 
+        url = f"{self.base_url}/users/{user_id}?fields=*"
         response = await self._make_api_request("GET", url)
         
         if response.status_code != 200:

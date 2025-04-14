@@ -613,13 +613,12 @@ async def finalize_login_session(
                 "last_opened": user.get("last_opened"),
                 "vault_key_id": user.get("vault_key_id"),
                 "last_online_timestamp": current_time,
-                # Store the string timestamp (or None) directly from the user profile
                 "consent_privacy_and_apps_default_settings": user.get("consent_privacy_and_apps_default_settings"),
                 "consent_mates_default_settings": user.get("consent_mates_default_settings"),
-                "language": user.get("language", "en"), # Cache language preference
-                "darkmode": user.get("darkmode", False), # Cache darkmode preference
-                # Add gifted credits if present in the user profile (already decrypted by get_user_profile)
-                "gifted_credits_for_signup": user.get("gifted_credits_for_signup") 
+                "language": user.get("language", "en"),
+                "darkmode": user.get("darkmode", False),
+                "gifted_credits_for_signup": user.get("gifted_credits_for_signup"),
+                "encrypted_email_address": user.get("encrypted_email_address")
             }
             # Remove gifted_credits_for_signup if it's None or 0 before caching
             if not user_data_to_cache.get("gifted_credits_for_signup"):

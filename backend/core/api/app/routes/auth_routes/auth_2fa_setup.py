@@ -66,7 +66,9 @@ async def setup_2fa(
         )
 
         if not is_auth or not user_data:
+            logger.warning(f"Authentication failed or user_data missing for 2FA setup initiate. is_auth: {is_auth}")
             return Setup2FAResponse(success=False, message="Not authenticated")
+        logger.info(f"Authentication successful for 2FA setup initiate. User data keys: {list(user_data.keys())}")
 
         # Extract user_id from user_data
         user_id = user_data.get("user_id")
@@ -74,8 +76,10 @@ async def setup_2fa(
             return Setup2FAResponse(success=False, message="User ID not found")
 
         # Get user profile data
+        logger.info(f"Attempting to get user profile for user_id: {user_id}")
         success, user_profile, _ = await directus_service.get_user_profile(user_id)
         if not success or not user_profile:
+            logger.error(f"Failed to get user profile for user_id: {user_id}. Success: {success}")
             return Setup2FAResponse(success=False, message="Failed to get user profile")
 
         # Get email for the OTP name - decrypt it or fail
@@ -84,17 +88,24 @@ async def setup_2fa(
             try:
                 # Attempt to decrypt the email address
                 vault_key_id = user_profile.get("vault_key_id")
+                logger.info(f"Found vault_key_id: {vault_key_id is not None} for user_id: {user_id}")
                 if vault_key_id:
+                    logger.info(f"Attempting to decrypt email for user_id: {user_id}")
                     email = await encryption_service.decrypt_with_user_key(
                         user_profile.get("encrypted_email_address"),
                         vault_key_id
                     )
+                    logger.info(f"Email decryption result for user_id {user_id}: {'Success' if email else 'Failed'}")
+                else:
+                    logger.warning(f"No vault_key_id found in profile for user_id: {user_id}")
+                    
             except Exception as e:
                 logger.error(f"Error decrypting email: {str(e)}")
                 return Setup2FAResponse(success=False, message="Failed to decrypt email for 2FA setup")
 
         # If email was not found or decryption failed, abort the request
         if not email:
+            logger.error(f"Email could not be obtained for user_id: {user_id}. Cannot proceed with 2FA setup.")
             return Setup2FAResponse(success=False, message="Email required for 2FA setup")
 
         # Generate new 2FA secret using the decrypted email
@@ -125,16 +136,18 @@ async def setup_2fa(
                 await cache_service.set_user(user_data, refresh_token=refresh_token)
                 logger.info(f"Updated user cache for {user_id} with last_opened=/signup/step-4")
 
-        return Setup2FAResponse(
+        response_payload = Setup2FAResponse(
             success=True,
             message="2FA setup initiated successfully",
             secret=secret,
             otpauth_url=otpauth_url
         )
+        logger.info(f"Successfully initiated 2FA setup for user {user_id}. Returning secret and otpauth_url.")
+        return response_payload
 
     except Exception as e:
         logger.error(f"Error in setup_2fa: {str(e)}", exc_info=True)
-        return Setup2FAResponse(success=False, message="An error occurred during 2FA setup")
+        return Setup2FAResponse(success=False, message=f"An error occurred during 2FA setup: {str(e)}")
 
 
 @router.post("/verify-signup", response_model=VerifySignup2FAResponse)

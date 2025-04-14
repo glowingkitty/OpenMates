@@ -65,11 +65,12 @@ def _is_valid_ip_format(ip: str) -> bool:
         ipaddress.ip_address(ip)
         return True
     except ValueError:
-        logger.debug(f"Invalid IP format: {ip}")
+        logger.error(f"Invalid IP format: {ip}")
         return False
 
 def is_private_ip(ip_address_str: str) -> bool:
     """Checks if an IP address string belongs to a private or loopback range."""
+    logger.info(f"Checking if IP is private: {ip_address_str[:3]}...")
     if not ip_address_str or ip_address_str.lower() == "unknown":
         return False # Treat unknown as not private for safety
     try:
@@ -87,17 +88,18 @@ def get_location_from_ip(ip_address: str) -> Dict[str, Any]:
     Returns a dictionary with 'location_string', 'latitude', 'longitude'.
     Uses caching to avoid unnecessary API calls.
     """
+    logger.info(f"Fetching location for IP: {ip_address[:3]}...")
     default_result = {"location_string": "unknown", "latitude": None, "longitude": None}
 
     # --- Handle Special Cases ---
     # Handle unknown first
     if ip_address == "unknown":
-         logger.debug("Unknown IP address provided, returning default unknown location.")
+         logger.info("Unknown IP address provided, returning default unknown location.")
          return default_result
 
     # Check if the IP is private or loopback before external lookup
     if is_private_ip(ip_address):
-        logger.debug(f"Private/Loopback IP detected: {ip_address}. Returning 'Local Network'.")
+        logger.info(f"Private/Loopback IP detected:{ip_address[:3]}.... Returning 'Local Network'.")
         return {"location_string": "Local Network", "latitude": 52.5200, "longitude": 13.4050} # Berlin coords as placeholder
 
     # --- Proceed with API Lookup for public IPs ---
