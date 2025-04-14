@@ -72,7 +72,7 @@ def find_font(font_name: str) -> Optional[str]:
         try:
             font_path = os.path.join(path, font_name)
             if os.path.exists(font_path):
-                logger.info(f"Found font at: {font_path}")
+                logger.debug(f"Found font at: {font_path}") # Changed to debug
                 return font_path
         except Exception as e:
             logger.debug(f"Error checking font path {path}: {e}")
@@ -144,16 +144,16 @@ def generate_combined_map_preview(
         text_line2 = f"{city}, {country}"
 
         # --- 1. Generate Base Map ---
-        logger.info(f"Rendering map at {map_w}x{map_h} with zoom=6")
+        logger.debug(f"Rendering map at {map_w}x{map_h} with zoom=6") # Changed to debug
         # Choose tile URL based on darkmode
         if darkmode:
             # CartoDB Dark Matter tiles (supports {s} for subdomains and {r} for retina)
             map_url_template = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-            logger.info("Using CartoDB Dark Matter map tiles.")
+            logger.debug("Using CartoDB Dark Matter map tiles.") # Changed to debug
         else:
             # Default OpenStreetMap tiles
             map_url_template = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-            logger.info("Using OpenStreetMap map tiles.")
+            logger.debug("Using OpenStreetMap map tiles.") # Changed to debug
 
         m = StaticMap(map_w, map_h, url_template=map_url_template)
         # Add attribution if needed, e.g., m.add_attribution(...)
@@ -166,7 +166,7 @@ def generate_combined_map_preview(
                     center_x + center_dot_radius, center_y + center_dot_radius)
         # Use the correct color, no outline
         map_draw.ellipse(dot_bbox, fill=center_dot_color)
-        logger.info(f"Added center dot at ({center_x}, {center_y}) with color {center_dot_color}")
+        logger.debug(f"Added center dot at ({center_x}, {center_y}) with color {center_dot_color}") # Changed to debug
 
         # --- 3. Draw Overlay Elements (Order: Text BG -> Circle -> Pin -> Text) ---
 
@@ -184,7 +184,7 @@ def generate_combined_map_preview(
         # Composite the background layer onto the base map at the bottom position
         text_bg_paste_y = map_h - text_bg_h
         base_map_image.alpha_composite(text_bg_layer, (0, text_bg_paste_y))
-        logger.info(f"Composited full-width text background at (0, {text_bg_paste_y}) size {text_bg_w}x{text_bg_h}")
+        logger.debug(f"Composited full-width text background at (0, {text_bg_paste_y}) size {text_bg_w}x{text_bg_h}") # Changed to debug
 
         # --- 3b. Create and Paste Icon Circle ---
         gradient_circle = create_gradient_circle(icon_diameter, gradient_start, gradient_end)
@@ -195,21 +195,21 @@ def generate_combined_map_preview(
 
         # Paste circle onto map (on top of text background layer)
         base_map_image.paste(gradient_circle, (circle_paste_x, circle_paste_y), gradient_circle)
-        logger.info(f"Pasted green circle at ({circle_paste_x}, {circle_paste_y})")
+        logger.debug(f"Pasted green circle at ({circle_paste_x}, {circle_paste_y})") # Changed to debug
 
         # --- 3c. Load and Paste Map Pin Icon ---
         script_dir = os.path.dirname(__file__)
         # Corrected path relative to this script's location
         icon_path = os.path.abspath(os.path.join(script_dir, '../../templates/email/components/icons/maps.png'))
-        logger.info(f"Attempting to load map icon from: {icon_path}") # Log path before try
+        logger.debug(f"Attempting to load map icon from: {icon_path}") # Changed to debug
         map_pin_icon = None
         if os.path.exists(icon_path):
-             logger.info(f"Icon file exists at: {icon_path}")
+             logger.debug(f"Icon file exists at: {icon_path}") # Changed to debug
              try:
                  map_pin_icon = Image.open(icon_path).convert("RGBA")
-                 logger.info(f"Icon loaded successfully. Original size: {map_pin_icon.size}")
+                 logger.debug(f"Icon loaded successfully. Original size: {map_pin_icon.size}") # Changed to debug
                  map_pin_icon = map_pin_icon.resize((icon_pin_size, icon_pin_size), Image.Resampling.LANCZOS)
-                 logger.info(f"Icon resized to: {map_pin_icon.size}")
+                 logger.debug(f"Icon resized to: {map_pin_icon.size}") # Changed to debug
              except Exception as e:
                   logger.error(f"Error loading or resizing map icon from {icon_path}: {e}", exc_info=True)
                   map_pin_icon = None # Ensure it's None on error
@@ -225,7 +225,7 @@ def generate_combined_map_preview(
         if map_pin_icon:
              # Use the icon's own alpha channel for transparency when pasting
              base_map_image.paste(map_pin_icon, (pin_paste_x, pin_paste_y), map_pin_icon)
-             logger.info(f"Pasted map pin icon at ({pin_paste_x}, {pin_paste_y})")
+             logger.debug(f"Pasted map pin icon at ({pin_paste_x}, {pin_paste_y})") # Changed to debug
         else:
              logger.warning("map_pin_icon is None, skipping paste.")
 
@@ -247,7 +247,7 @@ def generate_combined_map_preview(
         # Draw text onto map (on top of text background and circle), using left-baseline anchor with adjusted Y
         map_draw.text((text_actual_x_start, text_actual_y_start), text_line1, font=font_bold, fill=text_color_main, anchor="ls") # Use left-baseline anchor
         map_draw.text((text_actual_x_start, line2_y_start), text_line2, font=font_bold, fill=text_color_secondary, anchor="ls") # Use left-baseline anchor
-        logger.info(f"Drew text left-aligned starting at x={text_actual_x_start}, baseline adjusted vertically starting at y={text_actual_y_start}")
+        logger.debug(f"Drew text left-aligned starting at x={text_actual_x_start}, baseline adjusted vertically starting at y={text_actual_y_start}") # Changed to debug
 
         # --- 4. Create Final Canvas (Larger for Shadow) ---
         # Define padding based on blur radius to ensure enough space for the blur effect
@@ -273,14 +273,14 @@ def generate_combined_map_preview(
         shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=shadow_blur_radius))
         # Composite shadow onto the main canvas first
         canvas = Image.alpha_composite(canvas, shadow_layer)
-        logger.info("Applied drop shadow")
+        logger.debug("Applied drop shadow") # Changed to debug
 
         # --- 6. Paste Final Map (with overlay) onto Canvas with Rounding ---
         # Create rounded mask for the final content size
         content_mask = create_rounded_rectangle_mask((content_w, content_h), corner_radius)
         # Paste the map (which now includes the overlay) using the mask
         canvas.paste(base_map_image, (draw_offset_x, draw_offset_y), content_mask)
-        logger.info("Pasted final rounded content onto canvas")
+        logger.debug("Pasted final rounded content onto canvas") # Changed to debug
 
         # --- 7. Encode Final Image (Entire Canvas) ---
         buffer = io.BytesIO()
