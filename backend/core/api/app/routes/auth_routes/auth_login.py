@@ -38,9 +38,9 @@ async def login(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service) # Inject encryption service
 ):
     """
     Authenticate a user, handle 2FA if enabled, and create a session.
@@ -179,7 +179,25 @@ async def login(
                 logger.info(f"Verifying OTP code for user {user_id}...")
                 
                 # Fetch decrypted secret directly (bypasses cache)
-                decrypted_secret = await directus_service.get_decrypted_tfa_secret(user_id)
+                # Fetch encrypted TFA secret and vault_key_id
+                user_fields = await directus_service.get_user_fields_direct(
+                    user_id, ["encrypted_tfa_secret", "vault_key_id"]
+                )
+                encrypted_tfa_secret = user_fields.get("encrypted_tfa_secret") if user_fields else None
+                vault_key_id = user_fields.get("vault_key_id") if user_fields else None
+
+                if not encrypted_tfa_secret or not vault_key_id:
+                    logger.error(f"Missing encrypted_tfa_secret or vault_key_id for user {user_id} during OTP verification.")
+                    return LoginResponse(success=False, message="Error verifying 2FA code.", tfa_required=True)
+
+                # Decrypt the TFA secret
+                try:
+                    decrypted_secret = await encryption_service.decrypt_with_user_key(
+                        encrypted_tfa_secret, vault_key_id
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to decrypt TFA secret for user {user_id}: {str(e)}", exc_info=True)
+                    return LoginResponse(success=False, message="Error verifying 2FA code.", tfa_required=True)
                 
                 if not decrypted_secret:
                     # Handle cases where secret isn't found or decryption failed

@@ -88,17 +88,27 @@ async def create_payment_order(
     request: Request, # Needs to come before Depends for Pylance
     order_data: CreateOrderRequest,
     current_user: User = Depends(get_current_user),
-    revolut_service: RevolutService = Depends(get_revolut_service) # Use the dependency
+    revolut_service: RevolutService = Depends(get_revolut_service), # Use the dependency
+    encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """Creates a payment order with Revolut and returns the order token."""
     logger.info(f"Received request to create payment order for user {current_user.id} - Amount: {order_data.amount} {order_data.currency}, Credits: {order_data.credits_amount}")
     
     # --- Actual Implementation ---
     try:
+        # Decrypt the user's email address
+        if not current_user.encrypted_email_address or not current_user.vault_key_id:
+            logger.error(f"Missing encrypted_email_address or vault_key_id for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User email information unavailable.")
+        decrypted_email = await encryption_service.decrypt_with_user_key(
+            current_user.encrypted_email_address,
+            current_user.vault_key_id
+        )
+
         order_response = await revolut_service.create_order(
             amount=order_data.amount,
             currency=order_data.currency,
-            email=current_user.email,
+            email=decrypted_email,
             user_id=current_user.id, # Pass user ID for metadata/reference
             credits_amount=order_data.credits_amount # Pass credits for metadata
         )

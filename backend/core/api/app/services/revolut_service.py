@@ -100,6 +100,7 @@ class RevolutService:
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "Revolut-Api-Version": "2024-09-01",
         }
         
         # Construct a unique reference for the merchant order
@@ -109,7 +110,7 @@ class RevolutService:
         payload = {
             "amount": amount,
             "currency": currency,
-            "capture_mode": "AUTOMATIC", # Automatically capture funds on success
+            "capture_mode": "automatic", # Fixed: must be lowercase per Revolut API docs
             "merchant_order_ext_ref": merchant_order_ref,
             "email": email,
             "metadata": {
@@ -118,8 +119,6 @@ class RevolutService:
                 "purchase_type": "credits",
                 "timestamp_created": str(timestamp)
             }
-            # Add customer_id if available and desired
-            # "customer_id": "...", 
         }
 
         try:

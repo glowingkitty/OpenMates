@@ -74,15 +74,31 @@ async def verify_device_2fa(
 
         user_id = user_data.get("user_id") # We know user_id exists from the is_auth check
 
-        # Fetch the decrypted TFA secret directly (bypasses cache)
-        # No need to fetch the full profile anymore
-        decrypted_secret = await directus_service.get_decrypted_tfa_secret(user_id)
+        # Fetch necessary fields directly (bypasses cache)
+        logger.info(f"Fetching encrypted_tfa_secret and vault_key_id for user {user_id}")
+        user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret", "vault_key_id"])
 
-        # Check if secret was retrieved and decrypted successfully
-        if not decrypted_secret:
-            # This covers cases where 2FA is not enabled, secret is missing, or decryption failed.
-            # The get_decrypted_tfa_secret function logs the specific reason.
-            logger.error(f"Could not get decrypted TFA secret for user {user_id} during device verification.")
+        if not user_fields:
+            logger.error(f"Could not retrieve required fields (encrypted_tfa_secret, vault_key_id) for user {user_id} during device verification.")
+            return VerifyDevice2FAResponse(success=False, message="Could not retrieve necessary user data. Please try again.")
+
+        encrypted_secret = user_fields.get("encrypted_tfa_secret")
+        vault_key_id = user_fields.get("vault_key_id")
+
+        if not encrypted_secret or not vault_key_id:
+            logger.error(f"User {user_id} does not have 2FA enabled or key information is missing (secret: {'present' if encrypted_secret else 'missing'}, key: {'present' if vault_key_id else 'missing'}).")
+            return VerifyDevice2FAResponse(success=False, message="2FA is not enabled for this account or configuration is incomplete.")
+
+        # Decrypt the secret
+        decrypted_secret = None
+        try:
+            decrypted_secret = await encryption_service.decrypt_with_user_key(encrypted_secret, vault_key_id)
+            if not decrypted_secret:
+                 logger.error(f"Decryption of TFA secret failed for user {user_id} (returned None).")
+                 # Use generic error message for frontend
+                 return VerifyDevice2FAResponse(success=False, message="Could not verify 2FA status or code. Please try again.")
+        except Exception as decrypt_err:
+            logger.error(f"Error decrypting TFA secret for user {user_id}: {decrypt_err}", exc_info=True)
             # Use generic error message for frontend
             return VerifyDevice2FAResponse(success=False, message="Could not verify 2FA status or code. Please try again.")
 

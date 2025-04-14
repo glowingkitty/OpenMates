@@ -76,7 +76,8 @@ async def get_current_user(
             consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
             language=cached_data.get("language", 'en'), 
             darkmode=cached_data.get("darkmode", False),
-            gifted_credits_for_signup=cached_data.get("gifted_credits_for_signup") # Include new field
+            gifted_credits_for_signup=cached_data.get("gifted_credits_for_signup"),
+            encrypted_email_address=cached_data.get("encrypted_email_address")
         )
     
     # If no cache hit, validate token and get user data
@@ -101,38 +102,40 @@ async def get_current_user(
         id=user_id,
         username=user_data.get("username"),
         is_admin=user_data.get("is_admin", False),
-        credits=user_data.get("credits", 0), 
+        credits=user_data.get("credits", 0),
         profile_image_url=user_data.get("profile_image_url"),
         last_opened=user_data.get("last_opened"),
-        vault_key_id=user_data.get("vault_key_id"), 
-        tfa_app_name=user_data.get("tfa_app_name"), 
+        vault_key_id=user_data.get("vault_key_id"),
+        tfa_app_name=user_data.get("tfa_app_name"),
         consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
-        consent_mates_default_settings=user_data.get("consent_mates_default_settings"), 
-        language=user_data.get("language", 'en'), 
+        consent_mates_default_settings=user_data.get("consent_mates_default_settings"),
+        language=user_data.get("language", 'en'),
         darkmode=user_data.get("darkmode", False),
-        gifted_credits_for_signup=user_data.get("gifted_credits_for_signup") # Include new field
+        gifted_credits_for_signup=user_data.get("gifted_credits_for_signup"), # Include new field
+        encrypted_email_address=user_data.get("encrypted_email_address")
     )
     
     # Cache the user data for future requests using the enhanced cache service method
     # Prepare standardized user data for cache (match structure used elsewhere)
     user_data_for_cache = {
-        "user_id": user.id, 
+        "user_id": user.id,
         "username": user.username,
         "is_admin": user.is_admin,
         "credits": user.credits,
         "profile_image_url": user.profile_image_url,
-        "tfa_app_name": user.tfa_app_name, 
+        "tfa_app_name": user.tfa_app_name,
         "last_opened": user.last_opened,
-        "vault_key_id": user.vault_key_id, 
+        "vault_key_id": user.vault_key_id,
         "consent_privacy_and_apps_default_settings": user.consent_privacy_and_apps_default_settings,
         "consent_mates_default_settings": user.consent_mates_default_settings,
         # Determine tfa_enabled based on whether encrypted_tfa_secret exists in the raw user_data fetched by get_user_profile
         # This requires get_user_profile to potentially return the raw data or tfa_enabled status
         # Assuming get_user_profile adds 'tfa_enabled' based on its logic:
-        "tfa_enabled": user_data.get("tfa_enabled", False), 
-        "language": user.language, 
+        "tfa_enabled": user_data.get("tfa_enabled", False),
+        "language": user.language,
         "darkmode": user.darkmode,
-        "gifted_credits_for_signup": user.gifted_credits_for_signup # Include new field
+        "gifted_credits_for_signup": user.gifted_credits_for_signup, # Include new field
+        "encrypted_email_address": user.encrypted_email_address
     }
     # Remove gifted_credits_for_signup if it's None before caching
     if not user_data_for_cache.get("gifted_credits_for_signup"):
