@@ -1,558 +1,400 @@
 <script lang="ts">
-    import { text } from '@repo/ui';
-    import { createEventDispatcher, tick, onMount } from 'svelte';
+    import { text } from '@repo/ui'; // Revert to original path as requested
+    import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import { tooltip } from '../../actions/tooltip';
-    
+    import RevolutCheckout from '@revolut/checkout';
+    import type { RevolutCheckoutInstance, Mode } from '@revolut/checkout'; // Remove CardField type import, rely on inference
+    import { getApiUrl, apiEndpoints } from '../../config/api'; // Import API config
+
     const dispatch = createEventDispatcher();
-    
+
+    // Props
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
-    export let showSensitiveData: boolean = false;
-    export let initialPaymentDetails = null;
-    
-    // Form state
-    let nameOnCard = '';
-    let cardNumber = '';
-    let expireDate = '';
-    let cvv = '';
-    
-    // Track if card has been entered and user finished typing
-    let isCardNumberComplete = false;
-    
+    export let credits_amount: number; // IMPORTANT: This must be passed from the parent
+    // export let showSensitiveData: boolean = false; // No longer needed for Revolut element
+    export let initialPaymentDetails = null; // Keep for name field if needed
+
+    // --- Revolut State ---
+    let revolutCheckout: RevolutCheckoutInstance | null = null;
+    let cardFieldInstance: any | null = null; // Use 'any' or let TS infer type
+    let orderToken: string | null = null;
+    let isLoadingRevolut = true; // Track loading state
+    let revolutError: string | null = null; // Store errors from Revolut init/payment
+    let revolutPublicKey: string | null = null; // Store public key if needed later (e.g., for upsell)
+    let revolutEnvironment: 'sandbox' | 'production' | null = null;
+
+    // --- Form State ---
+    let nameOnCard = ''; // Keep name field for now
+
     // Input element references
     let nameInput: HTMLInputElement;
-    let cardInputVisible: HTMLInputElement;
-    let cardInputHidden: HTMLInputElement;
-    let expireInput: HTMLInputElement;
-    let cvvInputVisible: HTMLInputElement;
-    let cvvInputHidden: HTMLInputElement;
-    
+    let cardFieldContainer: HTMLDivElement; // Target for Revolut element
+
     // Validation states
     let nameError = '';
-    let cardError = '';
-    let expireError = '';
-    let cvvError = '';
-    
     let showNameWarning = false;
-    let showCardWarning = false;
-    let showExpireWarning = false;
-    let showCVVWarning = false;
-    
-    // Payment failure state
-    let paymentFailed = false;
-    
+
+    // Payment failure state - handled by Revolut's onError now, but keep for potential UI feedback
+    let paymentFailed = false; // Can be set in onError
+
     // Track if form was submitted
     let attemptedSubmit = false;
-    
-    // Initialize with saved payment details if provided
+
+    // Removed userProfile subscription and customerEmail variable
+
+    // --- Initialization ---
     onMount(() => {
+        // Pre-fill name if available from previous attempt
         if (initialPaymentDetails) {
             nameOnCard = initialPaymentDetails.nameOnCard || '';
-            cardNumber = initialPaymentDetails.cardNumber || '';
-            expireDate = initialPaymentDetails.expireDate || '';
-            cvv = initialPaymentDetails.cvv || '';
-            
-            // Mark card as complete if it has enough digits
-            const digits = cardNumber.replace(/\D/g, '');
-            isCardNumberComplete = digits.length >= 13;
-            
-            // If we have initial details and they're from a failed payment, show error
+            // If we had a general payment failure state passed in
             if (initialPaymentDetails.failed) {
-                setPaymentFailed();
+                setPaymentFailed("Previous payment attempt failed."); // Pass a generic message
             }
         }
+
+        if (credits_amount === undefined || credits_amount === null) {
+             console.error("PaymentForm Error: credits_amount prop is missing or invalid.");
+             revolutError = "Configuration error: Credits amount missing.";
+             isLoadingRevolut = false;
+        } else {
+            // Fetch config and initialize Revolut
+            initializeRevolut();
+        }
     });
-    
-    // Watch for initialPaymentDetails changes to handle payment failure recovery
-    $: if (initialPaymentDetails) {
-        nameOnCard = initialPaymentDetails.nameOnCard || nameOnCard;
-        cardNumber = initialPaymentDetails.cardNumber || cardNumber;
-        expireDate = initialPaymentDetails.expireDate || expireDate;
-        cvv = initialPaymentDetails.cvv || cvv;
-        
-        // Mark card as complete if it has enough digits
-        const digits = cardNumber.replace(/\D/g, '');
-        isCardNumberComplete = digits.length >= 13;
-    }
-    
-    // Toggle visibility of sensitive data
-    function toggleSensitiveDataVisibility() {
-        showSensitiveData = !showSensitiveData;
-        dispatch('toggleSensitiveData', { showSensitiveData });
-        
-        // Focus the appropriate input after toggling
-        setTimeout(() => {
-            const activeElement = document.activeElement;
-            if (activeElement === cardInputVisible || activeElement === cardInputHidden) {
-                const focusElement = showSensitiveData ? cardInputVisible : cardInputHidden;
-                if (focusElement) focusElement.focus();
+
+    onDestroy(() => {
+        // Destroy card field instance if it exists
+        cardFieldInstance?.destroy();
+        console.debug("PaymentForm destroyed, Revolut card field instance destroyed.");
+    });
+
+
+    // Function to fetch order token and initialize Revolut Card Field
+    async function initializeRevolut() {
+        isLoadingRevolut = true;
+        revolutError = null;
+        orderToken = null;
+        // Destroy previous instance if exists
+        if (cardFieldInstance) {
+            cardFieldInstance.destroy();
+            cardFieldInstance = null;
+            console.debug("Destroyed previous Revolut card field instance.");
+        }
+
+        // Removed check for customerEmail here, it's fetched later in handleBuyClick
+        if (credits_amount === undefined || credits_amount === null || credits_amount <= 0) {
+             revolutError = "Invalid credits amount specified.";
+             isLoadingRevolut = false;
+             console.error(`Revolut Init Error: Invalid credits_amount: ${credits_amount}`);
+             dispatch('paymentFailure', { message: revolutError }); // Notify parent
+             return;
+        }
+
+
+        try {
+            // 1. Fetch Payment Config
+            console.debug("Fetching payment config...");
+            const configResponse = await fetch(getApiUrl() + apiEndpoints.payments.config, {
+                 method: 'GET',
+                 headers: { 'Accept': 'application/json' },
+                 credentials: 'include'
+            });
+            if (!configResponse.ok) {
+                throw new Error(`Failed to fetch payment config: ${configResponse.status} ${configResponse.statusText}`);
             }
-            
-            if (activeElement === cvvInputVisible || activeElement === cvvInputHidden) {
-                const focusElement = showSensitiveData ? cvvInputVisible : cvvInputHidden;
-                if (focusElement) focusElement.focus();
+            const configData = await configResponse.json();
+            revolutPublicKey = configData.revolut_public_key;
+            revolutEnvironment = configData.environment;
+            console.debug(`Payment config received: Environment=${revolutEnvironment}`);
+
+            // 2. Create Order to get Order Token
+            const orderPayload = {
+                amount: Math.round(purchasePrice * 100), // Convert to cents/smallest unit
+                currency: currency,
+                credits_amount: credits_amount // Use the prop value
+            };
+            console.debug("Creating payment order with payload:", orderPayload);
+            const orderResponse = await fetch(getApiUrl() + apiEndpoints.payments.createOrder, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(orderPayload)
+            });
+
+            if (!orderResponse.ok) {
+                 const errorData = await orderResponse.json().catch(() => ({ detail: `${orderResponse.status} ${orderResponse.statusText}` }));
+                 throw new Error(`Failed to create payment order: ${errorData.detail || orderResponse.statusText}`);
             }
-        }, 0);
+            const orderData = await orderResponse.json();
+            orderToken = orderData.order_token;
+            console.debug(`Order token received: ${orderToken ? 'OK' : 'MISSING'}`);
+
+
+            if (!orderToken) {
+                throw new Error("Received empty order token from backend.");
+            }
+
+            // 3. Initialize Revolut Checkout Widget
+            console.debug(`Initializing RevolutCheckout with token for ${revolutEnvironment} env.`);
+            revolutCheckout = await RevolutCheckout(orderToken, revolutEnvironment as Mode); // Pass environment, cast type
+
+            if (!revolutCheckout) {
+                 throw new Error("Failed to initialize Revolut Checkout.");
+            }
+
+            // 4. Create and Mount Card Field
+            console.debug("Creating Revolut card field instance...");
+            cardFieldInstance = revolutCheckout.createCardField({
+                target: cardFieldContainer, // Mount to our div
+                // --- Event Handlers ---
+                onSuccess() {
+                    console.info("Revolut payment successful callback triggered.");
+                    revolutError = null;
+                    paymentFailed = false;
+                    // Dispatch success event to parent (Payment.svelte)
+                    dispatch('paymentSuccess', {
+                        nameOnCard: nameOnCard,
+                        amount: credits_amount, // Pass the credits amount
+                        price: purchasePrice,
+                        currency: currency
+                        // Note: lastFourDigits not available here
+                    });
+                },
+                onError(error) {
+                    console.error("Revolut payment error callback triggered:", error);
+                    const message = typeof error === 'string' ? error : (error?.message || "Unknown payment error");
+                    revolutError = `Payment failed: ${message}`;
+                    paymentFailed = true;
+                     // Dispatch failure event to parent
+                    dispatch('paymentFailure', { message: revolutError });
+                },
+                 onCancel() {
+                    console.info("Revolut payment cancelled by user.");
+                    revolutError = "Payment cancelled."; // Provide feedback
+                    // Optionally dispatch a specific cancel event
+                    dispatch('paymentCancel');
+                },
+                onValidation(errors) {
+                    // Optional: Handle real-time validation errors if needed
+                    // This provides an array of { field: string, message: string }
+                    console.debug("Revolut validation event:", errors);
+                    // You could potentially map these errors to UI elements if desired,
+                    // but Revolut's element usually shows its own validation hints.
+                },
+                // --- Styling (Example - Adapt to your CSS) ---
+                styles: {
+                    default: { // Base styles
+                        color: 'var(--color-text)', // Use your CSS variable
+                        backgroundColor: 'var(--color-input-bg)',
+                        padding: '14px 12px', // Match your input padding
+                        borderRadius: 'var(--radius-input)',
+                        border: '1px solid var(--color-input-border)',
+                        fontFamily: 'inherit',
+                        fontSize: '16px', // Match your input font size
+                        // '::placeholder': { // Cannot style pseudo-elements directly here
+                        //     color: 'var(--color-grey-60)'
+                        // }
+                    },
+                    focused: { // Correct key is 'focused'
+                        borderColor: 'var(--color-primary)',
+                        boxShadow: '0 0 0 1px var(--color-primary)' // Adjusted focus style
+                    },
+                    invalid: { // Styles when the field has validation errors
+                        borderColor: 'var(--color-error)',
+                        color: 'var(--color-error)'
+                    },
+                },
+                // --- Other Options ---
+                locale: 'en', // Or dynamically set based on user preference
+            });
+
+            // Mount the instance
+            console.debug("Mounting Revolut card field instance...");
+            cardFieldInstance.mount();
+            console.info("Revolut Card Field initialized and mounted.");
+
+        } catch (error) {
+            console.error("Error initializing Revolut:", error);
+            revolutError = error instanceof Error ? error.message : String(error) || "Failed to initialize payment form.";
+            dispatch('paymentFailure', { message: revolutError }); // Notify parent
+        } finally {
+            isLoadingRevolut = false;
+        }
     }
-    
-    // Add a function to handle the secure payment info click
+
+    // Re-add function to handle the secure payment info click
     function handleSecurePaymentInfoClick() {
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
     }
-    
-    // Validate name on card - simple length check for international compatibility
+
+
+    // --- Keep Name Validation ---
     function validateName(name: string): boolean {
         if (name.trim().length < 3) {
             nameError = $text('signup.name_too_short.text');
-            // Only show warning if field is not empty or if user attempted to submit
             showNameWarning = name.trim().length > 0 || attemptedSubmit;
             return false;
         }
-        
         nameError = '';
         showNameWarning = false;
         return true;
     }
-    
-    // Luhn algorithm for credit card validation
-    function validateCardNumber(cardNum: string): boolean {
-        // If payment failed previously, show that error instead
-        if (paymentFailed) {
-            cardError = $text('signup.payment_failed.text');
-            showCardWarning = true;
-            return false;
-        }
-        
-        // Remove all non-digits
-        const digits = cardNum.replace(/\D/g, '');
-        
-        if (digits.length < 13 || digits.length > 19) {
-            cardError = $text('signup.invalid_card_number.text');
-            // Only show warning if field is not empty or if user attempted to submit
-            showCardWarning = digits.length > 0 || attemptedSubmit;
-            return false;
-        }
-        
-        // Luhn algorithm implementation
-        let sum = 0;
-        let shouldDouble = false;
-        
-        for (let i = digits.length - 1; i >= 0; i--) {
-            let digit = parseInt(digits.charAt(i));
-            
-            if (shouldDouble) {
-                digit *= 2;
-                if (digit > 9) digit -= 9;
-            }
-            
-            sum += digit;
-            shouldDouble = !shouldDouble;
-        }
-        
-        if (sum % 10 !== 0) {
-            cardError = $text('signup.invalid_card_number.text');
-            showCardWarning = true;
-            return false;
-        }
-        
-        cardError = '';
-        showCardWarning = false;
-        return true;
-    }
-    
-    // Format and validate expiration date
-    function formatExpireDate(input: string): string {
-        // Remove any non-digit characters
-        const digits = input.replace(/\D/g, '');
-        
-        // Format as MM/YY
-        if (digits.length <= 2) {
-            return digits;
-        } else {
-            return `${digits.substring(0, 2)}/${digits.substring(2, 4)}`;
-        }
-    }
-    
-    function validateExpireDate(date: string): boolean {
-        // Check format
-        if (!/^\d{2}\/\d{2}$/.test(date)) {
-            expireError = $text('signup.invalid_expiry_format.text');
-            // Only show warning if field is not empty or if user attempted to submit
-            showExpireWarning = date.length > 0 || attemptedSubmit;
-            return false;
-        }
-        
-        const [monthStr, yearStr] = date.split('/');
-        const month = parseInt(monthStr, 10);
-        const year = parseInt(yearStr, 10) + 2000; // Assuming 20xx
-        
-        // Check month validity
-        if (month < 1 || month > 12) {
-            expireError = $text('signup.invalid_month.text');
-            showExpireWarning = true;
-            return false;
-        }
-        
-        // Check expiry against current date
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1;
-        
-        if (year < currentYear || (year === currentYear && month < currentMonth)) {
-            expireError = $text('signup.card_expired.text');
-            showExpireWarning = true;
-            return false;
-        }
-        
-        expireError = '';
-        showExpireWarning = false;
-        return true;
-    }
-    
-    // Validate CVV
-    function validateCVV(cvvCode: string): boolean {
-        const digits = cvvCode.replace(/\D/g, '');
-        
-        if (digits.length !== 3 && digits.length !== 4) {
-            cvvError = $text('signup.invalid_cvv.text');
-            // Only show warning if field is not empty or if user attempted to submit
-            showCVVWarning = digits.length > 0 || attemptedSubmit;
-            return false;
-        }
-        
-        cvvError = '';
-        showCVVWarning = false;
-        return true;
-    }
-    
-    // Handle card number formatting as user types
-    async function handleCardNumberInput(event: Event) {
-        // Clear payment failed state when user starts editing
-        paymentFailed = false;
-        
-        const input = event.target as HTMLInputElement;
-        const cursorPosition = input.selectionStart || 0;
-        const previousLength = cardNumber.length;
-        
-        // Remove all non-digit characters for processing
-        const digits = input.value.replace(/\D/g, '');
-        
-        // Format with spaces every 4 digits
-        let formatted = '';
-        for (let i = 0; i < digits.length; i++) {
-            if (i > 0 && i % 4 === 0) {
-                formatted += ' ';
-            }
-            formatted += digits[i];
-        }
-        
-        // Limit to reasonable card number length
-        cardNumber = formatted.substring(0, 23); // 16 digits + 3 spaces
-        
-        // Adjust cursor position after formatting
-        await tick();
-        const newPosition = cursorPosition + (cardNumber.length - previousLength);
-        
-        // Set cursor position for active input
-        const activeElement = document.activeElement;
-        if (activeElement === cardInputVisible) {
-            cardInputVisible.setSelectionRange(newPosition, newPosition);
-        } else if (activeElement === cardInputHidden) {
-            cardInputHidden.setSelectionRange(newPosition, newPosition);
-        }
-    }
-    
-    // Handle card field blur event
-    function handleCardBlur() {
-        // Mark as complete if there are enough digits
-        const digits = cardNumber.replace(/\D/g, '');
-        isCardNumberComplete = digits.length >= 13;
-        
-        // Validate the card number
-        validateCardNumber(cardNumber);
-    }
-    
-    // Handle card field focus event
-    function handleCardFocus() {
-        // Reset the completion status while editing
-        isCardNumberComplete = false;
-    }
-    
-    // Get the last four digits of the card number
-    function getLastFourDigits(cardNum: string): string {
-        const digits = cardNum.replace(/\D/g, '');
-        if (digits.length < 4) return digits;
-        return digits.slice(-4);
-    }
-    
-    // Handle expiration date input
-    async function handleExpireDateInput(event: Event) {
-        const input = event.target as HTMLInputElement;
-        const cursorPosition = input.selectionStart || 0;
-        const previousLength = expireDate.length;
-        
-        // Format the date
-        expireDate = formatExpireDate(input.value);
-        
-        // Adjust cursor position after formatting
-        await tick();
-        const newPosition = cursorPosition + (expireDate.length - previousLength);
-        input.setSelectionRange(newPosition, newPosition);
 
-        // If expire date is complete (MM/YY format is fully entered), validate it immediately
-        if (expireDate.length === 5) {
-            validateExpireDate(expireDate);
-        }
-    }
-    
-    // Handle CVV input - numbers only
-    function handleCVVInput(event: Event) {
-        const input = event.target as HTMLInputElement;
-        cvv = input.value.replace(/\D/g, '').substring(0, 4);
-    }
-    
-    // Overall form validation
-    $: isFormValid = 
-        nameOnCard && !nameError &&
-        cardNumber && !cardError && 
-        expireDate && !expireError && 
-        cvv && !cvvError;
-    
-    function handleBuyClick() {
-        // Set flag that user attempted to submit
+    // --- Updated Buy Click Handler ---
+    async function handleBuyClick() {
+        console.debug("Buy button clicked.");
         attemptedSubmit = true;
-        
-        // Validate all fields before submission
+        revolutError = null; // Clear previous errors
+
+        // 1. Validate local fields (just Name for now)
         const isNameValid = validateName(nameOnCard);
-        const isCardValid = validateCardNumber(cardNumber);
-        const isExpireValid = validateExpireDate(expireDate);
-        const isCvvValid = validateCVV(cvv);
-        
-        if (isNameValid && isCardValid && isExpireValid && isCvvValid) {
-            // Reset payment failed state on new submission
-            paymentFailed = false;
-            
-            // Dispatch payment event with form data
-            dispatch('startPayment', {
-                nameOnCard,
-                cardNumber,
-                expireDate,
-                cvv,
-                lastFourDigits: getLastFourDigits(cardNumber)
-            });
+        if (!isNameValid) {
+            console.warn("Name validation failed.");
+            nameInput?.focus(); // Focus the name input if invalid
+            return;
         }
+
+        // 2. Check if cardFieldInstance is ready
+        if (!cardFieldInstance) {
+            revolutError = "Payment form is not ready. Please wait or refresh.";
+            console.error("handleBuyClick Error: cardFieldInstance not available.");
+            dispatch('paymentFailure', { message: revolutError }); // Notify parent
+            return;
+        }
+
+         // 3. Fetch user email from backend just-in-time
+         let fetchedEmail: string | null = null;
+         try {
+             console.debug("Fetching user email for payment submission...");
+             const emailResponse = await fetch(getApiUrl() + apiEndpoints.settings.user.getEmail, {
+                 method: 'GET',
+                 headers: { 'Accept': 'application/json' },
+                 credentials: 'include'
+             });
+             if (!emailResponse.ok) {
+                 const errorText = await emailResponse.text();
+                 throw new Error(`Failed to fetch email: ${emailResponse.status} ${errorText}`);
+             }
+             const emailData = await emailResponse.json();
+             fetchedEmail = emailData.email;
+             if (!fetchedEmail) {
+                 throw new Error("Email not found in backend response.");
+             }
+             console.debug("User email fetched successfully.");
+         } catch (error) {
+             console.error("Error fetching user email:", error);
+             revolutError = "Could not retrieve user email for payment. Please try again.";
+             dispatch('paymentFailure', { message: revolutError }); // Notify parent
+             return; // Stop submission
+         }
+ 
+          // 4. Dispatch 'startPayment' to parent to indicate processing start
+          console.info("Dispatching startPaymentProcessing event.");
+          dispatch('startPaymentProcessing');
+ 
+         // 5. Submit the Revolut Card Field with fetched email
+         try {
+             console.debug(`Submitting card field with fetched email and name: ${nameOnCard}`);
+             await cardFieldInstance.submit({
+                 email: fetchedEmail, // Use the fetched email
+                 name: nameOnCard, // Pass the name from our input field
+             });
+             console.debug("cardField.submit() called successfully.");
+             // Success/Error is handled by the onSuccess/onError callbacks defined in createCardField
+         } catch (error) {
+              // This catch might handle errors during the *initiation* of submit,
+              // but payment success/failure is typically via the callbacks.
+             console.error("Error calling cardField.submit():", error);
+             const message = error instanceof Error ? error.message : String(error) || "Unknown submission error";
+             revolutError = `Failed to initiate payment: ${message}`;
+             paymentFailed = true;
+             dispatch('paymentFailure', { message: revolutError }); // Notify parent
+         }
     }
-    
-    // Reset error state
+
+    // --- Keep Error Handling Functions ---
     export function resetErrors() {
+        console.debug("Resetting errors.");
         nameError = '';
-        cardError = '';
-        expireError = '';
-        cvvError = '';
         showNameWarning = false;
-        showCardWarning = false;
-        showExpireWarning = false;
-        showCVVWarning = false;
         attemptedSubmit = false;
         paymentFailed = false;
+        revolutError = null;
+        // Revolut element handles its own visual state for errors
     }
-    
-    // Set payment failure state
-    export function setPaymentFailed() {
+
+    // Modified setPaymentFailed to accept a message
+    export function setPaymentFailed(message: string = "Payment failed.") {
+        console.warn(`Setting payment failed state: ${message}`);
         paymentFailed = true;
-        cardError = $text('signup.payment_failed.text');
-        showCardWarning = true;
-        
-        // Focus the card input field
-        setTimeout(() => {
-            if (showSensitiveData && cardInputVisible) {
-                cardInputVisible.focus();
-            } else if (cardInputHidden) {
-                cardInputHidden.focus();
-            }
-        }, 300);
+        revolutError = message; // Display a general error message
     }
-    
-    // Safely get card input element for tooltip
-    function getCardInput() {
-        return showSensitiveData ? cardInputVisible : cardInputHidden;
-    }
+
 </script>
 
-<div class="visibility-toggle">
-    <button 
-        class="visibility-button"
-        on:click={toggleSensitiveDataVisibility}
-        aria-label={showSensitiveData ? $text('signup.hide_sensitive_data.text') :$text('signup.show_sensitive_data.text')}
-        use:tooltip
-    >
-        <span class={`clickable-icon ${showSensitiveData ? 'icon_visible' : 'icon_hidden'}`}></span>
-    </button>
-</div>
+<div class="payment-form" class:loading={isLoadingRevolut} in:fade={{ duration: 300 }}>
+    {#if isLoadingRevolut}
+        <div class="loading-indicator">Loading Payment Form...</div>
+    {:else if revolutError}
+         <div class="error-message color-error">
+             <span class="clickable-icon icon_warning"></span>
+             {revolutError}
+             {#if revolutError.includes("initialize") || revolutError.includes("token")} <!-- Allow retry on init errors -->
+                 <button class="text-button" on:click={initializeRevolut}>Retry</button>
+             {/if}
+         </div>
+    {/if}
 
-<div class="payment-form" in:fade={{ duration: 300 }}>
     <div class="color-grey-60 payment-title">
         {@html $text('signup.pay_with_card.text')}
     </div>
-    
-    <form>
+
+    <form on:submit|preventDefault={handleBuyClick}>
+        <!-- Keep Name Input -->
         <div class="input-group">
             <div class="input-wrapper">
                 <span class="clickable-icon icon_user"></span>
-                <input 
+                <input
                     bind:this={nameInput}
-                    type="text" 
+                    type="text"
                     bind:value={nameOnCard}
                     placeholder={$text('signup.full_name_on_card.text')}
                     on:blur={() => validateName(nameOnCard)}
                     class:error={!!nameError}
                     required
                     autocomplete="name"
+                    disabled={isLoadingRevolut || !!revolutError || !cardFieldInstance}
                 />
                 {#if showNameWarning && nameError}
-                    <InputWarning 
+                    <InputWarning
                         message={nameError}
                         target={nameInput}
                     />
                 {/if}
             </div>
         </div>
-        
-        <div class="input-group">
-            <div class="input-wrapper">
-                <span class="clickable-icon icon_billing"></span>
-                
-                <!-- Show appropriate card input based on visibility preference -->
-                {#if showSensitiveData}
-                    <input 
-                        bind:this={cardInputVisible}
-                        type="text"
-                        bind:value={cardNumber}
-                        placeholder={$text('signup.card_number.text')}
-                        on:input={handleCardNumberInput}
-                        on:focus={handleCardFocus}
-                        on:blur={handleCardBlur}
-                        class:error={!!cardError}
-                        required
-                        inputmode="numeric"
-                        autocomplete="cc-number"
-                        use:tooltip
-                    />
-                {:else}
-                    <!-- We use a regular input with normalized value but apply CSS to make bullets -->
-                    <div class="card-input-container">
-                        <input 
-                            bind:this={cardInputHidden}
-                            type="password"
-                            bind:value={cardNumber}
-                            placeholder={$text('signup.card_number.text')}
-                            on:input={handleCardNumberInput}
-                            on:focus={handleCardFocus}
-                            on:blur={handleCardBlur}
-                            class:error={!!cardError}
-                            required
-                            inputmode="numeric"
-                            autocomplete="cc-number"
-                            use:tooltip
-                        />
-                        <!-- Last four digits overlay when card is completed and not being edited -->
-                        {#if isCardNumberComplete && cardNumber}
-                        <div class="last-four-overlay">
-                            <span class="last-four-spacer"></span>
-                            <span class="last-four-digits">{getLastFourDigits(cardNumber)}</span>
-                        </div>
-                        {/if}
-                    </div>
-                {/if}
-                
-                {#if showCardWarning && cardError}
-                    <InputWarning 
-                        message={cardError}
-                        target={getCardInput()}
-                    />
-                {/if}
-            </div>
+
+        <!-- Revolut Card Field Container -->
+        <div class="input-group revolut-card-field-wrapper">
+             <div bind:this={cardFieldContainer} id="revolut-card-field">
+                 <!-- Revolut Card Field will be mounted here -->
+                 {#if isLoadingRevolut}<!-- Show text while loading element -->
+                    <span class="color-grey-60">Loading card details...</span>
+                 {/if}
+             </div>
         </div>
-        
-        <div class="input-row">
-            <div class="input-group half">
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_calendar"></span>
-                    <input 
-                        bind:this={expireInput}
-                        type="text" 
-                        bind:value={expireDate}
-                        placeholder={$text('signup.mm_yy.text')}
-                        on:input={handleExpireDateInput}
-                        on:blur={() => validateExpireDate(expireDate)}
-                        class:error={!!expireError}
-                        required
-                        maxlength="5"
-                        inputmode="numeric"
-                        autocomplete="cc-exp"
-                    />
-                    {#if showExpireWarning && expireError}
-                        <InputWarning 
-                            message={expireError}
-                            target={expireInput}
-                        />
-                    {/if}
-                </div>
-            </div>
-            
-            <div class="input-group half">
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_secret"></span>
-                    
-                    <!-- Show appropriate CVV input based on visibility preference -->
-                    {#if showSensitiveData}
-                        <input 
-                            bind:this={cvvInputVisible}
-                            type="text"
-                            bind:value={cvv}
-                            placeholder={$text('signup.cvv.text')}
-                            on:input={handleCVVInput}
-                            on:blur={() => validateCVV(cvv)}
-                            class:error={!!cvvError}
-                            required
-                            maxlength="4"
-                            inputmode="numeric"
-                            autocomplete="cc-csc"
-                        />
-                    {:else}
-                        <input 
-                            bind:this={cvvInputHidden}
-                            type="password"
-                            bind:value={cvv}
-                            placeholder={$text('signup.cvv.text')}
-                            on:input={handleCVVInput}
-                            on:blur={() => validateCVV(cvv)}
-                            class:error={!!cvvError}
-                            required
-                            maxlength="4"
-                            inputmode="numeric"
-                            autocomplete="cc-csc"
-                        />
-                    {/if}
-                    
-                    {#if showCVVWarning && cvvError}
-                        <InputWarning 
-                            message={cvvError}
-                            target={showSensitiveData ? cvvInputVisible : cvvInputHidden}
-                        />
-                    {/if}
-                </div>
-            </div>
-        </div>
-        
-        <button 
-            type="button" 
-            class="buy-button" 
-            disabled={!isFormValid}
-            on:click={handleBuyClick}
+
+        <button
+            type="submit"
+            class="buy-button"
+            disabled={isLoadingRevolut || !!revolutError || !cardFieldInstance || !nameOnCard || !!nameError}
         >
             {$text('signup.buy_for.text').replace(
                 '{currency}', currency
@@ -560,29 +402,101 @@
                 '{amount}', purchasePrice.toString()
             )}
         </button>
-        
+
+        <!-- Keep OR Divider and Apple/Google Pay (to be implemented separately) -->
         <div class="or-divider">
             <span class="color-grey-60">{@html $text('signup.or.text')}</span>
         </div>
-        
-        <button type="button" class="apple-pay-button">
+
+        <button type="button" class="apple-pay-button" disabled> <!-- Disable for now -->
             <span class="apple-pay-text">Pay with Apple Pay</span>
         </button>
-        
+         <!-- TODO: Implement Apple Pay / Google Pay using Revolut -->
+
         <p class="vat-info color-grey-60">
             {@html $text('signup.vat_info.text')}
         </p>
     </form>
-    
+
+    <!-- Keep Bottom Container -->
     <div class="bottom-container">
-        <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
-            <span class="clickable-icon icon_lock inline-lock-icon"></span>
-            {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Revolut')}
-        </button>
-    </div>
+         <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
+             <span class="clickable-icon icon_lock inline-lock-icon"></span>
+             {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Revolut')}
+         </button>
+     </div>
 </div>
 
 <style>
+    /* Add styles for loading and error states */
+    .loading-indicator {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--color-grey-60);
+    }
+    .error-message {
+        background-color: var(--color-error-bg);
+        color: var(--color-error);
+        padding: 10px 15px;
+        border-radius: var(--radius-input);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px; /* Slightly smaller error text */
+    }
+    .error-message .clickable-icon {
+        position: static;
+        transform: none;
+        background-color: var(--color-error); /* Make icon match text */
+        width: 18px; /* Smaller icon */
+        height: 18px;
+        flex-shrink: 0;
+    }
+     .error-message button {
+         margin-left: auto;
+         color: var(--color-error);
+         text-decoration: underline;
+         font-size: 14px;
+         flex-shrink: 0;
+     }
+
+    /* Style the container for the Revolut element */
+    .revolut-card-field-wrapper {
+        min-height: 48px; /* Ensure it has height while loading */
+        border: 1px solid var(--color-input-border); /* Match other inputs */
+        border-radius: var(--radius-input); /* Match other inputs */
+        background-color: var(--color-input-bg); /* Match other inputs */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0; /* Remove padding from wrapper, Revolut element has its own */
+        transition: border-color 0.2s ease; /* Smooth transition for focus/error */
+    }
+    /* Add focus/error state to wrapper if needed, although Revolut element might handle it */
+     .revolut-card-field-wrapper:has(#revolut-card-field.invalid) { /* Example if Revolut adds class */
+         /* border-color: var(--color-error); */
+     }
+     .revolut-card-field-wrapper:has(#revolut-card-field:focus-within) { /* Example */
+         /* border-color: var(--color-primary); */
+         /* box-shadow: 0 0 0 1px var(--color-primary); */
+     }
+
+
+     #revolut-card-field {
+         width: 100%; /* Ensure it takes full width */
+     }
+     #revolut-card-field span { /* Style internal loading text */
+        font-size: 14px;
+     }
+
+     /* Ensure loading state doesn't allow interaction */
+     .payment-form.loading form {
+         opacity: 0.6;
+         pointer-events: none;
+     }
+
+    /* --- Keep existing styles --- */
     .payment-form {
         width: 100%;
         position: relative;
@@ -590,136 +504,123 @@
         flex-direction: column;
         padding-bottom: 60px; /* Make room for bottom container */
     }
-    .visibility-toggle {
-        position: absolute;
-        top: 0px;
-        right: 0px;
-        z-index: 10;
-    }
-
-    .visibility-button {
-        all: unset;
-        cursor: pointer;
-    }
-
-    .visibility-button .clickable-icon {
-        position: static;
-        transform: none;
-        width: 20px;
-        height: 20px;
-    }
-    
     .payment-title {
         text-align: center;
         margin-bottom: 10px;
     }
-    
-    .input-row {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-        gap: 12px;
+    .input-group {
+        margin-bottom: 12px; /* Consistent spacing */
+        position: relative; /* For InputWarning positioning */
     }
-    
-    .half {
-        width: calc(50% - 6px);
-        flex: 1;
-    }
-    
     .input-wrapper {
-        height: 48px;
+        height: 48px; /* Consistent height */
+        position: relative; /* For icon positioning */
+        display: flex;
+        align-items: center;
     }
-    
-    
+     .input-wrapper .clickable-icon { /* Position icon inside */
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        background-color: var(--color-grey-60); /* Default icon color */
+        pointer-events: none; /* Prevent icon interaction */
+    }
+     .input-wrapper input { /* Add padding for icon */
+        padding-left: 40px;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box; /* Include padding/border in width/height */
+        /* Inherit styles from base input styles */
+    }
+     .input-wrapper input.error {
+         border-color: var(--color-error);
+         color: var(--color-error);
+     }
+      .input-wrapper input.error + .clickable-icon { /* Change icon color on error */
+         /* background-color: var(--color-error); */ /* Optional */
+     }
+
+
     .inline-lock-icon {
         position: unset;
         transform: none;
         display: inline-block;
         vertical-align: middle;
         margin-right: 5px;
+        width: 16px; /* Smaller lock */
+        height: 16px;
     }
-    
-    /* Override default password bullet appearance */
-    input[type="password"] {
-        font-family: text-security-disc;
-        -webkit-text-security: disc;
-    }
-    
-    .card-input-container {
-        position: relative;
-        width: 100%;
-        display: block;
-    }
-    
-    .card-input-container input {
-        width: 100%;
-        box-sizing: border-box;
-        padding-right: 70px;
-    }
-    
-    .last-four-overlay {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        align-items: center;
-        pointer-events: none;
-        z-index: 5;
-    }
-    
-    .last-four-spacer {
-        flex: 1;
-    }
-    
-    .last-four-digits {
-        font-family: inherit;
-        font-size: inherit;
-        color: inherit;
-        white-space: nowrap;
-    }
-    
     .buy-button {
         width: 100%;
+        margin-top: 10px; /* Space above button */
     }
-    
     .buy-button:disabled {
         opacity: 0.7;
         cursor: not-allowed;
     }
-    
     .or-divider {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 12px 0;
+        margin: 16px 0; /* Adjusted margin */
         text-align: center;
     }
-    
+     .or-divider span {
+         padding: 0 10px;
+         font-size: 14px;
+     }
+     .or-divider::before,
+     .or-divider::after {
+         content: '';
+         flex-grow: 1;
+         height: 1px;
+         background-color: var(--color-grey-20); /* Lighter divider line */
+     }
+
     .apple-pay-button {
         width: 100%;
-        height: 50px;
+        height: 48px; /* Match input height */
         background-color: black;
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-input); /* Match input radius */
         font-size: 16px;
         font-weight: 500;
-        margin-top: 12px;
+        /* margin-top: 12px; */ /* Removed, spacing handled by divider */
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 5px;
     }
-    
+     .apple-pay-button:disabled {
+         opacity: 0.5;
+         cursor: not-allowed;
+     }
+
     .apple-pay-text {
         font-size: 16px;
     }
-    
     .vat-info {
         font-size: 14px;
         text-align: center;
-        margin: 16px 0;
+        margin: 16px 0 0; /* Margin top only */
     }
+    .bottom-container {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 10px 0; /* Padding for the button */
+        display: flex;
+        justify-content: center;
+    }
+     .bottom-container .text-button {
+         color: var(--color-grey-60);
+         font-size: 14px;
+     }
+
 </style>

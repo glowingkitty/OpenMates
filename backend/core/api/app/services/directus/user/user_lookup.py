@@ -1,7 +1,7 @@
 import logging
 import json
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List # Add List import
 
 
 logger = logging.getLogger(__name__)
@@ -144,3 +144,53 @@ async def get_active_users_since(self, timestamp: int) -> int:
     except Exception as e:
         logger.error(f"Error getting active users: {str(e)}")
         return 0
+
+
+async def get_user_fields_direct(self, user_id: str, fields: List[str]) -> Optional[Dict[str, Any]]:
+    """
+    Fetches specific fields for a user directly from Directus, bypassing cache.
+
+    Args:
+        user_id: The ID of the user to fetch.
+        fields: A list of field names to retrieve (e.g., ["encrypted_credit_balance", "vault_key_id"]).
+
+    Returns:
+        A dictionary containing the requested fields and their values,
+        or None if the user is not found or an error occurs.
+        Returns field value as None if the field itself doesn't exist for the user.
+    """
+    if not user_id or not fields:
+        logger.warning("get_user_fields_direct called with invalid user_id or empty fields list.")
+        return None
+
+    try:
+        # Ensure 'id' is always included if not present, as it's often useful context
+        if 'id' not in fields:
+            fields_to_fetch = ['id'] + fields
+        else:
+            fields_to_fetch = fields
+            
+        fields_query = ",".join(fields_to_fetch)
+        logger.info(f"Fetching direct fields '{fields_query}' for user {user_id}")
+        url = f"{self.base_url}/users/{user_id}?fields={fields_query}"
+        response = await self._make_api_request("GET", url)
+
+        if response.status_code == 404:
+            logger.warning(f"User {user_id} not found when fetching direct fields.")
+            return None
+        elif response.status_code != 200:
+            logger.error(f"Failed to retrieve direct fields for user {user_id}: {response.status_code} - {response.text}")
+            return None
+
+        user_data = response.json().get("data", {})
+        
+        # Ensure all originally requested fields are in the result dict, even if null
+        # Exclude the 'id' we might have added internally unless it was originally requested
+        result_data = {field: user_data.get(field) for field in fields}
+        
+        logger.info(f"Successfully fetched direct fields for user {user_id}.")
+        return result_data
+
+    except Exception as e:
+        logger.error(f"Error in get_user_fields_direct for user {user_id}: {str(e)}", exc_info=True)
+        return None

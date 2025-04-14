@@ -15,7 +15,7 @@ from app.services.image_safety import ImageSafetyService
 from app.services.s3 import S3UploadService
 from app.services.compliance import ComplianceService
 from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
-from app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest # Import request models
+from app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, UserEmailResponse # Import request/response models
 
 router = APIRouter(prefix="/v1/settings")
 logger = logging.getLogger(__name__)
@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 class SimpleSuccessResponse(BaseModel):
     success: bool
     message: str
+
+# --- Response model for user email ---
+class UserEmailResponse(BaseModel):
+    email: str
 
 # --- Endpoint for updating profile image ---
 @router.post("/user/update_profile_image", response_model=dict) # Keep original response model
@@ -366,3 +370,41 @@ async def record_mates_consent(
         logger.error(f"Error recording mates consent for user {user_id}: {str(e)}")
         # NO compliance log for failure
         raise HTTPException(status_code=500, detail="An error occurred while saving consent")
+
+
+# --- Endpoint for retrieving user email ---
+@router.get("/user/email", response_model=UserEmailResponse)
+async def get_user_email(
+    request: Request, # Needed to get encryption service from state
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieves the decrypted email address for the currently authenticated user."""
+    logger.info(f"Request received to fetch email for user {current_user.id}")
+
+    encryption_service: EncryptionService = request.app.state.encryption_service
+    if not encryption_service:
+         logger.error(f"EncryptionService not available in app state for user {current_user.id}.")
+         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+
+    # The get_current_user dependency should have populated these fields
+    encrypted_email = getattr(current_user, 'encrypted_email', None)
+    vault_key_id = getattr(current_user, 'vault_key_id', None)
+
+    if not encrypted_email:
+        logger.error(f"Encrypted email not found for user {current_user.id}.")
+        # Return 404 Not Found as the data is missing for this user
+        raise HTTPException(status_code=404, detail="User email information not found.")
+
+    if not vault_key_id:
+        logger.error(f"Vault key ID not found for user {current_user.id}. Cannot decrypt email.")
+        # Return 500 Internal Server Error as this is a configuration issue
+        raise HTTPException(status_code=500, detail="Cannot retrieve email due to key error.")
+
+    try:
+        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+        logger.info(f"Successfully decrypted email for user {current_user.id}")
+        return UserEmailResponse(email=decrypted_email)
+    except Exception as e:
+        logger.error(f"Failed to decrypt email for user {current_user.id}: {str(e)}", exc_info=True)
+        # Return 500 Internal Server Error for decryption failures
+        raise HTTPException(status_code=500, detail="Failed to retrieve email.")

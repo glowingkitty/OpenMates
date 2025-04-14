@@ -58,12 +58,18 @@ export const apiEndpoints = {
             consent_mates:          '/v1/settings/user/consent/mates',          // Record consent for mates settings
             language:               '/v1/settings/user/language',               // Update user language
             darkmode:               '/v1/settings/user/darkmode',               // Update user dark mode preference
+            getEmail:               '/v1/settings/user/email',                  // Get user's decrypted email (for payment forms etc.)
         },
         software_update: {
             check:                  '/v1/settings/software_update/check',       // Check for software updates
             install:                '/v1/settings/software_update/install',     // Install software update
             install_status:         '/v1/settings/software_update/install_status', // Get status of software update installation
         }
+    },
+    payments: {
+        config:                     '/v1/payments/config',                      // Get public config for Revolut widget
+        createOrder:                '/v1/payments/create-order',                // Create a payment order with Revolut
+        // Webhook endpoint is only called by Revolut, not the frontend
     }
 } as const;
 

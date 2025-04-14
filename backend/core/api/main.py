@@ -20,8 +20,7 @@ from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware # Import the middleware
 
-from app.routes import auth, email, invoice, credit_note, settings  # Update settings import
-# Service Imports
+from app.routes import auth, email, invoice, credit_note, settings, payments
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
@@ -29,6 +28,7 @@ from app.services.compliance import ComplianceService
 from app.services.email_template import EmailTemplateService
 from app.services.image_safety import ImageSafetyService # Import ImageSafetyService
 from app.services.s3.service import S3UploadService # Import S3UploadService
+from app.services.revolut_service import RevolutService # Import RevolutService
 from app.utils.encryption import EncryptionService
 from app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from app.services.limiter import limiter
@@ -100,6 +100,10 @@ async def lifespan(app: FastAPI):
     app.state.image_safety_service = ImageSafetyService(secrets_manager=app.state.secrets_manager)
     logger.info("Image safety service instance created.")
 
+    # Initialize RevolutService (depends on SecretsManager)
+    app.state.revolut_service = RevolutService(secrets_manager=app.state.secrets_manager)
+    logger.info("Revolut service instance created.")
+
     logger.info("All core service instances created.")
     
     # --- Perform async initializations ---
@@ -118,6 +122,11 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing metrics...")
         await app.state.metrics_service.initialize_metrics(app.state.directus_service)
         logger.info("Metrics service initialized successfully.")
+
+        # Initialize Revolut service (sets base URL)
+        logger.info("Initializing Revolut service...")
+        await app.state.revolut_service.initialize()
+        logger.info("Revolut service initialized successfully.")
         
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
@@ -163,6 +172,10 @@ async def lifespan(app: FastAPI):
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
         await app.state.encryption_service.close()
+        
+    # Close Revolut service client
+    if hasattr(app.state, 'revolut_service'):
+        await app.state.revolut_service.close()
 
 # Create FastAPI application with lifespan
 def create_app() -> FastAPI:
@@ -223,6 +236,7 @@ def create_app() -> FastAPI:
     app.include_router(invoice.router)
     app.include_router(credit_note.router)
     app.include_router(settings.router)
+    app.include_router(payments.router) # Include payments router
 
     # Health check endpoint with rate limiting
     @app.get("/health")

@@ -1,9 +1,7 @@
 <script lang="ts">
-    import { text } from '@repo/ui';
-    import { onMount, createEventDispatcher, tick } from 'svelte';
-    import { fade } from 'svelte/transition';
-    import { getWebsiteUrl, routes } from '../config/links';
     
+    import { createEventDispatcher} from 'svelte';
+
     // Import our new component modules
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
@@ -22,9 +20,6 @@
 
     // Toggle state for consent
     let hasConsentedToLimitedRefund = false;
-    
-    // Add state to track if sensitive data should be visible
-    let showSensitiveData = false;
     
     // Payment processing states - Initialize with prop
     let paymentState: 'idle' | 'processing' | 'success' | 'failure' = initialState;
@@ -60,52 +55,61 @@
         }
     }
     
-    // Handle visibility toggle
-    function handleToggleSensitiveData(event) {
-        showSensitiveData = event.detail.showSensitiveData;
-    }
+    // Removed handleToggleSensitiveData function
     
-    // Start payment processing
-    function handleStartPayment(event) {
-        // Store payment details for potential failure recovery
-        paymentDetails = { ...event.detail };
-        
+    // --- New Event Handlers for Refactored PaymentForm ---
+
+    // Called when PaymentForm starts the Revolut submit process
+    function handleStartPaymentProcessing() {
+        console.debug("Payment.svelte: handleStartPaymentProcessing triggered");
         paymentState = 'processing';
         dispatch('paymentProcessing', { processing: true });
         dispatch('paymentStateChange', { state: 'processing' });
-        
-        // Simulate payment processing with 3 second delay
-        setTimeout(() => {
-            // Check if payment should fail (demo)
-            if (event.detail.nameOnCard.trim() === 'Max Mustermann') {
-                paymentState = 'failure';
-                dispatch('paymentStateChange', { state: 'failure' });
-                
-                // Reset to payment form with error
-                setTimeout(() => {
-                    if (paymentFormComponent) {
-                        paymentFormComponent.setPaymentFailed();
-                    }
-                }, 100);
-            } else {
-                paymentState = 'success';
-                dispatch('paymentStateChange', { state: 'success' });
-                
-                // After payment succeeds, notify parent components
-                setTimeout(() => {
-                    dispatch('paymentSuccess', {
-                        nameOnCard: event.detail.nameOnCard,
-                        lastFourDigits: event.detail.lastFourDigits,
-                        amount: credits_amount,
-                        price: purchasePrice,
-                        currency
-                    });
-                }, 2000);
-            }
-            
-            dispatch('paymentProcessing', { processing: false });
-        }, 3000); // Changed to 3 seconds as specified
+        // No simulation needed, Revolut handles the actual processing
     }
+
+    // Called by PaymentForm's onSuccess callback from Revolut
+    function handlePaymentSuccess(event) {
+        console.debug("Payment.svelte: handlePaymentSuccess triggered", event.detail);
+        paymentState = 'success';
+        dispatch('paymentProcessing', { processing: false });
+        dispatch('paymentStateChange', { state: 'success' });
+        // Forward the success event with details provided by PaymentForm
+        // Wait a bit before dispatching to allow success animation to show
+        setTimeout(() => {
+            dispatch('paymentSuccess', event.detail);
+        }, 1500); // Delay before notifying parent
+    }
+
+    // Called by PaymentForm's onError callback from Revolut or internal errors
+    function handlePaymentFailure(event) {
+        console.warn("Payment.svelte: handlePaymentFailure triggered", event.detail);
+        paymentState = 'failure'; // Keep failure state briefly for UI feedback
+        dispatch('paymentProcessing', { processing: false });
+        dispatch('paymentStateChange', { state: 'failure' });
+        // Reset to idle state (showing form) after a delay
+        setTimeout(() => {
+            paymentState = 'idle';
+            dispatch('paymentStateChange', { state: 'idle' });
+            // Optionally pass the error message back to the form if needed
+            if (paymentFormComponent) {
+                 paymentFormComponent.setPaymentFailed(event.detail?.message || "Payment failed.");
+            }
+        }, 2000); // Show failure message for 2 seconds
+    }
+
+     // Called by PaymentForm's onCancel callback from Revolut
+    function handlePaymentCancel() {
+        console.info("Payment.svelte: handlePaymentCancel triggered");
+        // Reset state back to idle (showing the form) immediately
+        paymentState = 'idle';
+        dispatch('paymentProcessing', { processing: false });
+        dispatch('paymentStateChange', { state: 'idle' });
+        // Optionally dispatch a cancel event to the parent if needed
+        dispatch('paymentCancel');
+    }
+
+    // --- End New Event Handlers ---
     
     // Notify parent when payment form visibility changes
     $: if (showPaymentForm !== previousPaymentFormState) {
@@ -117,12 +121,7 @@
     let previousPaymentFormState;
     
     // Watch payment state and return to form on failure
-    $: if (paymentState === 'failure') {
-        // When payment fails, reset back to payment form after a short delay
-        setTimeout(() => {
-            paymentState = 'idle';
-        }, 1000);
-    }
+    // Removed explicit failure state watcher, handled in handlePaymentFailure now
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
@@ -141,10 +140,12 @@
             bind:this={paymentFormComponent}
             purchasePrice={purchasePrice}
             currency={currency}
-            bind:showSensitiveData={showSensitiveData}
+            credits_amount={credits_amount}
             initialPaymentDetails={paymentState === 'failure' ? paymentDetails : null}
-            on:toggleSensitiveData={handleToggleSensitiveData}
-            on:startPayment={handleStartPayment}
+            on:startPaymentProcessing={handleStartPaymentProcessing}
+            on:paymentSuccess={handlePaymentSuccess}
+            on:paymentFailure={handlePaymentFailure}
+            on:paymentCancel={handlePaymentCancel}
         />
     {/if}
 </div>

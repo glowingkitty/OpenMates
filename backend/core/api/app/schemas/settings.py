@@ -20,3 +20,14 @@ class DarkModeUpdateRequest(BaseModel):
                 "darkmode": True
             }
         }
+
+# --- Response model for user email ---
+class UserEmailResponse(BaseModel):
+    email: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com"
+            }
+        }
