@@ -101,7 +101,7 @@ async def verify_device_2fa(
             return VerifyDevice2FAResponse(success=False, message="Invalid verification code")
 
         # --- Code is valid ---
-        logger.info(f"Successful device 2FA verification for user {user_id} from device {device_fingerprint}")
+        logger.info(f"Successful device 2FA verification for user {user_id} from device")
 
         # Mark the current device as known
         current_time = int(time.time())
@@ -113,16 +113,16 @@ async def verify_device_2fa(
             {"loc": device_location, "first": current_time, "recent": current_time},
             ttl=cache_service.USER_TTL
         )
-        logger.info(f"Updated device cache for user {user_id}, device {device_fingerprint}")
+        logger.info(f"Updated device cache for user {user_id}, device")
 
         # Update DB (fire and forget, log errors)
         try:
             await directus_service.update_user_device(
                 user_id=user_id, device_fingerprint=device_fingerprint, device_location=device_location
             )
-            logger.info(f"Updated device DB for user {user_id}, device {device_fingerprint}")
+            logger.info(f"Updated device DB for user {user_id}, device")
         except Exception as db_err:
-            logger.error(f"Failed to update device DB for user {user_id}, device {device_fingerprint}: {db_err}")
+            logger.error(f"Failed to update device DB for user {user_id}, device: {db_err}")
             # Continue even if DB update fails, cache was updated.
 
         # Log successful verification for compliance
