@@ -49,7 +49,7 @@ async def login_admin(self):
         return None
         
     try:
-        logger.info(f"Logging in to Directus as {self.admin_email}")
+        logger.debug(f"Logging in to Directus as {self.admin_email}")
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/auth/login",
@@ -86,7 +86,7 @@ async def ensure_auth_token(self, admin_required=False, force_refresh=False):
         is_valid = await self.validate_token(self.admin_token)
         if is_valid:
             return self.admin_token
-        logger.warning("Cached admin token is invalid or expired, refreshing...")
+        logger.debug("Cached admin token is invalid or expired, refreshing...")
     
     admin_cache_key = "directus_admin_token"
     cached_token = await self.cache.get(admin_cache_key)
