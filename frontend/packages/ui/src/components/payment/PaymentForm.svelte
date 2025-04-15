@@ -215,17 +215,9 @@
                 locale: 'en', // Or dynamically set based on user preference
             });
 
-            // Mount the instance
-            console.debug("Mounting Revolut card field instance...");
-            if (cardFieldInstance && typeof cardFieldInstance.mount === "function") {
-                cardFieldInstance.mount();
-                console.info("Revolut Card Field initialized and mounted.");
-            } else {
-                console.error("Revolut CardField instance is invalid or mount() is not available. This may be due to third-party cookie restrictions in your browser.");
-                revolutError = "Payment form could not be initialized. Please check your browser settings and allow third-party cookies, or try a different browser. Revolut payments require third-party cookies to function.";
-                dispatch('paymentFailure', { message: revolutError });
-                return;
-            }
+            // Mounting is handled by createCardField via the 'target' option per Revolut SDK docs.
+            console.debug("Revolut card field instance created and mounted via target option.");
+            // No need to call .mount()—see https://developer.revolut.com/docs/merchant/web-sdk/card-field/
 
         } catch (error) {
             console.error("Error initializing Revolut:", error);
