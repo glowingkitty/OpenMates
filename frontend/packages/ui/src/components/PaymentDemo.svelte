@@ -15,6 +15,7 @@
   let successMessage: string = "";
 
   let cardFieldDiv: HTMLDivElement | null = null;
+  let cardFieldInstance: any | null = null; // To store the Revolut card field instance
 
   const dispatch = createEventDispatcher();
 
@@ -84,42 +85,59 @@
 
     // Clear previous content just in case
     cardFieldDiv.innerHTML = "";
+    console.log(`[Revolut Init] Cleared content of cardFieldDiv:`, cardFieldDiv);
 
     try {
-      console.log("Initializing Revolut Card Field with token:", orderToken, "on element:", cardFieldDiv);
+      console.log(`[Revolut Init] Attempting to initialize with token: ${orderToken}, env: ${revolutConfig.environment}, target:`, cardFieldDiv);
+      console.log("[Revolut Init] Importing RevolutCheckout SDK...");
       // Load Revolut SDK
       // @ts-ignore
       const RevolutCheckout = (await import("https://unpkg.com/@revolut/checkout/esm")).default;
-      // Initialize card field
-      const { createCardField } = await RevolutCheckout(orderToken, revolutConfig.environment);
+      console.log("[Revolut Init] RevolutCheckout SDK imported:", RevolutCheckout);
 
-      createCardField({
+      console.log(`[Revolut Init] Calling RevolutCheckout('${orderToken}', '${revolutConfig.environment}')...`);
+      // Initialize card field factory
+      const revolutInstance = await RevolutCheckout(orderToken, revolutConfig.environment);
+      console.log("[Revolut Init] RevolutCheckout instance created:", revolutInstance);
+      const { createCardField } = revolutInstance;
+      console.log("[Revolut Init] createCardField function obtained.");
+
+      console.log("[Revolut Init] Calling createCardField with target:", cardFieldDiv);
+      // Call createCardField and store the returned instance
+      const createdField = createCardField({
         target: cardFieldDiv,
         onSuccess() {
+          console.log("[Revolut Callback] onSuccess triggered. Order ID:", orderId);
           paymentState = "success";
           successMessage = "Payment successful! Your credits will be added soon.";
           dispatch("payment", { orderId, status: "success" });
         },
         onError(error) {
-          console.error("Revolut onError:", error); // Log Revolut errors
+          console.error("[Revolut Callback] onError triggered:", error); // Log Revolut errors
           paymentState = "error";
           errorMessage = "Payment failed. Please try again.";
           dispatch("payment", { orderId, status: "error", error });
         },
         onValidation(errors) {
-          console.warn("Revolut onValidation:", errors); // Log validation issues
+          console.warn("[Revolut Callback] onValidation triggered:", errors); // Log validation issues
           if (errors && errors.length) {
             errorMessage = errors.map((e) => e.message).join(" - ");
+            console.log("[Revolut Validation] Errors found:", errorMessage);
           } else {
             errorMessage = ""; // Clear previous validation errors if current validation passes
+            console.log("[Revolut Validation] Validation passed (or no errors reported).");
           }
         }
       });
+      console.log("[Revolut Init] createCardField call completed.");
+      cardFieldInstance = createdField; // Store the returned instance
+      console.log("[Revolut Init] Stored cardFieldInstance:", cardFieldInstance);
 
+      console.log("[Revolut Init] Setting paymentState to 'ready'.");
       paymentState = "ready"; // Card field is ready for input
     } catch (err: any) {
-      console.error("Error initializing Revolut Card Field:", err); // Log initialization errors
-      errorMessage = "Could not initialize payment field.";
+      console.error("[Revolut Init] Error during initialization process:", err); // Log initialization errors
+      errorMessage = `Could not initialize payment field: ${err.message || "Unknown error"}`;
       paymentState = "error";
     }
   }
@@ -136,6 +154,32 @@
     orderToken = null;
     orderId = null;
     if (cardFieldDiv) cardFieldDiv.innerHTML = "";
+    cardFieldInstance = null; // Reset instance
+  }
+
+  // Function to handle explicit submission
+  function submitPayment() {
+    if (cardFieldInstance) {
+      console.log("[Revolut Submit] Calling cardFieldInstance.submit()...");
+      // We don't have extra form data like name/email here, but submit is needed.
+      // Note: The Revolut SDK might have changed; check if submit() is directly on the instance
+      // or if it was returned differently. Assuming it's on the stored instance for now.
+      try {
+         // Assuming the stored instance has the submit method
+         const submitResult = cardFieldInstance.submit();
+         console.log("[Revolut Submit] submit() called.", submitResult);
+         // Optionally set a submitting state here if needed
+         // paymentState = 'submitting'; // Requires adding 'submitting' to the state type
+      } catch (err) {
+         console.error("[Revolut Submit] Error calling submit():", err);
+         errorMessage = "Failed to submit payment.";
+         paymentState = "error";
+      }
+    } else {
+      console.error("[Revolut Submit] cardFieldInstance is null, cannot submit.");
+      errorMessage = "Cannot submit payment. Field not initialized correctly.";
+      paymentState = "error";
+    }
   }
 </script>
 
@@ -144,22 +188,32 @@
     <div class="loading">Creating payment order...</div>
   {:else if paymentState === "initializing_card"}
     <div class="loading">Initializing payment form...</div>
-    <!-- Render the div here so it's available for binding -->
-    <div bind:this={cardFieldDiv} class="card-field-placeholder"></div>
+    <!-- Render the card field div, hidden initially -->
+    <div bind:this={cardFieldDiv} class="card-field" style="display: none;"></div>
   {:else if paymentState === "success"}
     <div class="success">{successMessage}</div>
     <button on:click={reset}>Make another payment</button>
-  {:else}
+  {:else if paymentState === 'ready'}
+     <!-- Show card field and submit button when ready -->
+     <div bind:this={cardFieldDiv} class="card-field"></div>
+     {#if errorMessage}
+       <div class="error">{errorMessage}</div>
+     {/if}
+     <button class="submit-btn" on:click={submitPayment}>Submit Payment</button>
+     <button class="cancel-btn" on:click={reset}>Cancel</button>
+  {:else} <!-- Initial state (idle) or error before ready -->
     <div>
-      <!-- Disable button only when card field is ready to prevent restarting -->
-      <button class="pay-btn" on:click={startPayment} disabled={paymentState === "ready"}>
-        Pay for {credits_amount} credits ({currency})
+      <button class="pay-btn" on:click={startPayment} disabled={paymentState !== 'idle'}>
+         {#if paymentState === 'error'}
+           Retry Payment for {credits_amount} credits ({currency})
+         {:else}
+           Pay for {credits_amount} credits ({currency})
+         {/if}
       </button>
-      {#if errorMessage}
-        <div class="error">{errorMessage}</div>
+      {#if errorMessage && paymentState === 'error'}
+         <div class="error">{errorMessage}</div>
       {/if}
-      <!-- Card field will be mounted here when ready -->
-      <div bind:this={cardFieldDiv} class="card-field" style:display={paymentState === 'ready' || paymentState === 'error' ? 'block' : 'none'}></div>
+      <!-- Redundant card-field div removed from here -->
     </div>
   {/if}
 </div>
@@ -171,6 +225,7 @@
   align-items: center;
   width: 100%;
 }
+
 .loading {
   color: #888;
   margin: 1em 0;
@@ -193,10 +248,38 @@
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.pay-btn:hover:not(:disabled) {
+  background-color: #1a1aa3;
 }
 .pay-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.submit-btn, .cancel-btn {
+  margin-top: 1em;
+  padding: 0.7em 2em;
+  font-size: 1.1em;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.submit-btn {
+  background: #28a745; /* Green */
+  color: #fff;
+  margin-right: 0.5em;
+}
+.submit-btn:hover {
+  background-color: #218838;
+}
+.cancel-btn {
+  background: #dc3545; /* Red */
+  color: #fff;
+}
+.cancel-btn:hover {
+  background-color: #c82333;
 }
 .card-field {
   margin-top: 1em;
@@ -206,11 +289,5 @@
   border: 1px solid #ccc; /* Add border for visibility */
   padding: 5px; /* Add padding */
 }
-.card-field-placeholder {
-  min-height: 60px; /* Match height */
-  width: 100%;
-  max-width: 400px;
-  margin-top: 1em;
-  /* No border or content, just occupies space */
-}
+/* Removed .card-field-placeholder as it's no longer used */
 </style>
