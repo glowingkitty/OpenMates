@@ -67,11 +67,16 @@
         }
     });
 
-    onDestroy(() => {
-        // Destroy card field instance if it exists
-        cardFieldInstance?.destroy();
-        console.debug("PaymentForm destroyed, Revolut card field instance destroyed.");
-    });
+    // onDestroy hook removed - cleanup is now controlled by the parent Payment.svelte component
+    
+    // Exported function for parent component to trigger cleanup
+    export function cleanupInstance() {
+        if (cardFieldInstance) {
+            cardFieldInstance.destroy();
+            cardFieldInstance = null; // Prevent multiple destructions
+            console.debug("PaymentForm cleanupInstance called, Revolut card field instance destroyed.");
+        }
+    }
 
 
     // Function to fetch order token and initialize Revolut Card Field

@@ -205,6 +205,7 @@
         stopPolling(); // Ensure polling stops on success
         console.info("Payment.svelte: handlePaymentSuccess triggered", event.detail); // Changed to info
         paymentState = 'success';
+        paymentFormComponent?.cleanupInstance(); // Clean up Revolut instance
         dispatch('paymentProcessing', { processing: false });
         dispatch('paymentStateChange', { state: 'success' });
         // Forward the success event with details provided by PaymentForm
@@ -219,6 +220,7 @@
         stopPolling(); // Ensure polling stops on failure
         console.error("Payment.svelte: handlePaymentFailure triggered", event.detail); // Changed to error
         paymentState = 'failure'; // Keep failure state briefly for UI feedback
+        paymentFormComponent?.cleanupInstance(); // Clean up Revolut instance
         dispatch('paymentProcessing', { processing: false });
         dispatch('paymentStateChange', { state: 'failure' });
         // Reset to idle state (showing form) after a delay
@@ -238,6 +240,7 @@
         console.info("Payment.svelte: handlePaymentCancel triggered");
         // Reset state back to idle (showing the form) immediately
         paymentState = 'idle';
+        paymentFormComponent?.cleanupInstance(); // Clean up Revolut instance
         dispatch('paymentProcessing', { processing: false });
         dispatch('paymentStateChange', { state: 'idle' });
         // Optionally dispatch a cancel event to the parent if needed
@@ -261,6 +264,7 @@
     // Cleanup on component destroy
     onDestroy(() => {
         stopPolling();
+        paymentFormComponent?.cleanupInstance(); // Ensure cleanup if parent is destroyed
     });
 </script>
 
