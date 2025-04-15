@@ -217,8 +217,15 @@
 
             // Mount the instance
             console.debug("Mounting Revolut card field instance...");
-            cardFieldInstance.mount();
-            console.info("Revolut Card Field initialized and mounted.");
+            if (cardFieldInstance && typeof cardFieldInstance.mount === "function") {
+                cardFieldInstance.mount();
+                console.info("Revolut Card Field initialized and mounted.");
+            } else {
+                console.error("Revolut CardField instance is invalid or mount() is not available. This may be due to third-party cookie restrictions in your browser.");
+                revolutError = "Payment form could not be initialized. Please check your browser settings and allow third-party cookies, or try a different browser. Revolut payments require third-party cookies to function.";
+                dispatch('paymentFailure', { message: revolutError });
+                return;
+            }
 
         } catch (error) {
             console.error("Error initializing Revolut:", error);
