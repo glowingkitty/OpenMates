@@ -5,7 +5,7 @@
 
 	// --- Component State ---
 	let revolutPublicKey: string | null = null;
-	let revolutPublicOrderId: string | null = null;
+	let orderToken: string | null = null;
 	let cardFieldInstance: any = null; // To hold the Revolut CardField instance
 	let cardFieldTarget: HTMLElement; // Bound element for CardField
 	let isLoading = false;
@@ -58,7 +58,7 @@
 		isLoading = true;
 		errorMessage = null;
 		successMessage = null;
-		revolutPublicOrderId = null; // Reset previous order ID
+		orderToken = null; // Reset previous order ID
 
 		try {
 			const response = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
@@ -80,11 +80,11 @@
 			}
 
 			const order = await response.json();
-			if (!order.order_id) {
+			if (!order.order_token) {
 				throw new Error('Order created, but order_id is missing in the response.');
 			}
-			revolutPublicOrderId = order.order_id;
-			console.log('Revolut Order created:', revolutPublicOrderId);
+			orderToken = order.order_token;
+			console.log('Revolut Order created:', orderToken);
 			showCheckoutForm = true; // Show the form now
 			// Wait for Svelte to update the DOM so cardFieldTarget is bound
 			await tick();
@@ -102,9 +102,9 @@
 
 	// --- Initialize Revolut Card Field ---
 	async function initializeCardField() {
-		if (!revolutPublicOrderId || !cardFieldTarget || !revolutPublicKey) {
+		if (!orderToken || !cardFieldTarget || !revolutPublicKey) {
 			errorMessage = 'Cannot initialize payment field: Missing Order ID, target element, or Public Key.';
-			console.error('Initialization prerequisites not met:', { revolutPublicOrderId, cardFieldTarget, revolutPublicKey });
+			console.error('Initialization prerequisites not met:', { orderToken, cardFieldTarget, revolutPublicKey });
 			return;
 		}
 
@@ -126,9 +126,9 @@
    // Use 'prod' or 'sandbox' based on your environment needs
    // @ts-ignore - Vite specific env variable
    const environment = import.meta.env.MODE === 'production' ? 'prod' : 'sandbox';
-			console.log(`Initializing RevolutCheckout for order ${revolutPublicOrderId} in ${environment} mode.`);
+			console.log(`Initializing RevolutCheckout for order ${orderToken} in ${environment} mode.`);
 
-			const RC = await RevolutCheckout(revolutPublicOrderId, environment);
+			const RC = await RevolutCheckout(orderToken, environment);
             if (!RC || typeof RC.createCardField !== 'function') {
                 throw new Error('RevolutCheckout initialization failed or did not return expected object.');
             }
@@ -147,7 +147,7 @@
 					validationErrors = null;
 					// Optionally reset form or navigate away
 					showCheckoutForm = false;
-					revolutPublicOrderId = null;
+					orderToken = null;
 				},
 				onError(error) {
 					console.error('Payment error:', error);
@@ -259,7 +259,7 @@
 	{/if}
 
 	<!-- Step 2: Show Checkout Form after Order is Created -->
-	{#if showCheckoutForm && revolutPublicOrderId}
+	{#if showCheckoutForm && orderToken}
 		<form on:submit|preventDefault={handleSubmit} class="checkout-form">
 			<h3>Enter Payment Details</h3>
 
