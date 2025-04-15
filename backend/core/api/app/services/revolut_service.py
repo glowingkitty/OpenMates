@@ -11,6 +11,32 @@ from app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
+# --- Load pricing config and build CURRENCY_DECIMALS mapping ---
+import yaml
+from pathlib import Path
+
+PRICING_CONFIG_PATH = Path(__file__).parent.parent.parent.parent.parent / "shared" / "config" / "pricing.yml"
+CURRENCY_DECIMALS = {}
+
+try:
+    with open(PRICING_CONFIG_PATH, 'r') as f:
+        pricing_data = yaml.safe_load(f)
+        pricing_tiers = pricing_data.get('pricingTiers', [])
+        # Build a set of all currencies
+        currencies = set()
+        for tier in pricing_tiers:
+            price_dict = tier.get('price', {})
+            for currency in price_dict.keys():
+                currencies.add(currency.lower())
+        # Set decimals: 0 for JPY, 2 for others (EUR, USD, etc.)
+        for currency in currencies:
+            if currency == "jpy":
+                CURRENCY_DECIMALS[currency] = 0
+            else:
+                CURRENCY_DECIMALS[currency] = 2
+except Exception as e:
+    logger.error(f"Failed to load pricing config or build CURRENCY_DECIMALS: {e}")
+
 class RevolutService:
     """
     Service for interacting with the Revolut Business Merchant API.
@@ -122,7 +148,13 @@ class RevolutService:
         }
 
         try:
-            logger.info(f"Creating Revolut order for user {user_id}. Amount: {amount} {currency}")
+            # Log the amount in a clear, human-readable format using pricing.yml currency info
+            decimals = CURRENCY_DECIMALS.get(currency.lower(), 2)
+            if decimals == 0:
+                formatted_amount = f"{currency.upper()} {amount}"
+            else:
+                formatted_amount = f"{currency.upper()} {amount / 10**decimals:.2f}"
+            logger.info(f"Creating Revolut order for user. Amount: {formatted_amount}")
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()  # Raise exception for 4xx/5xx status codes
             order_data = response.json()
@@ -187,7 +219,9 @@ class RevolutService:
 
 
         # Construct the signed payload string: timestamp + '.' + request_body
-        signed_payload = f"{request_timestamp_str}.{payload_bytes.decode('utf-8')}"
+        # Construct the signed payload string: version + '.' + timestamp + '.' + request_body
+        # Match the format from Revolut docs/examples: v1.<timestamp>.<raw_payload>
+        signed_payload = f"v1.{request_timestamp_str}.{payload_bytes.decode('utf-8')}"
 
         # Calculate the expected signature
         expected_signature = hmac.new(
@@ -247,8 +281,6 @@ class RevolutService:
                  
             response.raise_for_status() # Raise for other 4xx/5xx errors
             order_data = response.json()
-            logger.info("Full order_data:")
-            logger.info(order_data) # Log the full order data for debugging
             logger.info(f"Successfully retrieved details for Revolut order {order_id}. State: {order_data.get('state')}")
             return order_data
         except httpx.HTTPStatusError as e:
