@@ -336,7 +336,7 @@
 
             switch (state) {
                 case 'COMPLETED':
-                    stopPolling();
+                    // stopPolling();
                     // Trigger success state via the Revolut onSuccess callback mechanism
                     // This assumes the backend webhook might update status before polling,
                     // or polling confirms success. Let onSuccess handle the final state change.
@@ -353,7 +353,7 @@
                     break;
                 case 'FAILED':
                 case 'CANCELLED':
-                    stopPolling();
+                    // stopPolling();
                     // Trigger failure state via the Revolut onError/onCancel mechanism
                     if (paymentState !== 'failure' && paymentState !== 'idle') {
                          console.warn(`Payment.svelte: Polling detected ${state} before onError/onCancel callback. Triggering failure state.`);
@@ -384,7 +384,7 @@
     }
 
     function startPolling(orderId: string) {
-        stopPolling();
+        // stopPolling();
         console.info(`Payment.svelte: Starting polling for order ${orderId}...`);
         checkOrderStatus(orderId); // Initial check
         pollingIntervalId = setInterval(() => {
