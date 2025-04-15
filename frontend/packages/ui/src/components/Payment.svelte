@@ -36,11 +36,7 @@
     let revolutPublicKey: string | null = null;
     let revolutEnvironment: 'sandbox' | 'production' | null = null;
 
-    // --- Polling State ---
-    let pollingIntervalId: ReturnType<typeof setInterval> | null = null;
-    let pollingTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    const POLLING_INTERVAL_MS = 3000;
-    const POLLING_TIMEOUT_MS = 60000;
+    // --- Polling State (REMOVED) ---
 
     // --- References ---
     let paymentFormComponent: PaymentForm; // Still need reference to get container
@@ -69,7 +65,7 @@
     });
 
     onDestroy(() => {
-        stopPolling();
+        // stopPolling(); // Removed, no longer needed
         // Destroy Revolut instance directly
         if (cardFieldInstance) {
             cardFieldInstance.destroy();
@@ -165,17 +161,18 @@
                 // --- Event Handlers (Now directly within Payment.svelte) ---
                 onSuccess() {
                     console.info("Payment.svelte: Revolut onSuccess callback triggered.");
-                    // Do NOT stop polling here; let polling continue until backend confirms COMPLETED
-                    // Optionally, set a flag if you want to track that onSuccess fired
+                    paymentState = 'success';
+                    dispatch('paymentProcessing', { processing: false });
+                    dispatch('paymentStateChange', { state: 'success' });
+                    setTimeout(() => dispatch('paymentSuccess', { amount: credits_amount, currency: currency }), 1500);
                 },
                 onError(error) {
                     console.error("Payment.svelte: Revolut onError callback triggered:", error);
-                    // Do NOT stop polling here; let polling continue until backend confirms FAILED/CANCELLED
-                    // Optionally, set a flag if you want to track that onError fired
+                    handlePaymentError("Payment failed. Please try again or use a different card.");
                 },
                 onCancel() {
                     console.info("Payment.svelte: Revolut onCancel callback triggered.");
-                    // Do NOT stop polling here; let polling continue until backend confirms CANCELLED
+                    handlePaymentError("Payment was cancelled.");
                 },
                 onValidation(errors) {
                     console.debug("Payment.svelte: Revolut validation event:", errors);
@@ -256,16 +253,12 @@
                 name: nameOnCard,
             });
             console.debug("Payment.svelte: cardField.submit() called successfully.");
-            // Start polling ONLY after submit is successfully initiated
-            if (currentOrderId) {
-                startPolling(currentOrderId);
-            } else {
-                 console.error("Payment.svelte: Cannot start polling, orderId is missing after submit call.");
-                 handlePaymentError("Internal error: Missing order ID after payment submission.");
-            }
-            // Success/Error is handled by the onSuccess/onError callbacks
+            paymentState = 'processing';
+            dispatch('paymentProcessing', { processing: true });
+            dispatch('paymentStateChange', { state: 'processing' });
+            // Success/Error is handled by the onSuccess/onError/onCancel callbacks
         } catch (error) {
-             // Handle errors during the *initiation* of submit
+            // Handle errors during the *initiation* of submit
             console.error("Payment.svelte: Error calling cardField.submit():", error);
             const message = error instanceof Error ? error.message : String(error) || "Unknown submission error";
             handlePaymentError(`Failed to initiate payment: ${message}`);
@@ -274,7 +267,7 @@
 
     // Generic internal error handler during submission phase
     function handlePaymentError(message: string) {
-         stopPolling();
+         // stopPolling(); // Removed, no longer needed
          revolutError = message;
          paymentState = 'failure';
          dispatch('paymentProcessing', { processing: false });
@@ -296,103 +289,7 @@
     }
 
 
-    // --- Polling Logic (Mostly Unchanged) ---
-    function stopPolling() {
-        if (pollingIntervalId) clearInterval(pollingIntervalId);
-        if (pollingTimeoutId) clearTimeout(pollingTimeoutId);
-        pollingIntervalId = null;
-        pollingTimeoutId = null;
-        console.info("Payment.svelte: Polling stopped.");
-    }
-
-    async function checkOrderStatus(orderId: string) {
-        console.debug(`Payment.svelte: Checking status for order ${orderId}...`);
-        if (!orderId) { /* ... error handling ... */ return; }
-        try {
-            const statusUrl = getApiUrl() + apiEndpoints.payments.orderStatus;
-            const response = await fetch(statusUrl, {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ order_id: orderId })
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Payment.svelte: Error fetching order status ${response.status}: ${errorText}`);
-                if (response.status === 404 || response.status >= 500) {
-                    stopPolling();
-                    handlePaymentError(`Failed to get payment status (${response.status}).`);
-                } else if (response.status >= 400) {
-                     stopPolling();
-                     handlePaymentError(`Error checking payment status (${response.status}).`);
-                }
-                return;
-            }
-
-            const data = await response.json();
-            const state = data.state?.toUpperCase();
-            console.info(`Payment.svelte: Order ${orderId} status is ${state}`);
-
-            switch (state) {
-                case 'COMPLETED':
-                    // stopPolling();
-                    // Trigger success state via the Revolut onSuccess callback mechanism
-                    // This assumes the backend webhook might update status before polling,
-                    // or polling confirms success. Let onSuccess handle the final state change.
-                    // If onSuccess hasn't fired yet, this polling result confirms it.
-                    if (paymentState !== 'success') {
-                        // Manually trigger success if callback hasn't fired for some reason
-                         console.warn("Payment.svelte: Polling detected COMPLETED before onSuccess callback. Triggering success state.");
-                         // Find a way to simulate onSuccess or directly set state
-                         paymentState = 'success';
-                         dispatch('paymentProcessing', { processing: false });
-                         dispatch('paymentStateChange', { state: 'success' });
-                         setTimeout(() => dispatch('paymentSuccess', { amount: credits_amount, currency: currency }), 1500);
-                    }
-                    break;
-                case 'FAILED':
-                case 'CANCELLED':
-                    // stopPolling();
-                    // Trigger failure state via the Revolut onError/onCancel mechanism
-                    if (paymentState !== 'failure' && paymentState !== 'idle') {
-                         console.warn(`Payment.svelte: Polling detected ${state} before onError/onCancel callback. Triggering failure state.`);
-                         handlePaymentError(`Payment ${state.toLowerCase()}.`);
-                    }
-                    break;
-                case 'CREATED':
-                case 'PENDING':
-                case 'AUTHORISED':
-                    // Still processing...
-                    break;
-                default:
-                    console.warn(`Payment.svelte: Unknown order state received: ${state}`);
-                    break;
-            }
-        } catch (error) {
-            console.error("Payment.svelte: Exception during checkOrderStatus fetch:", error);
-            stopPolling();
-            handlePaymentError("Error checking payment status.");
-        }
-    }
-
-    function handlePollingTimeout() {
-         console.warn(`Payment.svelte: Polling timed out for order ${currentOrderId}.`);
-         pollingTimeoutId = null;
-         stopPolling();
-         handlePaymentError("Payment status check timed out. Please check your Revolut account or contact support.");
-    }
-
-    function startPolling(orderId: string) {
-        // stopPolling();
-        console.info(`Payment.svelte: Starting polling for order ${orderId}...`);
-        checkOrderStatus(orderId); // Initial check
-        pollingIntervalId = setInterval(() => {
-             if (currentOrderId) checkOrderStatus(currentOrderId);
-             else stopPolling();
-        }, POLLING_INTERVAL_MS);
-        pollingTimeoutId = setTimeout(handlePollingTimeout, POLLING_TIMEOUT_MS);
-    }
+    // --- Polling Logic REMOVED ---
 
     // --- Reactive Statements ---
 
