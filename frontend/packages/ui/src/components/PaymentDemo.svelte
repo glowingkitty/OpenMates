@@ -14,6 +14,8 @@
   let errorMessage: string = "";
   let successMessage: string = "";
 
+  let cardFieldDiv: HTMLDivElement | null = null;
+
   const dispatch = createEventDispatcher();
 
   // Fetch Revolut config on mount
@@ -66,8 +68,12 @@
       const { createCardField } = await RevolutCheckout(orderToken, revolutConfig?.environment || "sandbox");
 
       // Remove any previous card field
-      const cardFieldDiv = document.getElementById("card-field");
       if (cardFieldDiv) cardFieldDiv.innerHTML = "";
+
+      // Ensure the cardFieldDiv is available
+      if (!cardFieldDiv) {
+        throw new Error("Card field container not found in DOM.");
+      }
 
       createCardField({
         target: cardFieldDiv,
@@ -101,7 +107,6 @@
     successMessage = "";
     orderToken = null;
     orderId = null;
-    const cardFieldDiv = document.getElementById("card-field");
     if (cardFieldDiv) cardFieldDiv.innerHTML = "";
   }
 </script>
@@ -120,7 +125,7 @@
       {#if errorMessage}
         <div class="error">{errorMessage}</div>
       {/if}
-      <div id="card-field" class="card-field"></div>
+      <div bind:this={cardFieldDiv} class="card-field"></div>
     </div>
   {/if}
 </div>
