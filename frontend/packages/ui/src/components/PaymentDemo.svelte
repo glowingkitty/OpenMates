@@ -34,6 +34,8 @@
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 			const config = await response.json();
+
+			console.log('Revolut config fetched:', config);
 			if (!config.revolutPublicKey) {
 				throw new Error('Revolut Public Key not found in config response.');
 			}
@@ -70,6 +72,8 @@
 					// Backend determines amount based on credits and currency
 				})
 			});
+
+			console.log('Create Order response:', response);
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({})); // Try to parse error details
