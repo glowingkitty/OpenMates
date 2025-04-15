@@ -20,6 +20,7 @@ class CacheService:
     USER_KEY_PREFIX = "user_profile:"
     SESSION_KEY_PREFIX = "session:"
     USER_DEVICE_KEY_PREFIX = "user_device:"
+    ORDER_KEY_PREFIX = "order_status:"
     
     def __init__(self):
         """Initialize the cache service with configuration from environment variables"""
@@ -355,4 +356,86 @@ class CacheService:
             return delete_user_success
         except Exception as e:
             logger.error(f"Error deleting cached user data for user '{user_id}': {str(e)}")
+            return False
+
+    # --- Order-specific caching methods ---
+
+    async def set_order(self, order_id: str, user_id: str, credits_amount: int, status: str = "created", ttl: int = 86400) -> bool:
+        """
+        Cache order metadata and status.
+        Args:
+            order_id: The payment order ID
+            user_id: The user who created the order
+            credits_amount: The amount of credits to be awarded
+            status: Order status ("created", "completed", "failed", etc.)
+            ttl: Time-to-live in seconds (default 24h)
+        """
+        try:
+            if not order_id or not user_id or credits_amount is None:
+                logger.error("Cannot cache order: missing order_id, user_id, or credits_amount.")
+                return False
+            order_cache_key = f"{self.ORDER_KEY_PREFIX}{order_id}"
+            order_data = {
+                "order_id": order_id,
+                "user_id": user_id,
+                "credits_amount": credits_amount,
+                "status": status,
+                "timestamp": int(time.time())
+            }
+            logger.debug(f"Setting order in cache: {order_data}")
+            return await self.set(order_cache_key, order_data, ttl=ttl)
+        except Exception as e:
+            logger.error(f"Error caching order {order_id}: {str(e)}")
+            return False
+
+    async def get_order(self, order_id: str) -> Optional[Dict]:
+        """
+        Get order metadata and status from cache.
+        """
+        try:
+            if not order_id:
+                return None
+            order_cache_key = f"{self.ORDER_KEY_PREFIX}{order_id}"
+            logger.debug(f"Getting order from cache: {order_id}")
+            return await self.get(order_cache_key)
+        except Exception as e:
+            logger.error(f"Error getting order {order_id} from cache: {str(e)}")
+            return None
+
+    async def update_order_status(self, order_id: str, status: str) -> bool:
+        """
+        Update the status of an order in cache.
+        """
+        try:
+            if not order_id or not status:
+                return False
+            order_cache_key = f"{self.ORDER_KEY_PREFIX}{order_id}"
+            order_data = await self.get(order_cache_key)
+            if not order_data:
+                logger.warning(f"Cannot update order status: no existing data for order {order_id}")
+                return False
+            order_data["status"] = status
+            logger.debug(f"Updating order {order_id} status to {status}")
+            return await self.set(order_cache_key, order_data, ttl=86400)
+        except Exception as e:
+            logger.error(f"Error updating order {order_id} status in cache: {str(e)}")
+            return False
+
+    async def update_order(self, order_id: str, updated_fields: Dict) -> bool:
+        """
+        Update arbitrary fields of an order in cache.
+        """
+        try:
+            if not order_id or not updated_fields:
+                return False
+            order_cache_key = f"{self.ORDER_KEY_PREFIX}{order_id}"
+            order_data = await self.get(order_cache_key)
+            if not order_data:
+                logger.warning(f"Cannot update order: no existing data for order {order_id}")
+                return False
+            order_data.update(updated_fields)
+            logger.debug(f"Updating order {order_id} with fields {updated_fields}")
+            return await self.set(order_cache_key, order_data, ttl=86400)
+        except Exception as e:
+            logger.error(f"Error updating order {order_id} in cache: {str(e)}")
             return False

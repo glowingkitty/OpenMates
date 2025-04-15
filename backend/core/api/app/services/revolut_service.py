@@ -242,7 +242,6 @@ class RevolutService:
 
         # Construct the signed payload string: version + '.' + timestamp + '.' + request_body
         signed_payload = f"{signature_version}.{request_timestamp_str}.{payload_bytes.decode('utf-8')}"
-        logger.info(f"Constructed signed_payload for HMAC: {signed_payload[:800]}...")  # Log only first 200 chars for brevity
 
         # Calculate the expected signature
         expected_signature = hmac.new(

@@ -138,7 +138,8 @@ async def create_payment_order(
     order_data: CreateOrderRequest,
     current_user: User = Depends(get_current_user),
     revolut_service: RevolutService = Depends(get_revolut_service), # Use the dependency
-    encryption_service: EncryptionService = Depends(get_encryption_service)
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service)
 ):
     """
     Looks up the price based on credits_amount and currency from pricing.yml,
@@ -183,6 +184,17 @@ async def create_payment_order(
         if not order_id:
              logger.error(f"Revolut order response missing 'id' for user {current_user.id}.")
              raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
+
+        # Cache the order metadata and status for 5 minutes
+        cache_success = await cache_service.set_order(
+            order_id=order_id,
+            user_id=current_user.id,
+            credits_amount=order_data.credits_amount,
+            status="created",
+            ttl=300  # 5 minutes
+        )
+        if not cache_success:
+            logger.warning(f"Failed to cache order {order_id} for user {current_user.id} (non-blocking).")
 
         return CreateOrderResponse(
             order_token=order_response["token"],
@@ -294,27 +306,35 @@ async def revolut_webhook(
                 # Update Cache
                 cache_update_success = await cache_service.update_user(user_id, {"credits": new_total_credits}) # Update with decrypted value
                 if not cache_update_success:
-                     logger.warning(f"Failed to update cache credits for user {user_id} after successful payment (Order ID: {order_id}), but Directus was updated.")
+                    logger.warning(f"Failed to update cache credits for user {user_id} after successful payment (Order ID: {order_id}), but Directus was updated.")
                 else:
                     logger.info(f"Successfully updated cache credits for user {user_id} to {new_total_credits} (Order ID: {order_id}).")
+                # Set order status in cache to "completed" (5 min TTL)
+                await cache_service.update_order_status(order_id, "completed")
 
             except ValueError:
-                 logger.error(f"Could not parse credits_purchased '{credits_purchased_str}' to int for order {order_id}.")
-                 return {"status": "metadata_error"} # Acknowledge Revolut, log error
+                logger.error(f"Could not parse credits_purchased '{credits_purchased_str}' to int for order {order_id}.")
+                # Set order status to failed
+                await cache_service.update_order_status(order_id, "failed")
+                return {"status": "metadata_error"} # Acknowledge Revolut, log error
             except Exception as processing_err:
-                 logger.error(f"Error processing ORDER_COMPLETED for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
-                 # Acknowledge Revolut, log internal processing error
-                 return {"status": "processing_error"}
+                logger.error(f"Error processing ORDER_COMPLETED for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
+                # Set order status to failed
+                await cache_service.update_order_status(order_id, "failed")
+                # TODO: Consider refunding the payment if credits could not be added
+                return {"status": "processing_error"}
 
         # --- Process ORDER_FAILED ---
         elif event_type == "ORDER_FAILED":
             logger.warning(f"Received verified ORDER_FAILED event for order {order_id}. User: {user_id}. Reason: {event_data.get('error_message', 'N/A')}")
+            # Set order status in cache to "failed" (5 min TTL)
+            await cache_service.update_order_status(order_id, "failed")
             # No action needed for credits, just log.
-            
+
         # --- Ignore other events ---
         else:
-             logger.info(f"Ignoring verified webhook event type: {event_type} for order {order_id}")
-             
+            logger.info(f"Ignoring verified webhook event type: {event_type} for order {order_id}")
+
     except HTTPException as e:
         # Re-raise HTTP exceptions (like the 400 from invalid signature)
         raise e

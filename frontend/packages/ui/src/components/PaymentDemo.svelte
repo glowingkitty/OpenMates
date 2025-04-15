@@ -84,7 +84,8 @@
         throw new Error('Order created, but order_id is missing in the response.');
       }
       orderToken = order.order_token;
-      console.log('Revolut Order created:', orderToken);
+      lastOrderId = order.order_id; // Store order_id for polling after payment
+      console.log('Revolut Order created:', orderToken, 'Order ID:', lastOrderId);
       showCheckoutForm = true; // Show the form now
       // Wait for Svelte to update the DOM so cardFieldTarget is bound
       await tick();
@@ -142,13 +143,14 @@
         // styles: {},
         // classes: {},
         onSuccess() {
-          console.log('Payment successful!');
-          successMessage = 'Payment successful! Your order is complete.';
+          console.log('Payment successful! Waiting for backend confirmation...');
           errorMessage = null;
           validationErrors = null;
+          // Do not show successMessage yet
           // Optionally reset form or navigate away
           showCheckoutForm = false;
-          orderToken = null;
+          // Start polling backend for order status
+          pollOrderStatus();
         },
         onError(error) {
           console.error('Payment error:', error);
@@ -181,6 +183,80 @@
       cardFieldInstance = null; // Ensure instance is null on error
     }
   }
+
+  // --- Poll Backend for Order Status ---
+  async function pollOrderStatus() {
+    if (!orderToken) {
+      errorMessage = 'Order token missing. Cannot verify payment status.';
+      return;
+    }
+    let attempts = 0;
+    const maxAttempts = 20; // e.g., poll for up to 20 times (~40s)
+    const pollInterval = 2000; // 2 seconds
+
+    // We need to get the order_id associated with the orderToken.
+    // Since the backend returns both order_token and order_id, we should store order_id when creating the order.
+    // We'll add a variable to store it.
+    let orderId = lastOrderId;
+    if (!orderId) {
+      errorMessage = 'Order ID missing. Cannot verify payment status.';
+      return;
+    }
+
+    async function poll() {
+      attempts++;
+      try {
+        const response = await fetch(getApiEndpoint(apiEndpoints.payments.orderStatus), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ order_id: orderId })
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch order status: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        const state = data.state;
+        console.log('Order status polled:', state);
+        if (state === 'COMPLETED') {
+          successMessage = 'Payment successful! Your order is complete.';
+          errorMessage = null;
+          validationErrors = null;
+          orderToken = null;
+          lastOrderId = null;
+          return;
+        } else if (state === 'FAILED' || state === 'CANCELLED') {
+          errorMessage = 'Payment failed or was cancelled. Please try again.';
+          successMessage = null;
+          validationErrors = null;
+          orderToken = null;
+          lastOrderId = null;
+          return;
+        } else {
+          // Still pending, poll again
+          if (attempts < maxAttempts) {
+            setTimeout(poll, pollInterval);
+          } else {
+            errorMessage = 'Payment processing timed out. Please check your order status later.';
+            successMessage = null;
+            validationErrors = null;
+            orderToken = null;
+            lastOrderId = null;
+          }
+        }
+      } catch (err) {
+        errorMessage = `Error checking payment status: ${err instanceof Error ? err.message : String(err)}`;
+        successMessage = null;
+        validationErrors = null;
+        orderToken = null;
+        lastOrderId = null;
+      }
+    }
+    poll();
+  }
+
+  // Store the last order ID for polling after payment
+  let lastOrderId: string | null = null;
 
   // --- Handle Form Submission ---
   function handleSubmit() {
