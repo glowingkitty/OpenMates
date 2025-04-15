@@ -123,9 +123,8 @@
 		validationErrors = null;
 
 		try {
-   // Use 'prod' or 'sandbox' based on your environment needs
-   // @ts-ignore - Vite specific env variable
-   const environment = import.meta.env.MODE === 'production' ? 'prod' : 'sandbox';
+   // Always use 'sandbox' environment for RevolutCheckout
+   const environment = 'sandbox';
 			console.log(`Initializing RevolutCheckout for order ${orderToken} in ${environment} mode.`);
 
 			const RC = await RevolutCheckout(orderToken, environment);
