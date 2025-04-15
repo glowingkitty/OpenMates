@@ -1,271 +1,446 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte'; // Added onMount, onDestroy
-    import { getApiUrl, apiEndpoints } from '../config/api'; // Import API config
+    import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
+    import { getApiUrl, apiEndpoints } from '../config/api';
+    import RevolutCheckout from '@revolut/checkout';
+    import type { RevolutCheckoutInstance, Mode } from '@revolut/checkout';
+    import { text } from '@repo/ui'; // Assuming okay
 
-    // Import our new component modules
+    // Import component modules
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
     import ProcessingPayment from './payment/ProcessingPayment.svelte';
-    
+
     const dispatch = createEventDispatcher();
-    
-    // Accept props
-    export let purchasePrice: number = 20;
+
+    // --- Props ---
     export let currency: string = 'EUR';
     export let credits_amount: number = 21000;
     export let requireConsent: boolean = true;
     export let compact: boolean = false;
-    export let initialState: 'idle' | 'processing' | 'success' | 'failure' = 'idle'; // New prop
-    export let isGift: boolean = false; // New prop
+    export let initialState: 'idle' | 'processing' | 'success' | 'failure' = 'idle';
+    export let isGift: boolean = false;
+    // Removed purchasePrice prop as it's backend-driven
 
-    // Toggle state for consent
+    // --- Component State ---
     let hasConsentedToLimitedRefund = false;
-    
-    // Payment processing states - Initialize with prop
-    let paymentState: 'idle' | 'processing' | 'success' | 'failure' = initialState;
-    let currentOrderId: string | null = null; // Store the order ID for polling
+    let paymentState: 'idle' | 'initializing' | 'ready' | 'processing' | 'success' | 'failure' = 'idle'; // Added initializing/ready states
+    let showPaymentForm = !requireConsent;
+
+    // --- Revolut State (Moved from PaymentForm) ---
+    let revolutCheckout: RevolutCheckoutInstance | null = null;
+    let cardFieldInstance: any | null = null; // Use 'any' or let TS infer type
+    let orderToken: string | null = null;
+    let currentOrderId: string | null = null; // Renamed from orderId for clarity with polling
+    let isLoadingRevolut = true; // Renamed to isInitializing internally
+    let revolutError: string | null = null; // Renamed to initializationError internally
+    let revolutPublicKey: string | null = null;
+    let revolutEnvironment: 'sandbox' | 'production' | null = null;
+
+    // --- Polling State ---
     let pollingIntervalId: ReturnType<typeof setInterval> | null = null;
     let pollingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const POLLING_INTERVAL_MS = 3000;
+    const POLLING_TIMEOUT_MS = 60000;
 
-    const POLLING_INTERVAL_MS = 3000; // Check every 3 seconds
-    const POLLING_TIMEOUT_MS = 60000; // Give up after 60 seconds
-    
-    // Payment form state
-    export let showPaymentForm = !requireConsent;
-    
-    // References to child components
-    let paymentFormComponent;
-    
-    // Store payment details for re-use after failure
+    // --- References ---
+    let paymentFormComponent: PaymentForm; // Still need reference to get container
+
+    // --- Store payment details for re-use after failure ---
+    // Only name is needed now as Revolut handles card details
     let paymentDetails = {
         nameOnCard: '',
-        cardNumber: '',
-        expireDate: '',
-        cvv: '',
-        lastFourDigits: ''
+        failed: false // Flag to indicate previous failure
     };
-    
+
+    // --- Lifecycle ---
+    onMount(() => {
+        // If consent is not required, or already given, initialize immediately
+        if (!requireConsent || hasConsentedToLimitedRefund) {
+            initializePaymentFlow();
+        }
+        // If starting in a specific state (e.g., deep link to processing/success)
+        if (initialState !== 'idle') {
+             paymentState = initialState;
+             // If starting in processing, we might need an orderId passed in or fetched
+             // For now, assume if initialState is processing/success, it's handled externally
+        } else {
+             paymentState = 'idle'; // Ensure correct initial state
+        }
+    });
+
+    onDestroy(() => {
+        stopPolling();
+        // Destroy Revolut instance directly
+        if (cardFieldInstance) {
+            cardFieldInstance.destroy();
+            cardFieldInstance = null;
+            console.debug("Payment.svelte onDestroy: Revolut card field instance destroyed.");
+        }
+    });
+
+    // --- Initialization Logic ---
+    async function initializePaymentFlow() {
+        if (paymentState === 'initializing' || paymentState === 'ready') return; // Prevent re-initialization
+
+        console.debug("Payment.svelte: Initializing payment flow...");
+        paymentState = 'initializing';
+        isLoadingRevolut = true;
+        revolutError = null;
+        orderToken = null;
+        currentOrderId = null;
+
+        // Destroy previous instance if exists (e.g., on retry)
+        if (cardFieldInstance) {
+            cardFieldInstance.destroy();
+            cardFieldInstance = null;
+            console.debug("Payment.svelte: Destroyed previous Revolut card field instance.");
+        }
+
+        // Ensure PaymentForm component is rendered and its container is available
+        await tick();
+        const cardFieldContainer = paymentFormComponent?.getCardFieldContainerElement();
+
+        if (!cardFieldContainer) {
+            console.error("Payment.svelte: Could not get cardFieldContainer from PaymentForm.");
+            revolutError = "Internal error: Payment form container not found.";
+            paymentState = 'failure'; // Or maybe a specific 'init_failed' state
+            isLoadingRevolut = false;
+            dispatch('paymentFailure', { message: revolutError });
+            return;
+        }
+
+        if (credits_amount === undefined || credits_amount === null || credits_amount <= 0) {
+             revolutError = "Invalid credits amount specified.";
+             isLoadingRevolut = false;
+             paymentState = 'failure';
+             console.error(`Payment.svelte Init Error: Invalid credits_amount: ${credits_amount}`);
+             dispatch('paymentFailure', { message: revolutError });
+             return;
+        }
+
+        try {
+            // 1. Fetch Payment Config
+            console.debug("Payment.svelte: Fetching payment config...");
+            const configResponse = await fetch(getApiUrl() + apiEndpoints.payments.config, { /* ... headers ... */ credentials: 'include' });
+            if (!configResponse.ok) throw new Error(`Failed to fetch payment config: ${configResponse.statusText}`);
+            const configData = await configResponse.json();
+            revolutPublicKey = configData.revolut_public_key;
+            revolutEnvironment = configData.environment;
+            console.debug(`Payment.svelte: Payment config received: Environment=${revolutEnvironment}`);
+
+            // 2. Create Order
+            const orderPayload = { currency: currency, credits_amount: credits_amount };
+            console.debug("Payment.svelte: Creating payment order with payload:", orderPayload);
+            const orderResponse = await fetch(getApiUrl() + apiEndpoints.payments.createOrder, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(orderPayload)
+            });
+            if (!orderResponse.ok) {
+                const errorData = await orderResponse.json().catch(() => ({ detail: orderResponse.statusText }));
+                throw new Error(`Failed to create payment order: ${errorData.detail || orderResponse.statusText}`);
+            }
+            const orderData = await orderResponse.json();
+            orderToken = orderData.order_token;
+            currentOrderId = orderData.order_id; // Store the order ID
+            console.debug(`Payment.svelte: Order token/ID received: ${orderToken ? 'OK' : 'MISSING'}, ${currentOrderId ? 'OK' : 'MISSING'}`);
+            if (!orderToken || !currentOrderId) throw new Error("Incomplete order details from backend.");
+
+            // 3. Initialize Revolut Checkout
+            console.debug(`Payment.svelte: Initializing RevolutCheckout with token for ${revolutEnvironment} env.`);
+            revolutCheckout = await RevolutCheckout(orderToken, revolutEnvironment as Mode);
+            if (!revolutCheckout) throw new Error("Failed to initialize Revolut Checkout.");
+
+            // 4. Create and Mount Card Field
+            console.debug("Payment.svelte: Creating Revolut card field instance...");
+            cardFieldInstance = revolutCheckout.createCardField({
+                target: cardFieldContainer, // Mount to the div inside PaymentForm
+                styles: { /* ... styles ... */
+                    default: { color: 'var(--color-text)', backgroundColor: 'var(--color-input-bg)', padding: '14px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--color-input-border)', fontFamily: 'inherit', fontSize: '16px' },
+                    focused: { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' },
+                    invalid: { borderColor: 'var(--color-error)', color: 'var(--color-error)' },
+                },
+                locale: 'en',
+                // --- Event Handlers (Now directly within Payment.svelte) ---
+                onSuccess() {
+                    console.info("Payment.svelte: Revolut onSuccess callback triggered.");
+                    stopPolling();
+                    paymentState = 'success';
+                    // No need to call cleanupInstance here, handled in onDestroy or state transitions
+                    dispatch('paymentProcessing', { processing: false });
+                    dispatch('paymentStateChange', { state: 'success' });
+                    setTimeout(() => {
+                        dispatch('paymentSuccess', {
+                            // Pass relevant details if needed, e.g., from polling data
+                            amount: credits_amount,
+                            currency: currency
+                        });
+                    }, 1500);
+                },
+                onError(error) {
+                    console.error("Payment.svelte: Revolut onError callback triggered:", error);
+                    stopPolling();
+                    const message = typeof error === 'string' ? error : (error?.message || "Unknown payment error");
+                    revolutError = `Payment failed: ${message}`; // Set error for potential display
+                    paymentState = 'failure'; // Keep failure state briefly
+                    // No need to call cleanupInstance here
+                    dispatch('paymentProcessing', { processing: false });
+                    dispatch('paymentStateChange', { state: 'failure' });
+                    setTimeout(() => {
+                        // Reset to allow retry - re-initialize
+                        paymentDetails.failed = true; // Mark that the last attempt failed
+                        paymentState = 'idle'; // Go back to idle, which will trigger re-init if form is shown
+                        dispatch('paymentStateChange', { state: 'idle' });
+                        // Re-initialize automatically if form is visible
+                        // Removed automatic re-initialization: if (showPaymentForm) { initializePaymentFlow(); }
+                    }, 2000); // Keep timeout to show error message before resetting state
+                },
+                 onCancel() {
+                    console.info("Payment.svelte: Revolut onCancel callback triggered.");
+                    stopPolling();
+                    // Reset state back to idle (showing the form)
+                    paymentState = 'idle';
+                    // No need to call cleanupInstance here
+                    dispatch('paymentProcessing', { processing: false });
+                    dispatch('paymentStateChange', { state: 'idle' });
+                    dispatch('paymentCancel');
+                    // Re-initialize automatically if form is visible
+                    // Removed automatic re-initialization: if (showPaymentForm) { initializePaymentFlow(); }
+                },
+                onValidation(errors) {
+                    console.debug("Payment.svelte: Revolut validation event:", errors);
+                    // Can potentially forward validation state to PaymentForm if needed
+                },
+            });
+
+            console.debug("Payment.svelte: Revolut card field instance created and mounted.");
+            paymentState = 'ready'; // Mark as ready for submission
+            isLoadingRevolut = false;
+
+        } catch (error) {
+            console.error("Payment.svelte: Error initializing Revolut:", error);
+            revolutError = error instanceof Error ? error.message : String(error) || "Failed to initialize payment form.";
+            paymentState = 'failure'; // Or specific init_failed state
+            isLoadingRevolut = false;
+            dispatch('paymentFailure', { message: revolutError });
+        }
+    }
+
+    // --- Event Handlers ---
+
     // Handle consent change
     function handleConsentChanged(event) {
         hasConsentedToLimitedRefund = event.detail.consented;
-        
         if (hasConsentedToLimitedRefund) {
             dispatch('consentGiven', { consented: true });
-        }
-        
-        if (requireConsent && hasConsentedToLimitedRefund && !showPaymentForm) {
-            setTimeout(() => {
-                showPaymentForm = true;
-                dispatch('paymentFormVisibility', { visible: showPaymentForm });
-            }, 300);
+            if (requireConsent && !showPaymentForm) {
+                // Explicitly initialize after showing form
+                setTimeout(() => {
+                    showPaymentForm = true;
+                    initializePaymentFlow(); // Call init explicitly here
+                }, 300);
+            } else if (hasConsentedToLimitedRefund && showPaymentForm && paymentState === 'idle') {
+                 // If consent was already given but we are idle (e.g. after failure), re-init
+                 initializePaymentFlow();
+            }
         }
     }
-    
-    // Removed handleToggleSensitiveData function
-    
-    // --- New Event Handlers for Refactored PaymentForm ---
 
-    // Called when PaymentForm starts the Revolut submit process
-    function handleStartPaymentProcessing(event) {
-        const orderId = event.detail?.orderId;
-        console.debug(`Payment.svelte: handleStartPaymentProcessing triggered. Order ID: ${orderId}`);
-        if (!orderId) {
-             console.error("Payment.svelte: startPaymentProcessing event missing orderId!");
-             // Handle error appropriately - maybe revert state? For now, just log.
-             handlePaymentFailure({ detail: { message: "Internal error: Missing order ID for status check." } });
-             return;
+    // Handle submit event from PaymentForm
+    async function handleFormSubmit(event) {
+        const nameOnCard = event.detail.nameOnCard;
+        console.debug(`Payment.svelte: Received submit event with name: ${nameOnCard}`);
+        paymentDetails.nameOnCard = nameOnCard; // Store name for potential retry
+
+        if (!cardFieldInstance || paymentState !== 'ready') {
+            console.error("Payment.svelte: Submit called but Revolut instance not ready or not in ready state.");
+            // Optionally show an error message
+            return;
         }
-        currentOrderId = orderId;
+
         paymentState = 'processing';
         dispatch('paymentProcessing', { processing: true });
         dispatch('paymentStateChange', { state: 'processing' });
-        // Start polling for order status
-        startPolling(currentOrderId);
+
+        // Fetch email just-in-time
+        let fetchedEmail: string | null = null;
+        try {
+            console.debug("Payment.svelte: Fetching user email for payment submission...");
+            const emailResponse = await fetch(getApiUrl() + apiEndpoints.settings.user.getEmail, { /* ... headers ... */ credentials: 'include' });
+            if (!emailResponse.ok) throw new Error(`Failed to fetch email: ${await emailResponse.text()}`);
+            const emailData = await emailResponse.json();
+            fetchedEmail = emailData.email;
+            if (!fetchedEmail) throw new Error("Email not found in backend response.");
+            console.debug("Payment.svelte: User email fetched successfully.");
+        } catch (error) {
+            console.error("Payment.svelte: Error fetching user email:", error);
+            handlePaymentError("Could not retrieve user email for payment. Please try again.");
+            return; // Stop submission
+        }
+
+        // Submit the Revolut Card Field
+        try {
+            console.debug(`Payment.svelte: Submitting card field with email and name: ${nameOnCard}`);
+            await cardFieldInstance.submit({
+                email: fetchedEmail,
+                name: nameOnCard,
+            });
+            console.debug("Payment.svelte: cardField.submit() called successfully.");
+            // Start polling ONLY after submit is successfully initiated
+            if (currentOrderId) {
+                startPolling(currentOrderId);
+            } else {
+                 console.error("Payment.svelte: Cannot start polling, orderId is missing after submit call.");
+                 handlePaymentError("Internal error: Missing order ID after payment submission.");
+            }
+            // Success/Error is handled by the onSuccess/onError callbacks
+        } catch (error) {
+             // Handle errors during the *initiation* of submit
+            console.error("Payment.svelte: Error calling cardField.submit():", error);
+            const message = error instanceof Error ? error.message : String(error) || "Unknown submission error";
+            handlePaymentError(`Failed to initiate payment: ${message}`);
+        }
     }
 
-    // --- Polling Logic ---
+    // Generic internal error handler during submission phase
+    function handlePaymentError(message: string) {
+         stopPolling();
+         revolutError = message;
+         paymentState = 'failure';
+         dispatch('paymentProcessing', { processing: false });
+         dispatch('paymentStateChange', { state: 'failure' });
+         setTimeout(() => {
+             paymentDetails.failed = true;
+             paymentState = 'idle';
+             dispatch('paymentStateChange', { state: 'idle' });
+             // Removed automatic re-initialization: if (showPaymentForm) { initializePaymentFlow(); }
+         }, 2000); // Keep timeout to show error message before resetting state
+    }
 
+    // Handle retry button click from PaymentForm
+    function handleRetryInit() {
+        console.debug("Payment.svelte: Retry initialization requested.");
+        // Reset state and re-initialize
+        paymentState = 'idle';
+        initializePaymentFlow();
+    }
+
+
+    // --- Polling Logic (Mostly Unchanged) ---
     function stopPolling() {
-        if (pollingIntervalId) {
-            clearInterval(pollingIntervalId);
-            pollingIntervalId = null;
-            console.info("Payment.svelte: Polling stopped."); // Changed to info
-        }
-        if (pollingTimeoutId) {
-            clearTimeout(pollingTimeoutId);
-            pollingTimeoutId = null;
-        }
-        // currentOrderId = null; // DO NOT clear order ID here, clear it only when process ends
+        if (pollingIntervalId) clearInterval(pollingIntervalId);
+        if (pollingTimeoutId) clearTimeout(pollingTimeoutId);
+        pollingIntervalId = null;
+        pollingTimeoutId = null;
+        console.info("Payment.svelte: Polling stopped.");
     }
 
     async function checkOrderStatus(orderId: string) {
         console.debug(`Payment.svelte: Checking status for order ${orderId}...`);
-        if (!orderId) {
-            console.error("Payment.svelte: checkOrderStatus called without orderId.");
-            stopPolling();
-            handlePaymentFailure({ detail: { message: "Internal error checking payment status." } });
-            return;
-        }
+        if (!orderId) { /* ... error handling ... */ return; }
         try {
-            const statusUrl = getApiUrl() + apiEndpoints.payments.orderStatus; // Use the correct endpoint path
+            const statusUrl = getApiUrl() + apiEndpoints.payments.orderStatus;
             const response = await fetch(statusUrl, {
-                method: 'POST', // Change to POST
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json' // Add Content-Type header
-                 },
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ order_id: orderId }) // Send orderId in the body
+                body: JSON.stringify({ order_id: orderId })
             });
 
             if (!response.ok) {
-                // Handle non-2xx responses (e.g., 404 Not Found, 500 Server Error)
                 const errorText = await response.text();
                 console.error(`Payment.svelte: Error fetching order status ${response.status}: ${errorText}`);
-                 // Stop polling on server error or if order not found
                 if (response.status === 404 || response.status >= 500) {
                     stopPolling();
-                    handlePaymentFailure({ detail: { message: `Failed to get payment status (${response.status}).` } });
-                }
-                // For other client errors (4xx), maybe continue polling briefly? Or fail? Let's fail for now.
-                else if (response.status >= 400) {
+                    handlePaymentError(`Failed to get payment status (${response.status}).`);
+                } else if (response.status >= 400) {
                      stopPolling();
-                     handlePaymentFailure({ detail: { message: `Error checking payment status (${response.status}).` } });
+                     handlePaymentError(`Error checking payment status (${response.status}).`);
                 }
-                return; // Don't process further on error
+                return;
             }
 
             const data = await response.json();
-            const state = data.state?.toUpperCase(); // Normalize state
-            console.info(`Payment.svelte: Order ${orderId} status is ${state}`); // Changed to info
+            const state = data.state?.toUpperCase();
+            console.info(`Payment.svelte: Order ${orderId} status is ${state}`);
 
             switch (state) {
                 case 'COMPLETED':
                     stopPolling();
-                    // Use existing success handler, pass minimal detail for now
-                    handlePaymentSuccess({ detail: { /* Can add details from 'data' if needed */ } });
+                    // Trigger success state via the Revolut onSuccess callback mechanism
+                    // This assumes the backend webhook might update status before polling,
+                    // or polling confirms success. Let onSuccess handle the final state change.
+                    // If onSuccess hasn't fired yet, this polling result confirms it.
+                    if (paymentState !== 'success') {
+                        // Manually trigger success if callback hasn't fired for some reason
+                         console.warn("Payment.svelte: Polling detected COMPLETED before onSuccess callback. Triggering success state.");
+                         // Find a way to simulate onSuccess or directly set state
+                         paymentState = 'success';
+                         dispatch('paymentProcessing', { processing: false });
+                         dispatch('paymentStateChange', { state: 'success' });
+                         setTimeout(() => dispatch('paymentSuccess', { amount: credits_amount, currency: currency }), 1500);
+                    }
                     break;
                 case 'FAILED':
-                case 'CANCELLED': // Treat cancelled like failed from polling perspective
+                case 'CANCELLED':
                     stopPolling();
-                    // Use existing failure handler
-                    handlePaymentFailure({ detail: { message: `Payment ${state.toLowerCase()}.` } });
+                    // Trigger failure state via the Revolut onError/onCancel mechanism
+                    if (paymentState !== 'failure' && paymentState !== 'idle') {
+                         console.warn(`Payment.svelte: Polling detected ${state} before onError/onCancel callback. Triggering failure state.`);
+                         handlePaymentError(`Payment ${state.toLowerCase()}.`);
+                    }
                     break;
                 case 'CREATED':
                 case 'PENDING':
                 case 'AUTHORISED':
-                    // Still processing, do nothing, wait for next poll interval
+                    // Still processing...
                     break;
                 default:
                     console.warn(`Payment.svelte: Unknown order state received: ${state}`);
-                    // Optionally stop polling and fail on unknown state
-                    // stopPolling();
-                    // handlePaymentFailure({ detail: { message: `Unknown payment status: ${state}` } });
                     break;
             }
-
         } catch (error) {
             console.error("Payment.svelte: Exception during checkOrderStatus fetch:", error);
             stopPolling();
-            handlePaymentFailure({ detail: { message: "Error checking payment status." } });
+            handlePaymentError("Error checking payment status.");
         }
     }
 
     function handlePollingTimeout() {
-         console.warn(`Payment.svelte: Polling timed out after ${POLLING_TIMEOUT_MS / 1000} seconds for order ${currentOrderId}.`);
-         pollingTimeoutId = null; // Already cleared by stopPolling, but good practice
+         console.warn(`Payment.svelte: Polling timed out for order ${currentOrderId}.`);
+         pollingTimeoutId = null;
          stopPolling();
-         handlePaymentFailure({ detail: { message: "Payment status check timed out. Please check your Revolut account or contact support." } });
+         handlePaymentError("Payment status check timed out. Please check your Revolut account or contact support.");
     }
 
     function startPolling(orderId: string) {
-        stopPolling(); // Clear any previous polling just in case
-        console.info(`Payment.svelte: Starting polling for order ${orderId}...`); // Changed to info
-
-        // Initial check immediately
-        checkOrderStatus(orderId);
-
+        stopPolling();
+        console.info(`Payment.svelte: Starting polling for order ${orderId}...`);
+        checkOrderStatus(orderId); // Initial check
         pollingIntervalId = setInterval(() => {
-             if (currentOrderId) { // Check if polling hasn't been stopped
-                 checkOrderStatus(currentOrderId);
-             } else {
-                 // Should not happen if stopPolling clears currentOrderId, but safety check
-                 console.warn("Payment.svelte: Polling interval fired but currentOrderId is null. Stopping.");
-                 stopPolling();
-             }
+             if (currentOrderId) checkOrderStatus(currentOrderId);
+             else stopPolling();
         }, POLLING_INTERVAL_MS);
-
         pollingTimeoutId = setTimeout(handlePollingTimeout, POLLING_TIMEOUT_MS);
     }
 
-    // --- End Polling Logic ---
+    // --- Reactive Statements ---
 
-    // Called by PaymentForm's onSuccess callback from Revolut
-    function handlePaymentSuccess(event) {
-        stopPolling(); // Ensure polling stops on success
-        console.info("Payment.svelte: handlePaymentSuccess triggered", event.detail); // Changed to info
-        paymentState = 'success';
-        paymentFormComponent?.cleanupInstance(); // Clean up Revolut instance
-        dispatch('paymentProcessing', { processing: false });
-        dispatch('paymentStateChange', { state: 'success' });
-        // Forward the success event with details provided by PaymentForm
-        // Wait a bit before dispatching to allow success animation to show
-        setTimeout(() => {
-            dispatch('paymentSuccess', event.detail);
-        }, 1500); // Delay before notifying parent
-    }
+    // Removed reactive statement for initialization
+    // $: if (showPaymentForm && paymentState === 'idle') {
+    //     initializePaymentFlow();
+    // }
 
-    // Called by PaymentForm's onError callback from Revolut or internal errors
-    function handlePaymentFailure(event) {
-        stopPolling(); // Ensure polling stops on failure
-        console.error("Payment.svelte: handlePaymentFailure triggered", event.detail); // Changed to error
-        paymentState = 'failure'; // Keep failure state briefly for UI feedback
-        paymentFormComponent?.cleanupInstance(); // Clean up Revolut instance
-        dispatch('paymentProcessing', { processing: false });
-        dispatch('paymentStateChange', { state: 'failure' });
-        // Reset to idle state (showing form) after a delay
-        setTimeout(() => {
-            paymentState = 'idle';
-            dispatch('paymentStateChange', { state: 'idle' });
-            // Optionally pass the error message back to the form if needed
-            if (paymentFormComponent) {
-                 paymentFormComponent.setPaymentFailed(event.detail?.message || "Payment failed.");
-            }
-        }, 2000); // Show failure message for 2 seconds
-    }
-
-     // Called by PaymentForm's onCancel callback from Revolut
-    function handlePaymentCancel() {
-        stopPolling(); // Ensure polling stops on cancel
-        console.info("Payment.svelte: handlePaymentCancel triggered");
-        // Reset state back to idle (showing the form) immediately
-        paymentState = 'idle';
-        paymentFormComponent?.cleanupInstance(); // Clean up Revolut instance
-        dispatch('paymentProcessing', { processing: false });
-        dispatch('paymentStateChange', { state: 'idle' });
-        // Optionally dispatch a cancel event to the parent if needed
-        dispatch('paymentCancel');
-    }
-
-    // --- End New Event Handlers ---
-    
-    // Notify parent when payment form visibility changes
+    // Notify parent when payment form visibility changes (for layout adjustments etc.)
     $: if (showPaymentForm !== previousPaymentFormState) {
         if (previousPaymentFormState !== undefined) {
             dispatch('paymentFormVisibility', { visible: showPaymentForm });
         }
         previousPaymentFormState = showPaymentForm;
     }
-    let previousPaymentFormState;
-    
-    // Watch payment state and return to form on failure
-    // Removed explicit failure state watcher, handled in handlePaymentFailure now
+    let previousPaymentFormState: boolean | undefined;
 
-    // Cleanup on component destroy
-    onDestroy(() => {
-        stopPolling();
-        paymentFormComponent?.cleanupInstance(); // Ensure cleanup if parent is destroyed
-    });
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
@@ -276,19 +451,18 @@
         />
     {:else if paymentState === 'processing' || paymentState === 'success'}
         <ProcessingPayment
-            state={paymentState}
+            state={paymentState === 'success' ? 'success' : 'processing'}
             {isGift}
         />
-    {:else}
+    {:else} <!-- idle, initializing, ready, failure -->
         <PaymentForm
             bind:this={paymentFormComponent}
             currency={currency}
-            credits_amount={credits_amount}
-            initialPaymentDetails={paymentState === 'failure' ? paymentDetails : null}
-            on:startPaymentProcessing={handleStartPaymentProcessing}
-            on:paymentSuccess={handlePaymentSuccess}
-            on:paymentFailure={handlePaymentFailure}
-            on:paymentCancel={handlePaymentCancel}
+            isInitializing={isLoadingRevolut || paymentState === 'initializing'}
+            initializationError={revolutError}
+            initialPaymentDetails={paymentDetails.failed ? paymentDetails : null}
+            on:submit={handleFormSubmit}
+            on:retryInit={handleRetryInit}
         />
     {/if}
 </div>
@@ -299,7 +473,6 @@
         height: 100%;
         position: relative;
     }
-    
     .compact {
         max-width: 500px;
         margin: 0 auto;

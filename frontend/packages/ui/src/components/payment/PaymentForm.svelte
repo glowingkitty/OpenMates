@@ -1,247 +1,47 @@
 <script lang="ts">
-    import { text } from '@repo/ui'; // Revert to original path as requested
-    import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
+    import { text } from '@repo/ui'; // Assuming this is okay per user feedback
+    import { createEventDispatcher, onMount } from 'svelte';
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import RevolutCheckout from '@revolut/checkout';
-    import type { RevolutCheckoutInstance, Mode } from '@revolut/checkout'; // Remove CardField type import, rely on inference
-    import { getApiUrl, apiEndpoints } from '../../config/api'; // Import API config
 
     const dispatch = createEventDispatcher();
 
-    // Props
-    // export let purchasePrice: number = 20; // REMOVED - Price is determined by backend
+    // --- Props ---
     export let currency: string = 'EUR';
-    export let credits_amount: number; // IMPORTANT: This must be passed from the parent
-    // export let showSensitiveData: boolean = false; // No longer needed for Revolut element
-    export let initialPaymentDetails = null; // Keep for name field if needed
-
-    // --- Revolut State ---
-    let revolutCheckout: RevolutCheckoutInstance | null = null;
-    let cardFieldInstance: any | null = null; // Use 'any' or let TS infer type
-    let orderToken: string | null = null;
-    let orderId: string | null = null; // Store the Revolut Order ID
-    let isLoadingRevolut = true; // Track loading state
-    let revolutError: string | null = null; // Store errors from Revolut init/payment
-    let revolutPublicKey: string | null = null; // Store public key if needed later (e.g., for upsell)
-    let revolutEnvironment: 'sandbox' | 'production' | null = null;
+    // Removed credits_amount - parent handles it
+    export let initialPaymentDetails = null; // Keep for pre-filling name
+    export let isInitializing: boolean = true; // Passed down from Payment.svelte
+    export let initializationError: string | null = null; // Passed down from Payment.svelte
 
     // --- Form State ---
-    let nameOnCard = ''; // Keep name field for now
+    let nameOnCard = '';
 
-    // Input element references
+    // --- Element References ---
     let nameInput: HTMLInputElement;
-    let cardFieldContainer: HTMLDivElement; // Target for Revolut element
+    let cardFieldContainer: HTMLDivElement; // Container for Revolut element (mounted by parent)
 
-    // Validation states
+    // --- Validation State ---
     let nameError = '';
     let showNameWarning = false;
-
-    // Payment failure state - handled by Revolut's onError now, but keep for potential UI feedback
-    let paymentFailed = false; // Can be set in onError
-
-    // Track if form was submitted
     let attemptedSubmit = false;
-
-    // Removed userProfile subscription and customerEmail variable
 
     // --- Initialization ---
     onMount(() => {
-        // Pre-fill name if available from previous attempt
+        // Pre-fill name if available from previous attempt or failure
         if (initialPaymentDetails) {
             nameOnCard = initialPaymentDetails.nameOnCard || '';
-            // If we had a general payment failure state passed in
-            if (initialPaymentDetails.failed) {
-                setPaymentFailed("Previous payment attempt failed."); // Pass a generic message
-            }
-        }
-
-        if (credits_amount === undefined || credits_amount === null) {
-             console.error("PaymentForm Error: credits_amount prop is missing or invalid.");
-             revolutError = "Configuration error: Credits amount missing.";
-             isLoadingRevolut = false;
-        } else {
-            // Fetch config and initialize Revolut
-            initializeRevolut();
+            // Note: Failure message display is now handled by the parent based on initializationError prop
         }
     });
 
-    // onDestroy hook removed - cleanup is now controlled by the parent Payment.svelte component
-    
-    // Exported function for parent component to trigger cleanup
-    export function cleanupInstance() {
-        if (cardFieldInstance) {
-            cardFieldInstance.destroy();
-            cardFieldInstance = null; // Prevent multiple destructions
-            console.debug("PaymentForm cleanupInstance called, Revolut card field instance destroyed.");
-        }
+    // --- Expose Container Element ---
+    // Parent (Payment.svelte) will use bind:this and call this after mount
+    export function getCardFieldContainerElement(): HTMLDivElement {
+        return cardFieldContainer;
     }
 
-
-    // Function to fetch order token and initialize Revolut Card Field
-    async function initializeRevolut() {
-        isLoadingRevolut = true;
-        revolutError = null;
-        orderToken = null;
-        orderId = null; // Reset orderId as well
-        // Destroy previous instance if exists
-        if (cardFieldInstance) {
-            cardFieldInstance.destroy();
-            cardFieldInstance = null;
-            console.debug("Destroyed previous Revolut card field instance.");
-        }
-
-        // Removed check for customerEmail here, it's fetched later in handleBuyClick
-        if (credits_amount === undefined || credits_amount === null || credits_amount <= 0) {
-             revolutError = "Invalid credits amount specified.";
-             isLoadingRevolut = false;
-             console.error(`Revolut Init Error: Invalid credits_amount: ${credits_amount}`);
-             dispatch('paymentFailure', { message: revolutError }); // Notify parent
-             return;
-        }
-
-
-        try {
-            // 1. Fetch Payment Config
-            console.debug("Fetching payment config...");
-            const configResponse = await fetch(getApiUrl() + apiEndpoints.payments.config, {
-                 method: 'GET',
-                 headers: { 'Accept': 'application/json' },
-                 credentials: 'include'
-            });
-            if (!configResponse.ok) {
-                throw new Error(`Failed to fetch payment config: ${configResponse.status} ${configResponse.statusText}`);
-            }
-            const configData = await configResponse.json();
-            revolutPublicKey = configData.revolut_public_key;
-            revolutEnvironment = configData.environment;
-            console.debug(`Payment config received: Environment=${revolutEnvironment}`);
-
-            // 2. Create Order to get Order Token
-            const orderPayload = {
-                // amount: Math.round(purchasePrice * 100), // REMOVED - Backend determines amount
-                currency: currency,
-                credits_amount: credits_amount // Use the prop value
-            };
-            console.debug("Creating payment order with payload:", orderPayload);
-            const orderResponse = await fetch(getApiUrl() + apiEndpoints.payments.createOrder, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify(orderPayload)
-            });
-
-            if (!orderResponse.ok) {
-                 const errorData = await orderResponse.json().catch(() => ({ detail: `${orderResponse.status} ${orderResponse.statusText}` }));
-                 throw new Error(`Failed to create payment order: ${errorData.detail || orderResponse.statusText}`);
-            }
-            const orderData = await orderResponse.json();
-            orderToken = orderData.order_token;
-            orderId = orderData.order_id; // Store the order ID
-            console.debug(`Order token received: ${orderToken ? 'OK' : 'MISSING'}, Order ID: ${orderId ? 'OK' : 'MISSING'}`);
-
-
-            if (!orderToken || !orderId) { // Check for orderId too
-                throw new Error("Received incomplete order details (token or ID missing) from backend.");
-            }
-
-            // 3. Initialize Revolut Checkout Widget
-            console.debug(`Initializing RevolutCheckout with token for ${revolutEnvironment} env.`);
-            revolutCheckout = await RevolutCheckout(orderToken, revolutEnvironment as Mode); // Pass environment, cast type
-
-            if (!revolutCheckout) {
-                 throw new Error("Failed to initialize Revolut Checkout.");
-            }
-
-            // 4. Create and Mount Card Field
-            console.debug("Creating Revolut card field instance...");
-            cardFieldInstance = revolutCheckout.createCardField({
-                target: cardFieldContainer, // Mount to our div
-                // --- Event Handlers ---
-                onSuccess() {
-                    console.info("Revolut payment successful callback triggered.");
-                    revolutError = null;
-                    paymentFailed = false;
-                    // Dispatch success event to parent (Payment.svelte)
-                    dispatch('paymentSuccess', {
-                        nameOnCard: nameOnCard,
-                        amount: credits_amount, // Pass the credits amount
-                        // price: purchasePrice, // REMOVED - Price not relevant here anymore
-                        currency: currency
-                        // Note: lastFourDigits not available here
-                    });
-                },
-                onError(error) {
-                    console.error("Revolut payment error callback triggered:", error);
-                    const message = typeof error === 'string' ? error : (error?.message || "Unknown payment error");
-                    revolutError = `Payment failed: ${message}`;
-                    paymentFailed = true;
-                     // Dispatch failure event to parent
-                    dispatch('paymentFailure', { message: revolutError });
-                },
-                 onCancel() {
-                    console.info("Revolut payment cancelled by user.");
-                    revolutError = "Payment cancelled."; // Provide feedback
-                    // Optionally dispatch a specific cancel event
-                    dispatch('paymentCancel');
-                },
-                onValidation(errors) {
-                    // Optional: Handle real-time validation errors if needed
-                    // This provides an array of { field: string, message: string }
-                    console.debug("Revolut validation event:", errors);
-                    // You could potentially map these errors to UI elements if desired,
-                    // but Revolut's element usually shows its own validation hints.
-                },
-                // --- Styling (Example - Adapt to your CSS) ---
-                styles: {
-                    default: { // Base styles
-                        color: 'var(--color-text)', // Use your CSS variable
-                        backgroundColor: 'var(--color-input-bg)',
-                        padding: '14px 12px', // Match your input padding
-                        borderRadius: 'var(--radius-input)',
-                        border: '1px solid var(--color-input-border)',
-                        fontFamily: 'inherit',
-                        fontSize: '16px', // Match your input font size
-                        // '::placeholder': { // Cannot style pseudo-elements directly here
-                        //     color: 'var(--color-grey-60)'
-                        // }
-                    },
-                    focused: { // Correct key is 'focused'
-                        borderColor: 'var(--color-primary)',
-                        boxShadow: '0 0 0 1px var(--color-primary)' // Adjusted focus style
-                    },
-                    invalid: { // Styles when the field has validation errors
-                        borderColor: 'var(--color-error)',
-                        color: 'var(--color-error)'
-                    },
-                },
-                // --- Other Options ---
-                locale: 'en', // Or dynamically set based on user preference
-            });
-
-            // Mounting is handled by createCardField via the 'target' option per Revolut SDK docs.
-            console.debug("Revolut card field instance created and mounted via target option.");
-
-        } catch (error) {
-            console.error("Error initializing Revolut:", error);
-            revolutError = error instanceof Error ? error.message : String(error) || "Failed to initialize payment form.";
-            dispatch('paymentFailure', { message: revolutError }); // Notify parent
-        } finally {
-            isLoadingRevolut = false;
-        }
-    }
-
-    // Re-add function to handle the secure payment info click
-    function handleSecurePaymentInfoClick() {
-        window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
-    }
-
-
-    // --- Keep Name Validation ---
+    // --- Name Validation ---
     function validateName(name: string): boolean {
         if (name.trim().length < 3) {
             nameError = $text('signup.name_too_short.text');
@@ -253,108 +53,53 @@
         return true;
     }
 
-    // --- Updated Buy Click Handler ---
-    async function handleBuyClick() {
-        console.debug("Buy button clicked.");
+    // --- Submit Handler ---
+    function handleBuyClick() {
+        console.debug("PaymentForm: Buy button clicked.");
         attemptedSubmit = true;
-        revolutError = null; // Clear previous errors
 
-        // 1. Validate local fields (just Name for now)
+        // 1. Validate local fields (just Name)
         const isNameValid = validateName(nameOnCard);
         if (!isNameValid) {
-            console.warn("Name validation failed.");
-            nameInput?.focus(); // Focus the name input if invalid
+            console.warn("PaymentForm: Name validation failed.");
+            nameInput?.focus();
             return;
         }
 
-        // 2. Check if cardFieldInstance is ready
-        if (!cardFieldInstance) {
-            revolutError = "Payment form is not ready. Please wait or refresh.";
-            console.error("handleBuyClick Error: cardFieldInstance not available.");
-            dispatch('paymentFailure', { message: revolutError }); // Notify parent
-            return;
-        }
-
-         // 3. Fetch user email from backend just-in-time
-         let fetchedEmail: string | null = null;
-         try {
-             console.debug("Fetching user email for payment submission...");
-             const emailResponse = await fetch(getApiUrl() + apiEndpoints.settings.user.getEmail, {
-                 method: 'GET',
-                 headers: { 'Accept': 'application/json' },
-                 credentials: 'include'
-             });
-             if (!emailResponse.ok) {
-                 const errorText = await emailResponse.text();
-                 throw new Error(`Failed to fetch email: ${emailResponse.status} ${errorText}`);
-             }
-             const emailData = await emailResponse.json();
-             fetchedEmail = emailData.email;
-             if (!fetchedEmail) {
-                 throw new Error("Email not found in backend response.");
-             }
-             console.debug("User email fetched successfully.");
-         } catch (error) {
-             console.error("Error fetching user email:", error);
-             revolutError = "Could not retrieve user email for payment. Please try again.";
-             dispatch('paymentFailure', { message: revolutError }); // Notify parent
-             return; // Stop submission
-         }
- 
-          // 4. Dispatch 'startPayment' to parent to indicate processing start
-          console.info("Dispatching startPaymentProcessing event.");
-          dispatch('startPaymentProcessing', { orderId: orderId }); // Dispatch orderId
- 
-         // 5. Submit the Revolut Card Field with fetched email
-         try {
-             console.debug(`Submitting card field with fetched email and name: ${nameOnCard}`);
-             await cardFieldInstance.submit({
-                 email: fetchedEmail, // Use the fetched email
-                 name: nameOnCard, // Pass the name from our input field
-             });
-             console.debug("cardField.submit() called successfully.");
-             // Success/Error is handled by the onSuccess/onError callbacks defined in createCardField
-         } catch (error) {
-              // This catch might handle errors during the *initiation* of submit,
-              // but payment success/failure is typically via the callbacks.
-             console.error("Error calling cardField.submit():", error);
-             const message = error instanceof Error ? error.message : String(error) || "Unknown submission error";
-             revolutError = `Failed to initiate payment: ${message}`;
-             paymentFailed = true;
-             dispatch('paymentFailure', { message: revolutError }); // Notify parent
-         }
+        // 2. Dispatch submit event with name to parent
+        console.debug("PaymentForm: Dispatching submit event with name:", nameOnCard);
+        dispatch('submit', { nameOnCard });
     }
 
-    // --- Keep Error Handling Functions ---
-    export function resetErrors() {
-        console.debug("Resetting errors.");
+    // --- Error Handling ---
+    // Simplified: Parent controls initialization errors. This component only resets its own validation.
+    export function resetValidation() {
+        console.debug("PaymentForm: Resetting validation.");
         nameError = '';
         showNameWarning = false;
         attemptedSubmit = false;
-        paymentFailed = false;
-        revolutError = null;
-        // Revolut element handles its own visual state for errors
     }
 
-    // Modified setPaymentFailed to accept a message
-    export function setPaymentFailed(message: string = "Payment failed.") {
-        console.warn(`Setting payment failed state: ${message}`);
-        paymentFailed = true;
-        revolutError = message; // Display a general error message
+    // Function to handle the secure payment info click
+    function handleSecurePaymentInfoClick() {
+        window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
+    }
+
+    function handleRetryInit() {
+        dispatch('retryInit');
     }
 
 </script>
 
-<div class="payment-form" class:loading={isLoadingRevolut} in:fade={{ duration: 300 }}>
-    {#if isLoadingRevolut}
+<div class="payment-form" class:loading={isInitializing} in:fade={{ duration: 300 }}>
+    {#if isInitializing}
         <div class="loading-indicator">Loading Payment Form...</div>
-    {:else if revolutError}
+    {:else if initializationError}
          <div class="error-message color-error">
              <span class="clickable-icon icon_warning"></span>
-             {revolutError}
-             {#if revolutError.includes("initialize") || revolutError.includes("token")} <!-- Allow retry on init errors -->
-                 <button class="text-button" on:click={initializeRevolut}>Retry</button>
-             {/if}
+             {initializationError}
+             <!-- Allow retry on init errors -->
+             <button class="text-button" on:click={handleRetryInit}>Retry</button>
          </div>
     {/if}
 
@@ -363,7 +108,7 @@
     </div>
 
     <form on:submit|preventDefault={handleBuyClick}>
-        <!-- Keep Name Input -->
+        <!-- Name Input -->
         <div class="input-group">
             <div class="input-wrapper">
                 <span class="clickable-icon icon_user"></span>
@@ -376,7 +121,7 @@
                     class:error={!!nameError}
                     required
                     autocomplete="name"
-                    disabled={isLoadingRevolut || !!revolutError || !cardFieldInstance}
+                    disabled={isInitializing || !!initializationError}
                 />
                 {#if showNameWarning && nameError}
                     <InputWarning
@@ -387,11 +132,11 @@
             </div>
         </div>
 
-        <!-- Revolut Card Field Container -->
+        <!-- Revolut Card Field Container (Managed by Parent) -->
         <div class="input-group revolut-card-field-wrapper">
              <div bind:this={cardFieldContainer} id="revolut-card-field">
-                 <!-- Revolut Card Field will be mounted here -->
-                 {#if isLoadingRevolut}<!-- Show text while loading element -->
+                 <!-- Revolut Card Field will be mounted here by Payment.svelte -->
+                 {#if isInitializing}<!-- Show text while parent is loading element -->
                     <span class="color-grey-60">Loading card details...</span>
                  {/if}
              </div>
@@ -400,7 +145,7 @@
         <button
             type="submit"
             class="buy-button"
-            disabled={isLoadingRevolut || !!revolutError || !cardFieldInstance || !nameOnCard || !!nameError}
+            disabled={isInitializing || !!initializationError || !nameOnCard || !!nameError}
         >
             {$text('signup.buy_for.text').replace(
                 '{currency}', currency
@@ -409,7 +154,7 @@
             ).replace(' for {amount}','')}
         </button>
 
-        <!-- Keep OR Divider and Apple/Google Pay (to be implemented separately) -->
+        <!-- OR Divider and Apple/Google Pay -->
         <div class="or-divider">
             <span class="color-grey-60">{@html $text('signup.or.text')}</span>
         </div>
@@ -424,7 +169,7 @@
         </p>
     </form>
 
-    <!-- Keep Bottom Container -->
+    <!-- Bottom Container -->
     <div class="bottom-container">
          <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
              <span class="clickable-icon icon_lock inline-lock-icon"></span>
@@ -434,7 +179,7 @@
 </div>
 
 <style>
-    /* Add styles for loading and error states */
+    /* Styles for loading and error states */
     .loading-indicator {
         text-align: center;
         padding: 40px 20px;
@@ -449,13 +194,13 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 14px; /* Slightly smaller error text */
+        font-size: 14px;
     }
     .error-message .clickable-icon {
         position: static;
         transform: none;
-        background-color: var(--color-error); /* Make icon match text */
-        width: 18px; /* Smaller icon */
+        background-color: var(--color-error);
+        width: 18px;
         height: 18px;
         flex-shrink: 0;
     }
@@ -470,27 +215,17 @@
     /* Style the container for the Revolut element */
     .revolut-card-field-wrapper {
         min-height: 48px; /* Ensure it has height while loading */
-        border: 1px solid var(--color-input-border); /* Match other inputs */
-        border-radius: var(--radius-input); /* Match other inputs */
-        background-color: var(--color-input-bg); /* Match other inputs */
+        border: 1px solid var(--color-input-border);
+        border-radius: var(--radius-input);
+        background-color: var(--color-input-bg);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0; /* Remove padding from wrapper, Revolut element has its own */
-        transition: border-color 0.2s ease; /* Smooth transition for focus/error */
+        padding: 0;
+        transition: border-color 0.2s ease;
     }
-    /* Add focus/error state to wrapper if needed, although Revolut element might handle it */
-     .revolut-card-field-wrapper:has(#revolut-card-field.invalid) { /* Example if Revolut adds class */
-         /* border-color: var(--color-error); */
-     }
-     .revolut-card-field-wrapper:has(#revolut-card-field:focus-within) { /* Example */
-         /* border-color: var(--color-primary); */
-         /* box-shadow: 0 0 0 1px var(--color-primary); */
-     }
-
-
      #revolut-card-field {
-         width: 100%; /* Ensure it takes full width */
+         width: 100%;
      }
      #revolut-card-field span { /* Style internal loading text */
         font-size: 14px;
@@ -515,40 +250,35 @@
         margin-bottom: 10px;
     }
     .input-group {
-        margin-bottom: 12px; /* Consistent spacing */
-        position: relative; /* For InputWarning positioning */
+        margin-bottom: 12px;
+        position: relative;
     }
     .input-wrapper {
-        height: 48px; /* Consistent height */
-        position: relative; /* For icon positioning */
+        height: 48px;
+        position: relative;
         display: flex;
         align-items: center;
     }
-     .input-wrapper .clickable-icon { /* Position icon inside */
+     .input-wrapper .clickable-icon {
         position: absolute;
         left: 12px;
         top: 50%;
         transform: translateY(-50%);
         width: 20px;
         height: 20px;
-        background-color: var(--color-grey-60); /* Default icon color */
-        pointer-events: none; /* Prevent icon interaction */
+        background-color: var(--color-grey-60);
+        pointer-events: none;
     }
-     .input-wrapper input { /* Add padding for icon */
+     .input-wrapper input {
         padding-left: 40px;
         width: 100%;
         height: 100%;
-        box-sizing: border-box; /* Include padding/border in width/height */
-        /* Inherit styles from base input styles */
+        box-sizing: border-box;
     }
      .input-wrapper input.error {
          border-color: var(--color-error);
          color: var(--color-error);
      }
-      .input-wrapper input.error + .clickable-icon { /* Change icon color on error */
-         /* background-color: var(--color-error); */ /* Optional */
-     }
-
 
     .inline-lock-icon {
         position: unset;
@@ -556,12 +286,12 @@
         display: inline-block;
         vertical-align: middle;
         margin-right: 5px;
-        width: 16px; /* Smaller lock */
+        width: 16px;
         height: 16px;
     }
     .buy-button {
         width: 100%;
-        margin-top: 10px; /* Space above button */
+        margin-top: 10px;
     }
     .buy-button:disabled {
         opacity: 0.7;
@@ -571,7 +301,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 16px 0; /* Adjusted margin */
+        margin: 16px 0;
         text-align: center;
     }
      .or-divider span {
@@ -583,19 +313,18 @@
          content: '';
          flex-grow: 1;
          height: 1px;
-         background-color: var(--color-grey-20); /* Lighter divider line */
+         background-color: var(--color-grey-20);
      }
 
     .apple-pay-button {
         width: 100%;
-        height: 48px; /* Match input height */
+        height: 48px;
         background-color: black;
         color: white;
         border: none;
-        border-radius: var(--radius-input); /* Match input radius */
+        border-radius: var(--radius-input);
         font-size: 16px;
         font-weight: 500;
-        /* margin-top: 12px; */ /* Removed, spacing handled by divider */
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -613,14 +342,14 @@
     .vat-info {
         font-size: 14px;
         text-align: center;
-        margin: 16px 0 0; /* Margin top only */
+        margin: 16px 0 0;
     }
     .bottom-container {
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
-        padding: 10px 0; /* Padding for the button */
+        padding: 10px 0;
         display: flex;
         justify-content: center;
     }
