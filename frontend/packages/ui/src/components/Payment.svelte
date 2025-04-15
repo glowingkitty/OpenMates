@@ -95,7 +95,7 @@
             clearTimeout(pollingTimeoutId);
             pollingTimeoutId = null;
         }
-        currentOrderId = null; // Clear order ID when polling stops
+        // currentOrderId = null; // DO NOT clear order ID here, clear it only when process ends
     }
 
     async function checkOrderStatus(orderId: string) {
