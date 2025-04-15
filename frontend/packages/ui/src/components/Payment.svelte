@@ -165,48 +165,17 @@
                 // --- Event Handlers (Now directly within Payment.svelte) ---
                 onSuccess() {
                     console.info("Payment.svelte: Revolut onSuccess callback triggered.");
-                    stopPolling();
-                    paymentState = 'success';
-                    // No need to call cleanupInstance here, handled in onDestroy or state transitions
-                    dispatch('paymentProcessing', { processing: false });
-                    dispatch('paymentStateChange', { state: 'success' });
-                    setTimeout(() => {
-                        dispatch('paymentSuccess', {
-                            // Pass relevant details if needed, e.g., from polling data
-                            amount: credits_amount,
-                            currency: currency
-                        });
-                    }, 1500);
+                    // Do NOT stop polling here; let polling continue until backend confirms COMPLETED
+                    // Optionally, set a flag if you want to track that onSuccess fired
                 },
                 onError(error) {
                     console.error("Payment.svelte: Revolut onError callback triggered:", error);
-                    stopPolling();
-                    const message = typeof error === 'string' ? error : (error?.message || "Unknown payment error");
-                    revolutError = `Payment failed: ${message}`; // Set error for potential display
-                    paymentState = 'failure'; // Keep failure state briefly
-                    // No need to call cleanupInstance here
-                    dispatch('paymentProcessing', { processing: false });
-                    dispatch('paymentStateChange', { state: 'failure' });
-                    setTimeout(() => {
-                        // Reset to allow retry - re-initialize
-                        paymentDetails.failed = true; // Mark that the last attempt failed
-                        paymentState = 'idle'; // Go back to idle, which will trigger re-init if form is shown
-                        dispatch('paymentStateChange', { state: 'idle' });
-                        // Re-initialize automatically if form is visible
-                        // Removed automatic re-initialization: if (showPaymentForm) { initializePaymentFlow(); }
-                    }, 2000); // Keep timeout to show error message before resetting state
+                    // Do NOT stop polling here; let polling continue until backend confirms FAILED/CANCELLED
+                    // Optionally, set a flag if you want to track that onError fired
                 },
-                 onCancel() {
+                onCancel() {
                     console.info("Payment.svelte: Revolut onCancel callback triggered.");
-                    stopPolling();
-                    // Reset state back to idle (showing the form)
-                    paymentState = 'idle';
-                    // No need to call cleanupInstance here
-                    dispatch('paymentProcessing', { processing: false });
-                    dispatch('paymentStateChange', { state: 'idle' });
-                    dispatch('paymentCancel');
-                    // Re-initialize automatically if form is visible
-                    // Removed automatic re-initialization: if (showPaymentForm) { initializePaymentFlow(); }
+                    // Do NOT stop polling here; let polling continue until backend confirms CANCELLED
                 },
                 onValidation(errors) {
                     console.debug("Payment.svelte: Revolut validation event:", errors);
