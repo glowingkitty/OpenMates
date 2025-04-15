@@ -128,7 +128,8 @@
 			console.log(`Initializing RevolutCheckout for order ${orderToken} in ${environment} mode.`);
 
 			const RC = await RevolutCheckout(orderToken, environment);
-            if (!RC || typeof RC.createCardField !== 'function') {
+			         console.log('RevolutCheckout returned:', RC, 'typeof RC:', typeof RC);
+			         if (!RC || typeof RC.createCardField !== 'function') {
                 throw new Error('RevolutCheckout initialization failed or did not return expected object.');
             }
 			console.log('RevolutCheckout loaded.');
@@ -150,31 +151,37 @@
 				},
 				onError(error) {
 					console.error('Payment error:', error);
-                    // Revolut often returns error like { code: 'payment_declined', message: '...' }
-                    const message = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'An unknown payment error occurred.';
+			                 // Revolut often returns error like { code: 'payment_declined', message: '...' }
+			                 const message = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'An unknown payment error occurred.';
 					errorMessage = `Payment failed: ${message}`;
 					successMessage = null;
 					validationErrors = null;
 				},
 				onValidation(errors) {
-                    console.warn('Validation errors:', errors);
+			                 console.warn('Validation errors:', errors);
 					// Concatenate the error messages into a single string
 					const concatenatedErrors = errors
 						?.map((err: { message: string }) => err.message)
 						.join('; ');
-
+	
 					if (concatenatedErrors?.length) {
 						validationErrors = concatenatedErrors;
-                        errorMessage = null; // Clear general error message if validation errors occur
+			                     errorMessage = null; // Clear general error message if validation errors occur
 					} else {
-                        validationErrors = null; // Clear validation errors if none are present
-                    }
+			                     validationErrors = null; // Clear validation errors if none are present
+			                 }
 				}
 			});
-			console.log('Card Field instance created.');
-            // Mount the instance
-            cardFieldInstance.mount();
-            console.log('Card Field instance mounted.');
+			console.log('Card Field instance created:', cardFieldInstance, 'typeof:', typeof cardFieldInstance);
+
+			         // Defensive: Check if cardFieldInstance and mount() exist before calling
+			         if (cardFieldInstance && typeof cardFieldInstance.mount === 'function') {
+			             cardFieldInstance.mount();
+			             console.log('Card Field instance mounted.');
+			         } else {
+			             console.error('Card Field instance is invalid or missing mount().', cardFieldInstance);
+			             throw new Error('Failed to mount Card Field: instance is invalid or missing mount().');
+			         }
 
 		} catch (error) {
 			console.error('Failed to initialize Revolut Card Field:', error);
