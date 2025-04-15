@@ -227,8 +227,6 @@
 </script>
 
 <div class="payment-demo-container">
-  <h2>Revolut Card Field Demo</h2>
-
   {#if isLoading}
     <p>Loading payment details...</p>
   {/if}

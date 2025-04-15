@@ -159,9 +159,12 @@ class SecretsManager:
                 value = os.environ.get(key)
                 if not value or value == "IMPORTED_TO_VAULT":
                     continue
-                    
-                if key not in existing_data:
+            
+                if key in existing_data:
+                    logger.info(f"Secret {key} already exists in Vault, skipping.")
+                else:
                     new_secrets_to_store[key] = value
+                    logger.info(f"Secret {key} added to Vault.")
             
             if not new_secrets_to_store:
                 logger.info("No new secrets to add to Vault")

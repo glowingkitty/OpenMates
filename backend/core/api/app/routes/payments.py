@@ -208,6 +208,7 @@ async def revolut_webhook(
     """Handles incoming webhook events from Revolut."""
     payload_bytes = await request.body()
     signature_header = request.headers.get("Revolut-Signature")
+    request_timestamp_header = request.headers.get("Revolut-Request-Timestamp")
     
     logger.info(f"Received Revolut webhook. Signature present: {bool(signature_header)}")
     
@@ -217,7 +218,9 @@ async def revolut_webhook(
 
     # --- Actual Implementation ---
     try:
-        is_valid, event_payload = await revolut_service.verify_and_parse_webhook(payload_bytes, signature_header)
+        is_valid, event_payload = await revolut_service.verify_and_parse_webhook(
+            payload_bytes, signature_header, request_timestamp_header
+        )
         
         if not is_valid:
             # Error is logged within the service method

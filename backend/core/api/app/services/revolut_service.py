@@ -168,14 +168,18 @@ class RevolutService:
             return None
 
     async def verify_and_parse_webhook(
-        self, payload_bytes: bytes, signature_header: Optional[str]
+        self,
+        payload_bytes: bytes,
+        signature_header: Optional[str],
+        request_timestamp_header: Optional[str],
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
         Verifies the Revolut webhook signature and parses the payload.
 
         Args:
             payload_bytes: The raw request body bytes.
-            signature_header: The value of the 'Revolut-Signature' header.
+            signature_header: The value of the 'revolut-signature' header (e.g., "v1=...").
+            request_timestamp_header: The value of the 'revolut-request-timestamp' header (e.g., "1680000000").
 
         Returns:
             A tuple: (is_valid: bool, parsed_payload: Optional[Dict[str, Any]]).
@@ -184,7 +188,10 @@ class RevolutService:
             Returns (True, None) if signature is valid but JSON parsing fails.
         """
         if not signature_header:
-            logger.warning("Webhook verification failed: Missing Revolut-Signature header.")
+            logger.warning("Webhook verification failed: Missing revolut-signature header.")
+            return False, None
+        if not request_timestamp_header:
+            logger.warning("Webhook verification failed: Missing revolut-request-timestamp header.")
             return False, None
 
         webhook_secret = await self._get_webhook_secret()
@@ -192,36 +199,50 @@ class RevolutService:
             logger.error("Webhook verification failed: Webhook signing secret not configured.")
             return False, None # Cannot verify without the secret
 
-        # Parse the signature header (e.g., "t=1678886400,v1=...")
-        # For simplicity, assuming a basic format. Revolut might have a more complex one.
-        # A robust implementation should parse timestamp and signatures properly.
-        # This example assumes a simple HMAC-SHA256 signature. Adapt if needed.
-        # Example structure: t=<timestamp>,v1=<signature>
-        parts = {p.split('=')[0]: p.split('=')[1] for p in signature_header.split(',')}
-        request_timestamp_str = parts.get('t')
-        request_signature = parts.get('v1')
+        logger.info(f"Raw revolut-signature header: {signature_header}")
+        logger.info(f"Raw revolut-request-timestamp header: {request_timestamp_header}")
 
-        if not request_timestamp_str or not request_signature:
-             logger.warning(f"Webhook verification failed: Could not parse signature header: {signature_header}")
-             return False, None
+        # Parse the signature header (e.g., "v1=...")
+        if "=" not in signature_header:
+            logger.warning(f"Webhook verification failed: Could not parse revolut-signature header: {signature_header}")
+            return False, None
+        signature_version, request_signature = signature_header.split("=", 1)
+        request_timestamp_str = request_timestamp_header.strip()
 
-        # Optional: Check timestamp tolerance to prevent replay attacks
+        logger.info(f"Parsed signature_version: {signature_version}, request_signature: {request_signature}, request_timestamp_str: {request_timestamp_str}")
+
+        if not signature_version or not request_signature or not request_timestamp_str:
+            logger.warning(
+                f"Webhook verification failed: Could not parse signature or timestamp. "
+                f"Signature header: {signature_header}, Timestamp header: {request_timestamp_header}"
+            )
+            return False, None
+
+        # Check timestamp tolerance to prevent replay attacks
         try:
             request_timestamp = int(request_timestamp_str)
+            # If timestamp is in milliseconds, convert to seconds
+            if request_timestamp > 1e12:
+                logger.info(f"Request timestamp appears to be in milliseconds, converting to seconds: {request_timestamp} -> {request_timestamp // 1000}")
+                request_timestamp = request_timestamp // 1000
             current_timestamp = int(time.time())
-            tolerance = 300 # 5 minutes tolerance
+            tolerance = 60 # 1 minute tolerance
+            logger.info(f"Comparing timestamps: request={request_timestamp}, current={current_timestamp}, tolerance={tolerance}")
             if abs(current_timestamp - request_timestamp) > tolerance:
-                logger.warning(f"Webhook verification failed: Timestamp outside tolerance. Request: {request_timestamp}, Current: {current_timestamp}")
-                # return False, None # Decide if you want to enforce this strictly
+                logger.warning(
+                    f"Webhook verification failed: Timestamp outside tolerance. "
+                    f"Request: {request_timestamp}, Current: {current_timestamp}"
+                )
+                return False, None
         except ValueError:
-             logger.warning(f"Webhook verification failed: Invalid timestamp format in header: {request_timestamp_str}")
-             return False, None
+            logger.warning(
+                f"Webhook verification failed: Invalid timestamp format in header: {request_timestamp_str}"
+            )
+            return False, None
 
-
-        # Construct the signed payload string: timestamp + '.' + request_body
         # Construct the signed payload string: version + '.' + timestamp + '.' + request_body
-        # Match the format from Revolut docs/examples: v1.<timestamp>.<raw_payload>
-        signed_payload = f"v1.{request_timestamp_str}.{payload_bytes.decode('utf-8')}"
+        signed_payload = f"{signature_version}.{request_timestamp_str}.{payload_bytes.decode('utf-8')}"
+        logger.info(f"Constructed signed_payload for HMAC: {signed_payload[:800]}...")  # Log only first 200 chars for brevity
 
         # Calculate the expected signature
         expected_signature = hmac.new(
@@ -229,10 +250,14 @@ class RevolutService:
             signed_payload.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
+        logger.info(f"Expected signature: {expected_signature}")
 
         # Compare signatures securely
         if not hmac.compare_digest(expected_signature, request_signature):
-            logger.error(f"Webhook verification failed: Signature mismatch. Expected: {expected_signature}, Got: {request_signature}")
+            logger.error(
+                f"Webhook verification failed: Signature mismatch. "
+                f"Expected: {expected_signature}, Got: {request_signature}"
+            )
             return False, None
 
         logger.info("Revolut webhook signature verified successfully.")
@@ -240,6 +265,7 @@ class RevolutService:
         # Try parsing the payload
         try:
             parsed_payload = json.loads(payload_bytes)
+            logger.info(f"Successfully parsed webhook payload: {parsed_payload}")
             return True, parsed_payload
         except json.JSONDecodeError as e:
             logger.error(f"Webhook signature valid, but failed to parse JSON payload: {str(e)}")
