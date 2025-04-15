@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import RevolutCheckout from '@revolut/checkout';
 	import { apiEndpoints, getApiEndpoint } from '../config/api';
 
@@ -86,6 +86,8 @@
 			revolutPublicOrderId = order.order_id;
 			console.log('Revolut Order created:', revolutPublicOrderId);
 			showCheckoutForm = true; // Show the form now
+			// Wait for Svelte to update the DOM so cardFieldTarget is bound
+			await tick();
 			// Initialize Card Field after order is created and element is visible
 			await initializeCardField();
 
