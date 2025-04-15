@@ -69,6 +69,7 @@ export const apiEndpoints = {
     payments: {
         config:                     '/v1/payments/config',                      // Get public config for Revolut widget
         createOrder:                '/v1/payments/create-order',                // Create a payment order with Revolut
+        orderStatus:                '/v1/payments/order-status',                // Get the status of a specific order (POST request)
         // Webhook endpoint is only called by Revolut, not the frontend
     }
 } as const;

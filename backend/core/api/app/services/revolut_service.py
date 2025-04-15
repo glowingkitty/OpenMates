@@ -211,6 +211,52 @@ class RevolutService:
             logger.error(f"Webhook signature valid, but failed to parse JSON payload: {str(e)}")
             return True, None # Signature was valid, but payload is unusable
 
+    async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the details of a specific order from Revolut.
+
+        Args:
+            order_id: The ID of the order to retrieve.
+
+        Returns:
+            A dictionary containing the order details, or None if an error occurred.
+        """
+        api_key = await self._get_api_key()
+        if not api_key:
+            return None
+
+        if not self.base_url:
+            await self.initialize()
+
+        client = await self._get_client()
+        url = f"{self.base_url}/orders/{order_id}"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "Revolut-Api-Version": "2024-09-01", # Use consistent API version
+        }
+
+        try:
+            logger.info(f"Retrieving Revolut order details for Order ID: {order_id}")
+            response = await client.get(url, headers=headers)
+            
+            # Handle 404 specifically
+            if response.status_code == 404:
+                 logger.warning(f"Revolut order {order_id} not found.")
+                 return None
+                 
+            response.raise_for_status() # Raise for other 4xx/5xx errors
+            order_data = response.json()
+            logger.info(f"Successfully retrieved details for Revolut order {order_id}. State: {order_data.get('state')}")
+            return order_data
+        except httpx.HTTPStatusError as e:
+            # Log specific HTTP errors (other than 404 handled above)
+            logger.error(f"HTTP error retrieving Revolut order {order_id}: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving Revolut order {order_id}: {str(e)}", exc_info=True)
+            return None
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:

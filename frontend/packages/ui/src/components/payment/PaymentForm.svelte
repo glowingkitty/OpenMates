@@ -21,6 +21,7 @@
     let revolutCheckout: RevolutCheckoutInstance | null = null;
     let cardFieldInstance: any | null = null; // Use 'any' or let TS infer type
     let orderToken: string | null = null;
+    let orderId: string | null = null; // Store the Revolut Order ID
     let isLoadingRevolut = true; // Track loading state
     let revolutError: string | null = null; // Store errors from Revolut init/payment
     let revolutPublicKey: string | null = null; // Store public key if needed later (e.g., for upsell)
@@ -78,6 +79,7 @@
         isLoadingRevolut = true;
         revolutError = null;
         orderToken = null;
+        orderId = null; // Reset orderId as well
         // Destroy previous instance if exists
         if (cardFieldInstance) {
             cardFieldInstance.destroy();
@@ -134,11 +136,12 @@
             }
             const orderData = await orderResponse.json();
             orderToken = orderData.order_token;
-            console.debug(`Order token received: ${orderToken ? 'OK' : 'MISSING'}`);
+            orderId = orderData.order_id; // Store the order ID
+            console.debug(`Order token received: ${orderToken ? 'OK' : 'MISSING'}, Order ID: ${orderId ? 'OK' : 'MISSING'}`);
 
 
-            if (!orderToken) {
-                throw new Error("Received empty order token from backend.");
+            if (!orderToken || !orderId) { // Check for orderId too
+                throw new Error("Received incomplete order details (token or ID missing) from backend.");
             }
 
             // 3. Initialize Revolut Checkout Widget
@@ -295,7 +298,7 @@
  
           // 4. Dispatch 'startPayment' to parent to indicate processing start
           console.info("Dispatching startPaymentProcessing event.");
-          dispatch('startPaymentProcessing');
+          dispatch('startPaymentProcessing', { orderId: orderId }); // Dispatch orderId
  
          // 5. Submit the Revolut Card Field with fetched email
          try {

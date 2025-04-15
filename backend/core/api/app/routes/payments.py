@@ -55,7 +55,15 @@ class CreateOrderRequest(BaseModel):
 
 class CreateOrderResponse(BaseModel):
     order_token: str # The public token for the Revolut Checkout Widget
+    order_id: str # The unique ID for the Revolut order
 
+class OrderStatusRequest(BaseModel): # New model for the request body
+    order_id: str
+
+class OrderStatusResponse(BaseModel):
+    order_id: str
+    state: str # e.g., CREATED, PENDING, AUTHORISED, COMPLETED, FAILED, CANCELLED
+    # Optionally include more details if needed from Revolut's get order response
 # --- Endpoints ---
 
 @router.get("/config", response_model=PaymentConfigResponse)
@@ -118,7 +126,16 @@ async def create_payment_order(
             raise HTTPException(status_code=502, detail="Failed to initiate payment with provider.")
             
         logger.info(f"Revolut order created successfully for user {current_user.id}. Order ID: {order_response.get('id')}")
-        return CreateOrderResponse(order_token=order_response["token"])
+        # Ensure order_id is present before returning
+        order_id = order_response.get("id")
+        if not order_id:
+             logger.error(f"Revolut order response missing 'id' for user {current_user.id}.")
+             raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
+
+        return CreateOrderResponse(
+            order_token=order_response["token"],
+            order_id=order_id
+        )
         
     except HTTPException as e:
         raise e # Re-raise HTTP exceptions
@@ -259,3 +276,39 @@ async def revolut_webhook(
     # If we reach here, processing was successful or the event was ignored
     return {"status": "received"} # Acknowledge receipt to Revolut
 # --- End Actual Implementation ---
+
+
+@router.post("/order-status", response_model=OrderStatusResponse) # Changed to POST
+async def get_order_status(
+    status_request: OrderStatusRequest, # Changed parameter to accept request body
+    revolut_service: RevolutService = Depends(get_revolut_service),
+    current_user: User = Depends(get_current_user) # Ensure user is authenticated
+):
+    """Retrieves the current status of a Revolut order."""
+    order_id = status_request.order_id # Extract order_id from body
+    logger.info(f"Fetching status for Revolut order {order_id} for user {current_user.id}")
+    try:
+        # We need to add a method to RevolutService to fetch order details
+        order_details = await revolut_service.get_order(order_id)
+
+        if not order_details:
+            logger.warning(f"Order {order_id} not found or failed to fetch from Revolut for user {current_user.id}.")
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # Optional: Add check here to ensure the order belongs to the current_user
+        # This might require storing user_id association with order_id or checking metadata if possible via GET /order
+        # For now, we assume the frontend only polls for orders it created.
+
+        order_state = order_details.get("state")
+        if not order_state:
+             logger.error(f"Revolut order details for {order_id} missing 'state'.")
+             raise HTTPException(status_code=502, detail="Could not determine order status from payment provider.")
+
+        logger.info(f"Status for order {order_id}: {order_state}")
+        return OrderStatusResponse(order_id=order_id, state=order_state)
+
+    except HTTPException as e:
+        raise e # Re-raise HTTP exceptions
+    except Exception as e:
+        logger.error(f"Error fetching status for Revolut order {order_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error fetching order status.")
