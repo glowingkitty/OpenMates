@@ -247,17 +247,35 @@ async def revolut_webhook(
 
         # Proceed if signature is valid and payload parsed
         event_type = event_payload.get("event")
-        event_data = event_payload.get("data", {})
-        order_id = event_data.get("id")
-        order_state = event_data.get("state")
-        metadata = event_data.get("metadata", {})
-        user_id = metadata.get("user_id")
-        credits_purchased_str = metadata.get("credits_purchased")
-        
-        logger.info(f"Processing verified webhook event: {event_type}, Order ID: {order_id}, State: {order_state}, User ID: {user_id}")
-        
+        # Extract order_id directly from the top-level payload for events like ORDER_COMPLETED
+        webhook_order_id = event_payload.get("order_id")
+        if not webhook_order_id:
+            logger.warning(f"Webhook event {event_type} received without an order_id in the payload.")
+            return {"status": "received_missing_order_id"}
+
+        logger.info(f"Processing verified webhook event: {event_type} for Order ID: {webhook_order_id}")
+
         # --- Process ORDER_COMPLETED ---
-        if event_type == "ORDER_COMPLETED" and user_id and credits_purchased_str:
+        if event_type == "ORDER_COMPLETED":
+            # Fetch full order details to get metadata
+            order_details = await revolut_service.get_order(webhook_order_id)
+            if not order_details:
+                logger.error(f"Failed to fetch order details for completed order {webhook_order_id}. Cannot process.")
+                # Acknowledge webhook, but log error. Maybe set cache status to failed?
+                await cache_service.update_order_status(webhook_order_id, "failed_details_fetch")
+                return {"status": "order_fetch_failed"}
+
+            metadata = order_details.get("metadata", {})
+            user_id = metadata.get("user_id")
+            credits_purchased_str = metadata.get("credits_purchased")
+            order_id = order_details.get("id") # Use ID from fetched details for consistency
+
+            if not user_id or not credits_purchased_str:
+                 logger.error(f"Missing user_id or credits_purchased in metadata for completed order {order_id}. Metadata: {metadata}")
+                 await cache_service.update_order_status(order_id, "failed_missing_metadata")
+                 return {"status": "metadata_missing"}
+
+            # Proceed with processing using fetched details
             try:
                 credits_purchased = int(credits_purchased_str)
                 logger.info(f"Order {order_id} completed for user {user_id}. Awarding {credits_purchased} credits.")
@@ -324,16 +342,22 @@ async def revolut_webhook(
                 # TODO: Consider refunding the payment if credits could not be added
                 return {"status": "processing_error"}
 
-        # --- Process ORDER_FAILED ---
+        # --- Process ORDER_FAILED (or other terminal states from webhook if needed) ---
         elif event_type == "ORDER_FAILED":
-            logger.warning(f"Received verified ORDER_FAILED event for order {order_id}. User: {user_id}. Reason: {event_data.get('error_message', 'N/A')}")
-            # Set order status in cache to "failed" (5 min TTL)
-            await cache_service.update_order_status(order_id, "failed")
+            # Fetch order details to potentially get user_id if available in metadata
+            order_details = await revolut_service.get_order(webhook_order_id)
+            metadata = order_details.get("metadata", {}) if order_details else {}
+            user_id_from_meta = metadata.get("user_id", "Unknown")
+            error_message = order_details.get("error_message", "N/A") if order_details else "N/A"
+
+            logger.warning(f"Received verified ORDER_FAILED event for order {webhook_order_id}. User (from metadata): {user_id_from_meta}. Reason: {error_message}")
+            # Set order status in cache to "failed"
+            await cache_service.update_order_status(webhook_order_id, "failed")
             # No action needed for credits, just log.
 
         # --- Ignore other events ---
         else:
-            logger.info(f"Ignoring verified webhook event type: {event_type} for order {order_id}")
+            logger.info(f"Ignoring verified webhook event type: {event_type} for order {webhook_order_id}")
 
     except HTTPException as e:
         # Re-raise HTTP exceptions (like the 400 from invalid signature)

@@ -13,6 +13,7 @@
   let successMessage: string | null = null;
   let validationErrors: string | null = null;
   let showCheckoutForm = false;
+  let pollTimeoutId: number | null = null; // Declare timeout ID at component level
 
   // --- Form Data ---
   let name = '';
@@ -193,6 +194,7 @@
     let attempts = 0;
     const maxAttempts = 20; // e.g., poll for up to 20 times (~40s)
     const pollInterval = 2000; // 2 seconds
+    // let pollTimeoutId: number | null = null; // Moved to component scope
 
     // We need to get the order_id associated with the orderToken.
     // Since the backend returns both order_token and order_id, we should store order_id when creating the order.
@@ -224,6 +226,7 @@
           validationErrors = null;
           orderToken = null;
           lastOrderId = null;
+          if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling
           return;
         } else if (state === 'FAILED' || state === 'CANCELLED') {
           errorMessage = 'Payment failed or was cancelled. Please try again.';
@@ -231,17 +234,19 @@
           validationErrors = null;
           orderToken = null;
           lastOrderId = null;
+          if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling
           return;
         } else {
           // Still pending, poll again
           if (attempts < maxAttempts) {
-            setTimeout(poll, pollInterval);
+            pollTimeoutId = setTimeout(poll, pollInterval); // Store timeout ID
           } else {
             errorMessage = 'Payment processing timed out. Please check your order status later.';
             successMessage = null;
             validationErrors = null;
             orderToken = null;
             lastOrderId = null;
+            // No need to clear timeout here, it just won't schedule a new one
           }
         }
       } catch (err) {
@@ -250,8 +255,12 @@
         validationErrors = null;
         orderToken = null;
         lastOrderId = null;
+        if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling on error
       }
     }
+
+    // Clear any existing timeout before starting a new poll sequence
+    if (pollTimeoutId) clearTimeout(pollTimeoutId);
     poll();
   }
 
@@ -297,6 +306,10 @@
         } catch (error) {
           console.error('Error destroying CardField instance on unmount:', error);
         }
+      }
+      // Also clear timeout on component destroy
+      if (pollTimeoutId) {
+        clearTimeout(pollTimeoutId);
       }
     };
   });
