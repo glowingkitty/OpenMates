@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte"; // Import tick
   import { createEventDispatcher } from "svelte";
   import { apiEndpoints, getApiEndpoint } from "../config/api";
 
@@ -42,6 +42,12 @@
     orderToken = null;
     orderId = null;
 
+    // Clear previous card field immediately if it exists
+    if (cardFieldDiv) cardFieldDiv.innerHTML = "";
+
+    // Wait for Svelte to potentially update the DOM based on loading state
+    await tick();
+
     try {
       // Create order
       const res = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
@@ -67,13 +73,15 @@
       // Initialize card field
       const { createCardField } = await RevolutCheckout(orderToken, revolutConfig?.environment || "sandbox");
 
-      // Remove any previous card field
-      if (cardFieldDiv) cardFieldDiv.innerHTML = "";
+      // Wait for Svelte to render the cardFieldDiv if it wasn't visible before
+      await tick();
 
-      // Ensure the cardFieldDiv is available
+      // Ensure the cardFieldDiv is available *after* the tick
       if (!cardFieldDiv) {
+        console.error("Card field container (cardFieldDiv) is null after tick.");
         throw new Error("Card field container not found in DOM.");
       }
+      console.log("Target element for Revolut:", cardFieldDiv); // Add log for debugging
 
       createCardField({
         target: cardFieldDiv,
@@ -83,19 +91,24 @@
           dispatch("payment", { orderId, status: "success" });
         },
         onError(error) {
+          console.error("Revolut onError:", error); // Log Revolut errors
           paymentState = "error";
           errorMessage = "Payment failed. Please try again.";
           dispatch("payment", { orderId, status: "error", error });
         },
         onValidation(errors) {
+          console.warn("Revolut onValidation:", errors); // Log validation issues
           if (errors && errors.length) {
             errorMessage = errors.map((e) => e.message).join(" - ");
+          } else {
+            errorMessage = ""; // Clear previous validation errors if current validation passes
           }
         }
       });
 
       paymentState = "ready";
     } catch (err: any) {
+      console.error("Error during startPayment:", err); // Log general errors
       errorMessage = err.message || "Unexpected error during payment.";
       paymentState = "error";
     }
@@ -125,6 +138,7 @@
       {#if errorMessage}
         <div class="error">{errorMessage}</div>
       {/if}
+      <!-- Ensure this div is always rendered when the button is clickable -->
       <div bind:this={cardFieldDiv} class="card-field"></div>
     </div>
   {/if}
@@ -166,8 +180,10 @@
 }
 .card-field {
   margin-top: 1em;
-  min-height: 60px;
+  min-height: 60px; /* Ensure it has some height */
   width: 100%;
   max-width: 400px;
+  border: 1px solid #ccc; /* Add border for visibility */
+  padding: 5px; /* Add padding */
 }
 </style>
