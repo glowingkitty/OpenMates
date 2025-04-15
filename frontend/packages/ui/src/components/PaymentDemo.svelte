@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	// @ts-ignore - Importing directly from CDN
-	import RevolutCheckout from 'https://unpkg.com/@revolut/checkout/esm';
+	import RevolutCheckout from '@revolut/checkout';
 	import { apiEndpoints, getApiEndpoint } from '../config/api';
 
 	// --- Component State ---
@@ -28,7 +27,9 @@
 		isLoading = true;
 		errorMessage = null;
 		try {
-			const response = await fetch(getApiEndpoint(apiEndpoints.payments.config));
+			const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), {
+				credentials: 'include' // Send cookies with the request
+			});
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -62,6 +63,7 @@
 			const response = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include', // Send cookies with the request
 				body: JSON.stringify({
 					credits_amount: creditsToPurchase,
 					currency: purchaseCurrency
