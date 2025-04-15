@@ -80,10 +80,10 @@
 			}
 
 			const order = await response.json();
-			if (!order.public_id) {
-				throw new Error('Order created, but public_id is missing in the response.');
+			if (!order.order_id) {
+				throw new Error('Order created, but order_id is missing in the response.');
 			}
-			revolutPublicOrderId = order.public_id;
+			revolutPublicOrderId = order.order_id;
 			console.log('Revolut Order created:', revolutPublicOrderId);
 			showCheckoutForm = true; // Show the form now
 			// Initialize Card Field after order is created and element is visible
