@@ -89,7 +89,7 @@
         if (pollingIntervalId) {
             clearInterval(pollingIntervalId);
             pollingIntervalId = null;
-            console.debug("Payment.svelte: Polling stopped.");
+            console.info("Payment.svelte: Polling stopped."); // Changed to info
         }
         if (pollingTimeoutId) {
             clearTimeout(pollingTimeoutId);
@@ -137,7 +137,7 @@
 
             const data = await response.json();
             const state = data.state?.toUpperCase(); // Normalize state
-            console.debug(`Payment.svelte: Order ${orderId} status is ${state}`);
+            console.info(`Payment.svelte: Order ${orderId} status is ${state}`); // Changed to info
 
             switch (state) {
                 case 'COMPLETED':
@@ -180,7 +180,7 @@
 
     function startPolling(orderId: string) {
         stopPolling(); // Clear any previous polling just in case
-        console.debug(`Payment.svelte: Starting polling for order ${orderId}...`);
+        console.info(`Payment.svelte: Starting polling for order ${orderId}...`); // Changed to info
 
         // Initial check immediately
         checkOrderStatus(orderId);
@@ -203,7 +203,7 @@
     // Called by PaymentForm's onSuccess callback from Revolut
     function handlePaymentSuccess(event) {
         stopPolling(); // Ensure polling stops on success
-        console.debug("Payment.svelte: handlePaymentSuccess triggered", event.detail);
+        console.info("Payment.svelte: handlePaymentSuccess triggered", event.detail); // Changed to info
         paymentState = 'success';
         dispatch('paymentProcessing', { processing: false });
         dispatch('paymentStateChange', { state: 'success' });
@@ -217,7 +217,7 @@
     // Called by PaymentForm's onError callback from Revolut or internal errors
     function handlePaymentFailure(event) {
         stopPolling(); // Ensure polling stops on failure
-        console.warn("Payment.svelte: handlePaymentFailure triggered", event.detail);
+        console.error("Payment.svelte: handlePaymentFailure triggered", event.detail); // Changed to error
         paymentState = 'failure'; // Keep failure state briefly for UI feedback
         dispatch('paymentProcessing', { processing: false });
         dispatch('paymentStateChange', { state: 'failure' });
@@ -278,7 +278,6 @@
     {:else}
         <PaymentForm
             bind:this={paymentFormComponent}
-            purchasePrice={purchasePrice}
             currency={currency}
             credits_amount={credits_amount}
             initialPaymentDetails={paymentState === 'failure' ? paymentDetails : null}

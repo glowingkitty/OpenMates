@@ -11,7 +11,7 @@
     const dispatch = createEventDispatcher();
 
     // Props
-    export let purchasePrice: number = 20;
+    // export let purchasePrice: number = 20; // REMOVED - Price is determined by backend
     export let currency: string = 'EUR';
     export let credits_amount: number; // IMPORTANT: This must be passed from the parent
     // export let showSensitiveData: boolean = false; // No longer needed for Revolut element
@@ -115,7 +115,7 @@
 
             // 2. Create Order to get Order Token
             const orderPayload = {
-                amount: Math.round(purchasePrice * 100), // Convert to cents/smallest unit
+                // amount: Math.round(purchasePrice * 100), // REMOVED - Backend determines amount
                 currency: currency,
                 credits_amount: credits_amount // Use the prop value
             };
@@ -165,7 +165,7 @@
                     dispatch('paymentSuccess', {
                         nameOnCard: nameOnCard,
                         amount: credits_amount, // Pass the credits amount
-                        price: purchasePrice,
+                        // price: purchasePrice, // REMOVED - Price not relevant here anymore
                         currency: currency
                         // Note: lastFourDigits not available here
                     });
@@ -400,8 +400,8 @@
             {$text('signup.buy_for.text').replace(
                 '{currency}', currency
             ).replace(
-                '{amount}', purchasePrice.toString()
-            )}
+                '{amount}', '' // Placeholder or update text as needed
+            ).replace(' for {amount}','')}
         </button>
 
         <!-- Keep OR Divider and Apple/Google Pay (to be implemented separately) -->

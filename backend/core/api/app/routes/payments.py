@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from pydantic import BaseModel
 import logging
 import os
-from typing import Dict, Any
+import yaml # Import PyYAML
+from typing import Dict, Any, Optional
+from pathlib import Path # To construct path to pricing.yml
 
 # Import necessary services and dependencies (adjust paths as needed)
 from app.services.directus import DirectusService
@@ -49,7 +51,7 @@ class PaymentConfigResponse(BaseModel):
     environment: str # 'production' or 'sandbox'
 
 class CreateOrderRequest(BaseModel):
-    amount: int # Amount in smallest currency unit (e.g., cents)
+    # amount: int # REMOVED - Backend will determine amount based on credits and currency
     currency: str # e.g., "EUR"
     credits_amount: int # The number of credits being purchased
 
@@ -91,6 +93,45 @@ async def get_payment_config(
         raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
 
 
+# --- Pricing Config Loading ---
+# Determine the path relative to this file's location
+# Assumes this file is at backend/core/api/app/routes/payments.py
+# and pricing.yml is at shared/config/pricing.yml
+PRICING_CONFIG_PATH = Path(__file__).parent.parent.parent.parent.parent / "shared" / "config" / "pricing.yml"
+PRICING_TIERS = []
+try:
+    with open(PRICING_CONFIG_PATH, 'r') as f:
+        pricing_data = yaml.safe_load(f)
+        PRICING_TIERS = pricing_data.get('pricingTiers', [])
+        logger.info(f"Successfully loaded {len(PRICING_TIERS)} pricing tiers from {PRICING_CONFIG_PATH}")
+except FileNotFoundError:
+    logger.error(f"Pricing configuration file not found at {PRICING_CONFIG_PATH}")
+except yaml.YAMLError as e:
+     logger.error(f"Error parsing pricing configuration file {PRICING_CONFIG_PATH}: {e}")
+except Exception as e:
+     logger.error(f"Unexpected error loading pricing configuration: {e}")
+
+def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
+    """Finds the price in smallest unit for a given credit amount and currency."""
+    currency_lower = currency.lower()
+    for tier in PRICING_TIERS:
+        if tier.get('credits') == credits_amount:
+            price_in_currency = tier.get('price', {}).get(currency_lower)
+            if price_in_currency is not None:
+                # Assuming price is in major units (e.g., EUR), convert to smallest unit (cents)
+                # TODO: Add more robust currency handling if needed (e.g., for JPY which has no subunits)
+                if currency_lower in ['eur', 'usd', 'gbp']: # Add other currencies with 100 subunits
+                     return int(price_in_currency * 100)
+                else: # Assume currencies like JPY have 0 decimal places
+                     return int(price_in_currency)
+            else:
+                logger.warning(f"Currency '{currency}' not found in price tier for {credits_amount} credits.")
+                return None
+    logger.warning(f"No pricing tier found for {credits_amount} credits.")
+    return None
+# --- End Pricing Config Loading ---
+
+
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_payment_order(
     request: Request, # Needs to come before Depends for Pylance
@@ -99,9 +140,20 @@ async def create_payment_order(
     revolut_service: RevolutService = Depends(get_revolut_service), # Use the dependency
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
-    """Creates a payment order with Revolut and returns the order token."""
-    logger.info(f"Received request to create payment order for user {current_user.id} - Amount: {order_data.amount} {order_data.currency}, Credits: {order_data.credits_amount}")
-    
+    """
+    Looks up the price based on credits_amount and currency from pricing.yml,
+    creates a payment order with Revolut, and returns the order token and ID.
+    """
+    logger.info(f"Received request to create payment order for user {current_user.id} - Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
+
+    # --- Determine Amount from Pricing Config ---
+    calculated_amount = get_price_for_credits(order_data.credits_amount, order_data.currency)
+    if calculated_amount is None:
+         logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
+         raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.") # Bad request from client
+    logger.info(f"Determined amount for {order_data.credits_amount} credits in {order_data.currency}: {calculated_amount} (smallest unit)")
+    # --- End Determine Amount ---
+
     # --- Actual Implementation ---
     try:
         # Decrypt the user's email address
@@ -114,7 +166,7 @@ async def create_payment_order(
         )
 
         order_response = await revolut_service.create_order(
-            amount=order_data.amount,
+            amount=calculated_amount, # Use the backend-determined amount
             currency=order_data.currency,
             email=decrypted_email,
             user_id=current_user.id, # Pass user ID for metadata/reference

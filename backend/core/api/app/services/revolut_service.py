@@ -247,6 +247,8 @@ class RevolutService:
                  
             response.raise_for_status() # Raise for other 4xx/5xx errors
             order_data = response.json()
+            logger.info("Full order_data:")
+            logger.info(order_data) # Log the full order data for debugging
             logger.info(f"Successfully retrieved details for Revolut order {order_id}. State: {order_data.get('state')}")
             return order_data
         except httpx.HTTPStatusError as e:
