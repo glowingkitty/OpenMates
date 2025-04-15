@@ -10,7 +10,7 @@
   let revolutConfig: { revolut_public_key: string; environment: string } | null = null;
   let orderToken: string | null = null;
   let orderId: string | null = null;
-  let paymentState: string = "idle";
+  let paymentState: "idle" | "loading" | "initializing_card" | "ready" | "success" | "error" = "idle";
   let errorMessage: string = "";
   let successMessage: string = "";
 
@@ -45,9 +45,6 @@
     // Clear previous card field immediately if it exists
     if (cardFieldDiv) cardFieldDiv.innerHTML = "";
 
-    // Wait for Svelte to potentially update the DOM based on loading state
-    await tick();
-
     try {
       // Create order
       const res = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
@@ -67,21 +64,34 @@
       orderToken = data.order_token;
       orderId = data.order_id;
 
+      // Set state to trigger card field initialization via reactive statement
+      paymentState = "initializing_card";
+    } catch (err: any) {
+      console.error("Error creating order:", err); // Log order creation errors
+      errorMessage = err.message || "Unexpected error during payment setup.";
+      paymentState = "error";
+    }
+  }
+
+  // Function to initialize Revolut Card Field
+  async function initializeRevolutCardField() {
+    if (!orderToken || !revolutConfig || !cardFieldDiv) {
+      console.error("Missing prerequisites for Revolut initialization", { orderToken, revolutConfig, cardFieldDiv });
+      errorMessage = "Failed to initialize payment field.";
+      paymentState = "error";
+      return;
+    }
+
+    // Clear previous content just in case
+    cardFieldDiv.innerHTML = "";
+
+    try {
+      console.log("Initializing Revolut Card Field with token:", orderToken, "on element:", cardFieldDiv);
       // Load Revolut SDK
       // @ts-ignore
       const RevolutCheckout = (await import("https://unpkg.com/@revolut/checkout/esm")).default;
       // Initialize card field
-      const { createCardField } = await RevolutCheckout(orderToken, revolutConfig?.environment || "sandbox");
-
-      // Wait for Svelte to render the cardFieldDiv if it wasn't visible before
-      await tick();
-
-      // Ensure the cardFieldDiv is available *after* the tick
-      if (!cardFieldDiv) {
-        console.error("Card field container (cardFieldDiv) is null after tick.");
-        throw new Error("Card field container not found in DOM.");
-      }
-      console.log("Target element for Revolut:", cardFieldDiv); // Add log for debugging
+      const { createCardField } = await RevolutCheckout(orderToken, revolutConfig.environment);
 
       createCardField({
         target: cardFieldDiv,
@@ -106,12 +116,17 @@
         }
       });
 
-      paymentState = "ready";
+      paymentState = "ready"; // Card field is ready for input
     } catch (err: any) {
-      console.error("Error during startPayment:", err); // Log general errors
-      errorMessage = err.message || "Unexpected error during payment.";
+      console.error("Error initializing Revolut Card Field:", err); // Log initialization errors
+      errorMessage = "Could not initialize payment field.";
       paymentState = "error";
     }
+  }
+
+  // Reactive statement to initialize card field when conditions are met
+  $: if (paymentState === 'initializing_card' && orderToken && revolutConfig && cardFieldDiv) {
+    initializeRevolutCardField();
   }
 
   function reset() {
@@ -126,20 +141,25 @@
 
 <div class="payment-demo">
   {#if paymentState === "loading"}
-    <div class="loading">Loading payment form...</div>
+    <div class="loading">Creating payment order...</div>
+  {:else if paymentState === "initializing_card"}
+    <div class="loading">Initializing payment form...</div>
+    <!-- Render the div here so it's available for binding -->
+    <div bind:this={cardFieldDiv} class="card-field-placeholder"></div>
   {:else if paymentState === "success"}
     <div class="success">{successMessage}</div>
     <button on:click={reset}>Make another payment</button>
   {:else}
     <div>
-      <button class="pay-btn" on:click={startPayment} disabled={paymentState === "loading"}>
+      <!-- Disable button only when card field is ready to prevent restarting -->
+      <button class="pay-btn" on:click={startPayment} disabled={paymentState === "ready"}>
         Pay for {credits_amount} credits ({currency})
       </button>
       {#if errorMessage}
         <div class="error">{errorMessage}</div>
       {/if}
-      <!-- Ensure this div is always rendered when the button is clickable -->
-      <div bind:this={cardFieldDiv} class="card-field"></div>
+      <!-- Card field will be mounted here when ready -->
+      <div bind:this={cardFieldDiv} class="card-field" style:display={paymentState === 'ready' || paymentState === 'error' ? 'block' : 'none'}></div>
     </div>
   {/if}
 </div>
@@ -185,5 +205,12 @@
   max-width: 400px;
   border: 1px solid #ccc; /* Add border for visibility */
   padding: 5px; /* Add padding */
+}
+.card-field-placeholder {
+  min-height: 60px; /* Match height */
+  width: 100%;
+  max-width: 400px;
+  margin-top: 1em;
+  /* No border or content, just occupies space */
 }
 </style>
