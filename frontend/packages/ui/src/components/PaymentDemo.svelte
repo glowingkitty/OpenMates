@@ -35,11 +35,10 @@
 			}
 			const config = await response.json();
 
-			console.log('Revolut config fetched:', config);
-			if (!config.revolutPublicKey) {
+			if (!config.revolut_public_key) {
 				throw new Error('Revolut Public Key not found in config response.');
 			}
-			revolutPublicKey = config.revolutPublicKey;
+			revolutPublicKey = config.revolut_public_key;
 			console.log('Revolut Public Key fetched successfully.');
 		} catch (error) {
 			console.error('Failed to fetch Revolut config:', error);
