@@ -217,7 +217,6 @@
 
             // Mounting is handled by createCardField via the 'target' option per Revolut SDK docs.
             console.debug("Revolut card field instance created and mounted via target option.");
-            // No need to call .mount()—see https://developer.revolut.com/docs/merchant/web-sdk/card-field/
 
         } catch (error) {
             console.error("Error initializing Revolut:", error);

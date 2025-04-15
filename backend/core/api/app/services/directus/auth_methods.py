@@ -67,7 +67,7 @@ async def login_admin(self):
                     self.auth_token = new_token
                     admin_cache_key = "directus_admin_token"
                     await self.cache.set(admin_cache_key, new_token, ttl=self.token_ttl)
-                    logger.info("Successfully obtained fresh ADMIN token via login")
+                    logger.debug("Successfully obtained fresh ADMIN token via login")
                     return new_token
             else:
                 logger.error(f"Admin login failed with status {response.status_code}: {response.text}")

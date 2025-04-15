@@ -388,13 +388,13 @@ async def login(
                          anonymized_code = f"{original_code[:-4]}****" if len(original_code) > 4 else "****"
 
                     # Decrypt email address
-                    encrypted_email = user.get("encrypted_email_address")
+                    encrypted_email_address = user.get("encrypted_email_address")
                     vault_key_id = user.get("vault_key_id")
                     decrypted_email = None
-                    if encrypted_email and vault_key_id:
+                    if encrypted_email_address and vault_key_id:
                         logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for backup code used notification.")
                         try:
-                            decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                            decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
                             if not decrypted_email:
                                 logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
                             else:
@@ -558,14 +558,14 @@ async def finalize_login_session(
                 user_darkmode = user.get("darkmode", False)
 
                 # --- Decrypt email before sending task ---
-                encrypted_email = user.get("encrypted_email_address")
+                encrypted_email_address = user.get("encrypted_email_address")
                 vault_key_id = user.get("vault_key_id")
                 decrypted_email = None
 
-                if encrypted_email and vault_key_id:
+                if encrypted_email_address and vault_key_id:
                     logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for new device notification.")
                     try:
-                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
                         if not decrypted_email:
                             logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
                         else:

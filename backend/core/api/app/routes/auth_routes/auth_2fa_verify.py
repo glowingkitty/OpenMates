@@ -157,14 +157,14 @@ async def verify_device_2fa(
                 logger.error(f"Failed to fetch profile for user {user_id[:6]}... to send new device email: {profile_message}")
                 # Don't fail the whole request, just log the error
             else:
-                encrypted_email = user_profile.get("encrypted_email_address")
+                encrypted_email_address = user_profile.get("encrypted_email_address")
                 vault_key_id = user_profile.get("vault_key_id")
                 decrypted_email = None
 
-                if encrypted_email and vault_key_id:
+                if encrypted_email_address and vault_key_id:
                     logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for new device notification.")
                     try:
-                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
                         if not decrypted_email:
                             logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
                         else:

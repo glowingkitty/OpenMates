@@ -387,10 +387,10 @@ async def get_user_email(
          raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
     # The get_current_user dependency should have populated these fields
-    encrypted_email = getattr(current_user, 'encrypted_email', None)
+    encrypted_email_address = getattr(current_user, 'encrypted_email_address', None)
     vault_key_id = getattr(current_user, 'vault_key_id', None)
 
-    if not encrypted_email:
+    if not encrypted_email_address:
         logger.error(f"Encrypted email not found for user {current_user.id}.")
         # Return 404 Not Found as the data is missing for this user
         raise HTTPException(status_code=404, detail="User email information not found.")
@@ -401,7 +401,7 @@ async def get_user_email(
         raise HTTPException(status_code=500, detail="Cannot retrieve email due to key error.")
 
     try:
-        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
         logger.info(f"Successfully decrypted email for user {current_user.id}")
         return UserEmailResponse(email=decrypted_email)
     except Exception as e:
