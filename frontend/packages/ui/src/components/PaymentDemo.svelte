@@ -14,7 +14,8 @@
   let validationErrors: string | null = null;
   let showCheckoutForm = false;
   let pollTimeoutId: number | null = null; // Declare timeout ID at component level
-
+  let isPollingStopped = false; // Flag to ensure polling stops reliably
+ 
   // --- Form Data ---
   let name = '';
   let email = '';
@@ -194,8 +195,9 @@
     let attempts = 0;
     const maxAttempts = 20; // e.g., poll for up to 20 times (~40s)
     const pollInterval = 2000; // 2 seconds
-    // let pollTimeoutId: number | null = null; // Moved to component scope
-
+    // Reset polling stop flag at the beginning of a new polling sequence
+    isPollingStopped = false;
+ 
     // We need to get the order_id associated with the orderToken.
     // Since the backend returns both order_token and order_id, we should store order_id when creating the order.
     // We'll add a variable to store it.
@@ -206,6 +208,12 @@
     }
 
     async function poll() {
+      // Check flag before doing anything
+      if (isPollingStopped) {
+        console.log('Polling stopped flag is true, exiting poll function.');
+        return;
+      }
+
       attempts++;
       try {
         const response = await fetch(getApiEndpoint(apiEndpoints.payments.orderStatus), {
@@ -226,7 +234,8 @@
           validationErrors = null;
           orderToken = null;
           lastOrderId = null;
-          if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling
+          isPollingStopped = true; // Set flag
+          if (pollTimeoutId) clearTimeout(pollTimeoutId);
           pollTimeoutId = null;
           return;
         } else if (state === 'FAILED' || state === 'CANCELLED') {
@@ -235,20 +244,21 @@
           validationErrors = null;
           orderToken = null;
           lastOrderId = null;
-          if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling
+          isPollingStopped = true; // Set flag
+          if (pollTimeoutId) clearTimeout(pollTimeoutId);
           pollTimeoutId = null;
           return;
         } else {
-          // Still pending, poll again
-          if (attempts < maxAttempts) {
+          // Still pending, poll again ONLY if not stopped
+          if (attempts < maxAttempts && !isPollingStopped) {
             pollTimeoutId = setTimeout(poll, pollInterval); // Store timeout ID
-          } else {
+          } else if (!isPollingStopped) { // Only set timeout message if not already stopped for other reasons
             errorMessage = 'Payment processing timed out. Please check your order status later.';
             successMessage = null;
             validationErrors = null;
             orderToken = null;
             lastOrderId = null;
-            // Explicitly clear timeout and nullify ID even on timeout completion
+            isPollingStopped = true; // Set flag
             if (pollTimeoutId) clearTimeout(pollTimeoutId);
             pollTimeoutId = null;
           }
@@ -259,14 +269,17 @@
         validationErrors = null;
         orderToken = null;
         lastOrderId = null;
-        if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling on error
+        isPollingStopped = true; // Set flag
+        if (pollTimeoutId) clearTimeout(pollTimeoutId);
         pollTimeoutId = null;
       }
     }
 
-    // Clear any existing timeout before starting a new poll sequence
+    // Clear any existing timeout AND reset stop flag before starting a new poll sequence
     if (pollTimeoutId) clearTimeout(pollTimeoutId);
-    poll();
+    pollTimeoutId = null; // Ensure ID is null before starting
+    isPollingStopped = false; // Reset flag
+    poll(); // Start the first poll
   }
 
   // Store the last order ID for polling after payment
@@ -312,7 +325,8 @@
           console.error('Error destroying CardField instance on unmount:', error);
         }
       }
-      // Also clear timeout on component destroy
+      // Also clear timeout and set stop flag on component destroy
+      isPollingStopped = true; // Ensure any pending poll stops
       if (pollTimeoutId) {
         clearTimeout(pollTimeoutId);
       }

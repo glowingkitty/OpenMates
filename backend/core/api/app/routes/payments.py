@@ -275,93 +275,132 @@ async def revolut_webhook(
                  await cache_service.update_order_status(order_id, "failed_missing_metadata")
                  return {"status": "metadata_missing"}
 
-            # Proceed with processing using fetched details
-            lock_key = f"lock:user_credits:{user_id}"
-            lock_acquired = False
+            # Proceed with processing using fetched details - User-defined cache flag lock (Cache-first calculation)
+            user_cache_data = None
+            directus_update_success = False
+            new_total_credits_calculated = 0 # Store calculated value for final cache update
+
             try:
-                # Attempt to acquire lock with a 10-second timeout
-                lock_acquired = await cache_service.set(lock_key, "locked", nx=True, ex=10)
-
-                if not lock_acquired:
-                    logger.warning(f"Could not acquire lock for user {user_id} (Order ID: {order_id}). Another update may be in progress. Skipping this webhook instance.")
-                    # Acknowledge webhook to prevent Revolut retries for this specific instance.
-                    # The other process should handle the update. Consider queuing for more robustness.
-                    return {"status": "skipped_due_to_lock"}
-
-                logger.info(f"Acquired lock for user {user_id} (Order ID: {order_id}). Proceeding with credit update.")
-
                 credits_purchased = int(credits_purchased_str)
-                logger.info(f"Order {order_id} completed for user {user_id}. Awarding {credits_purchased} credits.")
+                logger.info(f"Order {order_id} completed for user {user_id}. Attempting to process {credits_purchased} credits using cache-first method.")
 
-                # Get current encrypted credits and vault key DIRECTLY from Directus
-                fields_to_fetch = ["encrypted_credit_balance", "vault_key_id"] # Adjust field name if needed
-                user_data = await directus_service.get_user_fields_direct(user_id, fields=fields_to_fetch)
-                
-                if not user_data:
-                    logger.error(f"User {user_id} not found or failed to fetch direct fields for webhook processing (Order ID: {order_id}).")
-                    return {"status": "user_data_fetch_failed"} # Acknowledge Revolut, log error
+                # 1. Check cache for user data and lock flag
+                user_cache_data = await cache_service.get_user_by_id(user_id)
 
-                current_encrypted_credits = user_data.get("encrypted_credit_balance") # Use correct field name
-                vault_key_id = user_data.get("vault_key_id")
-                
+                if user_cache_data and user_cache_data.get("payment_in_progress") is True:
+                    logger.warning(f"User {user_id} already has a payment in progress (Order ID: {order_id}). Skipping this webhook instance.")
+                    return {"status": "skipped_payment_in_progress"}
+
+                # 2. Set lock flag and save immediately
+                if user_cache_data is None:
+                    logger.warning(f"User {user_id} not found in cache when starting payment processing (Order ID: {order_id}). Initializing cache entry.")
+                    user_cache_data = {} # Initialize if user not in cache yet
+
+                user_cache_data["payment_in_progress"] = True
+                # Use set_user which handles user_id key generation
+                flag_set_success = await cache_service.set_user(user_cache_data, user_id=user_id)
+                if not flag_set_success:
+                    logger.error(f"Failed to set payment_in_progress flag for user {user_id} (Order ID: {order_id}). Aborting.")
+                    # Let finally block clear the flag if possible, but return error status
+                    return {"status": "cache_flag_set_failed"}
+                logger.info(f"Set payment_in_progress flag for user {user_id} (Order ID: {order_id}).")
+
+                # --- Start Protected Section ---
+                # 3. Get current credits *from cache*
+                current_credits = user_cache_data.get('credits')
+                if current_credits is None:
+                    logger.error(f"User {user_id} cache data missing 'credits' field (Order ID: {order_id}). Cannot process payment.")
+                    raise Exception("Credits field missing from cache")
+
+                # 4. Get vault_key_id *from cache*
+                vault_key_id = user_cache_data.get("vault_key_id")
                 if not vault_key_id:
-                    logger.error(f"Vault key ID not found for user {user_id} (Order ID: {order_id}). Cannot update credits.")
-                    return {"status": "user_key_error"} # Acknowledge Revolut, log critical error
+                    logger.error(f"Vault key ID not found in CACHE for user {user_id} (Order ID: {order_id}). Cannot encrypt new credits.")
+                    raise Exception("Vault key ID missing from cache") # Raise exception to trigger finally
 
-                # Decrypt current credits
-                current_credits = 0
-                if current_encrypted_credits:
-                    try:
-                        decrypted_credits_str = await encryption_service.decrypt_with_user_key(current_encrypted_credits, vault_key_id)
-                        current_credits = int(decrypted_credits_str)
-                    except Exception as decrypt_err:
-                        logger.error(f"Failed to decrypt current credits for user {user_id} (Order ID: {order_id}): {decrypt_err}", exc_info=True)
-                        return {"status": "decryption_error"} # Acknowledge Revolut, log critical error
-                
-                # Calculate and encrypt new total
-                new_total_credits = current_credits + credits_purchased
-                new_total_credits_str = str(new_total_credits)
-                new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(new_total_credits_str, vault_key_id)
-                
-                # Update Directus - use the correct field name
-                update_payload = {"encrypted_credit_balance": new_encrypted_credits}
-                update_success = await directus_service.update_user(user_id, update_payload)
-                
-                if not update_success:
-                    logger.error(f"Failed to update Directus credits for user {user_id} after successful payment (Order ID: {order_id}).")
-                    # Acknowledge Revolut, but log data inconsistency error
-                    return {"status": "directus_update_failed"}
-                else:
-                    logger.info(f"Successfully updated Directus credits for user {user_id} (Order ID: {order_id}).")
+                # 5. Calculate new total
+                new_total_credits_calculated = current_credits + credits_purchased # Store for final cache update
+                logger.info(f"Calculated new credit total for user {user_id}: {current_credits} (cached) + {credits_purchased} = {new_total_credits_calculated}")
 
-                # Update Cache
-                cache_update_success = await cache_service.update_user(user_id, {"credits": new_total_credits}) # Update with decrypted value
+                # 6. Update cached credits value immediately
+                user_cache_data["credits"] = new_total_credits_calculated
+                cache_update_success = await cache_service.set_user(user_cache_data, user_id=user_id)
                 if not cache_update_success:
-                    logger.warning(f"Failed to update cache credits for user {user_id} after successful payment (Order ID: {order_id}), but Directus was updated.")
-                else:
-                    logger.info(f"Successfully updated cache credits for user {user_id} to {new_total_credits} (Order ID: {order_id}).")
-                # Set order status in cache to "completed" (5 min TTL)
-                await cache_service.update_order_status(order_id, "completed")
+                    logger.error(f"Failed to update cached credits for user {user_id} (Order ID: {order_id}). Aborting payment processing.")
+                    raise Exception("Failed to update cached credits")
+
+                # 7. Encrypt new total using cached vault_key_id
+                new_total_credits_str = str(new_total_credits_calculated)
+                new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(new_total_credits_str, vault_key_id)
+
+                # 8. Try to update Directus, with up to 3 attempts
+                update_payload = {"encrypted_credit_balance": new_encrypted_credits}
+                directus_update_success = False
+                max_attempts = 3
+                for attempt in range(1, max_attempts + 1):
+                    directus_update_success = await directus_service.update_user(user_id, update_payload)
+                    if directus_update_success:
+                        logger.info(f"Successfully updated Directus credits for user {user_id} (Order ID: {order_id}) on attempt {attempt}.")
+                        break
+                    else:
+                        logger.error(f"Attempt {attempt} to update Directus credits for user {user_id} (Order ID: {order_id}) failed.")
+                # 9. If Directus update failed after 3 attempts, subtract the credits from cache again
+                if not directus_update_success:
+                    logger.error(f"Failed to update Directus credits for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Reverting cached credits.")
+                    # Get latest cache, subtract credits, and update
+                    latest_cache_data = await cache_service.get_user_by_id(user_id)
+                    if latest_cache_data is None:
+                        logger.error(f"Could not fetch latest cache for user {user_id} to revert credits (Order ID: {order_id}).")
+                        latest_cache_data = {}
+                    latest_credits = latest_cache_data.get("credits")
+                    if latest_credits is None:
+                        logger.error(f"Cannot revert cached credits for user {user_id} (Order ID: {order_id}) because 'credits' field is missing in cache.")
+                    else:
+                        reverted_credits = latest_credits - credits_purchased
+                        latest_cache_data["credits"] = reverted_credits
+                        revert_success = await cache_service.set_user(latest_cache_data, user_id=user_id)
+                        if revert_success:
+                            logger.info(f"Successfully reverted cached credits for user {user_id} to {reverted_credits} (Order ID: {order_id}).")
+                        else:
+                            logger.error(f"Failed to revert cached credits for user {user_id} (Order ID: {order_id}).")
+                # --- End Protected Section ---
 
             except ValueError:
                 logger.error(f"Could not parse credits_purchased '{credits_purchased_str}' to int for order {order_id}.")
-                # Set order status to failed
-                await cache_service.update_order_status(order_id, "failed")
-                return {"status": "metadata_error"} # Acknowledge Revolut, log error
+                await cache_service.update_order_status(order_id, "failed_parsing_error")
+                # Let finally block handle flag reset
             except Exception as processing_err:
-                logger.error(f"Error processing ORDER_COMPLETED for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
-                # Set order status to failed in cache even if lock was acquired
+                # Log errors from steps 3-7 or encryption
+                logger.error(f"Error during protected processing for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
                 await cache_service.update_order_status(order_id, "failed_processing_error")
-                # TODO: Consider refunding the payment if credits could not be added
-                return {"status": "processing_error"}
+                # Let finally block handle flag reset
             finally:
-                # Ensure lock is released if it was acquired
-                if lock_acquired:
-                    deleted_count = await cache_service.delete(lock_key)
-                    if deleted_count:
-                         logger.info(f"Released lock for user {user_id} (Order ID: {order_id}).")
-                    else:
-                         logger.warning(f"Attempted to release lock for user {user_id} (Order ID: {order_id}), but key '{lock_key}' did not exist (possibly expired).")
+                # 8. ALWAYS clear the flag and update cache status
+                logger.debug(f"Entering finally block for user {user_id}, order {order_id}. Directus success: {directus_update_success}")
+                final_cache_data = await cache_service.get_user_by_id(user_id) # Get latest cache data again
+                if final_cache_data is None:
+                    # If cache expired/cleared between setting flag and now, log warning but proceed to clear conceptually
+                    logger.warning(f"Cache data for user {user_id} was missing when trying to clear payment_in_progress flag (Order ID: {order_id}).")
+                    final_cache_data = {} # Initialize to avoid errors below
+
+                final_cache_data["payment_in_progress"] = False # Clear the flag
+
+                if directus_update_success:
+                    # Update cache credits ONLY if Directus was successful
+                    final_cache_data["credits"] = new_total_credits_calculated
+                    logger.info(f"Updating final cache credits for user {user_id} to {new_total_credits_calculated} (Order ID: {order_id}).")
+                    await cache_service.update_order_status(order_id, "completed") # Update order status cache
+                else:
+                    # Don't update credits field if Directus failed
+                    logger.warning(f"Directus update failed for user {user_id}, order {order_id}. Cache 'credits' field NOT updated.")
+                    # Order status should have been set to failed in except block if applicable
+
+                # Save final cache state (with flag cleared and credits potentially updated)
+                final_save_success = await cache_service.set_user(final_cache_data, user_id=user_id)
+                if not final_save_success:
+                     logger.error(f"Failed to save final cache state (clear flag) for user {user_id} (Order ID: {order_id}).")
+                else:
+                     logger.debug(f"Successfully saved final cache state (cleared flag) for user {user_id} (Order ID: {order_id}).")
 
         # --- Process ORDER_FAILED (or other terminal states from webhook if needed) ---
         elif event_type == "ORDER_FAILED":
