@@ -126,7 +126,7 @@
 
             // 2. Create Order
             const orderPayload = { currency: currency, credits_amount: credits_amount };
-            console.debug("Payment.svelte: Creating payment order with payload:", orderPayload);
+            console.info("Payment.svelte: Creating payment order with payload:", orderPayload);
             const orderResponse = await fetch(getApiUrl() + apiEndpoints.payments.createOrder, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -138,18 +138,19 @@
                 throw new Error(`Failed to create payment order: ${errorData.detail || orderResponse.statusText}`);
             }
             const orderData = await orderResponse.json();
+            console.info("Payment.svelte: Order payload received from backend:", orderData);
             orderToken = orderData.order_token;
             currentOrderId = orderData.order_id; // Store the order ID
-            console.debug(`Payment.svelte: Order token/ID received: ${orderToken ? 'OK' : 'MISSING'}, ${currentOrderId ? 'OK' : 'MISSING'}`);
+            console.info(`Payment.svelte: Order token/ID received: ${orderToken ? 'OK' : 'MISSING'}, ${currentOrderId ? 'OK' : 'MISSING'}`);
             if (!orderToken || !currentOrderId) throw new Error("Incomplete order details from backend.");
 
             // 3. Initialize Revolut Checkout
-            console.debug(`Payment.svelte: Initializing RevolutCheckout with token for ${revolutEnvironment} env.`);
+            console.info(`Payment.svelte: Initializing RevolutCheckout with token for ${revolutEnvironment} env.`);
             revolutCheckout = await RevolutCheckout(orderToken, revolutEnvironment as Mode);
             if (!revolutCheckout) throw new Error("Failed to initialize Revolut Checkout.");
 
             // 4. Create and Mount Card Field
-            console.debug("Payment.svelte: Creating Revolut card field instance...");
+            console.info("Payment.svelte: Creating Revolut card field instance...");
             cardFieldInstance = revolutCheckout.createCardField({
                 target: cardFieldContainer, // Mount to the div inside PaymentForm
                 styles: { /* ... styles ... */
@@ -180,7 +181,7 @@
                 },
             });
 
-            console.debug("Payment.svelte: Revolut card field instance created and mounted.");
+            console.info("Payment.svelte: Revolut card field instance created and mounted.");
             paymentState = 'ready'; // Mark as ready for submission
             isLoadingRevolut = false;
 
@@ -216,7 +217,7 @@
     // Handle submit event from PaymentForm
     async function handleFormSubmit(event) {
         const nameOnCard = event.detail.nameOnCard;
-        console.debug(`Payment.svelte: Received submit event with name: ${nameOnCard}`);
+        console.info(`Payment.svelte: Received submit event with name: ${nameOnCard}`);
         paymentDetails.nameOnCard = nameOnCard; // Store name for potential retry
 
         if (!cardFieldInstance || paymentState !== 'ready') {
@@ -228,17 +229,18 @@
         paymentState = 'processing';
         dispatch('paymentProcessing', { processing: true });
         dispatch('paymentStateChange', { state: 'processing' });
+        console.info("Payment.svelte: Set payment state to 'processing' after submit.");
 
         // Fetch email just-in-time
         let fetchedEmail: string | null = null;
         try {
-            console.debug("Payment.svelte: Fetching user email for payment submission...");
+            console.info("Payment.svelte: Fetching user email for payment submission...");
             const emailResponse = await fetch(getApiUrl() + apiEndpoints.settings.user.getEmail, { /* ... headers ... */ credentials: 'include' });
             if (!emailResponse.ok) throw new Error(`Failed to fetch email: ${await emailResponse.text()}`);
             const emailData = await emailResponse.json();
             fetchedEmail = emailData.email;
             if (!fetchedEmail) throw new Error("Email not found in backend response.");
-            console.debug("Payment.svelte: User email fetched successfully.");
+            console.info("Payment.svelte: User email fetched successfully.");
         } catch (error) {
             console.error("Payment.svelte: Error fetching user email:", error);
             handlePaymentError("Could not retrieve user email for payment. Please try again.");
@@ -247,15 +249,12 @@
 
         // Submit the Revolut Card Field
         try {
-            console.debug(`Payment.svelte: Submitting card field with email and name: ${nameOnCard}`);
+            console.info(`Payment.svelte: Submitting card field with email and name: ${nameOnCard}`);
             await cardFieldInstance.submit({
                 email: fetchedEmail,
                 name: nameOnCard,
             });
-            console.debug("Payment.svelte: cardField.submit() called successfully.");
-            paymentState = 'processing';
-            dispatch('paymentProcessing', { processing: true });
-            dispatch('paymentStateChange', { state: 'processing' });
+            console.info("Payment.svelte: cardField.submit() called successfully.");
             // Success/Error is handled by the onSuccess/onError/onCancel callbacks
         } catch (error) {
             // Handle errors during the *initiation* of submit
