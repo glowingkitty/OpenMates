@@ -276,10 +276,23 @@ async def revolut_webhook(
                  return {"status": "metadata_missing"}
 
             # Proceed with processing using fetched details
+            lock_key = f"lock:user_credits:{user_id}"
+            lock_acquired = False
             try:
+                # Attempt to acquire lock with a 10-second timeout
+                lock_acquired = await cache_service.set(lock_key, "locked", nx=True, ex=10)
+
+                if not lock_acquired:
+                    logger.warning(f"Could not acquire lock for user {user_id} (Order ID: {order_id}). Another update may be in progress. Skipping this webhook instance.")
+                    # Acknowledge webhook to prevent Revolut retries for this specific instance.
+                    # The other process should handle the update. Consider queuing for more robustness.
+                    return {"status": "skipped_due_to_lock"}
+
+                logger.info(f"Acquired lock for user {user_id} (Order ID: {order_id}). Proceeding with credit update.")
+
                 credits_purchased = int(credits_purchased_str)
                 logger.info(f"Order {order_id} completed for user {user_id}. Awarding {credits_purchased} credits.")
-                
+
                 # Get current encrypted credits and vault key DIRECTLY from Directus
                 fields_to_fetch = ["encrypted_credit_balance", "vault_key_id"] # Adjust field name if needed
                 user_data = await directus_service.get_user_fields_direct(user_id, fields=fields_to_fetch)
@@ -337,10 +350,18 @@ async def revolut_webhook(
                 return {"status": "metadata_error"} # Acknowledge Revolut, log error
             except Exception as processing_err:
                 logger.error(f"Error processing ORDER_COMPLETED for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
-                # Set order status to failed
-                await cache_service.update_order_status(order_id, "failed")
+                # Set order status to failed in cache even if lock was acquired
+                await cache_service.update_order_status(order_id, "failed_processing_error")
                 # TODO: Consider refunding the payment if credits could not be added
                 return {"status": "processing_error"}
+            finally:
+                # Ensure lock is released if it was acquired
+                if lock_acquired:
+                    deleted_count = await cache_service.delete(lock_key)
+                    if deleted_count:
+                         logger.info(f"Released lock for user {user_id} (Order ID: {order_id}).")
+                    else:
+                         logger.warning(f"Attempted to release lock for user {user_id} (Order ID: {order_id}), but key '{lock_key}' did not exist (possibly expired).")
 
         # --- Process ORDER_FAILED (or other terminal states from webhook if needed) ---
         elif event_type == "ORDER_FAILED":

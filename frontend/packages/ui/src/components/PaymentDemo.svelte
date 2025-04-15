@@ -227,6 +227,7 @@
           orderToken = null;
           lastOrderId = null;
           if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling
+          pollTimeoutId = null;
           return;
         } else if (state === 'FAILED' || state === 'CANCELLED') {
           errorMessage = 'Payment failed or was cancelled. Please try again.';
@@ -235,6 +236,7 @@
           orderToken = null;
           lastOrderId = null;
           if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling
+          pollTimeoutId = null;
           return;
         } else {
           // Still pending, poll again
@@ -246,7 +248,9 @@
             validationErrors = null;
             orderToken = null;
             lastOrderId = null;
-            // No need to clear timeout here, it just won't schedule a new one
+            // Explicitly clear timeout and nullify ID even on timeout completion
+            if (pollTimeoutId) clearTimeout(pollTimeoutId);
+            pollTimeoutId = null;
           }
         }
       } catch (err) {
@@ -256,6 +260,7 @@
         orderToken = null;
         lastOrderId = null;
         if (pollTimeoutId) clearTimeout(pollTimeoutId); // Stop polling on error
+        pollTimeoutId = null;
       }
     }
 
