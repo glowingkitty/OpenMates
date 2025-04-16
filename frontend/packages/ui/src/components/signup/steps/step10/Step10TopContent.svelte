@@ -36,8 +36,7 @@ step_10_top_content_svelte:
 <script lang="ts">
     import { text } from '@repo/ui';
     import { createEventDispatcher } from 'svelte';
-    import PaymentDemo from '../../../../components/PaymentDemo.svelte';
-    // import Payment from '../../../../components/Payment.svelte';
+    import Payment from '../../../../components/Payment.svelte';
     
     const dispatch = createEventDispatcher();
     
@@ -101,10 +100,9 @@ step_10_top_content_svelte:
     <div class="bottom-container">
         <div class="main-content">
             <div class="separated-block">
-                <!--
-                <Payment
-                    {credits_amount}
-                    purchasePrice={price}
+                <Payment 
+                    {credits_amount} 
+                    purchasePrice={price} 
                     {currency}
                     initialState={isGift ? 'success' : 'idle'}
                     {isGift}
@@ -112,12 +110,6 @@ step_10_top_content_svelte:
                     on:payment={handlePayment}
                     on:openRefundInfo={handleOpenRefundInfo}
                     on:paymentStateChange={handlePaymentStateChange}
-                />
-                -->
-                <PaymentDemo
-                    {credits_amount}
-                    {currency}
-                    on:payment={handlePayment}
                 />
             </div>
         </div>
