@@ -4,11 +4,12 @@
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
     import { tooltip } from '../../actions/tooltip';
-    
+    import { createEventDispatcher } from 'svelte';
+
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
     export let cardFieldLoaded: boolean = false;
-    
+
     // Form state
     let nameOnCard = '';
     // Input element references
@@ -16,20 +17,23 @@
 
     // CardField target for Revolut iframe
     export let cardFieldTarget: HTMLElement;
-    
+
     // Validation states
     let nameError = '';
-    
+
     let showNameWarning = false;
-    
+
     // Track if form was submitted
     let attemptedSubmit = false;
+
+    // Svelte event dispatcher
+    const dispatch = createEventDispatcher();
 
     // Add a function to handle the secure payment info click
     function handleSecurePaymentInfoClick() {
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
     }
-    
+
     // Validate name on card - simple length check for international compatibility
     function validateName(name: string): boolean {
         if (name.trim().length < 3) {
@@ -38,12 +42,21 @@
             showNameWarning = name.trim().length > 0 || attemptedSubmit;
             return false;
         }
-        
+
         nameError = '';
         showNameWarning = false;
         return true;
     }
-    
+
+    // Handle form submission
+    function handleSubmit(event: Event) {
+        attemptedSubmit = true;
+        if (!validateName(nameOnCard)) {
+            return;
+        }
+        // Dispatch startPayment event with required data
+        dispatch('startPayment', { nameOnCard });
+    }
 </script>
 
 <div class="payment-form" in:fade={{ duration: 300 }} style="opacity: {cardFieldLoaded ? 1 : 0}; transition: opacity 0.3s;">
@@ -51,7 +64,7 @@
         {@html $text('signup.pay_with_card.text')}
     </div>
     
-    <form>
+    <form on:submit|preventDefault={handleSubmit}>
         <div class="input-group">
             <div class="input-wrapper">
                 <span class="clickable-icon icon_user"></span>

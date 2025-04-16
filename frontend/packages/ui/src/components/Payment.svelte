@@ -515,9 +515,6 @@
             bind:this={paymentFormComponent}
             purchasePrice={purchasePrice}
             currency={currency}
-            bind:showSensitiveData={showSensitiveData}
-            initialPaymentDetails={paymentState === 'failure' ? paymentDetails : null}
-            on:toggleSensitiveData={handleToggleSensitiveData}
             on:startPayment={handleStartPayment}
             bind:cardFieldTarget
             cardFieldLoaded={cardFieldLoaded}
