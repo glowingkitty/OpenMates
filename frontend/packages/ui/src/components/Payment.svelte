@@ -194,11 +194,11 @@
                 // },
                 classes: {
                     default: 'revolut-card-field',
-                    focused: 'revolut-card-field revolut-card-field--focused',
-                    invalid: 'revolut-card-field revolut-card-field--invalid',
-                    empty: 'revolut-card-field revolut-card-field--empty',
-                    autofilled: 'revolut-card-field revolut-card-field--autofilled',
-                    completed: 'revolut-card-field revolut-card-field--completed'
+                    focused: 'revolut-card-field--focused',
+                    invalid: 'revolut-card-field--invalid',
+                    empty: 'revolut-card-field--empty',
+                    autofilled: 'revolut-card-field--autofilled',
+                    completed: 'revolut-card-field--completed'
                 },
                 onSuccess() {
                     console.log('[initializeCardField] onSuccess called');
