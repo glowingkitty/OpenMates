@@ -21,32 +21,20 @@
     export let credits_amount: number = 21000;
     export let requireConsent: boolean = true;
     export let compact: boolean = false;
-    export let initialState: 'idle' | 'processing' | 'success' | 'failure' = 'idle';
+    export let initialState: 'idle' | 'processing' | 'success' = 'idle';
     export let isGift: boolean = false;
 
     // Consent state
     let hasConsentedToLimitedRefund = false;
 
-    // Sensitive data toggle
-    let showSensitiveData = false;
-
     // Payment state
-    let paymentState: 'idle' | 'processing' | 'success' | 'failure' = initialState;
+    let paymentState: 'idle' | 'processing' | 'success' = initialState;
 
     // Payment form state
     /* showPaymentForm is no longer needed; payment form is always rendered and initialized regardless of consent */
 
     // References to child components
     let paymentFormComponent;
-
-    // Store payment details for re-use after failure
-    let paymentDetails = {
-        nameOnCard: '',
-        cardNumber: '',
-        expireDate: '',
-        cvv: '',
-        lastFourDigits: ''
-    };
 
     // Revolut/Payment state
     let revolutPublicKey: string | null = null;
@@ -214,7 +202,7 @@
                     console.debug('[initializeCardField] onError called', error);
                     errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
                     validationErrors = null;
-                    paymentState = 'failure';
+                    paymentState = 'idle';
                     cardFieldLoaded = false;
                     if (paymentFormComponent) {
                         paymentFormComponent.setPaymentFailed(errorMessage);
@@ -290,7 +278,7 @@
                     }
                     return;
                 } else if (typeof state === 'string' && (state.toLowerCase() === 'failed' || state.toLowerCase() === 'cancelled')) {
-                    paymentState = 'failure';
+                    paymentState = 'idle';
                     errorMessage = 'Payment failed or was cancelled. Please try again.';
                     validationErrors = null;
                     orderToken = null;
@@ -307,7 +295,7 @@
                         pollTimeoutId = setTimeout(poll, pollInterval);
                     } else if (!isPollingStopped) {
                         errorMessage = 'Payment processing timed out. Please check your order status later.';
-                        paymentState = 'failure';
+                        paymentState = 'idle';
                         validationErrors = null;
                         orderToken = null;
                         lastOrderId = null;
@@ -321,7 +309,7 @@
                 }
             } catch (err) {
                 errorMessage = `Error checking payment status: ${err instanceof Error ? err.message : String(err)}`;
-                paymentState = 'failure';
+                paymentState = 'idle';
                 validationErrors = null;
                 orderToken = null;
                 lastOrderId = null;
@@ -358,11 +346,7 @@
     /* showPaymentForm is removed; no need to track its state for parent notification */
 
     // Watch payment state and return to form on failure
-    $: if (paymentState === 'failure') {
-        setTimeout(() => {
-            paymentState = 'idle';
-        }, 1000);
-    }
+    // Removed: auto-reset of paymentState from 'failure' to 'idle' (no longer needed, as we set to 'idle' on error directly)
 
     // --- Automatically load and initialize card field when payment form is shown ---
     // Only initialize card field when form is visible and target is set
