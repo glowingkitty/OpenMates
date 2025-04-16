@@ -5,7 +5,7 @@
     import { getWebsiteUrl, routes } from '../config/links';
     import RevolutCheckout from '@revolut/checkout';
     import { apiEndpoints, getApiEndpoint } from '../config/api';
-    import { userProfile } from '../stores/userProfile';
+    import { userProfile, updateProfile } from '../stores/userProfile'; // Import updateProfile
     import { get } from 'svelte/store';
 
     // Import our new component modules
@@ -281,6 +281,14 @@
                     isPollingStopped = true;
                     if (pollTimeoutId) clearTimeout(pollTimeoutId);
                     pollTimeoutId = null;
+
+                    // Update user profile store with new credits from response
+                    if (typeof data.current_credits === 'number') {
+                        console.log(`Updating profile credits to: ${data.current_credits}`);
+                        updateProfile({ credits: data.current_credits });
+                    } else {
+                        console.warn('Order completed, but current_credits not found in response. Credits may be stale.');
+                    }
                     return;
                 } else if (typeof state === 'string' && (state.toLowerCase() === 'failed' || state.toLowerCase() === 'cancelled')) {
                     paymentState = 'failure';
@@ -500,15 +508,15 @@
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
-    {#if requireConsent && !showPaymentForm}
-        <LimitedRefundConsent
-            bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
-            on:consentChanged={handleConsentChanged}
-        />
-    {:else if paymentState === 'processing' || paymentState === 'success'}
+    {#if paymentState === 'processing' || paymentState === 'success'}
         <ProcessingPayment
             state={paymentState}
             {isGift}
+        />
+    {:else if requireConsent && !showPaymentForm}
+        <LimitedRefundConsent
+            bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+            on:consentChanged={handleConsentChanged}
         />
     {:else}
         <PaymentForm

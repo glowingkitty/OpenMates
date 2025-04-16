@@ -3,8 +3,6 @@
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import { tooltip } from '../../actions/tooltip';
-    import { createEventDispatcher } from 'svelte';
 
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
@@ -27,9 +25,6 @@
 
     // Track if form was submitted
     let attemptedSubmit = false;
-
-    // Svelte event dispatcher
-    const dispatch = createEventDispatcher();
 
     // Add a function to handle the secure payment info click
     function handleSecurePaymentInfoClick() {
@@ -66,7 +61,6 @@
             // Optionally show an error if cardFieldInstance or userEmail is missing
             nameError = 'Payment field is not ready. Please try again.';
         }
-        // Optionally: dispatch('startPayment', { nameOnCard }); // For analytics only, not for payment logic
     }
 </script>
 
