@@ -148,24 +148,38 @@
             cardFieldInstance = createCardField({
                 target: cardFieldTarget,
                 locale: 'en',
-                // Style the iframe to match your UI
+                // Style the iframe to match your dark/rounded UI
                 styles: {
                     default: {
                         fontFamily: 'inherit',
                         fontSize: '16px',
-                        color: '#222',
-                        background: 'transparent',
-                        border: 'none'
+                        color: 'var(--color-grey-100)',
+                        background: 'var(--color-grey-0)',
+                        border: '2px solid var(--color-grey-0)',
+                        borderRadius: '24px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                        padding: '12px 16px 12px 48px',
+                        outline: 'none',
+                        width: '100%',
+                        transition: 'all 0.2s ease-in-out'
                     },
-                    focused: { borderColor: '#007bff' },
-                    invalid: { color: '#dc3545' },
-                    completed: { color: '#28a745' }
+                    focused: {
+                        borderColor: 'var(--color-grey-50)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    invalid: {
+                        color: '#dc3545',
+                        borderColor: '#dc3545'
+                    },
+                    completed: {
+                        color: '#28a745'
+                    }
                 },
                 classes: {
-                    default: 'card-field-wrapper',
-                    focused: 'card-field-wrapper--focused',
-                    invalid: 'card-field-wrapper--invalid',
-                    completed: 'card-field-wrapper--completed'
+                    default: 'input-wrapper',
+                    focused: 'input-wrapper input-focused',
+                    invalid: 'input-wrapper input-error',
+                    completed: 'input-wrapper input-completed'
                 },
                 onSuccess() {
                     errorMessage = null;

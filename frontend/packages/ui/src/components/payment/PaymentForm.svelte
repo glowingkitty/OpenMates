@@ -425,134 +425,14 @@
         </div>
         
         <div class="input-group">
-            <div class="input-wrapper">
+            <div class="input-wrapper cardfield-dark">
                 <span class="clickable-icon icon_billing"></span>
-                
-                <!-- Show appropriate card input based on visibility preference -->
-                {#if showSensitiveData}
-                    <input 
-                        bind:this={cardInputVisible}
-                        type="text"
-                        bind:value={cardNumber}
-                        placeholder={$text('signup.card_number.text')}
-                        on:input={handleCardNumberInput}
-                        on:focus={handleCardFocus}
-                        on:blur={handleCardBlur}
-                        class:error={!!cardError}
-                        required
-                        inputmode="numeric"
-                        autocomplete="cc-number"
-                        use:tooltip
-                    />
-                {:else}
-                    <!-- We use a regular input with normalized value but apply CSS to make bullets -->
-                    <div class="card-input-container">
-                        <input 
-                            bind:this={cardInputHidden}
-                            type="password"
-                            bind:value={cardNumber}
-                            placeholder={$text('signup.card_number.text')}
-                            on:input={handleCardNumberInput}
-                            on:focus={handleCardFocus}
-                            on:blur={handleCardBlur}
-                            class:error={!!cardError}
-                            required
-                            inputmode="numeric"
-                            autocomplete="cc-number"
-                            use:tooltip
-                        />
-                        <!-- Last four digits overlay when card is completed and not being edited -->
-                        {#if isCardNumberComplete && cardNumber}
-                        <div class="last-four-overlay">
-                            <span class="last-four-spacer"></span>
-                            <span class="last-four-digits">{getLastFourDigits(cardNumber)}</span>
-                        </div>
-                        {/if}
-                    </div>
-                {/if}
-
-                <!-- Revolut CardField iframe will be mounted here -->
+                <!-- Only the Revolut CardField iframe, styled to match dark/rounded input -->
                 <div bind:this={cardFieldTarget} class="card-field-wrapper"></div>
-                
-                {#if showCardWarning && cardError}
-                    <InputWarning
-                        message={cardError}
-                        target={getCardInput()}
-                    />
-                {/if}
             </div>
         </div>
         
-        <div class="input-row">
-            <div class="input-group half">
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_calendar"></span>
-                    <input 
-                        bind:this={expireInput}
-                        type="text" 
-                        bind:value={expireDate}
-                        placeholder={$text('signup.mm_yy.text')}
-                        on:input={handleExpireDateInput}
-                        on:blur={() => validateExpireDate(expireDate)}
-                        class:error={!!expireError}
-                        required
-                        maxlength="5"
-                        inputmode="numeric"
-                        autocomplete="cc-exp"
-                    />
-                    {#if showExpireWarning && expireError}
-                        <InputWarning 
-                            message={expireError}
-                            target={expireInput}
-                        />
-                    {/if}
-                </div>
-            </div>
-            
-            <div class="input-group half">
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_secret"></span>
-                    
-                    <!-- Show appropriate CVV input based on visibility preference -->
-                    {#if showSensitiveData}
-                        <input 
-                            bind:this={cvvInputVisible}
-                            type="text"
-                            bind:value={cvv}
-                            placeholder={$text('signup.cvv.text')}
-                            on:input={handleCVVInput}
-                            on:blur={() => validateCVV(cvv)}
-                            class:error={!!cvvError}
-                            required
-                            maxlength="4"
-                            inputmode="numeric"
-                            autocomplete="cc-csc"
-                        />
-                    {:else}
-                        <input 
-                            bind:this={cvvInputHidden}
-                            type="password"
-                            bind:value={cvv}
-                            placeholder={$text('signup.cvv.text')}
-                            on:input={handleCVVInput}
-                            on:blur={() => validateCVV(cvv)}
-                            class:error={!!cvvError}
-                            required
-                            maxlength="4"
-                            inputmode="numeric"
-                            autocomplete="cc-csc"
-                        />
-                    {/if}
-                    
-                    {#if showCVVWarning && cvvError}
-                        <InputWarning 
-                            message={cvvError}
-                            target={showSensitiveData ? cvvInputVisible : cvvInputHidden}
-                        />
-                    {/if}
-                </div>
-            </div>
-        </div>
+        <!-- Removed custom expiry and CVV fields: CardField handles all card data entry -->
         
         <button 
             type="button" 
