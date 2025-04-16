@@ -427,7 +427,10 @@
     }
 
     // --- Automatically load and initialize card field when payment form is shown ---
-    $: autoInitCardField();
+    // Only initialize card field when form is visible and target is set
+    $: if (showPaymentForm && cardFieldTarget && !cardFieldInstance && paymentState === 'idle') {
+        tick().then(() => autoInitCardField());
+    }
     async function autoInitCardField() {
         console.log('[autoInitCardField] called', {
             showPaymentForm,
