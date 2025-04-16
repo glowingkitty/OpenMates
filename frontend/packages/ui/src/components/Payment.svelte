@@ -3,38 +3,40 @@
     import { onMount, createEventDispatcher, tick } from 'svelte';
     import { fade } from 'svelte/transition';
     import { getWebsiteUrl, routes } from '../config/links';
-    
+    import RevolutCheckout from '@revolut/checkout';
+    import { apiEndpoints, getApiEndpoint } from '../config/api';
+
     // Import our new component modules
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
     import ProcessingPayment from './payment/ProcessingPayment.svelte';
-    
+
     const dispatch = createEventDispatcher();
-    
+
     // Accept props
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
     export let credits_amount: number = 21000;
     export let requireConsent: boolean = true;
     export let compact: boolean = false;
-    export let initialState: 'idle' | 'processing' | 'success' | 'failure' = 'idle'; // New prop
-    export let isGift: boolean = false; // New prop
+    export let initialState: 'idle' | 'processing' | 'success' | 'failure' = 'idle';
+    export let isGift: boolean = false;
 
-    // Toggle state for consent
+    // Consent state
     let hasConsentedToLimitedRefund = false;
-    
-    // Add state to track if sensitive data should be visible
+
+    // Sensitive data toggle
     let showSensitiveData = false;
-    
-    // Payment processing states - Initialize with prop
+
+    // Payment state
     let paymentState: 'idle' | 'processing' | 'success' | 'failure' = initialState;
-    
+
     // Payment form state
     export let showPaymentForm = !requireConsent;
-    
+
     // References to child components
     let paymentFormComponent;
-    
+
     // Store payment details for re-use after failure
     let paymentDetails = {
         nameOnCard: '',
@@ -43,15 +45,257 @@
         cvv: '',
         lastFourDigits: ''
     };
-    
-    // Handle consent change
+
+    // Revolut/Payment state
+    let revolutPublicKey: string | null = null;
+    let orderToken: string | null = null;
+    let lastOrderId: string | null = null;
+    let cardFieldInstance: any = null;
+    let isLoading = false;
+    let errorMessage: string | null = null;
+    let validationErrors: string | null = null;
+    let pollTimeoutId: number | null = null;
+    let isPollingStopped = false;
+    let userEmail: string | null = null;
+
+    // CardField target from PaymentForm
+    let cardFieldTarget: HTMLElement;
+
+    // --- Fetch user email ---
+    async function fetchUserEmail() {
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.getEmail), {
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error('Failed to fetch user email');
+            const data = await response.json();
+            userEmail = data.email || null;
+        } catch (err) {
+            userEmail = null;
+        }
+    }
+
+    // --- Fetch Revolut Config ---
+    async function fetchConfig() {
+        isLoading = true;
+        errorMessage = null;
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), {
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const config = await response.json();
+            if (!config.revolut_public_key) throw new Error('Revolut Public Key not found in config response.');
+            revolutPublicKey = config.revolut_public_key;
+        } catch (error) {
+            errorMessage = `Failed to load payment configuration. ${error instanceof Error ? error.message : String(error)}`;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // --- Create Payment Order ---
+    async function createOrder() {
+        if (!revolutPublicKey) {
+            errorMessage = 'Cannot create order: Revolut Public Key is missing.';
+            return false;
+        }
+        isLoading = true;
+        errorMessage = null;
+        orderToken = null;
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    credits_amount: credits_amount,
+                    currency: currency
+                })
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Failed to create order: ${response.status} ${response.statusText}. ${errorData.detail || ''}`);
+            }
+            const order = await response.json();
+            if (!order.order_token) throw new Error('Order created, but order_token is missing in the response.');
+            orderToken = order.order_token;
+            lastOrderId = order.order_id;
+            return true;
+        } catch (error) {
+            errorMessage = `Failed to create payment order. ${error instanceof Error ? error.message : String(error)}`;
+            return false;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // --- Initialize CardField ---
+    async function initializeCardField() {
+        if (!orderToken || !cardFieldTarget || !revolutPublicKey) {
+            errorMessage = 'Cannot initialize payment field: Missing Order ID, target element, or Public Key.';
+            return;
+        }
+        // Destroy previous instance
+        if (cardFieldInstance) {
+            try { cardFieldInstance.destroy(); } catch {}
+            cardFieldInstance = null;
+        }
+        validationErrors = null;
+        try {
+            const environment = 'sandbox';
+            const { createCardField } = await RevolutCheckout(orderToken, environment);
+            cardFieldInstance = createCardField({
+                target: cardFieldTarget,
+                locale: 'en',
+                // Style the iframe to match your UI
+                styles: {
+                    default: {
+                        fontFamily: 'inherit',
+                        fontSize: '16px',
+                        color: '#222',
+                        background: 'transparent',
+                        border: 'none'
+                    },
+                    focused: { borderColor: '#007bff' },
+                    invalid: { color: '#dc3545' },
+                    completed: { color: '#28a745' }
+                },
+                classes: {
+                    default: 'card-field-wrapper',
+                    focused: 'card-field-wrapper--focused',
+                    invalid: 'card-field-wrapper--invalid',
+                    completed: 'card-field-wrapper--completed'
+                },
+                onSuccess() {
+                    errorMessage = null;
+                    validationErrors = null;
+                    showPaymentForm = false;
+                    paymentState = 'processing';
+                    pollOrderStatus();
+                },
+                onError(error) {
+                    errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
+                    validationErrors = null;
+                    paymentState = 'failure';
+                    showPaymentForm = true;
+                    if (paymentFormComponent) {
+                        paymentFormComponent.setPaymentFailed();
+                    }
+                },
+                onValidation(errors) {
+                    const concatenatedErrors = errors?.join('; ');
+                    if (concatenatedErrors?.length) {
+                        validationErrors = concatenatedErrors;
+                        errorMessage = null;
+                    } else {
+                        validationErrors = null;
+                    }
+                }
+            });
+        } catch (error) {
+            errorMessage = `Failed to initialize payment field. ${error instanceof Error ? error.message : String(error)}`;
+            cardFieldInstance = null;
+        }
+    }
+
+    // --- Poll Backend for Order Status ---
+    async function pollOrderStatus() {
+        if (!orderToken) {
+            errorMessage = 'Order token missing. Cannot verify payment status.';
+            return;
+        }
+        let attempts = 0;
+        const maxAttempts = 20;
+        const pollInterval = 2000;
+        isPollingStopped = false;
+        let orderId = lastOrderId;
+        if (!orderId) {
+            errorMessage = 'Order ID missing. Cannot verify payment status.';
+            return;
+        }
+        async function poll() {
+            if (isPollingStopped) return;
+            attempts++;
+            try {
+                const response = await fetch(getApiEndpoint(apiEndpoints.payments.orderStatus), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ order_id: orderId })
+                });
+                if (!response.ok) throw new Error(`Failed to fetch order status: ${response.status} ${response.statusText}`);
+                const data = await response.json();
+                const state = data.state;
+                if (typeof state === 'string' && state.toLowerCase() === 'completed') {
+                    paymentState = 'success';
+                    errorMessage = null;
+                    validationErrors = null;
+                    orderToken = null;
+                    lastOrderId = null;
+                    isPollingStopped = true;
+                    if (pollTimeoutId) clearTimeout(pollTimeoutId);
+                    pollTimeoutId = null;
+                    return;
+                } else if (typeof state === 'string' && (state.toLowerCase() === 'failed' || state.toLowerCase() === 'cancelled')) {
+                    paymentState = 'failure';
+                    errorMessage = 'Payment failed or was cancelled. Please try again.';
+                    validationErrors = null;
+                    orderToken = null;
+                    lastOrderId = null;
+                    isPollingStopped = true;
+                    if (pollTimeoutId) clearTimeout(pollTimeoutId);
+                    pollTimeoutId = null;
+                    showPaymentForm = true;
+                    if (paymentFormComponent) {
+                        paymentFormComponent.setPaymentFailed();
+                    }
+                    return;
+                } else {
+                    if (attempts < maxAttempts && !isPollingStopped) {
+                        pollTimeoutId = setTimeout(poll, pollInterval);
+                    } else if (!isPollingStopped) {
+                        errorMessage = 'Payment processing timed out. Please check your order status later.';
+                        paymentState = 'failure';
+                        validationErrors = null;
+                        orderToken = null;
+                        lastOrderId = null;
+                        isPollingStopped = true;
+                        if (pollTimeoutId) clearTimeout(pollTimeoutId);
+                        pollTimeoutId = null;
+                        showPaymentForm = true;
+                        if (paymentFormComponent) {
+                            paymentFormComponent.setPaymentFailed();
+                        }
+                    }
+                }
+            } catch (err) {
+                errorMessage = `Error checking payment status: ${err instanceof Error ? err.message : String(err)}`;
+                paymentState = 'failure';
+                validationErrors = null;
+                orderToken = null;
+                lastOrderId = null;
+                isPollingStopped = true;
+                if (pollTimeoutId) clearTimeout(pollTimeoutId);
+                pollTimeoutId = null;
+                showPaymentForm = true;
+                if (paymentFormComponent) {
+                    paymentFormComponent.setPaymentFailed();
+                }
+            }
+        }
+        if (pollTimeoutId) clearTimeout(pollTimeoutId);
+        pollTimeoutId = null;
+        isPollingStopped = false;
+        pollTimeoutId = setTimeout(poll, 1500);
+    }
+
+    // --- Consent handler ---
     function handleConsentChanged(event) {
         hasConsentedToLimitedRefund = event.detail.consented;
-        
         if (hasConsentedToLimitedRefund) {
             dispatch('consentGiven', { consented: true });
         }
-        
         if (requireConsent && hasConsentedToLimitedRefund && !showPaymentForm) {
             setTimeout(() => {
                 showPaymentForm = true;
@@ -59,54 +303,63 @@
             }, 300);
         }
     }
-    
-    // Handle visibility toggle
+
+    // --- Sensitive data toggle handler ---
     function handleToggleSensitiveData(event) {
         showSensitiveData = event.detail.showSensitiveData;
     }
-    
-    // Start payment processing
-    function handleStartPayment(event) {
+
+    // --- Payment start handler ---
+    async function handleStartPayment(event) {
         // Store payment details for potential failure recovery
         paymentDetails = { ...event.detail };
-        
-        paymentState = 'processing';
-        dispatch('paymentProcessing', { processing: true });
-        dispatch('paymentStateChange', { state: 'processing' });
-        
-        // Simulate payment processing with 3 second delay
-        setTimeout(() => {
-            // Check if payment should fail (demo)
-            if (event.detail.nameOnCard.trim() === 'Max Mustermann') {
-                paymentState = 'failure';
-                dispatch('paymentStateChange', { state: 'failure' });
-                
-                // Reset to payment form with error
-                setTimeout(() => {
-                    if (paymentFormComponent) {
-                        paymentFormComponent.setPaymentFailed();
-                    }
-                }, 100);
-            } else {
-                paymentState = 'success';
-                dispatch('paymentStateChange', { state: 'success' });
-                
-                // After payment succeeds, notify parent components
-                setTimeout(() => {
-                    dispatch('paymentSuccess', {
-                        nameOnCard: event.detail.nameOnCard,
-                        lastFourDigits: event.detail.lastFourDigits,
-                        amount: credits_amount,
-                        price: purchasePrice,
-                        currency
-                    });
-                }, 2000);
-            }
-            
-            dispatch('paymentProcessing', { processing: false });
-        }, 3000); // Changed to 3 seconds as specified
+        errorMessage = null;
+        validationErrors = null;
+        isLoading = true;
+
+        // Fetch user email if not already
+        if (!userEmail) await fetchUserEmail();
+        if (!userEmail) {
+            errorMessage = 'Could not retrieve your email address for payment.';
+            isLoading = false;
+            return;
+        }
+
+        // Fetch Revolut config if not already
+        if (!revolutPublicKey) await fetchConfig();
+        if (!revolutPublicKey) {
+            isLoading = false;
+            return;
+        }
+
+        // Create payment order
+        const orderCreated = await createOrder();
+        if (!orderCreated) {
+            isLoading = false;
+            return;
+        }
+
+        // Wait for Svelte to update DOM so cardFieldTarget is bound
+        await tick();
+
+        // Initialize CardField
+        await initializeCardField();
+
+        // Submit payment via CardField
+        if (cardFieldInstance) {
+            cardFieldInstance.submit({
+                name: event.detail.nameOnCard,
+                email: userEmail
+            });
+        } else {
+            errorMessage = 'Payment field is not ready.';
+            isLoading = false;
+            return;
+        }
+
+        isLoading = false;
     }
-    
+
     // Notify parent when payment form visibility changes
     $: if (showPaymentForm !== previousPaymentFormState) {
         if (previousPaymentFormState !== undefined) {
@@ -115,14 +368,25 @@
         previousPaymentFormState = showPaymentForm;
     }
     let previousPaymentFormState;
-    
+
     // Watch payment state and return to form on failure
     $: if (paymentState === 'failure') {
-        // When payment fails, reset back to payment form after a short delay
         setTimeout(() => {
             paymentState = 'idle';
         }, 1000);
     }
+
+    // Cleanup on destroy
+    onMount(() => {
+        fetchUserEmail();
+        return () => {
+            if (cardFieldInstance) {
+                try { cardFieldInstance.destroy(); } catch {}
+            }
+            isPollingStopped = true;
+            if (pollTimeoutId) clearTimeout(pollTimeoutId);
+        };
+    });
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
@@ -145,6 +409,7 @@
             initialPaymentDetails={paymentState === 'failure' ? paymentDetails : null}
             on:toggleSensitiveData={handleToggleSensitiveData}
             on:startPayment={handleStartPayment}
+            bind:cardFieldTarget
         />
     {/if}
 </div>

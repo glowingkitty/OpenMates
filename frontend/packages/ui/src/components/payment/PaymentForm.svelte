@@ -29,6 +29,9 @@
     let expireInput: HTMLInputElement;
     let cvvInputVisible: HTMLInputElement;
     let cvvInputHidden: HTMLInputElement;
+
+    // CardField target for Revolut iframe
+    export let cardFieldTarget: HTMLElement;
     
     // Validation states
     let nameError = '';
@@ -467,9 +470,12 @@
                         {/if}
                     </div>
                 {/if}
+
+                <!-- Revolut CardField iframe will be mounted here -->
+                <div bind:this={cardFieldTarget} class="card-field-wrapper"></div>
                 
                 {#if showCardWarning && cardError}
-                    <InputWarning 
+                    <InputWarning
                         message={cardError}
                         target={getCardInput()}
                     />
