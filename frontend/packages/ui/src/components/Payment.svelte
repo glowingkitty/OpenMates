@@ -165,7 +165,7 @@
 
     // --- Initialize CardField ---
     async function initializeCardField() {
-        console.log('[initializeCardField] called', {
+        console.debug('[initializeCardField] called', {
             orderToken,
             cardFieldTarget,
             revolutPublicKey
@@ -184,14 +184,14 @@
 
         // Destroy previous instance
         if (cardFieldInstance) {
-            console.log('[initializeCardField] Destroying previous cardFieldInstance');
+            console.debug('[initializeCardField] Destroying previous cardFieldInstance');
             try { cardFieldInstance.destroy(); } catch (e) { console.warn('[initializeCardField] Error destroying previous instance', e); }
             cardFieldInstance = null;
         }
 
         validationErrors = null;
         try {
-            console.log('[initializeCardField] Creating card field instance...');
+            console.debug('[initializeCardField] Creating card field instance...');
             const environment = 'sandbox';
             const { createCardField } = await RevolutCheckout(orderToken, environment);
             cardFieldInstance = createCardField({
@@ -204,25 +204,26 @@
                     invalid: 'revolut-card-field--invalid'
                 },
                 onSuccess() {
-                    console.log('[initializeCardField] onSuccess called');
+                    console.debug('[initializeCardField] onSuccess called');
                     errorMessage = null;
                     validationErrors = null;
                     paymentState = 'processing';
                     pollOrderStatus();
                 },
                 onError(error) {
-                    console.error('[initializeCardField] onError called', error);
+                    console.debug('[initializeCardField] onError called', error);
                     errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
                     validationErrors = null;
                     paymentState = 'failure';
                     cardFieldLoaded = false;
                     if (paymentFormComponent) {
-                        paymentFormComponent.setPaymentFailed();
+                        paymentFormComponent.setPaymentFailed(errorMessage);
                     }
                 },
                 onValidation(errors) {
-                    console.log('[initializeCardField] onValidation called', errors);
-                    const concatenatedErrors = errors?.join('; ');
+                    console.debug('[initializeCardField] onValidation called', errors);
+                    // Only show the 'message' field from each error object
+                    const concatenatedErrors = errors?.map(e => e?.message || String(e)).join('; ');
                     if (concatenatedErrors?.length) {
                         validationErrors = concatenatedErrors;
                         errorMessage = null;
@@ -232,14 +233,14 @@
                 }
             });
             cardFieldLoaded = true;
-            console.log('[initializeCardField] Card field initialized successfully');
+            console.debug('[initializeCardField] Card field initialized successfully');
         } catch (error) {
             console.error('[initializeCardField] Error initializing card field', error);
             errorMessage = `Failed to initialize payment field. ${error instanceof Error ? error.message : String(error)}`;
             cardFieldInstance = null;
             cardFieldLoaded = false;
         }
-        console.log('[initializeCardField] function end', { cardFieldLoaded, cardFieldInstance });
+        console.debug('[initializeCardField] function end', { cardFieldLoaded, cardFieldInstance });
     }
 
     // --- Poll Backend for Order Status ---
@@ -353,72 +354,6 @@
         }
     }
 
-    // --- Sensitive data toggle handler ---
-    function handleToggleSensitiveData(event) {
-        showSensitiveData = event.detail.showSensitiveData;
-    }
-
-    // --- Payment start handler ---
-    async function handleStartPayment(event) {
-        console.log('[handleStartPayment] called', { eventDetail: event.detail });
-
-        // Store payment details for potential failure recovery
-        paymentDetails = { ...event.detail };
-        errorMessage = null;
-        validationErrors = null;
-        isLoading = true;
-
-        // Fetch user email if not already
-        if (!userEmail) await fetchUserEmail();
-        if (!userEmail) {
-            console.warn('[handleStartPayment] Could not retrieve user email');
-            errorMessage = 'Could not retrieve your email address for payment.';
-            isLoading = false;
-            return;
-        }
-
-        // Fetch Revolut config if not already
-        if (!revolutPublicKey) await fetchConfig();
-        if (!revolutPublicKey) {
-            console.warn('[handleStartPayment] Revolut public key missing after fetchConfig');
-            isLoading = false;
-            return;
-        }
-
-        // Create payment order
-        const orderCreated = await createOrder();
-        if (!orderCreated) {
-            console.warn('[handleStartPayment] Order creation failed');
-            isLoading = false;
-            return;
-        }
-
-        // Wait for Svelte to update DOM so cardFieldTarget is bound
-        await tick();
-
-        // Initialize CardField
-        console.log('[handleStartPayment] Calling initializeCardField...');
-        await initializeCardField();
-        console.log('[handleStartPayment] Returned from initializeCardField', { cardFieldInstance });
-
-        // Submit payment via CardField
-        if (cardFieldInstance) {
-            console.log('[handleStartPayment] Submitting payment via cardFieldInstance');
-            cardFieldInstance.submit({
-                name: event.detail.nameOnCard,
-                email: userEmail
-            });
-        } else {
-            console.error('[handleStartPayment] cardFieldInstance is not set after initializeCardField');
-            errorMessage = 'Payment field is not ready.';
-            isLoading = false;
-            return;
-        }
-
-        isLoading = false;
-        console.log('[handleStartPayment] Payment process finished');
-    }
-
     // Notify parent when payment form visibility changes
     /* showPaymentForm is removed; no need to track its state for parent notification */
 
@@ -435,7 +370,7 @@
         tick().then(() => autoInitCardField());
     }
     async function autoInitCardField() {
-        console.log('[autoInitCardField] called', {
+        console.debug('[autoInitCardField] called', {
             cardFieldTarget,
             cardFieldInstance,
             paymentState
@@ -446,10 +381,10 @@
             !cardFieldInstance &&
             paymentState === 'idle'
         ) {
-            console.log('[autoInitCardField] Payment form is present, initializing card field...');
+            console.debug('[autoInitCardField] Payment form is present, initializing card field...');
             // Fetch Revolut config if needed
             if (!revolutPublicKey) {
-                console.log('[autoInitCardField] revolutPublicKey missing, calling fetchConfig...');
+                console.debug('[autoInitCardField] revolutPublicKey missing, calling fetchConfig...');
                 await fetchConfig();
                 if (!revolutPublicKey) {
                     console.warn('[autoInitCardField] revolutPublicKey still missing after fetchConfig');
@@ -458,7 +393,7 @@
             }
             // Create order if needed
             if (!orderToken) {
-                console.log('[autoInitCardField] orderToken missing, calling createOrder...');
+                console.debug('[autoInitCardField] orderToken missing, calling createOrder...');
                 const orderCreated = await createOrder();
                 if (!orderCreated) {
                     console.warn('[autoInitCardField] orderToken still missing after createOrder');
@@ -468,11 +403,11 @@
             // Wait for DOM update
             await tick();
             // Initialize card field
-            console.log('[autoInitCardField] Calling initializeCardField...');
+            console.debug('[autoInitCardField] Calling initializeCardField...');
             await initializeCardField();
-            console.log('[autoInitCardField] Returned from initializeCardField', { cardFieldInstance });
+            console.debug('[autoInitCardField] Returned from initializeCardField', { cardFieldInstance });
         } else {
-            console.log('[autoInitCardField] Not initializing card field. State:', {
+            console.debug('[autoInitCardField] Not initializing card field. State:', {
                 cardFieldTarget,
                 cardFieldInstance,
                 paymentState

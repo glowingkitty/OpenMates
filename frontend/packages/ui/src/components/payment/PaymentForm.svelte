@@ -80,6 +80,10 @@
                 : paymentError
                     ? 'Payment error'
                     : '';
+    // Allow parent to set payment failed state
+    export function setPaymentFailed(message?: string) {
+        paymentError = message || 'Payment failed. Please try again.';
+    }
 </script>
 
 <div class="payment-form" in:fade={{ duration: 300 }} style="opacity: {cardFieldLoaded ? 1 : 0}; transition: opacity 0.3s;">
