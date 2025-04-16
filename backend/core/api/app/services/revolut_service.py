@@ -97,7 +97,6 @@ class RevolutService:
         amount: int,
         currency: str,
         email: str,
-        user_id: str,
         credits_amount: int
     ) -> Optional[Dict[str, Any]]:
         """
@@ -107,11 +106,10 @@ class RevolutService:
             amount: Amount in the smallest currency unit (e.g., cents).
             currency: 3-letter ISO currency code (e.g., "EUR").
             email: Customer's email address.
-            user_id: Internal user ID for tracking.
             credits_amount: Number of credits being purchased (for metadata).
 
         Returns:
-            A dictionary containing the order details from Revolut API, 
+            A dictionary containing the order details from Revolut API,
             including the 'token', or None if an error occurred.
         """
         api_key = await self._get_api_key()
@@ -131,16 +129,15 @@ class RevolutService:
         
         # Construct a unique reference for the merchant order
         timestamp = int(time.time())
-        merchant_order_ref = f"user_{user_id}_credits_{credits_amount}_{timestamp}"
+        merchant_order_ref = f"credits_{credits_amount}_{timestamp}"
 
         payload = {
             "amount": amount,
             "currency": currency,
-            "capture_mode": "automatic", # Fixed: must be lowercase per Revolut API docs
+            "capture_mode": "automatic",
             "merchant_order_ext_ref": merchant_order_ref,
             "email": email,
             "metadata": {
-                "user_id": str(user_id), # Ensure user_id is string if needed by Directus later
                 "credits_purchased": str(credits_amount),
                 "purchase_type": "credits",
                 "timestamp_created": str(timestamp)
@@ -154,11 +151,12 @@ class RevolutService:
                 formatted_amount = f"{currency.upper()} {amount}"
             else:
                 formatted_amount = f"{currency.upper()} {amount / 10**decimals:.2f}"
-            logger.info(f"Creating Revolut order for user. Amount: {formatted_amount}")
+
+            logger.info(f"Creating Revolut order. Amount: {formatted_amount}")
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()  # Raise exception for 4xx/5xx status codes
             order_data = response.json()
-            logger.info(f"Revolut order created successfully. Order ID: {order_data.get('id')}, Token: {order_data.get('token')}")
+            logger.info(f"Revolut order created successfully. Order ID: {order_data.get('id')}.")
             return order_data
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error creating Revolut order: {e.response.status_code} - {e.response.text}")
