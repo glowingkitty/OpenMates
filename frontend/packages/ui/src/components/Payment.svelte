@@ -34,7 +34,7 @@
     let paymentState: 'idle' | 'processing' | 'success' | 'failure' = initialState;
 
     // Payment form state
-    export let showPaymentForm = !requireConsent;
+    /* showPaymentForm is no longer needed; payment form is always rendered and initialized regardless of consent */
 
     // References to child components
     let paymentFormComponent;
@@ -207,7 +207,6 @@
                     console.log('[initializeCardField] onSuccess called');
                     errorMessage = null;
                     validationErrors = null;
-                    showPaymentForm = false;
                     paymentState = 'processing';
                     pollOrderStatus();
                 },
@@ -216,7 +215,6 @@
                     errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
                     validationErrors = null;
                     paymentState = 'failure';
-                    showPaymentForm = true;
                     cardFieldLoaded = false;
                     if (paymentFormComponent) {
                         paymentFormComponent.setPaymentFailed();
@@ -299,7 +297,6 @@
                     isPollingStopped = true;
                     if (pollTimeoutId) clearTimeout(pollTimeoutId);
                     pollTimeoutId = null;
-                    showPaymentForm = true;
                     if (paymentFormComponent) {
                         paymentFormComponent.setPaymentFailed();
                     }
@@ -316,7 +313,6 @@
                         isPollingStopped = true;
                         if (pollTimeoutId) clearTimeout(pollTimeoutId);
                         pollTimeoutId = null;
-                        showPaymentForm = true;
                         if (paymentFormComponent) {
                             paymentFormComponent.setPaymentFailed();
                         }
@@ -331,7 +327,6 @@
                 isPollingStopped = true;
                 if (pollTimeoutId) clearTimeout(pollTimeoutId);
                 pollTimeoutId = null;
-                showPaymentForm = true;
                 if (paymentFormComponent) {
                     paymentFormComponent.setPaymentFailed();
                 }
@@ -349,10 +344,11 @@
         if (hasConsentedToLimitedRefund) {
             dispatch('consentGiven', { consented: true });
         }
-        if (requireConsent && hasConsentedToLimitedRefund && !showPaymentForm) {
+        // No longer need to toggle showPaymentForm; overlay will fade out on consent
+        // Optionally, can dispatch an event if parent needs to know
+        if (requireConsent && hasConsentedToLimitedRefund) {
             setTimeout(() => {
-                showPaymentForm = true;
-                dispatch('paymentFormVisibility', { visible: showPaymentForm });
+                dispatch('paymentFormVisibility', { visible: true });
             }, 300);
         }
     }
@@ -424,13 +420,7 @@
     }
 
     // Notify parent when payment form visibility changes
-    $: if (showPaymentForm !== previousPaymentFormState) {
-        if (previousPaymentFormState !== undefined) {
-            dispatch('paymentFormVisibility', { visible: showPaymentForm });
-        }
-        previousPaymentFormState = showPaymentForm;
-    }
-    let previousPaymentFormState;
+    /* showPaymentForm is removed; no need to track its state for parent notification */
 
     // Watch payment state and return to form on failure
     $: if (paymentState === 'failure') {
@@ -441,24 +431,22 @@
 
     // --- Automatically load and initialize card field when payment form is shown ---
     // Only initialize card field when form is visible and target is set
-    $: if (showPaymentForm && cardFieldTarget && !cardFieldInstance && paymentState === 'idle') {
+    $: if (cardFieldTarget && !cardFieldInstance && paymentState === 'idle') {
         tick().then(() => autoInitCardField());
     }
     async function autoInitCardField() {
         console.log('[autoInitCardField] called', {
-            showPaymentForm,
             cardFieldTarget,
             cardFieldInstance,
             paymentState
         });
-        // Only run if payment form is visible, card field target is set, and card field is not already initialized
+        // Only run if card field target is set, card field is not already initialized, and payment is idle
         if (
-            showPaymentForm &&
             cardFieldTarget &&
             !cardFieldInstance &&
             paymentState === 'idle'
         ) {
-            console.log('[autoInitCardField] Payment form is visible, initializing card field...');
+            console.log('[autoInitCardField] Payment form is present, initializing card field...');
             // Fetch Revolut config if needed
             if (!revolutPublicKey) {
                 console.log('[autoInitCardField] revolutPublicKey missing, calling fetchConfig...');
@@ -485,7 +473,6 @@
             console.log('[autoInitCardField] Returned from initializeCardField', { cardFieldInstance });
         } else {
             console.log('[autoInitCardField] Not initializing card field. State:', {
-                showPaymentForm,
                 cardFieldTarget,
                 cardFieldInstance,
                 paymentState
@@ -555,7 +542,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: var(--color-consent-overlay, #f5f6fa); /* fallback color, can be themed */
+        background: var(--color-grey-20);
         z-index: 10;
         display: flex;
         align-items: center;
