@@ -36,24 +36,25 @@ async def store_device_in_cache(
         "user_id": user_id  # Include user ID for lookups
     }
     
-    # Set in cache with 24-hour TTL
+    # Set in cache with 24-hour TTL using the prefix from CacheService
+    device_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
     await cache_service.set(
-        f"device:{user_id}:{device_fingerprint}", 
+        device_key,
         device_data,
-        ttl=86400  # 24 hours
+        ttl=cache_service.USER_TTL # Use TTL from CacheService
     )
     
     # Also add to a user's device list for quick lookups of all devices
-    # First get the current list
-    device_list_key = f"user_devices:{user_id}"
+    # First get the current list using the prefix from CacheService
+    device_list_key = f"{cache_service.USER_DEVICE_LIST_KEY_PREFIX}{user_id}"
     device_list = await cache_service.get(device_list_key) or []
-    
+
     # Add if not already in list
     if device_fingerprint not in device_list:
         device_list.append(device_fingerprint)
-        await cache_service.set(device_list_key, device_list, ttl=86400)
-    
-    logger.debug(f"Stored device {device_fingerprint} in cache for user {user_id}")
+        await cache_service.set(device_list_key, device_list, ttl=cache_service.USER_TTL) # Use TTL from CacheService
+
+    logger.debug(f"Stored device {device_fingerprint} (Key: {device_key}) in cache for user {user_id}")
 
 async def check_device_in_cache(
     cache_service: CacheService,
@@ -71,9 +72,9 @@ async def check_device_in_cache(
     Returns:
         Tuple of (exists, device_data)
     """
-    device_key = f"device:{user_id}:{device_fingerprint}"
+    device_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
     device_data = await cache_service.get(device_key)
-    
+
     return (device_data is not None, device_data)
 
 async def get_user_cached_devices(
@@ -90,13 +91,13 @@ async def get_user_cached_devices(
     Returns:
         List of device data dictionaries
     """
-    # Get the list of device fingerprints
-    device_list_key = f"user_devices:{user_id}"
+    # Get the list of device fingerprints using the prefix from CacheService
+    device_list_key = f"{cache_service.USER_DEVICE_LIST_KEY_PREFIX}{user_id}"
     fingerprints = await cache_service.get(device_list_key) or []
-    
+
     devices = []
     for fingerprint in fingerprints:
-        device_key = f"device:{user_id}:{fingerprint}"
+        device_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{fingerprint}"
         device_data = await cache_service.get(device_key)
         if device_data:
             devices.append({
@@ -121,10 +122,11 @@ async def update_device_cache(
         device_fingerprint: Device fingerprint to update
         update_data: Dict of fields to update
     """
-    device_key = f"device:{user_id}:{device_fingerprint}"
+    device_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
     device_data = await cache_service.get(device_key)
-    
+
     if device_data:
         # Update the fields
         device_data.update(update_data)
-        await cache_service.set(device_key, device_data, ttl=86400)
+        # Use TTL from CacheService
+        await cache_service.set(device_key, device_data, ttl=cache_service.USER_TTL)

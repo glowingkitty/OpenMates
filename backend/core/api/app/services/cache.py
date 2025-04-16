@@ -20,6 +20,7 @@ class CacheService:
     USER_KEY_PREFIX = "user_profile:"
     SESSION_KEY_PREFIX = "session:"
     USER_DEVICE_KEY_PREFIX = "user_device:"
+    USER_DEVICE_LIST_KEY_PREFIX = "user_device_list:" # Added for consistency
     ORDER_KEY_PREFIX = "order_status:"
     
     def __init__(self):
@@ -169,134 +170,130 @@ class CacheService:
             return None
     
     async def get_user_by_token(self, refresh_token: str) -> Optional[Dict]:
-        """Get user data from cache by refresh token"""
+        """Get user data from cache by refresh token.
+        Looks up user_id by token hash, then fetches user data by user_id."""
         try:
             if not refresh_token:
                 logger.debug("Attempted cache GET by token: No token provided.")
                 return None
-                
+
             # Generate token hash for cache key
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-            cache_key = f"{self.SESSION_KEY_PREFIX}{token_hash}"
-            logger.debug(f"Attempting cache GET by token hash: {token_hash[:8]}... (Key: '{cache_key}')")
-            
-            return await self.get(cache_key)
+            session_cache_key = f"{self.SESSION_KEY_PREFIX}{token_hash}"
+            logger.debug(f"Attempting cache GET for user_id by token hash: {token_hash[:8]}... (Key: '{session_cache_key}')")
+
+            # Get the user_id associated with this token hash
+            user_id_data = await self.get(session_cache_key) # Should return {"user_id": "some_id"} or just "some_id"
+
+            user_id = None
+            if isinstance(user_id_data, dict):
+                user_id = user_id_data.get("user_id")
+            elif isinstance(user_id_data, str): # Handle case where we stored only the string ID
+                 user_id = user_id_data
+
+            if not user_id:
+                logger.debug(f"Cache MISS for user_id associated with token hash {token_hash[:8]}...")
+                return None
+
+            logger.debug(f"Cache HIT for user_id '{user_id}' associated with token hash {token_hash[:8]}...")
+            # Now get the actual user data using the user_id
+            return await self.get_user_by_id(user_id)
         except Exception as e:
             logger.error(f"Error getting user from cache by token hash {token_hash[:8]}...: {str(e)}")
             return None
     
     async def set_user(self, user_data: Dict, user_id: str = None, refresh_token: str = None, ttl: int = None) -> bool:
         """
-        Cache user data with optional token association
-        
+        Cache user data by user_id and optionally associate a refresh token with the user_id.
+
         Args:
-            user_data: Dictionary containing user data
-            user_id: User ID (optional if included in user_data)
-            refresh_token: Refresh token to associate with user (optional)
-            ttl: Time-to-live in seconds (defaults to USER_TTL)
-            
+            user_data: Dictionary containing user data to cache under user_id key.
+            user_id: User ID (optional if included in user_data).
+            refresh_token: Refresh token to associate with the user_id (optional).
+                           If provided, a separate cache entry {session_prefix}:{token_hash} -> {user_id} is created.
+            ttl: Time-to-live in seconds for both user data and session link (defaults to USER_TTL/SESSION_TTL).
+
         Returns:
-            bool: Success status
+            bool: Success status (True if user data caching succeeded).
         """
         try:
             if not user_data:
+                logger.warning("Attempted to cache empty user data.")
                 return False
-                
+
             # Use provided user_id or extract from user_data
             user_id = user_id or user_data.get("user_id") or user_data.get("id")
             if not user_id:
                 logger.error("Cannot cache user data: no user_id provided or found in user_data.")
                 return False
-                
+
             logger.debug(f"Attempting cache SET for user ID: {user_id}")
-            # Set TTL to default if not provided
-            ttl = ttl or self.USER_TTL
-            
-            # Cache by user ID
+            # Set TTLs
+            user_ttl = ttl or self.USER_TTL
+            session_ttl = ttl or self.SESSION_TTL # Use separate TTL for session link
+
+            # 1. Cache the full user data by user ID
             user_cache_key = f"{self.USER_KEY_PREFIX}{user_id}"
-            user_set_success = await self.set(user_cache_key, user_data, ttl=ttl)
+            user_set_success = await self.set(user_cache_key, user_data, ttl=user_ttl)
             logger.debug(f"Cache SET result for user key '{user_cache_key}': {user_set_success}")
-            
-            # If refresh token provided, also cache by token
-            session_set_success = False
+
+            # 2. If refresh token provided, cache the user_id lookup by token hash
+            session_set_success = True # Default to True if no token provided
             if refresh_token:
-                logger.debug(f"Attempting cache SET for session token associated with user ID: {user_id}")
+                logger.debug(f"Attempting cache SET for session token link to user ID: {user_id}")
                 token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
                 session_cache_key = f"{self.SESSION_KEY_PREFIX}{token_hash}"
-                
-                # For session cache, ensure we have token expiry
-                session_data = user_data.copy()
-                if "token_expiry" not in session_data:
-                    session_data["token_expiry"] = int(time.time()) + ttl
-                    
-                session_set_success = await self.set(session_cache_key, session_data, ttl=ttl)
-                logger.debug(f"Cache SET result for session key '{session_cache_key}': {session_set_success}")
-                
-            # Return True if at least one cache operation succeeded
-            return user_set_success or session_set_success
+
+                # Store only the user_id (or a small dict containing it) for the session link
+                session_link_data = {"user_id": user_id} # Store as dict for potential future expansion
+                # Alternatively, store just the string: session_link_data = user_id
+
+                session_set_success = await self.set(session_cache_key, session_link_data, ttl=session_ttl)
+                logger.debug(f"Cache SET result for session link key '{session_cache_key}': {session_set_success}")
+
+            # Return True only if the main user data caching succeeded
+            return user_set_success
         except Exception as e:
             logger.error(f"Error caching user data for user '{user_id}': {str(e)}")
             return False
     
     async def update_user(self, user_id: str, updated_fields: Dict) -> bool:
         """
-        Update specific fields of cached user data
-        
+        Update specific fields of cached user data (stored by user_id).
+        Session link entries are not affected as they only store the user_id.
+
         Args:
-            user_id: User ID
-            updated_fields: Dictionary of fields to update
-            
+            user_id: User ID.
+            updated_fields: Dictionary of fields to update.
+
         Returns:
-            bool: Success status
+            bool: Success status.
         """
         try:
             if not user_id or not updated_fields:
+                logger.warning("Update user cache skipped: missing user_id or updated_fields.")
                 return False
-                
+
             # Get current user data
             user_cache_key = f"{self.USER_KEY_PREFIX}{user_id}"
             logger.debug(f"Attempting cache UPDATE for user ID: {user_id} (Key: '{user_cache_key}')")
             current_data = await self.get(user_cache_key)
-            
-            if not current_data:
-                # Log as warning, consistent with previous behavior
-                logger.warning(f"Cannot update user cache: no existing data found for user '{user_id}' (Key: '{user_cache_key}')")
+
+            if not current_data or not isinstance(current_data, dict):
+                logger.warning(f"Cannot update user cache: no existing data found or data is not a dict for user '{user_id}' (Key: '{user_cache_key}')")
                 return False
-                
+
             # Update fields
             logger.debug(f"Updating fields for user '{user_id}': {list(updated_fields.keys())}")
             current_data.update(updated_fields)
-            
-            # Save updated data
+
+            # Save updated data (use existing TTL or default USER_TTL)
+            # Note: Redis SETEX updates TTL, SET does not. We use SETEX via self.set.
             user_update_success = await self.set(user_cache_key, current_data, ttl=self.USER_TTL)
             logger.debug(f"Cache SET result for user key '{user_cache_key}' after update: {user_update_success}")
-            
-            # Update any session entries for this user
-            logger.debug(f"Searching for session keys associated with user ID: {user_id}")
-            session_keys = await self.get_keys_by_pattern(f"{self.SESSION_KEY_PREFIX}*")
-            logger.debug(f"Found {len(session_keys)} potential session keys to update.")
-            sessions_updated_count = 0
-            for key in session_keys:
-                session_data = await self.get(key)
-                if session_data and (session_data.get("user_id") == user_id or session_data.get("id") == user_id):
-                    logger.debug(f"Updating session cache for key '{key}' (User: {user_id})")
-                    # Preserve token_expiry
-                    token_expiry = session_data.get("token_expiry")
-                    
-                    # Update session data with new fields
-                    session_data.update(updated_fields)
-                    
-                    # Restore token_expiry if it was overwritten
-                    if token_expiry:
-                        session_data["token_expiry"] = token_expiry
-                        
-                    session_update_success = await self.set(key, session_data, ttl=self.SESSION_TTL)
-                    if session_update_success:
-                        sessions_updated_count += 1
-                    logger.debug(f"Cache SET result for session key '{key}' after update: {session_update_success}")
-            
-            logger.debug(f"Finished updating session caches for user {user_id}. Updated {sessions_updated_count} sessions.")
-            # Return True if the main user cache update succeeded
+
+            # No need to update session entries anymore as they only link to user_id
+
             return user_update_success
         except Exception as e:
             logger.error(f"Error updating cached user data for user '{user_id}': {str(e)}")
@@ -343,15 +340,23 @@ class CacheService:
             logger.debug(f"Found {len(session_keys)} potential session keys to check.")
             sessions_deleted_count = 0
             for key in session_keys:
-                session_data = await self.get(key)
-                if session_data and (session_data.get("user_id") == user_id or session_data.get("id") == user_id):
-                    logger.debug(f"Deleting session cache for key '{key}' (User: {user_id})")
+                # Retrieve the session link data (should contain user_id)
+                session_link_data = await self.get(key)
+                linked_user_id = None
+                if isinstance(session_link_data, dict):
+                    linked_user_id = session_link_data.get("user_id")
+                elif isinstance(session_link_data, str): # Handle case where we stored only the string ID
+                    linked_user_id = session_link_data
+
+                # Check if this session link belongs to the user being deleted
+                if linked_user_id == user_id:
+                    logger.debug(f"Deleting session link cache for key '{key}' (User: {user_id})")
                     delete_session_success = await self.delete(key)
                     if delete_session_success:
                         sessions_deleted_count += 1
-                    logger.debug(f"Cache DELETE result for session key '{key}': {delete_session_success}")
-            logger.debug(f"Finished deleting session caches for user {user_id}. Deleted {sessions_deleted_count} keys.")
-            
+                    logger.debug(f"Cache DELETE result for session link key '{key}': {delete_session_success}")
+            logger.debug(f"Finished deleting session link caches for user {user_id}. Deleted {sessions_deleted_count} keys.")
+
             # Return True if the main user cache deletion was successful
             return delete_user_success
         except Exception as e:
