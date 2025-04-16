@@ -14,7 +14,32 @@ export interface UserProfile {
   consent_mates_default_settings?: boolean;
   language: string | null; // User's preferred language
   darkmode: boolean; // User's dark mode preference
+  currency: string | null; // User's preferred currency
 }
+
+// Helper function to determine default currency based on browser locale (USD for US, JPY for JP, EUR otherwise)
+function getBrowserCurrencyOrDefault(): string {
+  const defaultCurrency = 'EUR';
+
+  if (typeof navigator === 'undefined' || !navigator.language) {
+    console.warn('Navigator language not available, defaulting currency to EUR.');
+    return defaultCurrency;
+  }
+
+  const lang = navigator.language.toUpperCase(); // e.g., 'en-US', 'ja-JP', 'de-DE'
+
+  if (lang.includes('US')) {
+    console.log(`Detected US locale ('${lang}'), setting currency to USD.`);
+    return 'USD';
+  } else if (lang.includes('JP')) {
+    console.log(`Detected JP locale ('${lang}'), setting currency to JPY.`);
+    return 'JPY';
+  } else {
+    console.log(`Locale ('${lang}') is not US or JP, defaulting currency to EUR.`);
+    return defaultCurrency; // Default to EUR for all other locales
+  }
+}
+
 
 export const defaultProfile: UserProfile = {
   username: '',
@@ -28,7 +53,8 @@ export const defaultProfile: UserProfile = {
   consent_privacy_and_apps_default_settings: false,
   consent_mates_default_settings: false,
   language: 'en', // Default language
-  darkmode: false // Default dark mode
+  darkmode: false, // Default dark mode
+  currency: getBrowserCurrencyOrDefault() // Default currency: USD for US, JPY for JP, EUR otherwise
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);

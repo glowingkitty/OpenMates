@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import RevolutCheckout from '@revolut/checkout';
   import { apiEndpoints, getApiEndpoint } from '../config/api';
-  import { updateProfile } from '../stores/userProfile'; // Import updateProfile
+  import { userProfile, updateProfile } from '../stores/userProfile'; // Import userProfile and updateProfile
 
   // --- Component State ---
   let revolutPublicKey: string | null = null;
@@ -23,7 +23,43 @@
 
   // --- Credits Purchase Data ---
   const creditsToPurchase = 21000; // Default credits amount as requested
-  const purchaseCurrency = 'USD'; // Assuming USD, adjust if needed
+  // Currency is now read from the userProfile store
+
+  // --- Types and Helper Functions ---
+  // Define the allowed Revolut locale types based on the TS error
+  type RevolutLocale = "en" | "en-US" | "nl" | "fr" | "de" | "cs" | "it" | "lt" | "pl" | "pt" | "es" | "hu" | "sk" | "ja" | "sv" | "bg" | "ro" | "ru" | "el" | "hr" | "auto";
+  const supportedRevolutLocales: Set<string> = new Set<RevolutLocale>([
+    "en", "en-US", "nl", "fr", "de", "cs", "it", "lt", "pl", "pt", "es", "hu", "sk", "ja", "sv", "bg", "ro", "ru", "el", "hr", "auto"
+  ]);
+
+  // Helper to get a valid Revolut locale from the user profile language
+  function getValidRevolutLocale(profileLanguage: string | null | undefined): RevolutLocale {
+    const defaultLocale: RevolutLocale = 'en';
+    if (!profileLanguage) {
+      return defaultLocale;
+    }
+    // Simple mapping (e.g., if profile stores 'en-GB', map it to 'en' if 'en-GB' isn't directly supported)
+    // For now, we assume the profile language directly matches a supported locale or we default.
+    const lowerCaseLang = profileLanguage.toLowerCase();
+
+    // Direct match check (case-insensitive comparison with the Set's values)
+    for (const supportedLocale of supportedRevolutLocales) {
+        if (supportedLocale.toLowerCase() === lowerCaseLang) {
+            return supportedLocale as RevolutLocale; // Cast is safe due to check
+        }
+    }
+
+    // Fallback for base language codes (e.g., 'fr-FR' -> 'fr')
+    const baseLang = lowerCaseLang.split('-')[0];
+     if (supportedRevolutLocales.has(baseLang)) {
+        return baseLang as RevolutLocale;
+     }
+
+
+    console.warn(`Profile language '${profileLanguage}' is not a supported Revolut locale. Defaulting to '${defaultLocale}'.`);
+    return defaultLocale;
+  }
+
 
   // --- Fetch Revolut Config ---
   async function fetchConfig() {
@@ -48,6 +84,11 @@
       errorMessage = `Failed to load payment configuration. ${error instanceof Error ? error.message : String(error)}`;
     } finally {
       isLoading = false;
+      // If config fetch was successful, immediately try to create the order
+      if (revolutPublicKey) {
+        console.log('Config fetched, automatically creating order...');
+        createOrder(); // Automatically trigger order creation
+      }
     }
   }
 
@@ -70,7 +111,7 @@
         credentials: 'include', // Send cookies with the request
         body: JSON.stringify({
           credits_amount: creditsToPurchase,
-          currency: purchaseCurrency
+          currency: $userProfile?.currency || 'EUR' // Use currency from profile store, fallback to 'EUR'
           // Backend determines amount based on credits and currency
         })
       });
@@ -141,7 +182,7 @@
 
       cardFieldInstance = createCardField({
         target: cardFieldTarget,
-        locale: 'en', // Optional: set language
+        locale: getValidRevolutLocale($userProfile?.language), // Use validated language from profile store
         // Optional: Customize styles and classes
         // styles: {},
         // classes: {},
@@ -360,21 +401,7 @@
     <p class="success-message">{successMessage}</p>
   {/if}
 
-  <!-- Step 1: Show Product and Checkout Button -->
-  {#if !showCheckoutForm && !successMessage}
-    <div class="product-display">
-      <h3>Purchase OpenMates Credits</h3>
-      <p>Get {creditsToPurchase.toLocaleString()} credits</p> <!-- Display credits instead of price -->
-      <button on:click={createOrder} disabled={isLoading || !revolutPublicKey}>
-        {#if isLoading}Creating Order...{:else}Checkout Now{/if}
-      </button>
-      {#if !revolutPublicKey && !isLoading}
-        <p class="error-message">Payment system not available.</p>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Step 2: Show Checkout Form after Order is Created -->
+  <!-- Checkout Form (now shown directly after order creation attempt) -->
   {#if showCheckoutForm && orderToken}
     <form on:submit|preventDefault={handleSubmit} class="checkout-form">
       <h3>Enter Payment Details</h3>
