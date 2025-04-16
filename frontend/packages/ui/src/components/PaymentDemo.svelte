@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import RevolutCheckout from '@revolut/checkout';
   import { apiEndpoints, getApiEndpoint } from '../config/api';
+  import { updateProfile } from '../stores/userProfile'; // Import updateProfile
 
   // --- Component State ---
   let revolutPublicKey: string | null = null;
@@ -237,6 +238,18 @@
           isPollingStopped = true; // Set flag
           if (pollTimeoutId) clearTimeout(pollTimeoutId);
           pollTimeoutId = null;
+
+          // Update user profile store with new credits from response
+          if (typeof data.current_credits === 'number') {
+            console.log(`Updating profile credits to: ${data.current_credits}`);
+            updateProfile({ credits: data.current_credits });
+          } else {
+            console.warn('Order completed, but current_credits not found in response. Credits may be stale.');
+            // Optionally, trigger a full session refresh as a fallback?
+            // import { authStore } from '../stores/authStore'; // Keep this commented out
+            // authStore.checkAuth(); // Keep this commented out
+          }
+
           return;
         } else if (typeof state === 'string' && (state.toLowerCase() === 'failed' || state.toLowerCase() === 'cancelled')) {
           errorMessage = 'Payment failed or was cancelled. Please try again.';

@@ -65,7 +65,7 @@ class OrderStatusRequest(BaseModel): # New model for the request body
 class OrderStatusResponse(BaseModel):
     order_id: str
     state: str # e.g., CREATED, PENDING, AUTHORISED, COMPLETED, FAILED, CANCELLED
-    # Optionally include more details if needed from Revolut's get order response
+    current_credits: Optional[int] = None # Return current credits if state is COMPLETED
 # --- Endpoints ---
 
 @router.get("/config", response_model=PaymentConfigResponse)
@@ -441,9 +441,13 @@ async def revolut_webhook(
 async def get_order_status(
     status_request: OrderStatusRequest, # Changed parameter to accept request body
     revolut_service: RevolutService = Depends(get_revolut_service),
+    cache_service: CacheService = Depends(get_cache_service), # Inject CacheService
     current_user: User = Depends(get_current_user) # Ensure user is authenticated
 ):
-    """Retrieves the current status of a Revolut order."""
+    """
+    Retrieves the current status of a Revolut order.
+    If the order is COMPLETED, it also returns the user's current credit balance from the cache.
+    """
     order_id = status_request.order_id # Extract order_id from body
     logger.info(f"Fetching status for Revolut order {order_id} for user {current_user.id}")
     try:
@@ -464,7 +468,18 @@ async def get_order_status(
              raise HTTPException(status_code=502, detail="Could not determine order status from payment provider.")
 
         logger.info(f"Status for order {order_id}: {order_state}")
-        return OrderStatusResponse(order_id=order_id, state=order_state)
+
+        user_credits: Optional[int] = None
+        if order_state.upper() == "COMPLETED":
+            # Fetch current credits from cache, reflecting potential webhook updates
+            user_cache_data = await cache_service.get_user_by_id(current_user.id)
+            if user_cache_data:
+                user_credits = user_cache_data.get('credits')
+                logger.info(f"Order {order_id} is COMPLETED. Returning current cached credits for user {current_user.id}: {user_credits}")
+            else:
+                 logger.warning(f"Order {order_id} is COMPLETED, but user {current_user.id} not found in cache to retrieve current credits.")
+
+        return OrderStatusResponse(order_id=order_id, state=order_state, current_credits=user_credits)
 
     except HTTPException as e:
         raise e # Re-raise HTTP exceptions
