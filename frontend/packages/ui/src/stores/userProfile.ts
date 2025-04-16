@@ -17,30 +17,7 @@ export interface UserProfile {
   currency: string | null; // User's preferred currency
 }
 
-// Helper function to determine default currency based on browser locale (USD for US, JPY for JP, EUR otherwise)
-function getBrowserCurrencyOrDefault(): string {
-  const defaultCurrency = 'EUR';
-
-  if (typeof navigator === 'undefined' || !navigator.language) {
-    console.warn('Navigator language not available, defaulting currency to EUR.');
-    return defaultCurrency;
-  }
-
-  const lang = navigator.language.toUpperCase(); // e.g., 'en-US', 'ja-JP', 'de-DE'
-
-  if (lang.includes('US')) {
-    console.log(`Detected US locale ('${lang}'), setting currency to USD.`);
-    return 'USD';
-  } else if (lang.includes('JP')) {
-    console.log(`Detected JP locale ('${lang}'), setting currency to JPY.`);
-    return 'JPY';
-  } else {
-    console.log(`Locale ('${lang}') is not US or JP, defaulting currency to EUR.`);
-    return defaultCurrency; // Default to EUR for all other locales
-  }
-}
-
-
+// Default currency is now EUR
 export const defaultProfile: UserProfile = {
   username: '',
   profile_image_url: null,
@@ -54,7 +31,7 @@ export const defaultProfile: UserProfile = {
   consent_mates_default_settings: false,
   language: 'en', // Default language
   darkmode: false, // Default dark mode
-  currency: getBrowserCurrencyOrDefault() // Default currency: USD for US, JPY for JP, EUR otherwise
+  currency: 'EUR' // Default currency set to EUR
 };
 
 export const userProfile = writable<UserProfile>(defaultProfile);
@@ -62,7 +39,6 @@ export const userProfile = writable<UserProfile>(defaultProfile);
 // Load user profile data from IndexedDB on startup
 export async function loadUserProfileFromDB(): Promise<void> {
   try {
-    // userDB.getUserProfile() now returns all necessary fields including consents, credits, is_admin, etc.
     const profileFromDB = await userDB.getUserProfile(); 
     
     if (profileFromDB) {
@@ -74,13 +50,9 @@ export async function loadUserProfileFromDB(): Promise<void> {
       console.debug("[UserProfileStore] Profile loaded from DB:", profileFromDB);
     } else {
       console.debug("[UserProfileStore] No profile found in DB, using default.");
-      // Optionally reset to default if no profile found, or keep current state
-      // userProfile.set(defaultProfile); 
     }
   } catch (error) {
     console.error('Failed to load user profile from database:', error);
-    // Consider resetting to default or handling the error appropriately
-    // userProfile.set(defaultProfile);
   }
 }
 
