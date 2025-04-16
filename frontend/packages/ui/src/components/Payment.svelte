@@ -43,6 +43,7 @@
     let cardFieldInstance: any = null;
     let cardFieldLoaded: boolean = false;
     let isLoading = false;
+    let isButtonCooldown = false;
     let errorMessage: string | null = null;
     let validationErrors: string | null = null;
     let pollTimeoutId: number | null = null;
@@ -203,6 +204,11 @@
                     errorMessage = error?.message ? error.message.replace(/\. /g, '.<br>') : 'Unknown error';
                     validationErrors = null;
                     paymentState = 'idle';
+                    isLoading = false;
+                    isButtonCooldown = true;
+                    setTimeout(() => {
+                        isButtonCooldown = false;
+                    }, 2000);
                     if (paymentFormComponent) {
                         paymentFormComponent.setPaymentFailed(errorMessage);
                     }
@@ -436,6 +442,7 @@
                 validationErrors={validationErrors}
                 paymentError={errorMessage}
                 isLoading={isLoading}
+                isButtonCooldown={isButtonCooldown}
                 on:submitPayment={handleFormSubmit}
             />
             {#if requireConsent && !hasConsentedToLimitedRefund}

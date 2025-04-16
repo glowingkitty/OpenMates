@@ -18,6 +18,7 @@
 
     // Loading state from parent
     export let isLoading: boolean = false;
+    export let isButtonCooldown: boolean = false;
 
     // Form state
     let nameOnCard = '';
@@ -144,7 +145,7 @@
         <button
             type="submit"
             class="buy-button"
-            disabled={!canSubmit || isLoading}
+            disabled={!canSubmit || isLoading || isButtonCooldown}
         >
             {#if isLoading}
                 {$text('login.loading.text')}
