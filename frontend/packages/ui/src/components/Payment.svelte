@@ -510,6 +510,9 @@
                 userEmail={userEmail}
                 bind:cardFieldTarget
                 cardFieldLoaded={cardFieldLoaded}
+                hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                validationErrors={validationErrors}
+                paymentError={errorMessage}
             />
             {#if requireConsent && !hasConsentedToLimitedRefund}
                 <div class="consent-overlay" transition:fade>

@@ -9,7 +9,12 @@
     export let cardFieldLoaded: boolean = false;
     export let cardFieldInstance: any;
     export let userEmail: string;
-    
+
+    // New props for consent and errors
+    export let hasConsentedToLimitedRefund: boolean = false;
+    export let validationErrors: string | null = null;
+    export let paymentError: string | null = null;
+
     // Form state
     let nameOnCard = '';
     // Input element references
@@ -33,7 +38,7 @@
 
     // Validate name on card - simple length check for international compatibility
     function validateName(name: string): boolean {
-        if (name.trim().length < 3) {
+        if (name.trim().length <= 4) {
             nameError = $text('signup.name_too_short.text');
             // Only show warning if field is not empty or if user attempted to submit
             showNameWarning = name.trim().length > 0 || attemptedSubmit;
@@ -62,6 +67,19 @@
             nameError = 'Payment field is not ready. Please try again.';
         }
     }
+    // Derived state for button enable/disable
+    $: nameIsValid = nameOnCard.trim().length > 4 && !nameError;
+    $: canSubmit = hasConsentedToLimitedRefund && nameIsValid && !validationErrors && !paymentError;
+    // For debugging, you can use canSubmitReason to see why the button is disabled
+    $: canSubmitReason = !hasConsentedToLimitedRefund
+        ? 'Consent not given'
+        : !nameIsValid
+            ? 'Name invalid'
+            : validationErrors
+                ? 'Card validation error'
+                : paymentError
+                    ? 'Payment error'
+                    : '';
 </script>
 
 <div class="payment-form" in:fade={{ duration: 300 }} style="opacity: {cardFieldLoaded ? 1 : 0}; transition: opacity 0.3s;">
@@ -73,9 +91,9 @@
         <div class="input-group">
             <div class="input-wrapper">
                 <span class="clickable-icon icon_user"></span>
-                <input 
+                <input
                     bind:this={nameInput}
-                    type="text" 
+                    type="text"
                     bind:value={nameOnCard}
                     placeholder={$text('signup.full_name_on_card.text')}
                     on:blur={() => validateName(nameOnCard)}
@@ -84,7 +102,7 @@
                     autocomplete="name"
                 />
                 {#if showNameWarning && nameError}
-                    <InputWarning 
+                    <InputWarning
                         message={nameError}
                         target={nameInput}
                     />
@@ -96,14 +114,24 @@
             <div class="input-wrapper">
                 <!-- <span class="clickable-icon icon_billing"></span> -->
                 <div bind:this={cardFieldTarget}></div>
+                {#if (validationErrors || paymentError)}
+                    <InputWarning
+                        message={validationErrors ? validationErrors : paymentError}
+                        target={cardFieldTarget}
+                    />
+                {/if}
             </div>
         </div>
         
         <!-- Removed custom expiry and CVV fields: CardField handles all card data entry -->
         
-        <button 
+        {#if !canSubmitReason}
+            <!-- Hidden, but for debugging: {canSubmitReason} -->
+        {/if}
+        <button
             type="submit"
             class="buy-button"
+            disabled={!canSubmit}
         >
             {$text('signup.buy_for.text').replace(
                 '{currency}', currency
@@ -141,40 +169,10 @@
         flex-direction: column;
         padding-bottom: 60px; /* Make room for bottom container */
     }
-    .visibility-toggle {
-        position: absolute;
-        top: 0px;
-        right: 0px;
-        z-index: 10;
-    }
 
-    .visibility-button {
-        all: unset;
-        cursor: pointer;
-    }
-
-    .visibility-button .clickable-icon {
-        position: static;
-        transform: none;
-        width: 20px;
-        height: 20px;
-    }
-    
     .payment-title {
         text-align: center;
         margin-bottom: 10px;
-    }
-    
-    .input-row {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-        gap: 12px;
-    }
-    
-    .half {
-        width: calc(50% - 6px);
-        flex: 1;
     }
     
     .input-wrapper {
@@ -188,46 +186,6 @@
         display: inline-block;
         vertical-align: middle;
         margin-right: 5px;
-    }
-    
-    /* Override default password bullet appearance */
-    input[type="password"] {
-        font-family: text-security-disc;
-        -webkit-text-security: disc;
-    }
-    
-    .card-input-container {
-        position: relative;
-        width: 100%;
-        display: block;
-    }
-    
-    .card-input-container input {
-        width: 100%;
-        box-sizing: border-box;
-        padding-right: 70px;
-    }
-    
-    .last-four-overlay {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        align-items: center;
-        pointer-events: none;
-        z-index: 5;
-    }
-    
-    .last-four-spacer {
-        flex: 1;
-    }
-    
-    .last-four-digits {
-        font-family: inherit;
-        font-size: inherit;
-        color: inherit;
-        white-space: nowrap;
     }
     
     .buy-button {
