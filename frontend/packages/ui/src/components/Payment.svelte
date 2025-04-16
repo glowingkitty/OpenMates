@@ -390,6 +390,33 @@
         }, 1000);
     }
 
+    // --- Automatically load and initialize card field when payment form is shown ---
+    $: autoInitCardField();
+    async function autoInitCardField() {
+        // Only run if payment form is visible, card field target is set, and card field is not already initialized
+        if (
+            showPaymentForm &&
+            cardFieldTarget &&
+            !cardFieldInstance &&
+            paymentState === 'idle'
+        ) {
+            // Fetch Revolut config if needed
+            if (!revolutPublicKey) {
+                await fetchConfig();
+                if (!revolutPublicKey) return;
+            }
+            // Create order if needed
+            if (!orderToken) {
+                const orderCreated = await createOrder();
+                if (!orderCreated) return;
+            }
+            // Wait for DOM update
+            await tick();
+            // Initialize card field
+            await initializeCardField();
+        }
+    }
+
     // Cleanup on destroy
     onMount(() => {
         fetchUserEmail();
