@@ -330,7 +330,8 @@
     if (pollTimeoutId) clearTimeout(pollTimeoutId);
     pollTimeoutId = null; // Ensure ID is null before starting
     isPollingStopped = false; // Reset flag
-    poll(); // Start the first poll
+    // Start the first poll after an initial delay
+    pollTimeoutId = setTimeout(poll, 1500);
   }
 
   // Store the last order ID for polling after payment
