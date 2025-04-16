@@ -170,8 +170,7 @@ async def create_payment_order(
             amount=calculated_amount, # Use the backend-determined amount
             currency=order_data.currency,
             email=decrypted_email,
-            user_id=current_user.id, # Pass user ID for metadata/reference
-            credits_amount=order_data.credits_amount # Pass credits for metadata
+            credits_amount=order_data.credits_amount
         )
         
         if not order_response or "token" not in order_response:
@@ -257,23 +256,23 @@ async def revolut_webhook(
 
         # --- Process ORDER_COMPLETED ---
         if event_type == "ORDER_COMPLETED":
-            # Fetch full order details to get metadata
-            order_details = await revolut_service.get_order(webhook_order_id)
-            if not order_details:
-                logger.error(f"Failed to fetch order details for completed order {webhook_order_id}. Cannot process.")
-                # Acknowledge webhook, but log error. Maybe set cache status to failed?
-                await cache_service.update_order_status(webhook_order_id, "failed_details_fetch")
-                return {"status": "order_fetch_failed"}
+            # Fetch order details (user_id, credits_amount) from internal cache
+            cached_order_data = await cache_service.get_order(webhook_order_id)
+            if not cached_order_data:
+                logger.error(f"Order {webhook_order_id} not found in cache during ORDER_COMPLETED webhook processing. Cannot determine user or credits.")
+                # We don't know the user, so we can't update their credits.
+                # Acknowledge webhook, but log error. Update order status in cache if possible.
+                await cache_service.update_order_status(webhook_order_id, "failed_missing_cache_data")
+                return {"status": "order_cache_miss"}
 
-            metadata = order_details.get("metadata", {})
-            user_id = metadata.get("user_id")
-            credits_purchased_str = metadata.get("credits_purchased")
-            order_id = order_details.get("id") # Use ID from fetched details for consistency
+            user_id = cached_order_data.get("user_id")
+            credits_purchased = cached_order_data.get("credits_amount") # Assuming it's stored as int
+            order_id = webhook_order_id # Use the ID from the webhook payload
 
-            if not user_id or not credits_purchased_str:
-                 logger.error(f"Missing user_id or credits_purchased in metadata for completed order {order_id}. Metadata: {metadata}")
-                 await cache_service.update_order_status(order_id, "failed_missing_metadata")
-                 return {"status": "metadata_missing"}
+            if not user_id or credits_purchased is None: # Check if credits_purchased is None or 0 if 0 is invalid
+                 logger.error(f"Missing user_id ('{user_id}') or credits_amount ('{credits_purchased}') in cached data for completed order {order_id}.")
+                 await cache_service.update_order_status(order_id, "failed_invalid_cache_data")
+                 return {"status": "cache_data_invalid"}
 
             # Proceed with processing using fetched details - User-defined cache flag lock (Cache-first calculation)
             user_cache_data = None
@@ -281,8 +280,8 @@ async def revolut_webhook(
             new_total_credits_calculated = 0 # Store calculated value for final cache update
 
             try:
-                credits_purchased = int(credits_purchased_str)
-                logger.info(f"Order {order_id} completed for user {user_id}. Attempting to process {credits_purchased} credits using cache-first method.")
+                # credits_purchased is already an int from cache
+                logger.info(f"Order {order_id} completed for user {user_id}. Attempting to process {credits_purchased} credits (from cache) using cache-first method.")
 
                 # 1. Check cache for user data and lock flag
                 user_cache_data = await cache_service.get_user_by_id(user_id)
@@ -365,10 +364,7 @@ async def revolut_webhook(
                             logger.error(f"Failed to revert cached credits for user {user_id} (Order ID: {order_id}).")
                 # --- End Protected Section ---
 
-            except ValueError:
-                logger.error(f"Could not parse credits_purchased '{credits_purchased_str}' to int for order {order_id}.")
-                await cache_service.update_order_status(order_id, "failed_parsing_error")
-                # Let finally block handle flag reset
+            # ValueError removed as credits_purchased comes directly from cache as int
             except Exception as processing_err:
                 # Log errors from steps 3-7 or encryption
                 logger.error(f"Error during protected processing for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
@@ -404,13 +400,13 @@ async def revolut_webhook(
 
         # --- Process ORDER_FAILED (or other terminal states from webhook if needed) ---
         elif event_type == "ORDER_FAILED":
-            # Fetch order details to potentially get user_id if available in metadata
-            order_details = await revolut_service.get_order(webhook_order_id)
-            metadata = order_details.get("metadata", {}) if order_details else {}
-            user_id_from_meta = metadata.get("user_id", "Unknown")
-            error_message = order_details.get("error_message", "N/A") if order_details else "N/A"
+            # Fetch user_id from internal cache to log which user's order failed
+            cached_order_data = await cache_service.get_order(webhook_order_id)
+            user_id = cached_order_data.get("user_id", "Unknown") if cached_order_data else "Unknown (cache miss)"
+            # We might not have error details directly from Revolut payload, log what we have
+            error_message = event_payload.get("error_message", "N/A") # Check if webhook payload provides error
 
-            logger.warning(f"Received verified ORDER_FAILED event for order {webhook_order_id}. User (from metadata): {user_id_from_meta}. Reason: {error_message}")
+            logger.warning(f"Received verified ORDER_FAILED event for order {webhook_order_id}. User (from cache): {user_id}. Reason: {error_message}")
             # Set order status in cache to "failed"
             await cache_service.update_order_status(webhook_order_id, "failed")
             # No action needed for credits, just log.
@@ -425,12 +421,7 @@ async def revolut_webhook(
     except Exception as e:
         # Catch any other unexpected errors during webhook processing
         logger.error(f"Unexpected error processing verified Revolut webhook: {str(e)}", exc_info=True)
-        # Return 500 but acknowledge receipt to Revolut if possible (depends on where error occurred)
-        # For safety, return 500 to indicate server error, but Revolut might retry.
-        # A simple {"status": "received"} might be safer to prevent retries for non-transient errors.
-        # Let's return 200 with an error status for now to stop retries but indicate failure.
         return {"status": "internal_server_error"}
-        # raise HTTPException(status_code=500, detail="Webhook processing error") # Alternative: raise 500
 
     # If we reach here, processing was successful or the event was ignored
     return {"status": "received"} # Acknowledge receipt to Revolut
@@ -442,7 +433,8 @@ async def get_order_status(
     status_request: OrderStatusRequest, # Changed parameter to accept request body
     revolut_service: RevolutService = Depends(get_revolut_service),
     cache_service: CacheService = Depends(get_cache_service), # Inject CacheService
-    current_user: User = Depends(get_current_user) # Ensure user is authenticated
+    current_user: User = Depends(get_current_user), # Ensure user is authenticated
+    encryption_service: EncryptionService = Depends(get_encryption_service) # Needed for hashing? No, just hashlib
 ):
     """
     Retrieves the current status of a Revolut order.
@@ -458,10 +450,21 @@ async def get_order_status(
             logger.warning(f"Order {order_id} not found or failed to fetch from Revolut for user {current_user.id}.")
             raise HTTPException(status_code=404, detail="Order not found")
 
-        # Optional: Add check here to ensure the order belongs to the current_user
-        # This might require storing user_id association with order_id or checking metadata if possible via GET /order
-        # For now, we assume the frontend only polls for orders it created.
+        # Verify the order belongs to the current user using the internal cache
+        cached_order_data = await cache_service.get_order(order_id)
 
+        if not cached_order_data or cached_order_data.get("user_id") != current_user.id:
+            # Log if the order was found in cache but user didn't match
+            if cached_order_data:
+                logger.warning(f"User {current_user.id} attempted to access order {order_id} which belongs to user {cached_order_data.get('user_id')} according to cache.")
+            else:
+                logger.warning(f"User {current_user.id} attempted to access order {order_id} which was not found in cache.")
+            # Return 404 to obscure whether the order exists but belongs to someone else, or if it's not in cache
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        logger.info(f"User {current_user.id} verified ownership of order {order_id} via internal cache.")
+
+        # Now get the state from the Revolut details we fetched earlier
         order_state = order_details.get("state")
         if not order_state:
              logger.error(f"Revolut order details for {order_id} missing 'state'.")
