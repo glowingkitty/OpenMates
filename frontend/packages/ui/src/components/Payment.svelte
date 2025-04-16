@@ -133,18 +133,33 @@
 
     // --- Initialize CardField ---
     async function initializeCardField() {
+        console.log('[initializeCardField] called', {
+            orderToken,
+            cardFieldTarget,
+            revolutPublicKey
+        });
+
         if (!orderToken || !cardFieldTarget || !revolutPublicKey) {
+            console.warn('[initializeCardField] Missing prerequisites:', {
+                orderToken,
+                cardFieldTarget,
+                revolutPublicKey
+            });
             errorMessage = 'Cannot initialize payment field: Missing Order ID, target element, or Public Key.';
             cardFieldLoaded = false;
             return;
         }
+
         // Destroy previous instance
         if (cardFieldInstance) {
-            try { cardFieldInstance.destroy(); } catch {}
+            console.log('[initializeCardField] Destroying previous cardFieldInstance');
+            try { cardFieldInstance.destroy(); } catch (e) { console.warn('[initializeCardField] Error destroying previous instance', e); }
             cardFieldInstance = null;
         }
+
         validationErrors = null;
         try {
+            console.log('[initializeCardField] Creating card field instance...');
             const environment = 'sandbox';
             const { createCardField } = await RevolutCheckout(orderToken, environment);
             cardFieldInstance = createCardField({
@@ -184,6 +199,7 @@
                     completed: 'input-wrapper input-completed'
                 },
                 onSuccess() {
+                    console.log('[initializeCardField] onSuccess called');
                     errorMessage = null;
                     validationErrors = null;
                     showPaymentForm = false;
@@ -191,6 +207,7 @@
                     pollOrderStatus();
                 },
                 onError(error) {
+                    console.error('[initializeCardField] onError called', error);
                     errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
                     validationErrors = null;
                     paymentState = 'failure';
@@ -201,6 +218,7 @@
                     }
                 },
                 onValidation(errors) {
+                    console.log('[initializeCardField] onValidation called', errors);
                     const concatenatedErrors = errors?.join('; ');
                     if (concatenatedErrors?.length) {
                         validationErrors = concatenatedErrors;
@@ -211,11 +229,14 @@
                 }
             });
             cardFieldLoaded = true;
+            console.log('[initializeCardField] Card field initialized successfully');
         } catch (error) {
+            console.error('[initializeCardField] Error initializing card field', error);
             errorMessage = `Failed to initialize payment field. ${error instanceof Error ? error.message : String(error)}`;
             cardFieldInstance = null;
             cardFieldLoaded = false;
         }
+        console.log('[initializeCardField] function end', { cardFieldLoaded, cardFieldInstance });
     }
 
     // --- Poll Backend for Order Status ---
@@ -330,6 +351,8 @@
 
     // --- Payment start handler ---
     async function handleStartPayment(event) {
+        console.log('[handleStartPayment] called', { eventDetail: event.detail });
+
         // Store payment details for potential failure recovery
         paymentDetails = { ...event.detail };
         errorMessage = null;
@@ -339,6 +362,7 @@
         // Fetch user email if not already
         if (!userEmail) await fetchUserEmail();
         if (!userEmail) {
+            console.warn('[handleStartPayment] Could not retrieve user email');
             errorMessage = 'Could not retrieve your email address for payment.';
             isLoading = false;
             return;
@@ -347,6 +371,7 @@
         // Fetch Revolut config if not already
         if (!revolutPublicKey) await fetchConfig();
         if (!revolutPublicKey) {
+            console.warn('[handleStartPayment] Revolut public key missing after fetchConfig');
             isLoading = false;
             return;
         }
@@ -354,6 +379,7 @@
         // Create payment order
         const orderCreated = await createOrder();
         if (!orderCreated) {
+            console.warn('[handleStartPayment] Order creation failed');
             isLoading = false;
             return;
         }
@@ -362,21 +388,26 @@
         await tick();
 
         // Initialize CardField
+        console.log('[handleStartPayment] Calling initializeCardField...');
         await initializeCardField();
+        console.log('[handleStartPayment] Returned from initializeCardField', { cardFieldInstance });
 
         // Submit payment via CardField
         if (cardFieldInstance) {
+            console.log('[handleStartPayment] Submitting payment via cardFieldInstance');
             cardFieldInstance.submit({
                 name: event.detail.nameOnCard,
                 email: userEmail
             });
         } else {
+            console.error('[handleStartPayment] cardFieldInstance is not set after initializeCardField');
             errorMessage = 'Payment field is not ready.';
             isLoading = false;
             return;
         }
 
         isLoading = false;
+        console.log('[handleStartPayment] Payment process finished');
     }
 
     // Notify parent when payment form visibility changes
@@ -398,6 +429,12 @@
     // --- Automatically load and initialize card field when payment form is shown ---
     $: autoInitCardField();
     async function autoInitCardField() {
+        console.log('[autoInitCardField] called', {
+            showPaymentForm,
+            cardFieldTarget,
+            cardFieldInstance,
+            paymentState
+        });
         // Only run if payment form is visible, card field target is set, and card field is not already initialized
         if (
             showPaymentForm &&
@@ -405,20 +442,38 @@
             !cardFieldInstance &&
             paymentState === 'idle'
         ) {
+            console.log('[autoInitCardField] Payment form is visible, initializing card field...');
             // Fetch Revolut config if needed
             if (!revolutPublicKey) {
+                console.log('[autoInitCardField] revolutPublicKey missing, calling fetchConfig...');
                 await fetchConfig();
-                if (!revolutPublicKey) return;
+                if (!revolutPublicKey) {
+                    console.warn('[autoInitCardField] revolutPublicKey still missing after fetchConfig');
+                    return;
+                }
             }
             // Create order if needed
             if (!orderToken) {
+                console.log('[autoInitCardField] orderToken missing, calling createOrder...');
                 const orderCreated = await createOrder();
-                if (!orderCreated) return;
+                if (!orderCreated) {
+                    console.warn('[autoInitCardField] orderToken still missing after createOrder');
+                    return;
+                }
             }
             // Wait for DOM update
             await tick();
             // Initialize card field
+            console.log('[autoInitCardField] Calling initializeCardField...');
             await initializeCardField();
+            console.log('[autoInitCardField] Returned from initializeCardField', { cardFieldInstance });
+        } else {
+            console.log('[autoInitCardField] Not initializing card field. State:', {
+                showPaymentForm,
+                cardFieldTarget,
+                cardFieldInstance,
+                paymentState
+            });
         }
     }
 
