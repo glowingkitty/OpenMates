@@ -200,7 +200,7 @@
                 },
                 onError(error) {
                     console.debug('[initializeCardField] onError called', error);
-                    errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
+                    errorMessage = error?.message ? error.message.replace(/\. /g, '.<br>') : 'Unknown error';
                     validationErrors = null;
                     paymentState = 'idle';
                     if (paymentFormComponent) {
