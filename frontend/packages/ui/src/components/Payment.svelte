@@ -513,21 +513,26 @@
             state={paymentState}
             {isGift}
         />
-    {:else if requireConsent && !showPaymentForm}
-        <LimitedRefundConsent
-            bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
-            on:consentChanged={handleConsentChanged}
-        />
     {:else}
-        <PaymentForm
-            bind:this={paymentFormComponent}
-            purchasePrice={purchasePrice}
-            currency={currency}
-            cardFieldInstance={cardFieldInstance}
-            userEmail={userEmail}
-            bind:cardFieldTarget
-            cardFieldLoaded={cardFieldLoaded}
-        />
+        <div class="payment-form-overlay-wrapper">
+            <PaymentForm
+                bind:this={paymentFormComponent}
+                purchasePrice={purchasePrice}
+                currency={currency}
+                cardFieldInstance={cardFieldInstance}
+                userEmail={userEmail}
+                bind:cardFieldTarget
+                cardFieldLoaded={cardFieldLoaded}
+            />
+            {#if requireConsent && !hasConsentedToLimitedRefund}
+                <div class="consent-overlay" transition:fade>
+                    <LimitedRefundConsent
+                        bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                        on:consentChanged={handleConsentChanged}
+                    />
+                </div>
+            {/if}
+        </div>
     {/if}
 </div>
 
@@ -537,7 +542,34 @@
         height: 100%;
         position: relative;
     }
-    
+
+    .payment-form-overlay-wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .consent-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: var(--color-consent-overlay, #f5f6fa); /* fallback color, can be themed */
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: all;
+        /* Optional: add a slight box-shadow for separation */
+        box-shadow: 0 0 8px 0 rgba(0,0,0,0.04);
+        /* Prevent interaction with underlying payment form */
+    }
+
+    .consent-overlay :global(*) {
+        pointer-events: auto;
+    }
+
     .compact {
         max-width: 500px;
         margin: 0 auto;
