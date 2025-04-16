@@ -515,7 +515,8 @@
             bind:this={paymentFormComponent}
             purchasePrice={purchasePrice}
             currency={currency}
-            on:startPayment={handleStartPayment}
+            cardFieldInstance={cardFieldInstance}
+            userEmail={userEmail}
             bind:cardFieldTarget
             cardFieldLoaded={cardFieldLoaded}
         />

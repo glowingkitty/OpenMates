@@ -9,7 +9,9 @@
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
     export let cardFieldLoaded: boolean = false;
-
+    export let cardFieldInstance: any;
+    export let userEmail: string;
+    
     // Form state
     let nameOnCard = '';
     // Input element references
@@ -54,8 +56,17 @@
         if (!validateName(nameOnCard)) {
             return;
         }
-        // Dispatch startPayment event with required data
-        dispatch('startPayment', { nameOnCard });
+        // Submit payment using the already-initialized CardField instance
+        if (cardFieldInstance && userEmail) {
+            cardFieldInstance.submit({
+                name: nameOnCard,
+                email: userEmail
+            });
+        } else {
+            // Optionally show an error if cardFieldInstance or userEmail is missing
+            nameError = 'Payment field is not ready. Please try again.';
+        }
+        // Optionally: dispatch('startPayment', { nameOnCard }); // For analytics only, not for payment logic
     }
 </script>
 
