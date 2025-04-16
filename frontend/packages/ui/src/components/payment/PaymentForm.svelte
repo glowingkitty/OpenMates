@@ -426,10 +426,9 @@
         </div>
         
         <div class="input-group">
-            <div class="input-wrapper cardfield-dark">
+            <div class="input-wrapper">
                 <span class="clickable-icon icon_billing"></span>
-                <!-- Only the Revolut CardField iframe, styled to match dark/rounded input -->
-                <div bind:this={cardFieldTarget} class="card-field-wrapper"></div>
+                <div bind:this={cardFieldTarget}></div>
             </div>
         </div>
         
