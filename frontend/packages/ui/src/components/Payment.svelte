@@ -51,6 +51,7 @@
     let orderToken: string | null = null;
     let lastOrderId: string | null = null;
     let cardFieldInstance: any = null;
+    let cardFieldLoaded: boolean = false;
     let isLoading = false;
     let errorMessage: string | null = null;
     let validationErrors: string | null = null;
@@ -134,6 +135,7 @@
     async function initializeCardField() {
         if (!orderToken || !cardFieldTarget || !revolutPublicKey) {
             errorMessage = 'Cannot initialize payment field: Missing Order ID, target element, or Public Key.';
+            cardFieldLoaded = false;
             return;
         }
         // Destroy previous instance
@@ -193,6 +195,7 @@
                     validationErrors = null;
                     paymentState = 'failure';
                     showPaymentForm = true;
+                    cardFieldLoaded = false;
                     if (paymentFormComponent) {
                         paymentFormComponent.setPaymentFailed();
                     }
@@ -207,9 +210,11 @@
                     }
                 }
             });
+            cardFieldLoaded = true;
         } catch (error) {
             errorMessage = `Failed to initialize payment field. ${error instanceof Error ? error.message : String(error)}`;
             cardFieldInstance = null;
+            cardFieldLoaded = false;
         }
     }
 
@@ -451,6 +456,7 @@
             on:toggleSensitiveData={handleToggleSensitiveData}
             on:startPayment={handleStartPayment}
             bind:cardFieldTarget
+            cardFieldLoaded={cardFieldLoaded}
         />
     {/if}
 </div>

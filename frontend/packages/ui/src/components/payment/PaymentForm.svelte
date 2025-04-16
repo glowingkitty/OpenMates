@@ -12,6 +12,7 @@
     export let currency: string = 'EUR';
     export let showSensitiveData: boolean = false;
     export let initialPaymentDetails = null;
+    export let cardFieldLoaded: boolean = false;
     
     // Form state
     let nameOnCard = '';
@@ -396,7 +397,7 @@
     </button>
 </div>
 
-<div class="payment-form" in:fade={{ duration: 300 }}>
+<div class="payment-form" in:fade={{ duration: 300 }} style="opacity: {cardFieldLoaded ? 1 : 0}; transition: opacity 0.3s;">
     <div class="color-grey-60 payment-title">
         {@html $text('signup.pay_with_card.text')}
     </div>
