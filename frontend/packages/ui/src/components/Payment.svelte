@@ -203,7 +203,6 @@
                     errorMessage = `Payment failed: ${error?.message || 'Unknown error'}`;
                     validationErrors = null;
                     paymentState = 'idle';
-                    cardFieldLoaded = false;
                     if (paymentFormComponent) {
                         paymentFormComponent.setPaymentFailed(errorMessage);
                     }
