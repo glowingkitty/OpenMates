@@ -228,7 +228,7 @@
         const data = await response.json();
         const state = data.state;
         console.log('Order status polled:', state);
-        if (state === 'COMPLETED') {
+        if (typeof state === 'string' && state.toLowerCase() === 'completed') {
           successMessage = 'Payment successful! Your order is complete.';
           errorMessage = null;
           validationErrors = null;
@@ -238,7 +238,7 @@
           if (pollTimeoutId) clearTimeout(pollTimeoutId);
           pollTimeoutId = null;
           return;
-        } else if (state === 'FAILED' || state === 'CANCELLED') {
+        } else if (typeof state === 'string' && (state.toLowerCase() === 'failed' || state.toLowerCase() === 'cancelled')) {
           errorMessage = 'Payment failed or was cancelled. Please try again.';
           successMessage = null;
           validationErrors = null;
