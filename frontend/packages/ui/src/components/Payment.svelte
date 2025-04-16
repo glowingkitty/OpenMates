@@ -410,6 +410,10 @@
             if (userProfileUnsubscribe) userProfileUnsubscribe();
         };
     });
+    // Handle PaymentForm submit event to set loading state immediately
+    function handleFormSubmit() {
+        isLoading = true;
+    }
 </script>
 
 <div class="payment-component {compact ? 'compact' : ''}">
@@ -431,6 +435,8 @@
                 hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
                 validationErrors={validationErrors}
                 paymentError={errorMessage}
+                isLoading={isLoading}
+                on:submitPayment={handleFormSubmit}
             />
             {#if requireConsent && !hasConsentedToLimitedRefund}
                 <div class="consent-overlay" transition:fade>

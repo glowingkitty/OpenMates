@@ -3,6 +3,7 @@
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
+    import { createEventDispatcher } from 'svelte';
 
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
@@ -14,6 +15,9 @@
     export let hasConsentedToLimitedRefund: boolean = false;
     export let validationErrors: string | null = null;
     export let paymentError: string | null = null;
+
+    // Loading state from parent
+    export let isLoading: boolean = false;
 
     // Form state
     let nameOnCard = '';
@@ -30,6 +34,9 @@
 
     // Track if form was submitted
     let attemptedSubmit = false;
+
+    // Event dispatcher for parent communication
+    const dispatch = createEventDispatcher();
 
     // Add a function to handle the secure payment info click
     function handleSecurePaymentInfoClick() {
@@ -56,6 +63,8 @@
         if (!validateName(nameOnCard)) {
             return;
         }
+        // Notify parent to set loading state immediately
+        dispatch('submitPayment');
         // Submit payment using the already-initialized CardField instance
         if (cardFieldInstance && userEmail) {
             cardFieldInstance.submit({
@@ -135,13 +144,17 @@
         <button
             type="submit"
             class="buy-button"
-            disabled={!canSubmit}
+            disabled={!canSubmit || isLoading}
         >
-            {$text('signup.buy_for.text').replace(
-                '{currency}', currency
-            ).replace(
-                '{amount}', purchasePrice.toString()
-            )}
+            {#if isLoading}
+                {$text('login.loading.text')}
+            {:else}
+                {$text('signup.buy_for.text').replace(
+                    '{currency}', currency
+                ).replace(
+                    '{amount}', purchasePrice.toString()
+                )}
+            {/if}
         </button>
         
         <div class="or-divider">
