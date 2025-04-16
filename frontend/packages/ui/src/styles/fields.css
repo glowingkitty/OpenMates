@@ -33,6 +33,48 @@ input[type="number"] {
     overflow: hidden;
 }
 
+.revolut-card-field {
+    width: 100%;
+    max-width: 350px;
+    padding: 12px 16px 12px 45px;
+    padding-left: 48px;
+    border-radius: 24px;
+    border: 2px solid var(--color-grey-0);
+    background-color: var(--color-grey-0);
+    color: var(--color-grey-100);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease-in-out;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    font-size: 16px;
+}
+
+.revolut-card-field--focused {
+    border-color: var(--color-grey-50);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.revolut-card-field--invalid {
+    border-color: var(--color-error, #e74c3c);
+    background-color: var(--color-error-bg, #fff0f0);
+}
+
+.revolut-card-field--empty {
+    opacity: 0.8;
+}
+
+.revolut-card-field--autofilled {
+    background-color: var(--color-grey-10, #f5f5f5);
+}
+
+.revolut-card-field--completed {
+    border-color: var(--color-success, #27ae60);
+}
+
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="search"]:focus,
