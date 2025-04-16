@@ -49,6 +49,9 @@
     let pollTimeoutId: number | null = null;
     let isPollingStopped = false;
     let userEmail: string | null = null;
+    
+    // Timeout for card payment submission (UI-level)
+    let cardSubmitTimeoutId: number | null = null;
 
     // CardField target from PaymentForm
     let cardFieldTarget: HTMLElement;
@@ -194,6 +197,11 @@
                 },
                 onSuccess() {
                     console.debug('[initializeCardField] onSuccess called');
+                    // Clear card submit timeout if it exists
+                    if (cardSubmitTimeoutId) {
+                        clearTimeout(cardSubmitTimeoutId);
+                        cardSubmitTimeoutId = null;
+                    }
                     errorMessage = null;
                     validationErrors = null;
                     paymentState = 'processing';
@@ -201,6 +209,11 @@
                 },
                 onError(error) {
                     console.debug('[initializeCardField] onError called', error);
+                    // Clear card submit timeout if it exists
+                    if (cardSubmitTimeoutId) {
+                        clearTimeout(cardSubmitTimeoutId);
+                        cardSubmitTimeoutId = null;
+                    }
                     errorMessage = error?.message ? error.message.replace(/\. /g, '.<br>') : 'Unknown error';
                     validationErrors = null;
                     paymentState = 'idle';
@@ -243,7 +256,7 @@
             return;
         }
         let attempts = 0;
-        const maxAttempts = 20;
+        const maxAttempts = 5; // Reduced from 20 for a ~10 second timeout
         const pollInterval = 2000;
         isPollingStopped = false;
         let orderId = lastOrderId;
@@ -419,6 +432,21 @@
     // Handle PaymentForm submit event to set loading state immediately
     function handleFormSubmit() {
         isLoading = true;
+        // Clear any previous card submit timeout
+        if (cardSubmitTimeoutId) {
+            clearTimeout(cardSubmitTimeoutId);
+            cardSubmitTimeoutId = null;
+        }
+        // Start a timeout for card payment UI response (e.g., 12 seconds)
+        cardSubmitTimeoutId = setTimeout(() => {
+            errorMessage = 'Payment could not be processed in time. Please try again.';
+            paymentState = 'idle';
+            isLoading = false;
+            if (paymentFormComponent && typeof paymentFormComponent.setPaymentFailed === 'function') {
+                paymentFormComponent.setPaymentFailed(errorMessage);
+            }
+            cardSubmitTimeoutId = null;
+        }, 12000); // 12 seconds
     }
 </script>
 
