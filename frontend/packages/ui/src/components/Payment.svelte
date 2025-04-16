@@ -164,6 +164,7 @@
             const { createCardField } = await RevolutCheckout(orderToken, environment);
             cardFieldInstance = createCardField({
                 target: cardFieldTarget,
+                theme: 'dark',
                 locale: 'en',
                 // // Style the iframe to match your dark/rounded UI
                 // styles: {
@@ -194,11 +195,7 @@
                 // },
                 classes: {
                     default: 'revolut-card-field',
-                    focused: 'revolut-card-field--focused',
-                    invalid: 'revolut-card-field--invalid',
-                    empty: 'revolut-card-field--empty',
-                    autofilled: 'revolut-card-field--autofilled',
-                    completed: 'revolut-card-field--completed'
+                    invalid: 'revolut-card-field--invalid'
                 },
                 onSuccess() {
                     console.log('[initializeCardField] onSuccess called');
