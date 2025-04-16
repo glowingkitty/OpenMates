@@ -5,6 +5,8 @@
     import { getWebsiteUrl, routes } from '../config/links';
     import RevolutCheckout from '@revolut/checkout';
     import { apiEndpoints, getApiEndpoint } from '../config/api';
+    import { userProfile } from '../stores/userProfile';
+    import { get } from 'svelte/store';
 
     // Import our new component modules
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
@@ -61,6 +63,36 @@
 
     // CardField target from PaymentForm
     let cardFieldTarget: HTMLElement;
+    
+    // Subscribe to userProfile store
+    // Allowed locales for Revolut card field
+    const allowedRevolutLocales = [
+        "en", "en-US", "nl", "fr", "de", "cs", "it", "lt", "pl", "pt", "es", "hu", "sk", "ja", "sv", "bg", "ro", "ru", "el", "hr", "auto"
+    ];
+
+    // Helper to map user profile language to allowed locale
+    function mapLocale(lang: string | null | undefined): typeof allowedRevolutLocales[number] {
+        if (!lang) return "en";
+        // Try exact match
+        if (allowedRevolutLocales.includes(lang)) return lang as typeof allowedRevolutLocales[number];
+        // Try language only (e.g., "en" from "en-GB")
+        const base = lang.split('-')[0];
+        if (allowedRevolutLocales.includes(base)) return base as typeof allowedRevolutLocales[number];
+        return "en";
+    }
+
+    let darkmode = false;
+    let locale: typeof allowedRevolutLocales[number] = "en";
+
+    let userProfileUnsubscribe = userProfile.subscribe(profile => {
+        darkmode = !!profile.darkmode;
+        locale = mapLocale(profile.language);
+    });
+
+    // Helper to get Revolut card field class based on dark mode
+    function getRevolutCardFieldClass() {
+        return darkmode ? 'revolut-card-field-dark' : 'revolut-card-field-light';
+    }
 
     // --- Fetch user email ---
     async function fetchUserEmail() {
@@ -164,37 +196,11 @@
             const { createCardField } = await RevolutCheckout(orderToken, environment);
             cardFieldInstance = createCardField({
                 target: cardFieldTarget,
-                theme: 'dark',
-                locale: 'en',
-                // // Style the iframe to match your dark/rounded UI
-                // styles: {
-                //     default: {
-                //         fontFamily: 'inherit',
-                //         fontSize: '16px',
-                //         color: 'var(--color-grey-100)',
-                //         background: 'var(--color-grey-0)',
-                //         border: '2px solid var(--color-grey-0)',
-                //         borderRadius: '24px',
-                //         boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                //         padding: '12px 16px 12px 48px',
-                //         outline: 'none',
-                //         width: '100%',
-                //         transition: 'all 0.2s ease-in-out'
-                //     },
-                //     focused: {
-                //         borderColor: 'var(--color-grey-50)',
-                //         boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                //     },
-                //     invalid: {
-                //         color: '#dc3545',
-                //         borderColor: '#dc3545'
-                //     },
-                //     completed: {
-                //         color: '#28a745'
-                //     }
-                // },
+                theme: darkmode ? 'dark' : 'light',
+                locale: locale as
+                    | "en" | "en-US" | "nl" | "fr" | "de" | "cs" | "it" | "lt" | "pl" | "pt" | "es" | "hu" | "sk" | "ja" | "sv" | "bg" | "ro" | "ru" | "el" | "hr" | "auto",
                 classes: {
-                    default: 'revolut-card-field',
+                    default: getRevolutCardFieldClass(),
                     invalid: 'revolut-card-field--invalid'
                 },
                 onSuccess() {
@@ -488,6 +494,7 @@
             }
             isPollingStopped = true;
             if (pollTimeoutId) clearTimeout(pollTimeoutId);
+            if (userProfileUnsubscribe) userProfileUnsubscribe();
         };
     });
 </script>
