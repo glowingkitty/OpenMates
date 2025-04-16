@@ -13,7 +13,7 @@ REVOLUT_API_URLS = {
 # Events we want Revolut to notify us about for registration/update
 DEFAULT_WEBHOOK_EVENTS = [
     "ORDER_COMPLETED",
-    "ORDER_AUTHORISED",
+    "ORDER_CANCELLED",
 ]
 
 VAULT_SECRET_NAMES = {

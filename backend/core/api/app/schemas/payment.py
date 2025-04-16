@@ -48,9 +48,9 @@ class RevolutWebhookOrderData(BaseModel):
     amount: Optional[int] = None # Amount might not always be present depending on event
     currency: Optional[str] = None
     metadata: Optional[RevolutWebhookMetadata] = None
-    error_message: Optional[str] = None # Present on ORDER_FAILED
+    error_message: Optional[str] = None # Present on ORDER_CANCELLED
     # Add other relevant fields from Revolut's webhook payload
 
 class RevolutWebhookPayload(BaseModel):
-    event: str # e.g., "ORDER_COMPLETED", "ORDER_FAILED"
+    event: str # e.g., "ORDER_COMPLETED", "ORDER_CANCELLED"
     data: RevolutWebhookOrderData

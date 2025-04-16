@@ -382,15 +382,15 @@ async def revolut_webhook(
                      logger.error(f"Failed to update order cache status to '{final_order_status}' for order {order_id}.")
 
 
-        # --- Process ORDER_FAILED (or other terminal states from webhook if needed) ---
-        elif event_type == "ORDER_FAILED":
+        # --- Process ORDER_CANCELLED (or other terminal states from webhook if needed) ---
+        elif event_type == "ORDER_CANCELLED":
             # Fetch user_id from internal cache to log which user's order failed
             cached_order_data = await cache_service.get_order(webhook_order_id)
             user_id = cached_order_data.get("user_id", "Unknown") if cached_order_data else "Unknown (cache miss)"
             # We might not have error details directly from Revolut payload, log what we have
             error_message = event_payload.get("error_message", "N/A") # Check if webhook payload provides error
 
-            logger.warning(f"Received verified ORDER_FAILED event for order {webhook_order_id}. User (from cache): {user_id}. Reason: {error_message}")
+            logger.warning(f"Received verified ORDER_CANCELLED event for order {webhook_order_id}. User (from cache): {user_id}. Reason: {error_message}")
             # Set order status in cache to "failed"
             await cache_service.update_order_status(webhook_order_id, "failed")
             # No action needed for credits, just log.
