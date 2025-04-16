@@ -442,6 +442,14 @@
             errorMessage = 'Payment could not be processed in time. Please try again.';
             paymentState = 'idle';
             isLoading = false;
+            // Clean up card field instance and order state
+            if (cardFieldInstance) {
+                try { cardFieldInstance.destroy(); } catch {}
+                cardFieldInstance = null;
+            }
+            cardFieldLoaded = false;
+            orderToken = null;
+            lastOrderId = null;
             if (paymentFormComponent && typeof paymentFormComponent.setPaymentFailed === 'function') {
                 paymentFormComponent.setPaymentFailed(errorMessage);
             }
