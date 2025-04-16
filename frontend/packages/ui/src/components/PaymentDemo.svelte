@@ -286,9 +286,6 @@
             updateProfile({ credits: data.current_credits });
           } else {
             console.warn('Order completed, but current_credits not found in response. Credits may be stale.');
-            // Optionally, trigger a full session refresh as a fallback?
-            // import { authStore } from '../stores/authStore'; // Keep this commented out
-            // authStore.checkAuth(); // Keep this commented out
           }
 
           return;

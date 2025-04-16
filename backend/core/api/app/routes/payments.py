@@ -321,18 +321,11 @@ async def revolut_webhook(
                 new_total_credits_calculated = current_credits + credits_purchased # Store for final cache update
                 logger.info(f"Calculated new credit total for user {user_id}: {current_credits} (cached) + {credits_purchased} = {new_total_credits_calculated}")
 
-                # 6. Update cached credits value immediately
-                user_cache_data["credits"] = new_total_credits_calculated
-                cache_update_success = await cache_service.set_user(user_cache_data, user_id=user_id)
-                if not cache_update_success:
-                    logger.error(f"Failed to update cached credits for user {user_id} (Order ID: {order_id}). Aborting payment processing.")
-                    raise Exception("Failed to update cached credits")
-
-                # 7. Encrypt new total using cached vault_key_id
+                # 6. Encrypt new total using cached vault_key_id
                 new_total_credits_str = str(new_total_credits_calculated)
                 new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(new_total_credits_str, vault_key_id)
 
-                # 8. Try to update Directus, with up to 3 attempts
+                # 7. Try to update Directus, with up to 3 attempts
                 update_payload = {"encrypted_credit_balance": new_encrypted_credits}
                 directus_update_success = False
                 max_attempts = 3
@@ -343,60 +336,51 @@ async def revolut_webhook(
                         break
                     else:
                         logger.error(f"Attempt {attempt} to update Directus credits for user {user_id} (Order ID: {order_id}) failed.")
-                # 9. If Directus update failed after 3 attempts, subtract the credits from cache again
+                # 8. If Directus update failed after 3 attempts, log the error. The cache won't be updated with the new amount in the finally block.
                 if not directus_update_success:
-                    logger.error(f"Failed to update Directus credits for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Reverting cached credits.")
-                    # Get latest cache, subtract credits, and update
-                    latest_cache_data = await cache_service.get_user_by_id(user_id)
-                    if latest_cache_data is None:
-                        logger.error(f"Could not fetch latest cache for user {user_id} to revert credits (Order ID: {order_id}).")
-                        latest_cache_data = {}
-                    latest_credits = latest_cache_data.get("credits")
-                    if latest_credits is None:
-                        logger.error(f"Cannot revert cached credits for user {user_id} (Order ID: {order_id}) because 'credits' field is missing in cache.")
-                    else:
-                        reverted_credits = latest_credits - credits_purchased
-                        latest_cache_data["credits"] = reverted_credits
-                        revert_success = await cache_service.set_user(latest_cache_data, user_id=user_id)
-                        if revert_success:
-                            logger.info(f"Successfully reverted cached credits for user {user_id} to {reverted_credits} (Order ID: {order_id}).")
-                        else:
-                            logger.error(f"Failed to revert cached credits for user {user_id} (Order ID: {order_id}).")
+                     logger.error(f"Failed to update Directus credits for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Cached credits will not be updated.")
                 # --- End Protected Section ---
 
-            # ValueError removed as credits_purchased comes directly from cache as int
             except Exception as processing_err:
                 # Log errors from steps 3-7 or encryption
                 logger.error(f"Error during protected processing for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
                 await cache_service.update_order_status(order_id, "failed_processing_error")
                 # Let finally block handle flag reset
             finally:
-                # 8. ALWAYS clear the flag and update cache status
+                # 9. ALWAYS clear the flag and update cache status/credits in one final operation
                 logger.debug(f"Entering finally block for user {user_id}, order {order_id}. Directus success: {directus_update_success}")
-                final_cache_data = await cache_service.get_user_by_id(user_id) # Get latest cache data again
+                final_cache_data = await cache_service.get_user_by_id(user_id) # Get latest cache data
                 if final_cache_data is None:
-                    # If cache expired/cleared between setting flag and now, log warning but proceed to clear conceptually
-                    logger.warning(f"Cache data for user {user_id} was missing when trying to clear payment_in_progress flag (Order ID: {order_id}).")
+                    logger.warning(f"Cache data for user {user_id} was missing when trying to finalize payment processing (Order ID: {order_id}). Initializing.")
                     final_cache_data = {} # Initialize to avoid errors below
 
                 final_cache_data["payment_in_progress"] = False # Clear the flag
 
+                # Determine final credit state and order status
+                final_order_status = "unknown"
                 if directus_update_success:
                     # Update cache credits ONLY if Directus was successful
                     final_cache_data["credits"] = new_total_credits_calculated
-                    logger.info(f"Updating final cache credits for user {user_id} to {new_total_credits_calculated} (Order ID: {order_id}).")
-                    await cache_service.update_order_status(order_id, "completed") # Update order status cache
+                    final_order_status = "completed"
+                    logger.info(f"Directus succeeded for user {user_id}, order {order_id}. Setting final cache credits to {new_total_credits_calculated}.")
                 else:
-                    # Don't update credits field if Directus failed
-                    logger.warning(f"Directus update failed for user {user_id}, order {order_id}. Cache 'credits' field NOT updated.")
-                    # Order status should have been set to failed in except block if applicable
+                    # If Directus failed, DO NOT update the credits field in the cache.
+                    # The credits remain as they were when fetched at the start of the 'finally' block.
+                    final_order_status = "failed_directus_update"
+                    logger.warning(f"Directus update failed for user {user_id}, order {order_id}. Final cache 'credits' field will NOT be updated.")
 
-                # Save final cache state (with flag cleared and credits potentially updated)
+                # Save the final user cache state (flag cleared, credits updated only if successful)
                 final_save_success = await cache_service.set_user(final_cache_data, user_id=user_id)
                 if not final_save_success:
-                     logger.error(f"Failed to save final cache state (clear flag) for user {user_id} (Order ID: {order_id}).")
+                     logger.error(f"Failed to save final user cache state for user {user_id} (Order ID: {order_id}).")
                 else:
-                     logger.debug(f"Successfully saved final cache state (cleared flag) for user {user_id} (Order ID: {order_id}).")
+                     logger.debug(f"Successfully saved final user cache state for user {user_id} (Order ID: {order_id}).")
+
+                # Update the separate order status cache entry
+                order_update_success = await cache_service.update_order_status(order_id, final_order_status)
+                if not order_update_success:
+                     logger.error(f"Failed to update order cache status to '{final_order_status}' for order {order_id}.")
+
 
         # --- Process ORDER_FAILED (or other terminal states from webhook if needed) ---
         elif event_type == "ORDER_FAILED":
@@ -466,23 +450,36 @@ async def get_order_status(
 
         # Now get the state from the Revolut details we fetched earlier
         order_state = order_details.get("state")
+        # Also get the internal status from our cache
+        internal_status = cached_order_data.get("status")
+
         if not order_state:
              logger.error(f"Revolut order details for {order_id} missing 'state'.")
              raise HTTPException(status_code=502, detail="Could not determine order status from payment provider.")
 
-        logger.info(f"Status for order {order_id}: {order_state}")
+        logger.info(f"Status for order {order_id}: Revolut API='{order_state}', Internal Cache='{internal_status}'")
 
         user_credits: Optional[int] = None
-        if order_state.upper() == "COMPLETED":
-            # Fetch current credits from cache, reflecting potential webhook updates
-            user_cache_data = await cache_service.get_user_by_id(current_user.id)
-            if user_cache_data:
-                user_credits = user_cache_data.get('credits')
-                logger.info(f"Order {order_id} is COMPLETED. Returning current cached credits for user {current_user.id}: {user_credits}")
-            else:
-                 logger.warning(f"Order {order_id} is COMPLETED, but user {current_user.id} not found in cache to retrieve current credits.")
+        final_state = order_state # Default to Revolut's state
 
-        return OrderStatusResponse(order_id=order_id, state=order_state, current_credits=user_credits)
+        # Check if the order is completed according to Revolut AND our internal processing
+        if order_state.upper() == "COMPLETED":
+            if internal_status == "completed":
+                # Only fetch and return credits if internal processing is also complete
+                user_cache_data = await cache_service.get_user_by_id(current_user.id)
+                if user_cache_data:
+                    user_credits = user_cache_data.get('credits')
+                    logger.info(f"Order {order_id} is fully COMPLETED (Revolut & Internal). Returning current cached credits for user {current_user.id}: {user_credits}")
+                else:
+                    logger.warning(f"Order {order_id} is fully COMPLETED, but user {current_user.id} not found in cache to retrieve current credits.")
+                # Keep final_state as "COMPLETED"
+            else:
+                # Revolut says completed, but our backend hasn't finished processing the webhook successfully yet.
+                logger.info(f"Order {order_id} is COMPLETED by Revolut, but internal status is '{internal_status}'. Reporting as PENDING_CONFIRMATION.")
+                final_state = "PENDING_CONFIRMATION" # Indicate backend processing is ongoing
+        # For other states (PENDING, FAILED, etc.), we just reflect Revolut's state.
+
+        return OrderStatusResponse(order_id=order_id, state=final_state, current_credits=user_credits)
 
     except HTTPException as e:
         raise e # Re-raise HTTP exceptions
