@@ -72,27 +72,34 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         try:
             # Add debug logs for each decryption attempt
             # Add gifted_credits_for_signup to the list of fields to decrypt
-            for field, encrypted_field in [
+            # List of fields to decrypt
+            fields_to_decrypt = [
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
                 ("profile_image_url", "encrypted_profileimage_url"),
                 ("devices", "encrypted_devices"),
                 ("tfa_app_name", "encrypted_tfa_app_name"),
-                ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup") # Added gift decryption
-            ]:
+                ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup"),
+                ("invoice_counter", "encrypted_invoice_counter")
+            ]
+
+            for field, encrypted_field in fields_to_decrypt:
                 # Check if the encrypted field exists in the raw data fetched from Directus
                 if encrypted_field in user_data and user_data[encrypted_field]:
                     try:
                         decrypted_value = await self.encryption_service.decrypt_with_user_key(
                             user_data[encrypted_field], vault_key_id
                         )
-                        
-                        # Correctly indented block starts here
+
                         if decrypted_value:
                             if field == "devices":
-                                profile[field] = json.loads(decrypted_value)
-                            # Handle credits and gifted credits as integers
-                            elif field == "credits" or field == "gifted_credits_for_signup": 
+                                try:
+                                    profile[field] = json.loads(decrypted_value)
+                                except json.JSONDecodeError:
+                                     logger.error(f"Could not parse decrypted devices JSON for user {user_id}")
+                                     profile[field] = {} # Default to empty dict
+                            # Handle numeric fields as integers
+                            elif field in ["credits", "gifted_credits_for_signup", "invoice_counter"]:
                                 try:
                                     profile[field] = int(float(decrypted_value))
                                 except (ValueError, TypeError):
@@ -100,18 +107,37 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
                                     profile[field] = 0 # Default to 0 if conversion fails
                             else:
                                 profile[field] = decrypted_value
-                            # No need to remove encrypted field here, as it wasn't added to profile dict initially
+                        # If decryption results in None/empty, handle default for invoice_counter
+                        elif field == "invoice_counter":
+                             logger.info(f"Decrypted invoice_counter is None or empty for user {user_id}. Setting to 0.")
+                             profile[field] = 0
+
                     except Exception as e:
-                        logger.error(f"[Debug] Error decrypting {field}: {str(e)}", exc_info=True)
-                        # No need to remove encrypted field here
-                
+                        logger.error(f"Error decrypting {field} for user {user_id}: {str(e)}", exc_info=True)
+                        # Ensure default value for invoice_counter if decryption fails
+                        if field == "invoice_counter":
+                            logger.warning(f"Setting invoice_counter to 0 for user {user_id} due to decryption error.")
+                            profile[field] = 0
+                # If encrypted field doesn't exist or is empty, ensure default for invoice_counter
+                elif field == "invoice_counter":
+                     logger.info(f"encrypted_invoice_counter not found or empty for user {user_id}. Setting invoice_counter to 0.")
+                     profile[field] = 0
+
         except Exception as e:
-            logger.error(f"Error decrypting user data: {str(e)}")
-            # Continue with whatever we have successfully decrypted
-        
+            logger.error(f"General error during user data decryption for user {user_id}: {str(e)}", exc_info=True)
+            # Ensure invoice_counter has a default if a broader error occurred before it was processed
+            if "invoice_counter" not in profile:
+                 profile["invoice_counter"] = 0
+
+        # Ensure invoice_counter definitely exists in profile after all attempts, default to 0
+        # This is a final safety net, though the logic above should handle most cases.
+        if "invoice_counter" not in profile:
+            logger.warning(f"Invoice counter still missing for user {user_id} after decryption block. Setting to 0.")
+            profile["invoice_counter"] = 0
+
         # Cache the profile
         await self.cache.set(cache_key, profile, ttl=self.cache_ttl)
-        
+
         return True, profile, "User profile retrieved successfully"
             
     except Exception as e:

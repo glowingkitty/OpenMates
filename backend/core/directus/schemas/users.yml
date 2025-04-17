@@ -44,6 +44,11 @@ directus_users:
       length: 512
       note: "Encrypted gifted credits for signup"
 
+    encrypted_invoice_counter:
+      type: string
+      length: 512
+      note: "Encrypted counter for user's invoices (starts at 0)"
+
     encrypted_settings:
       type: textfield
       note: "Encrypted user preferences"

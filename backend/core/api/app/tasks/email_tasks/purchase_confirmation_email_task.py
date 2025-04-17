@@ -110,6 +110,7 @@ async def _async_process_invoice_and_send_email(
         vault_key_id = user_profile.get("vault_key_id")
         user_language = user_profile.get("language", "en")
         user_darkmode = user_profile.get("darkmode", False)
+        current_invoice_counter = user_profile.get("invoice_counter", 0) # Get counter from profile, default 0
 
         if not encrypted_email or not vault_key_id:
             logger.error(f"Missing encrypted_email_address or vault_key_id for user {user_id} in invoice task {order_id}.")
@@ -172,41 +173,29 @@ async def _async_process_invoice_and_send_email(
             raise Exception("Missing amount/currency in Revolut order details")
         logger.info(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
 
-        # 5. Generate Invoice Number (using service from BaseTask)
+        # 5. Generate Invoice Number using counter from user profile
         # Generate user_id_hash (deterministic)
         user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
         logger.info(f"Generated user_id_hash for user {user_id}")
-        invoice_count = 0
-        try:
-            query_params = {"filter[user_id_hash][_eq]": user_id_hash, "meta": "total_count"}
-            # Use task.directus_service here
-            count_response = await task.directus_service.get_items("invoices", params=query_params, no_cache=True)
-            # Fix: count_response may be a Response object, not a dict
-            if isinstance(count_response, dict):
-                count_data = count_response
-            elif hasattr(count_response, "json"):
-                # If .json is a coroutine function, await it; else, call it
-                if callable(count_response.json):
-                    maybe_coro = count_response.json()
-                    if asyncio.iscoroutine(maybe_coro):
-                        count_data = await maybe_coro
-                    else:
-                        count_data = maybe_coro
-                else:
-                    count_data = count_response.json
-            else:
-                count_data = count_response
-            invoice_count = count_data.get("meta", {}).get("total_count", 0)
-        except Exception as count_err:
-            logger.error(f"Failed to count existing invoices for user: {count_err}", exc_info=True)
-            logger.warning(f"Proceeding with invoice number generation assuming count is 0 due to error.")
-            invoice_count = 0
 
-        
+        # Increment the counter for the new invoice
+        new_invoice_counter = current_invoice_counter + 1
 
-        # Generate Invoice Number (remains the same for display/email purposes)
+        # Update Cache immediately after calculating the new counter
+        # Ensure cache_service is available (initialized earlier)
+        if cache_service:
+            try:
+                # Update cache optimistically
+                cache_update_success = await cache_service.update_user(user_id, {"invoice_counter": new_invoice_counter})
+                logger.info(f"Cache update result for invoice_counter for user {user_id} (immediate): {cache_update_success}")
+            except Exception as cache_err:
+                # Log error but don't necessarily stop the process, Directus update is still primary
+                logger.error(f"Failed immediate cache update for invoice_counter for user {user_id}: {cache_err}", exc_info=True)
+        else:
+            logger.warning(f"Cache service not initialized, skipping immediate cache update for invoice counter for user {user_id}")
+
         user_id_last_8 = user_id[-8:].upper()
-        invoice_counter_str = str(invoice_count + 1).zfill(3)
+        invoice_counter_str = str(new_invoice_counter).zfill(3) # Use the incremented counter
         invoice_number = f"{user_id_last_8}-{invoice_counter_str}"
         logger.info(f"Generated invoice number for user {user_id}, order {order_id}: {invoice_number}")
 
@@ -373,6 +362,28 @@ async def _async_process_invoice_and_send_email(
             # Consider cleanup? Maybe delete S3 object? For now, just raise.
             raise Exception("Failed to create Directus invoice record")
         logger.info(f"Created Directus invoice record for invoice {invoice_number}")
+
+        # 10b. Update the invoice counter in Directus and Cache
+        try:
+            logger.info(f"Updating invoice counter for user {user_id} to {new_invoice_counter}")
+            # Encrypt the new counter value
+            encrypted_new_counter, _ = await task.encryption_service.encrypt_with_user_key(
+                str(new_invoice_counter), vault_key_id
+            )
+            if encrypted_new_counter:
+                # Update Directus
+                update_payload = {"encrypted_invoice_counter": encrypted_new_counter}
+                directus_update_success = await task.directus_service.update_user(user_id, update_payload)
+                if directus_update_success:
+                    logger.info(f"Successfully updated encrypted_invoice_counter in Directus for user {user_id}")
+                    # Cache update moved to immediately after counter calculation
+                else:
+                    logger.error(f"Failed to update encrypted_invoice_counter in Directus for user {user_id}")
+            else:
+                 logger.error(f"Failed to encrypt new invoice counter {new_invoice_counter} for user {user_id}")
+        except Exception as counter_update_err:
+            logger.error(f"Failed to update invoice counter for user {user_id}: {counter_update_err}", exc_info=True)
+            # Continue with email sending even if counter update fails, but log the error
 
         # 11. Prepare Email Context
         email_context = {

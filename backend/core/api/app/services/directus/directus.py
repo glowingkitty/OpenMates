@@ -54,10 +54,9 @@ class DirectusService:
         """
         url = f"{self.base_url}/items/{collection}"
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
-        # Optionally bypass Directus cache
+        # Optionally bypass Directus cache using no-store
         if no_cache:
-            headers["Cache-Control"] = "no-cache"
-            headers["Pragma"] = "no-cache"
+            headers["Cache-Control"] = "no-store" # Use no-store as per docs for CACHE_SKIP_ALLOWED
             params = dict(params or {})
             params["_ts"] = str(time.time_ns())
         # Use the internal _make_api_request method
