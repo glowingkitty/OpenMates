@@ -34,10 +34,16 @@ event_logger.addFilter(sensitive_filter)
 
 @app.task(name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email', base=BaseServiceTask, bind=True)
 def process_invoice_and_send_email(
-    self: BaseServiceTask, # Use the custom task class type hint
+    self: BaseServiceTask,  # Use the custom task class type hint
     order_id: str,
     user_id: str,
-    credits_purchased: int
+    credits_purchased: int,
+    sender_addressline1: str,
+    sender_addressline2: str,
+    sender_addressline3: str,
+    sender_country: str,
+    sender_email: str,
+    sender_vat: str
 ) -> bool:
     """
     Celery task to generate invoice, upload to S3, save to Directus, and send email.
@@ -47,7 +53,11 @@ def process_invoice_and_send_email(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(
-            _async_process_invoice_and_send_email(self, order_id, user_id, credits_purchased)
+            _async_process_invoice_and_send_email(
+                self, order_id, user_id, credits_purchased,
+                sender_addressline1, sender_addressline2, sender_addressline3,
+                sender_country, sender_email, sender_vat
+            )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
         return result
@@ -60,10 +70,16 @@ def process_invoice_and_send_email(
         loop.close()
 
 async def _async_process_invoice_and_send_email(
-    task: BaseServiceTask, # Use the custom task class type hint
+    task: BaseServiceTask,  # Use the custom task class type hint
     order_id: str,
     user_id: str,
-    credits_purchased: int
+    credits_purchased: int,
+    sender_addressline1: str,
+    sender_addressline2: str,
+    sender_addressline3: str,
+    sender_country: str,
+    sender_email: str,
+    sender_vat: str
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -160,9 +176,12 @@ async def _async_process_invoice_and_send_email(
         logger.info(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
 
         # 5. Generate Invoice Number (using service from BaseTask)
+        # Generate user_id_hash (deterministic)
+        user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
+        logger.info(f"Generated user_id_hash for user {user_id}")
         invoice_count = 0
         try:
-            query_params = {"filter[user_id][_eq]": user_id, "meta": "total_count"}
+            query_params = {"filter[user_id_hash][_eq]": user_id_hash, "meta": "total_count"}
             # Use task.directus_service here
             count_response = await task.directus_service.get_items("invoices", params=query_params)
             # Fix: count_response may be a Response object, not a dict
@@ -182,13 +201,11 @@ async def _async_process_invoice_and_send_email(
                 count_data = count_response
             invoice_count = count_data.get("meta", {}).get("total_count", 0)
         except Exception as count_err:
-            logger.error(f"Failed to count existing invoices for user {user_id}: {count_err}", exc_info=True)
+            logger.error(f"Failed to count existing invoices for user: {count_err}", exc_info=True)
             logger.warning(f"Proceeding with invoice number generation assuming count is 0 due to error.")
             invoice_count = 0
 
-        # Generate user_id_hash (deterministic)
-        user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
-        logger.info(f"Generated user_id_hash for user {user_id}")
+        
 
         # Generate Invoice Number (remains the same for display/email purposes)
         user_id_last_8 = user_id[-8:].upper()
@@ -211,14 +228,21 @@ async def _async_process_invoice_and_send_email(
 
         invoice_data = {
             "invoice_number": invoice_number,
-            "date_of_issue": date_str_iso, # Use formatted date
-            "date_due": date_str_iso, # Same as issue date
-            "receiver_name": cardholder_name, # Use fetched user name
-            "receiver_email": decrypted_email, # Use decrypted email
+            "date_of_issue": date_str_iso,  # Use formatted date
+            "date_due": date_str_iso,       # Same as issue date
+            "receiver_name": cardholder_name,
+            "receiver_email": decrypted_email,
             "credits": credits_purchased,
-            "card_name": formatted_card_brand, # Use formatted brand name
-            "card_last4": card_last_four, # Can be None
-            "qr_code_url": "https://app.openmates.org"
+            "card_name": formatted_card_brand,
+            "card_last4": card_last_four,
+            "qr_code_url": "https://app.openmates.org",
+            # Inject sender details from task payload
+            "sender_addressline1": sender_addressline1,
+            "sender_addressline2": sender_addressline2,
+            "sender_addressline3": sender_addressline3,
+            "sender_country": sender_country,
+            "sender_email": sender_email,
+            "sender_vat": sender_vat
         }
 
         # Add billing address if available (cleaning up None values)

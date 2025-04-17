@@ -1,5 +1,6 @@
 import os
 import yaml
+import logging
 import asyncio # Added for async operations
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
@@ -12,12 +13,18 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from pathlib import Path
 
 from app.services.translations import TranslationService
 from app.services.email.config_loader import load_shared_urls
 from app.services.pdf.flowables import ColoredLine
 from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely)
 from app.utils.secrets_manager import SecretsManager # Import SecretsManager
+
+# Setup loggers
+logger = logging.getLogger(__name__)
+
+PRICING_CONFIG_PATH = Path(__file__).parent.parent.parent.parent.parent.parent / "shared" / "config" / "pricing.yml"
 
 class BasePDFTemplateService:
     # Make __init__ private and synchronous for basic setup
@@ -34,7 +41,7 @@ class BasePDFTemplateService:
         self.sender_addressline2 = ""
         self.sender_addressline3 = ""
         self.sender_country = ""
-        self.sender_email = "" # Will be fetched or defaulted in create
+        self.sender_email = ""
         self.sender_vat = ""
         
         # Get Discord URL from shared config (can stay sync)
@@ -115,48 +122,6 @@ class BasePDFTemplateService:
         # Placeholder for translations
         self.t = {}
 
-    @classmethod
-    async def create(cls, secrets_manager: SecretsManager):
-        """Asynchronously create and initialize an instance."""
-        instance = cls(secrets_manager)
-        await instance._async_init()
-        return instance
-
-    async def _async_init(self):
-        """Asynchronous part of the initialization."""
-        # Fetch sender details from Vault with defaults
-        sender_details_keys = [
-            "SECRET__INVOICE_SENDER_ADDRESSLINE1",
-            "SECRET__INVOICE_SENDER_ADDRESSLINE2",
-            "SECRET__INVOICE_SENDER_ADDRESSLINE3",
-            "SECRET__INVOICE_SENDER_COUNTRY",
-            "SECRET__INVOICE_SENDER_VAT"
-        ]
-        # Fetch email separately as it might have a different default source
-        email_key = "SECRET__INVOICE_SENDER_EMAIL"
-
-        # Use asyncio.gather for concurrent fetching
-        results = await asyncio.gather(
-            *[self.secrets_manager.get_secret(key, "") for key in sender_details_keys],
-            self.secrets_manager.get_secret(email_key, None) # Fetch email, default to None initially
-        )
-
-        # Assign fetched values
-        (
-            self.sender_addressline1,
-            self.sender_addressline2,
-            self.sender_addressline3,
-            self.sender_country,
-            self.sender_vat,
-            fetched_email
-        ) = results
-
-        # Set sender email: Use fetched value, fallback to shared_urls, then hardcoded default
-        self.sender_email = fetched_email or self.shared_urls.get('contact', {}).get('email', "support@openmates.org")
-
-        # Update the email address used in the helper section
-        self.email_address = self.sender_email
-        
     def _draw_header_footer(self, canvas, doc):
         """Draw the colored bars at the top and bottom of the page"""
         width, height = A4
@@ -225,13 +190,12 @@ class BasePDFTemplateService:
 
     def _load_pricing_config(self):
         """Load pricing configuration from shared YAML file"""
-        shared_pricing_path = 'shared/config/pricing.yml'
         try:
-            with open(shared_pricing_path, 'r') as file:
+            with open(PRICING_CONFIG_PATH, 'r') as file:
                 config = yaml.safe_load(file)
                 return config.get('pricingTiers', [])
         except Exception as e:
-            print(f"Error loading pricing config from {shared_pricing_path}: {e}")
+            print(f"Error loading pricing config from {PRICING_CONFIG_PATH}: {e}")
             return []
 
     def _validate_credits(self, credits):

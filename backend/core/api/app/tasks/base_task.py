@@ -12,6 +12,7 @@ from app.services.s3.service import S3UploadService
 from app.services.pdf.invoice import InvoiceTemplateService
 from app.services.email_template import EmailTemplateService
 from app.utils.secrets_manager import SecretsManager
+from app.services.translations import TranslationService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class BaseServiceTask(Task):
     _invoice_template_service: Optional[InvoiceTemplateService] = None
     _email_template_service: Optional[EmailTemplateService] = None
     _secrets_manager: Optional[SecretsManager] = None
+    _translation_service: Optional[TranslationService] = None
 
     async def initialize_services(self):
         # Initialize SecretsManager first as others depend on it
@@ -85,6 +87,12 @@ class BaseServiceTask(Task):
         else:
              logger.debug(f"EmailTemplateService already initialized for task {self.request.id}")
 
+        if self._translation_service is None:
+            logger.debug(f"Initializing TranslationService for task {self.request.id}")
+            self._translation_service = TranslationService()
+            # TranslationService might not need async init, depends on its implementation
+            logger.debug(f"TranslationService initialized for task {self.request.id}")
+
 
     @property
     def directus_service(self) -> DirectusService:
@@ -134,7 +142,6 @@ class BaseServiceTask(Task):
             raise RuntimeError("EmailTemplateService not initialized. Call initialize_services first.")
         return self._email_template_service
 
-    # Add secrets_manager property as well
     @property
     def secrets_manager(self) -> SecretsManager:
         if self._secrets_manager is None:
@@ -142,3 +149,11 @@ class BaseServiceTask(Task):
             logger.error(f"SecretsManager accessed before initialization in task {self.request.id}")
             raise RuntimeError("SecretsManager not initialized. Call initialize_services first.")
         return self._secrets_manager
+    
+    @property
+    def translation_service(self) -> TranslationService:
+        if self._translation_service is None:
+             # Log error before raising
+            logger.error(f"TranslationService accessed before initialization in task {self.request.id}")
+            raise RuntimeError("TranslationService not initialized. Call initialize_services first.")
+        return self._translation_service

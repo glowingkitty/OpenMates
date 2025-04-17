@@ -219,7 +219,8 @@ async def revolut_webhook(
     revolut_service: RevolutService = Depends(get_revolut_service), # Use the dependency
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service)
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    secrets_manager: SecretsManager = Depends(get_secrets_manager)
 ):
     """Handles incoming webhook events from Revolut."""
     payload_bytes = await request.body()
@@ -349,11 +350,24 @@ async def revolut_webhook(
                     try:
                         logger.info(f"Directus update successful for order {order_id}. Dispatching background invoice processing task.")
 
-                        # Dispatch Celery task with only necessary IDs
+                        # Fetch sender details for invoice via SecretsManager
+                        sender_addressline1 = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_ADDRESSLINE1")
+                        sender_addressline2 = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_ADDRESSLINE2")
+                        sender_addressline3 = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_ADDRESSLINE3")
+                        sender_country = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_COUNTRY")
+                        sender_email = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_EMAIL")
+                        sender_vat = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_VAT")
+                        # Dispatch Celery task with payload including sender details
                         task_payload = {
                             "order_id": order_id,
                             "user_id": user_id,
-                            "credits_purchased": credits_purchased # From cache
+                            "credits_purchased": credits_purchased,
+                            "sender_addressline1": sender_addressline1,
+                            "sender_addressline2": sender_addressline2,
+                            "sender_addressline3": sender_addressline3,
+                            "sender_country": sender_country,
+                            "sender_email": sender_email if sender_email else "support@openmates.org",
+                            "sender_vat": sender_vat
                         }
                         app.send_task(
                             name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',

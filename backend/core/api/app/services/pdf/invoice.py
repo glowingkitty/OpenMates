@@ -126,9 +126,19 @@ class InvoiceTemplateService(BasePDFTemplateService):
         elements.append(invoice_table)
         elements.append(Spacer(1, 24))
         
-        # Create sender details string using environment variables and translated country
-        translated_sender_country = self._get_translated_country_name(self.sender_country)
-        sender_details_str = f"{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{translated_sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
+        # Create sender details string, preferring values from invoice_data with fallbacks
+        sender_addressline1 = invoice_data.get('sender_addressline1', self.sender_addressline1)
+        sender_addressline2 = invoice_data.get('sender_addressline2', self.sender_addressline2)
+        sender_addressline3 = invoice_data.get('sender_addressline3', self.sender_addressline3)
+        sender_country_val = invoice_data.get('sender_country', self.sender_country)
+        translated_sender_country = self._get_translated_country_name(sender_country_val)
+        sender_email_val = invoice_data.get('sender_email', self.sender_email)
+        sender_vat_val = invoice_data.get('sender_vat', self.sender_vat)
+        sender_details_str = (
+            f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
+            f"<br/>{translated_sender_country}<br/>{sender_email_val}"
+            f"<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {sender_vat_val}"
+        )
         
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
