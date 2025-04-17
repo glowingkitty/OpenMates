@@ -155,6 +155,7 @@ services:
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../shared:/shared
     networks:
       - openmates
     depends_on:
@@ -186,6 +187,7 @@ services:
       - ./api/logs:/app/logs
       - celerybeat-schedule-data:/celerybeat-data # Mount named volume for schedule
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../shared:/shared
     networks:
       - openmates
     depends_on:

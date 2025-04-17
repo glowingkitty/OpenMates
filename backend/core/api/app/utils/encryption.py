@@ -20,7 +20,6 @@ class EncryptionService:
     def __init__(self, cache_service=None):
         self.vault_url = os.environ.get("VAULT_URL")
         self.transit_mount = "transit"  # The Vault transit engine mount path
-        self._client = None
         self.cache = cache_service
 
         # Add caching properties
@@ -39,12 +38,6 @@ class EncryptionService:
             self.vault_token = file_token
             masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
             logger.debug(f"Updated token from file on init: {masked_token}")
-    
-    async def _get_client(self):
-        """Get or create httpx client"""
-        if not self._client:
-            self._client = httpx.AsyncClient(timeout=30.0)  # Increase timeout for reliability
-        return self._client
     
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup"""
@@ -97,11 +90,11 @@ class EncryptionService:
                 logger.debug("Found newer token in file, updating")
                 self.vault_token = file_token
             
-            client = await self._get_client()
             url = f"{self.vault_url}/v1/auth/token/lookup-self"
             headers = {"X-Vault-Token": self.vault_token}
             
-            response = await client.get(url, headers=headers)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
             if response.status_code == 200:
                 token_info = response.json().get("data", {})
                 logger.debug(f"Vault token is valid. Policies: {token_info.get('policies', [])}")
@@ -119,7 +112,8 @@ class EncryptionService:
                 
                 # Try again with the new token
                 headers = {"X-Vault-Token": self.vault_token}
-                response = await client.get(url, headers=headers)
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     token_info = response.json().get("data", {})
                     logger.debug(f"Token from file is valid. Policies: {token_info.get('policies', [])}")
@@ -166,7 +160,6 @@ class EncryptionService:
     
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
         """Make a request to the Vault API with enhanced error handling and retry logic"""
-        client = await self._get_client()
         url = f"{self.vault_url}/v1/{path}"
         
         # Only do full validation if we don't have a cached result
@@ -180,11 +173,12 @@ class EncryptionService:
         headers = {"X-Vault-Token": self.vault_token}
         
         try:
-            # Make the request
-            if method.lower() == "get":
-                response = await client.get(url, headers=headers)
-            else:  # POST
-                response = await client.post(url, headers=headers, json=data)
+            # Make the request using a context manager
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                if method.lower() == "get":
+                    response = await client.get(url, headers=headers)
+                else:  # POST
+                    response = await client.post(url, headers=headers, json=data)
             
             # Check for common error statuses
             if response.status_code == 403:
@@ -411,12 +405,6 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Decryption error: {str(e)}")
             return None
-    
-    async def close(self):
-        """Close the HTTP client"""
-        if self._client:
-            await self._client.aclose()
-            self._client = None
 
     async def create_chat_key(self, key_id: str) -> bool:
         """

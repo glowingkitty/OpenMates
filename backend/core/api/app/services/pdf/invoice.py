@@ -37,17 +37,13 @@ class InvoiceTemplateService(BasePDFTemplateService):
         self.t = self.translation_service.get_translations(lang)
         
         # Validate and get the credits from invoice data
-        logger.info("credits before validation: %s", invoice_data.get('credits'))
         credits = self._validate_credits(invoice_data.get('credits', 1000))
-        logger.info("credits after validation: %s", credits)
         
         # Format the credits for display
         formatted_credits = format_credits(credits)
-        logger.info("formatted credits: %s", formatted_credits)
         
         # Get the unit price for these credits
         unit_price = self._get_price_for_credits(credits, currency)
-        logger.info("unit price: %s", unit_price)
         
         # Set the unit and total price in the invoice data
         invoice_data['unit_price'] = unit_price

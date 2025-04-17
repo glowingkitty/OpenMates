@@ -50,9 +50,8 @@ def process_invoice_and_send_email(
     """
     logger.info(f"Starting invoice processing task for Order ID: {order_id}, User ID: {user_id}")
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(
+        # Use asyncio.run() which handles loop creation and cleanup
+        result = asyncio.run(
             _async_process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
@@ -66,8 +65,6 @@ def process_invoice_and_send_email(
         # Consider retrying the task based on the exception type
         # self.retry(exc=e, countdown=60) # Example retry after 60 seconds
         return False
-    finally:
-        loop.close()
 
 async def _async_process_invoice_and_send_email(
     task: BaseServiceTask,  # Use the custom task class type hint
@@ -183,7 +180,7 @@ async def _async_process_invoice_and_send_email(
         try:
             query_params = {"filter[user_id_hash][_eq]": user_id_hash, "meta": "total_count"}
             # Use task.directus_service here
-            count_response = await task.directus_service.get_items("invoices", params=query_params)
+            count_response = await task.directus_service.get_items("invoices", params=query_params, no_cache=True)
             # Fix: count_response may be a Response object, not a dict
             if isinstance(count_response, dict):
                 count_data = count_response

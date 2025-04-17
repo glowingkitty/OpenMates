@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
@@ -46,13 +47,19 @@ class DirectusService:
         else:
             logger.warning("DirectusService initialized WITHOUT a token! Will try to authenticate with admin credentials.")
 
-    async def get_items(self, collection, params=None):
+    async def get_items(self, collection, params=None, no_cache=False):
         """
         Fetch items from a Directus collection with optional query params.
         Supports filters and meta (e.g., total_count).
         """
         url = f"{self.base_url}/items/{collection}"
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        # Optionally bypass Directus cache
+        if no_cache:
+            headers["Cache-Control"] = "no-cache"
+            headers["Pragma"] = "no-cache"
+            params = dict(params or {})
+            params["_ts"] = str(time.time_ns())
         # Use the internal _make_api_request method
         response = await self._make_api_request("GET", url, headers=headers, params=params or {})
         return response

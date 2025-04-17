@@ -45,14 +45,7 @@ class RevolutService:
 
     def __init__(self, secrets_manager: SecretsManager):
         self.secrets_manager = secrets_manager
-        self._client: Optional[httpx.AsyncClient] = None
         self.base_url: str = "" # Will be set during initialization
-
-    async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create httpx client."""
-        if not self._client:
-            self._client = httpx.AsyncClient(timeout=30.0)
-        return self._client
 
     def _is_production(self) -> bool:
         """Check if the environment is production."""
@@ -119,7 +112,6 @@ class RevolutService:
         if not self.base_url:
             await self.initialize() # Ensure base_url is set
 
-        client = await self._get_client()
         url = f"{self.base_url}/orders"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -153,7 +145,9 @@ class RevolutService:
                 formatted_amount = f"{currency.upper()} {amount / 10**decimals:.2f}"
 
             logger.info(f"Creating Revolut order. Amount: {formatted_amount}")
-            response = await client.post(url, headers=headers, json=payload)
+            # Use context manager for the client
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()  # Raise exception for 4xx/5xx status codes
             order_data = response.json()
             logger.info(f"Revolut order created successfully. Order ID: {order_data.get('id')}.")
@@ -285,7 +279,6 @@ class RevolutService:
         if not self.base_url:
             await self.initialize()
 
-        client = await self._get_client()
         url = f"{self.base_url}/orders/{order_id}"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -295,8 +288,10 @@ class RevolutService:
 
         try:
             logger.info(f"Retrieving Revolut order details for Order ID: {order_id}")
-            response = await client.get(url, headers=headers)
-            
+            # Use context manager for the client
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
+
             # Handle 404 specifically
             if response.status_code == 404:
                  logger.warning(f"Revolut order {order_id} not found.")
@@ -313,10 +308,3 @@ class RevolutService:
         except Exception as e:
             logger.error(f"Error retrieving Revolut order {order_id}: {str(e)}", exc_info=True)
             return None
-
-    async def close(self):
-        """Close the HTTP client."""
-        if self._client:
-            await self._client.aclose()
-            self._client = None
-            logger.info("RevolutService HTTP client closed.")

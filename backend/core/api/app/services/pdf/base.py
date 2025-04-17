@@ -115,6 +115,7 @@ class BasePDFTemplateService:
         
         # Load pricing config
         self.pricing_tiers = self._load_pricing_config()
+        logger.info(f"Loaded pricing tiers: {self.pricing_tiers}")
         
         # Set current language to default of English
         self.current_lang = "en"
@@ -195,7 +196,7 @@ class BasePDFTemplateService:
                 config = yaml.safe_load(file)
                 return config.get('pricingTiers', [])
         except Exception as e:
-            print(f"Error loading pricing config from {PRICING_CONFIG_PATH}: {e}")
+            logger.error(f"Error loading pricing config from {PRICING_CONFIG_PATH}: {e}")
             return []
 
     def _validate_credits(self, credits):
@@ -210,7 +211,7 @@ class BasePDFTemplateService:
             
         # If credits value is invalid, use the closest valid value
         closest = min(valid_credits, key=lambda x: abs(x - credits))
-        print(f"Warning: Invalid credit amount {credits}, using closest valid value: {closest}")
+        logger.info(f"Warning: Invalid credit amount {credits}, using closest valid value: {closest}")
         return closest
 
     def _get_price_for_credits(self, credits, currency='eur'):
@@ -224,7 +225,7 @@ class BasePDFTemplateService:
                 return tier.get('price', {}).get(currency, 0)
         
         # If we can't find the exact match (shouldn't happen after validation)
-        print(f"Warning: No price found for {credits} credits in {currency}")
+        logger.info(f"Warning: No price found for {credits} credits in {currency}")
         return 0
         
     def build_questions_helper_section(self, elements, doc):
@@ -287,8 +288,8 @@ class BasePDFTemplateService:
                 questions_helper.append(paragraph)
             except Exception as e:
                 # Log the error for debugging
-                print(f"Error creating paragraph: {e}")
-                print(f"Problematic text: {sanitized_text}")
+                logger.error(f"Error creating paragraph: {e}")
+                logger.error(f"Problematic text: {sanitized_text}")
                 # Use a simpler fallback
                 fallback = "Please contact support@openmates.org if you have questions."
                 questions_helper.append(Paragraph(fallback, self.styles['Normal']))
