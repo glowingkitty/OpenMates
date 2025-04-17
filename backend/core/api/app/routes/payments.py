@@ -16,6 +16,11 @@ from app.routes.auth_routes.auth_dependencies import get_current_user # Assuming
 
 # Import the actual Revolut Service
 from app.services.revolut_service import RevolutService
+# Import Celery app instance for task dispatching
+from app.tasks.celery_config import app
+# Import EncryptionService for the webhook logic (still needed for credit update)
+from app.utils.encryption import EncryptionService
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
 
@@ -339,6 +344,28 @@ async def revolut_webhook(
                 # 8. If Directus update failed after 3 attempts, log the error. The cache won't be updated with the new amount in the finally block.
                 if not directus_update_success:
                      logger.error(f"Failed to update Directus credits for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Cached credits will not be updated.")
+                else:
+                    # --- Trigger Background Invoice Processing Task ---
+                    try:
+                        logger.info(f"Directus update successful for order {order_id}. Dispatching background invoice processing task.")
+
+                        # Dispatch Celery task with only necessary IDs
+                        task_payload = {
+                            "order_id": order_id,
+                            "user_id": user_id,
+                            "credits_purchased": credits_purchased # From cache
+                        }
+                        app.send_task(
+                            name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
+                            kwargs=task_payload,
+                            queue='email'
+                        )
+                        logger.info(f"Dispatched invoice processing task for user {user_id}, order {order_id} to queue 'email'.")
+
+                    except Exception as dispatch_err:
+                        logger.error(f"Failed to dispatch invoice generation task for user {user_id}, order {order_id}: {dispatch_err}", exc_info=True)
+                        # Don't fail the webhook response, just log the error. Credits were updated.
+
                 # --- End Protected Section ---
 
             except Exception as processing_err:

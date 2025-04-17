@@ -63,9 +63,13 @@ async def logout(
                     
                     # If this was the last token, remove user-specific caches and the token list
                     if not current_tokens:
-                        # Call the comprehensive cache clearing function which includes devices
-                        await cache_service.delete_user_cache(user_id)
-                        logger.info(f"Cleared all user-related cache (including devices) for user {user_id[:6]}... (last device logout)")
+                       # Check for pending orders before clearing cache
+                       if await cache_service.has_pending_orders(user_id):
+                           logger.warning(f"User {user_id[:6]}... has pending orders. Skipping user cache deletion on logout.")
+                       else:
+                           # Call the comprehensive cache clearing function which includes devices
+                           await cache_service.delete_user_cache(user_id)
+                           logger.info(f"Cleared all user-related cache (including devices) for user {user_id[:6]}... (last device logout)")
 
                     else:
                         # Update the user tokens cache with the token removed
@@ -143,9 +147,13 @@ async def logout_all(
             if not success:
                 logger.warning(f"Directus logout-all failed: {message}")
             
-            # Clear all user-related cache entries (sessions, profile, devices)
-            await cache_service.delete_user_cache(user_id)
-            logger.info(f"Cleared all user-related cache for user {user_id[:6]}... (logout all)")
+            # Check for pending orders before clearing cache
+            if await cache_service.has_pending_orders(user_id):
+                logger.warning(f"User {user_id[:6]}... has pending orders. Skipping user cache deletion on logout-all.")
+            else:
+                # Clear all user-related cache entries (sessions, profile, devices)
+                await cache_service.delete_user_cache(user_id)
+                logger.info(f"Cleared all user-related cache for user {user_id[:6]}... (logout all)")
         
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:

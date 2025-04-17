@@ -444,3 +444,35 @@ class CacheService:
         except Exception as e:
             logger.error(f"Error updating order {order_id} in cache: {str(e)}")
             return False
+
+    async def has_pending_orders(self, user_id: str) -> bool:
+        """
+        Check if a user has any orders in cache that are not in a final state (completed/failed).
+        """
+        try:
+            if not self.client or not user_id:
+                return False
+
+            order_pattern = f"{self.ORDER_KEY_PREFIX}*"
+            logger.debug(f"Searching for order keys with pattern: '{order_pattern}' for user {user_id}")
+            order_keys = await self.get_keys_by_pattern(order_pattern)
+            logger.debug(f"Found {len(order_keys)} potential order keys to check for user {user_id}.")
+
+            final_statuses = {"completed", "failed"} # Define final states
+
+            for key in order_keys:
+                order_data = await self.get(key)
+                if isinstance(order_data, dict):
+                    order_user_id = order_data.get("user_id")
+                    order_status = order_data.get("status", "").lower()
+
+                    # Check if this order belongs to the user and is NOT in a final state
+                    if order_user_id == user_id and order_status not in final_statuses:
+                        logger.info(f"User {user_id} has a pending order: {order_data.get('order_id')} (Status: {order_status})")
+                        return True # Found a pending order
+
+            logger.debug(f"No pending orders found in cache for user {user_id}.")
+            return False # No pending orders found for this user
+        except Exception as e:
+            logger.error(f"Error checking for pending orders for user '{user_id}': {str(e)}")
+            return False # Assume no pending orders on error to avoid blocking logout unnecessarily
