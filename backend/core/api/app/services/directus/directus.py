@@ -7,8 +7,8 @@ from app.utils.encryption import EncryptionService
 from app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
-from app.services.directus.api_methods import _make_api_request
-from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code 
+from app.services.directus.api_methods import _make_api_request, create_item # Import create_item
+from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
 from app.services.directus.user.user_creation import create_user
 from app.services.directus.user.device_management import update_user_device, check_user_device
 from app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
@@ -45,7 +45,21 @@ class DirectusService:
             logger.info(f"DirectusService initialized with URL: {self.base_url}, Token: {masked_token}")
         else:
             logger.warning("DirectusService initialized WITHOUT a token! Will try to authenticate with admin credentials.")
-    
+
+    async def get_items(self, collection, params=None):
+        """
+        Fetch items from a Directus collection with optional query params.
+        Supports filters and meta (e.g., total_count).
+        """
+        url = f"{self.base_url}/items/{collection}"
+        headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        # Use the internal _make_api_request method
+        response = await self._make_api_request("GET", url, headers=headers, params=params or {})
+        return response
+
+    # Item creation method
+    create_item = create_item # Assign the imported method
+
     # Authentication methods
     get_auth_lock = get_auth_lock
     clear_tokens = clear_tokens

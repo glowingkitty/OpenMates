@@ -41,3 +41,40 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
     
     # This should never happen because of the exception above, but just in case
     raise HTTPException(status_code=500, detail="Maximum retry attempts reached")
+
+
+async def create_item(self, collection: str, payload: dict):
+   """
+   Creates a new item in a specified Directus collection.
+
+   Args:
+       self: The DirectusService instance.
+       collection: The name of the collection to create the item in.
+       payload: A dictionary containing the item data to be created.
+
+   Returns:
+       A tuple (bool, dict): (True, created_item_data) on success,
+                              (False, error_details) on failure.
+   """
+   url = f"{self.base_url}/items/{collection}"
+   logger.info(f"Attempting to create item in collection '{collection}'")
+
+   try:
+       # Use the internal _make_api_request helper for the POST request
+       response = await self._make_api_request("POST", url, json=payload)
+
+       # Check if the request was successful (status code 2xx)
+       if 200 <= response.status_code < 300:
+           created_item = response.json().get("data")
+           logger.info(f"Successfully created item in '{collection}'. ID: {created_item.get('id') if created_item else 'N/A'}")
+           return True, created_item
+       else:
+           # Log error if creation failed
+           error_details = {"status_code": response.status_code, "text": response.text}
+           logger.error(f"Failed to create item in '{collection}'. Status: {response.status_code}, Response: {response.text}")
+           return False, error_details
+
+   except Exception as e:
+       # Log any exception during the process
+       logger.error(f"Exception during item creation in '{collection}': {str(e)}", exc_info=True)
+       return False, {"error": str(e)}

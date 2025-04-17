@@ -133,7 +133,8 @@ class EmailTemplateService:
         subject: str = None,
         sender_name: str = None,
         sender_email: str = None,
-        lang: str = "en"
+        lang: str = "en",
+        attachments: Optional[list] = None # Add attachments parameter
     ) -> bool:
         """
         Send an email using the Mailjet API with a rendered template.
@@ -147,6 +148,7 @@ class EmailTemplateService:
             sender_name: Name of sender (uses default if None)
             sender_email: Email of sender (uses default if None)
             lang: Language code for translations
+            attachments: Optional list of attachments (dicts with 'filename', 'content' base64 encoded)
             
         Returns:
             True if email was sent successfully, False otherwise
@@ -210,13 +212,24 @@ class EmailTemplateService:
                             }
                         ],
                         "Subject": subject,
-                        "HTMLPart": html_content
+                        "HTMLPart": html_content,
+                        # Add attachments if provided
+                        "Attachments": [
+                            {
+                                "ContentType": "application/pdf", # Assuming PDF for now, might need adjustment
+                                "Filename": att["filename"],
+                                "Base64Content": att["content"]
+                            } for att in attachments
+                        ] if attachments else []
                     }
                 ]
             }
             
             # Return the original log message - filter will redact the email
-            logger.info(f"Sending email to {recipient_email} using template {template} in language {lang}")
+            log_message = f"Sending email to {recipient_email} using template {template} in language {lang}"
+            if attachments:
+                log_message += f" with {len(attachments)} attachment(s)"
+            logger.info(log_message)
             
             # Send the email via Mailjet API
             async with aiohttp.ClientSession() as session:

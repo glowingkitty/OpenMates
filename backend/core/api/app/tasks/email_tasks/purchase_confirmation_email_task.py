@@ -4,6 +4,7 @@ import base64
 import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
+import json
 
 # Import the Celery app and Base Task
 from app.tasks.celery_config import app
@@ -64,7 +65,7 @@ async def _async_process_invoice_and_send_email(
     try:
         # 1. Initialize all necessary services using the base task class method
         await task.initialize_services()
-        logger.debug(f"Services initialized for invoice task {order_id}")
+        logger.info(f"Services initialized for invoice task {order_id}")
 
         # Initialize CacheService separately (as it's not part of BaseServiceTask init)
         cache_service = CacheService()
@@ -89,24 +90,28 @@ async def _async_process_invoice_and_send_email(
         vault_key_id = user_profile.get("vault_key_id")
         user_language = user_profile.get("language", "en")
         user_darkmode = user_profile.get("darkmode", False)
-        user_name = user_profile.get("full_name") or user_profile.get("first_name") or "Valued Customer"
 
         if not encrypted_email or not vault_key_id:
             logger.error(f"Missing encrypted_email_address or vault_key_id for user {user_id} in invoice task {order_id}.")
             raise Exception("Missing user encryption details")
-        logger.debug(f"User profile details extracted for {user_id}")
+        logger.info(f"User profile details extracted for {user_id}")
 
         # 3. Fetch Full Order Details from Revolut (using service from BaseTask)
         revolut_order_details = await task.revolut_service.get_order(order_id)
         if not revolut_order_details:
             logger.error(f"Failed to fetch Revolut order details for {order_id} in invoice task.")
             raise Exception("Failed to fetch Revolut order details")
-        logger.debug(f"Revolut order details fetched for {order_id}")
+        logger.info(f"Revolut order details fetched for {order_id}")
 
         # 4. Extract Payment Details (same as before)
         payment_method_details = {}
         billing_address_dict = None
-        successful_payment = next((p for p in revolut_order_details.get('payments', []) if p.get('state', '').upper() == 'COMPLETED'), None)
+        # Accept both "COMPLETED" and "CAPTURED" as successful payment states
+        successful_payment = next(
+            (p for p in revolut_order_details.get('payments', [])
+             if p.get('state', '').upper() in ('COMPLETED', 'CAPTURED')),
+            None
+        )
 
         if successful_payment:
             payment_method_details = successful_payment.get('payment_method', {})
@@ -126,13 +131,26 @@ async def _async_process_invoice_and_send_email(
         cardholder_name = payment_method_details.get('cardholder_name')
         card_last_four = payment_method_details.get('card_last_four')
         card_brand = payment_method_details.get('card_brand')
+
+        # Format card brand name for display
+        formatted_card_brand = card_brand if card_brand else ""
+        if card_brand:
+            card_brand_lower = card_brand.lower()
+            if card_brand_lower == 'visa':
+                formatted_card_brand = 'VISA'
+            elif card_brand_lower == 'mastercard':
+                formatted_card_brand = 'MasterCard'
+            elif card_brand_lower == 'american_express':
+                formatted_card_brand = 'American Express'
+            # Add more mappings if needed, otherwise keep original if not matched
+
         amount_paid = revolut_order_details.get('amount') # Smallest unit
         currency_paid = revolut_order_details.get('currency')
 
         if amount_paid is None or currency_paid is None:
             logger.error(f"Missing amount or currency in Revolut order details for {order_id}. Cannot generate invoice.")
             raise Exception("Missing amount/currency in Revolut order details")
-        logger.debug(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
+        logger.info(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
 
         # 5. Generate Invoice Number (using service from BaseTask)
         invoice_count = 0
@@ -140,7 +158,22 @@ async def _async_process_invoice_and_send_email(
             query_params = {"filter[user_id][_eq]": user_id, "meta": "total_count"}
             # Use task.directus_service here
             count_response = await task.directus_service.get_items("invoices", params=query_params)
-            invoice_count = count_response.get("meta", {}).get("total_count", 0)
+            # Fix: count_response may be a Response object, not a dict
+            if isinstance(count_response, dict):
+                count_data = count_response
+            elif hasattr(count_response, "json"):
+                # If .json is a coroutine function, await it; else, call it
+                if callable(count_response.json):
+                    maybe_coro = count_response.json()
+                    if asyncio.iscoroutine(maybe_coro):
+                        count_data = await maybe_coro
+                    else:
+                        count_data = maybe_coro
+                else:
+                    count_data = count_response.json
+            else:
+                count_data = count_response
+            invoice_count = count_data.get("meta", {}).get("total_count", 0)
         except Exception as count_err:
             logger.error(f"Failed to count existing invoices for user {user_id}: {count_err}", exc_info=True)
             logger.warning(f"Proceeding with invoice number generation assuming count is 0 due to error.")
@@ -150,6 +183,11 @@ async def _async_process_invoice_and_send_email(
         invoice_counter_str = str(invoice_count + 1).zfill(3)
         invoice_number = f"{user_id_last_8}-{invoice_counter_str}"
         logger.info(f"Generated invoice number for user {user_id}, order {order_id}: {invoice_number}")
+
+        # Get date components for filenames and invoice data
+        now_utc = datetime.now(timezone.utc)
+        date_str_iso = now_utc.strftime('%Y-%m-%d')
+        date_str_filename = now_utc.strftime('%Y_%m_%d')
 
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
         # Decrypt email now for receiver_email field
@@ -161,14 +199,18 @@ async def _async_process_invoice_and_send_email(
 
         invoice_data = {
             "invoice_number": invoice_number,
-            "date_of_issue": datetime.now(timezone.utc).strftime('%Y-%m-%d'), # Use current date
-            "date_due": datetime.now(timezone.utc).strftime('%Y-%m-%d'), # Same as issue date
-            "receiver_name": user_name, # Use fetched user name
+            "date_of_issue": date_str_iso, # Use formatted date
+            "date_due": date_str_iso, # Same as issue date
+            "receiver_name": cardholder_name, # Use fetched user name
             "receiver_email": decrypted_email, # Use decrypted email
             "credits": credits_purchased,
-            "card_name": card_brand, # Can be None
+            "card_name": formatted_card_brand, # Use formatted brand name
             "card_last4": card_last_four, # Can be None
+            "qr_code_url": "https://app.openmates.org"
         }
+
+        logger.info('Invoice data:')
+        logger.info(invoice_data.copy()) # Log the invoice data for debugging
         # Add billing address if available (cleaning up None values)
         if billing_address_dict:
             address_parts = {
@@ -181,35 +223,60 @@ async def _async_process_invoice_and_send_email(
             # Add only non-empty parts to invoice_data
             invoice_data.update({k: v for k, v in address_parts.items() if v})
 
-        logger.debug(f"Prepared invoice data dictionary for {invoice_number}")
+        logger.info(f"Prepared invoice data dictionary for {invoice_number}")
 
-        # 7. Generate Invoice PDF (using service from BaseTask)
-        # Use task.invoice_template_service here
-        pdf_buffer = task.invoice_template_service.generate_invoice(
-            invoice_data, lang=user_language, currency=currency_paid.lower()
+        # 7. Generate Invoice PDF(s)
+        # Always generate English version first
+        logger.info(f"Generating English invoice PDF for {invoice_number}")
+        pdf_buffer_en = task.invoice_template_service.generate_invoice(
+            invoice_data, lang='en', currency=currency_paid.lower()
         )
-        pdf_bytes = pdf_buffer.getvalue()
-        pdf_buffer.close()
-        logger.debug(f"Generated PDF for invoice {invoice_number}")
+        pdf_bytes_en = pdf_buffer_en.getvalue()
+        pdf_buffer_en.close()
+        invoice_filename_en = f"openmates_invoice_{date_str_filename}_{invoice_number}.pdf"
+        logger.info(f"Generated English PDF ({invoice_filename_en}) for invoice {invoice_number}")
 
-        # 8. Upload PDF to S3 (using service from BaseTask)
-        environment = os.getenv('SERVER_ENVIRONMENT', 'development')
-        bucket_name = get_bucket_name('invoices', environment)
-        s3_object_key = f"{user_id}/{invoice_number}.pdf"
+        pdf_bytes_lang = None
+        invoice_filename_lang = None
+        # Generate translated version if language is not English
+        if user_language != 'en':
+            logger.info(f"Generating invoice PDF in user language '{user_language}' for {invoice_number}")
+            try:
+                # Fetch translation for "invoice"
+                translations = await task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
+                # Safely get translation, default to "invoice"
+                invoice_translation = translations.get("invoices_and_credit_notes", {}).get("invoice", {}).get("text", "invoice")
+                invoice_translation_lower = invoice_translation.lower().replace(" ", "_") # Ensure lowercase and replace spaces
 
-        # Use task.s3_service here
-        upload_success, s3_url = await task.s3_service.upload_file_bytes(
-            bucket_name=bucket_name,
-            object_key=s3_object_key,
-            file_bytes=pdf_bytes,
+                pdf_buffer_lang = task.invoice_template_service.generate_invoice(
+                    invoice_data, lang=user_language, currency=currency_paid.lower()
+                )
+                pdf_bytes_lang = pdf_buffer_lang.getvalue()
+                pdf_buffer_lang.close()
+                invoice_filename_lang = f"openmates_{invoice_translation_lower}_{date_str_filename}_{invoice_number}.pdf"
+                logger.info(f"Generated PDF ({invoice_filename_lang}) for invoice {invoice_number} in language {user_language}")
+            except Exception as lang_pdf_err:
+                logger.error(f"Failed to generate or get translation for invoice PDF in language {user_language} for {invoice_number}: {lang_pdf_err}", exc_info=True)
+                # Continue without the translated version if generation fails
+
+        # 8. Upload ONLY English PDF to S3
+        s3_object_key = invoice_filename_en # Use the English filename with date for S3 key
+        logger.info(f"Uploading English invoice {s3_object_key} to S3")
+        upload_result = await task.s3_service.upload_file(
+            bucket_key='invoices',
+            file_key=s3_object_key,
+            content=pdf_bytes_en, # Upload English PDF bytes
             content_type='application/pdf'
         )
+        s3_url = upload_result.get('url')
+        upload_success = bool(s3_url)
         if not upload_success or not s3_url:
-            logger.error(f"Failed to upload invoice PDF to S3 for invoice {invoice_number}. URL: {s3_url}")
-            raise Exception("Failed to upload invoice PDF to S3")
-        logger.info(f"Uploaded invoice {invoice_number} to S3: {s3_url}")
+            logger.error(f"Failed to upload English invoice PDF to S3 for invoice {invoice_number}. URL: {s3_url}")
+            raise Exception("Failed to upload English invoice PDF to S3")
+        logger.info(f"Uploaded English invoice {s3_object_key} to S3: {s3_url}")
 
         # 9. Prepare Directus Invoice Record Data (with encryption using service from BaseTask)
+        # Note: s3_url now always refers to the English PDF URL
         # Use task.encryption_service here
         encrypted_amount, _ = await task.encryption_service.encrypt_with_user_key(str(amount_paid), vault_key_id)
         encrypted_pdf_url, _ = await task.encryption_service.encrypt_with_user_key(s3_url, vault_key_id)
@@ -225,7 +292,7 @@ async def _async_process_invoice_and_send_email(
             "encrypted_payment_reference": encrypted_payment_ref,
             "vault_key_id": vault_key_id
         }
-        logger.debug(f"Prepared Directus payload for invoice {invoice_number}")
+        logger.info(f"Prepared Directus payload for invoice {invoice_number}")
 
         # 10. Create Invoice Record in Directus (using service from BaseTask)
         # Use task.directus_service here
@@ -238,20 +305,25 @@ async def _async_process_invoice_and_send_email(
 
         # 11. Prepare Email Context
         email_context = {
-            "username": user_name,
-            "credits": credits_purchased,
-            "amount": amount_paid / 100.0, # Convert smallest unit back to major unit for display
-            "currency": currency_paid.upper(),
-            "invoice_number": invoice_number,
             "darkmode": user_darkmode
         }
-        logger.debug(f"Prepared email context for invoice {invoice_number}")
+        logger.info(f"Prepared email context for invoice {invoice_number}")
 
-        # 12. Send Purchase Confirmation Email with Attachment (using service from BaseTask)
-        attachment = {
-            "filename": f"openmates_invoice_{invoice_number}.pdf",
-            "content": base64.b64encode(pdf_bytes).decode('utf-8') # Base64 encode PDF bytes
-        }
+        # 12. Send Purchase Confirmation Email with Attachment(s)
+        attachments = []
+        # Add English attachment (using the filename with date)
+        attachments.append({
+            "filename": invoice_filename_en,
+            "content": base64.b64encode(pdf_bytes_en).decode('utf-8')
+        })
+
+        # Add translated attachment if it was generated successfully
+        if pdf_bytes_lang and invoice_filename_lang:
+            attachments.append({
+                "filename": invoice_filename_lang,
+                "content": base64.b64encode(pdf_bytes_lang).decode('utf-8')
+            })
+        logger.info(f"Preparing to send email with {len(attachments)} attachment(s) for invoice {invoice_number}")
 
         # Use task.email_template_service here
         email_success = await task.email_template_service.send_email(
@@ -259,7 +331,7 @@ async def _async_process_invoice_and_send_email(
             recipient_email=decrypted_email,
             context=email_context,
             lang=user_language,
-            attachments=[attachment] # Pass the attachment
+            attachments=attachments # Pass the list of attachments
         )
 
         if not email_success:

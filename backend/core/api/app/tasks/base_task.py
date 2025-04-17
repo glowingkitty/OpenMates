@@ -8,7 +8,7 @@ from celery import Task # Import Task for context
 from app.services.directus import DirectusService
 from app.services.revolut_service import RevolutService
 from app.utils.encryption import EncryptionService
-from app.services.s3.service import S3Service
+from app.services.s3.service import S3UploadService
 from app.services.pdf.invoice import InvoiceTemplateService
 from app.services.email_template import EmailTemplateService
 from app.utils.secrets_manager import SecretsManager
@@ -21,7 +21,7 @@ class BaseServiceTask(Task):
     _directus_service: Optional[DirectusService] = None
     _revolut_service: Optional[RevolutService] = None
     _encryption_service: Optional[EncryptionService] = None
-    _s3_service: Optional[S3Service] = None
+    _s3_service: Optional[S3UploadService] = None
     _invoice_template_service: Optional[InvoiceTemplateService] = None
     _email_template_service: Optional[EmailTemplateService] = None
     _secrets_manager: Optional[SecretsManager] = None
@@ -39,7 +39,7 @@ class BaseServiceTask(Task):
         # Initialize other services, passing the initialized SecretsManager
         if self._directus_service is None:
             logger.debug(f"Initializing DirectusService for task {self.request.id}")
-            self._directus_service = DirectusService(secrets_manager=self._secrets_manager)
+            self._directus_service = DirectusService()
             # DirectusService might not need async init, depends on its implementation
             logger.debug(f"DirectusService initialized for task {self.request.id}")
         else:
@@ -63,7 +63,7 @@ class BaseServiceTask(Task):
 
         if self._s3_service is None:
             logger.debug(f"Initializing S3Service for task {self.request.id}")
-            self._s3_service = S3Service(secrets_manager=self._secrets_manager)
+            self._s3_service = S3UploadService(secrets_manager=self._secrets_manager)
             await self._s3_service.initialize() # S3 service needs init
             logger.debug(f"S3Service initialized for task {self.request.id}")
         else:
@@ -111,7 +111,7 @@ class BaseServiceTask(Task):
         return self._encryption_service
 
     @property
-    def s3_service(self) -> S3Service:
+    def s3_service(self) -> S3UploadService:
         if self._s3_service is None:
              # Log error before raising
             logger.error(f"S3Service accessed before initialization in task {self.request.id}")
