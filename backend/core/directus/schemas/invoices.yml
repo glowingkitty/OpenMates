@@ -5,11 +5,10 @@ invoices:
       type: uuid
       primary: true
       
-    user_id:
-      type: uuid
-      relation:
-        collection: directus_users
-        field: id
+    user_id_hash:
+      type: string
+      length: 512
+      note: "Hash of the user ID who made the purchase"
       
     date:
       type: datetime
@@ -19,22 +18,27 @@ invoices:
       length: 512
       note: "Encrypted invoice amount"
       
-    encrypted_pdf_url:
+    encrypted_s3_object_key:
       type: string
       length: 512
-      note: "Encrypted S3 URL to stored PDF invoice"
+      note: "Encrypted S3 object key for the invoice"
+
+    encrypted_aes_key:
+      type: string
+      length: 512
+      note: "Encrypted AES key for the invoice"
+
+    aes_nonce:
+      type: string
+      length: 512
+      note: "Nonce used for AES encryption"
       
     encrypted_credits_purchased:
       type: string
       length: 512
       note: "Encrypted number of credits this invoice was for"
       
-    encrypted_payment_reference:
+    encrypted_filename:
       type: string
       length: 512
-      note: "Encrypted external payment reference ID"
-      
-    vault_key_id:
-      type: string
-      length: 64
-      note: "Reference to this invoice's encryption key in Vault"
+      note: "Encrypted filename of the invoice"

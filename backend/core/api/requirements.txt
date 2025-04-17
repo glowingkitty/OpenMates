@@ -24,3 +24,4 @@ pyotp==2.9.0
 user-agents==2.2.0
 staticmap==0.5.7
 Pillow==11.1.0
+cryptography==44.0.2

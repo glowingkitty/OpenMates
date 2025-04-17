@@ -15,8 +15,7 @@ from reportlab.pdfbase import pdfmetrics
 from app.services.translations import TranslationService
 from app.services.email.config_loader import load_shared_urls
 from app.services.pdf.flowables import ColoredLine
-from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely, 
-                                   format_date_for_locale, format_credits, format_link_safely)
+from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely)
 
 class BasePDFTemplateService:
     def __init__(self):
@@ -180,7 +179,7 @@ class BasePDFTemplateService:
 
     def _load_pricing_config(self):
         """Load pricing configuration from shared YAML file"""
-        shared_pricing_path = '/shared/config/pricing.yml'
+        shared_pricing_path = 'shared/config/pricing.yml'
         try:
             with open(shared_pricing_path, 'r') as file:
                 config = yaml.safe_load(file)

@@ -1,3 +1,4 @@
+# backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
 import logging
 import os
 import base64
@@ -5,6 +6,12 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import json
+import hashlib
+import uuid
+
+# Imports for hybrid encryption
+from cryptography.hazmat.primitives.ciphers import algorithms, modes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 # Import the Celery app and Base Task
 from app.tasks.celery_config import app
@@ -179,6 +186,11 @@ async def _async_process_invoice_and_send_email(
             logger.warning(f"Proceeding with invoice number generation assuming count is 0 due to error.")
             invoice_count = 0
 
+        # Generate user_id_hash (deterministic)
+        user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
+        logger.info(f"Generated user_id_hash for user {user_id}")
+
+        # Generate Invoice Number (remains the same for display/email purposes)
         user_id_last_8 = user_id[-8:].upper()
         invoice_counter_str = str(invoice_count + 1).zfill(3)
         invoice_number = f"{user_id_last_8}-{invoice_counter_str}"
@@ -209,8 +221,6 @@ async def _async_process_invoice_and_send_email(
             "qr_code_url": "https://app.openmates.org"
         }
 
-        logger.info('Invoice data:')
-        logger.info(invoice_data.copy()) # Log the invoice data for debugging
         # Add billing address if available (cleaning up None values)
         if billing_address_dict:
             address_parts = {
@@ -223,24 +233,24 @@ async def _async_process_invoice_and_send_email(
             # Add only non-empty parts to invoice_data
             invoice_data.update({k: v for k, v in address_parts.items() if v})
 
-        logger.info(f"Prepared invoice data dictionary for {invoice_number}")
+        logger.info(f"Prepared invoice data dictionary")
 
         # 7. Generate Invoice PDF(s)
         # Always generate English version first
-        logger.info(f"Generating English invoice PDF for {invoice_number}")
+        logger.info(f"Generating English invoice PDF")
         pdf_buffer_en = task.invoice_template_service.generate_invoice(
             invoice_data, lang='en', currency=currency_paid.lower()
         )
         pdf_bytes_en = pdf_buffer_en.getvalue()
         pdf_buffer_en.close()
         invoice_filename_en = f"openmates_invoice_{date_str_filename}_{invoice_number}.pdf"
-        logger.info(f"Generated English PDF ({invoice_filename_en}) for invoice {invoice_number}")
+        logger.info(f"Generated English PDF for invoice")
 
         pdf_bytes_lang = None
         invoice_filename_lang = None
         # Generate translated version if language is not English
         if user_language != 'en':
-            logger.info(f"Generating invoice PDF in user language '{user_language}' for {invoice_number}")
+            logger.info(f"Generating invoice PDF in user language '{user_language}' for invoice")
             try:
                 # Fetch translation for "invoice"
                 translations = await task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
@@ -254,45 +264,85 @@ async def _async_process_invoice_and_send_email(
                 pdf_bytes_lang = pdf_buffer_lang.getvalue()
                 pdf_buffer_lang.close()
                 invoice_filename_lang = f"openmates_{invoice_translation_lower}_{date_str_filename}_{invoice_number}.pdf"
-                logger.info(f"Generated PDF ({invoice_filename_lang}) for invoice {invoice_number} in language {user_language}")
+                logger.info(f"Generated PDF ({invoice_filename_lang}) for invoice in language {user_language}")
             except Exception as lang_pdf_err:
-                logger.error(f"Failed to generate or get translation for invoice PDF in language {user_language} for {invoice_number}: {lang_pdf_err}", exc_info=True)
+                logger.error(f"Failed to generate or get translation for invoice PDF in language {user_language} for invoice: {lang_pdf_err}", exc_info=True)
                 # Continue without the translated version if generation fails
 
-        # 8. Upload ONLY English PDF to S3
-        s3_object_key = invoice_filename_en # Use the English filename with date for S3 key
-        logger.info(f"Uploading English invoice {s3_object_key} to S3")
+        # 8. Encrypt English PDF and Upload to S3 with unique filename
+        # --- Hybrid Encryption Start ---
+        logger.info(f"Starting hybrid encryption for PDF")
+
+        # 8a. Generate local symmetric key and nonce
+        aes_key = os.urandom(32) # AES-256 key
+        nonce = os.urandom(12)   # AES-GCM standard nonce size
+        logger.debug(f"Generated local AES key and nonce")
+
+        # 8b. Encrypt PDF locally using AES-GCM
+        aesgcm = AESGCM(aes_key)
+        encrypted_pdf_payload = aesgcm.encrypt(nonce, pdf_bytes_en, None) # No associated data
+        logger.debug(f"Locally encrypted PDF payload using AES-GCM")
+
+        # 8c. Encrypt (wrap) the local AES key using Vault user key
+        # Base64 encode the raw AES key bytes before passing to Vault string encryption
+        aes_key_b64 = base64.b64encode(aes_key).decode('utf-8')
+        encrypted_aes_key_vault, _ = await task.encryption_service.encrypt_with_user_key(
+            aes_key_b64, vault_key_id
+        )
+        if not encrypted_aes_key_vault:
+            logger.error(f"Failed to encrypt (wrap) local AES key using Vault for user {user_id}")
+            raise Exception("Failed to wrap symmetric encryption key")
+        logger.debug(f"Wrapped local AES key using Vault user key {vault_key_id}")
+        # --- Hybrid Encryption End ---
+
+        # Generate unique filename for S3
+        random_unique_id = uuid.uuid4().hex
+        s3_object_key = f"{date_str_filename}_{random_unique_id}.pdf" # Keep .pdf extension for clarity if needed, though content is encrypted
+        logger.info(f"Generated unique S3 filename: {s3_object_key}")
+
+        logger.info(f"Uploading encrypted invoice {s3_object_key} to S3")
         upload_result = await task.s3_service.upload_file(
             bucket_key='invoices',
             file_key=s3_object_key,
-            content=pdf_bytes_en, # Upload English PDF bytes
-            content_type='application/pdf'
+            content=encrypted_pdf_payload, # Upload locally encrypted PDF payload (raw bytes)
+            content_type='application/octet-stream' # Content type is now generic encrypted bytes
         )
-        s3_url = upload_result.get('url')
-        upload_success = bool(s3_url)
-        if not upload_success or not s3_url:
-            logger.error(f"Failed to upload English invoice PDF to S3 for invoice {invoice_number}. URL: {s3_url}")
-            raise Exception("Failed to upload English invoice PDF to S3")
-        logger.info(f"Uploaded English invoice {s3_object_key} to S3: {s3_url}")
+        # Note: The S3 URL might not be directly usable for viewing the encrypted file without decryption.
+        # We store the encrypted filename in Directus instead of the URL.
+        s3_url = upload_result.get('url') # Keep for logging/potential future use, but don't rely on it for direct access
+        upload_success = bool(s3_url) # Check if the upload call returned a URL structure, indicating success from the service perspective
+        if not upload_success:
+             # Log the raw result if available for debugging
+            logger.error(f"Failed to upload encrypted invoice PDF to S3 for invoice. Upload result: {upload_result}")
+            raise Exception("Failed to upload encrypted invoice PDF to S3")
+        logger.info(f"Uploaded encrypted invoice {s3_object_key} to S3. URL (for reference): {s3_url}")
 
         # 9. Prepare Directus Invoice Record Data (with encryption using service from BaseTask)
-        # Note: s3_url now always refers to the English PDF URL
         # Use task.encryption_service here
+        # Encrypt other sensitive fields as before
         encrypted_amount, _ = await task.encryption_service.encrypt_with_user_key(str(amount_paid), vault_key_id)
-        encrypted_pdf_url, _ = await task.encryption_service.encrypt_with_user_key(s3_url, vault_key_id)
         encrypted_credits, _ = await task.encryption_service.encrypt_with_user_key(str(credits_purchased), vault_key_id)
-        encrypted_payment_ref, _ = await task.encryption_service.encrypt_with_user_key(invoice_number, vault_key_id) # Using invoice_number as payment ref
+        # Encrypt the S3 object key itself
+        encrypted_s3_object_key, _ = await task.encryption_service.encrypt_with_user_key(s3_object_key, vault_key_id)
 
+        if not encrypted_s3_object_key:
+             logger.error(f"Failed to encrypt S3 object key {s3_object_key} for user invoice")
+             raise Exception("Failed to encrypt S3 object key for Directus record")
+
+        # Base64 encode the nonce for JSON storage in Directus
+        nonce_b64 = base64.b64encode(nonce).decode('utf-8')
+
+        # Update payload with hybrid encryption details
         directus_invoice_payload = {
-            "user_id": user_id,
+            "user_id_hash": user_id_hash, # Store the hash instead of the raw user_id
             "date": datetime.now(timezone.utc).isoformat(),
             "encrypted_amount": encrypted_amount,
-            "encrypted_pdf_url": encrypted_pdf_url,
             "encrypted_credits_purchased": encrypted_credits,
-            "encrypted_payment_reference": encrypted_payment_ref,
-            "vault_key_id": vault_key_id
+            "encrypted_s3_object_key": encrypted_s3_object_key, # Store encrypted S3 object key
+            "encrypted_aes_key": encrypted_aes_key_vault, # Store the Vault-wrapped AES key
+            "aes_nonce": nonce_b64 # Store the base64 encoded nonce
         }
-        logger.info(f"Prepared Directus payload for invoice {invoice_number}")
+        logger.info(f"Prepared Directus payload for invoice")
 
         # 10. Create Invoice Record in Directus (using service from BaseTask)
         # Use task.directus_service here
