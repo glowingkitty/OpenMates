@@ -81,10 +81,10 @@ async def get_payment_config(
     logger.info("Fetching payment configuration...")
     try:
         if is_production():
-            public_key = await secrets_manager.get_secret("API_SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_PUBLIC_KEY")
+            public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_PUBLIC_KEY")
             environment = "production"
         else:
-            public_key = await secrets_manager.get_secret("API_SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_PUBLIC_KEY")
+            public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_PUBLIC_KEY")
             environment = "sandbox"
 
         if not public_key:

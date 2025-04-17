@@ -21,7 +21,7 @@ class SecretsManager:
         self.client = vault_client
         # Prefix for API secrets in environment variables
         self.secrets_imported = False
-        self.api_secret_prefix = "API_SECRET__"
+        self.secret_prefix = "SECRET__" # Use a generic prefix
     
     async def check_secrets_migration_status(self) -> bool:
         """Check if secrets have been migrated to Vault.
@@ -41,14 +41,14 @@ class SecretsManager:
             logger.debug(f"Error checking secrets migration status: {str(e)}")
             return False
     
-    def find_api_secret_keys(self) -> List[str]:
-        """Find all environment variables with the API_SECRET__ prefix.
+    def find_secrets_in_env(self) -> List[str]:
+        """Find all environment variables starting with the defined secret prefix.
         
         Returns:
             List of API secret keys found in the environment
         """
-        # Get all environment variables with the API_SECRET__ prefix
-        return [key for key in os.environ.keys() if key.startswith(self.api_secret_prefix)]
+        # Get all environment variables with the generic secret prefix
+        return [key for key in os.environ.keys() if key.startswith(self.secret_prefix)]
     
     async def migrate_secrets_to_vault(self) -> bool:
         """Migrate API keys and secrets from .env file to Vault.
@@ -64,9 +64,9 @@ class SecretsManager:
             return True
         
         try:
-            # Find all API secret keys in the environment
-            all_secret_keys = self.find_api_secret_keys()
-            logger.info(f"Found {len(all_secret_keys)} API secret keys in the environment")
+            # Find all secret keys in the environment using the generic prefix
+            all_secret_keys = self.find_secrets_in_env()
+            logger.info(f"Found {len(all_secret_keys)} potential secrets (starting with '{self.secret_prefix}') in the environment")
             
             # Collect all secrets from environment
             secrets_to_store = {}
@@ -105,7 +105,7 @@ class SecretsManager:
                 # Store merged secrets in Vault
                 await self.client.vault_request("post", "kv/data/api-keys", {"data": merged_secrets})
                 if secrets_to_store:
-                    logger.info(f"Successfully migrated {len(secrets_to_store)} secrets to Vault:")
+                    logger.info(f"Successfully migrated/updated {len(secrets_to_store)} secrets in Vault (kv/data/api-keys):")
                     for key in secrets_to_store.keys():
                         logger.info(f"  - {key}")
                 # No else needed, already logged if no secrets found earlier
@@ -115,7 +115,7 @@ class SecretsManager:
                 # Fallback to just storing the new secrets
                 await self.client.vault_request("post", "kv/data/api-keys", {"data": secrets_to_store})
                 if secrets_to_store:
-                    logger.info(f"Successfully migrated {len(secrets_to_store)} secrets to Vault:")
+                    logger.info(f"Successfully migrated {len(secrets_to_store)} secrets to Vault (kv/data/api-keys):")
                     for key in secrets_to_store.keys():
                         logger.info(f"  - {key}")
                 else:
@@ -133,20 +133,20 @@ class SecretsManager:
             return False
     
     async def add_new_secrets_to_vault(self) -> bool:
-        """Check for new API secrets in the environment and add them to Vault.
+        """Check for new secrets (starting with SECRET__) in the environment and add them to Vault.
         
-        This function specifically looks for API_SECRET__ prefixed variables that
+        This function looks for variables with the defined prefix that
         are not yet in Vault and adds them. It doesn't overwrite existing secrets.
         
         Returns:
             True if successful (or no new secrets), False on error
         """
         try:
-            # Check if we have any API_SECRET__ variables in the environment
-            all_secret_keys = self.find_api_secret_keys()
+            # Find all secret keys in the environment using the generic prefix
+            all_secret_keys = self.find_secrets_in_env()
             
             if not all_secret_keys:
-                logger.info(f"No {self.api_secret_prefix} variables found in environment")
+                logger.info(f"No secrets starting with '{self.secret_prefix}' found in environment")
                 return True
                 
             # Get existing secrets from Vault
@@ -161,16 +161,16 @@ class SecretsManager:
                     continue
             
                 if key in existing_data:
-                    logger.info(f"Secret {key} already exists in Vault, skipping.")
+                    logger.debug(f"Secret '{key}' already exists in Vault, skipping.") # Changed to debug
                 else:
                     new_secrets_to_store[key] = value
-                    logger.info(f"Secret {key} added to Vault.")
+                    logger.info(f"New secret '{key}' identified for Vault.")
             
             if not new_secrets_to_store:
-                logger.info("No new secrets to add to Vault")
+                logger.info("No new secrets found in environment to add to Vault")
                 return True
                 
-            logger.info(f"Found {len(new_secrets_to_store)} new API secrets to add to Vault")
+            logger.info(f"Found {len(new_secrets_to_store)} new secrets to add to Vault (kv/data/api-keys)")
             
             # Merge with existing secrets
             merged_secrets = {**existing_data, **new_secrets_to_store}
@@ -181,7 +181,7 @@ class SecretsManager:
             # Secrets are now managed directly via environment variables, no need to update .env
             
             if new_secrets_to_store:
-                logger.info(f"Successfully added {len(new_secrets_to_store)} new secrets to Vault:")
+                logger.info(f"Successfully added {len(new_secrets_to_store)} new secrets to Vault (kv/data/api-keys):")
                 for key in new_secrets_to_store.keys():
                     logger.info(f"  - {key}")
             # No else needed, already logged "No new secrets to add" earlier

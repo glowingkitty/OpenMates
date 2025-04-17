@@ -71,9 +71,9 @@ class RevolutService:
     async def _get_api_key(self) -> Optional[str]:
         """Retrieve the appropriate Revolut Secret API key from Secrets Manager."""
         key_name = (
-            "API_SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_SECRET_KEY"
+            "SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_SECRET_KEY"
             if self._is_production()
-            else "API_SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_SECRET_KEY"
+            else "SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_SECRET_KEY"
         )
         api_key = await self.secrets_manager.get_secret(key_name)
         if not api_key:
@@ -83,9 +83,9 @@ class RevolutService:
     async def _get_webhook_secret(self) -> Optional[str]:
         """Retrieve the appropriate Revolut Webhook Signing Secret from Secrets Manager."""
         key_name = (
-            "API_SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_WEBHOOK_SECRET"
+            "SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_WEBHOOK_SECRET"
             if self._is_production()
-            else "API_SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_WEBHOOK_SECRET"
+            else "SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_WEBHOOK_SECRET"
         )
         secret = await self.secrets_manager.get_secret(key_name)
         if not secret:

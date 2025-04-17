@@ -154,8 +154,8 @@ class EmailTemplateService:
             True if email was sent successfully, False otherwise
         """
         # Fetch Mailjet API keys from Secrets Manager
-        api_key = await self.secrets_manager.get_secret("API_SECRET__MAILJET_API_KEY")
-        api_secret = await self.secrets_manager.get_secret("API_SECRET__MAILJET_API_SECRET")
+        api_key = await self.secrets_manager.get_secret("SECRET__MAILJET_API_KEY")
+        api_secret = await self.secrets_manager.get_secret("SECRET__MAILJET_API_SECRET")
 
         if not api_key or not api_secret:
             logger.error("Cannot send email: Mailjet API key or secret not found in Secrets Manager")

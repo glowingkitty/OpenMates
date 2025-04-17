@@ -50,8 +50,8 @@ class S3UploadService:
         logger.info("Initializing S3 service asynchronously...")
         
         # Fetch secrets
-        access_key = await self.secrets_manager.get_secret('API_SECRET__HETZNER_S3_ACCESS_KEY')
-        secret_key = await self.secrets_manager.get_secret('API_SECRET__HETZNER_S3_SECRET_KEY')
+        access_key = await self.secrets_manager.get_secret('SECRET__HETZNER_S3_ACCESS_KEY')
+        secret_key = await self.secrets_manager.get_secret('SECRET__HETZNER_S3_SECRET_KEY')
 
         if not access_key or not secret_key:
             logger.critical("S3 credentials not found in Secrets Manager. S3 service will be unavailable.")
@@ -59,7 +59,7 @@ class S3UploadService:
             return # Stop initialization
 
         # Fetch region name from Secrets Manager with fallback to 'nbg1'
-        region_secret = await self.secrets_manager.get_secret('API_SECRET__HETZNER_S3_REGION')
+        region_secret = await self.secrets_manager.get_secret('SECRET__HETZNER_S3_REGION')
         self.region_name = region_secret if region_secret else 'nbg1'
         logger.info(f"Using S3 region: {self.region_name}")
         

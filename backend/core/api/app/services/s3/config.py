@@ -55,7 +55,7 @@ BUCKETS = {
     'invoices': {
         'name': 'openmates-invoices',
         'dev_name': 'dev-openmates-invoices',
-        'allowed_types': ['application/pdf'],
+        'allowed_types': ['application/octet-stream'],
         'max_size': 1 * 1024 * 1024,  # 1MB
         'access': 'private',
         'lifecycle_policy': 3650,  # 10 years auto-delete (in days)

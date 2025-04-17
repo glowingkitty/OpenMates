@@ -11,8 +11,11 @@ from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeho
                                    format_date_for_locale, format_credits)
 
 class CreditNoteTemplateService(BasePDFTemplateService):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, secrets_manager=None):
+        from app.utils.secrets_manager import SecretsManager
+        if secrets_manager is None:
+            secrets_manager = SecretsManager()
+        super().__init__(secrets_manager)
     
     def get_translation_disclaimer(self):
         """Get the credit note translation disclaimer text"""

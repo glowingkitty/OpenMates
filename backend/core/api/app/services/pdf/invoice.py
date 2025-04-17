@@ -15,8 +15,11 @@ from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeho
 logger = logging.getLogger(__name__)
 
 class InvoiceTemplateService(BasePDFTemplateService):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, secrets_manager=None):
+        from app.utils.secrets_manager import SecretsManager
+        if secrets_manager is None:
+            secrets_manager = SecretsManager()
+        super().__init__(secrets_manager)
     
     def get_translation_disclaimer(self):
         """Get the invoice translation disclaimer text"""

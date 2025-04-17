@@ -14,8 +14,8 @@ class ImageSafetyService:
 
     async def _check_image(self, image_content: bytes, include_offensive: bool = False):
         # Fetch secrets asynchronously
-        api_user = await self.secrets_manager.get_secret('API_SECRET__SIGHTENGINE_API_USER')
-        api_secret = await self.secrets_manager.get_secret('API_SECRET__SIGHTENGINE_API_SECRET')
+        api_user = await self.secrets_manager.get_secret('SECRET__SIGHTENGINE_API_USER')
+        api_secret = await self.secrets_manager.get_secret('SECRET__SIGHTENGINE_API_SECRET')
 
         if not api_user or not api_secret:
             logger.error("Sightengine API user or secret not found in Secrets Manager.")

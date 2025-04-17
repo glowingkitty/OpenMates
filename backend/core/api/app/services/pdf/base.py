@@ -1,5 +1,6 @@
 import os
 import yaml
+import asyncio # Added for async operations
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -16,24 +17,27 @@ from app.services.translations import TranslationService
 from app.services.email.config_loader import load_shared_urls
 from app.services.pdf.flowables import ColoredLine
 from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely)
+from app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 class BasePDFTemplateService:
-    def __init__(self):
+    # Make __init__ private and synchronous for basic setup
+    def __init__(self, secrets_manager: SecretsManager):
+        self.secrets_manager = secrets_manager
         # Initialize translation service
         self.translation_service = TranslationService()
         
         # Load shared URLs configuration
         self.shared_urls = load_shared_urls().get('urls', {})
         
-        # Get sender details from environment variables - with defaults for safety
-        self.sender_addressline1 = os.getenv("INVOICE_SENDER_ADDRESSLINE1", "")
-        self.sender_addressline2 = os.getenv("INVOICE_SENDER_ADDRESSLINE2", "")
-        self.sender_addressline3 = os.getenv("INVOICE_SENDER_ADDRESSLINE3", "")
-        self.sender_country = os.getenv("INVOICE_SENDER_COUNTRY", "")
-        self.sender_email = self.shared_urls.get('contact', {}).get('email', "support@openmates.org")
-        self.sender_vat = os.getenv("INVOICE_SENDER_VAT", "")
+        # Defer fetching sender details to the async create method
+        self.sender_addressline1 = ""
+        self.sender_addressline2 = ""
+        self.sender_addressline3 = ""
+        self.sender_country = ""
+        self.sender_email = "" # Will be fetched or defaulted in create
+        self.sender_vat = ""
         
-        # Get Discord URL from shared config
+        # Get Discord URL from shared config (can stay sync)
         self.discord_url = self.shared_urls.get('contact', {}).get('discord', "")
         self.discord_group_invite_code = self.discord_url.split("/")[-1]
         
@@ -110,6 +114,48 @@ class BasePDFTemplateService:
         
         # Placeholder for translations
         self.t = {}
+
+    @classmethod
+    async def create(cls, secrets_manager: SecretsManager):
+        """Asynchronously create and initialize an instance."""
+        instance = cls(secrets_manager)
+        await instance._async_init()
+        return instance
+
+    async def _async_init(self):
+        """Asynchronous part of the initialization."""
+        # Fetch sender details from Vault with defaults
+        sender_details_keys = [
+            "SECRET__INVOICE_SENDER_ADDRESSLINE1",
+            "SECRET__INVOICE_SENDER_ADDRESSLINE2",
+            "SECRET__INVOICE_SENDER_ADDRESSLINE3",
+            "SECRET__INVOICE_SENDER_COUNTRY",
+            "SECRET__INVOICE_SENDER_VAT"
+        ]
+        # Fetch email separately as it might have a different default source
+        email_key = "SECRET__INVOICE_SENDER_EMAIL"
+
+        # Use asyncio.gather for concurrent fetching
+        results = await asyncio.gather(
+            *[self.secrets_manager.get_secret(key, "") for key in sender_details_keys],
+            self.secrets_manager.get_secret(email_key, None) # Fetch email, default to None initially
+        )
+
+        # Assign fetched values
+        (
+            self.sender_addressline1,
+            self.sender_addressline2,
+            self.sender_addressline3,
+            self.sender_country,
+            self.sender_vat,
+            fetched_email
+        ) = results
+
+        # Set sender email: Use fetched value, fallback to shared_urls, then hardcoded default
+        self.sender_email = fetched_email or self.shared_urls.get('contact', {}).get('email', "support@openmates.org")
+
+        # Update the email address used in the helper section
+        self.email_address = self.sender_email
         
     def _draw_header_footer(self, canvas, doc):
         """Draw the colored bars at the top and bottom of the page"""
