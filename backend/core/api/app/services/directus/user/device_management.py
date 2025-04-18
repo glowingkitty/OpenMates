@@ -59,6 +59,22 @@ async def update_user_device(self, user_id: str, device_fingerprint: str, device
             }
             needs_update = True
         
+        # Limit the number of devices to 10 AFTER potential addition/update
+        MAX_DEVICES = 10
+        if len(devices_dict) > MAX_DEVICES:
+            # Sort devices by 'recent' timestamp (oldest first)
+            # Items are (fingerprint, data_dict)
+            sorted_devices = sorted(devices_dict.items(), key=lambda item: item[1].get('recent', 0))
+
+            # Keep only the 10 most recent devices
+            devices_to_keep = dict(sorted_devices[-MAX_DEVICES:])
+            
+            # Check if the dictionary actually changed due to pruning
+            if set(devices_dict.keys()) != set(devices_to_keep.keys()):
+                 logger.info(f"Pruning devices for user {user_id}. Before: {len(devices_dict)}, After: {len(devices_to_keep)}")
+                 devices_dict = devices_to_keep
+                 needs_update = True # Ensure we update if devices were removed/changed
+
         # Only update Directus if something changed
         if needs_update:
             # Encrypt the updated devices dictionary
