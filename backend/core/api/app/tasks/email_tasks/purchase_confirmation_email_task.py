@@ -172,9 +172,9 @@ async def _async_process_invoice_and_send_email(
         # Cache update will happen *after* successful Directus update below.
 
         user_id_last_8 = user_id[-8:].upper()
-        invoice_counter_str = str(new_invoice_counter).zfill(3) # Use the incremented counter
+        invoice_counter_str = str(new_invoice_counter) # Use the incremented counter
         invoice_number = f"{user_id_last_8}-{invoice_counter_str}"
-        logger.info(f"Generated invoice number for user, order {order_id}: {invoice_number}")
+        logger.info(f"Generated invoice number")
 
         # Get date components for filenames and invoice data
         now_utc = datetime.now(timezone.utc)
