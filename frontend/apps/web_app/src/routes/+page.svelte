@@ -30,21 +30,32 @@
     $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
 
     // Handle initial sidebar state based on auth and signup process
-    $: if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut) {
-        console.log('authStore.isAuthenticated:', $authStore.isAuthenticated);
-        console.log('isInSignupProcess:', $isInSignupProcess);
-        console.log('isLoggingOut:', $isLoggingOut);
-        console.log('window.innerWidth >= MOBILE_BREAKPOINT:', window.innerWidth >= MOBILE_BREAKPOINT);
-        // Only open menu on desktop when authenticated and not in signup and not logging out
-        if (window.innerWidth >= MOBILE_BREAKPOINT) {
-            isMenuOpen.set(true);
+    $: {
+        console.debug('[+page.svelte] Reactive statement triggered for menu state');
+        console.debug('[+page.svelte] authStore.isAuthenticated:', $authStore.isAuthenticated);
+        console.debug('[+page.svelte] isInSignupProcess:', $isInSignupProcess);
+        console.debug('[+page.svelte] isLoggingOut:', $isLoggingOut);
+        console.debug('[+page.svelte] isAuthInitialized:', isAuthInitialized);
+        console.debug('[+page.svelte] window.innerWidth >= MOBILE_BREAKPOINT:', typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT);
+
+        // Only proceed if auth state has been initialized
+        if (isAuthInitialized) {
+            if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut) {
+                // Only open menu on desktop when authenticated and not in signup and not logging out
+                if (typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT) {
+                    console.debug('[+page.svelte] Opening chat menu on desktop');
+                    isMenuOpen.set(true);
+                } else {
+                    console.debug('[+page.svelte] Closing chat menu on mobile or due to other conditions');
+                    isMenuOpen.set(false);
+                }
+            } else {
+                console.debug('[+page.svelte] Closing chat menu due to not authenticated, in signup, or logging out');
+                isMenuOpen.set(false);
+            }
+        } else {
+            console.debug('[+page.svelte] Skipping menu state update, auth not initialized');
         }
-    } else {
-        console.log('authStore.isAuthenticated:', $authStore.isAuthenticated);
-        console.log('isInSignupProcess:', $isInSignupProcess);
-        console.log('isLoggingOut:', $isLoggingOut);
-        console.log('window.innerWidth >= MOBILE_BREAKPOINT:', window.innerWidth >= MOBILE_BREAKPOINT);
-        isMenuOpen.set(false);
     }
 
     // Add state for initial load
