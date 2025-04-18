@@ -36,10 +36,6 @@
     function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
         console.debug("Login success, in signup flow:", inSignupFlow);
-        
-        if (!inSignupFlow) {
-            dispatch('loginSuccess');
-        }
     }
 
     // Modify handleLogout to track signup state and reset signup step

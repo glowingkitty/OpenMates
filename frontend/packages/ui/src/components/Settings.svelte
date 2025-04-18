@@ -463,22 +463,12 @@ changes to the documentation (to keep the documentation up to date).
                     if (settingsContentElement) {
                         settingsContentElement.scrollTop = 0;
                     }
-
-                    // Close the settings menu
-                    isMenuVisible = false;
-                    settingsMenuVisible.set(false);
-
-                    // Small delay to allow settings menu to close
-                    await new Promise(resolve => setTimeout(resolve, 300));
-
-                    // Close the sidebar menu
-                    isMenuOpen.set(false);
-
-                    // Small delay to allow sidebar animation
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    // Removed explicit menu closing - rely on reactive updates in +page.svelte
+                    // based on isLoggingOut and authStore.isAuthenticated states.
                 }
             });
 
+            // Set isLoggingOut to false *after* authStore.logout completes
             isLoggingOut.set(false);
         } catch (error) {
             console.error('Error during logout:', error);
@@ -673,7 +663,7 @@ changes to the documentation (to keep the documentation up to date).
             on:logout={handleLogout}
         />
         
-        <SettingsFooter contentHeight={calculatedContentHeight} />
+        <SettingsFooter />
     </div>
 </div>
 
