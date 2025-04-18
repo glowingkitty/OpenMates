@@ -92,28 +92,16 @@ async def _async_process_invoice_and_send_email(
 
         # 2. Fetch User Details (Email, Vault Key, Preferences) - Cache First
         user_profile = await cache_service.get_user_by_id(user_id)
-        if user_profile:
-            logger.info(f"User profile for {user_id} found in cache for invoice task {order_id}.")
-        else:
-            logger.info(f"User profile for {user_id} not in cache. Fetching from Directus for invoice task {order_id}.")
-            user_profile = await task.directus_service.get_user_profile(user_id)
-            if user_profile:
-                # Cache the fetched profile
-                await cache_service.set_user(user_data=user_profile, user_id=user_id)
-                logger.info(f"User profile for {user_id} fetched from Directus and cached.")
-            else:
-                logger.error(f"Failed to fetch user profile for user {user_id} from Directus in invoice task {order_id}.")
-                raise Exception("User profile not found")
 
         # --- Extract user details from profile (same as before) ---
         encrypted_email = user_profile.get("encrypted_email_address")
         vault_key_id = user_profile.get("vault_key_id")
-        user_language = user_profile.get("language", "en")
-        user_darkmode = user_profile.get("darkmode", False)
-        current_invoice_counter = user_profile.get("invoice_counter", 0) # Get counter from profile, default 0
+        user_language = user_profile.get("language")
+        user_darkmode = user_profile.get("darkmode")
+        current_invoice_counter = user_profile.get("invoice_counter")
 
         if not encrypted_email or not vault_key_id:
-            logger.error(f"Missing encrypted_email_address or vault_key_id for user {user_id} in invoice task {order_id}.")
+            logger.error(f"Missing encrypted_email_address or vault_key_id for user in invoice task {order_id}.")
             raise Exception("Missing user encryption details")
         logger.info(f"User profile details extracted for {user_id}")
 
@@ -176,28 +164,17 @@ async def _async_process_invoice_and_send_email(
         # 5. Generate Invoice Number using counter from user profile
         # Generate user_id_hash (deterministic)
         user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
-        logger.info(f"Generated user_id_hash for user {user_id}")
+        logger.info(f"Generated user_id_hash for user")
 
         # Increment the counter for the new invoice
         new_invoice_counter = current_invoice_counter + 1
 
-        # Update Cache immediately after calculating the new counter
-        # Ensure cache_service is available (initialized earlier)
-        if cache_service:
-            try:
-                # Update cache optimistically
-                cache_update_success = await cache_service.update_user(user_id, {"invoice_counter": new_invoice_counter})
-                logger.info(f"Cache update result for invoice_counter for user {user_id} (immediate): {cache_update_success}")
-            except Exception as cache_err:
-                # Log error but don't necessarily stop the process, Directus update is still primary
-                logger.error(f"Failed immediate cache update for invoice_counter for user {user_id}: {cache_err}", exc_info=True)
-        else:
-            logger.warning(f"Cache service not initialized, skipping immediate cache update for invoice counter for user {user_id}")
+        # Cache update will happen *after* successful Directus update below.
 
         user_id_last_8 = user_id[-8:].upper()
         invoice_counter_str = str(new_invoice_counter).zfill(3) # Use the incremented counter
         invoice_number = f"{user_id_last_8}-{invoice_counter_str}"
-        logger.info(f"Generated invoice number for user {user_id}, order {order_id}: {invoice_number}")
+        logger.info(f"Generated invoice number for user, order {order_id}: {invoice_number}")
 
         # Get date components for filenames and invoice data
         now_utc = datetime.now(timezone.utc)
@@ -209,7 +186,7 @@ async def _async_process_invoice_and_send_email(
         # Use task.encryption_service here
         decrypted_email = await task.encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
         if not decrypted_email:
-             logger.error(f"Failed to decrypt email for user {user_id} in invoice task {order_id}.")
+             logger.error(f"Failed to decrypt email for user in invoice task {order_id}.")
              raise Exception("Failed to decrypt user email")
 
         invoice_data = {
@@ -300,7 +277,7 @@ async def _async_process_invoice_and_send_email(
             aes_key_b64, vault_key_id
         )
         if not encrypted_aes_key_vault:
-            logger.error(f"Failed to encrypt (wrap) local AES key using Vault for user {user_id}")
+            logger.error(f"Failed to encrypt (wrap) local AES key using Vault for user")
             raise Exception("Failed to wrap symmetric encryption key")
         logger.debug(f"Wrapped local AES key using Vault user key {vault_key_id}")
         # --- Hybrid Encryption End ---
@@ -365,31 +342,46 @@ async def _async_process_invoice_and_send_email(
 
         # 10b. Update the invoice counter in Directus and Cache
         try:
-            logger.info(f"Updating invoice counter for user {user_id} to {new_invoice_counter}")
+            logger.info(f"Attempting to encrypt new invoice counter {new_invoice_counter} for user")
             # Encrypt the new counter value
             encrypted_new_counter, _ = await task.encryption_service.encrypt_with_user_key(
                 str(new_invoice_counter), vault_key_id
             )
             if encrypted_new_counter:
+                logger.info(f"Successfully encrypted new invoice counter for user.")
                 # Update Directus
                 update_payload = {"encrypted_invoice_counter": encrypted_new_counter}
+                logger.info(f"Attempting to update encrypted_invoice_counter in Directus for user with new encrypted value.")
                 directus_update_success = await task.directus_service.update_user(user_id, update_payload)
+
                 if directus_update_success:
-                    logger.info(f"Successfully updated encrypted_invoice_counter in Directus for user {user_id}")
-                    # Cache update moved to immediately after counter calculation
+                    logger.info(f"Successfully updated encrypted_invoice_counter in Directus for user to {new_invoice_counter} (encrypted).")
+                    # Now, update the cache with the new *decrypted* value
+                    if cache_service:
+                        try:
+                            cache_update_payload = {"invoice_counter": new_invoice_counter} # Store the decrypted int
+                            cache_update_success = await cache_service.update_user(user_id, cache_update_payload)
+                            if cache_update_success:
+                                logger.info(f"Successfully updated cache for invoice_counter for user with value {new_invoice_counter}.")
+                            else:
+                                logger.warning(f"Failed to update cache for invoice_counter for user after Directus update.")
+                        except Exception as cache_err:
+                            logger.error(f"Error updating cache for invoice_counter for user after Directus update: {cache_err}", exc_info=True)
+                    else:
+                         logger.warning(f"Cache service not available, skipping cache update for invoice_counter for user after Directus update.")
                 else:
-                    logger.error(f"Failed to update encrypted_invoice_counter in Directus for user {user_id}")
+                    logger.error(f"Failed to update encrypted_invoice_counter in Directus for user. Directus update call returned failure. Cache will not be updated.")
             else:
-                 logger.error(f"Failed to encrypt new invoice counter {new_invoice_counter} for user {user_id}")
+                 logger.error(f"Failed to encrypt new invoice counter {new_invoice_counter} for user. Encryption returned None. Directus and cache will not be updated.")
         except Exception as counter_update_err:
-            logger.error(f"Failed to update invoice counter for user {user_id}: {counter_update_err}", exc_info=True)
+            logger.error(f"Exception occurred during invoice counter update process for user: {counter_update_err}", exc_info=True)
             # Continue with email sending even if counter update fails, but log the error
 
         # 11. Prepare Email Context
         email_context = {
             "darkmode": user_darkmode
         }
-        logger.info(f"Prepared email context for invoice {invoice_number}")
+        logger.info(f"Prepared email context for invoice")
 
         # 12. Send Purchase Confirmation Email with Attachment(s)
         attachments = []
@@ -405,7 +397,7 @@ async def _async_process_invoice_and_send_email(
                 "filename": invoice_filename_lang,
                 "content": base64.b64encode(pdf_bytes_lang).decode('utf-8')
             })
-        logger.info(f"Preparing to send email with {len(attachments)} attachment(s) for invoice {invoice_number}")
+        logger.info(f"Preparing to send email with {len(attachments)} attachment(s) for invoice")
 
         # Use task.email_template_service here
         email_success = await task.email_template_service.send_email(
@@ -417,15 +409,15 @@ async def _async_process_invoice_and_send_email(
         )
 
         if not email_success:
-            logger.error(f"Failed to send purchase confirmation email for invoice {invoice_number} to {decrypted_email[:2]}***")
+            logger.error(f"Failed to send purchase confirmation email for invoice to {decrypted_email[:2]}***")
             # Don't fail the whole task if email fails, but log it.
             # The invoice exists in S3 and Directus.
             return False # Indicate email sending failed
 
-        logger.info(f"Successfully sent purchase confirmation email with invoice {invoice_number} attached.")
+        logger.info(f"Successfully sent purchase confirmation email with invoice attached.")
         return True
 
     except Exception as e:
-        logger.error(f"Error in _async_process_invoice_and_send_email task for order {order_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error in _async_process_invoice_and_send_email task for order: {str(e)}", exc_info=True)
         # Re-raise the exception so Celery knows the task failed
         raise e

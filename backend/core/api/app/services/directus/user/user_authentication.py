@@ -137,6 +137,23 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                         else:
                             logger.error("Devices decryption failed!")
 
+                    # Decrypt invoice counter
+                    encrypted_invoice_counter = user_data.get("encrypted_invoice_counter")
+                    if encrypted_invoice_counter:
+                        decrypted_invoice_counter = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_invoice_counter, vault_key_id
+                        )
+                        if decrypted_invoice_counter:
+                            try:
+                                user_data["invoice_counter"] = int(decrypted_invoice_counter)
+                            except ValueError:
+                                # Log error, but don't set default. Let it propagate.
+                                logger.error(f"Failed to convert decrypted invoice counter '{decrypted_invoice_counter}' to int!")
+                                # If invoice counter was present but failed conversion, remove? Or leave encrypted? Leave for now.
+                        else:
+                            logger.error("Invoice counter decryption failed!")
+                            # If invoice counter was present but failed decryption, remove? Or leave encrypted? Leave for now.
+
                 except Exception as e:
                     # Log the overarching error, but avoid setting defaults here.
                     logger.error(f"Error during user data decryption block: {str(e)}")

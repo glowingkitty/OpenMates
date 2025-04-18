@@ -636,7 +636,8 @@ async def finalize_login_session(
                 "language": user.get("language", "en"),
                 "darkmode": user.get("darkmode", False),
                 "gifted_credits_for_signup": user.get("gifted_credits_for_signup"),
-                "encrypted_email_address": user.get("encrypted_email_address")
+                "encrypted_email_address": user.get("encrypted_email_address"),
+                "invoice_counter": user.get("invoice_counter"),
             }
             # Remove gifted_credits_for_signup if it's None or 0 before caching
             if not user_data_to_cache.get("gifted_credits_for_signup"):

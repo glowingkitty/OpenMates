@@ -115,7 +115,7 @@ class BasePDFTemplateService:
         
         # Load pricing config
         self.pricing_tiers = self._load_pricing_config()
-        logger.info(f"Loaded pricing tiers: {self.pricing_tiers}")
+        logger.info(f"Loaded pricing tiers.")
         
         # Set current language to default of English
         self.current_lang = "en"

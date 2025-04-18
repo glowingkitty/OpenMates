@@ -18,3 +18,4 @@ class User(BaseModel):
     darkmode: bool = False # User's dark mode preference, default false
     gifted_credits_for_signup: Optional[int] = None # Gifted credits from signup invite
     encrypted_email_address: Optional[str] = None
+    invoice_counter: Optional[int] = None # Counter for invoice generation

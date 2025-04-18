@@ -112,7 +112,8 @@ async def get_current_user(
         language=user_data.get("language", 'en'),
         darkmode=user_data.get("darkmode", False),
         gifted_credits_for_signup=user_data.get("gifted_credits_for_signup"), # Include new field
-        encrypted_email_address=user_data.get("encrypted_email_address")
+        encrypted_email_address=user_data.get("encrypted_email_address"),
+        invoice_counter=user_data.get("invoice_counter", 0)
     )
     
     # Cache the user data for future requests using the enhanced cache service method
@@ -135,7 +136,8 @@ async def get_current_user(
         "language": user.language,
         "darkmode": user.darkmode,
         "gifted_credits_for_signup": user.gifted_credits_for_signup, # Include new field
-        "encrypted_email_address": user.encrypted_email_address
+        "encrypted_email_address": user.encrypted_email_address,
+        "invoice_counter": user.invoice_counter
     }
     # Remove gifted_credits_for_signup if it's None before caching
     if not user_data_for_cache.get("gifted_credits_for_signup"):
