@@ -24,111 +24,81 @@
     import { _ } from 'svelte-i18n'; // Import the translation function
     import { fade } from 'svelte/transition';
     // Subscribe to settings menu visibility state
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
+    import { browser } from '$app/environment'; // Use SvelteKit's browser check
 
-    // Compute gap class based on menu state and view
-    $: menuClass = $settingsMenuVisible && !$isMobileView ? 'menu-open' : '';
-
-    // Handle initial sidebar state based on auth and signup process
-    $: {
-        console.debug('[+page.svelte] Reactive statement triggered for menu state');
-        console.debug('[+page.svelte] authStore.isAuthenticated:', $authStore.isAuthenticated);
-        console.debug('[+page.svelte] isInSignupProcess:', $isInSignupProcess);
-        console.debug('[+page.svelte] isLoggingOut:', $isLoggingOut);
-        console.debug('[+page.svelte] isAuthInitialized:', isAuthInitialized);
-        const isDesktop = typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT;
-        console.debug('[+page.svelte] isDesktop:', isDesktop);
-
-        // Only proceed if auth state has been initialized
-        if (isAuthInitialized) {
-            if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut) {
-                console.debug('[+page.svelte] Authentication conditions met: Authenticated, not in signup, not logging out');
-                // Only open menu on desktop when authenticated and not in signup and not logging out
-                if (isDesktop) {
-                    console.debug('[+page.svelte] Opening chat menu on desktop');
-                    isMenuOpen.set(true);
-                } else {
-                    console.debug('[+page.svelte] Closing chat menu on mobile view');
-                    isMenuOpen.set(false);
-                }
-            } else {
-                console.debug('[+page.svelte] Authentication conditions NOT met: Closing chat menu');
-                console.debug('[+page.svelte] Condition breakdown: isAuthenticated:', $authStore.isAuthenticated, 'isInSignupProcess:', $isInSignupProcess, 'isLoggingOut:', $isLoggingOut);
-                isMenuOpen.set(false);
-            }
-        } else {
-            console.debug('[+page.svelte] Skipping menu state update, auth not initialized');
-        }
-    }
-
-    // Debugging reactive statement for menu condition
-    $: {
-        const menuCondition = $authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut;
-        console.debug('[+page.svelte] Menu condition ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut):', menuCondition);
-    }
- 
-    // Add state for initial load
+    // --- State ---
+    let innerWidth = browser ? window.innerWidth : 0; // Reactive window width
     let isInitialLoad = true;
     let isAuthInitialized = false;
+    let activeChat: ActiveChat | null = null; // Reference to ActiveChat instance
 
-    // Add reference to ActiveChat instance
-    let activeChat: ActiveChat | null = null;
+    // --- Reactive Computations ---
+
+    // Determine if we are on a desktop-sized view
+    $: isDesktop = innerWidth >= MOBILE_BREAKPOINT;
+
+    // Compute gap class based on settings menu state and view
+    $: menuClass = $settingsMenuVisible && isDesktop ? 'menu-open' : '';
 
     // Determine if the footer should be shown
-    // Determine if the footer should be shown
-    // Show footer when logged out OR in signup process with showSignupFooter true
-    // Hide footer when logged in and not in signup process
     $: showFooter = !$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter);
 
+    // *** Core Logic: Reactive Menu State ***
+    $: {
+        // Only update menu state *after* authentication has been initialized
+        if (isAuthInitialized) {
+            const shouldBeOpen = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
+            console.debug(`[+page.svelte] Reactive Menu Check: isAuthInitialized=${isAuthInitialized}, isDesktop=${isDesktop}, isAuthenticated=${$authStore.isAuthenticated}, isInSignup=${$isInSignupProcess}, isLoggingOut=${$isLoggingOut} => shouldBeOpen=${shouldBeOpen}`);
+            if ($isMenuOpen !== shouldBeOpen) {
+                 console.debug(`[+page.svelte] Setting isMenuOpen to: ${shouldBeOpen}`);
+                 isMenuOpen.set(shouldBeOpen);
+            }
+            // Also ensure settings menu closes if user logs out or menu closes
+            if (!$authStore.isAuthenticated || $isLoggingOut || !shouldBeOpen) {
+                if ($settingsMenuVisible) settingsMenuVisible.set(false);
+            }
+        } else {
+             console.debug('[+page.svelte] Reactive Menu Check: Skipping update, auth not initialized.');
+             // Ensure menu is closed initially on mobile before auth finishes
+             if (!isDesktop && $isMenuOpen) {
+                 console.debug('[+page.svelte] Closing menu on mobile (pre-auth)');
+                 isMenuOpen.set(false);
+             }
+        }
+    }
+
+    // --- Lifecycle ---
     onMount(async () => {
         console.debug('[+page.svelte] onMount started');
-        // Initialize authentication state on app load
+        
+        // Initialize authentication state
         await authStore.initialize();
         console.debug('[+page.svelte] authStore.initialize() finished');
-        isAuthInitialized = true;
+        isAuthInitialized = true; // Trigger reactive updates
         console.debug('[+page.svelte] isAuthInitialized set to true');
-        console.debug('[+page.svelte] authStore.isAuthenticated after init:', $authStore.isAuthenticated);
-        console.debug('[+page.svelte] isInSignupProcess after init:', $isInSignupProcess);
-        console.debug('[+page.svelte] isLoggingOut after init:', $isLoggingOut);
 
-        // Set initial menu state based on authentication and view after initialization
-        const isDesktop = typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT;
-        console.debug('[+page.svelte] isDesktop in onMount:', isDesktop);
-
-        if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut && isDesktop) {
-            console.debug('[+page.svelte] onMount: Authentication conditions met, opening chat menu on desktop');
-            isMenuOpen.set(true);
-        } else {
-            console.debug('[+page.svelte] onMount: Authentication conditions NOT met or mobile view, closing chat menu');
-            isMenuOpen.set(false);
-        }
-        
-        // Remove initial load state after a small delay to ensure proper rendering
+        // Remove initial load state after a small delay
         setTimeout(() => {
             console.debug('[+page.svelte] setTimeout for isInitialLoad finished');
             isInitialLoad = false;
         }, 100);
+
         console.debug('[+page.svelte] onMount finished');
     });
 
-    function handleLoginSuccess() {
-        // Only open menu on desktop
-        if (window.innerWidth >= MOBILE_BREAKPOINT) {
-            isMenuOpen.set(true);
-        } else {
-            // Ensure menu stays closed on mobile
-            isMenuOpen.set(false);
-        }
-    }
+    // Note: No onDestroy needed for window binding if using <svelte:window>
 
-    // Strengthen the reactive statement to handle auth state changes
-    $: {
-        if (!$authStore.isAuthenticated || $isLoggingOut) {
-            // Close sidebar when logged out or logging out
-            isMenuOpen.set(false);
-            // Close settings if open
-            settingsMenuVisible.set(false);
-        }
+    // --- Event Handlers ---
+    // This might be redundant now if the reactive block covers login state changes correctly.
+    // Keep it for now, but consider removing if testing shows it's unnecessary.
+    function handleLoginSuccess() {
+        console.debug('[+page.svelte] handleLoginSuccess triggered');
+        // The reactive block should handle opening the menu automatically based on state changes.
+        // We might not need to explicitly set isMenuOpen here anymore.
+        // if (isDesktop) {
+        //     isMenuOpen.set(true);
+        // }
     }
 
     // Add handler for chatSelected event
@@ -141,9 +111,15 @@
     }
 </script>
 
+<!-- Bind to window width reactively -->
+<svelte:window bind:innerWidth />
+
 <div class="sidebar" class:closed={!$isMenuOpen}>
     {#if $isMenuOpen}
-        <ActivityHistory on:chatSelected={handleChatSelected} />
+        <!-- Use a transition for smoother appearance/disappearance -->
+        <div transition:fade={{ duration: 150 }}>
+            <ActivityHistory on:chatSelected={handleChatSelected} />
+        </div>
     {/if}
 </div>
 
