@@ -14,6 +14,7 @@
     import { settingsMenuVisible } from '../Settings.svelte';
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
+    import { userProfile, updateProfile } from '../../stores/userProfile';
 
     // Dynamic imports for step contents
     import Step2TopContent from './steps/step2/Step2TopContent.svelte';
@@ -283,6 +284,8 @@
             console.debug("Payment successful, transitioning to chat in 2 seconds...");
             // Introduce a 2-second delay before transitioning
             setTimeout(() => {
+                // Update last_opened to signal completion of signup flow
+                updateProfile({ last_opened: '/chat/new' });
                 // Signal completion of signup process
                 isInSignupProcess.set(false);
                 // The reactive statements in +page.svelte and ActiveChat.svelte
