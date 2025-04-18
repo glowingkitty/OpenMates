@@ -497,17 +497,32 @@
     // --- Automatically load and initialize payment methods ---
 
     // Single reactive trigger for initialization
-    $: if (paymentState === 'idle' && !isInitializing && (cardFieldTarget || paymentRequestTargetElement)) {
-        // Check if idle, not already initializing, and at least one target is ready
+    // Reactive trigger for initialization
+    // Runs when:
+    // - Payment is idle
+    // - Not currently initializing
+    // - No general error message is displayed (prevents retry loops on persistent errors)
+    // - At least one payment method target element is available
+    $: if (
+        paymentState === 'idle' &&
+        !isInitializing &&
+        !errorMessage && // <-- Added check: Don't retry if there's already an error
+        (cardFieldTarget || paymentRequestTargetElement)
+       ) {
         console.debug('[Reactive Trigger] Conditions met for initialization. Setting flag and scheduling.');
         isInitializing = true; // Set flag BEFORE starting async work
         tick().then(async () => {
             try {
+                // Clear previous errors before attempting initialization
+                errorMessage = null;
+                validationErrors = null;
                 await initializePaymentMethods(); // Call the main async logic function
             } catch (error) {
                  console.error('[Reactive Trigger] Error during initializePaymentMethods:', error);
-                 // Handle or log error appropriately, maybe set an error message state
+                 // Set error message state if initialization fails
                  errorMessage = `Initialization failed: ${error instanceof Error ? error.message : String(error)}`;
+                 // Ensure state is idle on failure, but don't reset orderToken here
+                 paymentState = 'idle';
             } finally {
                 console.debug('[Reactive Trigger] Clearing isInitializing flag.');
                 isInitializing = false; // Clear flag AFTER async work (or error)
