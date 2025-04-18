@@ -38,10 +38,14 @@
 
     // Revolut/Payment state
     let revolutPublicKey: string | null = null;
+    let revolutEnvironment: 'production' | 'sandbox' = 'sandbox'; // Added state for environment
     let orderToken: string | null = null;
     let lastOrderId: string | null = null;
     let cardFieldInstance: any = null;
     let cardFieldLoaded: boolean = false;
+    let paymentRequestInstance: any = null; // Added for Payment Request Button
+    let paymentRequestTargetElement: HTMLElement | null = null; // Added for Payment Request Button target
+    let showPaymentRequestButton = false; // Added for Payment Request Button visibility
     let isLoading = false;
     let isButtonCooldown = false;
     let errorMessage: string | null = null;
@@ -112,8 +116,12 @@
             const config = await response.json();
             if (!config.revolut_public_key) throw new Error('Revolut Public Key not found in config response.');
             revolutPublicKey = config.revolut_public_key;
+            revolutEnvironment = config.environment === 'production' ? 'production' : 'sandbox'; // Store environment
+            console.debug(`[fetchConfig] Loaded config: Environment=${revolutEnvironment}`);
         } catch (error) {
             errorMessage = `Failed to load payment configuration. ${error instanceof Error ? error.message : String(error)}`;
+            revolutPublicKey = null; // Ensure key is null on error
+            revolutEnvironment = 'sandbox'; // Default to sandbox on error
         } finally {
             isLoading = false;
         }
@@ -144,9 +152,10 @@
             }
             const order = await response.json();
             if (!order.order_token) throw new Error('Order created, but order_token is missing in the response.');
-            orderToken = order.order_token;
+            orderToken = order.order_token; // Keep this for CardField
             lastOrderId = order.order_id;
-            return true;
+            // Return structure needed for paymentRequest's createOrder
+            return { success: true, publicId: order.order_token };
         } catch (error) {
             errorMessage = `Failed to create payment order. ${error instanceof Error ? error.message : String(error)}`;
             return false;
@@ -183,9 +192,9 @@
 
         validationErrors = null;
         try {
-            console.debug('[initializeCardField] Creating card field instance...');
-            const environment = 'sandbox';
-            const { createCardField } = await RevolutCheckout(orderToken, environment);
+            console.debug(`[initializeCardField] Creating card field instance (environment inferred from token)...`);
+            // Environment is likely inferred from the orderToken itself. Remove the second argument.
+            const { createCardField } = await RevolutCheckout(orderToken);
             cardFieldInstance = createCardField({
                 target: cardFieldTarget,
                 theme: darkmode ? 'dark' : 'light',
@@ -248,6 +257,124 @@
         }
         console.debug('[initializeCardField] function end', { cardFieldLoaded, cardFieldInstance });
     }
+
+    // --- Initialize Payment Request Button (Apple Pay / Google Pay) ---
+    async function initializePaymentRequest() {
+        console.debug('[initializePaymentRequest] called', {
+            revolutPublicKey,
+            paymentRequestTargetElement,
+            purchasePrice,
+            currency
+        });
+
+        if (!revolutPublicKey || !paymentRequestTargetElement || !purchasePrice || !currency) {
+            console.warn('[initializePaymentRequest] Missing prerequisites:', {
+                revolutPublicKey,
+                paymentRequestTargetElement,
+                purchasePrice,
+                currency
+            });
+            // Don't show error message here, just prevent initialization
+            showPaymentRequestButton = false;
+            return;
+        }
+
+        // Destroy previous instance if exists
+        if (paymentRequestInstance) {
+            console.debug('[initializePaymentRequest] Destroying previous paymentRequestInstance');
+            try { paymentRequestInstance.destroy(); } catch (e) { console.warn('[initializePaymentRequest] Error destroying previous instance', e); }
+            paymentRequestInstance = null;
+        }
+
+        try {
+            console.debug('[initializePaymentRequest] Initializing RevolutCheckout.payments...');
+            // Note: We only need the 'payments' object once, could optimize later
+            const { paymentRequest } = await RevolutCheckout.payments({
+                locale: locale as "en" | "en-US" | "nl" | "fr" | "de" | "cs" | "it" | "lt" | "pl" | "pt" | "es" | "hu" | "sk" | "ja" | "sv" | "bg" | "ro" | "ru" | "el" | "hr" | "auto", // Explicit type assertion
+                publicToken: revolutPublicKey
+            });
+
+            console.debug('[initializePaymentRequest] Creating payment request instance...');
+            paymentRequestInstance = paymentRequest(paymentRequestTargetElement, {
+                currency: currency,
+                amount: Math.round(purchasePrice * 100), // Amount in lowest denomination (cents/pence)
+                createOrder: async () => {
+                    console.debug('[paymentRequest.createOrder] called');
+                    // Reuse the existing createOrder logic, but ensure it returns the publicId
+                    const orderResult = await createOrder();
+                    if (orderResult && orderResult.success && orderResult.publicId) {
+                        console.debug('[paymentRequest.createOrder] Order created successfully:', orderResult.publicId);
+                        return { publicId: orderResult.publicId };
+                    } else {
+                        console.error('[paymentRequest.createOrder] Failed to create order for payment request.');
+                        throw new Error('Failed to create payment order.');
+                    }
+                },
+                onSuccess() {
+                    console.debug('[paymentRequest.onSuccess] called');
+                    // Similar to CardField success: clear errors, set processing, start polling
+                    errorMessage = null;
+                    validationErrors = null;
+                    paymentState = 'processing';
+                    // Ensure we have the lastOrderId from the createOrder call within paymentRequest
+                    // If createOrder was successful, lastOrderId should be set.
+                    if (lastOrderId) {
+                        pollOrderStatus();
+                    } else {
+                        console.error('[paymentRequest.onSuccess] lastOrderId is missing after successful payment request. Cannot poll status.');
+                        errorMessage = 'Payment successful, but status verification failed. Please check your account.';
+                        paymentState = 'idle'; // Revert state if polling can't start
+                    }
+                },
+                onError(error) {
+                    console.debug('[paymentRequest.onError] called', error);
+                    // Similar to CardField error handling
+                    errorMessage = error?.message ? error.message.replace(/\. /g, '.<br>') : 'Payment failed via Apple Pay/Google Pay.';
+                    validationErrors = null; // Clear card validation errors
+                    paymentState = 'idle';
+                    isLoading = false; // Ensure loading state is reset
+                    isButtonCooldown = true; // Apply cooldown if needed
+                    setTimeout(() => { isButtonCooldown = false; }, 2000);
+                    if (paymentFormComponent) {
+                        paymentFormComponent.setPaymentFailed(errorMessage);
+                    }
+                    // Destroy the instance on error? Maybe not, user might retry.
+                    // Consider re-creating the order if necessary before retry.
+                    orderToken = null; // Reset order token as it might be invalid
+                    lastOrderId = null;
+                },
+                // Add other options like buttonStyle if needed
+                buttonStyle: {
+                    radius: "small",
+                    size: "large", // Match card payment button height?
+                    variant: darkmode ? "dark" : "light",
+                    action: "buy"
+                }
+            });
+
+            console.debug('[initializePaymentRequest] Checking if payment can be made...');
+            const method = await paymentRequestInstance.canMakePayment();
+            console.debug('[initializePaymentRequest] canMakePayment result:', method);
+            if (method) { // 'applePay' or 'googlePay'
+                paymentRequestInstance.render();
+                showPaymentRequestButton = true;
+                console.debug('[initializePaymentRequest] Payment request button rendered.');
+            } else {
+                showPaymentRequestButton = false;
+                paymentRequestInstance.destroy(); // Clean up if no method available
+                paymentRequestInstance = null;
+                console.debug('[initializePaymentRequest] No payment method available, instance destroyed.');
+            }
+
+        } catch (error) {
+            console.error('[initializePaymentRequest] Error initializing payment request', error);
+            errorMessage = `Failed to initialize Apple Pay/Google Pay. ${error instanceof Error ? error.message : String(error)}`;
+            paymentRequestInstance = null;
+            showPaymentRequestButton = false;
+        }
+        console.debug('[initializePaymentRequest] function end', { showPaymentRequestButton, paymentRequestInstance });
+    }
+
 
     // --- Poll Backend for Order Status ---
     async function pollOrderStatus() {
@@ -367,66 +494,132 @@
     // Removed: auto-reset of paymentState from 'failure' to 'idle' (no longer needed, as we set to 'idle' on error directly)
 
     // --- Automatically load and initialize card field when payment form is shown ---
-    // Only initialize card field when form is visible and target is set
-    $: if (cardFieldTarget && !cardFieldInstance && paymentState === 'idle') {
-        tick().then(() => autoInitCardField());
+    // Only initialize when form is visible and targets are set
+    $: if (paymentState === 'idle' && (cardFieldTarget || paymentRequestTargetElement)) {
+        tick().then(() => autoInitPaymentMethods());
     }
-    async function autoInitCardField() {
-        console.debug('[autoInitCardField] called', {
+
+    async function autoInitPaymentMethods() {
+        console.debug('[autoInitPaymentMethods] called', {
             cardFieldTarget,
+            paymentRequestTargetElement,
             cardFieldInstance,
+            paymentRequestInstance,
             paymentState
         });
-        // Only run if card field target is set, card field is not already initialized, and payment is idle
-        if (
-            cardFieldTarget &&
-            !cardFieldInstance &&
-            paymentState === 'idle'
-        ) {
-            console.debug('[autoInitCardField] Payment form is present, initializing card field...');
-            // Fetch Revolut config if needed
+        // Only run if payment is idle and we have at least one target element
+        if (paymentState === 'idle' && (cardFieldTarget || paymentRequestTargetElement)) {
+            console.debug('[autoInitPaymentMethods] Conditions met, proceeding...');
+
+            // 1. Fetch Config (if needed)
             if (!revolutPublicKey) {
-                console.debug('[autoInitCardField] revolutPublicKey missing, calling fetchConfig...');
+                console.debug('[autoInitPaymentMethods] revolutPublicKey missing, calling fetchConfig...');
                 await fetchConfig();
                 if (!revolutPublicKey) {
-                    console.warn('[autoInitCardField] revolutPublicKey still missing after fetchConfig');
-                    return;
+                    console.warn('[autoInitPaymentMethods] revolutPublicKey still missing after fetchConfig. Aborting.');
+                    return; // Stop if config fails
                 }
+                console.debug('[autoInitPaymentMethods] fetchConfig successful.');
             }
-            // Create order if needed
-            if (!orderToken) {
-                console.debug('[autoInitCardField] orderToken missing, calling createOrder...');
-                const orderCreated = await createOrder();
-                if (!orderCreated) {
-                    console.warn('[autoInitCardField] orderToken still missing after createOrder');
-                    return;
+
+            // 2. Create Order (if needed) - Create only ONCE per payment attempt cycle
+            let orderAvailable = !!orderToken;
+            if (!orderAvailable) {
+                console.debug('[autoInitPaymentMethods] orderToken missing, calling createOrder...');
+                const orderResult = await createOrder(); // createOrder now returns { success, publicId }
+                orderAvailable = orderResult && orderResult.success;
+                if (!orderAvailable) {
+                    console.warn('[autoInitPaymentMethods] Failed to create order. Aborting payment method initialization.');
+                    // Error message should be set by createOrder
+                    return; // Stop if order creation fails
                 }
+                 console.debug('[autoInitPaymentMethods] createOrder successful.');
+            } else {
+                 console.debug('[autoInitPaymentMethods] Existing orderToken found.');
             }
-            // Wait for DOM update
+
+            // Ensure order is available before proceeding
+            if (!orderAvailable) {
+                 console.warn('[autoInitPaymentMethods] Order not available, cannot initialize payment methods.');
+                 return;
+            }
+
+            // Wait for any potential DOM updates after fetching/creating order
             await tick();
-            // Initialize card field
-            console.debug('[autoInitCardField] Calling initializeCardField...');
-            await initializeCardField();
-            console.debug('[autoInitCardField] Returned from initializeCardField', { cardFieldInstance });
+
+            // 3. Initialize Card Field (if target exists and not already initialized)
+            if (cardFieldTarget && !cardFieldInstance) {
+                console.debug('[autoInitPaymentMethods] Initializing Card Field...');
+                await initializeCardField(); // Uses the existing orderToken
+                console.debug('[autoInitPaymentMethods] Card Field initialization attempt complete.');
+            } else if (!cardFieldTarget) {
+                 console.debug('[autoInitPaymentMethods] No cardFieldTarget, skipping Card Field init.');
+            } else if (cardFieldInstance) {
+                 console.debug('[autoInitPaymentMethods] Card Field already initialized, skipping init.');
+            }
+
+
+            // 4. Initialize Payment Request Button (ONLY if in production environment, target exists, and not already initialized)
+            if (revolutEnvironment === 'production') {
+                if (paymentRequestTargetElement && !paymentRequestInstance) {
+                    console.debug('[autoInitPaymentMethods] Production environment detected. Initializing Payment Request Button...');
+                    await initializePaymentRequest(); // Uses public key, target, amount, currency
+                    console.debug('[autoInitPaymentMethods] Payment Request Button initialization attempt complete.');
+                } else if (!paymentRequestTargetElement) {
+                    console.debug('[autoInitPaymentMethods] Production environment, but no paymentRequestTargetElement. Skipping Payment Request init.');
+                } else if (paymentRequestInstance) {
+                    console.debug('[autoInitPaymentMethods] Production environment, but Payment Request Button already initialized. Skipping init.');
+                }
+            } else {
+                 console.debug(`[autoInitPaymentMethods] Sandbox environment detected (env: ${revolutEnvironment}). Skipping Payment Request Button initialization.`);
+                 // Ensure the button state is false if we skip initialization in sandbox
+                 showPaymentRequestButton = false;
+            }
+
         } else {
-            console.debug('[autoInitCardField] Not initializing card field. State:', {
-                cardFieldTarget,
-                cardFieldInstance,
-                paymentState
+            console.debug('[autoInitPaymentMethods] Conditions not met. State:', {
+                paymentState,
+                cardFieldTarget: !!cardFieldTarget,
+                paymentRequestTargetElement: !!paymentRequestTargetElement,
+                cardFieldInstance: !!cardFieldInstance,
+                paymentRequestInstance: !!paymentRequestInstance
             });
         }
     }
 
-    // Cleanup on destroy
+
+    // --- Cleanup on destroy ---
     onMount(() => {
         fetchUserEmail();
+        // Initial call in case component mounts in idle state with targets ready
+        tick().then(() => autoInitPaymentMethods());
         return () => {
+            console.debug('[Payment.svelte] onDestroy cleanup');
             if (cardFieldInstance) {
-                try { cardFieldInstance.destroy(); } catch {}
+                console.debug('Destroying cardFieldInstance');
+                try { cardFieldInstance.destroy(); } catch (e) { console.warn('Error destroying cardFieldInstance', e); }
+                cardFieldInstance = null;
+            }
+            if (paymentRequestInstance) {
+                console.debug('Destroying paymentRequestInstance');
+                try { paymentRequestInstance.destroy(); } catch (e) { console.warn('Error destroying paymentRequestInstance', e); }
+                paymentRequestInstance = null;
             }
             isPollingStopped = true;
-            if (pollTimeoutId) clearTimeout(pollTimeoutId);
-            if (userProfileUnsubscribe) userProfileUnsubscribe();
+            if (pollTimeoutId) {
+                console.debug('Clearing poll timeout');
+                clearTimeout(pollTimeoutId);
+                pollTimeoutId = null;
+            }
+             if (cardSubmitTimeoutId) {
+                console.debug('Clearing card submit timeout');
+                clearTimeout(cardSubmitTimeoutId);
+                cardSubmitTimeoutId = null;
+            }
+            if (userProfileUnsubscribe) {
+                console.debug('Unsubscribing from userProfile');
+                userProfileUnsubscribe();
+            }
         };
     });
     // Handle PaymentForm submit event to set loading state immediately
@@ -472,8 +665,10 @@
                 currency={currency}
                 cardFieldInstance={cardFieldInstance}
                 userEmail={userEmail}
-                bind:cardFieldTarget
+                bind:cardFieldTarget={cardFieldTarget}
+                bind:paymentRequestTargetElement={paymentRequestTargetElement}
                 cardFieldLoaded={cardFieldLoaded}
+                showPaymentRequestButton={showPaymentRequestButton}
                 hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
                 validationErrors={validationErrors}
                 paymentError={errorMessage}

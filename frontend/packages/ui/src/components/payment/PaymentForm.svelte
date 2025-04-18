@@ -9,7 +9,11 @@
     export let currency: string = 'EUR';
     export let cardFieldLoaded: boolean = false;
     export let cardFieldInstance: any;
-    export let userEmail: string;
+    export let userEmail: string | null; // Can be null initially
+
+    // Payment Request Button props
+    export let showPaymentRequestButton: boolean = false;
+    export let paymentRequestTargetElement: HTMLElement | null = null; // Bound element from parent
 
     // New props for consent and errors
     export let hasConsentedToLimitedRefund: boolean = false;
@@ -26,7 +30,7 @@
     let nameInput: HTMLInputElement;
 
     // CardField target for Revolut iframe
-    export let cardFieldTarget: HTMLElement;
+    export let cardFieldTarget: HTMLElement | null = null; // Can be null initially
 
     // Validation states
     let nameError = '';
@@ -162,10 +166,13 @@
             <span class="color-grey-60">{@html $text('signup.or.text')}</span>
         </div>
         
-        <button type="button" class="apple-pay-button">
-            <span class="apple-pay-text">Pay with Apple Pay</span>
-        </button>
-        
+        <!-- Payment Request Button Target -->
+        {#if showPaymentRequestButton}
+            <div bind:this={paymentRequestTargetElement} class="payment-request-button-container">
+                <!-- Revolut will inject the button here -->
+            </div>
+        {/if}
+
         <p class="vat-info color-grey-60">
             {@html $text('signup.vat_info.text')}
         </p>
@@ -222,28 +229,21 @@
         margin: 12px 0;
         text-align: center;
     }
-    
-    .apple-pay-button {
+
+    .payment-request-button-container {
         width: 100%;
-        height: 50px;
-        background-color: black;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 500;
-        margin-top: 12px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
+        margin-top: 12px; /* Same margin as the old button */
+        min-height: 50px; /* Ensure space is reserved */
+        display: flex; /* Center button if needed */
+        justify-content: center; /* Center button if needed */
     }
-    
-    .apple-pay-text {
-        font-size: 16px;
+
+    /* Revolut might inject specific classes, inspect element if styling needed */
+    .payment-request-button-container > div {
+         width: 100%; /* Make injected button take full width */
     }
-    
+
+
     .vat-info {
         font-size: 14px;
         text-align: center;
