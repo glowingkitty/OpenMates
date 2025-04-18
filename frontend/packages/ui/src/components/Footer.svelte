@@ -8,10 +8,6 @@
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../config/meta';
-    import { authStore } from '../stores/authStore';
-    import { isInSignupProcess } from '../stores/signupState';
-    import { isSignupSettingsStep } from '../stores/signupState'; // This seems unused now
-    import { currentSignupStep } from '../stores/signupState'; // This seems unused now
 
     // Type definition for footer links
     type FooterLink = {

@@ -31,11 +31,19 @@
 
     // Handle initial sidebar state based on auth and signup process
     $: if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut) {
+        console.log('authStore.isAuthenticated:', $authStore.isAuthenticated);
+        console.log('isInSignupProcess:', $isInSignupProcess);
+        console.log('isLoggingOut:', $isLoggingOut);
+        console.log('window.innerWidth >= MOBILE_BREAKPOINT:', window.innerWidth >= MOBILE_BREAKPOINT);
         // Only open menu on desktop when authenticated and not in signup and not logging out
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
         }
     } else {
+        console.log('authStore.isAuthenticated:', $authStore.isAuthenticated);
+        console.log('isInSignupProcess:', $isInSignupProcess);
+        console.log('isLoggingOut:', $isLoggingOut);
+        console.log('window.innerWidth >= MOBILE_BREAKPOINT:', window.innerWidth >= MOBILE_BREAKPOINT);
         isMenuOpen.set(false);
     }
 
@@ -46,8 +54,8 @@
     // Add reference to ActiveChat instance
     let activeChat: ActiveChat | null = null;
 
-    // Add reactive statement for scrollable class
-    $: scrollableClass = !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep < 7) ? 'scrollable' : '';
+    // Determine if the footer should be shown
+    $: showFooter = (!$isInSignupProcess && $authStore.isAuthenticated) || ($isInSignupProcess && $showSignupFooter);
 
     onMount(async () => {
         // Initialize authentication state on app load
@@ -103,7 +111,7 @@
 <div class="main-content" 
     class:menu-closed={!$isMenuOpen || !$authStore.isAuthenticated}
     class:initial-load={isInitialLoad}
-    class:scrollable={scrollableClass}>
+    class:scrollable={showFooter}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container" 
         class:menu-open={menuClass}
@@ -121,7 +129,7 @@
 </div>
 
 <!-- Footer outside main content -->
-{#if (!$isInSignupProcess && $authStore.isAuthenticated) || ($isInSignupProcess && $showSignupFooter)}
+{#if showFooter}
 <div class="footer-wrapper">
     <Footer metaKey="webapp" context="webapp" />
 </div>
