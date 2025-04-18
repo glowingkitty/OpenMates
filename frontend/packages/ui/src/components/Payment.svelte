@@ -503,13 +503,24 @@
     // - Not currently initializing
     // - No general error message is displayed (prevents retry loops on persistent errors)
     // - At least one payment method target element is available
+    // Reactive trigger for initialization
+    // Runs when:
+    // - Payment is idle
+    // - Not currently initializing
+    // - No general error message is displayed
+    // - AND at least one payment method needs initialization:
+    //   - Card field target exists but instance doesn't, OR
+    //   - Payment request target exists, instance doesn't, and env is production
+    $: needsCardInit = cardFieldTarget && !cardFieldInstance;
+    $: needsPaymentRequestInit = revolutEnvironment === 'production' && paymentRequestTargetElement && !paymentRequestInstance;
+
     $: if (
         paymentState === 'idle' &&
         !isInitializing &&
-        !errorMessage && // <-- Added check: Don't retry if there's already an error
-        (cardFieldTarget || paymentRequestTargetElement)
+        !errorMessage &&
+        (needsCardInit || needsPaymentRequestInit) // <-- Check if actual init is needed
        ) {
-        console.debug('[Reactive Trigger] Conditions met for initialization. Setting flag and scheduling.');
+        console.debug('[Reactive Trigger] Conditions met for initialization. Setting flag and scheduling.', { needsCardInit, needsPaymentRequestInit });
         isInitializing = true; // Set flag BEFORE starting async work
         tick().then(async () => {
             try {
@@ -521,7 +532,7 @@
                  console.error('[Reactive Trigger] Error during initializePaymentMethods:', error);
                  // Set error message state if initialization fails
                  errorMessage = `Initialization failed: ${error instanceof Error ? error.message : String(error)}`;
-                 // Ensure state is idle on failure, but don't reset orderToken here
+                 // Ensure state is idle on failure
                  paymentState = 'idle';
             } finally {
                 console.debug('[Reactive Trigger] Clearing isInitializing flag.');
