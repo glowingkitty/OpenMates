@@ -46,21 +46,21 @@
 
     // *** Core Logic: Reactive Menu State ***
     $: {
-        // Only update menu state *after* authentication has been initialized
         if (isAuthInitialized) {
-            // Determine the desired menu state based on conditions
-            const shouldBeOpen = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
-            console.debug(`[+page.svelte] Reactive Menu Check: Auth=${$authStore.isAuthenticated}, Signup=${$isInSignupProcess}, Logout=${$isLoggingOut}, Desktop=${isDesktop} => shouldBeOpen=${shouldBeOpen}`);
+            // Determine conditions under which the menu *must* be closed
+            const mustBeClosed = !$authStore.isAuthenticated || $isInSignupProcess || $isLoggingOut || !isDesktop;
+            console.debug(`[+page.svelte] Reactive Menu Close Check: Auth=${$authStore.isAuthenticated}, Signup=${$isInSignupProcess}, Logout=${$isLoggingOut}, Desktop=${isDesktop} => mustBeClosed=${mustBeClosed}`);
 
-            // Update menu state only if it differs from the desired state
-            if ($isMenuOpen !== shouldBeOpen) {
-                 console.debug(`[+page.svelte] Setting isMenuOpen from ${$isMenuOpen} to: ${shouldBeOpen}`);
-                 isMenuOpen.set(shouldBeOpen);
+            // Force close the menu if conditions require it and it's currently open
+            if (mustBeClosed && $isMenuOpen) {
+                 console.debug(`[+page.svelte] Reactively closing main menu because mustBeClosed is true.`);
+                 isMenuOpen.set(false);
             }
 
             // Also ensure settings menu closes if user logs out or the main menu closes
-            if ((!$authStore.isAuthenticated || $isLoggingOut || !$isMenuOpen) && $settingsMenuVisible) {
-                 console.debug(`[+page.svelte] Closing settings menu reactively (Auth: ${$authStore.isAuthenticated}, Logout: ${$isLoggingOut}, MenuOpen: ${$isMenuOpen})`);
+            // Use mustBeClosed condition OR if the main menu is simply not open
+            if ((mustBeClosed || !$isMenuOpen) && $settingsMenuVisible) {
+                 console.debug(`[+page.svelte] Closing settings menu reactively (mustBeClosed: ${mustBeClosed}, isMenuOpen: ${$isMenuOpen})`);
                  settingsMenuVisible.set(false);
             }
         } else {

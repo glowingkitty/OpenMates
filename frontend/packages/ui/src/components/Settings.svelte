@@ -451,30 +451,40 @@ changes to the documentation (to keep the documentation up to date).
     async function handleLogout() {
         try {
             isLoggingOut.set(true);
-            isInSignupProcess.set(false);
+            isInSignupProcess.set(false); // Ensure signup process is exited
 
             await authStore.logout({
                 beforeServerLogout: () => {
-                    isCheckingAuth.set(false);
+                    isCheckingAuth.set(false); // Ensure auth check stops
+                    // Rely on reactive block in +page.svelte triggered by isLoggingOut=true
                 },
-
                 afterServerLogout: async () => {
-                    // Reset scroll position
+                    // Reset scroll position after successful logout actions
                     if (settingsContentElement) {
                         settingsContentElement.scrollTop = 0;
                     }
-                    // Removed explicit menu closing - rely on reactive updates in +page.svelte
-                    // based on isLoggingOut and authStore.isAuthenticated states.
                 }
             });
 
-            // Set isLoggingOut to false *after* authStore.logout completes
-            isLoggingOut.set(false);
+            console.debug("[Settings.svelte] Logout successful.");
+
         } catch (error) {
-            console.error('Error during logout:', error);
-            // Even on error, ensure we exit signup mode properly
-            isInSignupProcess.set(false);
-            authStore.logout();
+            console.error('[Settings.svelte] Error during logout:', error);
+            // Error handling: Log error, UI state reset happens in finally block.
+            // Do NOT call authStore.logout() again here.
+        } finally {
+            // This block executes whether the try block succeeded or failed.
+            isLoggingOut.set(false); // CRITICAL: Ensure isLoggingOut is always reset
+            isCheckingAuth.set(false); // Ensure auth check state is also reset
+            isInSignupProcess.set(false); // Ensure signup state is reset
+            console.debug("[Settings.svelte] Logout process finished (finally block).");
+
+            // Explicitly close menus in finally as a safeguard,
+            // though reactive logic should handle it.
+            if (isMenuVisible) {
+                toggleMenu(); // Close settings menu if open
+            }
+            // isMenuOpen is controlled in +page.svelte based on isLoggingOut/isAuthenticated
         }
     }
 
