@@ -53,7 +53,7 @@
     let pollTimeoutId: number | null = null;
     let isPollingStopped = false;
     let userEmail: string | null = null;
-    // Removed isInitializing flag
+    let isInitializing = false; // Reintroduce the flag
 
     // Timeout for card payment submission (UI-level)
     let cardSubmitTimeoutId: number | null = null;
@@ -496,101 +496,102 @@
 
     // --- Automatically load and initialize payment methods ---
 
-    // Reactive trigger for CardField initialization
-    $: if (cardFieldTarget && !cardFieldInstance && paymentState === 'idle') {
-        console.debug('[Reactive Trigger] CardField target available and instance missing. Scheduling init.');
-        tick().then(() => initializeIfNeeded());
+    // Single reactive trigger for initialization
+    $: if (paymentState === 'idle' && !isInitializing && (cardFieldTarget || paymentRequestTargetElement)) {
+        // Check if idle, not already initializing, and at least one target is ready
+        console.debug('[Reactive Trigger] Conditions met for initialization. Setting flag and scheduling.');
+        isInitializing = true; // Set flag BEFORE starting async work
+        tick().then(async () => {
+            try {
+                await initializePaymentMethods(); // Call the main async logic function
+            } catch (error) {
+                 console.error('[Reactive Trigger] Error during initializePaymentMethods:', error);
+                 // Handle or log error appropriately, maybe set an error message state
+                 errorMessage = `Initialization failed: ${error instanceof Error ? error.message : String(error)}`;
+            } finally {
+                console.debug('[Reactive Trigger] Clearing isInitializing flag.');
+                isInitializing = false; // Clear flag AFTER async work (or error)
+            }
+        });
     }
 
-    // Reactive trigger for Payment Request Button initialization
-    // Also depends on the target element being bound from the child component
-    $: if (paymentRequestTargetElement && !paymentRequestInstance && paymentState === 'idle' && revolutEnvironment === 'production') {
-         console.debug('[Reactive Trigger] PaymentRequest target available, instance missing, and in production. Scheduling init.');
-         tick().then(() => initializeIfNeeded());
-    }
+    // Main async initialization logic
+    async function initializePaymentMethods() {
+        console.debug('[initializePaymentMethods] Starting...');
 
-    // Central initialization function called by reactive triggers
-    async function initializeIfNeeded() {
-        console.debug('[initializeIfNeeded] Called.');
-
-        // Prevent initialization if not idle
+        // Double check state just in case (should be prevented by reactive trigger guard)
         if (paymentState !== 'idle') {
-            console.debug('[initializeIfNeeded] Aborting: Payment state is not idle.');
-            return;
-        }
-
-        // 1. Fetch Config (if needed) - Do this first
-        if (!revolutPublicKey) {
-            console.debug('[initializeIfNeeded] revolutPublicKey missing, calling fetchConfig...');
-            await fetchConfig();
-            if (!revolutPublicKey) {
-                console.warn('[initializeIfNeeded] revolutPublicKey still missing after fetchConfig. Aborting initialization.');
-                // Error message should be set by fetchConfig
-                return;
-            }
-            console.debug('[initializeIfNeeded] fetchConfig successful.');
-        } else {
-             console.debug('[initializeIfNeeded] revolutPublicKey already available.');
-        }
-
-        // 2. Create Order (if needed) - Only create ONCE if token is missing
-        let orderAvailable = !!orderToken;
-        if (!orderAvailable) {
-            console.debug('[initializeIfNeeded] orderToken missing, calling createOrder...');
-            const orderResult = await createOrder(); // createOrder returns { success, publicId } or false
-            orderAvailable = orderResult && orderResult.success;
-            if (!orderAvailable) {
-                console.warn('[initializeIfNeeded] Failed to create order. Aborting further initialization.');
-                // Error message should be set by createOrder
-                return;
-            }
-             console.debug('[initializeIfNeeded] createOrder successful.');
-        } else {
-             console.debug('[initializeIfNeeded] Existing orderToken found.');
-        }
-
-        // Ensure order is available before proceeding
-        if (!orderAvailable || !orderToken) { // Double check orderToken specifically
-             console.warn('[initializeIfNeeded] Order token not available after check/creation. Aborting.');
+             console.warn('[initializePaymentMethods] Called but paymentState is not idle. Aborting.');
              return;
         }
 
-        // Wait for any potential DOM updates after fetching/creating order
+        // 1. Fetch Config (if needed)
+        if (!revolutPublicKey) {
+            console.debug('[initializePaymentMethods] Fetching config...');
+            await fetchConfig();
+            if (!revolutPublicKey) {
+                console.error('[initializePaymentMethods] Config fetch failed. Aborting.');
+                // fetchConfig should set errorMessage
+                return; // Stop initialization if config fails
+            }
+        } else {
+             console.debug('[initializePaymentMethods] Config already available.');
+        }
+
+        // 2. Create Order (if needed) - CRITICAL: Check token *before* calling createOrder
+        if (!orderToken) {
+            console.debug('[initializePaymentMethods] Order token missing. Creating order...');
+            const orderResult = await createOrder(); // Sets global orderToken on success
+            if (!orderResult || !orderResult.success) {
+                console.error('[initializePaymentMethods] Order creation failed. Aborting.');
+                // createOrder should set errorMessage
+                return; // Stop initialization if order creation fails
+            }
+             console.debug('[initializePaymentMethods] Order created successfully.');
+        } else {
+             console.debug('[initializePaymentMethods] Order token already exists.');
+        }
+
+        // Ensure order token is definitely available now before proceeding
+        if (!orderToken) {
+             console.error('[initializePaymentMethods] Order token still missing after creation check. Aborting.');
+             errorMessage = 'Failed to obtain payment session token.'; // Set a generic error
+             return;
+        }
+
+        // Wait for potential DOM updates after config/order steps
         await tick();
 
-        // 3. Initialize Card Field (if target exists and instance not already created)
-        // Check instance *again* inside async function to prevent race conditions
+        // 3. Initialize Card Field (if target ready and instance not created)
+        // Check instance existence again inside async flow
         if (cardFieldTarget && !cardFieldInstance) {
-            console.debug('[initializeIfNeeded] Initializing Card Field...');
-            await initializeCardField(); // Uses the existing orderToken
-            console.debug('[initializeIfNeeded] Card Field initialization attempt complete.');
+            console.debug('[initializePaymentMethods] Initializing Card Field...');
+            await initializeCardField(); // Uses global orderToken
         } else {
-             console.debug('[initializeIfNeeded] Skipping Card Field init (target missing or instance exists).', { hasTarget: !!cardFieldTarget, hasInstance: !!cardFieldInstance });
+             console.debug('[initializePaymentMethods] Skipping Card Field init.', { hasTarget: !!cardFieldTarget, hasInstance: !!cardFieldInstance });
         }
 
-        // 4. Initialize Payment Request Button (if in production, target exists, and instance not already created)
-        // Check instance *again* inside async function
+        // 4. Initialize Payment Request Button (if conditions met)
+        // Check instance existence again inside async flow
         if (revolutEnvironment === 'production' && paymentRequestTargetElement && !paymentRequestInstance) {
-             console.debug('[initializeIfNeeded] Production environment. Initializing Payment Request Button...');
-             await initializePaymentRequest(); // Uses public key, target, amount, currency
-             console.debug('[initializeIfNeeded] Payment Request Button initialization attempt complete.');
+            console.debug('[initializePaymentMethods] Initializing Payment Request Button...');
+            await initializePaymentRequest(); // Uses global publicKey etc.
         } else {
-             console.debug('[initializeIfNeeded] Skipping Payment Request init (not production, target missing, or instance exists).', { isProd: revolutEnvironment === 'production', hasTarget: !!paymentRequestTargetElement, hasInstance: !!paymentRequestInstance });
-             // Ensure button state is false if we skip initialization
+             console.debug('[initializePaymentMethods] Skipping Payment Request init.', { isProd: revolutEnvironment === 'production', hasTarget: !!paymentRequestTargetElement, hasInstance: !!paymentRequestInstance });
              if (revolutEnvironment !== 'production') {
-                 showPaymentRequestButton = false;
+                 showPaymentRequestButton = false; // Ensure button hidden if skipped
              }
         }
-         console.debug('[initializeIfNeeded] Finished.');
+        console.debug('[initializePaymentMethods] Finished.');
     }
-
 
     // --- Cleanup on destroy ---
     onMount(() => {
         fetchUserEmail();
         // Initial call in case component mounts in idle state with targets ready
-        // Use the new function name here
-        tick().then(() => initializeIfNeeded());
+        // The reactive trigger ($:) will handle the initial call automatically when targets become available.
+        // No explicit call needed here anymore.
+        // tick().then(() => initializePaymentMethods()); // REMOVED
         return () => {
             console.debug('[Payment.svelte] onDestroy cleanup');
             if (cardFieldInstance) {
