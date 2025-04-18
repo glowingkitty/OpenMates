@@ -48,12 +48,14 @@
     $: {
         // Only update menu state *after* authentication has been initialized
         if (isAuthInitialized) {
-            const shouldMenuBeClosed = !$authStore.isAuthenticated || $isLoggingOut || !isDesktop;
+            // Determine the desired menu state based on conditions
+            const shouldBeOpen = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
+            console.debug(`[+page.svelte] Reactive Menu Check: Auth=${$authStore.isAuthenticated}, Signup=${$isInSignupProcess}, Logout=${$isLoggingOut}, Desktop=${isDesktop} => shouldBeOpen=${shouldBeOpen}`);
 
-            // Close menu if necessary (logout, mobile view) - but don't force it open
-            if (shouldMenuBeClosed && $isMenuOpen) {
-                console.debug(`[+page.svelte] Closing menu reactively (Auth: ${$authStore.isAuthenticated}, Logout: ${$isLoggingOut}, Desktop: ${isDesktop})`);
-                isMenuOpen.set(false);
+            // Update menu state only if it differs from the desired state
+            if ($isMenuOpen !== shouldBeOpen) {
+                 console.debug(`[+page.svelte] Setting isMenuOpen from ${$isMenuOpen} to: ${shouldBeOpen}`);
+                 isMenuOpen.set(shouldBeOpen);
             }
 
             // Also ensure settings menu closes if user logs out or the main menu closes
