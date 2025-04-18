@@ -331,8 +331,11 @@ async def revolut_webhook(
                 new_total_credits_str = str(new_total_credits_calculated)
                 new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(new_total_credits_str, vault_key_id)
 
-                # 7. Try to update Directus, with up to 3 attempts
-                update_payload = {"encrypted_credit_balance": new_encrypted_credits}
+                # 7. Try to update Directus (credits and last_opened), with up to 3 attempts
+                update_payload = {
+                    "encrypted_credit_balance": new_encrypted_credits,
+                    "last_opened": "/chat/new" # Add last_opened field update
+                }
                 directus_update_success = False
                 max_attempts = 3
                 for attempt in range(1, max_attempts + 1):
@@ -342,9 +345,9 @@ async def revolut_webhook(
                         break
                     else:
                         logger.error(f"Attempt {attempt} to update Directus credits for user {user_id} (Order ID: {order_id}) failed.")
-                # 8. If Directus update failed after 3 attempts, log the error. The cache won't be updated with the new amount in the finally block.
+                # 8. If Directus update failed after 3 attempts, log the error. Cache won't be updated.
                 if not directus_update_success:
-                     logger.error(f"Failed to update Directus credits for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Cached credits will not be updated.")
+                     logger.error(f"Failed to update Directus credits and last_opened for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Cache will not be updated.")
                 else:
                     # --- Trigger Background Invoice Processing Task ---
                     try:
@@ -400,15 +403,16 @@ async def revolut_webhook(
                 # Determine final credit state and order status
                 final_order_status = "unknown"
                 if directus_update_success:
-                    # Update cache credits ONLY if Directus was successful
+                    # Update cache credits and last_opened ONLY if Directus was successful
                     final_cache_data["credits"] = new_total_credits_calculated
+                    final_cache_data["last_opened"] = "/chat/new" # Add last_opened to cache update
                     final_order_status = "completed"
-                    logger.info(f"Directus succeeded for user {user_id}, order {order_id}. Setting final cache credits to {new_total_credits_calculated}.")
+                    logger.info(f"Directus succeeded for user {user_id}, order {order_id}. Setting final cache credits to {new_total_credits_calculated} and last_opened to /chat/new.")
                 else:
                     # If Directus failed, DO NOT update the credits field in the cache.
-                    # The credits remain as they were when fetched at the start of the 'finally' block.
+                    # The credits and last_opened remain as they were when fetched at the start of the 'finally' block.
                     final_order_status = "failed_directus_update"
-                    logger.warning(f"Directus update failed for user {user_id}, order {order_id}. Final cache 'credits' field will NOT be updated.")
+                    logger.warning(f"Directus update failed for user {user_id}, order {order_id}. Final cache 'credits' and 'last_opened' fields will NOT be updated.")
 
                 # Save the final user cache state (flag cleared, credits updated only if successful)
                 final_save_success = await cache_service.set_user(final_cache_data, user_id=user_id)
