@@ -188,7 +188,7 @@ node_modules
 _backup
 
 # Vercel
-# .vercel
+.vercel
 .env*.local
 
 .deployment
