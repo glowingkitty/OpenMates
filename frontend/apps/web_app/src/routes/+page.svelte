@@ -36,21 +36,24 @@
         console.debug('[+page.svelte] isInSignupProcess:', $isInSignupProcess);
         console.debug('[+page.svelte] isLoggingOut:', $isLoggingOut);
         console.debug('[+page.svelte] isAuthInitialized:', isAuthInitialized);
-        console.debug('[+page.svelte] window.innerWidth >= MOBILE_BREAKPOINT:', typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT);
+        const isDesktop = typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT;
+        console.debug('[+page.svelte] isDesktop:', isDesktop);
 
         // Only proceed if auth state has been initialized
         if (isAuthInitialized) {
             if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut) {
+                console.debug('[+page.svelte] Authentication conditions met: Authenticated, not in signup, not logging out');
                 // Only open menu on desktop when authenticated and not in signup and not logging out
-                if (typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT) {
+                if (isDesktop) {
                     console.debug('[+page.svelte] Opening chat menu on desktop');
                     isMenuOpen.set(true);
                 } else {
-                    console.debug('[+page.svelte] Closing chat menu on mobile or due to other conditions');
+                    console.debug('[+page.svelte] Closing chat menu on mobile view');
                     isMenuOpen.set(false);
                 }
             } else {
-                console.debug('[+page.svelte] Closing chat menu due to not authenticated, in signup, or logging out');
+                console.debug('[+page.svelte] Authentication conditions NOT met: Closing chat menu');
+                console.debug('[+page.svelte] Condition breakdown: isAuthenticated:', $authStore.isAuthenticated, 'isInSignupProcess:', $isInSignupProcess, 'isLoggingOut:', $isLoggingOut);
                 isMenuOpen.set(false);
             }
         } else {
@@ -58,6 +61,12 @@
         }
     }
 
+    // Debugging reactive statement for menu condition
+    $: {
+        const menuCondition = $authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut;
+        console.debug('[+page.svelte] Menu condition ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut):', menuCondition);
+    }
+ 
     // Add state for initial load
     let isInitialLoad = true;
     let isAuthInitialized = false;
@@ -66,21 +75,32 @@
     let activeChat: ActiveChat | null = null;
 
     // Determine if the footer should be shown
-    $: showFooter = (!$isInSignupProcess && $authStore.isAuthenticated) || ($isInSignupProcess && $showSignupFooter);
+    // Determine if the footer should be shown
+    // Hide footer when authenticated and not in signup process
+    $: showFooter = $isInSignupProcess && $showSignupFooter;
 
     onMount(async () => {
+        console.debug('[+page.svelte] onMount started');
         // Initialize authentication state on app load
         await authStore.initialize();
+        console.debug('[+page.svelte] authStore.initialize() finished');
         isAuthInitialized = true;
-        
-        if (window.innerWidth < MOBILE_BREAKPOINT) {
+        console.debug('[+page.svelte] isAuthInitialized set to true');
+        console.debug('[+page.svelte] authStore.isAuthenticated after init:', $authStore.isAuthenticated);
+        console.debug('[+page.svelte] isInSignupProcess after init:', $isInSignupProcess);
+        console.debug('[+page.svelte] isLoggingOut after init:', $isLoggingOut);
+
+        if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) {
+            console.debug('[+page.svelte] Mobile view detected in onMount, closing menu');
             isMenuOpen.set(false);
         }
         
         // Remove initial load state after a small delay to ensure proper rendering
         setTimeout(() => {
+            console.debug('[+page.svelte] setTimeout for isInitialLoad finished');
             isInitialLoad = false;
         }, 100);
+        console.debug('[+page.svelte] onMount finished');
     });
 
     function handleLoginSuccess() {
