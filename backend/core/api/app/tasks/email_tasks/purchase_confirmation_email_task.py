@@ -263,7 +263,7 @@ async def _async_process_invoice_and_send_email(
             logger.info(f"Generating invoice PDF in user language '{user_language}' for invoice")
             try:
                 # Fetch translation for "invoice"
-                translations = await task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
+                translations = task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
                 # Safely get translation, default to "invoice"
                 invoice_translation = translations.get("invoices_and_credit_notes", {}).get("invoice", {}).get("text", "invoice")
                 invoice_translation_lower = invoice_translation.lower().replace(" ", "_") # Ensure lowercase and replace spaces
