@@ -193,9 +193,11 @@
 
         validationErrors = null;
         try {
-            console.debug(`[initializeCardField] Creating card field instance (environment inferred from token)...`);
-            // Environment is likely inferred from the orderToken itself. Remove the second argument.
-            const { createCardField } = await RevolutCheckout(orderToken);
+            // Determine the correct mode string ('prod' or 'sandbox') based on the fetched environment
+            const revolutMode = revolutEnvironment === 'production' ? 'prod' : 'sandbox';
+            console.debug(`[initializeCardField] Creating card field instance with mode: ${revolutMode}...`);
+            // Explicitly provide the correct mode ('prod' or 'sandbox') along with the orderToken
+            const { createCardField } = await RevolutCheckout(orderToken, revolutMode);
             cardFieldInstance = createCardField({
                 target: cardFieldTarget,
                 theme: darkmode ? 'dark' : 'light',
