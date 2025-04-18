@@ -76,8 +76,9 @@
 
     // Determine if the footer should be shown
     // Determine if the footer should be shown
-    // Hide footer when authenticated and not in signup process
-    $: showFooter = $isInSignupProcess && $showSignupFooter;
+    // Show footer when logged out OR in signup process with showSignupFooter true
+    // Hide footer when logged in and not in signup process
+    $: showFooter = !$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter);
 
     onMount(async () => {
         console.debug('[+page.svelte] onMount started');
@@ -90,8 +91,15 @@
         console.debug('[+page.svelte] isInSignupProcess after init:', $isInSignupProcess);
         console.debug('[+page.svelte] isLoggingOut after init:', $isLoggingOut);
 
-        if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) {
-            console.debug('[+page.svelte] Mobile view detected in onMount, closing menu');
+        // Set initial menu state based on authentication and view after initialization
+        const isDesktop = typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT;
+        console.debug('[+page.svelte] isDesktop in onMount:', isDesktop);
+
+        if ($authStore.isAuthenticated && !$isInSignupProcess && !isLoggingOut && isDesktop) {
+            console.debug('[+page.svelte] onMount: Authentication conditions met, opening chat menu on desktop');
+            isMenuOpen.set(true);
+        } else {
+            console.debug('[+page.svelte] onMount: Authentication conditions NOT met or mobile view, closing chat menu');
             isMenuOpen.set(false);
         }
         
