@@ -8,7 +8,9 @@
     import { fade, fly } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
     import ExpandableHeader from './ExpandableHeader.svelte';
-
+    import { MOBILE_BREAKPOINT } from '../../styles/constants';
+    import { isMenuOpen } from '../../stores/menuState';
+    
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
     import { settingsMenuVisible } from '../Settings.svelte';
@@ -288,6 +290,9 @@
                 updateProfile({ last_opened: '/chat/new' });
                 // Signal completion of signup process
                 isInSignupProcess.set(false);
+                if (window.innerWidth >= MOBILE_BREAKPOINT) {
+                    isMenuOpen.set(true);
+                }
                 // The reactive statements in +page.svelte and ActiveChat.svelte
                 // should handle the transition to the chat view when isInSignupProcess is false
                 console.debug("Transitioning to chat now.");

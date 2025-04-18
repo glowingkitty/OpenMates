@@ -121,7 +121,7 @@
 </div>
 
 <!-- Footer outside main content -->
-{#if !$isInSignupProcess || ($isInSignupProcess && $showSignupFooter)}
+{#if (!$isInSignupProcess && $authStore.isAuthenticated) || ($isInSignupProcess && $showSignupFooter)}
 <div class="footer-wrapper">
     <Footer metaKey="webapp" context="webapp" />
 </div>
