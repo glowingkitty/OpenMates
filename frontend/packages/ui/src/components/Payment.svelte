@@ -53,7 +53,7 @@
     let pollTimeoutId: number | null = null;
     let isPollingStopped = false;
     let userEmail: string | null = null;
-    let isInitializing = false; // Flag to prevent re-entrant initialization
+    // Removed isInitializing flag
 
     // Timeout for card payment submission (UI-level)
     let cardSubmitTimeoutId: number | null = null;
@@ -494,108 +494,94 @@
     // Watch payment state and return to form on failure
     // Removed: auto-reset of paymentState from 'failure' to 'idle' (no longer needed, as we set to 'idle' on error directly)
 
-    // --- Automatically load and initialize card field when payment form is shown ---
-    // Only initialize when form is visible, targets are set, and not already initializing
-    $: if (paymentState === 'idle' && !isInitializing && (cardFieldTarget || paymentRequestTargetElement)) {
-        isInitializing = true; // Set flag immediately
-        console.debug('[Reactive Trigger] Conditions met, starting initialization...');
-        tick().then(async () => {
-            try {
-                await autoInitPaymentMethods();
-            } finally {
-                isInitializing = false; // Clear flag when done or on error
-                console.debug('[Reactive Trigger] Initialization attempt finished.');
-            }
-        });
+    // --- Automatically load and initialize payment methods ---
+
+    // Reactive trigger for CardField initialization
+    $: if (cardFieldTarget && !cardFieldInstance && paymentState === 'idle') {
+        console.debug('[Reactive Trigger] CardField target available and instance missing. Scheduling init.');
+        tick().then(() => initializeIfNeeded());
     }
 
-    async function autoInitPaymentMethods() {
-        // Keep internal checks for safety, although the flag should prevent most re-entry
-        console.debug('[autoInitPaymentMethods] called', {
-            cardFieldTarget,
-            paymentRequestTargetElement,
-            cardFieldInstance,
-            paymentRequestInstance,
-            paymentState
-        });
-        // Only run if payment is idle and we have at least one target element
-        if (paymentState === 'idle' && (cardFieldTarget || paymentRequestTargetElement)) {
-            console.debug('[autoInitPaymentMethods] Conditions met, proceeding...');
+    // Reactive trigger for Payment Request Button initialization
+    // Also depends on the target element being bound from the child component
+    $: if (paymentRequestTargetElement && !paymentRequestInstance && paymentState === 'idle' && revolutEnvironment === 'production') {
+         console.debug('[Reactive Trigger] PaymentRequest target available, instance missing, and in production. Scheduling init.');
+         tick().then(() => initializeIfNeeded());
+    }
 
-            // 1. Fetch Config (if needed)
-            if (!revolutPublicKey) {
-                console.debug('[autoInitPaymentMethods] revolutPublicKey missing, calling fetchConfig...');
-                await fetchConfig();
-                if (!revolutPublicKey) {
-                    console.warn('[autoInitPaymentMethods] revolutPublicKey still missing after fetchConfig. Aborting.');
-                    return; // Stop if config fails
-                }
-                console.debug('[autoInitPaymentMethods] fetchConfig successful.');
-            }
+    // Central initialization function called by reactive triggers
+    async function initializeIfNeeded() {
+        console.debug('[initializeIfNeeded] Called.');
 
-            // 2. Create Order (if needed) - Create only ONCE per payment attempt cycle
-            let orderAvailable = !!orderToken;
-            if (!orderAvailable) {
-                console.debug('[autoInitPaymentMethods] orderToken missing, calling createOrder...');
-                const orderResult = await createOrder(); // createOrder now returns { success, publicId }
-                orderAvailable = orderResult && orderResult.success;
-                if (!orderAvailable) {
-                    console.warn('[autoInitPaymentMethods] Failed to create order. Aborting payment method initialization.');
-                    // Error message should be set by createOrder
-                    return; // Stop if order creation fails
-                }
-                 console.debug('[autoInitPaymentMethods] createOrder successful.');
-            } else {
-                 console.debug('[autoInitPaymentMethods] Existing orderToken found.');
-            }
-
-            // Ensure order is available before proceeding
-            if (!orderAvailable) {
-                 console.warn('[autoInitPaymentMethods] Order not available, cannot initialize payment methods.');
-                 return;
-            }
-
-            // Wait for any potential DOM updates after fetching/creating order
-            await tick();
-
-            // 3. Initialize Card Field (if target exists and not already initialized)
-            if (cardFieldTarget && !cardFieldInstance) {
-                console.debug('[autoInitPaymentMethods] Initializing Card Field...');
-                await initializeCardField(); // Uses the existing orderToken
-                console.debug('[autoInitPaymentMethods] Card Field initialization attempt complete.');
-            } else if (!cardFieldTarget) {
-                 console.debug('[autoInitPaymentMethods] No cardFieldTarget, skipping Card Field init.');
-            } else if (cardFieldInstance) {
-                 console.debug('[autoInitPaymentMethods] Card Field already initialized, skipping init.');
-            }
-
-
-            // 4. Initialize Payment Request Button (ONLY if in production environment, target exists, and not already initialized)
-            if (revolutEnvironment === 'production') {
-                if (paymentRequestTargetElement && !paymentRequestInstance) {
-                    console.debug('[autoInitPaymentMethods] Production environment detected. Initializing Payment Request Button...');
-                    await initializePaymentRequest(); // Uses public key, target, amount, currency
-                    console.debug('[autoInitPaymentMethods] Payment Request Button initialization attempt complete.');
-                } else if (!paymentRequestTargetElement) {
-                    console.debug('[autoInitPaymentMethods] Production environment, but no paymentRequestTargetElement. Skipping Payment Request init.');
-                } else if (paymentRequestInstance) {
-                    console.debug('[autoInitPaymentMethods] Production environment, but Payment Request Button already initialized. Skipping init.');
-                }
-            } else {
-                 console.debug(`[autoInitPaymentMethods] Sandbox environment detected (env: ${revolutEnvironment}). Skipping Payment Request Button initialization.`);
-                 // Ensure the button state is false if we skip initialization in sandbox
-                 showPaymentRequestButton = false;
-            }
-
-        } else {
-            console.debug('[autoInitPaymentMethods] Conditions not met. State:', {
-                paymentState,
-                cardFieldTarget: !!cardFieldTarget,
-                paymentRequestTargetElement: !!paymentRequestTargetElement,
-                cardFieldInstance: !!cardFieldInstance,
-                paymentRequestInstance: !!paymentRequestInstance
-            });
+        // Prevent initialization if not idle
+        if (paymentState !== 'idle') {
+            console.debug('[initializeIfNeeded] Aborting: Payment state is not idle.');
+            return;
         }
+
+        // 1. Fetch Config (if needed) - Do this first
+        if (!revolutPublicKey) {
+            console.debug('[initializeIfNeeded] revolutPublicKey missing, calling fetchConfig...');
+            await fetchConfig();
+            if (!revolutPublicKey) {
+                console.warn('[initializeIfNeeded] revolutPublicKey still missing after fetchConfig. Aborting initialization.');
+                // Error message should be set by fetchConfig
+                return;
+            }
+            console.debug('[initializeIfNeeded] fetchConfig successful.');
+        } else {
+             console.debug('[initializeIfNeeded] revolutPublicKey already available.');
+        }
+
+        // 2. Create Order (if needed) - Only create ONCE if token is missing
+        let orderAvailable = !!orderToken;
+        if (!orderAvailable) {
+            console.debug('[initializeIfNeeded] orderToken missing, calling createOrder...');
+            const orderResult = await createOrder(); // createOrder returns { success, publicId } or false
+            orderAvailable = orderResult && orderResult.success;
+            if (!orderAvailable) {
+                console.warn('[initializeIfNeeded] Failed to create order. Aborting further initialization.');
+                // Error message should be set by createOrder
+                return;
+            }
+             console.debug('[initializeIfNeeded] createOrder successful.');
+        } else {
+             console.debug('[initializeIfNeeded] Existing orderToken found.');
+        }
+
+        // Ensure order is available before proceeding
+        if (!orderAvailable || !orderToken) { // Double check orderToken specifically
+             console.warn('[initializeIfNeeded] Order token not available after check/creation. Aborting.');
+             return;
+        }
+
+        // Wait for any potential DOM updates after fetching/creating order
+        await tick();
+
+        // 3. Initialize Card Field (if target exists and instance not already created)
+        // Check instance *again* inside async function to prevent race conditions
+        if (cardFieldTarget && !cardFieldInstance) {
+            console.debug('[initializeIfNeeded] Initializing Card Field...');
+            await initializeCardField(); // Uses the existing orderToken
+            console.debug('[initializeIfNeeded] Card Field initialization attempt complete.');
+        } else {
+             console.debug('[initializeIfNeeded] Skipping Card Field init (target missing or instance exists).', { hasTarget: !!cardFieldTarget, hasInstance: !!cardFieldInstance });
+        }
+
+        // 4. Initialize Payment Request Button (if in production, target exists, and instance not already created)
+        // Check instance *again* inside async function
+        if (revolutEnvironment === 'production' && paymentRequestTargetElement && !paymentRequestInstance) {
+             console.debug('[initializeIfNeeded] Production environment. Initializing Payment Request Button...');
+             await initializePaymentRequest(); // Uses public key, target, amount, currency
+             console.debug('[initializeIfNeeded] Payment Request Button initialization attempt complete.');
+        } else {
+             console.debug('[initializeIfNeeded] Skipping Payment Request init (not production, target missing, or instance exists).', { isProd: revolutEnvironment === 'production', hasTarget: !!paymentRequestTargetElement, hasInstance: !!paymentRequestInstance });
+             // Ensure button state is false if we skip initialization
+             if (revolutEnvironment !== 'production') {
+                 showPaymentRequestButton = false;
+             }
+        }
+         console.debug('[initializeIfNeeded] Finished.');
     }
 
 
@@ -603,7 +589,8 @@
     onMount(() => {
         fetchUserEmail();
         // Initial call in case component mounts in idle state with targets ready
-        tick().then(() => autoInitPaymentMethods());
+        // Use the new function name here
+        tick().then(() => initializeIfNeeded());
         return () => {
             console.debug('[Payment.svelte] onDestroy cleanup');
             if (cardFieldInstance) {
