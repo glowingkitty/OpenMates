@@ -50,13 +50,13 @@
     let isButtonCooldown = false;
     let errorMessage: string | null = null;
     let validationErrors: string | null = null;
-    let pollTimeoutId: number | null = null;
+    let pollTimeoutId: any = null; // Changed type from number | null to any
     let isPollingStopped = false;
     let userEmail: string | null = null;
     let isInitializing = false; // Reintroduce the flag
 
     // Timeout for card payment submission (UI-level)
-    let cardSubmitTimeoutId: number | null = null;
+    let cardSubmitTimeoutId: any = null; // Changed type from number | null to any
 
     // CardField target from PaymentForm
     let cardFieldTarget: HTMLElement;
@@ -217,6 +217,7 @@
                     errorMessage = null;
                     validationErrors = null;
                     paymentState = 'processing';
+                    dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                     pollOrderStatus();
                 },
                 onError(error) {
@@ -229,6 +230,7 @@
                     errorMessage = error?.message ? error.message.replace(/\. /g, '.<br>') : 'Unknown error';
                     validationErrors = null;
                     paymentState = 'idle';
+                    dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                     isLoading = false;
                     isButtonCooldown = true;
                     setTimeout(() => {
@@ -319,6 +321,7 @@
                     errorMessage = null;
                     validationErrors = null;
                     paymentState = 'processing';
+                    dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                     // Ensure we have the lastOrderId from the createOrder call within paymentRequest
                     // If createOrder was successful, lastOrderId should be set.
                     if (lastOrderId) {
@@ -327,14 +330,16 @@
                         console.error('[paymentRequest.onSuccess] lastOrderId is missing after successful payment request. Cannot poll status.');
                         errorMessage = 'Payment successful, but status verification failed. Please check your account.';
                         paymentState = 'idle'; // Revert state if polling can't start
-                    }
-                },
+                        dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
+                        }
+                    },
                 onError(error) {
                     console.debug('[paymentRequest.onError] called', error);
                     // Similar to CardField error handling
                     errorMessage = error?.message ? error.message.replace(/\. /g, '.<br>') : 'Payment failed via Apple Pay/Google Pay.';
                     validationErrors = null; // Clear card validation errors
                     paymentState = 'idle';
+                    dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                     isLoading = false; // Ensure loading state is reset
                     isButtonCooldown = true; // Apply cooldown if needed
                     setTimeout(() => { isButtonCooldown = false; }, 2000);
@@ -409,6 +414,7 @@
                 const state = data.state;
                 if (typeof state === 'string' && state.toLowerCase() === 'completed') {
                     paymentState = 'success';
+                    dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                     errorMessage = null;
                     validationErrors = null;
                     orderToken = null;
@@ -427,6 +433,7 @@
                     return;
                 } else if (typeof state === 'string' && (state.toLowerCase() === 'failed' || state.toLowerCase() === 'cancelled')) {
                     paymentState = 'idle';
+                    dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                     errorMessage = 'Payment failed or was cancelled. Please try again.';
                     validationErrors = null;
                     orderToken = null;
@@ -444,6 +451,7 @@
                     } else if (!isPollingStopped) {
                         errorMessage = 'Payment processing timed out. Please check your order status later.';
                         paymentState = 'idle';
+                        dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                         validationErrors = null;
                         orderToken = null;
                         lastOrderId = null;
@@ -458,6 +466,7 @@
             } catch (err) {
                 errorMessage = `Error checking payment status: ${err instanceof Error ? err.message : String(err)}`;
                 paymentState = 'idle';
+                dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
                 validationErrors = null;
                 orderToken = null;
                 lastOrderId = null;
@@ -536,6 +545,7 @@
                  errorMessage = `Initialization failed: ${error instanceof Error ? error.message : String(error)}`;
                  // Ensure state is idle on failure
                  paymentState = 'idle';
+                 dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
             } finally {
                 console.debug('[Reactive Trigger] Clearing isInitializing flag.');
                 isInitializing = false; // Clear flag AFTER async work (or error)
@@ -661,6 +671,7 @@
         cardSubmitTimeoutId = setTimeout(() => {
             errorMessage = 'Payment could not be processed in time. Please try again.';
             paymentState = 'idle';
+            dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
             isLoading = false;
             // Clean up card field instance and order state
             if (cardFieldInstance) {
