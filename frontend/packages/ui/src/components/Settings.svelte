@@ -477,14 +477,10 @@ changes to the documentation (to keep the documentation up to date).
             isLoggingOut.set(false); // CRITICAL: Ensure isLoggingOut is always reset
             isCheckingAuth.set(false); // Ensure auth check state is also reset
             isInSignupProcess.set(false); // Ensure signup state is reset
-            console.debug("[Settings.svelte] Logout process finished (finally block).");
+            console.debug("[Settings.svelte] Logout process finished (finally block). isLoggingOut set to false.");
 
-            // Explicitly close menus in finally as a safeguard,
-            // though reactive logic should handle it.
-            if (isMenuVisible) {
-                toggleMenu(); // Close settings menu if open
-            }
-            // isMenuOpen is controlled in +page.svelte based on isLoggingOut/isAuthenticated
+            // REMOVED explicit menu closing. Rely solely on reactive logic in +page.svelte
+            // triggered by isLoggingOut changing from true to false.
         }
     }
 

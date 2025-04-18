@@ -45,49 +45,49 @@
     $: showFooter = !$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter);
 
     // *** Core Logic: Reactive Menu State ***
+
+    // Separate initial state setting from reactive updates
+    $: if (isAuthInitialized) {
+        // Set initial/default state for main menu *once* after auth is initialized
+        const shouldBeOpenByDefault = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
+        if (shouldBeOpenByDefault && !$isMenuOpen) {
+             // Check if it's not already open before setting
+             console.debug(`[+page.svelte] Setting initial main menu state to open.`);
+             // Use timeout to allow manual close to register first if clicked immediately on load
+             setTimeout(() => {
+                 // Re-check conditions in case state changed during timeout
+                 const stillShouldBeOpen = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
+                 if (stillShouldBeOpen && !$isMenuOpen) {
+                    isMenuOpen.set(true);
+                 }
+             }, 50); // Small delay
+        }
+    }
+
+    // Reactive block primarily for *closing* menus when state requires it
     $: {
         if (isAuthInitialized) {
-            // --- Main Menu (Activity History) Logic ---
-            const shouldBeOpenByDefault = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
             const mustBeClosed = !$authStore.isAuthenticated || $isInSignupProcess || $isLoggingOut || !isDesktop;
+            console.debug(`[+page.svelte] Reactive Close Check: Auth=${$authStore.isAuthenticated}, Signup=${$isInSignupProcess}, Logout=${$isLoggingOut}, Desktop=${isDesktop} => mustBeClosed=${mustBeClosed}`);
 
-            console.debug(`[+page.svelte] Reactive Main Menu Check: Auth=${$authStore.isAuthenticated}, Signup=${$isInSignupProcess}, Logout=${$isLoggingOut}, Desktop=${isDesktop} => shouldBeOpenByDefault=${shouldBeOpenByDefault}, mustBeClosed=${mustBeClosed}`);
-
-            if (mustBeClosed) {
-                // Force close if conditions require it
-                if ($isMenuOpen) {
-                    console.debug(`[+page.svelte] Reactively closing main menu because mustBeClosed is true.`);
-                    isMenuOpen.set(false);
-                }
-            } else if (shouldBeOpenByDefault) {
-                // Open by default if conditions allow AND it's currently closed
-                if (!$isMenuOpen) {
-                    console.debug(`[+page.svelte] Reactively opening main menu for default state.`);
-                    isMenuOpen.set(true);
-                }
+            // --- Main Menu (Activity History) ---
+            if (mustBeClosed && $isMenuOpen) {
+                console.debug(`[+page.svelte] Reactively closing main menu because mustBeClosed is true.`);
+                isMenuOpen.set(false);
             }
-            // If neither mustBeClosed nor shouldBeOpenByDefault apply (e.g., manually closed on desktop), do nothing.
 
-            // --- Settings Menu Logic ---
+            // --- Settings Menu ---
             // Close settings menu if main menu *must* be closed, or if user is not authenticated.
-            // Avoid closing it just because isMenuOpen is false (which could be temporary or manual).
             const settingsMustBeClosed = mustBeClosed || !$authStore.isAuthenticated;
             if (settingsMustBeClosed && $settingsMenuVisible) {
-                 console.debug(`[+page.svelte] Closing settings menu reactively because settingsMustBeClosed is true (Auth: ${$authStore.isAuthenticated}, Signup: ${$isInSignupProcess}, Logout: ${$isLoggingOut}, Desktop: ${isDesktop})`);
+                 console.debug(`[+page.svelte] Reactively closing settings menu because settingsMustBeClosed is true.`);
                  settingsMenuVisible.set(false);
             }
-
         } else {
-             console.debug('[+page.svelte] Reactive Menu Check: Skipping update, auth not initialized.');
-             // Ensure menu is closed initially on mobile before auth finishes
-             if (!isDesktop && $isMenuOpen) {
-                 console.debug('[+page.svelte] Closing menu on mobile (pre-auth)');
-                 isMenuOpen.set(false);
-             }
-             // Ensure settings menu is also closed pre-auth
-             if ($settingsMenuVisible) {
-                 settingsMenuVisible.set(false);
-             }
+             // Pre-Auth Initialization State
+             console.debug('[+page.svelte] Pre-Auth: Ensuring menus are closed.');
+             if ($isMenuOpen) isMenuOpen.set(false);
+             if ($settingsMenuVisible) settingsMenuVisible.set(false);
         }
     }
 
