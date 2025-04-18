@@ -279,12 +279,22 @@
             setTimeout(() => {
                 paymentState = 'idle';
             }, 500);
+        } else if (paymentState === 'success') { // Add success handling
+            console.debug("Payment successful, transitioning to chat in 2 seconds...");
+            // Introduce a 2-second delay before transitioning
+            setTimeout(() => {
+                // Signal completion of signup process
+                isInSignupProcess.set(false);
+                // The reactive statements in +page.svelte and ActiveChat.svelte
+                // should handle the transition to the chat view when isInSignupProcess is false
+                console.debug("Transitioning to chat now.");
+            }, 2000); // 2000 milliseconds = 2 seconds
         }
     }
 
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
-        currentStep === 1 
+        currentStep === 1
             ? (!isInviteCodeValidated ? routes.docs.userGuide_signup_1a : routes.docs.userGuide_signup_1b)
             : currentStep === 10
                 ? (showingPaymentForm ? routes.docs.userGuide_signup_10_2 : routes.docs.userGuide_signup_10_1)

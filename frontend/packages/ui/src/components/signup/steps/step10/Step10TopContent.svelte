@@ -54,11 +54,6 @@ step_10_top_content_svelte:
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
-    function handlePayment(event) {
-        // Forward the payment event to the parent component
-        dispatch('payment', event.detail);
-    }
-    
     function handleConsent(event) {
         // Forward consent event to parent component
         dispatch('consentGiven', event.detail);
@@ -107,7 +102,6 @@ step_10_top_content_svelte:
                     initialState={isGift ? 'success' : 'idle'}
                     {isGift}
                     on:consentGiven={handleConsent}
-                    on:payment={handlePayment}
                     on:openRefundInfo={handleOpenRefundInfo}
                     on:paymentStateChange={handlePaymentStateChange}
                 />
