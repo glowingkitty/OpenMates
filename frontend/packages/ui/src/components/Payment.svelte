@@ -53,7 +53,8 @@
     let pollTimeoutId: number | null = null;
     let isPollingStopped = false;
     let userEmail: string | null = null;
-    
+    let isInitializing = false; // Flag to prevent re-entrant initialization
+
     // Timeout for card payment submission (UI-level)
     let cardSubmitTimeoutId: number | null = null;
 
@@ -494,12 +495,22 @@
     // Removed: auto-reset of paymentState from 'failure' to 'idle' (no longer needed, as we set to 'idle' on error directly)
 
     // --- Automatically load and initialize card field when payment form is shown ---
-    // Only initialize when form is visible and targets are set
-    $: if (paymentState === 'idle' && (cardFieldTarget || paymentRequestTargetElement)) {
-        tick().then(() => autoInitPaymentMethods());
+    // Only initialize when form is visible, targets are set, and not already initializing
+    $: if (paymentState === 'idle' && !isInitializing && (cardFieldTarget || paymentRequestTargetElement)) {
+        isInitializing = true; // Set flag immediately
+        console.debug('[Reactive Trigger] Conditions met, starting initialization...');
+        tick().then(async () => {
+            try {
+                await autoInitPaymentMethods();
+            } finally {
+                isInitializing = false; // Clear flag when done or on error
+                console.debug('[Reactive Trigger] Initialization attempt finished.');
+            }
+        });
     }
 
     async function autoInitPaymentMethods() {
+        // Keep internal checks for safety, although the flag should prevent most re-entry
         console.debug('[autoInitPaymentMethods] called', {
             cardFieldTarget,
             paymentRequestTargetElement,
