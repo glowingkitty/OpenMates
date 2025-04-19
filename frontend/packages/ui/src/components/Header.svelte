@@ -9,9 +9,9 @@
     import { isMenuOpen } from '../stores/menuState';
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
-    import { panelState } from '../stores/panelStateStore'; // Import panel state
+    import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
-   
+
     export let context: 'website' | 'webapp' = 'website';
     export let isLoggedIn = false;
 
@@ -180,11 +180,12 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView}
+                    <!-- {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView && !$panelState.isActivityHistoryOpen} -->
+                    {#if context === 'webapp' && !$panelState.isActivityHistoryOpen}
                         <div transition:slideFade={{ duration: 200 }}>
-                            <button 
+                            <button
                                 class="clickable-icon icon_menu"
-                                on:click={toggleMenu}
+                                on:click={panelState.toggleActivityHistory}
                                 aria-label={$text('header.toggle_menu.text')}
                             ></button>
                         </div>
