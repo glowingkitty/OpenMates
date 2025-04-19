@@ -3,36 +3,35 @@
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { text } from '@repo/ui';
-    import { authStore, isCheckingAuth } from '../stores/authStore';
-    import { panelState } from '../stores/panelStateStore';
-    import { isMobileView } from '../stores/uiStateStore';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
-    import { userProfile } from '../stores/userProfile';
-    import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // Keep for potential deep link handling here
-    import { settingsNavigationStore } from '../stores/settingsNavigationStore'; // Keep for navigation state
+    import { authStore, isCheckingAuth } from '../../stores/authStore';
+    import { panelState } from '../../stores/panelStateStore';
+    import { isMobileView } from '../../stores/uiStateStore';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../../stores/signupState';
+    import { userProfile } from '../../stores/userProfile';
+    import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // Keep for potential deep link handling here
+    import { settingsNavigationStore } from '../../stores/settingsNavigationStore'; // Keep for navigation state
 
     import { createEventDispatcher, type SvelteComponent } from 'svelte'; // Added SvelteComponent
     const dispatch = createEventDispatcher();
 
     // Import modular components
-    import SettingsFooter from './settings/SettingsFooter.svelte'; // Keep if footer is part of content area
-    import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
+    import CurrentSettingsPage from './CurrentSettingsPage.svelte';
 
     // Import all settings components
-    import SettingsInterface from './settings/SettingsInterface.svelte';
-    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
-    import SettingsUser from './settings/SettingsUser.svelte';
-    import SettingsUsage from './settings/SettingsUsage.svelte';
-    import SettingsBilling from './settings/SettingsBilling.svelte';
-    import SettingsApps from './settings/SettingsApps.svelte';
-    import SettingsMates from './settings/SettingsMates.svelte';
-    import SettingsShared from './settings/SettingsShared.svelte';
-    import SettingsMessengers from './settings/SettingsMessengers.svelte';
-    import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
-    import SettingsServer from './settings/SettingsServer.svelte';
-    import SettingsItem from './SettingsItem.svelte';
-    import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
-    import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
+    import SettingsInterface from './SettingsInterface.svelte';
+    import SettingsPrivacy from './SettingsPrivacy.svelte';
+    import SettingsUser from './SettingsUser.svelte';
+    import SettingsUsage from './SettingsUsage.svelte';
+    import SettingsBilling from './SettingsBilling.svelte';
+    import SettingsApps from './SettingsApps.svelte';
+    import SettingsMates from './SettingsMates.svelte';
+    import SettingsShared from './SettingsShared.svelte';
+    import SettingsMessengers from './SettingsMessengers.svelte';
+    import SettingsDevelopers from './SettingsDevelopers.svelte';
+    import SettingsServer from './SettingsServer.svelte';
+    import SettingsItem from '../SettingsItem.svelte';
+    import SettingsLanguage from './interface/SettingsLanguage.svelte';
+    import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
 
     // State for toggles (These might be better in a separate store or passed down)
     let isTeamEnabled = true;
@@ -259,9 +258,6 @@
     {/key}
 </div>
 
-<!-- Settings Footer Component (This should be in Settings.svelte or passed down) -->
-<!-- <SettingsFooter /> -->
-
 <style>
     .settings-content {
         display: flex;
@@ -299,10 +295,6 @@
 
     .settings-content::-webkit-scrollbar-thumb:hover {
         background-color: rgba(128, 128, 128, 0.7);
-    }
-
-    .settings-view {
-        /* Styles for the transitioning views */
     }
 
     .main-settings-view {

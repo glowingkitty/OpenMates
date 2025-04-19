@@ -3,10 +3,10 @@
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { text } from '@repo/ui';
-    import { panelState } from '../stores/panelStateStore';
-    import { getWebsiteUrl, routes } from '../config/links';
-    import { tooltip } from '../actions/tooltip';
-    import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+    import { panelState } from '../../stores/panelStateStore';
+    import { getWebsiteUrl, routes } from '../../config/links';
+    import { tooltip } from '../../actions/tooltip';
+    import { settingsNavigationStore } from '../../stores/settingsNavigationStore';
 
     // Variables for breadcrumb and navigation
     let navigationPath: string[] = [];
@@ -296,7 +296,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="nav-button right help-button"
-            aria-label={$text('settings.help.text')}
+            aria-label={$text('documentation.open_documentation.text')}
             use:tooltip
         >
             <span class="icon icon_help"></span>
@@ -304,7 +304,7 @@
          <button
             class="nav-button right close-button"
             on:click={handleCloseMenu}
-            aria-label={$text('settings.close.text')}
+            aria-label={$text('activity.close.text')}
             use:tooltip
         >
             <span class="icon icon_close"></span>

@@ -9,8 +9,9 @@
     import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
     import { userProfile } from '../stores/userProfile';
     // Import the new components
-    import SettingsHeader from './SettingsHeader.svelte';
-    import SettingsContent from './SettingsContent.svelte';
+    import SettingsHeader from './settings/SettingsHeader.svelte';
+    import SettingsContent from './settings/SettingsContent.svelte';
+    import SettingsFooter from './settings/SettingsFooter.svelte';
 
     // Props for user and team information
     export let isLoggedIn = false;
@@ -117,15 +118,14 @@
 
 <div class="settings-container" class:signup-mode={isInSignupMode}>
     {#if showSettingsIcon}
-        <div
+        <button
+            type="button"
             class="profile-container"
             class:active={$panelState.isSettingsOpen}
             on:click={toggleMenu}
-            role="button"
-            tabindex="0"
             aria-haspopup="true"
             aria-expanded={$panelState.isSettingsOpen}
-            aria-label={$text('settings.toggle_settings_menu.text')}
+            aria-label={$text('settings.open_settings_menu.text')}
         >
             {#if $userProfile.profile_image_url}
                 <img src={$userProfile.profile_image_url} alt="Profile" class="profile-image" />
@@ -134,7 +134,7 @@
                     <span class="icon icon_user"></span>
                 </div>
             {/if}
-        </div>
+        </button>
     {/if}
 
     {#if $panelState.isSettingsOpen}
@@ -147,13 +147,8 @@
             aria-labelledby="settings-menu-title"
         >
             <SettingsHeader on:navigateSettings={handleNavigateSettings} on:closeSettings={panelState.closeSettings} />
-            <SettingsHeader />
-
-            <SettingsContent {activeSettingsView} {direction} on:navigateSettings={handleNavigateSettings} on:quickSettingToggled={handleQuickSettingToggled} />
-            <SettingsContent />
-
-            <!-- Settings Footer Component (remains in Settings.svelte for now, will move later) -->
-            <!-- <SettingsFooter /> -->
+            <SettingsContent on:navigateSettings={handleNavigateSettings} on:quickSettingToggled={handleQuickSettingToggled} />
+            <SettingsFooter />
         </div>
     {/if}
 </div>
