@@ -150,7 +150,7 @@ async def request_confirm_email_code(
 
         # Send the task with explicit task name
         task = celery_app.send_task(
-            name='app.tasks.email_tasks.generate_and_send_verification_email',
+            name='app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email',
             kwargs={
                 'email': email_request.email,
                 'invite_code': invite_code,

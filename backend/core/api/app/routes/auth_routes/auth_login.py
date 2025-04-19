@@ -412,7 +412,7 @@ async def login(
                     if decrypted_email:
                         logger.info(f"Dispatching backup code used email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***)")
                         app.send_task(
-                            name='app.tasks.email_tasks.send_backup_code_used_email',
+                            name='app.tasks.email_tasks.backup_code_email_task.send_backup_code_used_email',
                             kwargs={
                                 'email_address': decrypted_email,
                                 'anonymized_code': anonymized_code,
@@ -579,9 +579,8 @@ async def finalize_login_session(
                 if decrypted_email:
                     logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) with location data.")
                     app.send_task(
-                        name='app.tasks.email_tasks.send_new_device_email',
+                        name='app.tasks.email_tasks.new_device_email_task.send_new_device_email',
                         kwargs={
-                            # 'user_id': user_id, # Removed user_id
                             'email_address': decrypted_email, # Pass decrypted email
                             'user_agent_string': user_agent_string,
                             'ip_address': client_ip,

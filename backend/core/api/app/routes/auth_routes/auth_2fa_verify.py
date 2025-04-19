@@ -189,7 +189,7 @@ async def verify_device_2fa(
 
                     logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) via device verification flow.")
                     app.send_task(
-                        name='app.tasks.email_tasks.send_new_device_email',
+                        name='app.tasks.email_tasks.new_device_email_task.send_new_device_email',
                         kwargs={
                             'email_address': decrypted_email,
                             'user_agent_string': user_agent_string,
