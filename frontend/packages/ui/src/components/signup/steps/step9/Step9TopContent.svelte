@@ -58,17 +58,16 @@ step_9_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { settingsMenuVisible } from '../../../Settings.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
-    import { isMobileView } from '../../../Settings.svelte';
+    import { panelState } from '../../../../stores/panelStateStore'; // Added panelState import
     
     function openAppSettings() {
         // First set the deep link path
         settingsDeepLink.set('apps');
         
-        // Then make sure menu is visible with a slight delay
+        // Then make sure menu is visible using panelState with a slight delay
         setTimeout(() => {
-            settingsMenuVisible.set(true);
+            panelState.openSettings();
         }, 10);
     }
 </script>

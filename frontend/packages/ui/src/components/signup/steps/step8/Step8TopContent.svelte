@@ -47,9 +47,9 @@ step_8_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { settingsMenuVisible } from '../../../Settings.svelte';
     import SettingsItem from '../../../SettingsItem.svelte';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
+    import { panelState } from '../../../../stores/panelStateStore'; // Added panelState import
     
     // Track toggle states for the settings items
     let matesToggleOn = true;
@@ -60,9 +60,9 @@ step_8_top_content_svelte:
     
     // Handler for settings item clicks
     function handleSettingsClick(settingsPath: string) {
-        // If same item is clicked and settings are visible, close the menu
-        if (activeSettingsPath === settingsPath && $settingsMenuVisible) {
-            settingsMenuVisible.set(false);
+        // If same item is clicked and settings are visible, close the menu using panelState
+        if (activeSettingsPath === settingsPath && $panelState.isSettingsOpen) {
+            panelState.closeSettings();
             activeSettingsPath = null;
             // Reset the toggle to true when closing
             if (settingsPath === 'mates') matesToggleOn = true;
@@ -81,14 +81,14 @@ step_8_top_content_svelte:
         // First set the deep link path to navigate to specific settings
         settingsDeepLink.set(settingsPath);
         
-        // Then make sure menu is visible
+        // Then make sure menu is visible using panelState
         setTimeout(() => {
-            settingsMenuVisible.set(true);
+            panelState.openSettings();
         }, 10);
     }
     
-    // Watch the settingsMenuVisible store to reset state when menu is closed externally
-    $: if (!$settingsMenuVisible) {
+    // Watch the panelState store to reset state when menu is closed externally
+    $: if (!$panelState.isSettingsOpen) {
         // Reset the active settings path when the menu is closed
         activeSettingsPath = null;
         // Reset toggle states to default (ON)
