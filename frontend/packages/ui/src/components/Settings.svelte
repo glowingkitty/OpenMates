@@ -3,7 +3,6 @@
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { text } from '@repo/ui';
-    import { authStore, isCheckingAuth } from '../stores/authStore';
     import { panelState } from '../stores/panelStateStore';
     import { isMobileView } from '../stores/uiStateStore';
     import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
@@ -164,6 +163,7 @@
     }
 
     .profile-container {
+        all: unset;
         width: 57px;
         height: 57px;
         border-radius: 50%;
