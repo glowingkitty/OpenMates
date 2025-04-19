@@ -181,7 +181,7 @@
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
                     <!-- {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView && !$panelState.isActivityHistoryOpen} -->
-                    {#if context === 'webapp' && !$panelState.isActivityHistoryOpen}
+                    {#if context === 'webapp' && isLoggedIn && !$panelState.isActivityHistoryOpen}
                         <div transition:slideFade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"
