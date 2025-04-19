@@ -2,25 +2,28 @@
     import { get } from 'svelte/store';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
-    import { text } from '@repo/ui';
+    import { text } from '@repo/ui'; // Reverted to original import path based on feedback
     import { panelState } from '../../stores/panelStateStore';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { tooltip } from '../../actions/tooltip';
     import { settingsNavigationStore } from '../../stores/settingsNavigationStore';
 
-    // Variables for breadcrumb and navigation
+    // --- Props ---
+    export let activeSettingsView: string = 'main';
+    export let activeSubMenuIcon: string = '';
+    export let activeSubMenuTitle: string = '';
+
+    // --- Internal State ---
     let navigationPath: string[] = [];
     let breadcrumbLabel = $text('settings.settings.text');
     let fullBreadcrumbLabel = '';
     let shortBreadcrumbLabel = '';
     let navButtonElement;
-    let showSubmenuInfo = false;
-    let navButtonLeft = false;
-    let activeSubMenuIcon = '';
-    let activeSubMenuTitle = '';
-    let direction = 'forward';
+    let showSubmenuInfo = false; // Derived from activeSettingsView
+    let navButtonLeft = false; // Derived from activeSettingsView
+    // let direction = 'forward'; // Direction is managed by parent
 
-    // Get help link from routes
+    // --- Constants ---
     const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
     let currentHelpLink = baseHelpLink;
 
@@ -123,113 +126,59 @@
         }
     }
 
-    // Function to set active settings view with transitions (This will likely need to dispatch an event up)
-    function handleOpenSettings(event) {
-        const { settingsPath, direction: newDirection, icon, title } = event.detail;
-        direction = newDirection;
-
-        // Update the active view (This state should probably live higher up, maybe in Settings.svelte or a store)
-        // For now, we'll update local state and dispatch an event
-        // activeSettingsView = settingsPath; // Local state - might remove later
-        activeSubMenuIcon = icon || '';
-        activeSubMenuTitle = title || '';
-
-        // Split the view path for breadcrumb navigation
-        if (settingsPath !== 'main') {
-            navigationPath = settingsPath.split('/');
-            updateBreadcrumbLabel();
-        } else {
-            navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
-        }
-
-        // Reset submenu info visibility
-        showSubmenuInfo = false;
-        navButtonLeft = false;
-
-        // Update help link based on the active settings view
-        if (settingsPath !== 'main') {
-            // Handle nested paths in help links (replace / with -)
-            const helpPath = settingsPath.replace('/', '-');
-            currentHelpLink = `${baseHelpLink}/${helpPath}`;
-            navButtonLeft = true;
-
-            // Show left navigation and submenu info immediately for smooth transition
-            showSubmenuInfo = true;
-        } else {
-            // Reset to base help link when returning to main view
-            currentHelpLink = baseHelpLink;
-        }
-
-        // Dispatch event to parent to handle view change and profile container class
-        dispatch('navigateSettings', { settingsPath, direction, icon, title });
+    // Dispatch navigation events UP to Settings.svelte
+    function dispatchNavigate(settingsPath: string, direction: 'forward' | 'backward', icon?: string, title?: string) {
+        dispatch('navigate', { settingsPath, direction, icon, title });
     }
 
-    // Enhanced back navigation - handle both main and nested views (This will likely need to dispatch an event up)
-    function backToMainView() {
+    // Handle back button click
+    function goBack() {
         if (navigationPath.length > 1) {
-            // If we're in a nested view, go back one level
+            // Go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
-
-            direction = 'backward';
-            handleOpenSettings({
-                detail: {
-                    settingsPath: previousPath,
-                    direction: 'backward',
-                    icon: navigationPath[0], // Use the first part as the icon
-                    title: $text(`settings.${navigationPath[0]}.text`)
-                }
-            });
+            const parentIcon = navigationPath[0]; // Icon of the parent section
+            const parentTitle = $text(`settings.${parentIcon}.text`);
+            dispatchNavigate(previousPath, 'backward', parentIcon, parentTitle);
         } else {
-            // If we're at the first level, go back to main
-            direction = 'backward';
-            // activeSettingsView = 'main'; // Local state - might remove later
-            showSubmenuInfo = false;
-            navButtonLeft = false;
-            navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
-
-            // Reset help link to base when returning to main view
-            currentHelpLink = baseHelpLink;
-
-            // Dispatch event to parent to handle view change and profile container class
-            dispatch('navigateSettings', { settingsPath: 'main', direction: 'backward' });
+            // Go back to main view
+            dispatchNavigate('main', 'backward');
         }
     }
 
-    // Need to dispatch close event to parent (Settings.svelte)
+    // Dispatch close event UP to Settings.svelte
     import { createEventDispatcher, onMount } from 'svelte';
     const dispatch = createEventDispatcher();
 
     function handleCloseMenu() {
         panelState.closeSettings();
         // Also need to reset internal view state when closing
-        resetInternalViewState();
+        // No need to reset internal state here, parent handles it
         dispatch('closeSettings'); // Dispatch event to parent
     }
 
-    // Helper function to reset internal view state when menu closes
-    function resetInternalViewState() {
-        // Reset the active view to main when closing the menu
-        // activeSettingsView = 'main'; // Local state - might remove later
-        navigationPath = [];
-        breadcrumbLabel = $text('settings.settings.text');
-        fullBreadcrumbLabel = '';
-        shortBreadcrumbLabel = '';
-        showSubmenuInfo = false;
-        navButtonLeft = false;
+    // --- Reactive Updates ---
 
-        // Reset help link to base
-        currentHelpLink = baseHelpLink;
-
-        // Scroll to top when going back to main view (This should be handled by SettingsContent)
-        // if (settingsContentElement) {
-        //     settingsContentElement.scrollTop = 0;
-        // }
+    // Update internal state based on activeSettingsView prop
+    $: {
+        if (activeSettingsView !== 'main') {
+            navigationPath = activeSettingsView.split('/');
+            updateBreadcrumbLabel();
+            const helpPath = activeSettingsView.replace('/', '-');
+            currentHelpLink = `${baseHelpLink}/${helpPath}`;
+            navButtonLeft = true;
+            showSubmenuInfo = true;
+        } else {
+            // Reset when back to main view
+            navigationPath = [];
+            breadcrumbLabel = $text('settings.settings.text');
+            fullBreadcrumbLabel = breadcrumbLabel; // Reset full label
+            currentHelpLink = baseHelpLink;
+            navButtonLeft = false;
+            showSubmenuInfo = false;
+        }
     }
 
-
-    // Setup listeners
+    // Setup listeners for resize and language change
     onMount(() => {
         window.addEventListener('resize', handleResize); // Keep for breadcrumb updates
 
@@ -268,7 +217,7 @@
         {#if navButtonLeft}
             <button
                 class="nav-button left"
-                on:click={backToMainView}
+                on:click={goBack}
                 aria-label={$text('settings.back.text')}
                 bind:this={navButtonElement}
             >

@@ -11,10 +11,21 @@
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // Keep for potential deep link handling here
     import { settingsNavigationStore } from '../../stores/settingsNavigationStore'; // Keep for navigation state
 
-    import { createEventDispatcher, type SvelteComponent } from 'svelte'; // Added SvelteComponent
-    const dispatch = createEventDispatcher();
+    import { createEventDispatcher, type SvelteComponent, onMount } from 'svelte'; // Added SvelteComponent, onMount
+    const dispatch = createEventDispatcher<{
+        navigate: { settingsPath: string; direction: 'forward' | 'backward'; icon?: string; title?: string };
+        toggleQuickSetting: { toggleName: string; isChecked: boolean };
+        logout: void;
+    }>();
 
-    // Import modular components
+    // --- Props ---
+    export let activeSettingsView: string = 'main';
+    export let direction: 'forward' | 'backward' = 'forward';
+    export let isTeamEnabled: boolean = true; // Bindable prop
+    export let isIncognitoEnabled: boolean = false; // Bindable prop
+    export let isGuestEnabled: boolean = false; // Bindable prop
+
+    // --- Imports ---
     import CurrentSettingsPage from './CurrentSettingsPage.svelte';
 
     // Import all settings components
@@ -33,14 +44,10 @@
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
 
-    // State for toggles (These might be better in a separate store or passed down)
-    let isTeamEnabled = true;
-    let isIncognitoEnabled = false;
-    let isGuestEnabled = false;
-    // Removed isOfflineEnabled as it's not used and will be removed from template
+    // Removed local toggle state, using props now
 
-    // Add reference to settings content element
-    let settingsContentElement;
+    // --- Refs ---
+    let settingsContentElement: HTMLDivElement;
 
     // Define base settingsViews map for component mapping
     const allSettingsViews: Record<string, any> = {
@@ -68,13 +75,11 @@
         return filtered;
     }, {} as Record<string, typeof SvelteComponent>); // Corrected type assertion
 
-    // State to track active submenu view (This state should likely be managed higher up or in a store)
-    let activeSettingsView = 'main';
-    let direction = 'forward'; // Keep direction for transitions
+    // Removed local activeSettingsView and direction state, using props now
 
-    // Add reference for content height calculation
-    let menuItemsCount = 0;
-    let calculatedContentHeight = 0;
+    // --- Internal State ---
+    let menuItemsCount = 0; // Used for footer height calculation, keep internal
+    let calculatedContentHeight = 0; // Derived internal state
 
     // Calculate the content height based on the number of menu items
     $: {
@@ -83,93 +88,26 @@
         calculatedContentHeight = baseHeight + (menuItemsCount * itemHeight);
     }
 
-    // Function to set active settings view with transitions (This will need to receive events from header/items)
-    // This function should update the activeSettingsView state
-    function handleNavigateSettings(event) {
-         const { settingsPath, direction: newDirection } = event.detail;
-         direction = newDirection;
-         activeSettingsView = settingsPath;
+    // --- Event Handlers ---
 
-         // Scroll to the top of the settings content when navigating
-         if (settingsContentElement) {
-             settingsContentElement.scrollTo({
-                 top: 0,
-                 behavior: 'smooth'
-             });
-         }
+    // Dispatch navigation events UP to Settings.svelte
+    function dispatchNavigate(settingsPath: string, direction: 'forward' | 'backward', icon?: string, title?: string) {
+        dispatch('navigate', { settingsPath, direction, icon, title });
+        // Scroll is handled by #key block below
     }
 
-
-    // Handler for quicksettings menu item clicks (This should dispatch an event up)
-    function handleQuickSettingClick(event) {
-        const { toggleName } = event.detail;
-
-        switch(toggleName) {
-            case 'team':
-                isTeamEnabled = !isTeamEnabled;
-                // teamEnabled.set(isTeamEnabled); // This should be handled by a store or parent
-                break;
-            case 'incognito':
-                isIncognitoEnabled = !isIncognitoEnabled;
-                break;
-            case 'guest':
-                isGuestEnabled = !isGuestEnabled;
-                break;
-            // Removed offline case
-        }
-        // Dispatch event to parent
-        dispatch('quickSettingToggled', { toggleName, isChecked: event.detail.isChecked });
+    // Dispatch quick setting toggle events UP to Settings.svelte
+    function dispatchToggleQuickSetting(toggleName: string, isChecked: boolean) {
+        dispatch('toggleQuickSetting', { toggleName, isChecked });
     }
 
-    // Handler for logout (This should dispatch an event up)
-    async function handleLogout() {
-        // Dispatch event to parent to handle logout logic
-        // dispatch('logout');
-        try {
-            isLoggingOut.set(true);
-            isInSignupProcess.set(false); // Ensure signup process is exited
-
-            await authStore.logout({
-                beforeServerLogout: () => {
-                    isCheckingAuth.set(false); // Ensure auth check stops
-                    // Rely on reactive block in +page.svelte triggered by isLoggingOut=true
-                },
-                afterServerLogout: async () => {
-                    // Reset scroll position after successful logout actions
-                    if (settingsContentElement) {
-                        settingsContentElement.scrollTop = 0;
-                    }
-                }
-            });
-
-            console.debug("[SettingsContent.svelte] Logout successful.");
-
-        } catch (error) {
-            console.error('[SettingsContent.svelte] Error during logout:', error);
-            // Error handling: Log error, UI state reset happens in finally block.
-            // Do NOT call authStore.logout() again here.
-        } finally {
-            // This block executes whether the try block succeeded or failed.
-            isLoggingOut.set(false); // CRITICAL: Ensure isLoggingOut is always reset
-            isCheckingAuth.set(false); // Ensure auth check state is also reset
-            isInSignupProcess.set(false); // Ensure signup state is reset
-            console.debug("[SettingsContent.svelte] Logout process finished (finally block). isLoggingOut set to false.");
-
-            // REMOVED explicit menu closing. Rely solely on reactive logic in +page.svelte
-            // triggered by isLoggingOut changing from true to false.
-        }
+    // Dispatch logout event UP to Settings.svelte
+    function dispatchLogout() {
+        dispatch('logout');
     }
 
-    // Need to handle receiving navigation events from SettingsHeader
-    // Need to handle receiving quick setting toggle events from SettingsItem
-    // Need to handle receiving logout event from logout button
-
-    // Lifecycle hook for potential deep link handling or initial view setting
-    import { onMount } from 'svelte';
-    onMount(() => {
-        // TODO: Handle deep links here if this component is responsible
-        // Example: Check window.location.hash and call handleNavigateSettings
-    });
+    // --- Lifecycle ---
+    // No onMount needed for deep links here, handled by parent
 
 </script>
 
@@ -204,21 +142,21 @@
                             title={$text('settings.team.text')}
                             hasToggle={true}
                             bind:checked={isTeamEnabled}
-                            on:toggle={() => handleQuickSettingClick({ detail: { toggleName: 'team', isChecked: isTeamEnabled } })}
+                            on:toggle={(e) => dispatchToggleQuickSetting('team', e.detail)}
                         />
                         <SettingsItem
                             icon="icon_incognito"
                             title={$text('settings.incognito.text')}
                             hasToggle={true}
                             bind:checked={isIncognitoEnabled}
-                            on:toggle={() => handleQuickSettingClick({ detail: { toggleName: 'incognito', isChecked: isIncognitoEnabled } })}
+                            on:toggle={(e) => dispatchToggleQuickSetting('incognito', e.detail)}
                         />
                         <SettingsItem
                             icon="icon_guest"
                             title={$text('settings.guest.text')}
                             hasToggle={true}
                             bind:checked={isGuestEnabled}
-                            on:toggle={() => handleQuickSettingClick({ detail: { toggleName: 'guest', isChecked: isGuestEnabled } })}
+                            on:toggle={(e) => dispatchToggleQuickSetting('guest', e.detail)}
                         />
                         <!-- Removed Offline Quick Setting -->
                     </div>
@@ -229,14 +167,14 @@
                                 <SettingsItem
                                     icon={`icon_${key}`}
                                     title={$text(`settings.${key}.text`)}
-                                    on:click={() => handleNavigateSettings({ detail: { settingsPath: key, direction: 'forward', icon: key, title: $text(`settings.${key}.text`) } })}
+                                    on:click={() => dispatchNavigate(key, 'forward', key, $text(`settings.${key}.text`))}
                                 />
                             {/if}
                         {/each}
                     </div>
 
                     <div class="logout-section">
-                        <button class="logout-button" on:click={handleLogout}>
+                        <button class="logout-button" on:click={dispatchLogout}>
                             <span class="icon icon_logout"></span>
                             {$text('settings.logout.text')}
                         </button>
@@ -251,7 +189,7 @@
                     settingsViews={settingsViews}
                     isIncognitoEnabled={isIncognitoEnabled}
                     isGuestEnabled={isGuestEnabled}
-                    on:openSettings={handleNavigateSettings}
+                    on:openSettings={(e) => dispatchNavigate(e.detail.settingsPath, e.detail.direction, e.detail.icon, e.detail.title)}
                 />
             {/if}
         </div>
