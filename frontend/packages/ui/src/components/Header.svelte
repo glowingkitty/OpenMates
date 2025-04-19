@@ -9,7 +9,9 @@
     import { isMenuOpen } from '../stores/menuState';
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
-
+    import { panelState } from '../stores/panelStateStore'; // Import panel state
+    import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
+   
     export let context: 'website' | 'webapp' = 'website';
     export let isLoggedIn = false;
 
@@ -178,7 +180,7 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    {#if context === 'webapp' && isLoggedIn && (isMobile || !$isMenuOpen) && !$isInSignupProcess && !$isLoggingOut}
+                    {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView}
                         <div transition:slideFade={{ duration: 200 }}>
                             <button 
                                 class="clickable-icon icon_menu"
@@ -195,7 +197,7 @@
                         <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
                     </a>
                 </div>
-
+                  
                 {#if showNavLinks && (context !== 'webapp' || isLoggedIn)}
                     <!-- Mobile menu button only shown for website -->
                     {#if context === 'website'}

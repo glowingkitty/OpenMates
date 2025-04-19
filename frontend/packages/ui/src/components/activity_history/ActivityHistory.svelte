@@ -220,16 +220,17 @@
     <div class="activity-history">
         <div class="top-buttons-container">
             <div class="top-buttons">
-                <button 
+                <!-- Enable buttons for search & hidden once features are implemented -->
+                <!-- <button 
                     class="clickable-icon icon_search top-button left" 
                     aria-label={$_('activity.search.text')}
                     use:tooltip
                 ></button>
                 <button 
-                    class="clickable-icon icon_filter top-button center" 
-                    aria-label={$_('activity.filter.text')}
+                    class="clickable-icon icon_hidden top-button center" 
+                    aria-label={$_('activity.hidden.text')}
                     use:tooltip
-                ></button>
+                ></button> -->
                 <button 
                     class="clickable-icon icon_close top-button right" 
                     aria-label={$_('activity.close.text')}
