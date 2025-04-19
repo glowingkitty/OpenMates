@@ -13,10 +13,10 @@
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
-    import { settingsMenuVisible } from '../Settings.svelte';
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
-    import { userProfile, updateProfile } from '../../stores/userProfile';
+    import { updateProfile } from '../../stores/userProfile';
+    import { panelState } from '../../stores/panelStateStore'; // Added panelState import
 
     // Dynamic imports for step contents
     import Step2TopContent from './steps/step2/Step2TopContent.svelte';
@@ -113,25 +113,21 @@
         showSignupFooter.set(true); // Reset footer state on destroy
     });
 
-    // Improved function to update settings step state based on current step
+    // Function to update settings step state and close panel if necessary
     function updateSettingsStep(prevStepValue: number) {
         // Check if current step should show settings (step 7 and higher)
         const shouldShowSettings = isSettingsStep(currentStep);
         isSignupSettingsStep.set(shouldShowSettings);
 
-        // If transitioning between settings/non-settings steps
+        // Check if the previous step was a settings step
         const wasShowingSettings = isSettingsStep(prevStepValue);
 
-        if (!wasShowingSettings && shouldShowSettings) {
-            // First entry into a settings step - don't auto-open menu
-            // Just update the state to indicate we're in settings mode
-        } else if (wasShowingSettings && !shouldShowSettings) {
-            // Leaving settings steps - close menu
-            settingsMenuVisible.set(false);
-        } else if (wasShowingSettings && shouldShowSettings) {
-            // Transitioning between settings steps - preserve menu state
-            // Don't change settingsMenuVisible here
+        // If leaving settings steps, close the menu using panelState
+        if (wasShowingSettings && !shouldShowSettings) {
+            panelState.closeSettings();
         }
+        // No need to handle opening or preserving state here,
+        // as panelStateStore manages the global state.
     }
 
     // Removed reactive block for previousStep handling
