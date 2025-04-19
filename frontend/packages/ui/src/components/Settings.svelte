@@ -1,5 +1,6 @@
 <script lang="ts">
     import { get } from 'svelte/store';
+    import { onMount } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { text } from '@repo/ui';
@@ -81,7 +82,6 @@
     }
 
     // Add click outside listener on mount
-    import { onMount } from 'svelte';
     onMount(() => {
         document.addEventListener('click', handleClickOutside);
         return () => {

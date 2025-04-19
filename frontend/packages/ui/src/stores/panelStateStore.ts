@@ -18,12 +18,20 @@ const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>('auto');
  */
 function toggleActivityHistory(): void {
     const currentlyOpen = get(_isActivityHistoryOpen);
+    const mobileView = get(isMobileView); // Get current mobile state
+
     if (currentlyOpen) {
         // User is manually closing it
         _activityHistoryUserIntent.set('closed');
-        // Actual closing is handled by the derived store logic below
+        // Explicitly close on mobile for immediate effect, otherwise rely on derived store
+        if (mobileView) {
+            _isActivityHistoryOpen.set(false);
+        }
+        // Note: Derived store will still run and confirm false on mobile.
+        // On desktop, derived store handles closing based on intent.
     } else {
         // User is manually opening it (overrides 'auto' logic temporarily)
+        // Keep original logic for opening, as the header button seems to work.
         _activityHistoryUserIntent.set('auto'); // Allow auto logic to take over again if conditions change
         _isActivityHistoryOpen.set(true); // Force open immediately
     }
