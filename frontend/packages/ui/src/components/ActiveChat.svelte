@@ -2,12 +2,13 @@
     import MessageInput from './enter_message/MessageInput.svelte';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
-    import { teamEnabled, settingsMenuVisible, isMobileView } from './Settings.svelte';
+    import { isMobileView } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount } from 'svelte';
     import { authStore } from '../stores/authStore';
+    import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
@@ -99,9 +100,8 @@
     }
 
     // Subscribe to store values
-    $: isTeamEnabled = $teamEnabled;
     // Add class when menu is open AND in mobile view
-    $: isDimmed = $settingsMenuVisible && $isMobileView;
+    $: isDimmed = ($panelState && $panelState.isSettingsOpen) && $isMobileView;
 
     // Add transition for the login wrapper
     let loginTransitionProps = {

@@ -2,7 +2,7 @@
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import Chat from './Chat.svelte';
-    import { isMenuOpen } from '../../stores/menuState';
+    import { panelState } from '../../stores/panelStateStore'; // Import the new store
     import { authStore } from '../../stores/authStore';
     import { chatDB } from '../../services/db';
     import type { Chat as ChatType } from '../../types/chat';
@@ -194,7 +194,7 @@
 
     // Function to handle menu close
     const handleClose = () => {
-        isMenuOpen.set(false);
+        panelState.toggleActivityHistory(); // Use the action from the central store
     };
 
     // Add method to update chat list

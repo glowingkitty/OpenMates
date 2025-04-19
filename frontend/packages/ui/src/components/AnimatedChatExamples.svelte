@@ -4,9 +4,7 @@
     import HealthAppCard from './cards/HealthAppCard.svelte';
     import ProcessingDetails from './ProcessingDetails.svelte';
     import { onMount, onDestroy } from 'svelte';
-    import { fade } from 'svelte/transition';
     import { _ } from 'svelte-i18n';
-    import { getLocaleFromNavigator, waitLocale } from 'svelte-i18n';
 
     // Add at the top of the script section
     type ChatExample = {

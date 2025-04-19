@@ -24,41 +24,13 @@
 
     $: isInSignupMode = $isInSignupProcess;
 
-    // State to track active submenu view and transition direction
-    let activeSettingsView = 'main';
-    let direction = 'forward';
-
-    // Function to handle navigation events from child components
-    function handleNavigateSettings(event) {
-        const { settingsPath, direction: newDirection } = event.detail;
-        direction = newDirection;
-        activeSettingsView = settingsPath;
-
-        // Note: Scroll to top is handled in SettingsContent
-        // Note: Profile container class is handled reactively in Settings.svelte based on panelState
-    }
-
     // Handler for profile click to show menu
     function toggleMenu() {
         if ($panelState.isSettingsOpen) {
             panelState.closeSettings();
-            // Reset internal view state when closing via toggle button
-            // This should reset activeSettingsView to 'main'
-            activeSettingsView = 'main';
-            direction = 'backward'; // Assume backward transition when closing
         } else {
             panelState.openSettings();
-            // Reset to main view when opening
-            activeSettingsView = 'main';
-            direction = 'forward'; // Assume forward transition when opening
         }
-    }
-
-    // Handler for quick setting toggled event from SettingsContent
-    function handleQuickSettingToggled(event) {
-        const { toggleName, isChecked } = event.detail;
-        console.debug(`[Settings.svelte] Quick setting toggled: ${toggleName} is ${isChecked}`);
-        // TODO: Handle state update or action dispatch based on toggleName and isChecked
     }
 
     // Click outside handler (moved from Settings.svelte)
@@ -146,10 +118,10 @@
             aria-modal="true"
             aria-labelledby="settings-menu-title"
         >
-            <SettingsHeader on:navigateSettings={handleNavigateSettings} on:closeSettings={panelState.closeSettings} />
+            <!-- Settings Header Component -->
             <SettingsHeader />
 
-            <SettingsContent {activeSettingsView} {direction} on:navigateSettings={handleNavigateSettings} on:quickSettingToggled={handleQuickSettingToggled} />
+            <!-- Settings Content Component -->
             <SettingsContent />
 
             <!-- Settings Footer Component (remains in Settings.svelte for now, will move later) -->

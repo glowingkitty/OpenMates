@@ -6,100 +6,54 @@
         Header,
         Settings,
         Footer,
-        // Constants
-        MOBILE_BREAKPOINT,
         // stores
-        isMenuOpen,
-        settingsMenuVisible,
-        isMobileView,
-        isCheckingAuth,
         isInSignupProcess,
-        isLoggingOut,
-        currentSignupStep,
-        showSignupFooter, // Import the new store
+        showSignupFooter,
+        authStore,
+        panelState, // Import the new central panel state store
+        settingsDeepLink,
         // types
         type Chat,
     } from '@repo/ui';
-    import { authStore } from '@repo/ui';
-    import { _ } from 'svelte-i18n'; // Import the translation function
     import { fade } from 'svelte/transition';
-    // Subscribe to settings menu visibility state
-    import { onMount, onDestroy } from 'svelte';
-    import { browser } from '$app/environment'; // Use SvelteKit's browser check
+    import { onMount } from 'svelte';
+    // Removed browser import as it's handled in uiStateStore now
 
     // --- State ---
-    let innerWidth = browser ? window.innerWidth : 0; // Reactive window width
     let isInitialLoad = true;
-    let isAuthInitialized = false;
     let activeChat: ActiveChat | null = null; // Reference to ActiveChat instance
 
     // --- Reactive Computations ---
 
-    // Determine if we are on a desktop-sized view
-    $: isDesktop = innerWidth >= MOBILE_BREAKPOINT;
-
-    // Compute gap class based on settings menu state and view
-    $: menuClass = $settingsMenuVisible && isDesktop ? 'menu-open' : '';
-
-    // Determine if the footer should be shown
+    // Determine if the footer should be shown (depends on auth and signup state)
     $: showFooter = !$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter);
-
-    // *** Core Logic: Reactive Menu State ***
-
-    // Separate initial state setting from reactive updates
-    $: if (isAuthInitialized) {
-        // Set initial/default state for main menu *once* after auth is initialized
-        const shouldBeOpenByDefault = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
-        if (shouldBeOpenByDefault && !$isMenuOpen) {
-             // Check if it's not already open before setting
-             console.debug(`[+page.svelte] Setting initial main menu state to open.`);
-             // Use timeout to allow manual close to register first if clicked immediately on load
-             setTimeout(() => {
-                 // Re-check conditions in case state changed during timeout
-                 const stillShouldBeOpen = $authStore.isAuthenticated && !$isInSignupProcess && !$isLoggingOut && isDesktop;
-                 if (stillShouldBeOpen && !$isMenuOpen) {
-                    isMenuOpen.set(true);
-                 }
-             }, 50); // Small delay
-        }
-    }
-
-    // Reactive block primarily for *closing* menus when state requires it
-    $: {
-        if (isAuthInitialized) {
-            const mustBeClosed = !$authStore.isAuthenticated || $isInSignupProcess || $isLoggingOut || !isDesktop;
-            console.debug(`[+page.svelte] Reactive Close Check: Auth=${$authStore.isAuthenticated}, Signup=${$isInSignupProcess}, Logout=${$isLoggingOut}, Desktop=${isDesktop} => mustBeClosed=${mustBeClosed}`);
-
-            // --- Main Menu (Activity History) ---
-            if (mustBeClosed && $isMenuOpen) {
-                console.debug(`[+page.svelte] Reactively closing main menu because mustBeClosed is true.`);
-                isMenuOpen.set(false);
-            }
-
-            // --- Settings Menu ---
-            // Close settings menu if main menu *must* be closed, or if user is not authenticated.
-            const settingsMustBeClosed = mustBeClosed || !$authStore.isAuthenticated;
-            if (settingsMustBeClosed && $settingsMenuVisible) {
-                 console.debug(`[+page.svelte] Reactively closing settings menu because settingsMustBeClosed is true.`);
-                 settingsMenuVisible.set(false);
-            }
-        } else {
-             // Pre-Auth Initialization State
-             console.debug('[+page.svelte] Pre-Auth: Ensuring menus are closed.');
-             if ($isMenuOpen) isMenuOpen.set(false);
-             if ($settingsMenuVisible) settingsMenuVisible.set(false);
-        }
-    }
 
     // --- Lifecycle ---
     onMount(async () => {
         console.debug('[+page.svelte] onMount started');
         
-        // Initialize authentication state
+        // Initialize authentication state (panelState will react to this)
         await authStore.initialize();
         console.debug('[+page.svelte] authStore.initialize() finished');
-        isAuthInitialized = true; // Trigger reactive updates
-        console.debug('[+page.svelte] isAuthInitialized set to true');
+
+        // Handle deep links (e.g., #settings, #chat/123)
+        if (window.location.hash.startsWith('#settings')) {
+            panelState.openSettings();
+            const settingsPath = window.location.hash.substring('#settings'.length);
+            if (settingsPath.startsWith('/')) {
+                settingsDeepLink.set(settingsPath.substring(1)); // Remove leading slash
+            } else if (settingsPath === '') {
+                 settingsDeepLink.set('main'); // Default to main settings if just #settings
+            } else {
+                 // Handle invalid settings path?
+                 console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
+                 settingsDeepLink.set('main'); // Default to main on invalid hash
+            }
+        } else if (window.location.hash.startsWith('#chat/')) {
+            const chatId = window.location.hash.substring(6);
+            // panelState.openActivityHistory(); // Ensure it's open
+            // TODO: Dispatch event or call method to load chat
+        }
 
         // Remove initial load state after a small delay
         setTimeout(() => {
@@ -117,14 +71,17 @@
         if (activeChat) {
             activeChat.loadChat(selectedChat);
         }
+        // Optionally close Activity History on mobile after selection
+        // if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
+        //    panelState.toggleActivityHistory(); // Or a specific close action
+        // }
     }
 </script>
 
-<!-- Bind to window width reactively -->
-<svelte:window bind:innerWidth />
+<!-- Removed svelte:window binding for innerWidth -->
 
-<div class="sidebar" class:closed={!$isMenuOpen}>
-    {#if $isMenuOpen}
+<div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
+    {#if $panelState.isActivityHistoryOpen}
         <!-- Use a transition for smoother appearance/disappearance -->
         <div transition:fade={{ duration: 150 }}>
             <ActivityHistory on:chatSelected={handleChatSelected} />
@@ -132,16 +89,16 @@
     {/if}
 </div>
 
-<div class="main-content" 
-    class:menu-closed={!$isMenuOpen || !$authStore.isAuthenticated}
+<div class="main-content"
+    class:menu-closed={!$panelState.isActivityHistoryOpen}
     class:initial-load={isInitialLoad}
     class:scrollable={showFooter}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-    <div class="chat-container" 
-        class:menu-open={menuClass}
+    <div class="chat-container"
+        class:menu-open={$panelState.isSettingsOpen}
         class:authenticated={$authStore.isAuthenticated}>
         <div class="chat-wrapper">
-            <ActiveChat 
+            <ActiveChat
                 bind:this={activeChat}
             />
         </div>
