@@ -2,9 +2,6 @@
 import requests
 import json
 import logging
-import os
-import argparse
-import asyncio
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import date # Added for payment date
@@ -17,71 +14,107 @@ from app.utils.secrets_manager import SecretsManager
 import clients as client_ops
 import invoices as invoice_ops
 import payments as payment_ops
-import transactions as transaction_ops # Corrected import for transactions
+import transactions as transaction_ops
 import bank_accounts as bank_account_ops # Import for bank account specific ops
 
 logger = logging.getLogger(__name__)
 
-# TODO
-# - remove dataclass
-# - implement into real webhook processing
-# - make sure invoice pdf is also uploaded
-# - auto select product based on credits input that is given to function 
-
-# --- Configuration Placeholder ---
-# In a real app, load this from environment variables, Vault, or a config file (e.g., using Pydantic)
-# Configuration is now directly within the InvoiceNinjaService class
-# --- Main Service Class ---
 class InvoiceNinjaService:
-    def __init__(self, invoice_ninja_url: str, api_token: str):
-       """
-       Initializes the Invoice Ninja service client with required credentials
-       and fetches dynamic bank integration IDs.
+    """
+    Service class for interacting with the Invoice Ninja API.
 
-       Args:
-           invoice_ninja_url: The base URL for the Invoice Ninja API.
-           api_token: The API token for authentication.
-       """
-       # --- Store Configuration ---
-       self.INVOICE_NINJA_URL = invoice_ninja_url
-       self.API_TOKEN = api_token
+    Use the async class method `create` to instantiate this service,
+    as initialization requires fetching secrets asynchronously.
+    Example:
+        secrets_manager = SecretsManager(...)
+        invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
+    """
+    def __init__(self, secrets_manager: SecretsManager):
+        """
+        Initializes the Invoice Ninja service client minimally.
+        Asynchronous initialization is handled by the `create` class method.
 
-       if not self.INVOICE_NINJA_URL:
-           raise ValueError("Invoice Ninja URL is required.")
-       if not self.API_TOKEN:
-           raise ValueError("Invoice Ninja API Token is required.")
+        Args:
+            secrets_manager: An instance of the SecretsManager.
+        """
+        self.secrets_manager = secrets_manager
+        self.INVOICE_NINJA_URL: Optional[str] = None
+        self.API_TOKEN: Optional[str] = None
+        self.headers: Optional[Dict[str, str]] = None
 
-       # --- Static Configuration (Consider moving to config or secrets) ---
-       self.PAYMENT_PROCESSOR_ACCOUNT: str = "Revolut Business Merchant" # TODO: Make configurable?
-       self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business GBP" # TODO: Make configurable?
-       self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe Payments" # TODO: Make configurable?
-       self.PAYMENT_TYPE_ID_REVOLUT: Optional[str] = "16" # TODO: Load externally or make optional
-       self.PAYMENT_TYPE_ID_STRIPE: Optional[str] = "16" # TODO: Load externally or make optional
-       self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
-       self.PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
-       self.PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
-       self.PRODUCT_KEY_CREDITS_54K: str = "54.000 credits"
-       self.PRODUCT_KEY_CREDITS_110K: str = "110.000 credits"
+        # --- Static Configuration (Consider moving to config or secrets) ---
+        self.PAYMENT_PROCESSOR_ACCOUNT: str = "Revolut Business Merchant" # TODO: Make configurable?
+        self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business GBP" # TODO: Make configurable?
+        self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe Payments" # TODO: Make configurable?
+        self.PAYMENT_TYPE_ID_REVOLUT: Optional[str] = "16" # TODO: Load externally or make optional
+        self.PAYMENT_TYPE_ID_STRIPE: Optional[str] = "16" # TODO: Load externally or make optional
+        self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
+        self.PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
+        self.PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
+        self.PRODUCT_KEY_CREDITS_54K: str = "54.000 credits"
+        self.PRODUCT_KEY_CREDITS_110K: str = "110.000 credits"
 
-       # --- Validate and Set Headers ---
-       # API Token validation already happened
-       self.headers = {
-           'X-API-TOKEN': self.API_TOKEN,
-           'Content-Type': 'application/json',
-           'Accept': 'application/json',
-           'X-Requested-With': 'XMLHttpRequest',
-       }
+        # --- Initialize dynamic bank integration details (will be populated in _async_init) ---
+        self._revolut_bank_account_id: Optional[str] = None
+        self._revolut_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
+        self._stripe_bank_account_id: Optional[str] = None
+        self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
 
-       # --- Initialize dynamic bank integration details ---
-       self._revolut_bank_account_id: Optional[str] = None
-       self._revolut_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
-       self._stripe_bank_account_id: Optional[str] = None
-       self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
+        # Initialization requiring secrets is deferred to _async_init
 
-       self._load_bank_integration_details()
+    async def _async_init(self):
+        """Performs asynchronous initialization steps after secrets are fetched."""
+        logger.info("Performing async initialization for InvoiceNinjaService...")
+        self.INVOICE_NINJA_URL = await self.secrets_manager.get_secret("SECRET__INVOICE_NINJA_URL")
+        self.API_TOKEN = await self.secrets_manager.get_secret("SECRET__INVOICE_NINJA_SANDBOX_API_KEY") # Using SANDBOX key as requested
+
+        if not self.INVOICE_NINJA_URL:
+            logger.error("Invoice Ninja URL could not be retrieved from Secrets Manager.")
+            raise ValueError("Invoice Ninja URL could not be retrieved from Secrets Manager.")
+        if not self.API_TOKEN:
+            logger.error("Invoice Ninja API Token could not be retrieved from Secrets Manager.")
+            raise ValueError("Invoice Ninja API Token could not be retrieved from Secrets Manager.")
+
+        logger.info("Invoice Ninja URL and API Token retrieved successfully.")
+
+        self.headers = {
+            'X-API-TOKEN': self.API_TOKEN,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+
+        # Now load bank details which requires API access (and thus headers)
+        # Note: _load_bank_integration_details uses synchronous requests.
+        # This might block the event loop. Consider making it async in the future.
+        self._load_bank_integration_details()
+        logger.info("Async initialization for InvoiceNinjaService complete.")
+
+
+    @classmethod
+    async def create(cls, secrets_manager: SecretsManager) -> 'InvoiceNinjaService':
+        """
+        Asynchronously creates and initializes an instance of InvoiceNinjaService.
+
+        Args:
+            secrets_manager: An instance of the SecretsManager.
+
+        Returns:
+            A fully initialized InvoiceNinjaService instance.
+        """
+        instance = cls(secrets_manager)
+        await instance._async_init()
+        return instance
 
     def _load_bank_integration_details(self):
         """Fetches bank integrations and stores IDs for configured account names."""
+        # Ensure headers are set before making API calls
+        if not self.headers:
+            logger.error("Cannot load bank integration details: Headers not initialized.")
+            # Or raise an exception, depending on desired behavior
+            # raise RuntimeError("Headers not initialized before loading bank details.")
+            return
+
         logger.info("Attempting to load bank integration details from Invoice Ninja...")
         integrations = self.get_bank_integrations()
 
