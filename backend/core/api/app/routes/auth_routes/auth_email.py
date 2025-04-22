@@ -310,6 +310,7 @@ async def check_confirm_email_code(
         device_fingerprint = get_device_fingerprint(request)
         client_ip = get_client_ip(request)
         device_location = get_location_from_ip(client_ip)
+        country_code = device_location["country_code"]
 
         # Get language and darkmode from cookies, providing defaults
         language = signup_language or "en"
@@ -464,6 +465,7 @@ async def check_confirm_email_code(
                     "profile_image_url": None, # Assuming profile image is not set on creation
                     "last_opened": "/signup/step-3",
                     "language": language,
+                    "country_code": country_code,
                     "darkmode": darkmode,
                     "vault_key_id": vault_key_id,
                     "encrypted_email_address": user_data.get("encrypted_email_address"),

@@ -93,6 +93,7 @@ async def _async_process_invoice_and_send_email(
         encrypted_email = user_profile.get("encrypted_email_address")
         vault_key_id = user_profile.get("vault_key_id")
         user_language = user_profile.get("language")
+        country_code = user_profile.get("country_code")
         user_darkmode = user_profile.get("darkmode")
         current_invoice_counter = user_profile.get("invoice_counter")
 
@@ -428,17 +429,21 @@ async def _async_process_invoice_and_send_email(
             # Amount is in smallest unit, need to convert to float for price
             purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
 
-            # Pass the English PDF bytes as custom_pdf_data
+            # Pass the English PDF bytes as custom_pdf_data and other required fields
             invoice_ninja_result = invoice_ninja_service.process_income_transaction(
                 user_hash=user_id_hash, # Using user_id_hash as user_hash
                 external_order_id=order_id,
                 customer_firstname=customer_firstname,
                 customer_lastname=customer_lastname,
                 customer_email=decrypted_email,
+                customer_country_code=country_code,
                 credits_value=credits_purchased,
                 purchase_price_value=purchase_price_value,
-                custom_pdf_data=pdf_bytes_en, # Pass the English PDF bytes
-                processor_type="revolut" # Assuming Revolut for now
+                invoice_date=date_str_iso, # Pass generated invoice date
+                due_date=date_str_iso, # Pass generated due date (same as invoice date)
+                payment_processor="revolut", # Pass payment processor (assuming Revolut for now)
+                custom_invoice_number=invoice_number, # Pass generated invoice number
+                custom_pdf_data=pdf_bytes_en # Pass the English PDF bytes
             )
 
             if invoice_ninja_result:

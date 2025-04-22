@@ -128,6 +128,7 @@ def get_location_from_ip(ip_address: str) -> Dict[str, Any]:
                     location_string = country_code # Fallback to country code if no city
 
                 return {
+                    "country_code": country_code,
                     "location_string": location_string,
                     "latitude": latitude,
                     "longitude": longitude

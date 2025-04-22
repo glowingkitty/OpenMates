@@ -23,16 +23,19 @@ def create_invoice(
         due_date: str,
         payment_processor: str,
         external_order_id: str, 
-        custom_invoice_number: Optional[str] = None
+        custom_invoice_number: Optional[str] = None,
+        mark_paid: bool = True # Add flag to control marking as paid
         ) -> Tuple[Optional[str], Optional[str]]:
     """
-    Creates a new invoice using product_keys for items.
+    Creates a new invoice using product_keys for items. Optionally marks it as paid.
 
     Args:
         service_instance: The instance of the main service class.
         client_id: The ID of the client to create the invoice for.
         invoice_items: A list of dictionaries, each with "product_key" and "quantity".
         external_order_id: The external order ID for reference.
+        custom_invoice_number: Optional custom number for the invoice.
+        mark_paid: If True, attempts to mark the invoice as paid upon creation.
 
     Returns:
         A tuple containing the new invoice ID and invoice number if successful, otherwise (None, None).
@@ -42,26 +45,41 @@ def create_invoice(
         logger.error("Cannot create invoice without items.")
         return None, None
 
-    # Ensure items use 'product_key' and 'quantity'
+    # Calculate total amount and ensure items have necessary keys
+    total_amount = 0.0
     for item in invoice_items:
-        if "product_key" not in item or "quantity" not in item:
-            logger.error(f"Invoice item missing 'product_key' or 'quantity': {item}")
+        if "product_key" not in item or "quantity" not in item or "cost" not in item:
+            logger.error(f"Invoice item missing 'product_key', 'quantity', or 'cost': {item}")
             return None, None
+        try:
+            quantity = float(item.get("quantity", 0))
+            cost = float(item.get("cost", 0))
+            total_amount += quantity * cost
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error calculating total amount for item {item}: {e}")
+            return None, None
+    logger.info(f"Calculated total invoice amount: {total_amount}")
 
     payload = {
         "client_id": client_id,
         "line_items": invoice_items,
-        "data": invoice_date,
+        "date": invoice_date,
         "due_date": due_date,
-        "po_number": external_order_id,
         "custom_value1": payment_processor,
-        "custom_value2": external_order_id
-        # "private_notes": f"{payment_processor} Order ID: {external_order_id}"
+        "custom_value2": external_order_id,
+        "private_notes": f"{payment_processor} Order ID: {external_order_id}"
     }
     if custom_invoice_number:
         payload["number"] = custom_invoice_number
 
-    response_data = service_instance.make_api_request('POST', '/invoices', data=payload)
+    # Prepare query parameters for marking as paid
+    query_params = {}
+    if mark_paid:
+        query_params["paid"] = "true"
+        query_params["amount_paid"] = str(total_amount)
+        logger.info(f"Invoice will be marked as paid with amount {total_amount}.")
+
+    response_data = service_instance.make_api_request('POST', '/invoices', params=query_params, data=payload)
 
     if response_data is not None and 'data' in response_data:
         new_invoice = response_data['data']
