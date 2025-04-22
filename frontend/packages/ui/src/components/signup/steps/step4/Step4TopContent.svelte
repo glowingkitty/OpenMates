@@ -85,7 +85,7 @@ step_4_top_content_svelte:
 <script lang="ts">
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { get } from 'svelte/store'; // Import get
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { userProfile } from '../../../../stores/userProfile'; // Import userProfile store
@@ -104,6 +104,8 @@ step_4_top_content_svelte:
     let error = false;
     let errorMessage = '';
     let qrCodeSvg = '';
+
+    const dispatch = createEventDispatcher();
     
     // Reactive variables bound to store values
     $: secret = $twoFASetupData.secret;
@@ -191,11 +193,13 @@ step_4_top_content_svelte:
     function handleDeepLink() {
         if (otpauthUrl) {
             window.location.href = otpauthUrl;
+            dispatch('actionClicked'); // Dispatch event
         }
     }
 
     function toggleQrCode() {
         showQrCode = !showQrCode;
+        dispatch('actionClicked'); // Dispatch event
     }
 
     async function copySecret() {
@@ -203,6 +207,7 @@ step_4_top_content_svelte:
         
         await navigator.clipboard.writeText(secret);
         showCopiedText = true;
+        dispatch('actionClicked'); // Dispatch event
 
         // Reset copied text after 2 seconds
         setTimeout(() => {

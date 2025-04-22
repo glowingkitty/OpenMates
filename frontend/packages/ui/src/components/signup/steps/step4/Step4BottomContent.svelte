@@ -110,6 +110,13 @@ step_4_bottom_content_svelte:
         }
     }
 
+    // Function to expose for focusing the input
+    export function focusInput() {
+        if (otpInput) {
+            otpInput.focus();
+        }
+    }
+
     async function verifyCode() {
         if (otpCode.length !== 6 || verifying) return;
         

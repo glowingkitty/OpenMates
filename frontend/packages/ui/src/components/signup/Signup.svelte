@@ -79,6 +79,9 @@
 
     // New state to track payment processing status
     let paymentState = 'idle';
+
+    // Reference for Step4BottomContent instance
+    let step4BottomContentRef: Step4BottomContent | null = null;
     
     // Create derived state for showing/hiding nav and status bar
     $: showUIControls = paymentState !== 'processing' && paymentState !== 'success';
@@ -298,6 +301,13 @@
         }
     }
 
+    // Handler for action clicks in Step4TopContent
+    function handleActionClicked() {
+        if (step4BottomContentRef) {
+            step4BottomContentRef.focusInput();
+        }
+    }
+
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
         currentStep === 1
@@ -369,7 +379,7 @@
                                             isUploading={isImageUploading}
                                         />
                                     {:else if currentStep === 4}
-                                        <Step4TopContent />
+                                        <Step4TopContent on:actionClicked={handleActionClicked} />
                                     {:else if currentStep === 5}
                                         <Step5TopContent />
                                     {:else if currentStep === 6}
@@ -408,22 +418,30 @@
                                 in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
                                 out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                             >
-                                <svelte:component 
-                                    this={
-                                            currentStep === 2 ? Step2BottomContent :
-                                            currentStep === 3 ? Step3BottomContent :
-                                            currentStep === 4 ? Step4BottomContent :
-                                            currentStep === 5 ? Step5BottomContent :
-                                            currentStep === 6 ? Step6BottomContent :
-                                            currentStep === 7 ? Step7BottomContent :
-                                            currentStep === 8 ? Step8BottomContent :
-                                            currentStep === 9 ? Step9BottomContent :
-                                            currentStep === 10 ? Step10BottomContent :
-                                           null}
-                                    on:step={handleStep}
-                                    on:uploading={handleImageUploading}
-                                    on:selectedApp={handleSelectedApp}
-                                />
+                                {#if currentStep === 4}
+                                    <Step4BottomContent
+                                        bind:this={step4BottomContentRef}
+                                        on:step={handleStep}
+                                    />
+                                {:else}
+                                    <svelte:component
+                                        this={
+                                                currentStep === 2 ? Step2BottomContent :
+                                                currentStep === 3 ? Step3BottomContent :
+                                                // Step 4 handled above
+                                                currentStep === 5 ? Step5BottomContent :
+                                                currentStep === 6 ? Step6BottomContent :
+                                                currentStep === 7 ? Step7BottomContent :
+                                                currentStep === 8 ? Step8BottomContent :
+                                                currentStep === 9 ? Step9BottomContent :
+                                                currentStep === 10 ? Step10BottomContent :
+                                               null}
+                                        on:step={handleStep}
+                                        on:uploading={handleImageUploading}
+                                        on:selectedApp={handleSelectedApp}
+                                        
+                                    />
+                                {/if}
                             </div>
                         {/key}
                     </div>
