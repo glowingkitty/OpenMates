@@ -86,7 +86,7 @@ def mark_invoice_sent(service_instance: Any, invoice_id: str) -> bool:
     logger.info(f"Attempting to mark invoice ID {invoice_id} as sent...")
     endpoint = f'/invoices/{invoice_id}'
     payload = {"action": "mark_sent"}
-    url = f"{service_instance.config.INVOICE_NINJA_URL}/api/v1{endpoint}" # Need full URL for direct requests call
+    url = f"{service_instance.INVOICE_NINJA_URL}/api/v1{endpoint}" # Need full URL for direct requests call
 
     try:
         # Try PUT first (as per original script logic)

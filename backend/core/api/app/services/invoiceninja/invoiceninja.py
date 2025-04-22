@@ -39,9 +39,8 @@ class InvoiceNinjaService:
         self.headers: Optional[Dict[str, str]] = None
 
         # --- Static Configuration (Consider moving to config or secrets) ---
-        self.PAYMENT_PROCESSOR_ACCOUNT: str = "Revolut Business Merchant" # TODO: Make configurable?
-        self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business GBP" # TODO: Make configurable?
-        self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe Payments" # TODO: Make configurable?
+        self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business Merchant"
+        self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe"
         self.PAYMENT_TYPE_ID_REVOLUT: Optional[str] = "16" # TODO: Load externally or make optional
         self.PAYMENT_TYPE_ID_STRIPE: Optional[str] = "16" # TODO: Load externally or make optional
         self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
@@ -49,6 +48,8 @@ class InvoiceNinjaService:
         self.PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
         self.PRODUCT_KEY_CREDITS_54K: str = "54.000 credits"
         self.PRODUCT_KEY_CREDITS_110K: str = "110.000 credits"
+        self.USER_HASH_CUSTOM_FIELD: str = "custom_value1" # Field used to store user hash
+        self.ORDER_ID_CUSTOM_FIELD: str = "custom_value2" # Field used to store external order ID
 
         # --- Initialize dynamic bank integration details (will be populated in _async_init) ---
         self._revolut_bank_account_id: Optional[str] = None
@@ -122,48 +123,52 @@ class InvoiceNinjaService:
         if not integrations:
             logger.warning("No bank integrations found in Invoice Ninja.")
             return
+        else:
+            # Add detailed logging for received integrations
+            logger.debug(f"Received {len(integrations)} bank integrations from API: {json.dumps(integrations, indent=2)}")
+
 
         found_revolut = False
         found_stripe = False
 
-        revolut_target_name = self.REVOLUT_BANK_ACCOUNT_NAME.lower()
-        stripe_target_name = self.STRIPE_BANK_ACCOUNT_NAME.lower()
-
         for integration in integrations:
             # Check required fields exist
             acc_name = integration.get('bank_account_name')
-            acc_id = integration.get('bank_account_id')
-            int_id = integration.get('id') # This is the Bank Integration Hashed ID
+            acc_id = integration.get('bank_account_id') # Bank Account Hashed ID
+            int_id = integration.get('id') # Bank Integration Hashed ID
 
-            if not acc_name or not int_id:
-                logger.warning(f"Skipping integration due to missing data: {integration}")
+            # --- Enhanced Check: Ensure all required IDs are present (not None) ---
+            # We check for None explicitly because bank_account_id can be 0, which is falsy but valid.
+            if acc_name is None or acc_id is None or int_id is None:
+                logger.warning(f"Skipping integration due to missing required data (Name is None, AccountID is None, or IntegrationID is None): {integration}")
                 continue
 
-            current_name_lower = acc_name.lower()
+            logger.debug(f"Processing integration: Name='{acc_name}', AccountID='{acc_id}', IntegrationID='{int_id}'")
 
             # Check for Revolut
-            if not found_revolut and current_name_lower == revolut_target_name:
+            if not found_revolut and acc_name == self.REVOLUT_BANK_ACCOUNT_NAME:
                 self._revolut_bank_account_id = acc_id
                 self._revolut_bank_integration_id = int_id
-                logger.info(f"Found Revolut integration: Name='{acc_name}', AccountID='{acc_id}', IntegrationID='{int_id}'")
+                logger.info(f"Found and assigned Revolut integration: Name='{acc_name}', AccountID='{self._revolut_bank_account_id}', IntegrationID='{self._revolut_bank_integration_id}'")
                 found_revolut = True
 
             # Check for Stripe
-            if not found_stripe and current_name_lower == stripe_target_name:
+            if not found_stripe and acc_name == self.STRIPE_BANK_ACCOUNT_NAME:
                 self._stripe_bank_account_id = acc_id
                 self._stripe_bank_integration_id = int_id
-                logger.info(f"Found Stripe integration: Name='{acc_name}', AccountID='{acc_id}', IntegrationID='{int_id}'")
+                logger.info(f"Found and assigned Stripe integration: Name='{acc_name}', AccountID='{self._stripe_bank_account_id}', IntegrationID='{self._stripe_bank_integration_id}'")
                 found_stripe = True
 
             # Optimization: exit early if both found
             if found_revolut and found_stripe:
+                logger.debug("Found both Revolut and Stripe integrations. Stopping search.")
                 break
 
         # Log warnings if not found
         if not found_revolut:
-            logger.warning(f"Could not find bank integration matching name '{self.REVOLUT_BANK_ACCOUNT_NAME}'. Revolut transactions cannot be processed.")
+            logger.warning(f"Could not find a valid bank integration matching name '{self.REVOLUT_BANK_ACCOUNT_NAME}' with all required IDs. Revolut transactions cannot be processed.")
         if not found_stripe:
-            logger.warning(f"Could not find bank integration matching name '{self.STRIPE_BANK_ACCOUNT_NAME}'. Stripe transactions cannot be processed.")
+            logger.warning(f"Could not find a valid bank integration matching name '{self.STRIPE_BANK_ACCOUNT_NAME}' with all required IDs. Stripe transactions cannot be processed.")
 
     def make_api_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Makes a standard JSON API request and handles common errors."""
@@ -356,21 +361,17 @@ class InvoiceNinjaService:
             logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
             # Decide if you should abort or continue without bank details
 
+        # --- Log Determined IDs Before Check ---
+        logger.info(f"Attempting to use IDs for processor '{processor_type}': BankAccountID='{target_processor_bank_id}', BankIntegrationID='{target_bank_integration_id}', PaymentTypeID='{target_payment_type_id}'")
+
         # --- Sanity Check Fetched IDs ---
-        if not target_processor_bank_id:
-            logger.error(f"Bank Account ID for the processor type '{processor_type}' was not found during initialization. Aborting.")
+        if target_processor_bank_id is None:
+            logger.error(f"Bank Account ID for the processor type '{processor_type}' was not found or assigned during initialization. Aborting.")
             return None
-        if not target_bank_integration_id:
-            logger.error(f"Bank Integration ID for the processor type '{processor_type}' was not found during initialization. Aborting.")
+        if target_bank_integration_id is None:
+            logger.error(f"Bank Integration ID for the processor type '{processor_type}' was not found or assigned during initialization. Aborting.")
             return None
-
-        # Check Payment Type ID (optional)
-        if target_payment_type_id and "YOUR_" in target_payment_type_id: # Assuming placeholder check
-            logger.warning(f"Payment Type ID for {processor_type.upper()} is not configured correctly. Payment will be created without type.")
-            target_payment_type_id = None
-        elif not target_payment_type_id:
-            logger.info(f"No specific Payment Type ID configured or matched for processor '{processor_type}'. Payment will be created without type.")
-
+    
         # --- Find or Create Client ---
         ninja_client_id = self.find_client_by_hash(user_hash)
         if not ninja_client_id:

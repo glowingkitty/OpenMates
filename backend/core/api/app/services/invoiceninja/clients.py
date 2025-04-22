@@ -21,8 +21,8 @@ def find_client_by_hash(service_instance: Any, user_hash: str) -> Optional[str]:
     Returns:
         The client ID if found, otherwise None.
     """
-    logger.info(f"Searching for client with {service_instance.config.USER_HASH_CUSTOM_FIELD} = {user_hash}...")
-    params = {service_instance.config.USER_HASH_CUSTOM_FIELD: user_hash}
+    logger.info(f"Searching for client with {service_instance.USER_HASH_CUSTOM_FIELD} = {user_hash}...")
+    params = {service_instance.USER_HASH_CUSTOM_FIELD: user_hash}
     response_data = service_instance.make_api_request('GET', '/clients', params=params)
 
     if response_data is not None and 'data' in response_data:
@@ -72,8 +72,8 @@ def create_client(service_instance: Any, user_hash: str, external_order_id: str,
         "country_id": client_details.get("country_id"), # Add country_id
         # Add other client details if available, ensuring required fields are present
         # Example: "address1": client_details.get("address1", ""), "city": client_details.get("city", ""), etc.
-        service_instance.config.USER_HASH_CUSTOM_FIELD: user_hash,
-        service_instance.config.ORDER_ID_CUSTOM_FIELD: external_order_id # Store order ID here too
+        service_instance.USER_HASH_CUSTOM_FIELD: user_hash,
+        service_instance.ORDER_ID_CUSTOM_FIELD: external_order_id # Store order ID here too
     }
     # Remove country_id if it's None, as the API might require an integer
     if payload["country_id"] is None:
