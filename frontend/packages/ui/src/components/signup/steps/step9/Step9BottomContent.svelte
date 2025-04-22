@@ -111,7 +111,7 @@ changes to the documentation (to keep the documentation up to date).
 <div class="bottom-content">
     {#if $isLoadingGiftCheck} <!-- Use store -->
         <div></div> <!-- Keep empty div for loading state as per current file -->
-    {:else if $hasGiftForSignup} <!-- Use store -->
+    {:else if $hasGiftForSignup && giftAmount !== null} <!-- Use store AND ensure giftAmount is loaded -->
         <!-- Gift Flow: Show only the gifted package -->
         <div class="credits-package-container gift-flow">
              <div class="package-wrapper">
