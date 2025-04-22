@@ -2368,6 +2368,11 @@
             "en_original": "Purchase successful",
             "context": "Success message shown when purchase is successful"
         },
+        "enjoy_your_gift": {
+            "text": "享受你的礼物吧！",
+            "en_original": "Enjoy your gift!",
+            "context": "Success message shown when gift is accepted."
+        },
         "you_will_receive_confirmation_soon": {
             "text": "您将很快收到带有发票的电子邮件确认信息。",
             "en_original": "You will receive an e-mail confirmation with your invoice soon.",

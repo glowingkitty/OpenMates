@@ -2358,6 +2358,11 @@
             "en_original": "Purchase successful",
             "context": "Success message shown when purchase is successful"
         },
+        "enjoy_your_gift": {
+            "text": "¡Disfruta tu regalo!",
+            "en_original": "Enjoy your gift!",
+            "context": "Success message shown when gift is accepted."
+        },
         "you_will_receive_confirmation_soon": {
             "text": "Recibirás pronto una confirmación por correo electrónico con tu factura.",
             "en_original": "You will receive an e-mail confirmation with your invoice soon.",

@@ -820,6 +820,10 @@
             "text": "Purchase successful",
             "context": "Success message shown when purchase is successful"
         },
+        "enjoy_your_gift": {
+            "text": "Enjoy your gift!",
+            "context": "Success message shown when gift is accepted."
+        },
         "you_will_receive_confirmation_soon": {
             "text": "You will receive an e-mail confirmation with your invoice soon.",
             "context": "Message shown after successful purchase"

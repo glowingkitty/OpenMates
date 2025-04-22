@@ -626,6 +626,16 @@
     // --- Cleanup on destroy ---
     onMount(() => {
         fetchUserEmail();
+
+        // If starting in a non-idle state (e.g., gift flow success), dispatch immediately
+        if (initialState !== 'idle') {
+            console.debug(`[Payment.svelte onMount] Initial state is ${initialState}, dispatching change.`);
+            // Use tick to ensure parent component can react after mount
+            tick().then(() => {
+                dispatch('paymentStateChange', { state: initialState });
+            });
+        }
+
         // Initial call in case component mounts in idle state with targets ready
         // The reactive trigger ($:) will handle the initial call automatically when targets become available.
         // No explicit call needed here anymore.
