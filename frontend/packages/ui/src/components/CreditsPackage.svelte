@@ -2,7 +2,8 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { getApiUrl, apiEndpoints } from '../config/api'; // Import API config
+    import { getApiEndpoint, apiEndpoints } from '../config/api'; // Import API config, use getApiEndpoint
+    import { updateProfile } from '../stores/userProfile'; // Import updateProfile
 
     const dispatch = createEventDispatcher();
     
@@ -63,7 +64,7 @@
             isAcceptingGift = true;
             acceptError = null;
             try {
-                const response = await fetch(getApiUrl() + apiEndpoints.auth.acceptGift, {
+                const response = await fetch(getApiEndpoint(apiEndpoints.auth.acceptGift), { // Use getApiEndpoint
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -76,7 +77,11 @@
                     const result = await response.json();
                     if (result.success) {
                         console.info("Gift accepted successfully:", result);
-                        dispatch('giftAccepted'); // Notify parent
+                        // Update profile store if backend returns new credit amount
+                        if (typeof result.current_credits === 'number') {
+                            updateProfile({ credits: result.current_credits });
+                        }
+                        dispatch('giftAccepted');
                     } else {
                         console.error("Failed to accept gift:", result.message);
                         acceptError = result.message || 'Failed to accept gift.';

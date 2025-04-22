@@ -636,10 +636,6 @@
             });
         }
 
-        // Initial call in case component mounts in idle state with targets ready
-        // The reactive trigger ($:) will handle the initial call automatically when targets become available.
-        // No explicit call needed here anymore.
-        // tick().then(() => initializePaymentMethods()); // REMOVED
         return () => {
             console.debug('[Payment.svelte] onDestroy cleanup');
             if (cardFieldInstance) {

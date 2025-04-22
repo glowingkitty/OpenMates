@@ -23,10 +23,8 @@ class CheckGiftResponse(BaseModel):
 class AcceptGiftResponse(BaseModel):
     success: bool
     message: str
-    new_balance: Optional[int] = None
+    current_credits: Optional[int] = None
 
-# --- Endpoints ---
-# --- Endpoints ---
 
 @router.get("/check-gift", response_model=CheckGiftResponse)
 async def check_gift(
@@ -76,15 +74,15 @@ async def accept_gift(
 
     try:
         # Calculate new balance
-        new_balance = current_credits + gift_amount
+        current_credits = current_credits + gift_amount
 
         # Encrypt the new balance
-        encrypted_new_balance_tuple = await encryption_service.encrypt_with_user_key(str(new_balance), vault_key_id)
-        encrypted_new_balance = encrypted_new_balance_tuple[0]
+        encrypted_current_credits_tuple = await encryption_service.encrypt_with_user_key(str(current_credits), vault_key_id)
+        encrypted_current_credits = encrypted_current_credits_tuple[0]
 
         # Update Directus: Set new balance, clear gift field, set last_opened
         directus_update_payload = {
-            "encrypted_credit_balance": encrypted_new_balance,
+            "encrypted_credit_balance": encrypted_current_credits,
             "last_opened": "/chat/new",
             "encrypted_gifted_credits_for_signup": None # Clear the gift field
         }
@@ -95,11 +93,11 @@ async def accept_gift(
             # Don't update cache if Directus failed
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user record.")
 
-        logger.info(f"Successfully updated Directus for user {user_id}. New balance (encrypted): {encrypted_new_balance[:10]}..., Last opened: /chat/new, Gift cleared.")
+        logger.info(f"Successfully updated Directus for user {user_id}. New balance (encrypted): {encrypted_current_credits[:10]}..., Last opened: /chat/new, Gift cleared.")
 
         # Update Cache: Set new balance, clear gift field, set last_opened
         cache_update_payload = {
-            "credits": new_balance,
+            "credits": current_credits,
             "last_opened": "/chat/new",
             "gifted_credits_for_signup": None # Clear the gift field from cache
         }
@@ -109,9 +107,9 @@ async def accept_gift(
             # Log warning but proceed, Directus is the source of truth
             logger.warning(f"Failed to update cache for user {user_id} after accepting gift. Directus was updated.")
         else:
-             logger.info(f"Successfully updated cache for user {user_id}. New balance: {new_balance}, Last opened: /chat/new, Gift cleared.")
+             logger.info(f"Successfully updated cache for user {user_id}. New balance: {current_credits}, Last opened: /chat/new, Gift cleared.")
 
-        return AcceptGiftResponse(success=True, message="Gift accepted successfully.", new_balance=new_balance)
+        return AcceptGiftResponse(success=True, message="Gift accepted successfully.", current_credits=current_credits)
 
     except Exception as e:
         logger.error(f"Error accepting gift for user {user_id}: {str(e)}", exc_info=True)
