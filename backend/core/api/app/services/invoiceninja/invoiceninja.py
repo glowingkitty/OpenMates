@@ -11,7 +11,7 @@ from datetime import date # Added for payment date
 from app.utils.secrets_manager import SecretsManager
 
 # Import the functions from submodules
-from app.services.invoiceninja import clients, invoices, payments, bank_accounts
+from app.services.invoiceninja import clients, invoices, payments, bank_accounts, transactions
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +263,7 @@ class InvoiceNinjaService:
                 try:
                     files['file'][1].close()
                 except Exception as e_close:
-                    logger.error(f"Error closing file handle for {file_path}: {e_close}")
+                    logger.error(f"Error closing file handle: {e_close}")
 
 
     # --- Client Operations ---
@@ -274,8 +274,24 @@ class InvoiceNinjaService:
         return clients.create_client(self, user_hash, external_order_id, client_details)
 
     # --- Invoice Operations ---
-    def create_invoice(self, client_id: str, invoice_items: List[Dict[str, Any]], external_order_id: str) -> Tuple[Optional[str], Optional[str]]:
-        return invoices.create_invoice(self, client_id, invoice_items, external_order_id)
+    def create_invoice(self, 
+                       client_id: str, 
+                       invoice_items: List[Dict[str, Any]],
+                       invoice_date: str,
+                       due_date: str,
+                       payment_processor: str,
+                       external_order_id: str,
+                       custom_invoice_number: str
+                       ) -> Tuple[Optional[str], Optional[str]]:
+        return invoices.create_invoice(self,
+                                       client_id = client_id, 
+                                       invoice_items = invoice_items,
+                                       invoice_date = invoice_date,
+                                       due_date = due_date,
+                                       payment_processor = payment_processor,
+                                       external_order_id = external_order_id,
+                                       custom_invoice_number = custom_invoice_number
+                                       )
 
     def mark_invoice_sent(self, invoice_id: str) -> bool:
         # Note: This uses requests directly based on original script's PUT/POST logic.
@@ -323,6 +339,7 @@ class InvoiceNinjaService:
         external_order_id: str,
         customer_firstname: str,
         customer_lastname: str,
+        customer_email: str,
         credits_value: int,
         purchase_price_value: float, # Direct price input
         # payment_date_str is now auto-generated
@@ -378,6 +395,7 @@ class InvoiceNinjaService:
             client_details = {
                 "first_name": customer_firstname,
                 "last_name": customer_lastname,
+                "email": customer_email,
                 "custom_value1": user_hash,
                 "custom_value2": external_order_id
             }
@@ -412,13 +430,23 @@ class InvoiceNinjaService:
             {
                 "product_key": product_key,
                 "quantity": 1,
-                "cost": purchase_price_value # Use the provided price for the line item cost
+                "cost": purchase_price_value, # Use the provided price for the line item cost,
+                "line_total": purchase_price_value,
+                "tax_id": 3 # The tax ID of the product: 1 product, 2 service, 3 digital, 4 shipping, 5 exempt, 5 reduced tax, 7 override, 8 zero rate, 9 reverse tax
             }
         ]
 
         # --- Create Invoice ---
         logger.info(f"Creating invoice for Client ID: {ninja_client_id} with items: {invoice_item_data}")
-        ninja_invoice_id, ninja_invoice_number = self.create_invoice(ninja_client_id, invoice_item_data, external_order_id)
+        ninja_invoice_id, ninja_invoice_number = self.create_invoice(
+            client_id = ninja_client_id,
+            invoice_items = invoice_item_data,
+            invoice_date = invoice_date,
+            due_date = due_date,
+            payment_processor = payment_processor,
+            external_order_id = external_order_id,
+            custom_invoice_number = custom_invoice_number
+            )
 
         if not ninja_invoice_id or not ninja_invoice_number:
             logger.error("Failed to create invoice. Aborting.")

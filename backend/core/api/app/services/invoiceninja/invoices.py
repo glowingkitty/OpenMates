@@ -15,7 +15,16 @@ from typing import Optional, List, Dict, Any, Tuple
 logger = logging.getLogger(__name__)
 
 
-def create_invoice(service_instance: Any, client_id: str, invoice_items: List[Dict[str, Any]], external_order_id: str) -> Tuple[Optional[str], Optional[str]]:
+def create_invoice(
+        service_instance: Any, 
+        client_id: str, 
+        invoice_items: List[Dict[str, Any]],
+        invoice_date: str,
+        due_date: str,
+        payment_processor: str,
+        external_order_id: str, 
+        custom_invoice_number: Optional[str] = None
+        ) -> Tuple[Optional[str], Optional[str]]:
     """
     Creates a new invoice using product_keys for items.
 
@@ -34,26 +43,23 @@ def create_invoice(service_instance: Any, client_id: str, invoice_items: List[Di
         return None, None
 
     # Ensure items use 'product_key' and 'quantity'
-    formatted_items = []
     for item in invoice_items:
         if "product_key" not in item or "quantity" not in item:
             logger.error(f"Invoice item missing 'product_key' or 'quantity': {item}")
             return None, None
-        # TODO: Add validation for placeholder product keys if needed, potentially using config
-        # if not item["product_key"] or "YOUR_KEY_FOR" in item["product_key"]:
-        #      logger.error(f"Invalid or placeholder product_key used: {item['product_key']}. Update configuration.")
-        #      return None, None
-        formatted_items.append({
-            "product_key": item["product_key"],
-            "quantity": item["quantity"]
-            # Cost and notes will be pulled from the Product definition in IN
-        })
 
     payload = {
         "client_id": client_id,
-        "invoice_items": formatted_items,
-        "private_notes": f"External Order ID: {external_order_id}" # Store order ID in notes too
+        "line_items": invoice_items,
+        "data": invoice_date,
+        "due_date": due_date,
+        "po_number": external_order_id,
+        "custom_value1": payment_processor,
+        "custom_value2": external_order_id
+        # "private_notes": f"{payment_processor} Order ID: {external_order_id}"
     }
+    if custom_invoice_number:
+        payload["number"] = custom_invoice_number
 
     response_data = service_instance.make_api_request('POST', '/invoices', data=payload)
 
@@ -112,30 +118,28 @@ def mark_invoice_sent(service_instance: Any, invoice_id: str) -> bool:
         return False
 
 
-def upload_invoice_document(service_instance: Any, invoice_id: str, pdf_file_path: str) -> bool:
+def upload_invoice_document(service_instance: Any, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
     """
-    Uploads a custom PDF document to an existing invoice.
+    Uploads a custom PDF document (from bytes) to an existing invoice.
 
     Args:
         service_instance: The instance of the main service class.
         invoice_id: The ID of the invoice to upload the document to.
-        pdf_file_path: The local path to the PDF file.
+        pdf_data: The PDF file content as bytes.
+        filename: The desired filename for the uploaded document.
 
     Returns:
         True if successful, False otherwise.
     """
-    logger.info(f"Attempting to upload document '{pdf_file_path}' to invoice ID {invoice_id}...")
-    if not os.path.exists(pdf_file_path):
-        logger.error(f"PDF file not found at '{pdf_file_path}'")
-        return False
+    logger.info(f"Attempting to upload document '{filename}' (from bytes) to invoice ID {invoice_id}...")
 
     endpoint = f'/invoices/{invoice_id}/upload'
 
     # Delegate the actual file upload mechanism to the service instance
     # This allows the service to handle headers and multipart logic correctly.
     # The service method should return True/False based on success.
-    # We pass the endpoint and file path.
-    success = service_instance._make_file_upload_request(endpoint, pdf_file_path)
+    # We pass the endpoint, byte data, and filename.
+    success = service_instance._make_file_upload_request(endpoint, pdf_data, filename)
 
     if success:
         logger.info(f"Successfully uploaded document to invoice ID {invoice_id}.")

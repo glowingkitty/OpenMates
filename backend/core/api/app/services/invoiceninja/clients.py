@@ -21,16 +21,18 @@ def find_client_by_hash(service_instance: Any, user_hash: str) -> Optional[str]:
     Returns:
         The client ID if found, otherwise None.
     """
-    logger.info(f"Searching for client with {service_instance.USER_HASH_CUSTOM_FIELD} = {user_hash}...")
-    params = {service_instance.USER_HASH_CUSTOM_FIELD: user_hash}
+    logger.info(f"Searching for client...")
+    params = {
+        'filter': user_hash,  # Use the broad filter for searching by hash
+        'status': 'active'  # Add filter to only search for active clients
+    }
     response_data = service_instance.make_api_request('GET', '/clients', params=params)
 
     if response_data is not None and 'data' in response_data:
         clients = response_data['data']
         if len(clients) > 0:
             client_id = clients[0]['id']
-            client_name = clients[0].get('name', 'N/A')
-            logger.info(f"Found existing client: ID={client_id}, Name='{client_name}'")
+            logger.info(f"Found existing client'")
             return client_id
         else:
             logger.info("Client not found with this hash.")
@@ -58,8 +60,7 @@ def create_client(service_instance: Any, user_hash: str, external_order_id: str,
     contact = {
         "first_name": client_details.get("first_name", ""),
         "last_name": client_details.get("last_name", ""),
-        # Add other contact details like email if available in client_details
-        # "email": client_details.get("email", "")
+        "email": client_details.get("email", "")
     }
     # Ensure email is added if it's a primary identifier or required
     if "email" in client_details:

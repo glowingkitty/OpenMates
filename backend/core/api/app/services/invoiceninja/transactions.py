@@ -9,7 +9,7 @@ from typing import Optional, Any
 logger = logging.getLogger(__name__)
 
 
-def create_bank_transaction(service_instance: Any, processor_bank_account_id: str, bank_integration_id: int, amount: str | float, date_str: str, invoice_number: str, external_order_id: str) -> Optional[str]:
+def create_bank_transaction(service_instance: Any, processor_bank_account_id: str, bank_integration_id: int, amount: float, date_str: str, invoice_number: str, external_order_id: str) -> Optional[str]:
     """
     Creates a bank transaction record in the specified processor bank account.
 

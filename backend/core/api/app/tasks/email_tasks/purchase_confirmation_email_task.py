@@ -434,6 +434,7 @@ async def _async_process_invoice_and_send_email(
                 external_order_id=order_id,
                 customer_firstname=customer_firstname,
                 customer_lastname=customer_lastname,
+                customer_email=decrypted_email,
                 credits_value=credits_purchased,
                 purchase_price_value=purchase_price_value,
                 custom_pdf_data=pdf_bytes_en, # Pass the English PDF bytes
