@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
 import hashlib
+import urllib.parse
 from typing import Optional, Tuple
 from app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from app.services.directus import DirectusService
@@ -110,7 +111,7 @@ async def request_confirm_email_code(
         if email_request.username:
             response.set_cookie(
                 key="signup_username",
-                value=email_request.username,
+                value=urllib.parse.quote(email_request.username), # Encode username for cookie
                 httponly=True,
                 secure=True,
                 samesite="strict",
@@ -194,6 +195,8 @@ async def check_confirm_email_code(
     signup_language: Optional[str] = Cookie(None), # Read language cookie
     signup_darkmode: Optional[str] = Cookie(None)  # Read darkmode cookie (as string)
 ):
+    # Decode username from cookie
+    decoded_signup_username = urllib.parse.unquote(signup_username) if signup_username else None
     """
     Verify the 6-digit confirmation code for the provided email.
     If valid, create user account and log user in.
@@ -265,7 +268,7 @@ async def check_confirm_email_code(
         logger.info(f"Email verified successfully")
         
         # Validate username and password
-        username_valid, username_error = validate_username(signup_username)
+        username_valid, username_error = validate_username(decoded_signup_username) # Use decoded username
         if not username_valid:
             logger.warning(f"Invalid username format: {username_error}")
             return CheckEmailCodeResponse(
@@ -315,7 +318,7 @@ async def check_confirm_email_code(
 
         # Create the user account with device information, language, and darkmode
         success, user_data, create_message = await directus_service.create_user(
-            username=signup_username,
+            username=decoded_signup_username, # Use decoded username
             email=email,
             language=language, # Pass language
             darkmode=darkmode, # Pass darkmode
@@ -455,7 +458,7 @@ async def check_confirm_email_code(
                 # Note: token_hash and cache_key are handled internally by set_user
                 cached_data = {
                     "user_id": user_id,
-                    "username": signup_username,
+                    "username": decoded_signup_username, # Use decoded username
                     "is_admin": is_admin,
                     "credits": 0,
                     "profile_image_url": None, # Assuming profile image is not set on creation
@@ -490,7 +493,7 @@ async def check_confirm_email_code(
             message="Email verified and account created successfully.",
             user={
                 "id": user_id,
-                "username": signup_username,
+                "username": decoded_signup_username, # Use decoded username
                 "is_admin": is_admin,
                 "last_opened": "/signup/step-3"  # Add last_opened information to the response
             }
