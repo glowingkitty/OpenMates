@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 def create_payment(
     service_instance: Any,
     client_id: str,
-    amount: str | float,
+    amount: float,
     date: str,
     invoice_id: str, # Assuming single invoice payment for now based on original structure
-    invoice_amount: Optional[str | float] = None, # Amount specific to this invoice payment
+    invoice_amount: Optional[float] = None, # Amount specific to this invoice payment
     client_contact_id: Optional[str] = None,
     user_id: Optional[str] = None,
     type_id: Optional[str] = None,

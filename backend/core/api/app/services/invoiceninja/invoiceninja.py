@@ -11,11 +11,7 @@ from datetime import date # Added for payment date
 from app.utils.secrets_manager import SecretsManager
 
 # Import the functions from submodules
-import clients as client_ops
-import invoices as invoice_ops
-import payments as payment_ops
-import transactions as transaction_ops
-import bank_accounts as bank_account_ops # Import for bank account specific ops
+from app.services.invoiceninja import clients, invoices, payments, bank_accounts
 
 logger = logging.getLogger(__name__)
 
@@ -267,31 +263,31 @@ class InvoiceNinjaService:
 
     # --- Client Operations ---
     def find_client_by_hash(self, user_hash: str) -> Optional[str]:
-        return client_ops.find_client_by_hash(self, user_hash)
+        return clients.find_client_by_hash(self, user_hash)
 
     def create_client(self, user_hash: str, external_order_id: str, client_details: Dict[str, Any]) -> Optional[str]:
-        return client_ops.create_client(self, user_hash, external_order_id, client_details)
+        return clients.create_client(self, user_hash, external_order_id, client_details)
 
     # --- Invoice Operations ---
     def create_invoice(self, client_id: str, invoice_items: List[Dict[str, Any]], external_order_id: str) -> Tuple[Optional[str], Optional[str]]:
-        return invoice_ops.create_invoice(self, client_id, invoice_items, external_order_id)
+        return invoices.create_invoice(self, client_id, invoice_items, external_order_id)
 
     def mark_invoice_sent(self, invoice_id: str) -> bool:
         # Note: This uses requests directly based on original script's PUT/POST logic.
         # Consider refactoring make_api_request if this pattern is common.
-        return invoice_ops.mark_invoice_sent(self, invoice_id)
+        return invoices.mark_invoice_sent(self, invoice_id)
 
     def upload_invoice_document(self, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
         # Uses the dedicated _make_file_upload_request method
-        # Assuming invoice_ops.upload_invoice_document is updated to accept bytes and filename
-        return invoice_ops.upload_invoice_document(self, invoice_id, pdf_data, filename)
+        # Assuming invoices.upload_invoice_document is updated to accept bytes and filename
+        return invoices.upload_invoice_document(self, invoice_id, pdf_data, filename)
 
     # --- Payment Operations ---
-    def create_payment(self, invoice_id: str, client_id: str, amount: str | float, payment_date_str: str, external_order_id: str, payment_type_id: Optional[str] = None) -> Optional[str]:
-        return payment_ops.create_payment(self, invoice_id, client_id, amount, payment_date_str, external_order_id, payment_type_id)
+    def create_payment(self, invoice_id: str, client_id: str, amount: float, payment_date_str: str, external_order_id: str, payment_type_id: Optional[str] = None) -> Optional[str]:
+        return payments.create_payment(self, invoice_id, client_id, amount, payment_date_str, external_order_id, payment_type_id)
 
     # --- Bank Account Operations ---
-    def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: str | float, date_str: str, invoice_number: str, external_order_id: str) -> Optional[str]:
+    def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: float, date_str: str, invoice_number: str, external_order_id: str) -> Optional[str]:
         """
         Creates a bank transaction in Invoice Ninja.
 
@@ -308,12 +304,12 @@ class InvoiceNinjaService:
         """
         # Calls the function from the transactions module now
         # IMPORTANT: Ensure the function signature in transactions.py expects string for bank_integration_id
-        return transaction_ops.create_bank_transaction(self, processor_bank_account_id, bank_integration_id, amount, date_str, invoice_number, external_order_id)
+        return transactions.create_bank_transaction(self, processor_bank_account_id, bank_integration_id, amount, date_str, invoice_number, external_order_id)
 
     def get_bank_integrations(self, params: Optional[Dict[str, Any]] = None) -> Optional[List[Dict[str, Any]]]:
         """Retrieves bank integrations."""
         # Calls the function from the bank_accounts module now
-        return bank_account_ops.get_bank_integrations(self, params)
+        return bank_accounts.get_bank_integrations(self, params)
 
     # --- Main Process Orchestration ---
     def process_income_transaction(

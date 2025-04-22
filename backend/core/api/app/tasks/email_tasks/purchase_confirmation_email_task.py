@@ -10,7 +10,6 @@ import hashlib
 import uuid
 
 # Imports for hybrid encryption
-from cryptography.hazmat.primitives.ciphers import algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 # Import the Celery app and Base Task
@@ -18,11 +17,8 @@ from app.tasks.celery_config import app
 from app.tasks.base_task import BaseServiceTask # Import from new location
 
 # Import necessary services and utilities (ensure all needed are here)
-from app.services.cache import CacheService # Needed for user caching
-# DirectusService, RevolutService, EncryptionService, S3Service, InvoiceTemplateService, EmailTemplateService
-# are accessed via BaseServiceTask properties
+from app.services.cache import CacheService
 from app.utils.log_filters import SensitiveDataFilter
-from app.services.s3.config import get_bucket_name
 
 # Setup loggers
 logger = logging.getLogger(__name__)
@@ -415,7 +411,44 @@ async def _async_process_invoice_and_send_email(
             return False # Indicate email sending failed
 
         logger.info(f"Successfully sent purchase confirmation email with invoice attached.")
-        return True
+
+        # 13. Process Income Transaction in Invoice Ninja
+        logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}")
+        try:
+            # Access InvoiceNinjaService via the base task property
+            invoice_ninja_service = task.invoice_ninja_service
+
+            # Extract necessary details for Invoice Ninja
+            # Assuming revolut_order_details has 'customer' field with 'name'
+            customer_firstname = cardholder_name.split(' ', 1)[0] if ' ' in cardholder_name else cardholder_name
+            customer_lastname = cardholder_name.split(' ', 1)[-1] if ' ' in cardholder_name else ''
+
+            # Assuming revolut_order_details has 'amount' and 'currency'
+            # Amount is in smallest unit, need to convert to float for price
+            purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
+
+            # Pass the English PDF bytes as custom_pdf_data
+            invoice_ninja_result = invoice_ninja_service.process_income_transaction(
+                user_hash=user_id_hash, # Using user_id_hash as user_hash
+                external_order_id=order_id,
+                customer_firstname=customer_firstname,
+                customer_lastname=customer_lastname,
+                credits_value=credits_purchased,
+                purchase_price_value=purchase_price_value,
+                custom_pdf_data=pdf_bytes_en, # Pass the English PDF bytes
+                processor_type="revolut" # Assuming Revolut for now
+            )
+
+            if invoice_ninja_result:
+                logger.info(f"Successfully processed income transaction in Invoice Ninja. Result: {invoice_ninja_result}")
+            else:
+                logger.warning("Failed to process income transaction in Invoice Ninja.")
+
+        except Exception as ninja_err:
+            logger.error(f"Error processing income transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
+            # Log the error but do not fail the main task
+
+        return True # Indicate overall success if email sent and invoice processed (even if Ninja failed)
 
     except Exception as e:
         logger.error(f"Error in _async_process_invoice_and_send_email task for order: {str(e)}", exc_info=True)

@@ -13,6 +13,7 @@ from app.services.pdf.invoice import InvoiceTemplateService
 from app.services.email_template import EmailTemplateService
 from app.utils.secrets_manager import SecretsManager
 from app.services.translations import TranslationService
+from app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class BaseServiceTask(Task):
     _email_template_service: Optional[EmailTemplateService] = None
     _secrets_manager: Optional[SecretsManager] = None
     _translation_service: Optional[TranslationService] = None
+    _invoice_ninja_service: Optional[InvoiceNinjaService] = None # Add InvoiceNinjaService attribute
 
     async def initialize_services(self):
         # Initialize SecretsManager first as others depend on it
@@ -93,6 +95,15 @@ class BaseServiceTask(Task):
             # TranslationService might not need async init, depends on its implementation
             logger.debug(f"TranslationService initialized for task {self.request.id}")
 
+        # Initialize InvoiceNinjaService
+        if self._invoice_ninja_service is None:
+            logger.debug(f"Initializing InvoiceNinjaService for task {self.request.id}")
+            # InvoiceNinjaService needs SecretsManager for async init
+            self._invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=self._secrets_manager)
+            logger.debug(f"InvoiceNinjaService initialized for task {self.request.id}")
+        else:
+             logger.debug(f"InvoiceNinjaService already initialized for task {self.request.id}")
+
 
     @property
     def directus_service(self) -> DirectusService:
@@ -157,3 +168,11 @@ class BaseServiceTask(Task):
             logger.error(f"TranslationService accessed before initialization in task {self.request.id}")
             raise RuntimeError("TranslationService not initialized. Call initialize_services first.")
         return self._translation_service
+
+    @property
+    def invoice_ninja_service(self) -> InvoiceNinjaService:
+        if self._invoice_ninja_service is None:
+             # Log error before raising
+            logger.error(f"InvoiceNinjaService accessed before initialization in task {self.request.id}")
+            raise RuntimeError("InvoiceNinjaService not initialized. Call initialize_services first.")
+        return self._invoice_ninja_service
