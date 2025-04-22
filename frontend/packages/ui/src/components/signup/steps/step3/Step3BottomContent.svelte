@@ -1,7 +1,6 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import InputWarning from '../../../common/InputWarning.svelte';
-    import Pica from 'pica';
     import { processedImageUrl } from '../../../../stores/profileImage';
     import { createEventDispatcher } from 'svelte';
     import { updateProfileImage } from '../../../../stores/userProfile';
@@ -14,7 +13,6 @@
     let fileInput: HTMLInputElement;
     const MAX_FILE_SIZE = 2 * 1024 * 1024; // 1MB in bytes
     const TARGET_SIZE = 340;
-    const pica = new Pica();
     let isProcessing = false;
     let isUploading = false;
     const dispatch = createEventDispatcher();
@@ -114,15 +112,11 @@
             destCanvas.width = TARGET_SIZE;
             destCanvas.height = TARGET_SIZE;
 
-            // Resize using pica
-            await pica.resize(sourceCanvas, destCanvas, {
-                unsharpAmount: 80,
-                unsharpRadius: 0.6,
-                unsharpThreshold: 2
-            });
+            // Resize using native canvas drawImage
+            const destCtx = destCanvas.getContext('2d')!;
+            destCtx.drawImage(sourceCanvas, 0, 0, size, size, 0, 0, TARGET_SIZE, TARGET_SIZE);
 
-            // Convert to blob and create URL
-            const blob = await pica.toBlob(destCanvas, 'image/jpeg', 0.9);
+            const blob = await new Promise<Blob | null>((resolve) => destCanvas.toBlob(resolve, 'image/jpeg', 0.9));
             const processedUrl = URL.createObjectURL(blob);
 
             // After processing, start upload
