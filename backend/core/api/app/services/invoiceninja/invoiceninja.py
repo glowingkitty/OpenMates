@@ -3,8 +3,15 @@ import requests
 import json
 import logging
 import os
+import argparse
+import asyncio
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
+from datetime import date # Added for payment date
+
+# Assuming SecretsManager is accessible via this relative path
+# Adjust the import path if necessary based on your project structure
+from app.utils.secrets_manager import SecretsManager
 
 # Import the functions from submodules
 import clients as client_ops
@@ -15,65 +22,63 @@ import bank_accounts as bank_account_ops # Import for bank account specific ops
 
 logger = logging.getLogger(__name__)
 
+# TODO
+# - remove dataclass
+# - implement into real webhook processing
+# - make sure invoice pdf is also uploaded
+# - auto select product based on credits input that is given to function 
+
 # --- Configuration Placeholder ---
 # In a real app, load this from environment variables, Vault, or a config file (e.g., using Pydantic)
-@dataclass
-class InvoiceNinjaConfig:
-    INVOICE_NINJA_URL: str = os.getenv("SECRET__INVOICE_NINJA_URL") # TODO: Load externally
-    API_TOKEN: str = os.getenv("SECRET__INVOICE_NINJA_SANDBOX_API_KEY") # TODO: Load externally
-    USER_HASH_CUSTOM_FIELD: str = "9aDk1j2kDJDkhggkq" # TODO: Load externally
-    ORDER_ID_CUSTOM_FIELD: str = "as1u2u2auasdha28Diasd" # TODO: Load externally
-
-    # --- Names to search for in bank integrations ---
-    # !! IMPORTANT !!: These names MUST match the 'bank_account_name' field
-    #                  configured within Invoice Ninja for the respective integrations.
-    REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business Merchant"
-    STRIPE_BANK_ACCOUNT_NAME: str = "Stripe"
-
-    # --- Payment Type IDs (Still potentially useful, check if needed) ---
-    PAYMENT_TYPE_ID_REVOLUT: Optional[str] = "16" # TODO: Load externally or make optional
-    PAYMENT_TYPE_ID_STRIPE: Optional[str] = "16" # TODO: Load externally or make optional
-
-    # Product keys could also be part of config if relatively static
-    PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
-    PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
-    PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
-    PRODUCT_KEY_CREDITS_54K: str = "54.000 credits"
-    PRODUCT_KEY_CREDITS_110K: str = "110.000 credits"
-    # ... other product keys ...
-
-    # Default headers derived from the token
-    headers: Dict[str, str] = field(init=False)
-
-    def __post_init__(self):
-        if not self.API_TOKEN or "YOUR_" in self.API_TOKEN:
-             raise ValueError("Invoice Ninja API Token is not configured.")
-        self.headers = {
-            'X-API-TOKEN': self.API_TOKEN,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-        }
-
+# Configuration is now directly within the InvoiceNinjaService class
 # --- Main Service Class ---
 class InvoiceNinjaService:
-    def __init__(self, config: Optional[InvoiceNinjaConfig] = None):
-        """
-        Initializes the Invoice Ninja service client and fetches dynamic bank integration IDs.
+    def __init__(self, invoice_ninja_url: str, api_token: str):
+       """
+       Initializes the Invoice Ninja service client with required credentials
+       and fetches dynamic bank integration IDs.
 
-        Args:
-            config: An InvoiceNinjaConfig object. If None, a default config is created.
-        """
-        self.config = config or InvoiceNinjaConfig()
-        self.headers = self.config.headers # Convenience access
+       Args:
+           invoice_ninja_url: The base URL for the Invoice Ninja API.
+           api_token: The API token for authentication.
+       """
+       # --- Store Configuration ---
+       self.INVOICE_NINJA_URL = invoice_ninja_url
+       self.API_TOKEN = api_token
 
-        # --- Initialize dynamic bank integration details ---
-        self._revolut_bank_account_id: Optional[str] = None
-        self._revolut_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
-        self._stripe_bank_account_id: Optional[str] = None
-        self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
+       if not self.INVOICE_NINJA_URL:
+           raise ValueError("Invoice Ninja URL is required.")
+       if not self.API_TOKEN:
+           raise ValueError("Invoice Ninja API Token is required.")
 
-        self._load_bank_integration_details()
+       # --- Static Configuration (Consider moving to config or secrets) ---
+       self.PAYMENT_PROCESSOR_ACCOUNT: str = "Revolut Business Merchant" # TODO: Make configurable?
+       self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business GBP" # TODO: Make configurable?
+       self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe Payments" # TODO: Make configurable?
+       self.PAYMENT_TYPE_ID_REVOLUT: Optional[str] = "16" # TODO: Load externally or make optional
+       self.PAYMENT_TYPE_ID_STRIPE: Optional[str] = "16" # TODO: Load externally or make optional
+       self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
+       self.PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
+       self.PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
+       self.PRODUCT_KEY_CREDITS_54K: str = "54.000 credits"
+       self.PRODUCT_KEY_CREDITS_110K: str = "110.000 credits"
+
+       # --- Validate and Set Headers ---
+       # API Token validation already happened
+       self.headers = {
+           'X-API-TOKEN': self.API_TOKEN,
+           'Content-Type': 'application/json',
+           'Accept': 'application/json',
+           'X-Requested-With': 'XMLHttpRequest',
+       }
+
+       # --- Initialize dynamic bank integration details ---
+       self._revolut_bank_account_id: Optional[str] = None
+       self._revolut_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
+       self._stripe_bank_account_id: Optional[str] = None
+       self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
+
+       self._load_bank_integration_details()
 
     def _load_bank_integration_details(self):
         """Fetches bank integrations and stores IDs for configured account names."""
@@ -92,8 +97,8 @@ class InvoiceNinjaService:
         found_revolut = False
         found_stripe = False
 
-        revolut_target_name = self.config.REVOLUT_BANK_ACCOUNT_NAME.lower()
-        stripe_target_name = self.config.STRIPE_BANK_ACCOUNT_NAME.lower()
+        revolut_target_name = self.REVOLUT_BANK_ACCOUNT_NAME.lower()
+        stripe_target_name = self.STRIPE_BANK_ACCOUNT_NAME.lower()
 
         for integration in integrations:
             # Check required fields exist
@@ -127,13 +132,13 @@ class InvoiceNinjaService:
 
         # Log warnings if not found
         if not found_revolut:
-            logger.warning(f"Could not find bank integration matching name '{self.config.REVOLUT_BANK_ACCOUNT_NAME}'. Revolut transactions cannot be processed.")
+            logger.warning(f"Could not find bank integration matching name '{self.REVOLUT_BANK_ACCOUNT_NAME}'. Revolut transactions cannot be processed.")
         if not found_stripe:
-            logger.warning(f"Could not find bank integration matching name '{self.config.STRIPE_BANK_ACCOUNT_NAME}'. Stripe transactions cannot be processed.")
+            logger.warning(f"Could not find bank integration matching name '{self.STRIPE_BANK_ACCOUNT_NAME}'. Stripe transactions cannot be processed.")
 
     def make_api_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Makes a standard JSON API request and handles common errors."""
-        url = f"{self.config.INVOICE_NINJA_URL}/api/v1{endpoint}"
+        url = f"{self.INVOICE_NINJA_URL}/api/v1{endpoint}"
         try:
             if method.upper() == 'GET':
                 response = requests.get(url, headers=self.headers, params=params, timeout=15)
@@ -181,13 +186,13 @@ class InvoiceNinjaService:
 
         return None
 
-    def _make_file_upload_request(self, endpoint: str, file_path: str) -> bool:
-        """Handles file uploads using multipart/form-data."""
-        url = f"{self.config.INVOICE_NINJA_URL}/api/v1{endpoint}"
+    def _make_file_upload_request(self, endpoint: str, file_data: bytes, filename: str) -> bool:
+        """Handles file uploads using multipart/form-data from byte data."""
+        url = f"{self.INVOICE_NINJA_URL}/api/v1{endpoint}"
         files = None
         try:
-            # Use multipart/form-data for file uploads
-            files = {'file': (os.path.basename(file_path), open(file_path, 'rb'), 'application/pdf')}
+            # Use multipart/form-data for file uploads from bytes
+            files = {'file': (filename, file_data, 'application/pdf')}
 
             # Create headers for upload, removing Content-Type for requests lib to set it
             upload_headers = self.headers.copy()
@@ -243,9 +248,10 @@ class InvoiceNinjaService:
         # Consider refactoring make_api_request if this pattern is common.
         return invoice_ops.mark_invoice_sent(self, invoice_id)
 
-    def upload_invoice_document(self, invoice_id: str, pdf_file_path: str) -> bool:
+    def upload_invoice_document(self, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
         # Uses the dedicated _make_file_upload_request method
-        return invoice_ops.upload_invoice_document(self, invoice_id, pdf_file_path)
+        # Assuming invoice_ops.upload_invoice_document is updated to accept bytes and filename
+        return invoice_ops.upload_invoice_document(self, invoice_id, pdf_data, filename)
 
     # --- Payment Operations ---
     def create_payment(self, invoice_id: str, client_id: str, amount: str | float, payment_date_str: str, external_order_id: str, payment_type_id: Optional[str] = None) -> Optional[str]:
@@ -279,106 +285,168 @@ class InvoiceNinjaService:
     # --- Main Process Orchestration ---
     def process_income_transaction(
         self,
-        processor_type: str, # 'revolut' or 'stripe'
         user_hash: str,
         external_order_id: str,
-        client_data: Dict[str, Any],
-        invoice_item_data: List[Dict[str, Any]], # List of {"product_key": "...", "quantity": ...}
-        payment_amount: str | float,
-        payment_date_str: str, # e.g., "YYYY-MM-DD"
-        custom_pdf_path: Optional[str] = None # Path to the custom PDF to upload
+        customer_firstname: str,
+        customer_lastname: str,
+        credits_value: int,
+        purchase_price_value: float, # Direct price input
+        # payment_date_str is now auto-generated
+        custom_pdf_data: Optional[bytes] = None, # PDF data as bytes
+        processor_type: str = "revolut" # 'revolut' or 'stripe'
         ) -> Optional[Dict[str, Any]]:
-        """Handles the full workflow for processing an income transaction."""
+        """
+        Handles the full workflow for processing an income transaction,
+        using a directly provided purchase price.
+        """
         logger.info("=" * 40)
         logger.info(f"Starting Process for {processor_type.upper()} Order: {external_order_id} (User Hash: {user_hash})")
 
+        # --- Auto-generate Payment Date ---
+        payment_date_str = date.today().strftime('%Y-%m-%d')
+        logger.info(f"Using payment date: {payment_date_str}")
+
+        # --- Use provided price directly ---
+        payment_amount = purchase_price_value
+        logger.info(f"Using provided purchase price: {payment_amount}")
+
         # --- Determine Processor Specific IDs using fetched values ---
         target_processor_bank_id: Optional[str] = None
-        target_bank_integration_id: Optional[str] = None # Use string now
+        target_bank_integration_id: Optional[str] = None
         target_payment_type_id: Optional[str] = None
 
         if processor_type.lower() == 'revolut':
             target_processor_bank_id = self._revolut_bank_account_id
             target_bank_integration_id = self._revolut_bank_integration_id
-            target_payment_type_id = self.config.PAYMENT_TYPE_ID_REVOLUT # Still from config if used
+            target_payment_type_id = self.PAYMENT_TYPE_ID_REVOLUT
         elif processor_type.lower() == 'stripe':
             target_processor_bank_id = self._stripe_bank_account_id
             target_bank_integration_id = self._stripe_bank_integration_id
-            target_payment_type_id = self.config.PAYMENT_TYPE_ID_STRIPE # Still from config if used
+            target_payment_type_id = self.PAYMENT_TYPE_ID_STRIPE
         else:
-            logger.error(f"Invalid processor_type '{processor_type}'. Use 'revolut' or 'stripe'.")
-            return None
+            logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
+            # Decide if you should abort or continue without bank details
 
         # --- Sanity Check Fetched IDs ---
         if not target_processor_bank_id:
-             logger.error(f"Bank Account ID for {processor_type.upper()} was not found during initialization (looking for name: '{self.config.REVOLUT_BANK_ACCOUNT_NAME if processor_type.lower() == 'revolut' else self.config.STRIPE_BANK_ACCOUNT_NAME}'). Aborting.")
-             return None
+            logger.error(f"Bank Account ID for the processor type '{processor_type}' was not found during initialization. Aborting.")
+            return None
         if not target_bank_integration_id:
-             logger.error(f"Bank Integration ID for {processor_type.upper()} was not found during initialization (looking for name: '{self.config.REVOLUT_BANK_ACCOUNT_NAME if processor_type.lower() == 'revolut' else self.config.STRIPE_BANK_ACCOUNT_NAME}'). Aborting.")
-             return None
+            logger.error(f"Bank Integration ID for the processor type '{processor_type}' was not found during initialization. Aborting.")
+            return None
 
-        # Check Payment Type ID from config (optional)
-        if not target_payment_type_id or "YOUR_" in target_payment_type_id:
-            logger.warning(f"Payment Type ID for {processor_type.upper()} is not configured correctly in config. Payment will be created without type.")
-            target_payment_type_id = None # Allow process to continue
+        # Check Payment Type ID (optional)
+        if target_payment_type_id and "YOUR_" in target_payment_type_id: # Assuming placeholder check
+            logger.warning(f"Payment Type ID for {processor_type.upper()} is not configured correctly. Payment will be created without type.")
+            target_payment_type_id = None
+        elif not target_payment_type_id:
+            logger.info(f"No specific Payment Type ID configured or matched for processor '{processor_type}'. Payment will be created without type.")
 
         # --- Find or Create Client ---
         ninja_client_id = self.find_client_by_hash(user_hash)
         if not ninja_client_id:
-            ninja_client_id = self.create_client(user_hash, external_order_id, client_data)
+            client_details = {
+                "first_name": customer_firstname,
+                "last_name": customer_lastname,
+                "custom_value1": user_hash,
+                "custom_value2": external_order_id
+            }
+            logger.info(f"Client not found by hash '{user_hash}'. Creating new client...")
+            ninja_client_id = self.create_client(user_hash, external_order_id, client_details)
 
         if not ninja_client_id:
             logger.critical("Could not find or create client. Aborting.")
             return None
+        else:
+             logger.info(f"Using Client ID: {ninja_client_id}")
+
+        # --- Determine Product Key based on credits_value ---
+        product_key: Optional[str] = None
+        if credits_value == 1000:
+            product_key = self.PRODUCT_KEY_CREDITS_1K
+        elif credits_value == 10000:
+            product_key = self.PRODUCT_KEY_CREDITS_10K
+        elif credits_value == 21000:
+            product_key = self.PRODUCT_KEY_CREDITS_21K
+        elif credits_value == 54000:
+            product_key = self.PRODUCT_KEY_CREDITS_54K
+        elif credits_value == 110000:
+            product_key = self.PRODUCT_KEY_CREDITS_110K
+        else:
+            logger.error(f"Invalid credits_value '{credits_value}'. Cannot determine product key for invoice line item. Aborting.")
+            return None
+        logger.info(f"Selected product key for invoice line item (based on credits {credits_value}): {product_key}")
+
+        # Prepare invoice items (using determined product key and provided price)
+        invoice_item_data = [
+            {
+                "product_key": product_key,
+                "quantity": 1,
+                "cost": purchase_price_value # Use the provided price for the line item cost
+            }
+        ]
 
         # --- Create Invoice ---
+        logger.info(f"Creating invoice for Client ID: {ninja_client_id} with items: {invoice_item_data}")
         ninja_invoice_id, ninja_invoice_number = self.create_invoice(ninja_client_id, invoice_item_data, external_order_id)
 
         if not ninja_invoice_id or not ninja_invoice_number:
             logger.error("Failed to create invoice. Aborting.")
             return None
+        else:
+             logger.info(f"Invoice created: ID={ninja_invoice_id}, Number={ninja_invoice_number}")
 
         # --- Mark Invoice as Sent ---
+        logger.info(f"Marking invoice {ninja_invoice_id} as sent...")
         if not self.mark_invoice_sent(ninja_invoice_id):
             logger.warning("Failed to mark invoice as sent. Payment might remain unapplied initially.")
-            # Continue processing
+        else:
+             logger.info(f"Invoice {ninja_invoice_id} marked as sent.")
 
         # --- Upload Custom Document (if provided) ---
         pdf_upload_success = False
-        if custom_pdf_path:
-            pdf_upload_success = self.upload_invoice_document(ninja_invoice_id, custom_pdf_path)
+        if custom_pdf_data:
+            pdf_filename = f"{external_order_id}_invoice.pdf"
+            logger.info(f"Attempting to upload custom PDF data as '{pdf_filename}' for Invoice ID: {ninja_invoice_id}...")
+            pdf_upload_success = self.upload_invoice_document(ninja_invoice_id, custom_pdf_data, pdf_filename)
             if not pdf_upload_success:
                 logger.warning("Failed to upload custom PDF document.")
-            # Continue process even if PDF upload fails
+            else:
+                 logger.info("Custom PDF document uploaded successfully.")
+        else:
+             logger.info("No custom PDF data provided, skipping upload.")
 
         # --- Create Payment ---
+        logger.info(f"Creating payment for Invoice ID: {ninja_invoice_id}, Amount: {payment_amount}, Date: {payment_date_str}")
         ninja_payment_id = self.create_payment(
             invoice_id=ninja_invoice_id,
             client_id=ninja_client_id,
-            amount=payment_amount,
+            amount=payment_amount, # Use the provided price
             payment_date_str=payment_date_str,
             external_order_id=external_order_id,
-            payment_type_id=target_payment_type_id # Use the potentially None value
+            payment_type_id=target_payment_type_id
         )
 
         if not ninja_payment_id:
             logger.error("Failed to create payment record. Invoice exists but payment step failed.")
-            # Return partial success info? For now, return None
             return None
+        else:
+             logger.info(f"Payment created: ID={ninja_payment_id}")
 
         # --- Create Bank Transaction ---
-        # Pass the dynamically fetched IDs
+        logger.info(f"Creating bank transaction for Invoice: {ninja_invoice_number}, Amount: {payment_amount}, Date: {payment_date_str}")
         ninja_bank_transaction_id = self.create_bank_transaction(
-            processor_bank_account_id=target_processor_bank_id, # Fetched dynamically
-            bank_integration_id=target_bank_integration_id, # Fetched dynamically
-            amount=payment_amount,
+            processor_bank_account_id=target_processor_bank_id,
+            bank_integration_id=target_bank_integration_id,
+            amount=payment_amount, # Use the provided price
             date_str=payment_date_str,
             invoice_number=ninja_invoice_number,
             external_order_id=external_order_id
         )
         if not ninja_bank_transaction_id:
             logger.warning("Failed to create corresponding bank transaction record.")
-            # Still consider the overall process potentially successful as payment was recorded
+        else:
+             logger.info(f"Bank transaction created: ID={ninja_bank_transaction_id}")
 
         # --- Success ---
         logger.info("=" * 40)
@@ -389,119 +457,9 @@ class InvoiceNinjaService:
             "invoice_id": ninja_invoice_id,
             "invoice_number": ninja_invoice_number,
             "payment_id": ninja_payment_id,
-            "bank_transaction_id": ninja_bank_transaction_id, # Could be None if bank tx failed
-            "pdf_upload_status": "Success" if pdf_upload_success else ("Skipped" if not custom_pdf_path else "Failed")
+            "bank_transaction_id": ninja_bank_transaction_id, # Could be None
+            "pdf_upload_status": "Success" if pdf_upload_success else ("Skipped" if not custom_pdf_data else "Failed")
         }
         logger.info(f"Resulting IDs: {json.dumps(result, indent=2)}")
         logger.info("=" * 40)
         return result
-
-
-if __name__ == "__main__":
-    # Basic logging configuration for standalone execution
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logger.info("Running InvoiceNinjaService for testing...")
-
-    # Example usage:
-    try:
-        # Instantiate the service (uses default config from class)
-        service = InvoiceNinjaService()
-
-        # --- Dummy Data for Testing ---
-        # Replace with actual test data as needed
-        test_user_hash = "test_user_hash_123"
-        test_external_order_id = "TEST_ORDER_XYZ_789"
-        test_client_data = {
-            "name": "Test Client",
-            "email": "test.client@example.com",
-            "address1": "123 Test St",
-            "city": "Testville",
-            "state": "TS",
-            "postal_code": "12345",
-            "country_id": "840" # USA
-        }
-        test_invoice_item_data = [
-            {"product_key": service.config.PRODUCT_KEY_CREDITS_10K, "quantity": 1}
-        ]
-        test_payment_amount = 10.00 # Example amount
-        test_payment_date_str = "2025-04-20" # Example date
-
-        # --- Test Workflow ---
-
-        # 1. Find or Create Client
-        logger.info(f"Attempting to find or create client for user hash: {test_user_hash}")
-        ninja_client_id = service.find_client_by_hash(test_user_hash)
-        if not ninja_client_id:
-            logger.info("Client not found, creating new client...")
-            ninja_client_id = service.create_client(test_user_hash, test_external_order_id, test_client_data)
-
-        if not ninja_client_id:
-            logger.critical("Could not find or create client. Aborting test.")
-            exit()
-        logger.info(f"Client ID: {ninja_client_id}")
-
-        # 2. Create Invoice
-        logger.info(f"Attempting to create invoice for client ID: {ninja_client_id}")
-        ninja_invoice_id, ninja_invoice_number = service.create_invoice(ninja_client_id, test_invoice_item_data, test_external_order_id)
-
-        if not ninja_invoice_id or not ninja_invoice_number:
-            logger.error("Failed to create invoice. Aborting test.")
-            exit()
-        logger.info(f"Invoice ID: {ninja_invoice_id}, Invoice Number: {ninja_invoice_number}")
-
-        # 3. Mark Invoice as Sent (Optional but good practice)
-        logger.info(f"Attempting to mark invoice {ninja_invoice_id} as sent...")
-        if service.mark_invoice_sent(ninja_invoice_id):
-            logger.info("Invoice marked as sent.")
-        else:
-            logger.warning("Failed to mark invoice as sent.")
-
-        # 4. Create Payment
-        logger.info(f"Attempting to create payment for invoice ID: {ninja_invoice_id}")
-        # Using Revolut payment type ID for example, replace if needed
-        payment_type_id = service.config.PAYMENT_TYPE_ID_REVOLUT
-        ninja_payment_id = service.create_payment(
-            invoice_id=ninja_invoice_id,
-            client_id=ninja_client_id,
-            amount=test_payment_amount,
-            payment_date_str=test_payment_date_str,
-            external_order_id=test_external_order_id,
-            payment_type_id=payment_type_id
-        )
-
-        if not ninja_payment_id:
-            logger.error("Failed to create payment record. Aborting test.")
-            exit()
-        logger.info(f"Payment ID: {ninja_payment_id}")
-
-        # 5. Create Bank Transaction (Requires bank integration details to be loaded)
-        logger.info("Attempting to create bank transaction...")
-        # Using Revolut details for example, replace if needed
-        processor_bank_account_id = service._revolut_bank_account_id
-        bank_integration_id = service._revolut_bank_integration_id
-
-        if processor_bank_account_id and bank_integration_id:
-             ninja_bank_transaction_id = service.create_bank_transaction(
-                processor_bank_account_id=processor_bank_account_id,
-                bank_integration_id=bank_integration_id,
-                amount=test_payment_amount,
-                date_str=test_payment_date_str,
-                invoice_number=ninja_invoice_number,
-                external_order_id=test_external_order_id
-            )
-             if ninja_bank_transaction_id:
-                 logger.info(f"Bank Transaction ID: {ninja_bank_transaction_id}")
-             else:
-                 logger.warning("Failed to create corresponding bank transaction record.")
-        else:
-            logger.warning("Skipping bank transaction creation: Bank integration details not loaded.")
-
-
-        logger.info("Test workflow completed.")
-
-    except ValueError as ve:
-        logger.error(f"Configuration Error: {ve}")
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred during test execution: {e}")
-
-    logger.info("Testing finished.")
