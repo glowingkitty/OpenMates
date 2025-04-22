@@ -56,6 +56,7 @@
     let selectedCreditsAmount: number = 21000; // Default credits amount
     let selectedPrice: number = 20; // Default price
     let selectedCurrency: string = 'EUR'; // Default currency
+    let isGiftFlow: boolean = false; // Track if it's a gift flow
     let limitedRefundConsent = false;
 
     // Animation parameters
@@ -145,10 +146,11 @@
         }
     }
 
-    async function handleStep(event: CustomEvent<{step: number, credits_amount?: number, price?: number, currency?: string}>) {
+    async function handleStep(event: CustomEvent<{step: number, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>) { // Add isGift to type
         const newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         direction = newStep > oldStep ? 'forward' : 'backward';
+        isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
         await tick(); // Wait for Svelte to process state changes before proceeding
@@ -379,10 +381,11 @@
                                     {:else if currentStep === 9}
                                         <Step9TopContent />
                                     {:else if currentStep === 10}
-                                        <Step10TopContent 
-                                            credits_amount={selectedCreditsAmount} 
-                                            price={selectedPrice} 
+                                        <Step10TopContent
+                                            credits_amount={selectedCreditsAmount}
+                                            price={selectedPrice}
                                             currency={selectedCurrency}
+                                            isGift={isGiftFlow}
                                             on:consentGiven={handleRefundConsent}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}
