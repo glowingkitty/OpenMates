@@ -162,8 +162,9 @@ async def _async_process_invoice_and_send_email(
         user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
         logger.info(f"Generated user_id_hash for user")
 
-        # Increment the counter for the new invoice
-        new_invoice_counter = current_invoice_counter + 1
+        # Increment the counter for the new invoice, defaulting to 0 if None
+        base_counter = current_invoice_counter if current_invoice_counter is not None else 0
+        new_invoice_counter = base_counter + 1
 
         # Cache update will happen *after* successful Directus update below.
 
