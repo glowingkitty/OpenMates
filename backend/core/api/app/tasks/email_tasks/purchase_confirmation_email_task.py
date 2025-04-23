@@ -430,7 +430,7 @@ async def _async_process_invoice_and_send_email(
             purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
 
             # Pass the English PDF bytes as custom_pdf_data and other required fields
-            invoice_ninja_result = invoice_ninja_service.process_income_transaction(
+            invoice_ninja_service.process_income_transaction(
                 user_hash=user_id_hash, # Using user_id_hash as user_hash
                 external_order_id=order_id,
                 customer_firstname=customer_firstname,
@@ -438,6 +438,7 @@ async def _async_process_invoice_and_send_email(
                 customer_email=decrypted_email,
                 customer_country_code=country_code,
                 credits_value=credits_purchased,
+                currency_code=currency_paid,
                 purchase_price_value=purchase_price_value,
                 invoice_date=date_str_iso, # Pass generated invoice date
                 due_date=date_str_iso, # Pass generated due date (same as invoice date)
@@ -445,11 +446,6 @@ async def _async_process_invoice_and_send_email(
                 custom_invoice_number=invoice_number, # Pass generated invoice number
                 custom_pdf_data=pdf_bytes_en # Pass the English PDF bytes
             )
-
-            if invoice_ninja_result:
-                logger.info(f"Successfully processed income transaction in Invoice Ninja. Result: {invoice_ninja_result}")
-            else:
-                logger.warning("Failed to process income transaction in Invoice Ninja.")
 
         except Exception as ninja_err:
             logger.error(f"Error processing income transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)

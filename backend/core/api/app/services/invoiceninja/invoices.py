@@ -24,10 +24,10 @@ def create_invoice(
         payment_processor: str,
         external_order_id: str, 
         custom_invoice_number: Optional[str] = None,
-        mark_paid: bool = True # Add flag to control marking as paid
+        mark_sent: bool = True
         ) -> Tuple[Optional[str], Optional[str]]:
     """
-    Creates a new invoice using product_keys for items. Optionally marks it as paid.
+    Creates a new invoice using product_keys for items.
 
     Args:
         service_instance: The instance of the main service class.
@@ -35,7 +35,6 @@ def create_invoice(
         invoice_items: A list of dictionaries, each with "product_key" and "quantity".
         external_order_id: The external order ID for reference.
         custom_invoice_number: Optional custom number for the invoice.
-        mark_paid: If True, attempts to mark the invoice as paid upon creation.
 
     Returns:
         A tuple containing the new invoice ID and invoice number if successful, otherwise (None, None).
@@ -72,12 +71,8 @@ def create_invoice(
     if custom_invoice_number:
         payload["number"] = custom_invoice_number
 
-    # Prepare query parameters for marking as paid
-    query_params = {}
-    if mark_paid:
-        query_params["paid"] = "true"
-        query_params["amount_paid"] = str(total_amount)
-        logger.info(f"Invoice will be marked as paid with amount {total_amount}.")
+    # Mark as sent during creation using query parameter.
+    query_params = {"mark_sent": mark_sent}
 
     response_data = service_instance.make_api_request('POST', '/invoices', params=query_params, data=payload)
 
@@ -94,46 +89,6 @@ def create_invoice(
     else:
         logger.error("Failed to create invoice.")
         return None, None
-
-
-def mark_invoice_sent(service_instance: Any, invoice_id: str) -> bool:
-    """
-    Updates the invoice status to mark it as sent (activates it).
-
-    Args:
-        service_instance: The instance of the main service class.
-        invoice_id: The ID of the invoice to mark as sent.
-
-    Returns:
-        True if successful, False otherwise.
-    """
-    logger.info(f"Attempting to mark invoice ID {invoice_id} as sent...")
-    endpoint = f'/invoices/{invoice_id}'
-    payload = {"action": "mark_sent"}
-    url = f"{service_instance.INVOICE_NINJA_URL}/api/v1{endpoint}" # Need full URL for direct requests call
-
-    try:
-        # Try PUT first (as per original script logic)
-        # Note: Ideally, make_api_request handles method variations, but keeping original logic for now.
-        response = requests.put(url, headers=service_instance.headers, data=json.dumps(payload), timeout=15)
-        if response.status_code == 405: # Method Not Allowed, try POST
-            logger.warning("PUT failed (405) for mark_sent, trying POST...")
-            response = requests.post(url, headers=service_instance.headers, data=json.dumps(payload), timeout=15)
-
-        response.raise_for_status()
-        logger.info(f"Successfully marked invoice ID {invoice_id} as sent.")
-        return True
-
-    except requests.exceptions.HTTPError as http_err:
-        logger.error(f"HTTP error occurred updating invoice: {http_err} - Status Code: {http_err.response.status_code}")
-        try:
-            logger.error(f"Error Details: {json.dumps(http_err.response.json(), indent=2)}")
-        except json.JSONDecodeError:
-            logger.error(f"Raw Error Response: {http_err.response.text}")
-        return False
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred marking invoice sent: {e}")
-        return False
 
 
 def upload_invoice_document(service_instance: Any, invoice_id: str, pdf_data: bytes, filename: str) -> bool:

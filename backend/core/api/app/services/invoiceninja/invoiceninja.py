@@ -41,8 +41,6 @@ class InvoiceNinjaService:
         # --- Static Configuration (Consider moving to config or secrets) ---
         self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business Merchant"
         self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe"
-        self.PAYMENT_TYPE_ID_REVOLUT: Optional[str] = "16" # TODO: Load externally or make optional
-        self.PAYMENT_TYPE_ID_STRIPE: Optional[str] = "16" # TODO: Load externally or make optional
         self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
         self.PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
         self.PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
@@ -224,22 +222,35 @@ class InvoiceNinjaService:
         """Handles file uploads using multipart/form-data from byte data."""
         url = f"{self.INVOICE_NINJA_URL}/api/v1{endpoint}"
         files = None
+        data = None
+        upload_headers = None
         try:
             # Use multipart/form-data for file uploads from bytes
-            # The API expects the file(s) under the 'documents' key as an array
-            files = {'documents': (filename, file_data, 'application/pdf')}
-            # Add _method=PUT to the data payload as per Invoice Ninja docs for uploads
-            data = {'_method': 'PUT'}
+            # API docs suggest 'documents[0]' as the key for the file part
+            # and '_method': 'PUT' as a separate form field.
+            files = {'documents[0]': (filename, file_data, 'application/pdf')}
+            data = {'_method': 'PUT'} # Send _method=PUT in the data payload
 
             # Create headers for upload, removing Content-Type for requests lib to set it
             upload_headers = self.headers.copy()
             if 'Content-Type' in upload_headers:
                 del upload_headers['Content-Type'] # requests sets multipart/form-data header automatically
 
-            # Use POST, but include _method=PUT in the data payload
+            # --- Added Logging ---
+            logger.info(f"Attempting file upload to URL: {url}")
+            logger.debug(f"Upload Headers: {json.dumps(upload_headers)}")
+            # Note: Logging 'files' directly can be verbose/problematic if file_data is large.
+            # Log file metadata instead.
+            logger.debug(f"Upload Files key: 'documents[0]', filename: '{filename}', content_type: 'application/pdf'")
+            logger.debug(f"Upload Data: {json.dumps(data)}")
+            # --- End Added Logging ---
+
+            # Use POST, include _method=PUT in the data payload, and provide files
             response = requests.post(url, headers=upload_headers, files=files, data=data, timeout=30) # Longer timeout for uploads
+            logger.info(f"Upload request completed with status code: {response.status_code}")
             response.raise_for_status()
             # Assuming success if no exception is raised
+            logger.info(f"Successfully uploaded document '{filename}' to {url}")
             return True
         except requests.exceptions.HTTPError as http_err:
             # Log details within this specific context
@@ -285,7 +296,7 @@ class InvoiceNinjaService:
                        payment_processor: str,
                        external_order_id: str,
                        custom_invoice_number: str,
-                       mark_paid: bool
+                       mark_sent: bool
                        ) -> Tuple[Optional[str], Optional[str]]:
         return invoices.create_invoice(self,
                                        client_id = client_id, 
@@ -295,13 +306,10 @@ class InvoiceNinjaService:
                                        payment_processor = payment_processor,
                                        external_order_id = external_order_id,
                                        custom_invoice_number = custom_invoice_number,
-                                       mark_paid = mark_paid
+                                       mark_sent = mark_sent
                                        )
 
-    def mark_invoice_sent(self, invoice_id: str) -> bool:
-        # Note: This uses requests directly based on original script's PUT/POST logic.
-        # Consider refactoring make_api_request if this pattern is common.
-        return invoices.mark_invoice_sent(self, invoice_id)
+    # Removed mark_invoice_sent method definition as it's no longer needed.
 
     def upload_invoice_document(self, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
         # Uses the dedicated _make_file_upload_request method
@@ -309,11 +317,28 @@ class InvoiceNinjaService:
         return invoices.upload_invoice_document(self, invoice_id, pdf_data, filename)
 
     # --- Payment Operations ---
-    def create_payment(self, invoice_id: str, client_id: str, amount: float, payment_date_str: str, external_order_id: str, payment_type_id: Optional[str] = None) -> Optional[str]:
-        return payments.create_payment(self, invoice_id, client_id, amount, payment_date_str, external_order_id, payment_type_id)
+    # Corrected signature to match payments.create_payment structure
+    def create_payment(self,
+                       client_id: str,
+                       amount: float,
+                       payment_date_str: str,
+                       invoice_id: str,
+                       external_order_id: Optional[str] = None, # Mapped to transaction_reference
+                       payment_type: Optional[str] = None
+                       ) -> Optional[str]:
+        # Call the actual implementation with correctly mapped arguments
+        return payments.create_payment(
+            service_instance=self,
+            client_id=client_id,
+            amount=amount,
+            date=payment_date_str,
+            invoice_id=invoice_id,
+            payment_type=payment_type,
+            transaction_reference=external_order_id
+        )
 
     # --- Bank Account Operations ---
-    def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: float, date_str: str, invoice_number: str, external_order_id: str) -> Optional[str]:
+    def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: float, date_str: str, invoice_number: str, external_order_id: str, base_type: str, currency_code: str) -> Optional[str]:
         """
         Creates a bank transaction in Invoice Ninja.
 
@@ -324,13 +349,27 @@ class InvoiceNinjaService:
             date_str: Transaction date (YYYY-MM-DD).
             invoice_number: Associated Invoice Ninja invoice number.
             external_order_id: Your internal order ID.
+            base_type: CREDIT or DEBIT
+            currency_id: id of currency
 
         Returns:
             The HASHED ID of the created bank transaction, or None on failure.
         """
-        # Calls the function from the transactions module now
-        # IMPORTANT: Ensure the function signature in transactions.py expects string for bank_integration_id
-        return transactions.create_bank_transaction(self, processor_bank_account_id, bank_integration_id, amount, date_str, invoice_number, external_order_id)
+        return transactions.create_bank_transaction(self,
+                                                    processor_bank_account_id = processor_bank_account_id,
+                                                    bank_integration_id = bank_integration_id,
+                                                    amount = amount,
+                                                    date_str = date_str,
+                                                    invoice_number = invoice_number,
+                                                    external_order_id = external_order_id,
+                                                    base_type = base_type,
+                                                    currency_code = currency_code
+                                                    )
+
+    def match_bank_transaction_to_payment(self, transaction_id: str, payment_id: str) -> bool:
+        """Matches a bank transaction to a payment."""
+        # Calls the updated function from the transactions module now
+        return transactions.match_transaction_to_payment(self, transaction_id, payment_id)
 
     def get_bank_integrations(self, params: Optional[Dict[str, Any]] = None) -> Optional[List[Dict[str, Any]]]:
         """Retrieves bank integrations."""
@@ -348,12 +387,13 @@ class InvoiceNinjaService:
         customer_country_code: str,
         credits_value: int,
         purchase_price_value: float, # Direct price input
+        currency_code: str,
         invoice_date: str, # Added
         due_date: str, # Added
         payment_processor: str, # Added (replaces processor_type)
         custom_invoice_number: str, # Added
         custom_pdf_data: Optional[bytes] = None # PDF data as bytes
-        ) -> Optional[Dict[str, Any]]:
+        ):
         """
         Handles the full workflow for processing an income transaction,
         using a directly provided purchase price and invoice details.
@@ -376,16 +416,14 @@ class InvoiceNinjaService:
         # --- Determine Processor Specific IDs using fetched values ---
         target_processor_bank_id: Optional[str] = None
         target_bank_integration_id: Optional[str] = None
-        target_payment_type_id: Optional[str] = None
+        target_payment_type_id = "16" # Debit
 
         if processor_type.lower() == 'revolut':
             target_processor_bank_id = self._revolut_bank_account_id
             target_bank_integration_id = self._revolut_bank_integration_id
-            target_payment_type_id = self.PAYMENT_TYPE_ID_REVOLUT
         elif processor_type.lower() == 'stripe':
             target_processor_bank_id = self._stripe_bank_account_id
             target_bank_integration_id = self._stripe_bank_integration_id
-            target_payment_type_id = self.PAYMENT_TYPE_ID_STRIPE
         else:
             logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
             # Decide if you should abort or continue without bank details
@@ -460,7 +498,7 @@ class InvoiceNinjaService:
             payment_processor = processor_type, # Use passed processor_type
             external_order_id = external_order_id,
             custom_invoice_number = custom_invoice_number, # Use passed custom_invoice_number
-            mark_paid = True # Explicitly mark as paid on creation
+            mark_sent = True # Explicitly mark as sent on creation
             )
 
         # Note: The returned ninja_invoice_number from create_invoice might differ
@@ -472,8 +510,27 @@ class InvoiceNinjaService:
         else:
              logger.info(f"Invoice created: ID={ninja_invoice_id}, Number={ninja_invoice_number}")
 
+        # --- Create Payment Explicitly ---
+        # Invoice is marked as sent during creation via query parameter.
+        logger.info(f"Creating payment for Invoice ID: {ninja_invoice_id}, Amount: {payment_amount}, Date: {payment_date_str}")
+        # Call the corrected self.create_payment wrapper using keyword arguments
+        ninja_payment_id = self.create_payment(
+            client_id=ninja_client_id,
+            amount=payment_amount,
+            payment_date_str=payment_date_str,
+            invoice_id=ninja_invoice_id,
+            external_order_id=external_order_id, # Passed to wrapper, maps to transaction_reference
+            payment_type_id=target_payment_type_id
+        )
+        if not ninja_payment_id:
+            logger.error(f"Failed to create payment for invoice {ninja_invoice_id}. The invoice might not be marked as paid automatically.")
+            # Decide if this is critical enough to abort or just warn
+        else:
+            logger.info(f"Payment created successfully: ID={ninja_payment_id}")
+            # Invoice Ninja should automatically update the invoice status to 'paid' now.
+
+
         # --- Upload Custom Document (if provided) ---
-        # Note: Marking as sent and creating payment are now handled within create_invoice
         pdf_upload_success = False
         if custom_pdf_data:
             pdf_filename = f"{external_order_id}_invoice.pdf"
@@ -486,8 +543,9 @@ class InvoiceNinjaService:
         else:
              logger.info("No custom PDF data provided, skipping upload.")
 
+
         # --- Create Bank Transaction ---
-        # Payment creation is handled by create_invoice with mark_paid=True
+        # Payment is now created explicitly above.
         # We still need the bank transaction for reconciliation.
         logger.info(f"Creating bank transaction for Invoice: {ninja_invoice_number}, Amount: {payment_amount}, Date: {payment_date_str}")
         ninja_bank_transaction_id = self.create_bank_transaction(
@@ -496,26 +554,26 @@ class InvoiceNinjaService:
             amount=payment_amount, # Use the provided price
             date_str=payment_date_str,
             invoice_number=ninja_invoice_number,
-            external_order_id=external_order_id
+            external_order_id=external_order_id,
+            base_type="CREDIT", # CREDIT -> we get money, DEBIT -> we pay money
+            currency_code=currency_code
         )
+        transaction_match_success = False
         if not ninja_bank_transaction_id:
-            logger.warning("Failed to create corresponding bank transaction record.")
+            logger.warning("Failed to create corresponding bank transaction record. Cannot match.")
         else:
              logger.info(f"Bank transaction created: ID={ninja_bank_transaction_id}")
+             # --- Match Bank Transaction to Payment ---
+             logger.info(f"Attempting to match bank transaction {ninja_bank_transaction_id} to payment {ninja_payment_id}...")
+             transaction_match_success = self.match_bank_transaction_to_payment(
+                 transaction_id=ninja_bank_transaction_id,
+                 payment_id=ninja_payment_id # Use payment_id now
+             )
+             if transaction_match_success:
+                 logger.info("Successfully matched bank transaction to payment.")
+             else:
+                 logger.warning("Failed to match bank transaction to payment.")
+
 
         # --- Success ---
-        logger.info("=" * 40)
-        logger.info(f"Process Completed Successfully for {processor_type.upper()} Order: {external_order_id}")
-        result = {
-            "processor": processor_type,
-            "client_id": ninja_client_id,
-            "invoice_id": ninja_invoice_id,
-            "invoice_number": ninja_invoice_number,
-            "payment_id": None, # Payment is now part of the invoice creation/status
-            "bank_transaction_id": ninja_bank_transaction_id, # Could be None
-            "pdf_upload_status": "Success" if pdf_upload_success else ("Skipped" if not custom_pdf_data else "Failed"),
-            "status": "Invoice created and marked as paid"
-        }
-        logger.info(f"Resulting IDs: {json.dumps(result, indent=2)}")
-        logger.info("=" * 40)
-        return result
+        logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")

@@ -209,7 +209,7 @@ def create_app() -> FastAPI:
         os.getenv("FRONTEND_URL", "http://localhost:5174") if is_dev else
         os.getenv("PRODUCTION_URL", "https://app.openmates.org")
     ]
-    logger.debug(f"Allowed origins: {allowed_origins}")
+    logger.info(f"Allowed origins: {allowed_origins}")
 
     # Make allowed_origins accessible outside this module
     # This enables auth endpoints to validate origins
