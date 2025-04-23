@@ -21,6 +21,7 @@
 - forward message to best fitting mate depending on topic
 - detect complexity level of request to maximize cost / performance balance for user
 - detect if full conversation should be included or if last 2 messages are enough or only new message
+- detect what temperature level makes the most sense (from 0.0 to 1.0, from not creative at all, to very creative)
 
 ## Output structure example
 ```json
@@ -28,7 +29,8 @@
     "mate": "sophia",
     "difficulty": "complex",
     "harmful_risk_level": 2,
-    "message_history": "full"
+    "message_history": "full",
+    "temperature": 0.4
 }
 ```
 
