@@ -75,26 +75,33 @@ class OrderStatusResponse(BaseModel):
 
 @router.get("/config", response_model=PaymentConfigResponse)
 async def get_payment_config(
-    secrets_manager: SecretsManager = Depends(get_secrets_manager)
+    # secrets_manager: SecretsManager = Depends(get_secrets_manager) # Temporarily disable dependency
 ):
     """Provides the necessary public configuration for the frontend payment widget."""
-    logger.info("Fetching payment configuration...")
+    logger.info("[TEMP DEBUG] Returning hardcoded payment configuration...")
     try:
-        if is_production():
-            public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_PUBLIC_KEY")
-            environment = "production"
-        else:
-            public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_PUBLIC_KEY")
-            environment = "sandbox"
+        # --- Temporarily hardcode values ---
+        public_key = "pk_dummy_sandbox_key_replace_me" # Replace with a valid-looking dummy key if format matters
+        environment = "sandbox"
+        logger.info(f"[TEMP DEBUG] Using hardcoded environment: {environment}")
+        # --- End temporary hardcoding ---
 
-        if not public_key:
-            logger.error("Revolut Public Key not found in Secrets Manager.")
-            raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
+        # Original logic commented out:
+        # if is_production():
+        #     public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_PUBLIC_KEY")
+        #     environment = "production"
+        # else:
+        #     public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_PUBLIC_KEY")
+        #     environment = "sandbox"
+        #
+        # if not public_key:
+        #     logger.error("Revolut Public Key not found in Secrets Manager.")
+        #     raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
 
         logger.info(f"Payment config fetched for environment: {environment}")
         return PaymentConfigResponse(revolut_public_key=public_key, environment=environment)
     except Exception as e:
-        logger.error(f"Error fetching payment config: {str(e)}", exc_info=True)
+        logger.error(f"Error fetching payment config (even with hardcoding?): {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
 
 

@@ -388,6 +388,7 @@ class InvoiceNinjaService:
         credits_value: int,
         purchase_price_value: float, # Direct price input
         currency_code: str,
+        card_brand_lower: str, # visa, mastercard, american_express
         invoice_date: str, # Added
         due_date: str, # Added
         payment_processor: str, # Added (replaces processor_type)
@@ -416,7 +417,6 @@ class InvoiceNinjaService:
         # --- Determine Processor Specific IDs using fetched values ---
         target_processor_bank_id: Optional[str] = None
         target_bank_integration_id: Optional[str] = None
-        target_payment_type_id = "16" # Debit
 
         if processor_type.lower() == 'revolut':
             target_processor_bank_id = self._revolut_bank_account_id
@@ -427,9 +427,6 @@ class InvoiceNinjaService:
         else:
             logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
             # Decide if you should abort or continue without bank details
-
-        # --- Log Determined IDs Before Check ---
-        logger.info(f"Attempting to use IDs for processor '{processor_type}': BankAccountID='{target_processor_bank_id}', BankIntegrationID='{target_bank_integration_id}', PaymentTypeID='{target_payment_type_id}'")
 
         # --- Sanity Check Fetched IDs ---
         if target_processor_bank_id is None:
@@ -514,13 +511,21 @@ class InvoiceNinjaService:
         # Invoice is marked as sent during creation via query parameter.
         logger.info(f"Creating payment for Invoice ID: {ninja_invoice_id}, Amount: {payment_amount}, Date: {payment_date_str}")
         # Call the corrected self.create_payment wrapper using keyword arguments
+        payment_types = {
+            "visa": "Visa Card",
+            "mastercard": "MasterCard",
+            "american_express": "American Express"
+        }
+        payment_type_default = "Debit"
+        payment_type = payment_types[card_brand_lower] if card_brand_lower in payment_types else payment_type_default
+        
         ninja_payment_id = self.create_payment(
             client_id=ninja_client_id,
             amount=payment_amount,
             payment_date_str=payment_date_str,
             invoice_id=ninja_invoice_id,
             external_order_id=external_order_id, # Passed to wrapper, maps to transaction_reference
-            payment_type_id=target_payment_type_id
+            payment_type=payment_type
         )
         if not ninja_payment_id:
             logger.error(f"Failed to create payment for invoice {ninja_invoice_id}. The invoice might not be marked as paid automatically.")

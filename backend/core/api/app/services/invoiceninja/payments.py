@@ -43,7 +43,8 @@ def create_payment(
         # Structure for applying payment to specific invoices
         "invoices": [
             {
-                "invoice_id": invoice_id
+                "invoice_id": invoice_id,
+                "amount": amount
             }
         ]
     }
@@ -61,14 +62,6 @@ def create_payment(
         logger.warning("Payment Type ID (type_id) is not provided. Creating payment without type.")
     if transaction_reference:
         payload["transaction_reference"] = transaction_reference
-    if credits:
-        # Ensure credit amounts are strings
-        validated_credits = [
-            {"credit_id": c.get("credit_id"), "amount": str(c.get("amount"))}
-            for c in credits if c.get("credit_id") and c.get("amount") is not None
-        ]
-        if validated_credits:
-            payload["credits"] = validated_credits
 
     logger.debug(f"Payment payload: {payload}")
     response_data = service_instance.make_api_request('POST', '/payments', data=payload)

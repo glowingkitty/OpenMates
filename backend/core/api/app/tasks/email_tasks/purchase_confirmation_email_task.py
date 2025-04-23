@@ -443,6 +443,7 @@ async def _async_process_invoice_and_send_email(
                 invoice_date=date_str_iso, # Pass generated invoice date
                 due_date=date_str_iso, # Pass generated due date (same as invoice date)
                 payment_processor="revolut", # Pass payment processor (assuming Revolut for now)
+                card_brand_lower=card_brand_lower,
                 custom_invoice_number=invoice_number, # Pass generated invoice number
                 custom_pdf_data=pdf_bytes_en # Pass the English PDF bytes
             )
