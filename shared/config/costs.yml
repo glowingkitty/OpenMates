@@ -1,0 +1,121 @@
+# Prices, categories by apps, provider and models
+
+ai:
+
+  anthropic:
+
+    claude_3_7_sonnet:
+
+      api_name: claude-3-7-sonnet-20250219
+      type: LLM
+      input_types:
+        - text
+        - image
+
+      input_per_million_token:
+        price: 3.00
+        currency: USD
+        max_token_limit: 200000
+
+      output_per_million_token:
+        price: 15.00
+        currency: USD
+        max_token_limit: 200000
+
+      input_per_image:
+        tokens: 1600 # rounded, see https://docs.anthropic.com/en/docs/build-with-claude/vision for detailed calculation
+  
+  google:
+    
+    gemini_2_5_pro:
+
+      api_name: gemini-2.5-pro-preview-03-25
+      type: LLM
+      input_types:
+        - text
+        - image
+        - video
+        - audio
+
+      input_per_million_token:
+        price: 1.25
+        currency: USD
+        max_token_limit: 200000
+
+      output_per_million_token:
+        price: 10.00
+        currency: USD
+        max_token_limit: 200000
+
+      input_per_million_token:
+        price: 2.50
+        currency: USD
+        min_token_limit: 200001
+        max_token_limit: 1000000
+
+      output_per_million_token:
+        price: 15.00
+        currency: USD
+        min_token_limit: 200001
+        max_token_limit: 1000000
+
+      input_per_image:
+        tokens: ? # see https://ai.google.dev/gemini-api/docs/image-understanding for detailed calculation
+
+  mistral:
+
+    mistral_small_3_1:
+
+      api_name: mistral-small-latest
+      type: LLM
+      input_types:
+        - text
+        - image
+
+      input_per_million_token:
+        price: 0.10
+        currency: EUR
+        max_token_limit: 128000
+
+      output_per_million_token:
+        price: 0.30
+        currency: EUR
+        max_token_limit: 128000
+
+      input_per_image:
+        tokens: ? # see https://docs.mistral.ai/capabilities/vision/ for detailed calculation
+
+    pixtral_large:
+
+      api_name: pixtral-large-latest
+      type: LLM
+      input_types:
+        - text
+        - image
+
+      input_per_million_token:
+        price: 1.80
+        currency: EUR
+        max_token_limit: 128000
+
+      output_per_million_token:
+        price: 5.40
+        currency: EUR
+        max_token_limit: 128000
+
+      input_per_image:
+        tokens: ? # see https://docs.mistral.ai/capabilities/vision/ for detailed calculation
+
+audio:
+
+  assembly_ai:
+
+    slam_1:
+
+      api_name: slam_1
+      type: speech-to-text
+
+      per_hour:
+        price: 0.37
+        currency: USD
+
