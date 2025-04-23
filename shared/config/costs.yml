@@ -1,5 +1,7 @@
 # Prices, categories by apps, provider and models
 
+# TODO: add server regions? consider providers like Fal.ai?
+
 ai:
 
   anthropic:
@@ -119,3 +121,28 @@ audio:
         price: 0.37
         currency: USD
 
+images:
+
+  google:
+
+    imagen_3:
+
+      api_name: ?
+      type: text-to-image
+
+      per_image:
+        price: 0.04
+        currency: USD
+
+video:
+
+  google:
+
+    veo_2:
+
+      api_name: ?
+      type: text-to-video
+
+      per_second:
+        price: 0.50
+        currency: USD
