@@ -347,11 +347,7 @@ changes to the documentation (to keep the documentation up to date).
     	targetSliderElement.prepend(profileContainer);
    
     	// Apply docked styles (absolute position, final transform)
-    	profileContainer.classList.add('docked');
-    	profileContainer.style.transform = 'translate(-245px, 10px)'; // User specified final position
-    	// Keep position: absolute as requested
-    	profileContainer.style.opacity = '1'; // Ensure it's visible if hidden by other classes
-    	profileContainer.style.pointerEvents = 'auto'; // Ensure clickable if disabled
+    	profileContainer.style.transform = 'translate(-245px, 10px)';
     }
    
     // Helper function to move profile container back to its original wrapper
@@ -365,10 +361,8 @@ changes to the documentation (to keep the documentation up to date).
     	}
    
     	// Remove docked styles
-    	profileContainer.classList.remove('docked');
-    	profileContainer.style.position = 'absolute'; // Back to absolute for wrapper positioning
-    	profileContainer.style.transform = ''; // Let the .menu-open class handle animation
-   
+    	profileContainer.style.transform = '';
+
     	// Move back to the original wrapper
     	profileContainerWrapper.appendChild(profileContainer);
     }
@@ -775,15 +769,6 @@ changes to the documentation (to keep the documentation up to date).
 
     .profile-container.menu-open {
     	transform: translate(-265px, 120px);
-    	/* Important: Do not add opacity: 0 here */
-    }
-   
-    /* Style for when the profile container is docked inside the settings content */
-    .profile-container.docked {
-    	/* Keep position: absolute */
-    	top: 0 !important; /* Reset top/right from absolute relative to new parent */
-    	right: 0 !important;
-    	z-index: 5; /* Ensure it's above other settings items if needed */
     }
    
     .close-icon-container {
