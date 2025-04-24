@@ -110,6 +110,7 @@ changes to the documentation (to keep the documentation up to date).
     let fullBreadcrumbLabel = '';
     let shortBreadcrumbLabel = '';
     let navButtonElement;
+    let currentPageInstance: CurrentSettingsPage | null = null; // Reference to child component instance
 
     // Maximum width for breadcrumb text (in pixels)
     const MAX_BREADCRUMB_WIDTH = 220; // Adjusted to leave space for the back icon
@@ -332,17 +333,18 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    // Helper function to move profile container into the settings menu content
+    // Helper function to move profile container into the child's slider element
     function dockProfileContainer() {
-    	if (!profileContainer || !settingsContentElement || !profileContainer.parentNode) return;
+    	const targetSliderElement = currentPageInstance?.sliderElement;
+    	if (!profileContainer || !targetSliderElement || !profileContainer.parentNode) return;
    
     	// Check if already docked to prevent errors
-    	if (profileContainer.parentNode === settingsContentElement) {
+    	if (profileContainer.parentNode === targetSliderElement) {
     		return;
     	}
    
-    	// Prepend to the scrolling content
-    	settingsContentElement.prepend(profileContainer);
+    	// Prepend to the child's slider element
+    	targetSliderElement.prepend(profileContainer);
    
     	// Apply docked styles (absolute position, final transform)
     	profileContainer.classList.add('docked');
@@ -356,8 +358,9 @@ changes to the documentation (to keep the documentation up to date).
     function undockProfileContainer() {
     	if (!profileContainer || !profileContainerWrapper || !profileContainer.parentNode) return;
    
-    	// Check if it's currently docked
-    	if (profileContainer.parentNode !== settingsContentElement) {
+    	// Check if it's currently docked inside the child's slider
+    	const targetSliderElement = currentPageInstance?.sliderElement;
+    	if (!targetSliderElement || profileContainer.parentNode !== targetSliderElement) {
     		return;
     	}
    
@@ -722,10 +725,11 @@ changes to the documentation (to keep the documentation up to date).
     <div class="settings-content-wrapper" bind:this={settingsContentElement}>
         <!-- Add user info with credits at the top of settings menu when on main screen -->
         
-        <CurrentSettingsPage 
-            {activeSettingsView}
-            {direction}
-            {username}
+        <CurrentSettingsPage
+        	bind:this={currentPageInstance} <!-- Bind the component instance -->
+        	{activeSettingsView}
+        	{direction}
+        	{username}
             {isInSignupMode}
             {settingsViews}
             bind:isIncognitoEnabled

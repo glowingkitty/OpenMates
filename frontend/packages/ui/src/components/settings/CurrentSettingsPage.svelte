@@ -133,11 +133,14 @@
 
     // Get credits from userProfile store
     $: credits = $userProfile.credits || 0;
-</script>
+   
+    // Export a reference to the slider element for the parent
+    export let sliderElement: HTMLDivElement | null = null;
+   </script>
 
-<div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;">
-    <!-- Main user info header that slides with settings items -->
-    {#if visibleViews.has('main')}
+<div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;" bind:this={sliderElement}>
+	<!-- Main user info header that slides with settings items -->
+	{#if visibleViews.has('main')}
 
         <!-- Main settings items -->
         <div 
