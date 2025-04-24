@@ -13,6 +13,8 @@ ai:
       input_types:
         - text
         - image
+      output_types:
+        - text
 
       input_per_million_token:
         price: 3.00
@@ -38,6 +40,8 @@ ai:
         - image
         - video
         - audio
+      output_types:
+        - text
 
       input_per_million_token:
         price: 1.25
@@ -69,10 +73,11 @@ ai:
     mistral_small_3_1:
 
       api_name: mistral-small-latest
-      type: LLM
       input_types:
         - text
         - image
+      output_types:
+        - text
 
       input_per_million_token:
         price: 0.10
@@ -90,10 +95,11 @@ ai:
     pixtral_large:
 
       api_name: pixtral-large-latest
-      type: LLM
       input_types:
         - text
         - image
+      output_types:
+        - text
 
       input_per_million_token:
         price: 1.80
@@ -115,7 +121,10 @@ audio:
     slam_1:
 
       api_name: slam_1
-      type: speech-to-text
+      input_types:
+        - audio (speech)
+      output_types:
+        - text (transcription)
 
       per_hour:
         price: 0.37
@@ -123,12 +132,28 @@ audio:
 
 images:
 
+  openai:
+
+    gpt_image_1:
+
+      api_name: gpt-image-1
+      input_types:
+        - text
+        - image
+      output_types:
+        - image
+
+      per_image: ? # See https://platform.openai.com/docs/models/gpt-image-1 for detailed pricing
+
   google:
 
     imagen_3:
 
       api_name: ?
-      type: text-to-image
+      input_types:
+        - text
+      output_types:
+        - image
 
       per_image:
         price: 0.04
@@ -141,7 +166,11 @@ video:
     veo_2:
 
       api_name: ?
-      type: text-to-video
+      input_types:
+        - text
+        - image
+      output_types:
+        - video
 
       per_second:
         price: 0.50
