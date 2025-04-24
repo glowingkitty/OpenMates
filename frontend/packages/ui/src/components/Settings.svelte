@@ -70,6 +70,7 @@ changes to the documentation (to keep the documentation up to date).
     // Add reference to settings content element
     let settingsContentElement;
     let profileContainer;
+    let profileContainerWrapper; // Add reference for the wrapper
 
     // Get help link from routes
     const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
@@ -219,11 +220,9 @@ changes to the documentation (to keep the documentation up to date).
     $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) || 
                           (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep);
     
-    $: isInSignup = $isInSignupProcess;
     $: username = $userProfile.username || 'Guest';
     $: profile_image_url = $userProfile.profile_image_url;
     $: isInSignupMode = $isInSignupProcess;
-    $: credits = $userProfile.credits || 0;
 
     // State to track active submenu view
     let activeSettingsView = 'main';
@@ -333,32 +332,89 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    // Helper function to move profile container into the settings menu content
+    function dockProfileContainer() {
+    	if (!profileContainer || !settingsContentElement || !profileContainer.parentNode) return;
+   
+    	// Check if already docked to prevent errors
+    	if (profileContainer.parentNode === settingsContentElement) {
+    		return;
+    	}
+   
+    	// Prepend to the scrolling content
+    	settingsContentElement.prepend(profileContainer);
+   
+    	// Apply docked styles (absolute position, final transform)
+    	profileContainer.classList.add('docked');
+    	profileContainer.style.transform = 'translate(-245px, 10px)'; // User specified final position
+    	// Keep position: absolute as requested
+    	profileContainer.style.opacity = '1'; // Ensure it's visible if hidden by other classes
+    	profileContainer.style.pointerEvents = 'auto'; // Ensure clickable if disabled
+    }
+   
+    // Helper function to move profile container back to its original wrapper
+    function undockProfileContainer() {
+    	if (!profileContainer || !profileContainerWrapper || !profileContainer.parentNode) return;
+   
+    	// Check if it's currently docked
+    	if (profileContainer.parentNode !== settingsContentElement) {
+    		return;
+    	}
+   
+    	// Remove docked styles
+    	profileContainer.classList.remove('docked');
+    	profileContainer.style.position = 'absolute'; // Back to absolute for wrapper positioning
+    	profileContainer.style.transform = ''; // Let the .menu-open class handle animation
+   
+    	// Move back to the original wrapper
+    	profileContainerWrapper.appendChild(profileContainer);
+    }
+   
+    // Handler for the profile container's transition end
+    function onProfileTransitionEnd(event: TransitionEvent) {
+    	// Only act when the 'transform' property finishes transitioning and menu is open
+    	if (event.propertyName === 'transform' && isMenuVisible) {
+    		dockProfileContainer();
+    	}
+    }
+   
+   
     // Handler for profile click to show menu
     function toggleMenu() {
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
         
         // If menu is being closed, reset scroll position and view state
+        // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
-            // Reset the active view to main when closing the menu
-            activeSettingsView = 'main';
-            navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
-            showSubmenuInfo = false;
-            navButtonLeft = false;
-            
-            // Reset help link to base
-            currentHelpLink = baseHelpLink;
-            
-            // Remove submenu-active class from profile container
-            if (profileContainer) {
-                profileContainer.classList.remove('submenu-active');
-            }
-            
-            // Reset scroll position
-            setTimeout(() => {
-                settingsContentElement.scrollTop = 0;
-            }, 300);
+        	// Undock the profile container *before* starting the close animation
+        	// This ensures it animates back from the correct parent
+        	undockProfileContainer();
+      
+      
+        	// Reset the active view to main when closing the menu
+        	activeSettingsView = 'main';
+        	navigationPath = [];
+        	breadcrumbLabel = $text('settings.settings.text');
+        	showSubmenuInfo = false;
+        	navButtonLeft = false;
+        	
+        	// Reset help link to base
+        	currentHelpLink = baseHelpLink;
+        	
+        	// Remove submenu-active class from profile container
+        	if (profileContainer) {
+        		profileContainer.classList.remove('submenu-active');
+        	}
+        	
+        	// Reset scroll position
+        	setTimeout(() => {
+        		settingsContentElement.scrollTop = 0;
+        	}, 300);
+        } else if (isMenuVisible) {
+        	// Menu is opening. The docking will happen on transition end.
+        	// Ensure initial state is correct (absolute positioning)
+        	profileContainer.style.position = 'absolute';
         }
     }
 
@@ -391,20 +447,20 @@ changes to the documentation (to keep the documentation up to date).
 
     // Click outside handler
     function handleClickOutside(event) {
-        if ($isMobileView) {
-            const settingsMenu = document.querySelector('.settings-menu');
-            const profileContainer = document.querySelector('.profile-container');
-            
-            // Check if the click is within the settings menu or any of its child components
-            // This prevents the menu from closing when clicking on nested setting items
-            if (settingsMenu && 
-                profileContainer && 
-                !settingsMenu.contains(event.target) && 
-                !profileContainer.contains(event.target)) {
-                isMenuVisible = false;
-                settingsMenuVisible.set(false);
-            }
-        }
+    	if ($isMobileView) {
+    		const settingsMenu = document.querySelector('.settings-menu');
+    		const profileWrapper = document.querySelector('.profile-container-wrapper'); // Check against wrapper
+   
+    		// Check if the click is within the settings menu or any of its child components
+    		// This prevents the menu from closing when clicking on nested setting items
+    		if (settingsMenu &&
+    			profileWrapper &&
+    			!settingsMenu.contains(event.target as Node) &&
+    			!profileWrapper.contains(event.target as Node)) {
+    			isMenuVisible = false;
+    			settingsMenuVisible.set(false);
+    		}
+    	}
     }
 
     // Setup listeners
@@ -459,23 +515,26 @@ changes to the documentation (to keep the documentation up to date).
                 },
 
                 afterServerLogout: async () => {
-                    // Reset scroll position
-                    if (settingsContentElement) {
-                        settingsContentElement.scrollTop = 0;
-                    }
-
-                    // Close the settings menu
-                    isMenuVisible = false;
-                    settingsMenuVisible.set(false);
-
-                    // Small delay to allow settings menu to close
-                    await new Promise(resolve => setTimeout(resolve, 300));
-
-                    // Close the sidebar menu
-                    isMenuOpen.set(false);
-
-                    // Small delay to allow sidebar animation
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                	// Ensure profile container is undocked before closing menu visually
+                	undockProfileContainer();
+            
+                	// Reset scroll position
+                	if (settingsContentElement) {
+                		settingsContentElement.scrollTop = 0;
+                	}
+            
+                	// Close the settings menu
+                	isMenuVisible = false;
+                	settingsMenuVisible.set(false);
+            
+                	// Small delay to allow settings menu to close
+                	await new Promise(resolve => setTimeout(resolve, 300));
+            
+                	// Close the sidebar menu
+                	isMenuOpen.set(false);
+            
+                	// Small delay to allow sidebar animation
+                	await new Promise(resolve => setTimeout(resolve, 300));
                 }
             });
 
@@ -542,58 +601,63 @@ changes to the documentation (to keep the documentation up to date).
 
     // Watch settingsMenuVisible store to handle external close requests
     $: {
-        // If store value changes from true to false and our local state is still true
-        if (!$settingsMenuVisible && isMenuVisible) {
-            isMenuVisible = false;
-            
-            // Remove mobile overlay class when closing
-            const menuElement = document.querySelector('.settings-menu');
-            if (menuElement) {
-                menuElement.classList.remove('mobile-overlay');
-            }
-            
-            toggleMenu();
-        } else if ($settingsMenuVisible && !isMenuVisible) {
-            // If store value changes from false to true and our local state is still false
-            isMenuVisible = true;
-            
-            // Add mobile overlay class when opening on mobile
-            setTimeout(() => {
-                const menuElement = document.querySelector('.settings-menu');
-                if (menuElement && $isMobileView) {
-                    menuElement.classList.add('mobile-overlay');
-                }
-            }, 50);
-        }
+    	// If store value changes from true to false and our local state is still true
+    	if (!$settingsMenuVisible && isMenuVisible) {
+    		isMenuVisible = false;
+    		undockProfileContainer(); // Undock when closed externally
+   
+    		// Remove mobile overlay class when closing
+    		const menuElement = document.querySelector('.settings-menu');
+    		if (menuElement) {
+    			menuElement.classList.remove('mobile-overlay');
+    		}
+   
+    		// Don't call toggleMenu again, just update state
+    	} else if ($settingsMenuVisible && !isMenuVisible) {
+    		// If store value changes from false to true and our local state is still false
+    		isMenuVisible = true;
+    		// Docking will happen via transitionend triggered by toggleMenu or deep link
+   
+    		// Add mobile overlay class when opening on mobile
+    		setTimeout(() => {
+    			const menuElement = document.querySelector('.settings-menu');
+    			if (menuElement && $isMobileView) {
+    				menuElement.classList.add('mobile-overlay');
+    			}
+    		}, 50);
+    	}
     }
 </script>
 
 {#if showSettingsIcon}
-    <div 
-        class="profile-container-wrapper"
-        in:fly={{ y: -window.innerHeight/2 + 60, x: 0, duration: 800, easing: cubicOut }}
-        out:fade
+    <div
+    	class="profile-container-wrapper"
+    	in:fly={{ y: -window.innerHeight/2 + 60, x: 0, duration: 800, easing: cubicOut }}
+    	out:fade
     >
-        <div 
-            class="profile-container" 
-            class:menu-open={isMenuVisible}
-            class:hidden={isMenuVisible && activeSettingsView !== 'main'}
-            on:click={toggleMenu}
-            on:keydown={e => e.key === 'Enter' && toggleMenu()}
-            role="button"
-            tabindex="0"
-            aria-label={$text('settings.open_settings_menu.text')}
-            bind:this={profileContainer}
-        >
-            <div 
-                class="profile-picture" 
-                style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
-            >
-                {#if !profile_image_url}
-                    <div class="default-user-icon"></div>
-                {/if}
-            </div>
-        </div>
+    <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
+    	<div
+    		class="profile-container"
+    		class:menu-open={isMenuVisible}
+    		class:hidden={isMenuVisible && activeSettingsView !== 'main'}
+    		on:click={toggleMenu}
+    		on:keydown={e => e.key === 'Enter' && toggleMenu()}
+    		role="button"
+    		tabindex="0"
+    		aria-label={$text('settings.open_settings_menu.text')}
+    		bind:this={profileContainer}
+    		on:transitionend={onProfileTransitionEnd}
+    	>
+    		<div
+    			class="profile-picture"
+    			style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
+    		>
+    			{#if !profile_image_url}
+    				<div class="default-user-icon"></div>
+    			{/if}
+    		</div>
+    	</div>
+    </div>
 
         <div class="close-icon-container" class:visible={isMenuVisible}>
             <button 
@@ -673,7 +737,7 @@ changes to the documentation (to keep the documentation up to date).
             on:logout={handleLogout}
         />
         
-        <SettingsFooter contentHeight={calculatedContentHeight} />
+        <SettingsFooter/>
     </div>
 </div>
 
@@ -706,10 +770,18 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .profile-container.menu-open {
-        transform: translate(-265px, 120px);
-        /* Important: Do not add opacity: 0 here */
+    	transform: translate(-265px, 120px);
+    	/* Important: Do not add opacity: 0 here */
     }
-
+   
+    /* Style for when the profile container is docked inside the settings content */
+    .profile-container.docked {
+    	/* Keep position: absolute */
+    	top: 0 !important; /* Reset top/right from absolute relative to new parent */
+    	right: 0 !important;
+    	z-index: 5; /* Ensure it's above other settings items if needed */
+    }
+   
     .close-icon-container {
         position: absolute;
         top: 0;
