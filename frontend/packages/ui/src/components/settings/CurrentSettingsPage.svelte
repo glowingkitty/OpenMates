@@ -1,3 +1,5 @@
+<svelte:options accessors/>
+
 <script lang="ts">
     import { text } from '@repo/ui';
     import { fly } from 'svelte/transition';
