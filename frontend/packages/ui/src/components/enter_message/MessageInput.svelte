@@ -1052,12 +1052,13 @@
         <!-- Action buttons -->
         <div class="action-buttons">
             <div class="left-buttons">
-                <button
+                <!-- TODO uncomment once feature available -->
+                <!-- <button
                     class="clickable-icon icon_files"
                     on:click={handleFileSelect}
                     aria-label={$_('enter_message.attachments.attach_files.text')}
                     use:tooltip
-                ></button>
+                ></button> -->
                 <button
                     class="clickable-icon icon_maps"
                     on:click={handleLocationClick}
@@ -1066,7 +1067,8 @@
                 ></button>
             </div>
             <div class="right-buttons">
-                <button
+                <!-- TODO uncomment once feature available -->
+                <!-- <button
                     class="clickable-icon icon_camera"
                     on:click|stopPropagation={(e) => {
                         e.preventDefault();
@@ -1174,7 +1176,7 @@
                     >
                        Send
                     </button>
-                {/if}
+                {/if} -->
             </div>
         </div>
 

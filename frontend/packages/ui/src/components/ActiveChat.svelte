@@ -358,20 +358,19 @@
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
+                            <!-- Activate buttons once features are implemented -->
                             <!-- Video call button -->
-                            <button 
+                            <!-- <button 
                                 class="clickable-icon icon_video_call top-button" 
                                 aria-label={$text('chat.start_video_call.text')}
                                 use:tooltip
-                            >
-                            </button>
+                            ></button> -->
                             <!-- Audio call button -->
-                            <button 
+                            <!-- <button 
                                 class="clickable-icon icon_call top-button" 
                                 aria-label={$text('chat.start_audio_call.text')}
                                 use:tooltip
-                            >
-                            </button>
+                            ></button> -->
                         </div>
                     </div>
 
