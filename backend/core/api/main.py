@@ -206,7 +206,7 @@ def create_app() -> FastAPI:
     # Configure CORS with proper origin restrictions
     is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
     allowed_origins = [
-        os.getenv("FRONTEND_URL", "http://localhost:5174") if is_dev else
+        os.getenv("FRONTEND_URL", "http://127.0.0.1:5174") if is_dev else
         os.getenv("PRODUCTION_URL", "https://app.openmates.org")
     ]
     logger.info(f"Allowed origins: {allowed_origins}")

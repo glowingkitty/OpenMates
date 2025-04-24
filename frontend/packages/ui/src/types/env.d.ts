@@ -8,7 +8,7 @@ interface ImportMetaEnv {
     readonly VITE_WEBAPP_URL_DEV: string
     readonly VITE_WEBAPP_URL_PROD: string
     readonly VITE_CONTACT_EMAIL: string
-    readonly SERVER_MODE: string;
+    readonly SERVER_ENVIRONMENT: string;
 }
 
 interface ImportMeta {
