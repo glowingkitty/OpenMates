@@ -726,7 +726,7 @@ changes to the documentation (to keep the documentation up to date).
         <!-- Add user info with credits at the top of settings menu when on main screen -->
         
         <CurrentSettingsPage
-        	bind:this={currentPageInstance} <!-- Bind the component instance -->
+        	bind:this={currentPageInstance}
         	{activeSettingsView}
         	{direction}
         	{username}
