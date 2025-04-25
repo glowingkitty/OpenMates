@@ -4,12 +4,14 @@ import logging
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
 
+from typing import List, Dict, Any, Optional
 # Import method implementations
 from app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
 from app.services.directus.api_methods import _make_api_request, create_item # Import create_item
 from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
+from app.services.directus.chat_methods import get_chat_metadata, get_user_chats_metadata, update_chat_metadata # Import chat methods
 from app.services.directus.user.user_creation import create_user
 from app.services.directus.user.device_management import update_user_device, check_user_device
 from app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
@@ -65,6 +67,35 @@ class DirectusService:
 
     # Item creation method
     create_item = create_item # Assign the imported method
+    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
+        """
+        Internal helper to update an item in a Directus collection by its ID.
+        Handles authentication and retries.
+        """
+        await self.ensure_auth_token() # Ensure we have a valid token
+        if not self.auth_token:
+            logger.error(f"Cannot update item in {collection}: Authentication failed.")
+            return None
+
+        url = f"{self.base_url}/items/{collection}/{item_id}"
+        headers = {"Authorization": f"Bearer {self.auth_token}"}
+
+        # Use the internal _make_api_request method with PATCH verb
+        response_data = await self._make_api_request("PATCH", url, headers=headers, json_data=data, params=params)
+
+        # _make_api_request returns the parsed JSON response or None on error
+        if response_data and isinstance(response_data, dict) and 'data' in response_data:
+             logger.info(f"Successfully updated item {item_id} in collection {collection}")
+             return response_data.get('data') # Return the updated item data
+        elif response_data:
+             logger.warning(f"Update item response for {collection}/{item_id} has unexpected format: {response_data}")
+             return response_data # Return raw response if format is unexpected but not None
+        else:
+             logger.error(f"Failed to update item {item_id} in collection {collection}")
+             return None
+
+    # Assign the internal helper to the class
+    update_item = _update_item
 
     # Authentication methods
     get_auth_lock = get_auth_lock
@@ -100,3 +131,8 @@ class DirectusService:
     
     # User lookup methods
     get_user_fields_direct = get_user_fields_direct
+   
+    # Chat methods
+    get_chat_metadata = get_chat_metadata
+    get_user_chats_metadata = get_user_chats_metadata
+    update_chat_metadata = update_chat_metadata

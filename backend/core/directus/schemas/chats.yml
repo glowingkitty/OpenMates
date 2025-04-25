@@ -18,7 +18,7 @@ chats:
       
     encrypted_content:
       type: text
-      note: "Encrypted chat messages"
+      note: "Encrypted dict of chat messages"
       
     vault_key_id:
       type: string
@@ -30,3 +30,8 @@ chats:
       
     updated_at:
       type: datetime
+      
+    _version:
+      type: integer
+      default: 1
+      note: "Simple integer version for optimistic concurrency control"

@@ -5,7 +5,8 @@
     import { panelState } from '../../stores/panelStateStore'; // Import the new store
     import { authStore } from '../../stores/authStore';
     import { chatDB } from '../../services/db';
-    import type { Chat as ChatType } from '../../types/chat';
+    import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
+    import type { Chat as ChatType, ChatListEntry } from '../../types/chat'; // Import ChatListEntry
     import { tooltip } from '../../actions/tooltip';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 
@@ -82,9 +83,164 @@
 
     let languageChangeHandler: () => void;
 
+    // --- WebSocket Handlers ---
+    const handleInitialSync = async (payload: { chats: ChatListEntry[], lastOpenChatId?: string }) => {
+        console.debug("[ActivityHistory] Handling initial sync data:", payload);
+        loading = true; // Set loading true during merge
+        try {
+            // 1. Fetch all chats from IndexedDB
+            const localChats = await chatDB.getAllChats();
+            const localChatMap = new Map<string, ChatType>(localChats.map(chat => [chat.id, chat]));
+            console.debug(`[ActivityHistory] Found ${localChatMap.size} chats locally.`);
+
+            const mergedChats: ChatType[] = [];
+
+            // 2. Iterate through WebSocket data
+            for (const serverEntry of payload.chats) {
+                const serverChatId = serverEntry.id;
+                const localChat = localChatMap.get(serverChatId);
+                const serverLastUpdated = new Date(serverEntry.lastUpdated);
+
+                if (localChat) {
+                    // 3a. Chat exists locally - Merge based on lastUpdated
+                    const localLastUpdated = new Date(localChat.lastUpdated); // Ensure it's a Date
+
+                    // Prefer server data if it's newer or equal (server is source of truth for metadata)
+                    if (serverLastUpdated >= localLastUpdated) {
+                        console.debug(`[ActivityHistory] Merging server data for chat ${serverChatId} (Server newer or equal)`);
+                        mergedChats.push({
+                            ...localChat, // Keep local messages/draft content if any
+                            ...serverEntry, // Overwrite metadata with server's
+                            lastUpdated: serverLastUpdated, // Ensure Date object
+                            // Keep local draft status/content unless server explicitly clears it?
+                            // This needs clarification based on backend behavior. Assuming server metadata wins for now.
+                            isDraft: serverEntry.isDraft ?? localChat.isDraft,
+                            draftContent: serverEntry.isDraft ? localChat.draftContent : null, // Keep local draft content only if server says it's a draft
+                        });
+                    } else {
+                        // Local data is newer? This might indicate an offline edit not yet synced.
+                        // Keep local data for now, but log a warning.
+                        // TODO: Consider a more robust conflict resolution strategy if needed.
+                        console.warn(`[ActivityHistory] Local chat ${serverChatId} is newer than server. Keeping local version for now.`);
+                        mergedChats.push(localChat);
+                    }
+                    localChatMap.delete(serverChatId); // Remove from map as it's processed
+                } else {
+                    // 3b. Chat doesn't exist locally - Add from server data
+                    console.debug(`[ActivityHistory] Adding new chat ${serverChatId} from server.`);
+                    mergedChats.push({
+                        ...serverEntry,
+                        messages: [], // No local messages for new chats
+                        draftContent: null, // No local draft content
+                        lastUpdated: serverLastUpdated, // Ensure Date object
+                        isDraft: serverEntry.isDraft ?? false,
+                    } as ChatType); // Assert type
+                }
+            }
+
+            // 4. Handle chats remaining in the map (local only)
+            localChatMap.forEach((localOnlyChat, chatId) => {
+                if (localOnlyChat.isDraft && localOnlyChat.draftContent) {
+                    // Keep local-only drafts that have content
+                    console.debug(`[ActivityHistory] Keeping local-only draft ${chatId}.`);
+                    mergedChats.push(localOnlyChat);
+                } else {
+                    // Chat exists locally but not on server, and isn't a draft with content.
+                    // Assume it was deleted on the server or is an empty draft. Remove from local DB.
+                    console.debug(`[ActivityHistory] Removing local-only chat ${chatId} (likely deleted on server or empty draft).`);
+                    chatDB.deleteChat(chatId).catch(err => console.error(`[ActivityHistory] Failed to delete local-only chat ${chatId}:`, err));
+                }
+            });
+
+            // 5. Update state (sorting happens reactively via groupedChats)
+            chats = mergedChats;
+            console.debug(`[ActivityHistory] Merged list contains ${chats.length} chats.`);
+
+            // 6. Handle lastOpenChatId
+            if (payload.lastOpenChatId) {
+                console.debug(`[ActivityHistory] Initial sync included lastOpenChatId: ${payload.lastOpenChatId}`);
+                const chatToSelect = chats.find(c => c.id === payload.lastOpenChatId);
+                if (chatToSelect) {
+                    console.debug(`[ActivityHistory] Found chat to select: ${chatToSelect.id}. Selecting it.`);
+                    // Use setTimeout to ensure the UI has updated with the new chat list
+                    // before trying to find the index and dispatching the event.
+                    setTimeout(() => {
+                        handleChatClick(chatToSelect);
+                    }, 0);
+                } else {
+                    console.warn(`[ActivityHistory] lastOpenChatId ${payload.lastOpenChatId} not found in merged chat list.`);
+                }
+            }
+
+        } catch (error) {
+            console.error("[ActivityHistory] Error during initial sync merge:", error);
+            // Fallback: Load directly from payload as before, or from DB?
+            // Sticking with payload for now to ensure server state is reflected after error.
+            chats = payload.chats.map(entry => ({
+                ...entry,
+                messages: [],
+                isDraft: entry.isDraft ?? false,
+                draftContent: null,
+                lastUpdated: new Date(entry.lastUpdated),
+            })) as ChatType[];
+        } finally {
+            loading = false;
+        }
+    };
+
+    const handleChatAdded = (payload: ChatListEntry) => {
+        console.debug("[ActivityHistory] Handling chat added:", payload);
+        const newChat: ChatType = {
+            ...payload,
+            messages: [],
+            isDraft: false,
+            draftContent: null,
+            lastUpdated: new Date(payload.lastUpdated),
+        } as ChatType;
+        chats = [newChat, ...chats]; // Add to the top (or sort later)
+        chatDB.addChat(newChat); // Update local DB
+    };
+
+    const handleChatDeleted = (payload: { chatId: string }) => {
+        console.debug("[ActivityHistory] Handling chat deleted:", payload);
+        chats = chats.filter(chat => chat.id !== payload.chatId);
+        chatDB.deleteChat(payload.chatId); // Update local DB
+        // If the deleted chat was selected, deselect it
+        if (currentChatIndex !== -1 && flattenedChats[currentChatIndex]?.id === payload.chatId) {
+            currentChatIndex = -1;
+            // Optionally select the next/previous chat or dispatch an event
+            dispatch('chatDeselected');
+        }
+    };
+
+    const handleChatMetadataUpdated = (payload: { chatId: string, updatedFields: Partial<ChatListEntry>, version: number }) => {
+        console.debug("[ActivityHistory] Handling chat metadata updated:", payload);
+        chats = chats.map(chat => {
+            if (chat.id === payload.chatId) {
+                // TODO: Implement version checking if needed on the client side for metadata?
+                // The backend should handle version conflicts primarily.
+                // Merge fields, ensuring lastUpdated is always a Date object
+                const mergedFields = { ...chat, ...payload.updatedFields };
+                const updatedChat: ChatType = {
+                    ...mergedFields,
+                    // Explicitly convert lastUpdated to Date, using the updated value if present, otherwise the original chat's value
+                    lastUpdated: new Date(payload.updatedFields.lastUpdated ?? chat.lastUpdated)
+                };
+
+                chatDB.updateChat(updatedChat); // Update local DB
+                return updatedChat;
+            }
+            return chat;
+        });
+        // Re-sort if necessary, e.g., if lastUpdated changed
+        chats = [...chats]; // Trigger reactivity
+    };
+    // --- End WebSocket Handlers ---
+
     onMount(async() => {
-        window.addEventListener('chatUpdated', handleChatUpdate);
-        
+        // Remove old event listener
+        // window.addEventListener('chatUpdated', handleChatUpdate);
+
         // Add language change event listener
         languageChangeHandler = () => {
             // Force re-render of the chat groups by triggering a state update
@@ -92,29 +248,97 @@
         };
         window.addEventListener('language-changed', languageChangeHandler);
         
+        // Register WebSocket handlers
+        webSocketService.on('initial_sync_data', handleInitialSync);
+        webSocketService.on('chat_added', handleChatAdded);
+        webSocketService.on('chat_deleted', handleChatDeleted);
+        webSocketService.on('chat_metadata_updated', handleChatMetadataUpdated);
+
+        // Attempt to connect WebSocket
+        try {
+            console.debug("[ActivityHistory] Initializing WebSocket connection...");
+            // Connect returns a promise, but we don't necessarily need to await it here.
+            // The 'initial_sync_data' handler will populate chats when ready.
+            // We still need a fallback if WS fails.
+            webSocketService.connect().catch(err => {
+                console.error("[ActivityHistory] WebSocket initial connection failed:", err);
+                // Fallback to loading from DB if WS connection fails initially
+                loadChatsFromDB();
+            });
+        } catch (error) {
+            console.error("[ActivityHistory] Error initiating WebSocket connection:", error);
+            loadChatsFromDB(); // Fallback on error
+        }
+
+        // Initialize DB in parallel or after WS attempt
+        initializeAndLoadDB();
+
+    });
+
+    // Separate function for DB initialization and loading (used as fallback)
+    async function initializeAndLoadDB() {
         try {
             console.debug("[ActivityHistory] Initializing database");
             await chatDB.init();
-            
-            // Check if we have any chats
-            const existingChats = await chatDB.getAllChats();
-            if (existingChats.length === 0) {
-                console.debug("[ActivityHistory] No existing chats, loading examples");
+
+            // Load example chats only if DB is truly empty AND WS didn't provide initial data
+            const checkChats = await chatDB.getAllChats();
+            if (checkChats.length === 0 && chats.length === 0) { // Check both sources
+                console.debug("[ActivityHistory] No existing chats in DB or from WS, loading examples");
                 await chatDB.loadExampleChats();
+                // Reload from DB after adding examples if WS didn't connect
+                if (!webSocketService.isConnected()) {
+                    chats = await chatDB.getAllChats();
+                }
+            } else if (chats.length === 0 && !webSocketService.isConnected()) {
+                // If WS is not connected and didn't provide data, load from DB
+                console.debug("[ActivityHistory] Loading chats from DB as fallback.");
+                chats = await chatDB.getAllChats();
             }
-            
-            // Load all chats
-            chats = await chatDB.getAllChats();
         } catch (error) {
-            console.error("[ActivityHistory] Error loading chats:", error);
+            console.error("[ActivityHistory] Error initializing/loading chats from DB:", error);
         } finally {
-            loading = false;
+            // Only set loading to false if WS hasn't already done so
+            if (loading) {
+                loading = false;
+            }
         }
-    });
+    }
+
+    // Renamed function for clarity
+    async function loadChatsFromDB() {
+        // Removed check for private property chatDB.db
+        // initializeAndLoadDB ensures init() is called.
+        // We only load if chats array is empty, assuming WS or previous load didn't populate it.
+        if (chats.length === 0) {
+            try {
+                console.debug("[ActivityHistory] Loading chats from DB...");
+                chats = await chatDB.getAllChats();
+            } catch (error) {
+                console.error("[ActivityHistory] Error loading chats from DB:", error);
+            } finally {
+                loading = false;
+            }
+        } else {
+             // Chats already loaded (likely by WS), ensure loading is false
+             loading = false;
+        }
+    }
 
     onDestroy(() => {
-        window.removeEventListener('chatUpdated', handleChatUpdate);
+        // Remove old listener if it was ever added (belt and suspenders)
+        // window.removeEventListener('chatUpdated', handleChatUpdate);
         window.removeEventListener('language-changed', languageChangeHandler);
+
+        // Unregister WebSocket handlers
+        webSocketService.off('initial_sync_data', handleInitialSync);
+        webSocketService.off('chat_added', handleChatAdded);
+        webSocketService.off('chat_deleted', handleChatDeleted);
+        webSocketService.off('chat_metadata_updated', handleChatMetadataUpdated);
+
+        // Optional: Disconnect WebSocket if component is destroyed?
+        // Depends on whether the service should persist globally or per-component instance.
+        // Assuming global singleton: webSocketService.disconnect(); might be too aggressive here.
     });
 
     // Function to navigate to next chat
@@ -202,11 +426,7 @@
         chats = await chatDB.getAllChats();
     }
 
-    // Listen for chat updates
-    function handleChatUpdate(event: CustomEvent) {
-        const { chat } = event.detail;
-        updateChatList();
-    }
+    // Removed handleChatUpdate function as updates now come via WebSocket
 
     // Add keydown event handler for individual chat items
     function handleKeyDown(event: KeyboardEvent, chat: ChatType) {

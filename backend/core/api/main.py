@@ -20,7 +20,8 @@ from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware # Import the middleware
 
-from app.routes import auth, email, invoice, credit_note, settings, payments
+# Make sure the path is correct based on your project structure
+from app.routes import auth, email, invoice, credit_note, settings, payments, websockets
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
 from app.services.metrics import MetricsService
@@ -259,6 +260,7 @@ def create_app() -> FastAPI:
     app.include_router(credit_note.router)
     app.include_router(settings.router)
     app.include_router(payments.router) # Include payments router
+    app.include_router(websockets.router) # Include websockets router
 
     # Health check endpoint with rate limiting
     @app.get("/health")

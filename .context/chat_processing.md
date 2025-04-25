@@ -33,7 +33,6 @@
         - Compares incoming.basedOnVersion (1) with stored version (2). They don't match!
         - Server rejects the update from Client A (e.g., sends back an error message { type: 'draft_conflict', payload: { chatId: '...', draftId: '...' } }).
         - Client A receives the rejection. It should now discard its local stale changes and fetch the latest version ("v2", _v: 2) from the server before allowing the user to edit again.
-
 - chats are saved / synced decrypted to indexeddb for offline access and faster load times
 - we also save separate the decrypted activityhistory (with the headlines/details of all chats, but without the content) for all chats.
 - load priority:

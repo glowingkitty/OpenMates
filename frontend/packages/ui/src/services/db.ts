@@ -102,10 +102,11 @@ class ChatDatabase {
     async addChat(chat: Chat): Promise<void> {
         return new Promise((resolve, reject) => {
             const store = this.getStore('readwrite');
+            // The put operation saves the entire chat object, including the _v field if present.
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added successfully:", chat.id);
+                console.debug("[ChatDatabase] Chat added successfully:", chat.id, "Version:", chat._v);
                 resolve();
             };
 
@@ -177,24 +178,28 @@ class ChatDatabase {
      */
     async saveDraft(content: any, chatId?: string): Promise<Chat> {
         console.debug("[ChatDatabase] Saving draft", { chatId, content });
-        
+
         let chat: Chat;
-        
+
         if (chatId) {
             // Update existing chat
             const existingChat = await this.getChat(chatId);
             if (!existingChat) {
-                throw new Error('Chat not found');
+                throw new Error(`Chat not found for saving draft: ${chatId}`);
             }
-            chat = existingChat;
-            
+            chat = existingChat; // Includes existing _v if present
+
             chat.draftContent = content;
-            chat.isDraft = true;
+            chat.isDraft = true; // Mark as draft
             chat.status = 'draft';
             chat.lastUpdated = new Date();
-            
+            // Note: The existing chat._v is preserved here. When the WebSocket service
+            // sends the 'draft_update', it should use this chat._v as 'basedOnVersion'.
+            // If the update succeeds, the backend sends back the *new* version,
+            // which should then be saved back to the DB via updateChat/addChat.
+
         } else {
-            // Create new chat
+            // Create new chat locally (will likely be synced/confirmed by backend later)
             chat = {
                 id: crypto.randomUUID(),
                 title: this.extractTitleFromContent(content) || 'New Chat',
@@ -204,10 +209,14 @@ class ChatDatabase {
                 draftContent: content,
                 mates: [],
                 messages: [], // Initialize messages as an empty array
+                // _v will be assigned by the backend when this draft is first synced.
             };
         }
-        
-        await this.addChat(chat);
+
+        await this.addChat(chat); // Saves the chat, including its current _v
+        // The returned chat includes the latest known _v (if available).
+        // Calling code (e.g., WebSocket logic) should use chat._v as basedOnVersion
+        // when sending 'draft_update' messages for existing chats.
         return chat;
     }
 
@@ -268,10 +277,11 @@ class ChatDatabase {
     async updateChat(chat: Chat): Promise<void> {
         return new Promise((resolve, reject) => {
             const store = this.getStore('readwrite');
+             // The put operation saves the entire chat object, including the _v field if present.
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat updated successfully:", chat.id);
+                console.debug("[ChatDatabase] Chat updated successfully:", chat.id, "Version:", chat._v);
                 resolve();
             };
 

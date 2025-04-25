@@ -8,6 +8,7 @@
     import { chatDB } from '../../services/db';
     import { debounce } from 'lodash-es';
     import { _ } from 'svelte-i18n';
+    import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
 
     //Import extensions
     import { CustomPlaceholder } from './extensions/Placeholder';
@@ -99,6 +100,10 @@
     // Add new prop for current chat ID
     export let currentChatId: string | undefined = undefined;
 
+    // Add state for draft versioning and ID
+    let currentDraftId: string | null = null; // For new chats before they have a chatId
+    let currentDraftVersion: number = 0; // Version of the draft currently loaded/being edited
+
     // Add ResizeObserver to track height changes
     let previousHeight = 0;
 
@@ -116,44 +121,81 @@
         }
     }
 
-    // Modify the existing debounced saveDraft declaration
+    // Modify the existing debounced saveDraft declaration for WebSocket
     const saveDraft = debounce(async () => {
+        // Check if content has actually changed? Tiptap's update event might be better.
+        // For now, rely on debounce interval.
         if (!editor || editor.isEmpty || isContentEmptyExceptMention(editor)) {
+            // TODO: Handle clearing a draft if content becomes empty?
             return;
         }
 
-        try {
-            const content = editor.getJSON();
-            const updatedChat = await chatDB.saveDraft(content, currentChatId);
-            
-            // Update currentChatId with the new chat's ID if we created a new chat
-            if (!currentChatId) {
-                currentChatId = updatedChat.id;
-            }
-            
-            dispatch('draftSaved', { chat: updatedChat });
-            console.debug("[MessageInput] Draft saved:", updatedChat.id);
-        } catch (error) {
-            console.error("[MessageInput] Error saving draft:", error);
+        // If it's a new chat without an ID yet, ensure we have a draft ID
+        if (!currentChatId && !currentDraftId) {
+            currentDraftId = crypto.randomUUID();
+            console.debug("[MessageInput] Generated new draftId for new chat:", currentDraftId);
+            // Initialize version for a brand new draft
+            currentDraftVersion = 0;
         }
-    }, 1000);
+
+        const content = editor.getJSON();
+        const draftIdToSend = currentChatId ?? currentDraftId; // Use chatId if available, else draftId
+
+        if (!draftIdToSend) {
+            console.error("[MessageInput] Cannot save draft: No chatId or draftId available.");
+            return;
+        }
+
+        console.debug(`[MessageInput] Sending draft update via WS. ID: ${draftIdToSend}, Version: ${currentDraftVersion}`);
+
+        try {
+            await webSocketService.sendMessage('draft_update', {
+                // Use chatId if it exists, otherwise backend needs to handle draftId lookup/creation
+                chatId: currentChatId,
+                draftId: draftIdToSend, // Send the specific ID being worked on
+                content: content,
+                basedOnVersion: currentDraftVersion
+            });
+            // Don't dispatch 'draftSaved' here anymore, wait for confirmation ('draft_updated')
+            // console.debug("[MessageInput] Draft update sent via WS:", draftIdToSend);
+        } catch (error) {
+            console.error("[MessageInput] Error sending draft update via WS:", error);
+            // TODO: Handle send errors (e.g., retry, notify user)
+        }
+    }, 700); // Use 700ms as per requirements
 
     /**
-     * Sets draft content in the message field
+     * Sets draft content in the message field, including ID and version
      * @param content Content to set as draft
+     * @param draftId The ID of the draft being loaded
+     * @param version The version of the draft being loaded
+     * @param shouldFocus Whether to focus the editor after setting content
      */
-    export function setDraftContent(content: any, shouldFocus: boolean = true) {
+    export function setDraftContent(content: any, draftId: string | null, version: number, shouldFocus: boolean = true) {
         if (!editor) return;
-        
+
+        console.debug(`[MessageInput] Setting draft content. ID: ${draftId}, Version: ${version}`);
+
+        // Update state
+        currentDraftId = draftId;
+        currentDraftVersion = version;
+
         // Set the content
         if (typeof content === 'string') {
-            content = JSON.parse(content);
+            try {
+                content = JSON.parse(content);
+            } catch (e) {
+                console.error("[MessageInput] Error parsing draft content JSON:", e);
+                // Handle error, maybe set empty content or show a message
+                editor.commands.clearContent();
+                return;
+            }
         }
-        editor.commands.setContent(content);
-        
+        editor.commands.setContent(content || getInitialContent()); // Use initial content if parsed content is null/empty
+
         // Only focus if shouldFocus is true
         if (shouldFocus) {
-            editor.commands.focus();
+            editor.commands.focus('end'); // Focus at the end
         }
     }
 
@@ -162,12 +204,20 @@
      */
     export function clearMessageField(shouldFocus: boolean = true) {
         if (!editor) return;
-        
+
+        console.debug("[MessageInput] Clearing message field and resetting draft state.");
+
         editor.commands.clearContent();
-        
+        editor.commands.setContent(getInitialContent()); // Reset to initial state with mention
+
+        // Reset draft state
+        currentDraftId = null;
+        currentDraftVersion = 0;
+        hasContent = false; // Explicitly reset hasContent flag
+
         // Only focus if shouldFocus is true
         if (shouldFocus) {
-            editor.commands.focus();
+            editor.commands.focus('end'); // Focus at the end after resetting
         }
     }
 
@@ -787,6 +837,43 @@
         }
     }
 
+    // --- WebSocket Event Handlers ---
+
+    const handleDraftUpdated = (payload: { chatId?: string; draftId: string; version: number }) => {
+        const relevantId = currentChatId ?? currentDraftId;
+        console.debug(`[MessageInput] Received draft_updated event for ID: ${payload.draftId}, New Version: ${payload.version}`);
+        // Only update the version if the update is for the draft currently being edited
+        if (payload.draftId === relevantId) {
+            console.debug(`[MessageInput] Updating currentDraftVersion from ${currentDraftVersion} to ${payload.version}`);
+            currentDraftVersion = payload.version;
+            // Optional: Provide user feedback that draft was saved successfully?
+        } else {
+             console.debug(`[MessageInput] Received draft_updated for a different ID (${payload.draftId}), ignoring.`);
+        }
+    };
+
+    const handleDraftConflict = (payload: { chatId?: string; draftId: string }) => {
+        const relevantId = currentChatId ?? currentDraftId;
+        console.warn(`[MessageInput] Received draft_conflict event for ID: ${payload.draftId}`);
+        // Only handle the conflict if it's for the draft currently being edited
+        if (payload.draftId === relevantId) {
+            console.error(`[MessageInput] Draft conflict detected for current draft (ID: ${relevantId}). Local changes might be lost.`);
+            // TODO: Implement robust conflict handling:
+            // 1. Notify the user (e.g., using a toast notification).
+            // 2. Disable the editor temporarily.
+            // 3. Trigger a reload/refetch of the chat/draft data from the server/ActivityHistory.
+            //    - This might involve dispatching an event upwards.
+            // 4. Re-enable the editor once the latest data is loaded.
+            alert('Draft conflict detected! Your recent changes might not have been saved. Reloading the chat is recommended.');
+            // Example of dispatching an event:
+            // dispatch('draftConflictDetected', { chatId: currentChatId, draftId: currentDraftId });
+        } else {
+             console.debug(`[MessageInput] Received draft_conflict for a different ID (${payload.draftId}), ignoring.`);
+        }
+    };
+
+    // --- End WebSocket Event Handlers ---
+
     const handleKeyDown = (event: KeyboardEvent) => {
       // Add escape key handling to blur/unfocus the editor
       if (event.key === 'Escape' && isMessageFieldFocused) {
@@ -846,10 +933,18 @@
                 }
             },
             onBlur: () => {
+                // --- START ADDITION ---
+                // Flush any pending save on blur if there's content
+                if (hasContent) {
+                    console.debug("[MessageInput] Editor blurred, flushing draft save.");
+                    saveDraft.flush();
+                }
+                // --- END ADDITION ---
+
                 isMessageFieldFocused = false;
 
                 if (isMenuInteraction) {
-                    return;
+                    return; // Don't reset content if interacting with embed menu
                 }
 
                 // Replace the existing isEmpty check with a more accurate one
@@ -939,8 +1034,39 @@
         };
         window.addEventListener('language-changed', languageChangeHandler);
 
+        // --- START ADDITION: Add listeners for other save triggers ---
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            // Flush save if there's content when the user tries to leave the page
+            if (hasContent) {
+                console.debug("[MessageInput] beforeunload event triggered, flushing draft save.");
+                saveDraft.flush();
+                // Note: We typically don't preventDefault here unless absolutely necessary,
+                // as it can be intrusive. Flushing the save is usually sufficient.
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            // Flush save if the tab becomes hidden and there's content
+            if (document.visibilityState === 'hidden' && hasContent) {
+                console.debug("[MessageInput] visibilitychange to hidden, flushing draft save.");
+                saveDraft.flush();
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        // --- END ADDITION ---
+
+        // Register WebSocket listeners
+        webSocketService.on('draft_updated', handleDraftUpdated);
+        webSocketService.on('draft_conflict', handleDraftConflict);
+
         return () => {
             resizeObserver.disconnect();
+            // --- START ADDITION: Remove listeners ---
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            // --- END ADDITION ---
             editorElement?.removeEventListener('paste', handlePaste);
             editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
             document.removeEventListener('embedclick', (() => {}) as EventListener);
@@ -949,6 +1075,10 @@
             editorElement?.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('saveDraftBeforeSwitch', () => {});
             window.removeEventListener('language-changed', languageChangeHandler);
+
+            // Unregister WebSocket listeners
+            webSocketService.off('draft_updated', handleDraftUpdated);
+            webSocketService.off('draft_conflict', handleDraftConflict);
         };
     });
 
@@ -961,6 +1091,10 @@
         document.removeEventListener('embedclick', (() => {}) as EventListener);
         document.removeEventListener('mateclick', (() => {}) as EventListener);
         saveDraft.cancel();
+
+        // Ensure listeners are removed if component is destroyed unexpectedly
+        webSocketService.off('draft_updated', handleDraftUpdated);
+        webSocketService.off('draft_conflict', handleDraftConflict);
     });
 
 

@@ -15,6 +15,7 @@ class CacheService:
     DEFAULT_TTL = 3600  # 1 hour
     USER_TTL = 86400    # 24 hours
     SESSION_TTL = 86400 # 24 hours
+    CHAT_LIST_TTL = 3600 # 1 hour, adjust as needed
     
     # Cache key prefixes
     USER_KEY_PREFIX = "user_profile:"
@@ -22,6 +23,7 @@ class CacheService:
     USER_DEVICE_KEY_PREFIX = "user_device:"
     USER_DEVICE_LIST_KEY_PREFIX = "user_device_list:" # Added for consistency
     ORDER_KEY_PREFIX = "order_status:"
+    CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"
     
     def __init__(self):
         """Initialize the cache service with configuration from environment variables"""
@@ -476,3 +478,207 @@ class CacheService:
         except Exception as e:
             logger.error(f"Error checking for pending orders for user '{user_id}': {str(e)}")
             return False # Assume no pending orders on error to avoid blocking logout unnecessarily
+
+    # --- Draft-specific caching methods ---
+
+    def _get_draft_key(self, user_id: str, chat_id: str, draft_id: str) -> str:
+        """Generate a consistent cache key for a draft."""
+        return f"draft:{user_id}:{chat_id}:{draft_id}"
+
+    async def get_draft_with_version(self, user_id: str, chat_id: str, draft_id: str) -> Optional[Dict]:
+        """
+        Get draft content and its version from cache.
+        Returns a dictionary like {'content': '...', 'version': 1} or None if not found.
+        """
+        try:
+            cache_key = self._get_draft_key(user_id, chat_id, draft_id)
+            logger.debug(f"Getting draft from cache: {cache_key}")
+            draft_data = await self.get(cache_key) # self.get already handles JSON parsing
+            if draft_data and isinstance(draft_data, dict) and 'content' in draft_data and 'version' in draft_data:
+                return draft_data
+            elif draft_data:
+                 logger.warning(f"Found draft data for {cache_key}, but format is unexpected: {type(draft_data)}")
+                 # Attempt backward compatibility if it was stored as just content string before versioning
+                 if isinstance(draft_data, str):
+                     logger.info(f"Found old format draft for {cache_key}. Returning with version 0.")
+                     return {"content": draft_data, "version": 0} # Assign version 0 to old drafts
+                 return None # Invalid format
+            else:
+                return None # Not found
+        except Exception as e:
+            logger.error(f"Error getting draft {draft_id} for chat {chat_id} from cache: {str(e)}")
+            return None
+
+    async def update_draft_content(self, user_id: str, chat_id: str, draft_id: str, content: str, expected_version: Optional[int], ttl: int = 86400 * 7) -> Union[int, bool]:
+        """
+        Atomically update draft content in cache if the expected version matches.
+        Uses Redis WATCH/MULTI/EXEC for atomic check-and-set.
+
+        Args:
+            user_id: User ID.
+            chat_id: Chat ID.
+            draft_id: Draft ID.
+            content: New draft content.
+            expected_version: The version the client based the update on.
+                              If None, creates the draft (version 1) if it doesn't exist.
+                              If 0, creates the draft (version 1) or updates if current version is 0.
+            ttl: Time-to-live in seconds (default 7 days).
+
+        Returns:
+            - The new version number (int) if the update was successful.
+            - False (bool) if the version check failed (conflict) or another error occurred.
+            - True (bool) if creating a new draft with expected_version=None succeeded (returns new version 1 implicitly).
+        """
+        if not self.client:
+            logger.error("Cannot update draft: Cache client not connected.")
+            return False
+
+        cache_key = self._get_draft_key(user_id, chat_id, draft_id)
+        new_version = 1 # Default for creation
+
+        try:
+            # Use a pipeline for WATCH/MULTI/EXEC
+            async with self.client.pipeline(transaction=True) as pipe:
+                await pipe.watch(cache_key) # Watch the key for changes
+
+                # Get current value within the transaction
+                current_value_bytes = await pipe.get(cache_key)
+                current_data = None
+                current_version = 0 # Default if key doesn't exist
+
+                if current_value_bytes:
+                    try:
+                        current_data = json.loads(current_value_bytes)
+                        if isinstance(current_data, dict) and 'version' in current_data:
+                            current_version = current_data.get('version', 0)
+                        elif isinstance(current_data, str): # Handle old format
+                            current_version = 0 # Treat old string format as version 0
+                        else:
+                             logger.warning(f"Unexpected data format in cache for {cache_key}: {type(current_data)}. Treating as version 0.")
+                             current_version = 0
+                    except json.JSONDecodeError:
+                        logger.warning(f"Could not decode JSON for {cache_key}. Treating as version 0.")
+                        current_version = 0 # Treat as version 0 if decode fails
+
+                logger.debug(f"Update draft check: Key={cache_key}, Expected={expected_version}, Current={current_version}")
+
+                # --- Version Check Logic ---
+                if expected_version is None: # Intent: Create if not exists
+                    if current_data is not None:
+                        logger.warning(f"Draft creation requested for {cache_key}, but it already exists (Version: {current_version}). Update rejected.")
+                        await pipe.unwatch()
+                        return False # Conflict: Already exists when creation was intended
+                    # Proceed to create with version 1
+                    new_version = 1
+                elif expected_version == 0: # Intent: Create or update from version 0
+                    if current_data is None:
+                        new_version = 1 # Create with version 1
+                    elif current_version == 0:
+                        new_version = 1 # Update from version 0 to 1
+                    else:
+                        logger.warning(f"Draft update conflict for {cache_key}. Expected version 0, but found {current_version}.")
+                        await pipe.unwatch()
+                        return False # Conflict: Expected 0, found something else
+                else: # Intent: Update based on a specific version
+                    if current_version != expected_version:
+                        logger.warning(f"Draft update conflict for {cache_key}. Expected version {expected_version}, but found {current_version}.")
+                        await pipe.unwatch()
+                        return False # Conflict: Versions don't match
+                    # Proceed to update, incrementing version
+                    new_version = current_version + 1
+
+                # --- Perform Update ---
+                pipe.multi() # Start transaction block
+                new_data = {"content": content, "version": new_version}
+                pipe.setex(cache_key, ttl, json.dumps(new_data))
+
+                # Execute the transaction
+                results = await pipe.execute()
+                logger.debug(f"Pipeline execution results for {cache_key}: {results}")
+
+                # Check results: execute() returns a list of results for commands in MULTI.
+                # If the transaction failed due to WATCH, it raises WatchError or returns None list.
+                if results is None or not all(results): # Check if execute failed or any command within failed
+                    logger.warning(f"Draft update failed for {cache_key}, likely due to a concurrent modification (WATCH error).")
+                    return False # Transaction aborted
+
+                logger.info(f"Successfully updated draft {cache_key} to version {new_version}")
+                return new_version # Success, return the new version
+
+        except redis.exceptions.WatchError:
+            logger.warning(f"WatchError during draft update for {cache_key}. Concurrent modification detected.")
+            return False # Conflict detected by WATCH
+        except Exception as e:
+            logger.error(f"Error updating draft {cache_key}: {str(e)}", exc_info=True)
+            return False # Other error
+
+    async def delete_draft(self, user_id: str, chat_id: str, draft_id: str) -> bool:
+        """Delete a draft from cache."""
+        try:
+            cache_key = self._get_draft_key(user_id, chat_id, draft_id)
+            logger.debug(f"Deleting draft from cache: {cache_key}")
+            return await self.delete(cache_key)
+        except Exception as e:
+            logger.error(f"Error deleting draft {draft_id} for chat {chat_id} from cache: {str(e)}")
+            return False
+
+    # --- Chat List Metadata Caching ---
+    # Store chat list metadata (IDs, titles, timestamps) for quick retrieval
+
+    def _get_chat_list_meta_key(self, user_id: str) -> str:
+        """Generate the cache key for a user's chat list metadata."""
+        return f"{self.CHAT_LIST_META_KEY_PREFIX}{user_id}"
+
+    async def get_chat_list_metadata(self, user_id: str) -> Optional[List[Dict]]:
+        """
+        Get the cached list of chat metadata for a user.
+        Expected format: [{'chat_id': '...', 'title': '...', 'updated_at': '...', ...}, ...]
+        """
+        try:
+            cache_key = self._get_chat_list_meta_key(user_id)
+            logger.debug(f"Getting chat list metadata from cache: {cache_key}")
+            metadata = await self.get(cache_key) # self.get handles JSON parsing
+            if isinstance(metadata, list):
+                return metadata
+            elif metadata is not None:
+                 logger.warning(f"Unexpected format for chat list metadata in cache for key {cache_key}: {type(metadata)}")
+                 return None
+            else:
+                return None # Not found
+        except Exception as e:
+            logger.error(f"Error getting chat list metadata for user {user_id} from cache: {str(e)}")
+            return None
+
+    async def set_chat_list_metadata(self, user_id: str, metadata_list: List[Dict], ttl: int = None) -> bool:
+        """
+        Set the entire list of chat metadata for a user in the cache.
+        """
+        try:
+            cache_key = self._get_chat_list_meta_key(user_id)
+            ttl_to_use = ttl if ttl is not None else self.CHAT_LIST_TTL
+            logger.debug(f"Setting chat list metadata in cache for user {user_id} (Key: {cache_key}, TTL: {ttl_to_use}s)")
+            if not isinstance(metadata_list, list):
+                 logger.error(f"Invalid metadata_list type for user {user_id}: Expected list, got {type(metadata_list)}")
+                 return False
+            return await self.set(cache_key, metadata_list, ttl=ttl_to_use)
+        except Exception as e:
+            logger.error(f"Error setting chat list metadata for user {user_id} in cache: {str(e)}")
+            return False
+
+    async def delete_chat_list_metadata(self, user_id: str) -> bool:
+        """
+        Delete the cached chat list metadata for a user.
+        """
+        try:
+            cache_key = self._get_chat_list_meta_key(user_id)
+            logger.debug(f"Deleting chat list metadata from cache: {cache_key}")
+            return await self.delete(cache_key)
+        except Exception as e:
+            logger.error(f"Error deleting chat list metadata for user {user_id} from cache: {str(e)}")
+            return False
+
+    # Note: Updating individual items within the list atomically in Redis is complex.
+    # For simplicity, the current approach is to fetch the list, modify it in the application,
+    # and then use set_chat_list_metadata to overwrite the entire list.
+    # For high-concurrency scenarios, consider using Redis hashes or other structures,
+    # or implementing optimistic locking at the application level when updating the list.
