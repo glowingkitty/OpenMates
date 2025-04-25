@@ -203,13 +203,35 @@ def create_app() -> FastAPI:
     app.add_middleware(LoggingMiddleware) 
     # If it does need it, it should fetch it via request.app.state inside the middleware
 
-    # Configure CORS with proper origin restrictions
-    is_dev = os.getenv("SERVER_ENVIRONMENT", "development") == "development"
-    allowed_origins = [
-        os.getenv("FRONTEND_URL", "http://127.0.0.1:5174") if is_dev else
-        os.getenv("PRODUCTION_URL", "https://app.openmates.org")
-    ]
-    logger.info(f"Allowed origins: {allowed_origins}")
+    # Determine environment (using .lower() for case-insensitivity)
+    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+
+    # Define defaults clearly
+    default_dev_origins_str = "http://127.0.0.1:5174, https://app.dev.openmates.org"
+    default_prod_origin_str = "https://app.openmates.org"
+
+    # 1. Get the relevant string (either from env var or default)
+    if is_dev:
+        # In dev, read FRONTEND_URLS, fallback to the dev default string
+        origins_str = os.getenv("FRONTEND_URLS", default_dev_origins_str)
+        logger.info(f"Dev env: Reading FRONTEND_URLS (defaulting to '{default_dev_origins_str}')")
+    else:
+        # In prod, read PRODUCTION_URL, fallback to the prod default string
+        # Consider renaming PRODUCTION_URL env var to FRONTEND_URLS for consistency if it might hold multiple URLs in the future.
+        origins_str = os.getenv("PRODUCTION_URL", default_prod_origin_str)
+        logger.info(f"Prod env: Reading PRODUCTION_URL (defaulting to '{default_prod_origin_str}')")
+
+    # 2. Split the obtained string into a list
+    if origins_str:
+        # Split by comma, strip whitespace from each part, filter out any empty strings resulting from extra commas
+        allowed_origins = [origin.strip() for origin in origins_str.split(',') if origin.strip()]
+    else:
+        # Handle case where the environment variable was set but empty, or default was somehow empty
+        allowed_origins = []
+        logger.warning("Origin string resolved to empty. No origins will be allowed.")
+
+    # 3. Log the final list
+    logger.info(f"Final allowed origins configured: {allowed_origins}")
 
     # Make allowed_origins accessible outside this module
     # This enables auth endpoints to validate origins
