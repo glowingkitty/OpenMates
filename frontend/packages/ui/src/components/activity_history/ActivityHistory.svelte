@@ -188,17 +188,48 @@
         }
     };
 
-    const handleChatAdded = (payload: ChatListEntry) => {
-        console.debug("[ActivityHistory] Handling chat added:", payload);
+    // Adjust payload type to reflect actual data for new drafts from backend
+    const handleChatAdded = (payload: {
+        id: string;
+        draft_content?: any;
+        draft_version?: number;
+        draft_id?: string;
+        last_updated: number | string | Date; // Allow timestamp number from backend
+        // Add other potential fields from backend if necessary
+    }) => {
+        console.debug("[ActivityHistory] Handling chat added/draft initiated:", payload);
+
+        // Check if this 'added' event actually represents a new draft based on payload content
+        const isNewDraft = !!payload.draft_content && !!payload.draft_id;
+        console.debug(`[ActivityHistory] Is new draft? ${isNewDraft}`);
+
         const newChat: ChatType = {
-            ...payload,
+            id: payload.id,
+            // Assign defaults directly as payload for new drafts won't have these
+            title: isNewDraft ? 'New Chat' : 'Untitled Chat',
             messages: [],
-            isDraft: false,
-            draftContent: null,
-            lastUpdated: new Date(payload.lastUpdated),
-        } as ChatType;
-        chats = [newChat, ...chats]; // Add to the top (or sort later)
-        chatDB.addChat(newChat); // Update local DB
+            mates: [], // Default to empty array
+            unreadCount: 0, // Default to 0
+            // Use draft info from payload if present
+            isDraft: isNewDraft,
+            draftContent: isNewDraft ? payload.draft_content : null,
+            draftVersion: isNewDraft ? payload.draft_version : undefined, // Use undefined if not a draft
+            draftId: isNewDraft ? payload.draft_id : undefined, // Use undefined if not a draft
+            lastUpdated: new Date(payload.last_updated), // Ensure it's a Date object
+            // status and typingMate will be updated by other events or logic
+        };
+
+        // Avoid adding duplicates if the chat/draft already exists (e.g., due to race conditions)
+        if (!chats.some(chat => chat.id === newChat.id)) {
+            chats = [newChat, ...chats]; // Add to the top (sorting will handle placement)
+            chatDB.addChat(newChat); // Update local DB
+            console.debug(`[ActivityHistory] Added new chat/draft entry: ${newChat.id}`);
+        } else {
+            console.warn(`[ActivityHistory] Chat/Draft with ID ${newChat.id} already exists. Skipping add.`);
+            // Optionally update existing entry if needed, though metadata_updated should handle this
+            // For now, just prevent duplication.
+        }
+        // chatDB.addChat(newChat); // Update local DB - Redundant, already called inside the if block
     };
 
     const handleChatDeleted = (payload: { chatId: string }) => {
@@ -220,11 +251,24 @@
                 // TODO: Implement version checking if needed on the client side for metadata?
                 // The backend should handle version conflicts primarily.
                 // Merge fields, ensuring lastUpdated is always a Date object
-                const mergedFields = { ...chat, ...payload.updatedFields };
+                // Merge fields, ensuring lastUpdated is always a Date object
+                // Merge fields, ensuring lastUpdated is always a Date object
                 const updatedChat: ChatType = {
-                    ...mergedFields,
+                    ...chat, // Start with existing chat data
+                    ...payload.updatedFields, // Apply updates from payload
+                    // --- Corrected Draft Handling ---
+                    // Preserve existing draft content/id/version as metadata update likely won't contain them.
+                    draftContent: chat.draftContent,
+                    draftId: chat.draftId,
+                    draftVersion: chat.draftVersion,
                     // Explicitly convert lastUpdated to Date, using the updated value if present, otherwise the original chat's value
-                    lastUpdated: new Date(payload.updatedFields.lastUpdated ?? chat.lastUpdated)
+                    lastUpdated: new Date(payload.updatedFields.lastUpdated ?? chat.lastUpdated),
+                    // Ensure isDraft is correctly handled (prefer server value if provided, else keep local)
+                    // If the server explicitly sets isDraft (to true or false), use that. Otherwise, keep the local state.
+                    isDraft: payload.updatedFields.isDraft ?? chat.isDraft ?? false,
+                    // If the final state is NOT a draft, clear the draft content locally.
+                    ...( (payload.updatedFields.isDraft === false) && { draftContent: null, draftId: undefined, draftVersion: undefined } )
+                    // --- End Correction ---
                 };
 
                 chatDB.updateChat(updatedChat); // Update local DB

@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-import redis
+import redis.asyncio as redis # Use asyncio client
 import hashlib
 import time
 from typing import Any, Optional, Union, Dict, List
@@ -42,13 +42,14 @@ class CacheService:
         
         logger.info(f"CacheService initialized with host: {self.host}, port: {self.port}")
         
+    # Make property async to allow await for ping
     @property
-    def client(self) -> Optional[redis.Redis]:
-        """Get Redis client, creating it if needed"""
+    async def client(self) -> Optional[redis.Redis]: # Type hint updated implicitly by import change
+        """Get async Redis client, creating it if needed"""
         if self._client is None and not self._connection_error:
             try:
-                # Create with more resilient settings
-                self._client = redis.Redis(
+                # Create async client
+                self._client = redis.Redis( # Now refers to redis.asyncio.Redis
                     host=self.host,
                     port=self.port,
                     password=self.DRAGONFLY_PASSWORD,
@@ -58,11 +59,11 @@ class CacheService:
                     health_check_interval=30,  # Periodically check connection
                     decode_responses=False     # Raw bytes for compatibility with Celery
                 )
-                # Test connection with verbose logging
-                pong = self._client.ping()
-                logger.info(f"Successfully connected to cache at {self.host}:{self.port} (PING={pong})")
-                
-                # Show Redis info for debugging
+                # Test connection with await
+                pong = await self._client.ping() # Use await for async ping
+                logger.info(f"Successfully connected to async cache at {self.host}:{self.port} (PING={pong})")
+
+                # Show Redis info for debugging (Note: info() might also need await if used elsewhere)
                 try:
                     info = self._client.info()
                     logger.info(f"Cache server: {info.get('redis_version', 'unknown')}, "
@@ -80,12 +81,15 @@ class CacheService:
     async def get(self, key: str) -> Any:
         """Get a value from cache"""
         try:
-            if not self.client:
+            # Get the client instance by awaiting the async property
+            client = await self.client
+            if not client:
                 logger.debug(f"Cache GET skipped for key '{key}': client not connected.")
                 return None
-                
+
             logger.debug(f"Cache GET for key: '{key}'")
-            value = self.client.get(key)
+            # Use the obtained client instance and await the async operation
+            value = await client.get(key)
             if value:
                 logger.debug(f"Cache HIT for key: '{key}'")
                 try:
@@ -102,15 +106,18 @@ class CacheService:
     async def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
         """Set a value in cache with TTL in seconds (default 1 hour)"""
         try:
-            if not self.client:
+            # Get the client instance by awaiting the async property
+            client = await self.client
+            if not client:
                 logger.debug(f"Cache SET skipped for key '{key}': client not connected.")
                 return False
-                
+
             serialized = json.dumps(value)
             logger.debug(f"Cache SET for key: '{key}', TTL: {ttl}s")
-            result = self.client.setex(key, ttl, serialized)
+            # Use the obtained client instance and await the async operation
+            result = await client.setex(key, ttl, serialized)
             logger.debug(f"Cache SET result for key '{key}': {result}")
-            return result
+            return result # setex returns bool
         except Exception as e:
             logger.error(f"Cache SET error for key '{key}': {str(e)}")
             return False
@@ -118,13 +125,18 @@ class CacheService:
     async def delete(self, key: str) -> bool:
         """Delete a value from cache"""
         try:
-            if not self.client:
+            # Get the client instance by awaiting the async property
+            client = await self.client
+            if not client:
                 logger.debug(f"Cache DELETE skipped for key '{key}': client not connected.")
                 return False
-                
+
             logger.debug(f"Cache DELETE for key: '{key}'")
-            result = bool(self.client.delete(key))
-            logger.debug(f"Cache DELETE result for key '{key}': {result}")
+            # Use the obtained client instance and await the async operation
+            # delete returns the number of keys deleted (int)
+            num_deleted = await client.delete(key)
+            result = bool(num_deleted > 0)
+            logger.debug(f"Cache DELETE result for key '{key}': {result} ({num_deleted} deleted)")
             return result
         except Exception as e:
             logger.error(f"Cache DELETE error for key '{key}': {str(e)}")
@@ -529,19 +541,21 @@ class CacheService:
             - False (bool) if the version check failed (conflict) or another error occurred.
             - True (bool) if creating a new draft with expected_version=None succeeded (returns new version 1 implicitly).
         """
-        if not self.client:
+        client = await self.client # Get async client instance
+        if not client:
             logger.error("Cannot update draft: Cache client not connected.")
-            return False
+            return False # Indicate failure
 
         cache_key = self._get_draft_key(user_id, chat_id, draft_id)
         new_version = 1 # Default for creation
 
         try:
             # Use a pipeline for WATCH/MULTI/EXEC
-            async with self.client.pipeline(transaction=True) as pipe:
+            # Use the obtained async client instance 'client' here
+            async with client.pipeline(transaction=True) as pipe:
                 await pipe.watch(cache_key) # Watch the key for changes
 
-                # Get current value within the transaction
+                # Get current value within the transaction (pipeline commands are awaited implicitly)
                 current_value_bytes = await pipe.get(cache_key)
                 current_data = None
                 current_version = 0 # Default if key doesn't exist

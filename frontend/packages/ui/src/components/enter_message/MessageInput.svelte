@@ -839,16 +839,35 @@
 
     // --- WebSocket Event Handlers ---
 
-    const handleDraftUpdated = (payload: { chatId?: string; draftId: string; version: number }) => {
-        const relevantId = currentChatId ?? currentDraftId;
-        console.debug(`[MessageInput] Received draft_updated event for ID: ${payload.draftId}, New Version: ${payload.version}`);
-        // Only update the version if the update is for the draft currently being edited
-        if (payload.draftId === relevantId) {
-            console.debug(`[MessageInput] Updating currentDraftVersion from ${currentDraftVersion} to ${payload.version}`);
-            currentDraftVersion = payload.version;
-            // Optional: Provide user feedback that draft was saved successfully?
-        } else {
-             console.debug(`[MessageInput] Received draft_updated for a different ID (${payload.draftId}), ignoring.`);
+    const handleDraftUpdated = (payload: { chatId?: string; draftId: string; version: number; content?: any }) => { // Added content to type if needed later
+        // Determine the ID the frontend is currently tracking for this draft
+        const trackedDraftId = currentChatId ? null : currentDraftId; // If we have chatId, we don't care about draftId anymore for matching incoming updates
+
+        console.debug(`[MessageInput] Received draft_updated event. Payload:`, payload, `Current State: chatId=${currentChatId}, draftId=${currentDraftId}, version=${currentDraftVersion}`);
+
+        // Scenario 1: Frontend is waiting for the initial chatId (currentChatId is null)
+        if (!currentChatId && trackedDraftId && payload.draftId === trackedDraftId && payload.chatId) {
+            console.info(`[MessageInput] Received initial draft confirmation. Linking draftId ${trackedDraftId} to chatId ${payload.chatId}.`);
+            currentChatId = payload.chatId; // *** Assign the new chatId ***
+            currentDraftId = null; // Clear the temporary draftId
+            currentDraftVersion = payload.version; // Update version
+            // Optional: Dispatch event if parent needs to know the chatId?
+            // dispatch('chatIdAssigned', { chatId: currentChatId });
+        }
+        // Scenario 2: Frontend already has a chatId, update is for this chat
+        else if (currentChatId && payload.chatId === currentChatId) {
+             // Check if the draftId matches what we expect (optional, chatId is primary key now)
+             // if (payload.draftId === (currentChatId ?? currentDraftId)) { // Original check, might be too strict if draftId changes unexpectedly
+                console.debug(`[MessageInput] Received update for existing chat ${currentChatId}. Updating version from ${currentDraftVersion} to ${payload.version}`);
+                currentDraftVersion = payload.version;
+             // } else {
+             //    console.warn(`[MessageInput] Received draft_updated for chat ${currentChatId} but with unexpected draftId ${payload.draftId}. Updating version anyway.`);
+             //    currentDraftVersion = payload.version;
+             // }
+        }
+        // Scenario 3: Update is for a different chat/draft than the one currently active
+        else {
+             console.debug(`[MessageInput] Received draft_updated for a different context (Payload: ${JSON.stringify(payload)}, Current: chatId=${currentChatId}, draftId=${currentDraftId}). Ignoring state update.`);
         }
     };
 

@@ -18,7 +18,9 @@ export interface Chat {
     title: string;
     isDraft?: boolean;
     draftContent?: any;
-    mates: string[];
+    draftId?: string; // Add draftId
+    draftVersion?: number; // Add draftVersion
+    mates?: string[]; // Make mates optional as new drafts might not have them yet
     status?: 'draft' | 'sending' | 'pending' | 'typing';
     typingMate?: string;
     unreadCount?: number;

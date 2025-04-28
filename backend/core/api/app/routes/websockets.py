@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import time
+import uuid # <-- Add import
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException, status, Cookie
 from typing import List, Dict, Any, Optional, Tuple # Added Tuple
 
 # Import necessary services and utilities
 from app.services.cache import CacheService
-from app.services.directus import DirectusService # Keep this
+from app.services.directus import DirectusService
+from app.utils.encryption import EncryptionService # <-- Add EncryptionService import
 # Import device fingerprint utils
 from app.utils.device_fingerprint import get_websocket_device_fingerprint, get_websocket_client_ip, get_location_from_ip
 # Import device cache utils
@@ -208,22 +210,163 @@ async def websocket_endpoint(
     websocket: WebSocket,
     auth_data: dict = Depends(get_current_user_ws),
 ):
-    # Access cache service directly from websocket state
+    # Access services directly from websocket state
     cache_service: CacheService = websocket.app.state.cache_service
+    directus_service: DirectusService = websocket.app.state.directus_service # <-- Get DirectusService
+    encryption_service: EncryptionService = websocket.app.state.encryption_service # <-- Get EncryptionService
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
+
+    # --- Helper function to extract title from draft content ---
+    def _extract_title_from_draft_content(content: Any, max_length: int = 50) -> str:
+        """Extracts a title snippet from TipTap JSON content."""
+        if not content or not isinstance(content, dict):
+            return "New Chat"
+        try:
+            # Find first text node in the document structure
+            first_text_node = content.get('content', [{}])[0].get('content', [{}])[0]
+            if first_text_node and first_text_node.get('type') == 'text':
+                text = first_text_node.get('text', '')
+                return text[:max_length] + ('...' if len(text) > max_length else '')
+        except (IndexError, KeyError, TypeError) as e:
+            logger.warning(f"Error extracting title from draft content: {e}. Content: {str(content)[:100]}...")
+        return "New Chat" # Default title if extraction fails
     # user_data = auth_data["user_data"] # Full user data available if needed
 
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
     try:
-        # TODO: Send initial sync data (fetch from DB/Cache)
-        logger.info(f"Sending placeholder initial_sync_data to {user_id}/{device_fingerprint_hash}")
-        await manager.send_personal_message(
-            {"type": "initial_sync_data", "payload": {"chats": [], "lastOpenChatId": None, "message": "Placeholder - Fetch actual data"}},
-            user_id,
-            device_fingerprint_hash
-        )
+        # --- Send REAL initial sync data (Cache-First Approach) ---
+        logger.info(f"Fetching initial sync data for {user_id}/{device_fingerprint_hash}")
+        final_chat_entries_dict: Dict[str, Dict[str, Any]] = {}
+        processed_metadata_list: List[Dict[str, Any]] = [] # To store metadata from cache or fetched from DB
+
+        try:
+            # 1. Try fetching chat list metadata from cache
+            cached_metadata = await cache_service.get_chat_list_metadata(user_id)
+
+            if cached_metadata:
+                logger.debug(f"Cache HIT for chat list metadata for user {user_id}. Found {len(cached_metadata)} entries.")
+                processed_metadata_list = cached_metadata # Already has decrypted titles
+            else:
+                logger.debug(f"Cache MISS for chat list metadata for user {user_id}. Fetching from Directus.")
+                # 2. Fetch from Directus if cache miss
+                directus_chats_metadata = await directus_service.get_user_chats_metadata(user_id)
+                logger.debug(f"Fetched {len(directus_chats_metadata)} chats from Directus for user {user_id}")
+
+                # Decrypt titles and prepare list for caching
+                decrypted_metadata_for_cache = []
+                for chat_meta in directus_chats_metadata:
+                    chat_id = chat_meta.get("id")
+                    encrypted_title = chat_meta.get("encrypted_title")
+                    vault_key_id = chat_meta.get("vault_key_id")
+                    last_updated = chat_meta.get("updated_at") # Keep as is
+
+                    decrypted_title = "Untitled Chat"
+                    if encrypted_title and vault_key_id:
+                        try:
+                            decrypted_title = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_id)
+                            if not decrypted_title: decrypted_title = "Decryption Error"
+                        except Exception as decrypt_err:
+                            logger.error(f"Failed to decrypt title for chat {chat_id}: {decrypt_err}")
+                            decrypted_title = "Decryption Error"
+                    elif not encrypted_title:
+                         logger.warning(f"Chat {chat_id} has no encrypted_title.")
+
+                    processed_entry = {
+                        "id": chat_id,
+                        "title": decrypted_title,
+                        "lastUpdated": last_updated,
+                        # Add other necessary fields from CHAT_METADATA_FIELDS if needed by frontend/cache
+                        "_version": chat_meta.get("_version") # Keep version if needed later
+                    }
+                    decrypted_metadata_for_cache.append(processed_entry)
+
+                # Store the processed list in cache
+                if decrypted_metadata_for_cache:
+                    await cache_service.set_chat_list_metadata(user_id, decrypted_metadata_for_cache)
+                    logger.debug(f"Stored fetched & decrypted chat list metadata in cache for user {user_id}")
+
+                processed_metadata_list = decrypted_metadata_for_cache
+
+            # 3. Fetch all active drafts from Redis
+            draft_keys_pattern = f"draft:{user_id}:*:*"
+            active_draft_keys = await cache_service.get_keys_by_pattern(draft_keys_pattern)
+            user_drafts: Dict[str, Dict[str, Any]] = {} # Store draft data by chat_id
+            logger.debug(f"Found {len(active_draft_keys)} potential draft keys for user {user_id}")
+            for key in active_draft_keys:
+                draft_data = await cache_service.get(key) # Assumes get returns the dict {content, version, lastUpdated?}
+                if draft_data and isinstance(draft_data, dict):
+                    parts = key.split(':')
+                    if len(parts) >= 4: # Ensure key format is draft:user:chat:draft_id
+                        draft_chat_id = parts[2]
+                        # Store draft data, ensuring lastUpdated exists (use current time as fallback)
+                        draft_data['lastUpdated'] = draft_data.get('lastUpdated', time.time()) # Use draft's timestamp
+                        user_drafts[draft_chat_id] = draft_data
+                        logger.debug(f"Fetched draft data for chat_id: {draft_chat_id}")
+                    else:
+                        logger.warning(f"Skipping draft key with unexpected format: {key}")
+                else:
+                     logger.warning(f"Could not fetch or parse draft data for key: {key}")
+
+
+            # 4. Merge & Format
+            # Process chats from metadata (cache/Directus)
+            for chat_entry in processed_metadata_list:
+                chat_id = chat_entry.get("id")
+                if not chat_id: continue
+
+                is_draft = chat_id in user_drafts
+                final_chat_entries_dict[chat_id] = {
+                    "id": chat_id,
+                    "title": chat_entry.get("title", "Untitled Chat"),
+                    "lastUpdated": chat_entry.get("lastUpdated"), # Use timestamp from metadata
+                    "isDraft": is_draft,
+                    # "unreadCount": 0 # Omit if not available
+                }
+                # If it's a draft, potentially update lastUpdated from draft data if newer?
+                # For simplicity, let's use the metadata lastUpdated for now. Frontend sorting handles draft priority.
+
+            # Process "New Chat" drafts (drafts whose chat_id isn't in the metadata list)
+            for draft_chat_id, draft_data in user_drafts.items():
+                if draft_chat_id not in final_chat_entries_dict:
+                    # This is a draft without a corresponding chat in Directus yet
+                    draft_content = draft_data.get('content')
+                    draft_title = _extract_title_from_draft_content(draft_content)
+                    draft_last_updated = draft_data.get('lastUpdated') # Use draft's timestamp
+
+                    final_chat_entries_dict[draft_chat_id] = {
+                        "id": draft_chat_id,
+                        "title": draft_title,
+                        "lastUpdated": draft_last_updated,
+                        "isDraft": True,
+                    }
+                    logger.debug(f"Added 'new chat' draft entry for chat_id: {draft_chat_id}")
+
+            # 5. Convert to list and sort (optional, frontend also sorts)
+            chat_list_for_payload = sorted(
+                list(final_chat_entries_dict.values()),
+                # Sort by lastUpdated (descending). Assumes lastUpdated is comparable (e.g., ISO string or timestamp number)
+                # Frontend will apply more complex sorting (draft priority etc.)
+                key=lambda x: x.get('lastUpdated', 0), # Use 0 if missing for sorting
+                reverse=True
+            )
+
+            logger.info(f"Sending initial_sync_data with {len(chat_list_for_payload)} entries to {user_id}/{device_fingerprint_hash}")
+            await manager.send_personal_message(
+                {"type": "initial_sync_data", "payload": {"chats": chat_list_for_payload, "lastOpenChatId": None}}, # TODO: Add lastOpenChatId
+                user_id,
+                device_fingerprint_hash
+            )
+
+        except Exception as sync_err:
+            logger.error(f"Error preparing initial_sync_data for {user_id}/{device_fingerprint_hash}: {sync_err}", exc_info=True)
+            await manager.send_personal_message(
+                {"type": "initial_sync_data", "payload": {"chats": [], "lastOpenChatId": None, "error": "Failed to load chat list"}},
+                user_id,
+                device_fingerprint_hash
+            )
+        # --- End initial sync data ---
 
         while True:
             data = await websocket.receive_json()
@@ -234,64 +377,156 @@ async def websocket_endpoint(
 
             # Process different message types
             if message_type == "draft_update":
-                chat_id = payload.get("chatId")
-                draft_id = payload.get("draftId")
+                chat_id = payload.get("chatId") # Will be None for a new chat
+                draft_id = payload.get("draftId") # Should be present even for new chats
                 content = payload.get("content")
-                based_on_version = payload.get("basedOnVersion") # Can be None for new drafts
+                based_on_version = payload.get("basedOnVersion") # Should be None or 0 for new chats
 
-                if not all([chat_id, draft_id, content is not None]): # content can be empty string
-                    logger.warning(f"Received invalid draft_update from {user_id}/{device_fingerprint_hash}: Missing fields.")
-                    # Optionally send an error back
+                if not draft_id or content is None: # Check only essential fields for both cases
+                    logger.warning(f"Received invalid draft_update from {user_id}/{device_fingerprint_hash}: Missing draftId or content.")
                     await manager.send_personal_message(
-                        {"type": "error", "payload": {"message": "Invalid draft_update payload"}},
+                        {"type": "error", "payload": {"message": "Invalid draft_update payload: Missing draftId or content"}},
                         user_id, device_fingerprint_hash
                     )
-                    continue # Skip processing this message
+                    continue
 
-                # Attempt to update the draft using the cache service
-                update_result = await cache_service.update_draft_content(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    draft_id=draft_id,
-                    content=content,
-                    expected_version=based_on_version,
-                    # ttl=... # Use default TTL from cache service for now
-                )
+                if chat_id is None:
+                    # --- Handle new chat draft ---
+                    logger.info(f"Received draft for a new chat from {user_id}/{device_fingerprint_hash}. Generating new chat ID.")
+                    new_chat_id = f"{user_id[:6]}-{uuid.uuid4()}"
+                    logger.debug(f"Generated new chat ID: {new_chat_id} for user {user_id}")
 
-                if isinstance(update_result, int): # Success, returns new version number
-                    new_version = update_result
-                    logger.info(f"Draft {draft_id} for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
-                    # Broadcast the update to other devices of the same user
-                    await manager.broadcast_to_user(
-                        {
-                            "type": "draft_updated",
-                            "payload": {
-                                "chatId": chat_id,
-                                "draftId": draft_id,
-                                "content": content, # Send the updated content back
-                                "version": new_version
-                            }
-                        },
-                        user_id,
-                        exclude_device_hash=device_fingerprint_hash
+                    # Attempt to create/update the draft in cache with the new chat ID
+                    # Expect version None or 0 for the very first save of a draft
+                    update_result = await cache_service.update_draft_content(
+                        user_id=user_id,
+                        chat_id=new_chat_id, # Use the newly generated chat ID
+                        draft_id=draft_id,   # Use the draft ID from the client
+                        content=content,
+                        expected_version=None, # First save, no prior version expected
+                        # ttl=... # Use default TTL
                     )
-                    # Optionally send confirmation back to sender? Usually broadcast is enough.
-                elif update_result is False: # Conflict or other cache error
-                    logger.warning(f"Draft update conflict or error for {user_id}/{device_fingerprint_hash} on draft {draft_id} (Chat: {chat_id}). Expected version: {based_on_version}")
-                    # Send conflict message back to the originating client
-                    await manager.send_personal_message(
-                        {
-                            "type": "draft_conflict",
-                            "payload": {
-                                "chatId": chat_id,
-                                "draftId": draft_id
-                            }
-                        },
-                        user_id,
-                        device_fingerprint_hash
+
+                    if isinstance(update_result, int): # Success, returns new version (likely 1)
+                        new_version = update_result
+                        logger.info(f"New chat draft {draft_id} saved successfully for chat {new_chat_id}, version {new_version} by {user_id}/{device_fingerprint_hash}")
+
+                        # Broadcast 'draft_updated' to ALL devices (including sender) with the NEW chat_id
+                        await manager.broadcast_to_user(
+                            {
+                                "type": "draft_updated",
+                                "payload": {
+                                    "chatId": new_chat_id, # Send the generated chat ID
+                                    "draftId": draft_id,
+                                    "content": content,
+                                    "version": new_version
+                                }
+                            },
+                            user_id,
+                            exclude_device_hash=None # Send to all, including the sender
+                        )
+
+                        # Broadcast 'activity_history_update' to sync the new chat stub
+                        await manager.broadcast_to_user(
+                            {
+                                "type": "activity_history_update",
+                                "payload": {
+                                    "type": "chat_added", # Indicate a new chat was added
+                                    "chat": {
+                                        "id": new_chat_id,
+                                        "draft_content": content, # Include initial draft content
+                                        "draft_version": new_version,
+                                        "draft_id": draft_id,
+                                        "last_updated": time.time(), # Add timestamp
+                                        # Add other minimal necessary fields for ActivityHistory UI if needed
+                                        # e.g., "title": "New Chat" (or derive from content later)
+                                    }
+                                }
+                            },
+                            user_id,
+                            exclude_device_hash=None # Send to all
+                        )
+                    else: # Conflict or error during initial save (less likely but possible)
+                        logger.error(f"Failed to save initial draft for new chat {new_chat_id} from {user_id}/{device_fingerprint_hash}. Draft ID: {draft_id}")
+                        # Send error back to the originating client
+                        await manager.send_personal_message(
+                            {
+                                "type": "error", # Use a generic error or a specific one like 'draft_save_failed'
+                                "payload": {
+                                    "message": "Failed to save initial draft for new chat.",
+                                    "draftId": draft_id # Include draftId for context
+                                }
+                            },
+                            user_id,
+                            device_fingerprint_hash
+                        )
+
+                else:
+                    # --- Handle existing chat draft update ---
+                    if based_on_version is None: # Should have a version if chat_id exists
+                         logger.warning(f"Received draft_update for existing chat {chat_id} without basedOnVersion from {user_id}/{device_fingerprint_hash}. Rejecting.")
+                         await manager.send_personal_message(
+                             {"type": "error", "payload": {"message": "Missing basedOnVersion for existing chat draft update", "chatId": chat_id, "draftId": draft_id}},
+                             user_id, device_fingerprint_hash
+                         )
+                         continue
+
+                    # Attempt to update the draft using the cache service
+                    update_result = await cache_service.update_draft_content(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        draft_id=draft_id,
+                        content=content,
+                        expected_version=based_on_version,
+                        # ttl=... # Use default TTL
                     )
-                # Handle True case? update_draft_content currently doesn't return True.
-                # If it did (e.g., for creation success), handle similarly to the int case.
+
+                    if isinstance(update_result, int): # Success, returns new version number
+                        new_version = update_result
+                        logger.info(f"Draft {draft_id} for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
+                        # Broadcast the update to other devices of the same user
+                        await manager.broadcast_to_user(
+                            {
+                                "type": "draft_updated",
+                                "payload": {
+                                    "chatId": chat_id,
+                                    "draftId": draft_id,
+                                    "content": content, # Send the updated content back
+                                    "version": new_version
+                                }
+                            },
+                            user_id,
+                            exclude_device_hash=device_fingerprint_hash # Exclude sender
+                        )
+                        # Send confirmation back to sender including the new version
+                        await manager.send_personal_message(
+                             {
+                                "type": "draft_updated", # Send confirmation back to sender too
+                                "payload": {
+                                    "chatId": chat_id,
+                                    "draftId": draft_id,
+                                    "content": content, # Send content back to sender too
+                                    "version": new_version
+                                }
+                            },
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                    elif update_result is False: # Conflict or other cache error
+                        logger.warning(f"Draft update conflict or error for {user_id}/{device_fingerprint_hash} on draft {draft_id} (Chat: {chat_id}). Expected version: {based_on_version}")
+                        # Send conflict message back to the originating client
+                        await manager.send_personal_message(
+                            {
+                                "type": "draft_conflict",
+                                "payload": {
+                                    "chatId": chat_id,
+                                    "draftId": draft_id
+                                }
+                            },
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                    # Handle True case? update_draft_content currently doesn't return True.
 
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
