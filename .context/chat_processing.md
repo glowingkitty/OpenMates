@@ -58,6 +58,8 @@
 - detect complexity level of request to maximize cost / performance balance for user
 - detect if full conversation should be included or if last 2 messages are enough or only new message
 - detect what temperature level makes the most sense (from 0.0 to 1.0, from not creative at all, to very creative)
+- detect the risk of how likely it is that the knowledge base is outdated and that outdated knowledge could lead to wrong answers (1 to 10), which would then force trigger web research first if above 7 and ask the user if they want to do a web research first if above 3
+- detect which topics should be researched or considered for research to get up to date infos
 
 ## Output structure example
 ```json
@@ -66,7 +68,9 @@
     "difficulty": "complex",
     "harmful_risk_level": 2,
     "message_history": "full",
-    "temperature": 0.4
+    "temperature": 0.4,
+    "risk_of_outdated_knowledge": 8,
+    "research_topics":["Svelte 5.0 websocket documnetation"]
 }
 ```
 
