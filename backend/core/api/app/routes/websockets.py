@@ -185,7 +185,7 @@ async def websocket_endpoint(
                     # The client expects basedOnVersion to be the *new* version after the update.
                     draft_update_payload_dict = draft_data.dict()
                     draft_update_payload_dict["chatId"] = new_chat_id
-                    draft_update_payload_dict["tempChatId"] = None # Clear temp ID
+                    draft_update_payload_dict["tempChatId"] = temp_chat_id # Include original temp ID
                     draft_update_payload_dict["basedOnVersion"] = 1 # Set the new version
 
                     await manager.broadcast_to_user(
@@ -214,7 +214,7 @@ async def websocket_endpoint(
                             "type": "activity_history_update",
                             "payload": {
                                 "type": "chat_added",
-                                "chat": chat_response.dict()
+                                "chat": chat_response.model_dump(mode='json') # Use model_dump for JSON serialization
                             }
                         },
                         user_id,

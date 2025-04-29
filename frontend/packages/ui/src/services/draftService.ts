@@ -207,40 +207,135 @@ export function flushSaveDraft() {
 
 // --- WebSocket Handlers ---
 
-const handleDraftUpdated = (payload: { chatId?: string; draftId: string; version: number; }) => {
-    draftState.update(currentState => {
-        const relevantId = currentState.currentChatId ?? currentState.currentTempDraftId;
-        console.debug(`[DraftService] Received draft_updated. Payload:`, payload, `Current State:`, currentState);
+// Define a more accurate type based on observed payload and backend change
+interface DraftUpdatedPayload {
+    chatId: string | null; // Final ID (if assigned)
+    tempChatId: string | null; // Original temp ID (should now be included for new chats)
+    basedOnVersion: number; // This holds the *new* version number
+    content?: Record<string, any>; // Optional content
+}
 
-        // Check if the update is for the draft currently being edited
-        // Match based on chatId if we have one, otherwise match on tempDraftId
-        const isRelevantUpdate = (currentState.currentChatId && currentState.currentChatId === payload.chatId) ||
-                                 (!currentState.currentChatId && currentState.currentTempDraftId === payload.draftId);
+const handleDraftUpdated = async (payload: DraftUpdatedPayload) => {
+    // Use a temporary variable to hold the state to avoid async issues within update
+    let stateBeforeUpdate: DraftState | null = null;
+    draftState.subscribe(s => stateBeforeUpdate = s)(); // Get current value synchronously
 
-        if (isRelevantUpdate) {
-            console.info(`[DraftService] Confirmed update for ${relevantId}. New version: ${payload.version}`);
-            let newChatId = currentState.currentChatId;
-            let newTempDraftId = currentState.currentTempDraftId;
+    if (!stateBeforeUpdate) {
+        console.error("[DraftService] Could not get current draft state in handleDraftUpdated.");
+        return;
+    }
 
-            // If this confirmation includes the final chatId for a temp draft
-            if (!currentState.currentChatId && currentState.currentTempDraftId === payload.draftId && payload.chatId) {
-                console.info(`[DraftService] Assigning final chatId ${payload.chatId} to temp draft ${currentState.currentTempDraftId}`);
-                newChatId = payload.chatId;
-                newTempDraftId = null; // Clear temp ID
+    const currentRelevantId = stateBeforeUpdate.currentChatId ?? stateBeforeUpdate.currentTempDraftId;
+    console.debug(`[DraftService] Received draft_updated. Payload:`, payload, `Current State:`, stateBeforeUpdate);
+
+    // --- Revised Relevance Check ---
+    // Check if the update is for the draft currently being edited.
+    // Match EITHER the final chatId OR the tempChatId from the payload against the current state.
+    const isRelevantUpdate =
+        (stateBeforeUpdate.currentChatId && stateBeforeUpdate.currentChatId === payload.chatId) ||
+        (stateBeforeUpdate.currentTempDraftId && stateBeforeUpdate.currentTempDraftId === payload.tempChatId);
+
+    if (isRelevantUpdate) {
+        const newVersion = payload.basedOnVersion; // Use the correct field for the new version
+        console.info(`[DraftService] Confirmed update for ${currentRelevantId}. New version: ${newVersion}`);
+
+        let finalChatId = stateBeforeUpdate.currentChatId;
+        let idToDeleteFromDb: string | null = null;
+
+        // Case 1: Temp draft confirmed with a final chatId (payload.chatId is set, payload.tempChatId matches currentTempDraftId)
+        if (!stateBeforeUpdate.currentChatId && stateBeforeUpdate.currentTempDraftId && stateBeforeUpdate.currentTempDraftId === payload.tempChatId && payload.chatId) {
+            console.info(`[DraftService] Assigning final chatId ${payload.chatId} to temp draft ${payload.tempChatId}`);
+            finalChatId = payload.chatId;
+            idToDeleteFromDb = payload.tempChatId; // Mark temp ID for deletion
+
+            // --- DB Update: Temp ID -> Final ID ---
+            try {
+                const existingChat = await chatDB.getChat(idToDeleteFromDb);
+                if (existingChat) {
+                    const updatedChat: Chat = {
+                        ...existingChat,
+                        id: finalChatId, // Assign the new final ID
+                        version: newVersion,
+                        isPersisted: true, // Mark as persisted now
+                        updatedAt: new Date(),
+                        // Use content from payload if available, otherwise keep existing
+                        draft: payload.content ?? existingChat.draft,
+                    };
+                    // Add the new record first
+                    await chatDB.addChat(updatedChat);
+                    // Then delete the old record
+                    await chatDB.deleteChat(idToDeleteFromDb);
+                    console.debug(`[DraftService] Updated chat in DB: Replaced temp ID ${idToDeleteFromDb} with final ID ${finalChatId}, Version: ${newVersion}`);
+                } else {
+                    console.warn(`[DraftService] Could not find chat with temp ID ${idToDeleteFromDb} in DB to replace. Attempting to add directly.`);
+                     const newChat: Chat = {
+                         id: finalChatId,
+                         title: null, // Or try to extract from payload.content if available
+                         draft: payload.content ?? null,
+                         version: newVersion,
+                         messages: [],
+                         createdAt: new Date(), // Approximation
+                         updatedAt: new Date(),
+                         lastMessageTimestamp: null,
+                         isPersisted: true,
+                     };
+                     await chatDB.addChat(newChat);
+                     console.debug(`[DraftService] Added chat directly with final ID ${finalChatId} as temp was not found.`);
+                }
+            } catch (dbError) {
+                console.error(`[DraftService] Error replacing temp chat ID ${idToDeleteFromDb} with final ID ${finalChatId} in DB:`, dbError);
             }
 
-            return {
-                ...currentState,
-                currentChatId: newChatId,
-                currentTempDraftId: newTempDraftId,
-                currentVersion: payload.version,
-                hasUnsavedChanges: false, // Mark changes as saved
-            };
+        // Case 2: Update for an already known chatId (payload.chatId matches currentChatId)
+        } else if (stateBeforeUpdate.currentChatId && stateBeforeUpdate.currentChatId === payload.chatId) {
+            finalChatId = stateBeforeUpdate.currentChatId; // Keep the existing final ID
+            // --- DB Update: Existing Chat ID ---
+            try {
+                const existingChat = await chatDB.getChat(finalChatId);
+                if (existingChat) {
+                    const updatedChat: Chat = {
+                        ...existingChat,
+                        version: newVersion,
+                        isPersisted: true, // Ensure persisted flag is true
+                        updatedAt: new Date(),
+                        // Use content from payload if available, otherwise keep existing
+                        draft: payload.content ?? existingChat.draft,
+                    };
+                    await chatDB.updateChat(updatedChat); // Use updateChat which preserves the ID
+                    console.debug(`[DraftService] Updated chat in DB: ID ${finalChatId}, Version: ${newVersion}`);
+                } else {
+                    console.warn(`[DraftService] Could not find chat with ID ${finalChatId} in DB to update version.`);
+                }
+            } catch (dbError) {
+                console.error(`[DraftService] Error updating chat version in DB for ID ${finalChatId}:`, dbError);
+            }
         } else {
-            console.debug(`[DraftService] Received draft_updated for different context. Ignoring state update.`);
-            return currentState; // No change
+             console.warn(`[DraftService] Received relevant draft_updated but couldn't determine DB update path. Payload:`, payload, `State:`, stateBeforeUpdate);
         }
-    });
+
+        // Update the Svelte store state *after* DB operations attempt
+        draftState.update(currentState => {
+             // Check relevance again using the same logic, in case state changed during async DB ops
+             const stillRelevant =
+                (currentState.currentChatId && currentState.currentChatId === payload.chatId) ||
+                (currentState.currentTempDraftId && currentState.currentTempDraftId === payload.tempChatId);
+
+             if (stillRelevant) {
+                 return {
+                     ...currentState,
+                     currentChatId: finalChatId, // Use the potentially updated finalChatId
+                     currentTempDraftId: finalChatId ? null : currentState.currentTempDraftId, // Clear temp ID if final assigned
+                     currentVersion: newVersion,
+                     hasUnsavedChanges: false, // Mark changes as saved
+                 };
+             }
+             console.warn(`[DraftService] State changed during async DB operation for draft_updated. Ignoring state update. Payload:`, payload);
+             return currentState; // State changed, ignore this update
+        });
+
+    } else {
+        console.debug(`[DraftService] Received draft_updated for different context. Ignoring state update.`);
+    }
 };
 
 const handleDraftConflict = (payload: { chatId?: string; draftId: string }) => {

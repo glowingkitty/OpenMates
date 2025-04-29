@@ -26,6 +26,11 @@ export function handleKeyboardShortcut(
     // Use the interface for the component
     recordAudioComponent?: RecordAudioControls
 ) {
+    // Add null check for event.detail
+    if (!event.detail) {
+        console.warn('[KeyboardShortcutHandler] Received event without detail:', event);
+        return;
+    }
     const { type, originalEvent } = event.detail;
     const currentState = get(recordingState);
 
