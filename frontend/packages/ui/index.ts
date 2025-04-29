@@ -4,7 +4,7 @@ export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
-export { default as ActivityHistory } from "./src/components/activity_history/ActivityHistory.svelte";
+export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as MetaTags } from "./src/components/MetaTags.svelte";
 export { default as Icon } from "./src/components/Icon.svelte";
 export { default as AnimatedChatExamples } from "./src/components/AnimatedChatExamples.svelte";

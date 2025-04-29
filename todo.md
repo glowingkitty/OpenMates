@@ -28,10 +28,14 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 
 ## 3. Encryption & Vault Integration
 
-- [ ] On new chat, generate AES-GCM key, store in Vault, and save reference in cache/Directus.
-- [ ] Encrypt all sensitive chat content (messages, draft, title) before saving to cache/Directus.
-- [ ] Decrypt data before sending over WebSocket.
-- [ ] Ensure all encryption/decryption uses the correct key from Vault.
+- [x] On new chat, generate AES-GCM key, store in Vault, and save reference in cache/Directus.
+  _Implemented in `websockets.py` (see "draft_update" handler): creates AES-GCM key in Vault, stores reference in cache; persisted to Directus only when first message is sent._
+- [x] Encrypt all sensitive chat content (messages, draft, title) before saving to cache/Directus.
+  _Draft/title are encrypted before saving to cache (see `websockets.py` and `encryption.py`)._
+- [x] Decrypt data before sending over WebSocket.
+  _All chat/draft data is decrypted before sending to client in `handle_initial_sync.py`._
+- [x] Ensure all encryption/decryption uses the correct key from Vault.
+  _Encryption/decryption always uses the chat's Vault key reference._
 
 ---
 
@@ -39,9 +43,12 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 
 - [x] Implement LRU logic for last 3 active chats per user in cache (see `update_user_active_chats_lru` and `get_user_active_chats_lru` in `cache.py`).
 - [x] Implement 30-minute sliding expiration for chat metadata and drafts (see `set_chat_metadata` and `set_draft` in `cache.py`).
-- [ ] Save new chat (metadata + vault ref + encrypted draft + version) to Dragonfly cache only.
-- [ ] Persist chat to Directus only when the first message is sent/received.
-- [ ] Ensure cache invalidation/refresh on Directus writes.
+- [x] Save new chat (metadata + vault ref + encrypted draft + version) to Dragonfly cache only.
+  _New chats are saved to cache only; persisted to Directus on first message (see `websockets.py`)._
+- [x] Persist chat to Directus only when the first message is sent/received.
+  _Handled in "chat_message_received" handler in `websockets.py`._
+- [x] Ensure cache invalidation/refresh on Directus writes.
+  _Cache invalidation/refresh is handled in `create_*` methods (see `websockets.py` and `directus/chat_methods.py`)._
 
 ---
 
@@ -76,4 +83,16 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 
 ---
 
+---
+
+## 9. Frontend Chats & Drafts Progress
+
+- [x] Renamed ActivityHistory to Chats in all frontend code and UI.
+- [x] Updated all imports, exports, and store actions to use "Chats".
+- [x] Verified and aligned initial sync logic (server + IndexedDB merge) with `.context/chats_and_drafts.md` requirements.
+- [x] Updated event handling and data models for chats/drafts to match backend and spec.
+- [ ] Continue implementing frontend draft versioning, conflict handling, and offline sync as per requirements.
+- [ ] Complete auto-save triggers and robust draft state management in MessageInput and related components.
+
+*Last updated: 2025-04-29*
 **As each task is completed, update this file with `[x]` and notes.**

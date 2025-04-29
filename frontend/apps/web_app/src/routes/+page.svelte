@@ -1,7 +1,7 @@
 <script lang="ts">
     import {
         // components
-        ActivityHistory,
+        Chats,
         ActiveChat,
         Header,
         Settings,
@@ -84,7 +84,7 @@
     {#if $panelState.isActivityHistoryOpen}
         <!-- Use a transition for smoother appearance/disappearance -->
         <div transition:fade={{ duration: 150 }}>
-            <ActivityHistory on:chatSelected={handleChatSelected} />
+            <Chats on:chatSelected={handleChatSelected} />
         </div>
     {/if}
 </div>

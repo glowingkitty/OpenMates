@@ -16,7 +16,7 @@ const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>('auto');
  * Toggles the Activity History panel based on user interaction.
  * Updates the user intent.
  */
-function toggleActivityHistory(): void {
+function toggleChats(): void {
     const currentlyOpen = get(_isActivityHistoryOpen);
     const mobileView = get(isMobileView); // Get current mobile state
 
@@ -137,7 +137,7 @@ export const panelState = {
             isSettingsOpen: $_isSettingsOpen,
         })
     ).subscribe,
-    toggleActivityHistory,
+    toggleChats,
     openSettings,
     closeSettings,
     // Expose reset for potential use elsewhere if needed, e.g., deep linking
