@@ -104,7 +104,7 @@
         // Only handle space insertion or recording stop if we're focused and haven't cancelled
         if (!event.defaultPrevented && isInputFocused) {
           if (pressDuration < 250 && !isSpacebarRecording) {
-            dispatch('insertSpace');
+            dispatch('insertSpace', { type: 'insertSpace', originalEvent: event });
           } else if (isSpacebarRecording) {
             dispatch('stopRecording');
           }
