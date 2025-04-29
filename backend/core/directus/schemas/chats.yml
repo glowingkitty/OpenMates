@@ -2,36 +2,50 @@ chats:
   type: collection
   fields:
     id:
-      type: uuid
-      primary: true
-      
-    user_id:
-      type: uuid
-      relation:
-        collection: directus_users
-        field: id
-      
-    encrypted_title:
       type: string
-      length: 512
-      note: "Encrypted chat title"
-      
-    encrypted_content:
-      type: text
-      note: "Encrypted dict of chat messages"
-      
-    vault_key_id:
+      primary: true
+      note: "Primary Key - format: {first 8 chars of hashed user id}_{client_generated_chat_id}"
+
+    hashed_user_id:
+      type: string
+      indexed: true
+      note: "[Hashed] Backend hashes the user's actual ID before storing/querying"
+
+    vault_key_reference:
       type: string
       length: 64
-      note: "Reference to this chat's unique encryption key in Vault"
-      
-    created_at:
-      type: datetime
-      
-    updated_at:
-      type: datetime
-      
-    _version:
+      note: "Reference/Path to the chat's encryption key stored in Hashicorp Vault"
+
+    encrypted_title:
+      type: text
+      nullable: true
+      note: "[Encrypted] Title for the chat, encrypted using the key from Vault"
+
+    encrypted_draft:
+      type: textfield
+      nullable: true
+      note: "[Encrypted] Tiptap JSON representing the current user draft, encrypted"
+
+    version:
       type: integer
       default: 1
-      note: "Simple integer version for optimistic concurrency control"
+      note: "Used for optimistic locking/version control of drafts and potentially titles"
+
+    created_at:
+      type: datetime
+      note: "Timestamp when the chat was first initiated, e.g., first draft saved"
+
+    updated_at:
+      type: datetime
+      note: "Timestamp of the last update to metadata, draft, or addition of a message"
+
+    last_message_timestamp:
+      type: datetime
+      nullable: true
+      note: "Timestamp of the most recent completed message, for sorting"
+
+    messages:
+      type: many-to-one
+      relation:
+        collection: messages
+        field: chat_id
